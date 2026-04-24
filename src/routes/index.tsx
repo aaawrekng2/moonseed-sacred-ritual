@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Flame } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
@@ -19,6 +19,7 @@ function Index() {
   const { opacity } = useRestingOpacity();
   const restingAlpha = opacity / 100;
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
+  const navigate = useNavigate();
 
   useEffect(() => {
     setCardBack(getStoredCardBack());
@@ -44,6 +45,7 @@ function Index() {
             type="button"
             aria-label="Begin today's draw"
             className="animate-breathe-glow transition-transform active:scale-[0.98]"
+            onClick={() => navigate({ to: "/draw", search: { spread: "daily" } })}
           >
             <CardBack id={cardBack} width={180} />
           </button>
@@ -82,7 +84,11 @@ function Index() {
 
       {/* Spread icons — sit just above bottom nav */}
       <section>
-        <SpreadIconsRow />
+        <SpreadIconsRow
+          onSelect={(spread) =>
+            navigate({ to: "/draw", search: { spread } })
+          }
+        />
       </section>
     </main>
   );

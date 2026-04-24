@@ -1,5 +1,7 @@
+import type { ReactNode } from "react";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { cn } from "@/lib/utils";
+import type { SpreadMode } from "@/lib/spreads";
 
 const STAR_PATH =
   "M12 2 L13.6 10.4 L22 12 L13.6 13.6 L12 22 L10.4 13.6 L2 12 L10.4 10.4 Z";
@@ -47,14 +49,18 @@ function DiamondGlyph() {
   );
 }
 
-const SPREADS = [
+const SPREADS: { id: SpreadMode; label: string; Glyph: () => ReactNode }[] = [
   { id: "single", label: "Single", Glyph: () => <StarGlyph size={14} /> },
   { id: "three", label: "Three", Glyph: ThreeStars },
   { id: "celtic", label: "Celtic", Glyph: CelticGlyph },
-  { id: "yes-no", label: "Yes / No", Glyph: DiamondGlyph },
-] as const;
+  { id: "yes_no", label: "Yes / No", Glyph: DiamondGlyph },
+];
 
-export function SpreadIconsRow() {
+export function SpreadIconsRow({
+  onSelect,
+}: {
+  onSelect?: (spread: SpreadMode) => void;
+}) {
   const { opacity } = useRestingOpacity();
   const restingAlpha = opacity / 100;
 
@@ -67,6 +73,7 @@ export function SpreadIconsRow() {
         <button
           key={id}
           type="button"
+          onClick={() => onSelect?.(id)}
           className={cn(
             "flex flex-col items-center justify-end gap-1.5 py-2 transition-colors",
             "text-muted-foreground hover:text-gold focus:text-gold focus:outline-none",
