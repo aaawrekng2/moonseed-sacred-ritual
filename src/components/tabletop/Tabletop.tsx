@@ -435,37 +435,25 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]">
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-4"
-        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 10px)" }}
+      {/* Minimal exit affordance — single zen X in the top-right. */}
+      <button
+        type="button"
+        onClick={handleExit}
+        aria-label="Close tabletop"
+        style={{
+          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          opacity: exitAlpha,
+        }}
+        className="absolute right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
       >
-        <div className="flex flex-col">
-          <span className="text-[10px] uppercase tracking-[0.3em] text-gold/80">
-            {meta.label}
-          </span>
-          <span className="font-display text-sm text-foreground/80">
-            {revealedAll
-              ? "Revealed"
-              : ready
-                ? "Ready to reveal"
-                : `Choose ${required - selectedCount} more`}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={handleExit}
-          aria-label="Close tabletop"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-card/40 hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
+        <X className="h-5 w-5" strokeWidth={1.5} />
+      </button>
 
       {/* Tabletop scatter area */}
       <div
         ref={containerRef}
         className="relative flex-1 overflow-hidden touch-none select-none"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)" }}
         onPointerDown={onContainerPointerDown}
         onPointerMove={onContainerPointerMove}
         onPointerUp={onContainerPointerUp}
@@ -490,44 +478,65 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         ))}
       </div>
 
-      {/* Reveal bar */}
+      {/* Bottom zen bar: status whisper + soft reveal + stir affordance.
+          Sits at resting opacity so nothing competes with the cards. */}
       <div
-        className="flex flex-col items-center justify-center gap-2 px-6 pt-3"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)" }}
+        className="relative flex flex-col items-center justify-center gap-3 px-6 pt-2"
+        style={{
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+        }}
       >
+        {/* Stir — anchored bottom-left at resting opacity. Single, quiet word. */}
+        {!revealedAll && (
+          <button
+            type="button"
+            onClick={() => setStirNonce((n) => n + 1)}
+            disabled={revealing}
+            aria-label="Stir — rearrange unselected cards"
+            style={{
+              opacity: restingAlpha,
+              bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+            }}
+            className="absolute left-5 inline-flex items-center gap-1.5 font-display text-[11px] uppercase tracking-[0.3em] text-gold/80 transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none disabled:cursor-not-allowed"
+          >
+            <Sparkles className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+            Stir
+          </button>
+        )}
+
         {!revealedAll && (
           <span
-            className="font-display text-[11px] uppercase tracking-[0.25em] text-gold/70"
+            className="font-display text-[10px] uppercase tracking-[0.4em] text-foreground"
+            style={{ opacity: restingAlpha }}
             aria-live="polite"
           >
-            {selectedCount} / {required} selected
+            {ready
+              ? "Ready"
+              : `Choose ${required - selectedCount} more`}
           </span>
         )}
+
         {!revealedAll && (
           <button
             type="button"
             onClick={handleReveal}
             disabled={!ready || revealing}
-            className={cn(
-              "inline-flex items-center justify-center gap-2 rounded-full border px-6 py-3 font-display text-sm uppercase tracking-[0.25em] transition-all",
-              "disabled:cursor-not-allowed",
-              ready && !revealing
-                ? "border-gold/60 bg-gold/10 text-gold animate-reveal-pulse"
-                : "border-border/50 bg-card/30 text-muted-foreground/60",
-            )}
             aria-busy={revealing}
+            className={cn(
+              "inline-flex items-center justify-center gap-2 font-display text-[12px] uppercase tracking-[0.4em] transition-all",
+              "border-b border-transparent pb-1 disabled:cursor-not-allowed",
+              ready && !revealing
+                ? "text-gold border-gold/40 hover:border-gold/80"
+                : "text-muted-foreground/40",
+            )}
           >
             {revealing && (
               <Loader2
-                className="h-4 w-4 animate-spin"
+                className="h-3.5 w-3.5 animate-spin"
                 aria-hidden="true"
               />
             )}
-            <span>
-              {revealing
-                ? "Revealing…"
-                : `Reveal ${required > 1 ? required + " cards" : "card"}`}
-            </span>
+            <span>{revealing ? "Revealing" : "Reveal"}</span>
           </button>
         )}
       </div>
