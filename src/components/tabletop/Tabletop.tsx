@@ -651,6 +651,42 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       </div>
       )}
 
+      {/* Overlap debug pill — fixed upper-right, leaves room for the X
+          close button in the bottom bar but mirrors the dev slider on
+          the opposite corner. Desktop only. */}
+      {!isMobile && (
+        <button
+          type="button"
+          onClick={() => setDebugOverlap((v) => !v)}
+          aria-pressed={debugOverlap}
+          aria-label="Toggle overlap debug overlay"
+          style={{
+            position: "fixed",
+            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+            right: "calc(env(safe-area-inset-right, 0px) + 52px)",
+            zIndex: 50,
+            opacity: debugOverlap ? 1 : restingAlpha,
+          }}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
+            "font-display text-[9px] uppercase tracking-[0.25em] transition-opacity",
+            "hover:!opacity-100 focus:!opacity-100 focus:outline-none",
+            debugOverlap
+              ? "border-destructive/70 text-destructive-foreground bg-destructive/20"
+              : "border-gold/30 text-gold/70",
+          )}
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              "h-1.5 w-1.5 rounded-full",
+              debugOverlap ? "bg-destructive" : "bg-gold/50",
+            )}
+          />
+          Overlap {debugOverlap ? "On" : "Off"}
+        </button>
+      )}
+
       {/* Tabletop scatter area */}
       <div
         ref={containerRef}
