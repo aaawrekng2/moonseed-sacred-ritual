@@ -646,6 +646,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                 const filled = cards.some(
                   (c) => c.selectionOrder === i + 1,
                 );
+                // The "next" slot is the first empty one — i.e. the slot at
+                // index === current selectedCount. Highlight it with a soft
+                // gold beacon so the user can see where the next pick lands.
+                const isNext = !filled && i === selectedCount;
                 return (
                   <div
                     key={i}
@@ -656,28 +660,46 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                       ref={(el) => {
                         slotRefs.current[i] = el;
                       }}
+                      className={cn(isNext && "slot-next-frame")}
                       style={{
                         width: cardW,
                         height: cardH,
                         borderRadius: 10,
-                        border: "1px solid rgba(212,175,55,0.2)",
-                        background: filled
-                          ? "transparent"
-                          : "rgba(212,175,55,0.03)",
-                        transition: "background 200ms ease-out",
+                        // Default frame styling. The .slot-next-frame
+                        // animation overrides border/background/box-shadow
+                        // when this is the next-up slot.
+                        border: isNext
+                          ? undefined
+                          : "1px solid rgba(212,175,55,0.2)",
+                        background: isNext
+                          ? undefined
+                          : filled
+                            ? "transparent"
+                            : "rgba(212,175,55,0.03)",
+                        transition: isNext
+                          ? undefined
+                          : "background 200ms ease-out, border-color 200ms ease-out, box-shadow 200ms ease-out",
                       }}
                       aria-label={
                         filled
                           ? `${slotLabels[i] ?? `Slot ${i + 1}`} — filled`
-                          : `${slotLabels[i] ?? `Slot ${i + 1}`} — empty`
+                          : isNext
+                            ? `${slotLabels[i] ?? `Slot ${i + 1}`} — next`
+                            : `${slotLabels[i] ?? `Slot ${i + 1}`} — empty`
                       }
                     />
                     <span
-                      className="font-display italic"
+                      className={cn(
+                        "font-display italic",
+                        isNext && "slot-next-label",
+                      )}
                       style={{
                         fontSize: 10,
                         color: "var(--gold)",
-                        opacity: restingAlpha,
+                        // The .slot-next-label animation drives opacity for
+                        // the active beacon; non-next labels stay at the
+                        // resting opacity so they recede.
+                        opacity: isNext ? undefined : restingAlpha,
                         letterSpacing: "0.05em",
                       }}
                     >

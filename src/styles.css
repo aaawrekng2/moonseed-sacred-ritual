@@ -473,3 +473,51 @@ button:focus-visible .moon-rung-glow {
 @media (prefers-reduced-motion: reduce) {
   .moon-skeleton-sweep { animation: none; opacity: 0; }
 }
+
+/* Next-slot beacon — gentle gold pulse on the empty slot that will receive
+   the next picked card. Border, fill and label all breathe in unison so
+   the whole "target" reads as one soft beacon, not a noisy ring. The
+   keyframes use rgba (not text-shadow alone) so they layer cleanly with
+   the existing slot border/background. */
+@keyframes slot-next-frame-pulse {
+  0%, 100% {
+    border-color: rgba(212, 175, 55, 0.55);
+    background: rgba(212, 175, 55, 0.06);
+    box-shadow:
+      0 0 0 1px rgba(212, 175, 55, 0.18),
+      0 0 12px rgba(212, 175, 55, 0.18);
+  }
+  50% {
+    border-color: rgba(212, 175, 55, 0.95);
+    background: rgba(212, 175, 55, 0.13);
+    box-shadow:
+      0 0 0 1px rgba(212, 175, 55, 0.35),
+      0 0 22px rgba(212, 175, 55, 0.45);
+  }
+}
+@keyframes slot-next-label-pulse {
+  0%, 100% {
+    opacity: 0.7;
+    text-shadow: 0 0 6px rgba(212, 175, 55, 0.35);
+  }
+  50% {
+    opacity: 1;
+    text-shadow:
+      0 0 10px rgba(212, 175, 55, 0.85),
+      0 0 20px rgba(212, 175, 55, 0.4);
+  }
+}
+.slot-next-frame {
+  animation: slot-next-frame-pulse 2200ms ease-in-out infinite;
+}
+.slot-next-label {
+  animation: slot-next-label-pulse 2200ms ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .slot-next-frame {
+    animation: none;
+    border-color: rgba(212, 175, 55, 0.7) !important;
+    box-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
+  }
+  .slot-next-label { animation: none; opacity: 1 !important; }
+}
