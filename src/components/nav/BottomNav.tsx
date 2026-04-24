@@ -1,20 +1,20 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Moon, BookOpen, SlidersHorizontal } from "lucide-react";
+import { Moon, Layers, SlidersHorizontal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { cn } from "@/lib/utils";
 
 type Tab = {
-  to: "/" | "/journal" | "/settings";
+  to: "/" | "/cards" | "/settings";
   label: string;
   Icon: LucideIcon;
   primary?: boolean;
 };
 
-// Order: Journal (left), Home (center, primary), Settings (right).
+// Order: Home (left), Cards (center, primary), Settings (right).
 const TABS: readonly Tab[] = [
-  { to: "/journal", label: "Journal", Icon: BookOpen },
-  { to: "/", label: "Home", Icon: Moon, primary: true },
+  { to: "/", label: "Home", Icon: Moon },
+  { to: "/cards", label: "Cards", Icon: Layers, primary: true },
   { to: "/settings", label: "Settings", Icon: SlidersHorizontal },
 ] as const;
 
