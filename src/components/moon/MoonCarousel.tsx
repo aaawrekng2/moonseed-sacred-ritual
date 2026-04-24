@@ -241,6 +241,9 @@ export function MoonCarousel() {
           </span>
         )}
 
+        {/* Mobile ladder — left side, visible on mobile only */}
+        <MobilePhaseLadder side="left" restingAlpha={restingAlpha} onJump={jumpToPhase} />
+
         <PhaseLadder
           side="left"
           restingAlpha={restingAlpha}
@@ -250,7 +253,7 @@ export function MoonCarousel() {
           onStep={() => shift(-1)}
         />
 
-        <div className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl">
+        <div className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl overflow-visible">
           {days.map((d) => {
             const isExpanded = expandedRel === d.relative;
             const rel = d.relative - offset; // -2..+2 within current window
@@ -266,6 +269,10 @@ export function MoonCarousel() {
                 style={{
                   alignSelf: "flex-start",
                   marginTop: `${topOffset}px`,
+                  // Shrink ±2 cards slightly on mobile so they fit beside the
+                  // mobile ladders without clipping at the screen edges.
+                  transform: absRel === 2 ? "scale(0.85)" : undefined,
+                  transformOrigin: "top center",
                 }}
                 className={cn(
                   "flex flex-col items-center transition-all duration-300 ease-out",
@@ -308,27 +315,8 @@ export function MoonCarousel() {
           onStep={() => shift(1)}
         />
 
-        {/* Mobile-only edge tap zones — invisible 44px hit areas with a
-            single small phase glyph as the affordance. Swipe still works.
-            Hidden on sm+ where the chevron buttons handle stepping. */}
-        <button
-          type="button"
-          onClick={() => shift(-1)}
-          aria-label="Previous day"
-          className="sm:hidden absolute left-0 top-0 bottom-0 z-20 flex items-center justify-center bg-transparent border-0 p-0 cursor-pointer active:!opacity-100 focus-visible:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          style={{ width: 44, opacity: restingAlpha }}
-        >
-          <MoonPhaseIcon phase={days[2]?.info.phase ?? "Full Moon"} size={18} />
-        </button>
-        <button
-          type="button"
-          onClick={() => shift(1)}
-          aria-label="Next day"
-          className="sm:hidden absolute right-0 top-0 bottom-0 z-20 flex items-center justify-center bg-transparent border-0 p-0 cursor-pointer active:!opacity-100 focus-visible:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          style={{ width: 44, opacity: restingAlpha }}
-        >
-          <MoonPhaseIcon phase={days[2]?.info.phase ?? "Full Moon"} size={18} />
-        </button>
+        {/* Mobile ladder — right side, visible on mobile only */}
+        <MobilePhaseLadder side="right" restingAlpha={restingAlpha} onJump={jumpToPhase} />
       </div>
 
       <p
@@ -595,6 +583,55 @@ const LADDER_RUNGS: LadderRung[] = [
   // "Dark Moon" rung — calculated as New Moon, displayed as the same dark glyph.
   { label: "Dark Moon",       phase: "New Moon",        size: 14, inset: 28 },
 ];
+
+// ---------------------------------------------------------------------------
+// MobilePhaseLadder — compact vertical phase navigator for mobile only.
+// No chevrons, no inset — icons are flush to the screen edge so the 5-day
+// cascade has maximum room. Tapping a rung jumps to the nearest occurrence.
+// ---------------------------------------------------------------------------
+function MobilePhaseLadder({
+  side,
+  restingAlpha,
+  onJump,
+}: {
+  side: "left" | "right";
+  restingAlpha: number;
+  onJump: (phase: MoonPhaseName) => void;
+}) {
+  const isLeft = side === "left";
+  return (
+    <div
+      className="flex sm:hidden shrink-0 self-center flex-col gap-[2px]"
+      style={{ alignItems: isLeft ? "flex-start" : "flex-end" }}
+      aria-label={`${isLeft ? "Previous" : "Next"} phase navigator`}
+    >
+      {LADDER_RUNGS.map((r, i) => (
+        <button
+          key={`mobile-${r.label}-${i}`}
+          type="button"
+          onClick={() => onJump(r.phase)}
+          aria-label={`${isLeft ? "Previous" : "Next"} ${r.label}`}
+          style={{ opacity: restingAlpha }}
+          className="cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 focus:outline-none"
+        >
+          <span
+            style={{
+              background:
+                "radial-gradient(circle, rgba(212,175,55,0.18) 0%, transparent 70%)",
+              borderRadius: "50%",
+              padding: "3px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <MoonPhaseIcon phase={r.phase} size={r.size} />
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function PhaseLadder({
   side,
