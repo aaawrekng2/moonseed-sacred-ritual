@@ -124,6 +124,8 @@ export function MoonCarousel() {
     setOffset((start) => {
       const distance = target - start;
       if (distance === 0) return start;
+      // Fire the shimmer once at the start of any multi-day jump.
+      if (Math.abs(distance) > 1) setShimmerKey((k) => k + 1);
       if (reduceMotion) return target;
 
       // 60ms per step, capped so very long jumps still feel snappy.
