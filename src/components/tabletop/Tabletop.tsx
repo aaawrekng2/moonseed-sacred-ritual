@@ -443,9 +443,17 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
       {/* Reveal bar */}
       <div
-        className="flex items-center justify-center px-6 pt-3"
+        className="flex flex-col items-center justify-center gap-2 px-6 pt-3"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)" }}
       >
+        {!revealedAll && (
+          <span
+            className="font-display text-[11px] uppercase tracking-[0.25em] text-gold/70"
+            aria-live="polite"
+          >
+            {selectedCount} / {required} selected
+          </span>
+        )}
         {!revealedAll && (
           <button
             type="button"
