@@ -235,7 +235,7 @@ export function MoonCarousel() {
             return (
               <div
                 key={d.info.date.toDateString()}
-                style={{ paddingTop: `${stepOffset}px` }}
+                style={{ transform: `translateY(${stepOffset}px)` }}
                 className={cn(
                   "flex flex-col items-center transition-all duration-300 ease-out",
                   d.isToday ? "z-10 opacity-100" : isExpanded ? "z-10 opacity-100" : "opacity-70",
