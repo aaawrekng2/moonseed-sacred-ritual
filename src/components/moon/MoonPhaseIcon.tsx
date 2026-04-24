@@ -8,6 +8,14 @@ type Props = {
   className?: string;
   ariaHidden?: boolean;
   /**
+   * Illumination percentage (0–100). When provided, drives the terminator
+   * width for crescent/gibbous phases so a 58%-lit moon and an 85%-lit moon
+   * render visibly different shapes. When omitted, a canonical mid-phase
+   * value is used (good for icons that represent the phase category itself,
+   * like the ladder rungs).
+   */
+  illumination?: number;
+  /**
    * Optional gold ring rendered INSIDE the SVG, touching the moon body.
    * Use this instead of a CSS border on the wrapper element — a CSS border
    * traces the SVG box edge, which leaves a visible halo gap because the
@@ -46,6 +54,7 @@ export function MoonPhaseIcon({
   size = 64,
   className,
   ariaHidden = true,
+  illumination,
   ringColor = null,
   ringWidth = 1.5,
 }: Props) {
@@ -143,7 +152,7 @@ export function MoonPhaseIcon({
           <stop offset="100%" stopColor="rgba(212,175,55,0.18)" />
         </radialGradient>
         {/* Mask used for crescent/gibbous: white = visible pearl, black = hidden */}
-        <PhaseMask phase={phase} maskId={`${id}-mask`} />
+        <PhaseMask phase={phase} maskId={`${id}-mask`} illumination={illumination} />
       </defs>
       <circle cx={CX} cy={CY} r={R + 2} fill={`url(#${id}-halo)`} />
       <circle cx={CX} cy={CY} r={R} fill={`url(#${bodyId})`} />
@@ -219,7 +228,15 @@ function PhaseIllumination({
  * a black ellipse to subtract the shadowed portion. Ellipse position and
  * width are chosen so the visible illumination matches the named phase.
  */
-function PhaseMask({ phase, maskId }: { phase: MoonPhaseName; maskId: string }) {
+function PhaseMask({
+  phase,
+  maskId,
+  illumination,
+}: {
+  phase: MoonPhaseName;
+  maskId: string;
+  illumination?: number;
+}) {
   // The terminator (boundary between lit and dark) on a real moon is an
   // ellipse whose horizontal radius shrinks as the phase approaches full and
   // grows as it approaches new. We model the dark side as a half-disc (the
@@ -236,29 +253,34 @@ function PhaseMask({ phase, maskId }: { phase: MoonPhaseName; maskId: string }) 
   // terminatorRx = horizontal radius of the terminator ellipse (fraction of R).
   //   For crescents: large value → terminator bulges into lit side → thin sliver lit.
   //   For gibbous:   large value → terminator bulges into dark side → thin sliver dark.
+  // shadowSide = which hemisphere is unlit (the side opposite the lit limb).
+  // kind = whether the terminator ellipse subtracts from lit (crescent) or
+  //        adds to lit (gibbous).
   let shadowSide: "left" | "right";
   let kind: "crescent" | "gibbous";
-  let terminatorRxFrac: number;
+  // Default illumination per phase if the caller didn't supply one. These
+  // are mid-phase canonical values used by the ladder rung icons.
+  let defaultIllum: number;
   switch (phase) {
     case "Waxing Crescent":
       shadowSide = "left";
       kind = "crescent";
-      terminatorRxFrac = 0.6; // ~25% illumination
+      defaultIllum = 25;
       break;
     case "Waning Crescent":
       shadowSide = "right";
       kind = "crescent";
-      terminatorRxFrac = 0.6;
+      defaultIllum = 25;
       break;
     case "Waxing Gibbous":
       shadowSide = "left";
       kind = "gibbous";
-      terminatorRxFrac = 0.6; // ~75% illumination
+      defaultIllum = 75;
       break;
     case "Waning Gibbous":
       shadowSide = "right";
       kind = "gibbous";
-      terminatorRxFrac = 0.6;
+      defaultIllum = 75;
       break;
     default:
       return (
@@ -267,7 +289,14 @@ function PhaseMask({ phase, maskId }: { phase: MoonPhaseName; maskId: string }) 
         </mask>
       );
   }
-  const terminatorRx = R * terminatorRxFrac;
+  // Real lunar terminator math: the projected terminator is an ellipse whose
+  // horizontal radius is R × |2f − 1|, where f is the illuminated fraction.
+  //   f = 0.5 → terminatorRx = 0 → exact half (quarter phase).
+  //   f → 0 or 1 → terminatorRx → R → terminator hugs the limb.
+  // Clamp f to (0.02, 0.98) so the mask never degenerates to an empty shape.
+  const rawIllum = illumination != null && Number.isFinite(illumination) ? illumination : defaultIllum;
+  const f = Math.min(0.98, Math.max(0.02, rawIllum / 100));
+  const terminatorRx = R * Math.abs(2 * f - 1);
   // Half-rect covering the unlit hemisphere.
   const halfX = shadowSide === "left" ? CX - R : CX;
   const halfWidth = R;
