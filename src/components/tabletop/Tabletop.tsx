@@ -463,6 +463,7 @@ function CardSlot({
   cardBack,
   faceIndex,
   disabled,
+  hitInset,
   onSelect,
   settleDelay,
 }: {
@@ -472,6 +473,7 @@ function CardSlot({
   cardBack: CardBackId;
   faceIndex: number;
   disabled: boolean;
+  hitInset: number;
   onSelect: () => void;
   settleDelay: number;
 }) {
@@ -514,6 +516,9 @@ function CardSlot({
         zIndex: isSelected ? 40 : card.z + 1,
         animation: `settle-in 320ms ease-out both`,
         animationDelay: `${settleDelay}ms`,
+        // Drives the .card-hit element's inset via a CSS variable so the
+        // touch target scales with the rendered card size.
+        ["--card-hit-inset" as string]: `${hitInset}px`,
       }}
     >
       {/* Invisible expanded hit area for easier tapping on mobile. */}
