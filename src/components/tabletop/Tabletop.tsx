@@ -18,11 +18,11 @@ const TABLETOP_CONFIG = {
   DECK_SIZE: 78,
 };
 
-// Responsive card width: 36px mobile, 40px tablet, 44px desktop.
+// Responsive card width: 42px mobile, 52px tablet, 64px desktop.
 function responsiveCardWidth(viewportW: number): number {
-  if (viewportW < 768) return 36;
-  if (viewportW < 1024) return 40;
-  return 44;
+  if (viewportW < 768) return 42;
+  if (viewportW < 1024) return 52;
+  return 64;
 }
 
 /**
