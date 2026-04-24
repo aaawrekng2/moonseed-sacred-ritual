@@ -478,7 +478,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       {/* Tabletop scatter area */}
       <div
         ref={containerRef}
-        className="relative flex-1 overflow-hidden touch-none select-none"
+        className={cn(
+          "relative flex-1 overflow-hidden touch-none select-none",
+          stirring && "animate-tabletop-tilt",
+        )}
         style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)" }}
         onPointerDown={onContainerPointerDown}
         onPointerMove={onContainerPointerMove}
@@ -495,6 +498,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             faceIndex={deckMapping[c.id]}
             disabled={revealing || revealedAll}
             hitInset={hitInset}
+            stirring={stirring && c.selectionOrder === null}
             onSelect={() => {
               if (shouldSuppressClick()) return;
               toggleSelect(c.id);
@@ -502,6 +506,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             settleDelay={Math.min(idx * 4, 320)}
           />
         ))}
+        {stirring && (
+          <span
+            aria-hidden="true"
+            className="tabletop-shimmer-overlay"
+          />
+        )}
       </div>
 
       {/* Bottom zen bar: status whisper + soft reveal + stir affordance.
