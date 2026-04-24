@@ -25,6 +25,29 @@ function responsiveCardWidth(viewportW: number): number {
   return 44;
 }
 
+/**
+ * Adaptive max rotation: on very narrow portrait widths the rotated bounding
+ * box of a card eats meaningful horizontal real-estate, making the scatter
+ * feel cramped. Scale the tilt down smoothly so layouts stay spacious and
+ * never approach the clip boundary.
+ *
+ * Curve (linear interp on width):
+ *   ≤320px → 4°   (worst-case small phones, e.g. iPhone SE)
+ *    360px → 5°
+ *    390px → 6°
+ *    480px → 7°
+ *   ≥640px → CARD_MAX_ROTATION (8°)
+ */
+export function adaptiveMaxRotation(viewportW: number, base: number): number {
+  if (viewportW >= 640) return base;
+  if (viewportW <= 320) return Math.min(base, 4);
+  // Linear ramp from (320, 4) to (640, base).
+  const t = (viewportW - 320) / (640 - 320);
+  const value = 4 + (base - 4) * t;
+  // Round to nearest 0.5° to keep values stable across small width changes.
+  return Math.round(value * 2) / 2;
+}
+
 type TabletopProps = {
   spread: SpreadMode;
   onExit: () => void;
@@ -66,6 +89,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const cardW = responsiveCardWidth(size?.w ?? 0);
   const cardH = Math.round(cardW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
+  const maxRotation = adaptiveMaxRotation(
+    size?.w ?? 0,
+    TABLETOP_CONFIG.CARD_MAX_ROTATION,
+  );
 
   const scatter = useMemo(() => {
     if (!size) return [] as ScatterCard[];
@@ -75,11 +102,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       count: TABLETOP_CONFIG.DECK_SIZE,
       cardWidth: cardW,
       cardHeight: cardH,
-      maxRotation: TABLETOP_CONFIG.CARD_MAX_ROTATION,
+      maxRotation,
       padding: TABLETOP_CONFIG.SCATTER_PADDING,
       seed,
     });
-  }, [size, seed, cardW, cardH]);
+  }, [size, seed, cardW, cardH, maxRotation]);
 
   // Map slot index -> tarot card id (shuffled at session start).
   const deckMapping = useMemo(
