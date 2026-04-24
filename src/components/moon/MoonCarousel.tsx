@@ -584,6 +584,55 @@ const LADDER_RUNGS: LadderRung[] = [
   { label: "Dark Moon",       phase: "New Moon",        size: 14, inset: 28 },
 ];
 
+// ---------------------------------------------------------------------------
+// MobilePhaseLadder — compact vertical phase navigator for mobile only.
+// No chevrons, no inset — icons are flush to the screen edge so the 5-day
+// cascade has maximum room. Tapping a rung jumps to the nearest occurrence.
+// ---------------------------------------------------------------------------
+function MobilePhaseLadder({
+  side,
+  restingAlpha,
+  onJump,
+}: {
+  side: "left" | "right";
+  restingAlpha: number;
+  onJump: (phase: MoonPhaseName) => void;
+}) {
+  const isLeft = side === "left";
+  return (
+    <div
+      className="flex sm:hidden shrink-0 self-center flex-col gap-[2px]"
+      style={{ alignItems: isLeft ? "flex-start" : "flex-end" }}
+      aria-label={`${isLeft ? "Previous" : "Next"} phase navigator`}
+    >
+      {LADDER_RUNGS.map((r, i) => (
+        <button
+          key={`mobile-${r.label}-${i}`}
+          type="button"
+          onClick={() => onJump(r.phase)}
+          aria-label={`${isLeft ? "Previous" : "Next"} ${r.label}`}
+          style={{ opacity: restingAlpha }}
+          className="cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 focus:outline-none"
+        >
+          <span
+            style={{
+              background:
+                "radial-gradient(circle, rgba(212,175,55,0.18) 0%, transparent 70%)",
+              borderRadius: "50%",
+              padding: "3px",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <MoonPhaseIcon phase={r.phase} size={r.size} />
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function PhaseLadder({
   side,
   restingAlpha,
