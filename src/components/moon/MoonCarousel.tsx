@@ -218,7 +218,7 @@ export function MoonCarousel() {
           days. The today card is the tallest element; sizing here is set so
           it never clips and the chevrons never shift vertically. */}
       <div
-        className="relative flex items-start justify-center gap-1 sm:gap-4 touch-pan-y overflow-visible"
+        className="relative flex items-start justify-center gap-1 sm:gap-4 touch-pan-y overflow-visible px-8 sm:px-0"
         style={{ height: 260 }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
@@ -606,7 +606,7 @@ function MobilePhaseLadder({
     <div
       className="fixed sm:hidden flex flex-col gap-[2px] z-10"
       style={{
-        top: "12px",
+        top: "50px",
         transform: "none",
         alignItems: isLeft ? "flex-start" : "flex-end",
         [isLeft ? "left" : "right"]: 0,
@@ -749,18 +749,19 @@ function PhaseLadder({
 
   return (
     <div
-      className="hidden sm:flex shrink-0 self-center flex-row items-start gap-1.5 md:gap-2"
+      className="hidden sm:flex shrink-0 self-start flex-row items-start gap-1.5 md:gap-2"
+      style={{ marginTop: 8 }}
       aria-label={`${jumpVerb} phase navigator`}
     >
       {isLeft ? (
         <>
-          <div style={{ marginTop: 40 }}>{chevronButton}</div>
+          <div style={{ marginTop: 52 }}>{chevronButton}</div>
           {ladderColumn}
         </>
       ) : (
         <>
           {ladderColumn}
-          <div style={{ marginTop: 40 }}>{chevronButton}</div>
+          <div style={{ marginTop: 52 }}>{chevronButton}</div>
         </>
       )}
     </div>
