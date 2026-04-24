@@ -188,17 +188,17 @@ export function MoonCarousel() {
 
 function TodayCard({ info, moonSign }: { info: MoonInfo; moonSign: string }) {
   return (
-    <div className="flex flex-col items-center gap-1.5">
+    <div className="flex flex-col items-center gap-1.5" style={{ minWidth: 120, maxWidth: 160 }}>
       <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-gold">Today</span>
-      <div className="rounded-2xl border border-gold/30 bg-card/60 px-4 py-4 sm:px-5 shadow-[0_8px_30px_-12px_rgba(212,175,55,0.4)] backdrop-blur-sm">
-        <div className="flex flex-col items-center gap-2">
+      <div className="w-full rounded-2xl border border-gold/30 bg-card/60 px-3 py-4 sm:px-4 shadow-[0_8px_30px_-12px_rgba(212,175,55,0.4)] backdrop-blur-sm">
+        <div className="flex flex-col items-center gap-2 text-center">
           <MoonPhaseIcon phase={info.phase} size={72} />
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="whitespace-nowrap text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {formatShortDate(info.date)}
           </p>
-          <p className="font-display text-base text-gold">{info.phase}</p>
-          <p className="text-xs text-gold/80">{info.illumination}% illuminated</p>
-          <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Moon in {moonSign}</p>
+          <p className="whitespace-nowrap font-display text-sm text-gold">{info.phase}</p>
+          <p className="whitespace-nowrap text-xs text-gold/80">{info.illumination}% illuminated</p>
+          <p className="whitespace-nowrap text-[11px] uppercase tracking-wider text-muted-foreground">Moon in {moonSign}</p>
         </div>
       </div>
     </div>
