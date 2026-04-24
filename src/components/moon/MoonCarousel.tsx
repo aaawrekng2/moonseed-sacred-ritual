@@ -449,7 +449,7 @@ function AdjacentCard({ info, sign, expanded, selected, onToggle, size = "medium
       aria-label={`${formatShortDate(info.date)}, ${info.phase}, ${info.illumination}% illuminated. Tap for details.`}
       className={cn(
         "flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-all duration-300 ease-out cursor-pointer",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60",
+        "outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         selected
           ? "border-2 border-gold bg-card/60 shadow-[0_0_18px_-4px_rgba(212,175,55,0.6)] backdrop-blur-sm"
           : expanded
