@@ -388,6 +388,44 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           paddingRight: "calc(env(safe-area-inset-right, 0px) + 24px)",
         }}
       >
+        {/* Temporary resting-opacity test slider — mirrors the home screen
+            control so this value can be tuned in-context on the tabletop. */}
+        <div
+          style={{
+            position: "absolute",
+            right: "calc(env(safe-area-inset-right, 0px) + 16px)",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            width: 130,
+            zIndex: 20,
+            opacity: restingAlpha,
+          }}
+        >
+          <label
+            htmlFor="tabletop-resting-opacity"
+            style={{
+              fontSize: 9,
+              color: "var(--gold)",
+              fontFamily: "var(--font-serif)",
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+            }}
+          >
+            Opacity {restingOpacityPct}
+          </label>
+          <input
+            id="tabletop-resting-opacity"
+            type="range"
+            min={MIN_RESTING_OPACITY}
+            max={MAX_RESTING_OPACITY}
+            value={restingOpacityPct}
+            onChange={(e) => setRestingOpacity(Number(e.target.value))}
+            style={{ width: "100%", accentColor: "var(--gold)" }}
+          />
+        </div>
+
         {/* Stir — anchored bottom-left at resting opacity. Single, quiet word. */}
         {!revealedAll && (
           <button
