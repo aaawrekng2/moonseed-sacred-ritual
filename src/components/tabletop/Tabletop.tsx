@@ -453,6 +453,7 @@ function CardSlot({
       type="button"
       onClick={handleClick}
       disabled={disabled && !card.revealed}
+      data-card-id={card.id}
       aria-label={
         card.revealed
           ? `Revealed: ${getCardName(faceIndex)}`
