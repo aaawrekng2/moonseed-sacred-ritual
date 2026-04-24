@@ -5,7 +5,11 @@ import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
-import { useRestingOpacity } from "@/lib/use-resting-opacity";
+import {
+  MAX_RESTING_OPACITY,
+  MIN_RESTING_OPACITY,
+  useRestingOpacity,
+} from "@/lib/use-resting-opacity";
 import { cn } from "@/lib/utils";
 
 const TABLETOP_CONFIG = {
@@ -99,7 +103,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const stirTimerRef = useRef<number | null>(null);
   const [revealing, setRevealing] = useState(false);
   const [revealedAll, setRevealedAll] = useState(false);
-  const { opacity: restingOpacityPct } = useRestingOpacity();
+  const { opacity: restingOpacityPct, setOpacity: setRestingOpacity } =
+    useRestingOpacity();
   const restingAlpha = restingOpacityPct / 100;
   const exitAlpha = Math.min(1, restingAlpha + 0.1);
 
@@ -124,10 +129,19 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const cardW = responsiveCardWidth(size?.w ?? 0);
   const cardH = Math.round(cardW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
-  const maxRotation = adaptiveMaxRotation(
-    size?.w ?? 0,
-    TABLETOP_CONFIG.CARD_MAX_ROTATION,
-  );
+  // Always use the full ±CARD_MAX_ROTATION range so no card sits axis-aligned.
+  const maxRotation = TABLETOP_CONFIG.CARD_MAX_ROTATION;
+
+  // No-spawn zone for the top-right close button. Slightly larger than the
+  // visible 44×44 hit area so even rotated cards stay clear of it.
+  const exclusionZones = useMemo(() => {
+    if (!size) return [] as { x: number; y: number; w: number; h: number }[];
+    const zoneW = 80;
+    const zoneH = 80;
+    return [
+      { x: Math.max(0, size.w - zoneW), y: 0, w: zoneW, h: zoneH },
+    ];
+  }, [size]);
 
   // Detect coarse pointer once (and on media-query change) so we can scale
   // the hit area appropriately. Defaults to true on first render so SSR /
@@ -157,8 +171,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       maxRotation,
       padding: TABLETOP_CONFIG.SCATTER_PADDING,
       seed,
+      exclusionZones,
+      minVisibleRatio: 0.3,
     });
-  }, [size, seed, cardW, cardH, maxRotation]);
+  }, [size, seed, cardW, cardH, maxRotation, exclusionZones]);
 
   // Map slot index -> tarot card id (shuffled at session start).
   const deckMapping = useMemo(
@@ -198,6 +214,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         maxRotation,
         padding: TABLETOP_CONFIG.SCATTER_PADDING,
         seed: (seed ^ (stirNonce * 0x9e3779b9)) >>> 0,
+        exclusionZones,
+        minVisibleRatio: 0.3,
       });
       // Use the fresh scatter slots in order to re-place each unselected card.
       let cursor = 0;
@@ -213,7 +231,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         };
       });
     });
-  }, [stirNonce, size, cardW, cardH, maxRotation, seed]);
+  }, [stirNonce, size, cardW, cardH, maxRotation, seed, exclusionZones]);
 
   const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
   const ready = selectedCount === required;
