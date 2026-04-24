@@ -427,20 +427,70 @@ function formatShortDate(d: Date) {
 
 function MoonSkeleton({ label }: { label?: string } = {}) {
   return (
-    <section aria-label={label ?? "Loading moon phase calendar"} aria-busy="true" role="status" className="relative">
-      <div className="mx-auto flex max-w-2xl items-end justify-center gap-1.5 sm:gap-3">
-        {[0, 1, 2, 3, 4].map((i) => {
-          const isCenter = i === 2;
-          return (
-            <div key={i} className={cn("flex flex-col items-center gap-2", isCenter ? "opacity-100" : "opacity-50")}>
-              {isCenter && <div className="h-3 w-12 rounded bg-muted/40 animate-pulse" />}
-              <div className={cn("rounded-full bg-muted/40 animate-pulse", isCenter ? "h-[72px] w-[72px]" : "h-10 w-10")} />
-              <div className={cn("rounded bg-muted/40 animate-pulse", isCenter ? "h-3 w-20" : "h-2 w-12")} />
-              <div className={cn("rounded bg-muted/30 animate-pulse", isCenter ? "h-3 w-24" : "h-2 w-14")} />
-            </div>
-          );
-        })}
+    <section
+      aria-label={label ?? "Loading moon phase calendar"}
+      aria-busy="true"
+      role="status"
+      className="relative animate-in fade-in duration-300"
+      style={{ minHeight: 280 }}
+    >
+      {/* Mirror the live carousel layout (ladder + 5-day cascade + ladder)
+          so the transition into the real component is calm and intentional. */}
+      <div
+        className="relative flex items-start justify-center gap-1 sm:gap-4 overflow-hidden rounded-2xl"
+        style={{ height: 260 }}
+      >
+        <SkeletonLadder side="left" />
+
+        <div className="relative flex-1 max-w-2xl" style={{ height: 260 }}>
+          {[-2, -1, 0, 1, 2].map((rel) => {
+            const absRel = Math.abs(rel);
+            const topOffset = absRel === 0 ? 0 : absRel === 1 ? 28 : 52;
+            const leftPercent =
+              rel === -2 ? 10 : rel === -1 ? 28 : rel === 0 ? 50 : rel === 1 ? 72 : 90;
+            const isCenter = rel === 0;
+            const iconSize = isCenter ? 72 : absRel === 1 ? 44 : 32;
+            return (
+              <div
+                key={rel}
+                style={{
+                  position: "absolute",
+                  top: `${topOffset}px`,
+                  left: `${leftPercent}%`,
+                  transform: "translateX(-50%)",
+                }}
+                className={cn(
+                  "flex flex-col items-center gap-2",
+                  isCenter ? "opacity-100" : "opacity-60",
+                )}
+              >
+                {isCenter && <div className="h-3 w-12 rounded bg-muted/30" />}
+                <div
+                  className={cn(
+                    "rounded-full bg-muted/30",
+                    isCenter && "border border-gold/20",
+                  )}
+                  style={{ width: iconSize, height: iconSize }}
+                />
+                <div className={cn("rounded bg-muted/30", isCenter ? "h-3 w-20" : "h-2 w-12")} />
+                <div className={cn("rounded bg-muted/20", isCenter ? "h-3 w-24" : "h-2 w-14")} />
+              </div>
+            );
+          })}
+        </div>
+
+        <SkeletonLadder side="right" />
+
+        {/* Soft gold shimmer sweep across the entire skeleton — calmer than
+            an aggressive pulse. Hidden under prefers-reduced-motion. */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl"
+        >
+          <span className="moon-skeleton-sweep absolute inset-y-0 -left-1/3 w-1/3" />
+        </span>
       </div>
+
       {label && (
         <div className="mt-3 flex items-center justify-center gap-2 text-[11px] uppercase tracking-[0.25em] text-gold/80">
           <Loader2 className="h-3 w-3 animate-spin" />
@@ -448,6 +498,40 @@ function MoonSkeleton({ label }: { label?: string } = {}) {
         </div>
       )}
     </section>
+  );
+}
+
+function SkeletonLadder({ side }: { side: "left" | "right" }) {
+  const isLeft = side === "left";
+  return (
+    <div
+      className="hidden sm:block relative shrink-0 self-center"
+      style={{ width: 60 }}
+      aria-hidden="true"
+    >
+      <div
+        className={cn(
+          "flex flex-col gap-[2px] py-0",
+          isLeft ? "items-start" : "items-end",
+        )}
+        style={{ maxHeight: 100 }}
+      >
+        {[14, 18, 26, 18, 14].map((size, i) => {
+          const inset = i === 2 ? 0 : i === 1 || i === 3 ? 14 : 28;
+          return (
+            <div
+              key={i}
+              className="rounded-full bg-muted/30"
+              style={{
+                width: size,
+                height: size,
+                [isLeft ? "marginLeft" : "marginRight"]: inset,
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
