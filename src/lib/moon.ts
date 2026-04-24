@@ -110,3 +110,21 @@ export function findNextPhaseOccurrence(
   }
   return 0;
 }
+
+/**
+ * Find the offset (in days) to the *nearest* occurrence of a target phase in
+ * either direction from `fromDate`. Used when tapping a ladder rung — the
+ * user wants to land on the closest matching phase, not always the next/prev.
+ * Returns 0 if no occurrence is found within ±60 days or if today already
+ * matches the target phase.
+ */
+export function findNearestPhaseOccurrence(
+  targetPhase: MoonPhaseName,
+  fromDate: Date,
+): number {
+  const next = findNextPhaseOccurrence(targetPhase, fromDate, "next");
+  const prev = findNextPhaseOccurrence(targetPhase, fromDate, "previous");
+  if (next === 0) return prev;
+  if (prev === 0) return next;
+  return Math.abs(next) <= Math.abs(prev) ? next : prev;
+}
