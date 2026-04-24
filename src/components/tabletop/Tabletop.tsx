@@ -174,7 +174,18 @@ export function adaptiveHitInset(
 type TabletopProps = {
   spread: SpreadMode;
   onExit: () => void;
-  onComplete: (picks: { id: number; cardIndex: number }[]) => void;
+  /**
+   * Called when the reading is ready to display.
+   *  - mode "reveal": user tapped Reveal first; cards are flipped face-up
+   *    on the tabletop and the reading screen should open with cards
+   *    already revealed.
+   *  - mode "cast": user tapped Cast directly; cards remain face-down
+   *    and the spread layout screen should let the user reveal them there.
+   */
+  onComplete: (
+    picks: { id: number; cardIndex: number }[],
+    mode: "reveal" | "cast",
+  ) => void;
 };
 
 type CardState = ScatterCard & {
