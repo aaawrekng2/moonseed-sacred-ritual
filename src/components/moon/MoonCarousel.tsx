@@ -486,7 +486,17 @@ function PhaseLadder({
               i === activeIdx && "moon-rung-pulse",
             )}
           >
-            <MoonPhaseIcon phase={r.phase} size={r.size} />
+            <span
+              className="moon-rung-glow inline-flex items-center justify-center rounded-full"
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(212,175,55,0.18) 0%, transparent 70%)",
+                padding: "3px",
+                transition: "background 200ms ease",
+              }}
+            >
+              <MoonPhaseIcon phase={r.phase} size={r.size} />
+            </span>
           </span>
         </button>
       ))}
