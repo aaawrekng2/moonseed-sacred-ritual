@@ -5,7 +5,11 @@ import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
-import { useRestingOpacity } from "@/lib/use-resting-opacity";
+import {
+  MAX_RESTING_OPACITY,
+  MIN_RESTING_OPACITY,
+  useRestingOpacity,
+} from "@/lib/use-resting-opacity";
 import { cn } from "@/lib/utils";
 
 const TABLETOP_CONFIG = {
@@ -99,7 +103,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const stirTimerRef = useRef<number | null>(null);
   const [revealing, setRevealing] = useState(false);
   const [revealedAll, setRevealedAll] = useState(false);
-  const { opacity: restingOpacityPct } = useRestingOpacity();
+  const { opacity: restingOpacityPct, setOpacity: setRestingOpacity } =
+    useRestingOpacity();
   const restingAlpha = restingOpacityPct / 100;
   const exitAlpha = Math.min(1, restingAlpha + 0.1);
 
@@ -124,10 +129,19 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const cardW = responsiveCardWidth(size?.w ?? 0);
   const cardH = Math.round(cardW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
-  const maxRotation = adaptiveMaxRotation(
-    size?.w ?? 0,
-    TABLETOP_CONFIG.CARD_MAX_ROTATION,
-  );
+  // Always use the full ±CARD_MAX_ROTATION range so no card sits axis-aligned.
+  const maxRotation = TABLETOP_CONFIG.CARD_MAX_ROTATION;
+
+  // No-spawn zone for the top-right close button. Slightly larger than the
+  // visible 44×44 hit area so even rotated cards stay clear of it.
+  const exclusionZones = useMemo(() => {
+    if (!size) return [] as { x: number; y: number; w: number; h: number }[];
+    const zoneW = 80;
+    const zoneH = 80;
+    return [
+      { x: Math.max(0, size.w - zoneW), y: 0, w: zoneW, h: zoneH },
+    ];
+  }, [size]);
 
   // Detect coarse pointer once (and on media-query change) so we can scale
   // the hit area appropriately. Defaults to true on first render so SSR /
@@ -157,8 +171,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       maxRotation,
       padding: TABLETOP_CONFIG.SCATTER_PADDING,
       seed,
+      exclusionZones,
+      minVisibleRatio: 0.3,
     });
-  }, [size, seed, cardW, cardH, maxRotation]);
+  }, [size, seed, cardW, cardH, maxRotation, exclusionZones]);
 
   // Map slot index -> tarot card id (shuffled at session start).
   const deckMapping = useMemo(
@@ -198,6 +214,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         maxRotation,
         padding: TABLETOP_CONFIG.SCATTER_PADDING,
         seed: (seed ^ (stirNonce * 0x9e3779b9)) >>> 0,
+        exclusionZones,
+        minVisibleRatio: 0.3,
       });
       // Use the fresh scatter slots in order to re-place each unselected card.
       let cursor = 0;
@@ -213,7 +231,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         };
       });
     });
-  }, [stirNonce, size, cardW, cardH, maxRotation, seed]);
+  }, [stirNonce, size, cardW, cardH, maxRotation, seed, exclusionZones]);
 
   const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
   const ready = selectedCount === required;
@@ -262,165 +280,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     });
   };
 
-  // Apply a one-directional change (select-only or deselect-only) used by
-  // swipe gestures so dragging across cards never thrashes their state.
-  const applyDirectional = useCallback(
-    (id: number, mode: "select" | "deselect") => {
-      if (revealing || revealedAll) return;
-      setCards((prev) => {
-        const target = prev.find((c) => c.id === id);
-        if (!target) return prev;
-        const currentlySelected = target.selectionOrder !== null;
-        if (mode === "select") {
-          if (currentlySelected) return prev;
-          const used = prev.filter((c) => c.selectionOrder !== null).length;
-          if (used >= required) return prev;
-          return prev.map((c) =>
-            c.id === id ? { ...c, selectionOrder: used + 1 } : c,
-          );
-        }
-        // deselect
-        if (!currentlySelected) return prev;
-        const removedOrder = target.selectionOrder!;
-        return prev.map((c) => {
-          if (c.id === id) return { ...c, selectionOrder: null };
-          if (c.selectionOrder !== null && c.selectionOrder > removedOrder) {
-            return { ...c, selectionOrder: c.selectionOrder - 1 };
-          }
-          return c;
-        });
-      });
-    },
-    [required, revealing, revealedAll],
-  );
-
-  // ---- Swipe / drag selection ---------------------------------------------
-  // Track gesture state in a ref so handlers stay stable and don't re-render
-  // mid-drag. We resolve which card is under the pointer via elementFromPoint
-  // + a `data-card-id` attribute on each CardSlot.
-  const gestureRef = useRef<{
-    active: boolean;
-    pointerId: number | null;
-    startX: number;
-    startY: number;
-    moved: boolean; // crossed the drag threshold
-    mode: "select" | "deselect" | null;
-    visited: Set<number>;
-    startCardId: number | null;
-  }>({
-    active: false,
-    pointerId: null,
-    startX: 0,
-    startY: 0,
-    moved: false,
-    mode: null,
-    visited: new Set(),
-    startCardId: null,
-  });
-
-  const DRAG_THRESHOLD_PX = 8;
-
-  const cardIdAtPoint = (x: number, y: number): number | null => {
-    const el = document.elementFromPoint(x, y) as HTMLElement | null;
-    if (!el) return null;
-    const slot = el.closest<HTMLElement>("[data-card-id]");
-    if (!slot) return null;
-    const raw = slot.dataset.cardId;
-    if (raw == null) return null;
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : null;
-  };
-
-  const onContainerPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (revealing || revealedAll) return;
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-    const id = cardIdAtPoint(e.clientX, e.clientY);
-    if (id == null) return;
-    const startCard = cards.find((c) => c.id === id);
-    if (!startCard) return;
-    gestureRef.current = {
-      active: true,
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      moved: false,
-      // Intent locks based on starting card. A drag from a selected card
-      // deselects everything it crosses; a drag from a face-down card selects.
-      mode: startCard.selectionOrder !== null ? "deselect" : "select",
-      visited: new Set(),
-      startCardId: id,
-    };
-    // Capture so we keep getting move events even if the pointer leaves.
-    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
-  };
-
-  const onContainerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const g = gestureRef.current;
-    if (!g.active || g.pointerId !== e.pointerId) return;
-
-    if (!g.moved) {
-      const dx = e.clientX - g.startX;
-      const dy = e.clientY - g.startY;
-      if (dx * dx + dy * dy < DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) return;
-      g.moved = true;
-      // Once we cross the threshold, apply the action to the starting card so
-      // the gesture has immediate visible feedback.
-      if (g.startCardId != null && g.mode) {
-        g.visited.add(g.startCardId);
-        applyDirectional(g.startCardId, g.mode);
-      }
-    }
-
-    const id = cardIdAtPoint(e.clientX, e.clientY);
-    if (id == null || g.visited.has(id) || !g.mode) return;
-    g.visited.add(id);
-    applyDirectional(id, g.mode);
-  };
-
-  const endGesture = (e: React.PointerEvent<HTMLDivElement>) => {
-    const g = gestureRef.current;
-    if (g.pointerId !== e.pointerId) return;
-    try {
-      (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
-    } catch {
-      // ignore — capture may already be released
-    }
-    gestureRef.current = {
-      active: false,
-      pointerId: null,
-      startX: 0,
-      startY: 0,
-      moved: false,
-      mode: null,
-      visited: new Set(),
-      startCardId: null,
-    };
-  };
-
-  // Lets CardSlot's onClick know to ignore the synthetic click at the end of
-  // a drag (so a swipe doesn't double-toggle the starting card).
-  const wasDraggingRef = useRef(false);
-  const onContainerPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    const g = gestureRef.current;
-    wasDraggingRef.current = g.moved;
-    // If the gesture never crossed the drag threshold, treat it as a tap
-    // and toggle the starting card. Required because the container uses
-    // setPointerCapture, which prevents the inner <button>'s click event
-    // from firing reliably (especially with mouse on desktop).
-    if (!g.moved && g.startCardId != null && !revealing && !revealedAll) {
-      toggleSelect(g.startCardId);
-      // Suppress the synthetic click that may follow so we don't double-toggle.
-      wasDraggingRef.current = true;
-    }
-    endGesture(e);
-  };
-  const shouldSuppressClick = () => {
-    if (wasDraggingRef.current) {
-      wasDraggingRef.current = false;
-      return true;
-    }
-    return false;
-  };
+  // ---- Tap-only selection -------------------------------------------------
+  // Per design: only a deliberate single tap selects/deselects a card. Swipes
+  // (drags across cards) must never alter selection state. We implement this
+  // per-card on the CardSlot button, tracking the pointer-down position and
+  // ignoring the click if the pointer moved beyond a small threshold.
+  const TAP_MOVE_THRESHOLD_PX = 8;
 
   const handleReveal = () => {
     if (!ready || revealing) return;
@@ -484,14 +349,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       <div
         ref={containerRef}
         className={cn(
-          "relative flex-1 overflow-hidden touch-none select-none",
+          "relative flex-1 overflow-hidden select-none",
           stirring && "animate-tabletop-tilt",
         )}
         style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)" }}
-        onPointerDown={onContainerPointerDown}
-        onPointerMove={onContainerPointerMove}
-        onPointerUp={onContainerPointerUp}
-        onPointerCancel={endGesture}
       >
         {cards.map((c, idx) => (
           <CardSlot
@@ -504,10 +365,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             disabled={revealing || revealedAll}
             hitInset={hitInset}
             stirring={stirring && c.selectionOrder === null}
-            onSelect={() => {
-              if (shouldSuppressClick()) return;
-              toggleSelect(c.id);
-            }}
+            tapMoveThresholdPx={TAP_MOVE_THRESHOLD_PX}
+            onSelect={() => toggleSelect(c.id)}
             settleDelay={Math.min(idx * 4, 320)}
           />
         ))}
@@ -529,6 +388,44 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           paddingRight: "calc(env(safe-area-inset-right, 0px) + 24px)",
         }}
       >
+        {/* Temporary resting-opacity test slider — mirrors the home screen
+            control so this value can be tuned in-context on the tabletop. */}
+        <div
+          style={{
+            position: "absolute",
+            right: "calc(env(safe-area-inset-right, 0px) + 16px)",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            width: 130,
+            zIndex: 20,
+            opacity: restingAlpha,
+          }}
+        >
+          <label
+            htmlFor="tabletop-resting-opacity"
+            style={{
+              fontSize: 9,
+              color: "var(--gold)",
+              fontFamily: "var(--font-serif)",
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+            }}
+          >
+            Opacity {restingOpacityPct}
+          </label>
+          <input
+            id="tabletop-resting-opacity"
+            type="range"
+            min={MIN_RESTING_OPACITY}
+            max={MAX_RESTING_OPACITY}
+            value={restingOpacityPct}
+            onChange={(e) => setRestingOpacity(Number(e.target.value))}
+            style={{ width: "100%", accentColor: "var(--gold)" }}
+          />
+        </div>
+
         {/* Stir — anchored bottom-left at resting opacity. Single, quiet word. */}
         {!revealedAll && (
           <button
@@ -601,6 +498,7 @@ function CardSlot({
   stirring,
   onSelect,
   settleDelay,
+  tapMoveThresholdPx,
 }: {
   card: CardState;
   cardW: number;
@@ -612,13 +510,36 @@ function CardSlot({
   stirring: boolean;
   onSelect: () => void;
   settleDelay: number;
+  tapMoveThresholdPx: number;
 }) {
   const isSelected = card.selectionOrder !== null;
   const glow = `0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD}px var(--gold)`;
 
   // Re-trigger the tap micro-animation on every click by toggling a key.
   const [tapTick, setTapTick] = useState(0);
+  // Track pointer-down position so we can distinguish a deliberate tap from
+  // a swipe / drag. Any movement past `tapMoveThresholdPx` cancels the tap
+  // and the click handler bails out — selection only changes on real taps.
+  const downPosRef = useRef<{ x: number; y: number; cancelled: boolean } | null>(
+    null,
+  );
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    downPosRef.current = { x: e.clientX, y: e.clientY, cancelled: false };
+  };
+  const handlePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = downPosRef.current;
+    if (!d || d.cancelled) return;
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (dx * dx + dy * dy > tapMoveThresholdPx * tapMoveThresholdPx) {
+      d.cancelled = true;
+    }
+  };
   const handleClick = () => {
+    const d = downPosRef.current;
+    downPosRef.current = null;
+    if (d?.cancelled) return; // swipe — never selects
     setTapTick((t) => t + 1);
     onSelect();
   };
@@ -627,6 +548,11 @@ function CardSlot({
     <button
       type="button"
       onClick={handleClick}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerCancel={() => {
+        if (downPosRef.current) downPosRef.current.cancelled = true;
+      }}
       disabled={disabled && !card.revealed}
       data-card-id={card.id}
       aria-label={
