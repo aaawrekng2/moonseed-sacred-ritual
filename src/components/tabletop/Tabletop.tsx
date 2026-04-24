@@ -938,6 +938,7 @@ function CardSlot({
   tapMoveThresholdPx,
   slotRect,
   flightMs,
+  containerOrigin,
 }: {
   card: CardState;
   cardW: number;
@@ -958,6 +959,12 @@ function CardSlot({
    */
   slotRect: DOMRect | null;
   flightMs: number;
+  /**
+   * Viewport offset of the scatter container — needed to convert a
+   * card's container-relative scatter coords (card.x / card.y) into
+   * viewport coords for the return-flight animation.
+   */
+  containerOrigin: { left: number; top: number } | null;
 }) {
   const isSelected = card.selectionOrder !== null;
   const flying = isSelected && slotRect !== null;
@@ -970,20 +977,42 @@ function CardSlot({
   // Flight state machine. 'idle' = scattered/in-place. 'launching' = card
   // freshly promoted to fixed positioning at its captured viewport rect (no
   // visual jump yet). 'arrived' = card has been told to move to the slot
-  // rect; CSS transition carries it there.
-  type FlightPhase = "idle" | "launching" | "arrived";
+  // rect; CSS transition carries it there. 'returning' = card is flying
+  // *back* from its last slot rect to a fresh scatter spot on the table.
+  type FlightPhase = "idle" | "launching" | "arrived" | "returning";
   const [flightPhase, setFlightPhase] = useState<FlightPhase>("idle");
   // Captured viewport rect at the moment the card was selected.
   const [launchRect, setLaunchRect] = useState<DOMRect | null>(null);
+  // The slot rect the card was occupying right before being released back
+  // to the table. Used as the starting position of the return flight.
+  const [returnFromRect, setReturnFromRect] = useState<DOMRect | null>(null);
   // Captured rotation at launch — we ease this back to 0 during flight.
   const launchRotationRef = useRef(0);
+  // Most recent slotRect we saw while flying. Tracked separately so that
+  // when the parent clears slotRect (card released) we still know where
+  // the card visually was a frame ago.
+  const lastSlotRectRef = useRef<DOMRect | null>(null);
+  useEffect(() => {
+    if (slotRect) lastSlotRectRef.current = slotRect;
+  }, [slotRect]);
 
   // Detect the moment the card becomes flying-eligible. Capture its current
   // bbox synchronously so the upcoming switch from absolute(scatter) →
   // fixed(viewport) does not produce a one-frame jump.
   useLayoutEffect(() => {
     if (!flying) {
-      if (flightPhase !== "idle") setFlightPhase("idle");
+      // Was on a flight (arrived/launching) and lost the slotRect → start
+      // a return flight from the last known slot position. Skip the
+      // transition only if we never had a meaningful flight to begin with.
+      if (
+        (flightPhase === "arrived" || flightPhase === "launching") &&
+        lastSlotRectRef.current
+      ) {
+        setReturnFromRect(lastSlotRectRef.current);
+        setFlightPhase("returning");
+      } else if (flightPhase !== "idle" && flightPhase !== "returning") {
+        setFlightPhase("idle");
+      }
       return;
     }
     if (flightPhase === "idle") {
@@ -1004,6 +1033,29 @@ function CardSlot({
     });
     return () => window.cancelAnimationFrame(id);
   }, [flightPhase]);
+
+  // Returning: paint one frame at the last slot rect, then transition to
+  // the fresh scatter target. After flightMs settle back into 'idle' so
+  // the card returns to absolute positioning inside the scatter.
+  const [returnAnimating, setReturnAnimating] = useState(false);
+  useEffect(() => {
+    if (flightPhase !== "returning") return;
+    setReturnAnimating(false);
+    const raf1 = window.requestAnimationFrame(() => {
+      const raf2 = window.requestAnimationFrame(() => setReturnAnimating(true));
+      return () => window.cancelAnimationFrame(raf2);
+    });
+    const settle = window.setTimeout(() => {
+      setFlightPhase("idle");
+      setReturnFromRect(null);
+      lastSlotRectRef.current = null;
+      setReturnAnimating(false);
+    }, flightMs + 40);
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.clearTimeout(settle);
+    };
+  }, [flightPhase, flightMs]);
 
   // Re-trigger the tap micro-animation on every click by toggling a key.
   const [tapTick, setTapTick] = useState(0);
