@@ -349,14 +349,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       <div
         ref={containerRef}
         className={cn(
-          "relative flex-1 overflow-hidden touch-none select-none",
+          "relative flex-1 overflow-hidden select-none",
           stirring && "animate-tabletop-tilt",
         )}
         style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)" }}
-        onPointerDown={onContainerPointerDown}
-        onPointerMove={onContainerPointerMove}
-        onPointerUp={onContainerPointerUp}
-        onPointerCancel={endGesture}
       >
         {cards.map((c, idx) => (
           <CardSlot
@@ -369,10 +365,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             disabled={revealing || revealedAll}
             hitInset={hitInset}
             stirring={stirring && c.selectionOrder === null}
-            onSelect={() => {
-              if (shouldSuppressClick()) return;
-              toggleSelect(c.id);
-            }}
+            tapMoveThresholdPx={TAP_MOVE_THRESHOLD_PX}
+            onSelect={() => toggleSelect(c.id)}
             settleDelay={Math.min(idx * 4, 320)}
           />
         ))}
