@@ -121,9 +121,13 @@ export function buildScatter(p: ScatterParams): ScatterCard[] {
     const dx = (rng() - 0.5) * jitterX;
     const dy = (rng() - 0.5) * jitterY;
 
-    // Rotation: ±maxRotation, but never axis-aligned (min |1°|).
-    let rot = (rng() - 0.5) * 2 * p.maxRotation;
-    if (Math.abs(rot) < 1) rot = rot < 0 ? -1 : 1;
+    // Rotation: strictly in [-maxRotation, -minRot] ∪ [+minRot, +maxRotation].
+    // Pick a magnitude in [minRot, maxRotation] then a random sign so 0° is
+    // mathematically impossible — every card visibly tilts on a real table.
+    const minRot = Math.min(2, p.maxRotation);
+    const magnitude = minRot + rng() * Math.max(0, p.maxRotation - minRot);
+    const sign = rng() < 0.5 ? -1 : 1;
+    const rot = sign * magnitude;
 
     // Clamp using the rotation-aware safe padding so the rotated bbox
     // (not just the un-rotated top-left rect) stays inside the container.
