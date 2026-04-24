@@ -824,8 +824,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                       }}
                       className={cn(isNext && "slot-next-frame")}
                       style={{
-                        width: cardW,
-                        height: cardH,
+                        width: slotW,
+                        height: slotH,
                         borderRadius: 10,
                         // Default frame styling. The .slot-next-frame
                         // animation overrides border/background/box-shadow
@@ -856,13 +856,16 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                         isNext && "slot-next-label",
                       )}
                       style={{
-                        fontSize: 10,
+                        // Smaller font for the dense Celtic Cross rail on
+                        // small screens so 10 labels don't wrap or clip.
+                        fontSize: required >= 10 ? (isMobile ? 8 : 9) : 10,
                         color: "var(--gold)",
                         // The .slot-next-label animation drives opacity for
                         // the active beacon; non-next labels stay at the
                         // resting opacity so they recede.
                         opacity: isNext ? undefined : restingAlpha,
                         letterSpacing: "0.05em",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {slotLabels[i] ?? `Slot ${i + 1}`}
