@@ -8,16 +8,22 @@ import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { cn } from "@/lib/utils";
 
 const TABLETOP_CONFIG = {
-  CARD_WIDTH: 44,
   CARD_ASPECT_RATIO: 1.75,
   CARD_MAX_ROTATION: 8,
-  SCATTER_PADDING: 8,
-  SELECTION_GLOW_SPREAD: 8,
+  SCATTER_PADDING: 10,
+  SELECTION_GLOW_SPREAD: 6,
   SELECTION_GLOW_OPACITY: 0.8,
   REVEAL_ANIMATION_MS: 600,
   REVEAL_STAGGER_MS: 100,
   DECK_SIZE: 78,
 };
+
+// Responsive card width: 36px mobile, 40px tablet, 44px desktop.
+function responsiveCardWidth(viewportW: number): number {
+  if (viewportW < 768) return 36;
+  if (viewportW < 1024) return 40;
+  return 44;
+}
 
 type TabletopProps = {
   spread: SpreadMode;
@@ -58,7 +64,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     return () => ro.disconnect();
   }, []);
 
-  const cardW = TABLETOP_CONFIG.CARD_WIDTH;
+  const cardW = responsiveCardWidth(size?.w ?? 0);
   const cardH = Math.round(cardW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
 
   const scatter = useMemo(() => {
