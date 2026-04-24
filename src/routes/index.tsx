@@ -35,9 +35,20 @@ function Index() {
   const pullStartY = useRef<number | null>(null);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  // Hard latch — flips true the instant a refresh is committed and never
+  // resets. Guards against re-entrancy from queued touch events, repeated
+  // taps, or React batching the `refreshing` state update one frame late.
+  const refreshLatchedRef = useRef(false);
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+    };
+  }, []);
 
   const onTouchStart = (e: React.TouchEvent) => {
-    if (refreshing) return;
+    if (refreshing || refreshLatchedRef.current) return;
     const t = e.touches[0];
     // Only arm a pull if the touch starts near the very top edge.
     if (t.clientY <= 40) {
@@ -47,7 +58,7 @@ function Index() {
     }
   };
   const onTouchMove = (e: React.TouchEvent) => {
-    if (pullStartY.current == null || refreshing) return;
+    if (pullStartY.current == null || refreshing || refreshLatchedRef.current) return;
     const dy = e.touches[0].clientY - pullStartY.current;
     if (dy > 0) {
       // Resistance curve so it feels rubbery.
@@ -57,10 +68,18 @@ function Index() {
   const onTouchEnd = () => {
     if (pullStartY.current == null) return;
     pullStartY.current = null;
+    if (refreshLatchedRef.current) {
+      setPullDistance(0);
+      return;
+    }
     if (pullDistance >= PULL_THRESHOLD) {
+      // Latch synchronously — any touch event already queued behind this
+      // one will see the latch and bail before re-entering.
+      refreshLatchedRef.current = true;
       setRefreshing(true);
       setPullDistance(60);
-      setTimeout(() => {
+      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
+      reloadTimerRef.current = setTimeout(() => {
         if (typeof window !== "undefined") window.location.reload();
       }, 400);
     } else {
