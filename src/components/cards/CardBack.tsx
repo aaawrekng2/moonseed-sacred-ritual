@@ -10,6 +10,18 @@ interface Props {
 
 const RATIO = 1.75;
 
+// Scale helpers — keep card-back ornaments proportional at any size so the
+// design doesn't look chunky on small (~42px) cards or thin on big ones.
+function scaleMetrics(width: number) {
+  return {
+    border: Math.max(0.5, width * 0.015),
+    innerInset: Math.max(2, width * 0.08),
+    cornerSize: Math.max(6, width * 0.18),
+    starDot: Math.max(1, width * 0.025),
+    radius: Math.max(3, width * 0.06),
+  };
+}
+
 function Stars({ dots }: { dots: { x: number; y: number; r: number; o: number; c?: string }[] }) {
   return (
     <>
@@ -339,6 +351,16 @@ const STYLES: Record<
 export function CardBack({ id = "celestial", width = 160, className, ariaLabel }: Props) {
   const height = Math.round(width * RATIO);
   const style = STYLES[id];
+  const m = scaleMetrics(width);
+  // Color tokens for each style's inner ornament rings.
+  const innerColors: Record<CardBackId, { outer: string; inner: string }> = {
+    celestial: { outer: "rgba(200,170,255,0.45)", inner: "rgba(200,170,255,0.20)" },
+    void:      { outer: "rgba(255,255,255,0.18)", inner: "rgba(255,255,255,0.10)" },
+    ember:     { outer: "rgba(251,191,36,0.50)",  inner: "rgba(251,191,36,0.25)"  },
+    ocean:     { outer: "rgba(56,189,248,0.40)",  inner: "rgba(56,189,248,0.20)"  },
+    verdant:   { outer: "rgba(74,222,128,0.40)",  inner: "rgba(74,222,128,0.20)"  },
+  };
+  const ic = innerColors[id];
   return (
     <div
       role="img"
@@ -347,17 +369,27 @@ export function CardBack({ id = "celestial", width = 160, className, ariaLabel }
       style={{
         width,
         height,
-        borderRadius: 10,
+        borderRadius: m.radius,
         background: style.bg,
-        border: style.border,
-        boxShadow: style.insets,
+        // Border width scales with card size; color comes from preset.
+        border: `${m.border}px solid ${style.border.replace(/^[^,]+,\s*/, "").replace(/^.*?\(/, "rgba(").replace(/^[^r].*/, style.border.split(" ").slice(2).join(" "))}`,
+        // Use boxShadow inner rings sized via scaled inset for proportional look.
+        boxShadow: `inset 0 0 0 ${m.innerInset}px ${ic.outer}, inset 0 0 0 ${m.innerInset * 1.7}px ${ic.inner}`,
       }}
     >
-      {id === "celestial" && <CelestialBack width={width} />}
-      {id === "void" && <VoidBack />}
-      {id === "ember" && <EmberBack />}
-      {id === "ocean" && <OceanBack />}
-      {id === "verdant" && <VerdantBack />}
+      {/* Inner SVG / overlays already use percentage / viewBox scaling so
+          they remain proportional. We pass the scaled metrics down via a
+          CSS variable for any pixel-anchored stars. */}
+      <div
+        className="absolute inset-0"
+        style={{ ["--star-dot" as string]: `${m.starDot}px`, ["--corner-size" as string]: `${m.cornerSize}px` }}
+      >
+        {id === "celestial" && <CelestialBack width={width} />}
+        {id === "void" && <VoidBack />}
+        {id === "ember" && <EmberBack />}
+        {id === "ocean" && <OceanBack />}
+        {id === "verdant" && <VerdantBack />}
+      </div>
     </div>
   );
 }
