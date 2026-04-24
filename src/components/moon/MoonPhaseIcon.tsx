@@ -22,7 +22,12 @@ type Props = {
 };
 
 const VB = 64;
-const R = 26;
+// Moon body radius. Kept at 24 (was 26) so the optional gold ring drawn at
+// R + ringWidth/2 plus the halo at R + 2 both sit comfortably inside the
+// 64×64 viewBox without visually cropping the moon. Reverting this to 26
+// makes ringed icons feel zoomed-in because the bright ring becomes the
+// perceived edge of the icon and there's no breathing room to the box.
+const R = 24;
 const CX = 32;
 const CY = 32;
 
