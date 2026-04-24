@@ -108,6 +108,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const restingAlpha = restingOpacityPct / 100;
   const exitAlpha = Math.min(1, restingAlpha + 0.1);
 
+  // Dev-only overlap debug overlay. Visualises each card's visible-area
+  // ratio so the 30% minimum visibility rule can be eyeballed at a glance.
+  const [debugOverlap, setDebugOverlap] = useState(false);
+
   // Read selected card back once on mount.
   useEffect(() => {
     setCardBack(getStoredCardBack());
@@ -142,6 +146,31 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       { x: Math.max(0, size.w - zoneW), y: 0, w: zoneW, h: zoneH },
     ];
   }, [size]);
+
+  // Per-card visible-area ratio (0–1), derived from current card positions
+  // and the same overlap heuristic used by buildScatter's enforcement pass.
+  // Memoised so toggling debug mode doesn't re-run while cards are static.
+  const visibilityByCardId = useMemo(() => {
+    const map = new Map<number, number>();
+    if (!debugOverlap || cards.length === 0) return map;
+    const area = cardW * cardH;
+    if (area <= 0) return map;
+    // Sort by z so "higher" cards = greater z (rendered on top of this one).
+    const byZ = [...cards].sort((a, b) => a.z - b.z);
+    for (let i = 0; i < byZ.length; i++) {
+      const c = byZ[i];
+      let covered = 0;
+      for (let j = i + 1; j < byZ.length; j++) {
+        const o = byZ[j];
+        const ow = Math.max(0, Math.min(c.x + cardW, o.x + cardW) - Math.max(c.x, o.x));
+        const oh = Math.max(0, Math.min(c.y + cardH, o.y + cardH) - Math.max(c.y, o.y));
+        covered += ow * oh;
+        if (covered >= area) break;
+      }
+      map.set(c.id, Math.max(0, 1 - Math.min(area, covered) / area));
+    }
+    return map;
+  }, [debugOverlap, cards, cardW, cardH]);
 
   // Detect coarse pointer once (and on media-query change) so we can scale
   // the hit area appropriately. Defaults to true on first render so SSR /
