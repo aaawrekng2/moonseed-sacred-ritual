@@ -255,7 +255,9 @@ export function MoonCarousel() {
             const isExpanded = expandedRel === d.relative;
             const rel = d.relative - offset; // -2..+2 within current window
             const absRel = Math.abs(rel);    // window position, NOT distance from today
-            const topOffset = absRel === 0 ? 0 : absRel === 1 ? 24 : 44;
+            // Compensate for the CenterCard's "Today/date" header so the moon
+            // GRAPHIC tops cascade correctly — not just the cell tops.
+            const topOffset = absRel === 0 ? 0 : absRel === 1 ? 52 : 68;
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
             return (
