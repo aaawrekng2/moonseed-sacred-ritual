@@ -184,7 +184,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const meta = SPREAD_META[spread];
   const required = meta.count;
   const usesSlots = spreadUsesSlots(spread);
-  const slotLabels = meta.positions ?? [];
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -243,6 +242,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const cardW = responsiveCardWidth(size?.w ?? 0);
   const cardH = Math.round(cardW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
+  const isMobile = (size?.w ?? 0) < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
+  // Slot rail uses its own width (smaller on mobile / for many-slot
+  // spreads) so all slots fit in one row without scrolling.
+  const slotW = responsiveSlotWidth(size?.w ?? 0, required);
+  const slotH = Math.round(slotW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
+  // On mobile, abbreviate position labels so the rail isn't cluttered.
+  const slotLabels = (isMobile ? meta.positionsShort : meta.positions) ?? [];
   // Always use the full ±CARD_MAX_ROTATION range so no card sits axis-aligned.
   const maxRotation = TABLETOP_CONFIG.CARD_MAX_ROTATION;
 
