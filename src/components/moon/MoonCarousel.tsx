@@ -229,9 +229,17 @@ export function MoonCarousel() {
   return (
     <section
       aria-label="Moon phase calendar"
+      aria-roledescription="carousel"
       className="relative animate-in fade-in slide-in-from-top-2 duration-500"
       style={{ minHeight: 280 }}
     >
+      {/* Screen-reader-only live status describing the currently centered day. */}
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {centerDay
+          ? `Viewing ${centerDay.isToday ? "today" : formatShortDate(centerDay.info.date)}, ${centerDay.info.phase}, ${centerDay.info.illumination}% illuminated, Moon in ${centerDay.isToday ? todayMoonSign : centerDay.sign}.`
+          : ""}
+      </p>
+
       {/* Mobile phase ladders — fixed to screen edges, visible on mobile only */}
       <MobilePhaseLadder side="left" restingAlpha={restingAlpha} onJump={jumpToPhase} />
       <MobilePhaseLadder side="right" restingAlpha={restingAlpha} onJump={jumpToPhase} />
@@ -277,7 +285,11 @@ export function MoonCarousel() {
           onStep={() => shift(-1)}
         />
 
-        <div className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl overflow-visible">
+        <div
+          className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl overflow-visible"
+          role="group"
+          aria-label={`Day strip, ${days.length} days`}
+        >
           {days.map((d) => {
             const isExpanded = expandedRel === d.relative;
             const rel = d.relative - offset; // -2..+2 within current window
@@ -290,6 +302,9 @@ export function MoonCarousel() {
             return (
               <div
                 key={d.info.date.toDateString()}
+                role="group"
+                aria-roledescription="day"
+                aria-label={`${d.isToday ? "Today" : formatShortDate(d.info.date)}, ${d.info.phase}`}
                 style={{
                   alignSelf: "flex-start",
                   marginTop: `${topOffset}px`,
@@ -360,7 +375,7 @@ export function MoonCarousel() {
               "transition-opacity duration-150",
               "hover:opacity-100 focus-visible:opacity-100",
               "outline-none focus-visible:outline-none",
-              "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              "focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
             )}
             style={{ color: accent, opacity: restingAlpha }}
           >
@@ -393,7 +408,7 @@ function CenterCard({
       onClick={onToggle}
       aria-pressed={selected}
       aria-label={`${isToday ? "Today" : formatShortDate(info.date)}, ${info.phase}. Tap to ${selected ? "deselect" : "select"}.`}
-      className="flex flex-col items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-2xl"
+      className="flex flex-col items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       style={{ minWidth: 120, maxWidth: 160 }}
     >
       <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-gold">
@@ -434,7 +449,7 @@ function AdjacentCard({ info, sign, expanded, selected, onToggle, size = "medium
       aria-label={`${formatShortDate(info.date)}, ${info.phase}, ${info.illumination}% illuminated. Tap for details.`}
       className={cn(
         "flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-all duration-300 ease-out cursor-pointer",
-        "focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60",
+        "outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         selected
           ? "border-2 border-gold bg-card/60 shadow-[0_0_18px_-4px_rgba(212,175,55,0.6)] backdrop-blur-sm"
           : expanded
@@ -635,6 +650,8 @@ function MobilePhaseLadder({
         [isLeft ? "left" : "right"]: 0,
         [isLeft ? "paddingLeft" : "paddingRight"]: 8,
       }}
+      role="toolbar"
+      aria-orientation="vertical"
       aria-label={`${isLeft ? "Previous" : "Next"} phase navigator`}
     >
       {LADDER_RUNGS.map((r, i) => (
@@ -642,9 +659,9 @@ function MobilePhaseLadder({
           key={`mobile-${r.label}-${i}`}
           type="button"
           onClick={() => onJump(r.phase)}
-          aria-label={`${isLeft ? "Previous" : "Next"} ${r.label}`}
+          aria-label={`Jump to ${isLeft ? "previous" : "next"} ${r.label}`}
           style={{ opacity: restingAlpha }}
-          className="cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 focus:outline-none"
+          className="cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <span
             style={{
@@ -709,7 +726,7 @@ function PhaseLadder({
           key={`${r.label}-${i}`}
           type="button"
           onClick={() => onJump(r.phase)}
-          aria-label={`${jumpVerb} ${r.label}`}
+          aria-label={`Jump to ${jumpVerb.toLowerCase()} ${r.label}`}
           title={`${jumpVerb} ${r.label}`}
           aria-current={i === activeIdx ? "true" : undefined}
           style={{
@@ -720,7 +737,7 @@ function PhaseLadder({
             "group cursor-pointer rounded-full bg-transparent border-0 p-0",
             "transition-all duration-200 ease-out",
             "hover:!opacity-100 hover:scale-110",
-            "focus:outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            "outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
             i === activeIdx && "moon-rung-active",
           )}
         >
@@ -759,13 +776,13 @@ function PhaseLadder({
       className={cn(
         "inline-flex shrink-0 items-center justify-center rounded-full bg-transparent border-0 p-0 cursor-pointer",
         "text-muted-foreground transition-all duration-200",
-        "hover:text-gold hover:!opacity-100 focus:outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/60",
+        "hover:text-gold hover:!opacity-100 outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       )}
     >
       {/* Match the chevron's visual weight to the Full Moon rung (26px) so
           it reads as a sibling control, not a smaller satellite. Scales
           modestly across breakpoints to keep parity with the rung sizes. */}
-      <Chevron className="h-[22px] w-[22px] md:h-[26px] md:w-[26px]" strokeWidth={1.75} />
+      <Chevron className="h-[22px] w-[22px] md:h-[26px] md:w-[26px]" strokeWidth={1.75} aria-hidden="true" />
     </button>
   );
 
@@ -773,6 +790,8 @@ function PhaseLadder({
     <div
       className="hidden sm:flex shrink-0 self-start flex-row items-start gap-1.5 md:gap-2"
       style={{ marginTop: 8 }}
+      role="toolbar"
+      aria-orientation="vertical"
       aria-label={`${jumpVerb} phase navigator`}
     >
       {isLeft ? (
