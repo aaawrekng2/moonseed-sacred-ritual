@@ -238,20 +238,54 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   );
 
   const [cards, setCards] = useState<CardState[]>([]);
+  // Once cards are initialized we never wipe selections automatically.
+  // Subsequent geometry changes (e.g. the bottom bar growing/shrinking
+  // when the slot rail collapses on Reveal) reflow the unselected cards
+  // in place but preserve every selectionOrder and revealed flag.
+  const initializedRef = useRef(false);
 
-  // Reset / rebuild whenever the underlying scatter geometry changes
-  // (mount, resize, breakpoint change). Stir is handled separately so it
-  // can preserve selected cards.
+  // First mount: build the initial card array from the scatter. After that,
+  // geometry changes only re-place unselected cards — never reset selections.
+  // CRITICAL: a previous version reset every card on any `initialScatter`
+  // change, which silently wiped the user's picks the moment the bottom bar
+  // resized (e.g. when the slot rail collapsed once all cards were placed).
   useEffect(() => {
     if (initialScatter.length === 0) return;
-    setCards(
-      initialScatter.map((s) => ({
-        ...s,
-        selectionOrder: null,
-        revealed: false,
-      })),
-    );
-    setSlotRects(usesSlots ? Array(required).fill(null) : []);
+    if (!initializedRef.current) {
+      setCards(
+        initialScatter.map((s) => ({
+          ...s,
+          selectionOrder: null,
+          revealed: false,
+        })),
+      );
+      initializedRef.current = true;
+      setSlotRects(usesSlots ? Array(required).fill(null) : []);
+      return;
+    }
+    // Subsequent geometry change — reflow unselected cards only.
+    setCards((prev) => {
+      if (prev.length === 0) {
+        // Edge case: somehow lost the array; rebuild from scratch.
+        return initialScatter.map((s) => ({
+          ...s,
+          selectionOrder: null,
+          revealed: false,
+        }));
+      }
+      let cursor = 0;
+      return prev.map((c) => {
+        if (c.selectionOrder !== null) return c; // never disturb a pick
+        const next = initialScatter[cursor++ % initialScatter.length];
+        return {
+          ...c,
+          x: next.x,
+          y: next.y,
+          rotation: next.rotation,
+          z: next.z,
+        };
+      });
+    });
   }, [initialScatter, usesSlots, required]);
 
   // Measure slot rects after layout (and on resize). Selected-card flight
