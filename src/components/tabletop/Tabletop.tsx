@@ -312,6 +312,19 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const triggerStir = useCallback(() => {
     if (revealing || revealedAll) return;
+    // If any cards are already in slots, ask before clearing them. Per
+    // design: Stir is the "begin again" gesture — never silently destroy
+    // the user's intentional picks.
+    const anySelected = cards.some((c) => c.selectionOrder !== null);
+    if (anySelected) {
+      const ok = window.confirm("Begin again? Your picks will return to the table.");
+      if (!ok) return;
+      setCards((prev) =>
+        prev.map((c) =>
+          c.selectionOrder !== null ? { ...c, selectionOrder: null } : c,
+        ),
+      );
+    }
     setStirring(true);
     setStirNonce((n) => n + 1);
     if (stirTimerRef.current != null) {
@@ -321,7 +334,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       setStirring(false);
       stirTimerRef.current = null;
     }, 760);
-  }, [revealing, revealedAll]);
+  }, [revealing, revealedAll, cards]);
 
   useEffect(() => {
     return () => {
@@ -336,7 +349,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     setCards((prev) => {
       const target = prev.find((c) => c.id === id);
       if (!target) return prev;
+      // No take-backs in slot-based spreads — once a card is in a slot it
+      // stays there until Stir/Begin-again. For single-card flows we keep
+      // the original toggle behavior so the user can re-pick freely.
       if (target.selectionOrder !== null) {
+        if (usesSlots) return prev;
         const removedOrder = target.selectionOrder;
         return prev.map((c) => {
           if (c.id === id) return { ...c, selectionOrder: null };
