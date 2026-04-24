@@ -18,6 +18,18 @@ export type ScatterParams = {
   maxRotation: number;
   padding: number;
   seed: number;
+  /**
+   * Optional rectangular no-spawn zones in container coordinates. Cards whose
+   * un-rotated bounding box overlaps any zone are nudged elsewhere. Used to
+   * keep the scatter clear of fixed UI like the top-right close button.
+   */
+  exclusionZones?: { x: number; y: number; w: number; h: number }[];
+  /**
+   * Minimum fraction of each card that must remain visible (not covered by
+   * later-stacked cards). Defaults to 0.3 (30%). Cards that fall below this
+   * threshold get nudged to a free-er position.
+   */
+  minVisibleRatio?: number;
 };
 
 // Mulberry32 — small, fast, deterministic.
@@ -115,8 +127,30 @@ export function buildScatter(p: ScatterParams): ScatterCard[] {
 
     // Clamp using the rotation-aware safe padding so the rotated bbox
     // (not just the un-rotated top-left rect) stays inside the container.
-    const x = clamp(baseX + dx, safePadX, p.width - safePadX - p.cardWidth);
-    const y = clamp(baseY + dy, safePadY, p.height - safePadY - p.cardHeight);
+    let x = clamp(baseX + dx, safePadX, p.width - safePadX - p.cardWidth);
+    let y = clamp(baseY + dy, safePadY, p.height - safePadY - p.cardHeight);
+
+    // Avoid exclusion zones (e.g. the X close button hit area). Try several
+    // jittered positions; if none clear, fall back to a deterministic safe
+    // corner so cards never sit beneath fixed UI.
+    if (p.exclusionZones && p.exclusionZones.length > 0) {
+      let attempts = 0;
+      while (
+        attempts < 12 &&
+        intersectsAny(x, y, p.cardWidth, p.cardHeight, p.exclusionZones)
+      ) {
+        const ndx = (rng() - 0.5) * jitterX * 2;
+        const ndy = (rng() - 0.5) * jitterY * 2;
+        x = clamp(baseX + ndx, safePadX, p.width - safePadX - p.cardWidth);
+        y = clamp(baseY + ndy, safePadY, p.height - safePadY - p.cardHeight);
+        attempts++;
+      }
+      if (intersectsAny(x, y, p.cardWidth, p.cardHeight, p.exclusionZones)) {
+        // Hard fallback: bottom-left corner is always far from the X button.
+        x = safePadX;
+        y = p.height - safePadY - p.cardHeight;
+      }
+    }
 
     cards.push({ id: i, x, y, rotation: rot, z: i });
   }
@@ -131,7 +165,96 @@ export function buildScatter(p: ScatterParams): ScatterCard[] {
     cards[cardIdx].z = z;
   });
 
+  // Enforce minimum visibility: any card more than (1 - minVisibleRatio)
+  // covered by higher-z cards gets nudged to a freer spot.
+  const minVisible = p.minVisibleRatio ?? 0.3;
+  enforceMinVisibility(cards, p, minVisible, rng);
+
   return cards;
+}
+
+function intersectsAny(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  zones: { x: number; y: number; w: number; h: number }[],
+): boolean {
+  for (const z of zones) {
+    if (x < z.x + z.w && x + w > z.x && y < z.y + z.h && y + h > z.y) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function rectOverlapArea(
+  ax: number,
+  ay: number,
+  aw: number,
+  ah: number,
+  bx: number,
+  by: number,
+  bw: number,
+  bh: number,
+): number {
+  const ow = Math.max(0, Math.min(ax + aw, bx + bw) - Math.max(ax, bx));
+  const oh = Math.max(0, Math.min(ay + ah, by + bh) - Math.max(ay, by));
+  return ow * oh;
+}
+
+function visibleRatio(card: ScatterCard, higher: ScatterCard[], cw: number, ch: number): number {
+  const area = cw * ch;
+  if (area <= 0) return 1;
+  // Approximate covered area as the sum of pairwise overlaps with higher-z
+  // cards, capped at the card's own area. This overcounts when higher cards
+  // overlap each other but is plenty for a "≥30% visible" heuristic.
+  let covered = 0;
+  for (const o of higher) {
+    covered += rectOverlapArea(card.x, card.y, cw, ch, o.x, o.y, cw, ch);
+    if (covered >= area) break;
+  }
+  return Math.max(0, 1 - Math.min(area, covered) / area);
+}
+
+function enforceMinVisibility(
+  cards: ScatterCard[],
+  p: ScatterParams,
+  minVisible: number,
+  rng: () => number,
+) {
+  // Sort references by z so we can quickly pull "higher" cards (greater z).
+  const byZ = [...cards].sort((a, b) => a.z - b.z);
+  for (let i = 0; i < byZ.length; i++) {
+    const c = byZ[i];
+    const higher = byZ.slice(i + 1);
+    if (visibleRatio(c, higher, p.cardWidth, p.cardHeight) >= minVisible) continue;
+    // Try up to 16 random repositions to find a spot meeting the threshold.
+    for (let attempt = 0; attempt < 16; attempt++) {
+      const nx = clamp(
+        rng() * (p.width - p.cardWidth),
+        0,
+        Math.max(0, p.width - p.cardWidth),
+      );
+      const ny = clamp(
+        rng() * (p.height - p.cardHeight),
+        0,
+        Math.max(0, p.height - p.cardHeight),
+      );
+      if (
+        p.exclusionZones &&
+        intersectsAny(nx, ny, p.cardWidth, p.cardHeight, p.exclusionZones)
+      ) {
+        continue;
+      }
+      const candidate = { ...c, x: nx, y: ny };
+      if (visibleRatio(candidate, higher, p.cardWidth, p.cardHeight) >= minVisible) {
+        c.x = nx;
+        c.y = ny;
+        break;
+      }
+    }
+  }
 }
 
 function clamp(v: number, lo: number, hi: number) {
