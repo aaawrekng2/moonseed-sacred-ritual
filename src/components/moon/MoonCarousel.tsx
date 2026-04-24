@@ -74,11 +74,29 @@ export function MoonCarousel() {
     return d;
   }, []);
 
+  // Currently-viewed center date — used so phase jumps anchor on what the
+  // user is looking at, not on real-world today.
+  const viewedDate = useMemo(() => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + offset);
+    d.setHours(12, 0, 0, 0);
+    return d;
+  }, [today, offset]);
+
+  // Mobile shows a 3-day window (-1, 0, +1); desktop shows 5 (-2..+2).
+  const isMobile =
+    typeof window !== "undefined" && window.innerWidth < 640;
+  const dayRange = isMobile ? 1 : 2;
+
+  // True while a multi-day tween is animating. Used to suppress per-cell
+  // layout transitions that would otherwise fight the position tween.
+  const [transitioning, setTransitioning] = useState(false);
+
   const [retryNonce, setRetryNonce] = useState(0);
   const { days, todayMoonSign, error } = useMemo(() => {
     try {
       const out: DayCell[] = [];
-      for (let i = -2; i <= 2; i++) {
+      for (let i = -dayRange; i <= dayRange; i++) {
         const d = new Date(today);
         d.setDate(today.getDate() + offset + i);
         const info = getCurrentMoonPhase(d);
@@ -90,7 +108,7 @@ export function MoonCarousel() {
       return { days: [] as DayCell[], todayMoonSign: "", error: e instanceof Error ? e.message : "Unknown error" };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [offset, today, retryNonce]);
+  }, [offset, today, retryNonce, dayRange]);
 
   const [recomputing, setRecomputing] = useState(false);
   const recomputeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
