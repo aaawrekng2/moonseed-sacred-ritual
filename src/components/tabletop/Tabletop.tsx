@@ -326,7 +326,17 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // a drag (so a swipe doesn't double-toggle the starting card).
   const wasDraggingRef = useRef(false);
   const onContainerPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    wasDraggingRef.current = gestureRef.current.moved;
+    const g = gestureRef.current;
+    wasDraggingRef.current = g.moved;
+    // If the gesture never crossed the drag threshold, treat it as a tap
+    // and toggle the starting card. Required because the container uses
+    // setPointerCapture, which prevents the inner <button>'s click event
+    // from firing reliably (especially with mouse on desktop).
+    if (!g.moved && g.startCardId != null && !revealing && !revealedAll) {
+      toggleSelect(g.startCardId);
+      // Suppress the synthetic click that may follow so we don't double-toggle.
+      wasDraggingRef.current = true;
+    }
     endGesture(e);
   };
   const shouldSuppressClick = () => {
@@ -434,7 +444,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       {/* Reveal bar */}
       <div
         className="flex items-center justify-center px-6 pt-3"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)" }}
       >
         {!revealedAll && (
           <button
@@ -513,7 +523,10 @@ function CardSlot({
         width: cardW,
         height: cardH,
         transform: `rotate(${card.rotation}deg) translateY(${isSelected ? "-4px" : "0"})`,
-        zIndex: isSelected ? 40 : card.z + 1,
+        // Selected cards (and their numbered badges) must always sit above
+        // every unselected card. Use a large constant well above any
+        // possible scatter z value.
+        zIndex: isSelected ? 1000 + (card.selectionOrder ?? 0) : card.z + 1,
         animation: `settle-in 320ms ease-out both`,
         animationDelay: `${settleDelay}ms`,
         // Drives the .card-hit element's inset via a CSS variable so the
