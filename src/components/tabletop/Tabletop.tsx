@@ -614,11 +614,34 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           style={{ transform: ready || !usesSlots ? "translateY(-8px)" : "translateY(0)" }}
         >
           {!revealedAll && usesSlots && !ready && (
-            <div
-              className="flex items-end justify-center gap-2 overflow-x-auto px-1 pb-1"
-              role="list"
-              aria-label={`${meta.label} slots`}
-            >
+            <div className="flex flex-col items-center gap-1.5">
+              {/* Subtle progress whisper: filled / total. Sits centered just
+                  above the slot rail so the eye reads progress before
+                  scanning the slots themselves. Resting opacity keeps it
+                  from competing with the cards on the table. */}
+              <span
+                aria-live="polite"
+                aria-label={`${selectedCount} of ${required} cards chosen`}
+                className="font-display italic tabular-nums leading-none"
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.18em",
+                  color: "var(--gold)",
+                  opacity: restingAlpha,
+                  textTransform: "uppercase",
+                }}
+              >
+                <span style={{ color: "var(--gold)", opacity: 1 }}>
+                  {selectedCount}
+                </span>
+                <span style={{ margin: "0 4px", opacity: 0.5 }}>/</span>
+                <span>{required}</span>
+              </span>
+              <div
+                className="flex items-end justify-center gap-2 overflow-x-auto px-1 pb-1"
+                role="list"
+                aria-label={`${meta.label} slots`}
+              >
               {Array.from({ length: required }).map((_, i) => {
                 const filled = cards.some(
                   (c) => c.selectionOrder === i + 1,
@@ -663,6 +686,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                   </div>
                 );
               })}
+              </div>
             </div>
           )}
           {!revealedAll && (!usesSlots || ready) &&
