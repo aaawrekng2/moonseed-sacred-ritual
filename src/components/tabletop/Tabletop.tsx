@@ -1124,13 +1124,13 @@ function CardSlot({
             : "Face-down card"
       }
       className={cn(
-        flying
+        flying || flightPhase === "returning"
           ? "fixed outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
           : "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
         // While stirring, animate left/top/transform together so the card
         // drifts to its new scatter slot. Otherwise keep the snappier
         // transform-only transition for selection feedback.
-        flying
+        flying || flightPhase === "returning"
           ? null
           : stirring
           ? "card-stir-transition"
@@ -1140,7 +1140,30 @@ function CardSlot({
         isSelected ? "z-30" : null,
       )}
       style={
-        flying && launchRect && slotRect
+        flightPhase === "returning" && returnFromRect && containerOrigin
+          ? {
+              // Fixed positioning during return flight. Start at the last
+              // slot rect; on the next frame transition to the new scatter
+              // viewport coords. After the transition completes the
+              // settle effect drops the card back to absolute (idle).
+              left: returnAnimating
+                ? containerOrigin.left + card.x
+                : returnFromRect.left,
+              top: returnAnimating
+                ? containerOrigin.top + card.y
+                : returnFromRect.top,
+              width: returnAnimating ? cardW : returnFromRect.width,
+              height: returnAnimating ? cardH : returnFromRect.height,
+              transform: returnAnimating
+                ? `rotate(${card.rotation}deg)`
+                : `rotate(0deg)`,
+              transition: returnAnimating
+                ? `left ${flightMs}ms cubic-bezier(0.22,1,0.36,1), top ${flightMs}ms cubic-bezier(0.22,1,0.36,1), width ${flightMs}ms cubic-bezier(0.22,1,0.36,1), height ${flightMs}ms cubic-bezier(0.22,1,0.36,1), transform ${flightMs}ms cubic-bezier(0.22,1,0.36,1)`
+                : "none",
+              zIndex: 1400,
+              ["--card-hit-inset" as string]: `${hitInset}px`,
+            }
+          : flying && launchRect && slotRect
           ? {
               // Fixed (viewport) positioning during flight. Phase 'launching'
               // sits at the captured rect; phase 'arrived' is the slot rect.
