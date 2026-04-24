@@ -375,7 +375,7 @@ export function MoonCarousel() {
               "transition-opacity duration-150",
               "hover:opacity-100 focus-visible:opacity-100",
               "outline-none focus-visible:outline-none",
-              "focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              "focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
             )}
             style={{ color: accent, opacity: restingAlpha }}
           >
