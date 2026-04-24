@@ -468,9 +468,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         aria-label="Close tabletop"
         style={{
           top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          right: "calc(env(safe-area-inset-right, 0px) + 16px)",
           opacity: exitAlpha,
         }}
-        className="absolute right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        className="absolute z-50 flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
       >
         <X className="h-5 w-5" strokeWidth={1.5} />
       </button>
@@ -517,9 +518,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       {/* Bottom zen bar: status whisper + soft reveal + stir affordance.
           Sits at resting opacity so nothing competes with the cards. */}
       <div
-        className="relative flex flex-col items-center justify-center gap-3 px-6 pt-2"
+        className="relative flex flex-col items-center justify-center gap-3 pt-2"
         style={{
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+          paddingLeft: "calc(env(safe-area-inset-left, 0px) + 24px)",
+          paddingRight: "calc(env(safe-area-inset-right, 0px) + 24px)",
         }}
       >
         {/* Stir — anchored bottom-left at resting opacity. Single, quiet word. */}
@@ -532,8 +535,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             style={{
               opacity: restingAlpha,
               bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+              left: "calc(env(safe-area-inset-left, 0px) + 20px)",
             }}
-            className="absolute left-5 inline-flex items-center gap-1.5 font-display text-[11px] uppercase tracking-[0.3em] text-gold/80 transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none disabled:cursor-not-allowed"
+            className="absolute inline-flex items-center gap-1.5 font-display text-[11px] uppercase tracking-[0.3em] text-gold/80 transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none disabled:cursor-not-allowed"
           >
             <Sparkles className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
             Stir
