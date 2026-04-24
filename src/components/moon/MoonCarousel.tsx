@@ -801,6 +801,12 @@ function PhaseLadder({
           <span
             style={{
               display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              padding: "0px",
+              border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
+              transition: "border-color 200ms ease, opacity 200ms ease",
               // Desktop layout guard: lock the wrapper to the icon's exact
               // box, never shrink in a flex parent, never clip child SVG.
               // This makes it structurally impossible for a future flex/
@@ -811,17 +817,9 @@ function PhaseLadder({
               overflow: "visible",
               boxSizing: "content-box",
             }}
+            className="group-hover:!border-gold"
           >
-            {/* Ring is painted INSIDE the SVG so it always touches the
-                moon body, regardless of icon size. A CSS border on this
-                wrapper would trace the SVG box edge and leave a halo gap. */}
-            <MoonPhaseIcon
-              phase={r.phase}
-              size={r.size}
-              ringColor={`rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`}
-              ringWidth={1.75}
-              className="transition-opacity duration-200 group-hover:[&>circle:last-of-type]:stroke-gold"
-            />
+            <MoonPhaseIcon phase={r.phase} size={r.size} />
           </span>
         </button>
       ))}
