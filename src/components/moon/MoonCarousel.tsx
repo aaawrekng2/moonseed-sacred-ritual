@@ -761,29 +761,21 @@ function PhaseLadder({
             "transition-all duration-200 ease-out",
             "hover:!opacity-100 hover:scale-110",
             "outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-            i === activeIdx && "moon-rung-active",
           )}
         >
           <span
-            // Re-mount the inner span on offset change so the pulse animation
-            // restarts cleanly — pure CSS animations don't otherwise replay.
-            key={i === activeIdx ? pulseKey : "idle"}
-            className={cn(
-              "moon-rung-halo inline-flex items-center justify-center rounded-full transition-all duration-200 ease-out",
-              i === activeIdx && "moon-rung-pulse",
-            )}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              padding: "3px",
+              border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
+              transition: "border-color 200ms ease, opacity 200ms ease",
+            }}
+            className="group-hover:!border-gold"
           >
-            <span
-              className="moon-rung-glow inline-flex items-center justify-center rounded-full group-hover:[background:radial-gradient(circle,rgba(212,175,55,0.80)_0%,transparent_70%)]"
-              style={{
-                background:
-                  "radial-gradient(circle, rgba(212,175,55,0.55) 0%, transparent 70%)",
-                padding: "4px",
-                transition: "background 200ms ease",
-              }}
-            >
-              <MoonPhaseIcon phase={r.phase} size={r.size} />
-            </span>
+            <MoonPhaseIcon phase={r.phase} size={r.size} />
           </span>
         </button>
       ))}
