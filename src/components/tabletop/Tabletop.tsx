@@ -721,8 +721,22 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         // their fixed-position anchors and don't fly back to the table.
         const slotRailMounted = !revealedAll && usesSlots;
         const showSlotRail = slotRailMounted && !ready;
-        const slotRail = showSlotRail ? (
-          <div className="flex flex-col items-center gap-1.5">
+        const slotRail = slotRailMounted ? (
+          <div
+            className="flex flex-col items-center gap-1.5"
+            // When ready, hide the rail visually but keep it in the DOM so
+            // slot rects stay measurable — slotted cards anchor to them.
+            style={
+              !showSlotRail
+                ? {
+                    visibility: "hidden",
+                    position: "absolute",
+                    pointerEvents: "none",
+                  }
+                : undefined
+            }
+            aria-hidden={!showSlotRail}
+          >
             {!isMobile && (
               <span
                 aria-live="polite"
