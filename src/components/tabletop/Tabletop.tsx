@@ -648,6 +648,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                 : null
             }
             flightMs={TABLETOP_CONFIG.FLIGHT_MS}
+            containerOrigin={containerOrigin}
           />
         ))}
         {stirring && (
