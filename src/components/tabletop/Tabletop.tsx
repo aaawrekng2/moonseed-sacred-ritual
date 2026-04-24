@@ -540,40 +540,42 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </button>
         )}
 
+        {/* Centered whisper. When the spread is incomplete, this is a quiet
+            status line ("Choose N more"). Once all picks are made it morphs
+            into a soft pill that taps to reveal — same scale, same opacity,
+            no bold UI screaming for attention. */}
         {!revealedAll && (
-          <span
-            className="font-display text-[10px] uppercase tracking-[0.4em] text-foreground"
-            style={{ opacity: restingAlpha }}
-            aria-live="polite"
-          >
-            {ready
-              ? "Ready"
-              : `Choose ${required - selectedCount} more`}
-          </span>
-        )}
-
-        {!revealedAll && (
-          <button
-            type="button"
-            onClick={handleReveal}
-            disabled={!ready || revealing}
-            aria-busy={revealing}
-            className={cn(
-              "inline-flex items-center justify-center gap-2 font-display text-[12px] uppercase tracking-[0.4em] transition-all",
-              "border-b border-transparent pb-1 disabled:cursor-not-allowed",
-              ready && !revealing
-                ? "text-gold border-gold/40 hover:border-gold/80"
-                : "text-muted-foreground/40",
-            )}
-          >
-            {revealing && (
-              <Loader2
-                className="h-3.5 w-3.5 animate-spin"
-                aria-hidden="true"
-              />
-            )}
-            <span>{revealing ? "Revealing" : "Reveal"}</span>
-          </button>
+          ready ? (
+            <button
+              type="button"
+              onClick={handleReveal}
+              disabled={revealing}
+              aria-busy={revealing}
+              aria-live="polite"
+              style={{ opacity: restingAlpha }}
+              className={cn(
+                "inline-flex items-center justify-center gap-2",
+                "rounded-full border border-gold/30 px-5 py-1.5",
+                "font-display text-[10px] uppercase tracking-[0.4em] text-gold",
+                "transition-opacity hover:!opacity-100 focus:!opacity-100",
+                "focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/40",
+                "disabled:cursor-not-allowed",
+              )}
+            >
+              {revealing && (
+                <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+              )}
+              <span>{revealing ? "Revealing" : "Reveal"}</span>
+            </button>
+          ) : (
+            <span
+              className="font-display text-[10px] uppercase tracking-[0.4em] text-foreground"
+              style={{ opacity: restingAlpha }}
+              aria-live="polite"
+            >
+              {`Choose ${required - selectedCount} more`}
+            </span>
+          )
         )}
       </div>
     </div>
