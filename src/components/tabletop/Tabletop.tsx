@@ -89,6 +89,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [seed] = useState(() => (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
+  // Bumped each time the user "stirs" the table. Used to derive a fresh
+  // scatter seed for unselected cards while preserving selected ones.
+  const [stirNonce, setStirNonce] = useState(0);
+  const { opacity: restingOpacityPct } = useRestingOpacity();
+  const restingAlpha = restingOpacityPct / 100;
+  const exitAlpha = Math.min(1, restingAlpha + 0.1);
 
   // Read selected card back once on mount.
   useEffect(() => {
