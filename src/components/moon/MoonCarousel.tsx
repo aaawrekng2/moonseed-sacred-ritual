@@ -214,7 +214,7 @@ export function MoonCarousel() {
           days. The today card is the tallest element; sizing here is set so
           it never clips and the chevrons never shift vertically. */}
       <div
-        className="flex items-start justify-center gap-1 sm:gap-4 touch-pan-y overflow-visible"
+        className="relative flex items-start justify-center gap-1 sm:gap-4 touch-pan-y overflow-visible"
         style={{ height: 260 }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
@@ -253,8 +253,8 @@ export function MoonCarousel() {
         <div className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl">
           {days.map((d) => {
             const isExpanded = expandedRel === d.relative;
-            const absRel = Math.abs(d.relative);
             const rel = d.relative - offset; // -2..+2 within current window
+            const absRel = Math.abs(rel);    // window position, NOT distance from today
             const topOffset = absRel === 0 ? 0 : absRel === 1 ? 24 : 44;
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
@@ -305,9 +305,34 @@ export function MoonCarousel() {
           onJump={(p) => jumpToPhase(p)}
           onStep={() => shift(1)}
         />
+
+        {/* Mobile-only edge tap zones — invisible 44px hit areas with a
+            single small phase glyph as the affordance. Swipe still works.
+            Hidden on sm+ where the chevron buttons handle stepping. */}
+        <button
+          type="button"
+          onClick={() => shift(-1)}
+          aria-label="Previous day"
+          className="sm:hidden absolute left-0 top-0 bottom-0 z-20 flex items-center justify-center bg-transparent border-0 p-0 cursor-pointer active:!opacity-100 focus-visible:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          style={{ width: 44, opacity: restingAlpha }}
+        >
+          <MoonPhaseIcon phase={days[2]?.info.phase ?? "Full Moon"} size={18} />
+        </button>
+        <button
+          type="button"
+          onClick={() => shift(1)}
+          aria-label="Next day"
+          className="sm:hidden absolute right-0 top-0 bottom-0 z-20 flex items-center justify-center bg-transparent border-0 p-0 cursor-pointer active:!opacity-100 focus-visible:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          style={{ width: 44, opacity: restingAlpha }}
+        >
+          <MoonPhaseIcon phase={days[2]?.info.phase ?? "Full Moon"} size={18} />
+        </button>
       </div>
 
-      <p className="mt-1 text-center text-[10px] uppercase tracking-[0.25em] text-muted-foreground/60 sm:hidden">
+      <p
+        className="mt-1 text-center text-[9px] uppercase tracking-[0.25em] text-muted-foreground sm:hidden"
+        style={{ opacity: restingAlpha * 0.6 }}
+      >
         Swipe to browse · Tap a day for details
       </p>
 
@@ -676,7 +701,7 @@ function PhaseLadder({
 
   return (
     <div
-      className="hidden sm:flex shrink-0 self-center flex-row items-center gap-1.5 md:gap-2 lg:gap-3"
+      className="hidden sm:flex shrink-0 self-center flex-row items-center gap-3 md:gap-4 lg:gap-5"
       aria-label={`${jumpVerb} phase navigator`}
     >
       {isLeft ? (
