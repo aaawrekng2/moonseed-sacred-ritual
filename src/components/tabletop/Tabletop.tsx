@@ -188,6 +188,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  // Viewport-coordinate origin of the scatter container. Passed to
+  // CardSlot so a card returning from a slot to the table can compute
+  // its absolute landing point in viewport space (slot rects are in
+  // viewport coords; scatter rects are in container coords).
+  const [containerOrigin, setContainerOrigin] = useState<{ left: number; top: number } | null>(null);
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [seed] = useState(() => (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
   // Bumped each time the user "stirs" the table. Used to derive a fresh
@@ -228,6 +233,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     const update = () => {
       const r = el.getBoundingClientRect();
       setSize({ w: r.width, h: r.height });
+      setContainerOrigin({ left: r.left, top: r.top });
     };
     update();
     const ro = new ResizeObserver(update);
