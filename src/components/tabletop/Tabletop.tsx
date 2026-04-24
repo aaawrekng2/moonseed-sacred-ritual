@@ -97,6 +97,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // they drift to their new slots instead of snapping.
   const [stirring, setStirring] = useState(false);
   const stirTimerRef = useRef<number | null>(null);
+  const [revealing, setRevealing] = useState(false);
+  const [revealedAll, setRevealedAll] = useState(false);
   const { opacity: restingOpacityPct } = useRestingOpacity();
   const restingAlpha = restingOpacityPct / 100;
   const exitAlpha = Math.min(1, restingAlpha + 0.1);
@@ -215,8 +217,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
   const ready = selectedCount === required;
-  const [revealing, setRevealing] = useState(false);
-  const [revealedAll, setRevealedAll] = useState(false);
 
   const triggerStir = useCallback(() => {
     if (revealing || revealedAll) return;
@@ -663,6 +663,7 @@ function CardSlot({
           "relative h-full w-full rounded-[10px] flip-3d",
           card.revealed && "is-flipped",
           tapTick > 0 && !card.revealed && "animate-card-tap",
+          stirring && !card.revealed && "animate-card-stir-glide",
         )}
         style={{
           // @ts-expect-error custom prop
