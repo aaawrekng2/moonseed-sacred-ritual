@@ -598,6 +598,7 @@ function CardSlot({
   faceIndex: number;
   disabled: boolean;
   hitInset: number;
+  stirring: boolean;
   onSelect: () => void;
   settleDelay: number;
 }) {
