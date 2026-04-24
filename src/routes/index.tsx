@@ -37,22 +37,9 @@ function Index() {
         <MoonCarousel />
       </header>
 
-      {/* Streak — quiet, left-aligned, in normal flow between moon strip and card */}
-      <div className="my-2 px-6">
-        <div
-          className="inline-flex items-center gap-1.5 text-gold"
-          style={{ opacity: restingAlpha }}
-          title="Your practice streak"
-          aria-label="Practice streak: 0 days"
-        >
-          <Flame size={16} strokeWidth={1.6} />
-          <span className="font-display text-[13px] leading-none">0</span>
-        </div>
-      </div>
-
       {/* Hero gateway card — centered in remaining space */}
       <section className="flex flex-1 flex-col items-center justify-center px-6">
-        <div className="relative">
+        <div style={{ position: "relative", display: "inline-block" }}>
           <button
             type="button"
             aria-label="Begin today's draw"
@@ -60,6 +47,30 @@ function Index() {
           >
             <CardBack id={cardBack} width={180} />
           </button>
+          <div
+            style={{
+              position: "absolute",
+              bottom: "12px",
+              left: "-40px",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+            }}
+            title="Your practice streak"
+            aria-label="Practice streak: 0 days"
+          >
+            <Flame size={16} style={{ color: "var(--gold)", opacity: restingAlpha }} />
+            <span
+              style={{
+                fontSize: "13px",
+                color: "var(--gold)",
+                opacity: restingAlpha,
+                fontFamily: "var(--font-serif)",
+              }}
+            >
+              0
+            </span>
+          </div>
         </div>
         <p
           className="mt-4 font-display text-[13px] italic"
