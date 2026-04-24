@@ -31,6 +31,13 @@ const TABLETOP_CONFIG = {
   REVEAL_STAGGER_MS: 0,
   FLIGHT_MS: 420,
   DECK_SIZE: 78,
+  /**
+   * Mobile breakpoint (CSS px). Below this the layout switches to:
+   *   - Slot rail anchored at the very bottom of the screen.
+   *   - Stir / counter / X arranged on a thinner row above it.
+   *   - Opacity slider hidden (desktop dev tool only).
+   */
+  MOBILE_BREAKPOINT: 768,
 };
 
 // Responsive card width: 42px mobile, 52px tablet, 64px desktop.
@@ -38,6 +45,84 @@ function responsiveCardWidth(viewportW: number): number {
   if (viewportW < 768) return 42;
   if (viewportW < 1024) return 52;
   return 64;
+}
+
+/**
+ * Per-spread slot dimensions. Slots are sized differently from the table
+ * cards because the rail must fit a fixed number of positions in one row
+ * with no horizontal scrolling, even on narrow phones (10 for Celtic).
+ *
+ * Returns the visible slot card width — height is derived from
+ * CARD_ASPECT_RATIO.
+ */
+function responsiveSlotWidth(viewportW: number, count: number): number {
+  const isMobile = viewportW < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
+  if (count <= 3) {
+    // Three-card spread: roomy slots both layouts.
+    return isMobile ? 48 : 72;
+  }
+  if (count >= 10) {
+    // Celtic Cross: 10 slots must fit in a single non-scrolling row. Sizes
+    // chosen so 10 * (slotW + gap) stays inside common viewport widths.
+    if (isMobile) {
+      // Aim for ≤360px of rail on a 390px viewport (room for safe-area).
+      // 10 slots × 28 + 9 gaps × 4 ≈ 316px → comfortably fits.
+      return 28;
+    }
+    return 44;
+  }
+  // Fallback for any future spread with 4–9 cards.
+  return isMobile ? 38 : 56;
+}
+
+/**
+ * Pick a random scatter spot for a card returning from a slot. Tries to
+ * minimise overlap with existing un-rotated card rects so the returned
+ * card is visible. Falls back to a random position if no roomy spot is
+ * found within a few tries (the table is intentionally cluttered).
+ */
+function pickReturnSpot(
+  cards: CardState[],
+  excludeId: number,
+  geo: {
+    width: number;
+    height: number;
+    cardW: number;
+    cardH: number;
+    padding: number;
+    maxRotation: number;
+  },
+): { x: number; y: number; rotation: number } {
+  const others = cards.filter((c) => c.id !== excludeId);
+  const maxX = Math.max(0, geo.width - geo.padding * 2 - geo.cardW);
+  const maxY = Math.max(0, geo.height - geo.padding * 2 - geo.cardH);
+  const tries = 20;
+  let best: { x: number; y: number; coverage: number } | null = null;
+  for (let i = 0; i < tries; i++) {
+    const x = geo.padding + Math.random() * maxX;
+    const y = geo.padding + Math.random() * maxY;
+    let coverage = 0;
+    for (const o of others) {
+      const ow = Math.max(
+        0,
+        Math.min(x + geo.cardW, o.x + geo.cardW) - Math.max(x, o.x),
+      );
+      const oh = Math.max(
+        0,
+        Math.min(y + geo.cardH, o.y + geo.cardH) - Math.max(y, o.y),
+      );
+      coverage += ow * oh;
+    }
+    if (best === null || coverage < best.coverage) {
+      best = { x, y, coverage };
+      // Good enough — visible enough that we won't waste cycles searching.
+      if (coverage < geo.cardW * geo.cardH * 0.4) break;
+    }
+  }
+  const spot = best ?? { x: geo.padding, y: geo.padding, coverage: 0 };
+  let rotation = (Math.random() * 2 - 1) * geo.maxRotation;
+  if (Math.abs(rotation) < 1) rotation = rotation >= 0 ? 1 : -1;
+  return { x: spot.x, y: spot.y, rotation };
 }
 
 /**
@@ -99,10 +184,14 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const meta = SPREAD_META[spread];
   const required = meta.count;
   const usesSlots = spreadUsesSlots(spread);
-  const slotLabels = meta.positions ?? [];
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  // Viewport-coordinate origin of the scatter container. Passed to
+  // CardSlot so a card returning from a slot to the table can compute
+  // its absolute landing point in viewport space (slot rects are in
+  // viewport coords; scatter rects are in container coords).
+  const [containerOrigin, setContainerOrigin] = useState<{ left: number; top: number } | null>(null);
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [seed] = useState(() => (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
   // Bumped each time the user "stirs" the table. Used to derive a fresh
@@ -143,6 +232,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     const update = () => {
       const r = el.getBoundingClientRect();
       setSize({ w: r.width, h: r.height });
+      setContainerOrigin({ left: r.left, top: r.top });
     };
     update();
     const ro = new ResizeObserver(update);
@@ -152,6 +242,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const cardW = responsiveCardWidth(size?.w ?? 0);
   const cardH = Math.round(cardW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
+  const isMobile = (size?.w ?? 0) < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
+  // Slot rail uses its own width (smaller on mobile / for many-slot
+  // spreads) so all slots fit in one row without scrolling.
+  const slotW = responsiveSlotWidth(size?.w ?? 0, required);
+  const slotH = Math.round(slotW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
+  // On mobile, abbreviate position labels so the rail isn't cluttered.
+  const slotLabels = (isMobile ? meta.positionsShort : meta.positions) ?? [];
   // Always use the full ±CARD_MAX_ROTATION range so no card sits axis-aligned.
   const maxRotation = TABLETOP_CONFIG.CARD_MAX_ROTATION;
 
@@ -203,20 +300,54 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   );
 
   const [cards, setCards] = useState<CardState[]>([]);
+  // Once cards are initialized we never wipe selections automatically.
+  // Subsequent geometry changes (e.g. the bottom bar growing/shrinking
+  // when the slot rail collapses on Reveal) reflow the unselected cards
+  // in place but preserve every selectionOrder and revealed flag.
+  const initializedRef = useRef(false);
 
-  // Reset / rebuild whenever the underlying scatter geometry changes
-  // (mount, resize, breakpoint change). Stir is handled separately so it
-  // can preserve selected cards.
+  // First mount: build the initial card array from the scatter. After that,
+  // geometry changes only re-place unselected cards — never reset selections.
+  // CRITICAL: a previous version reset every card on any `initialScatter`
+  // change, which silently wiped the user's picks the moment the bottom bar
+  // resized (e.g. when the slot rail collapsed once all cards were placed).
   useEffect(() => {
     if (initialScatter.length === 0) return;
-    setCards(
-      initialScatter.map((s) => ({
-        ...s,
-        selectionOrder: null,
-        revealed: false,
-      })),
-    );
-    setSlotRects(usesSlots ? Array(required).fill(null) : []);
+    if (!initializedRef.current) {
+      setCards(
+        initialScatter.map((s) => ({
+          ...s,
+          selectionOrder: null,
+          revealed: false,
+        })),
+      );
+      initializedRef.current = true;
+      setSlotRects(usesSlots ? Array(required).fill(null) : []);
+      return;
+    }
+    // Subsequent geometry change — reflow unselected cards only.
+    setCards((prev) => {
+      if (prev.length === 0) {
+        // Edge case: somehow lost the array; rebuild from scratch.
+        return initialScatter.map((s) => ({
+          ...s,
+          selectionOrder: null,
+          revealed: false,
+        }));
+      }
+      let cursor = 0;
+      return prev.map((c) => {
+        if (c.selectionOrder !== null) return c; // never disturb a pick
+        const next = initialScatter[cursor++ % initialScatter.length];
+        return {
+          ...c,
+          x: next.x,
+          y: next.y,
+          rotation: next.rotation,
+          z: next.z,
+        };
+      });
+    });
   }, [initialScatter, usesSlots, required]);
 
   // Measure slot rects after layout (and on resize). Selected-card flight
@@ -356,11 +487,41 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     setCards((prev) => {
       const target = prev.find((c) => c.id === id);
       if (!target) return prev;
-      // No take-backs in slot-based spreads — once a card is in a slot it
-      // stays there until Stir/Begin-again. For single-card flows we keep
-      // the original toggle behavior so the user can re-pick freely.
+      // Tapping a slotted card sends it back to the table. The other slots
+      // hold their cards (we never compact / shift indices). The returning
+      // card lands at a fresh random position so the table reads as
+      // "shuffled" rather than the card returning to its origin.
       if (target.selectionOrder !== null) {
-        if (usesSlots) return prev;
+        if (usesSlots) {
+          if (!size) return prev;
+          const newPos = pickReturnSpot(prev, target.id, {
+            width: size.w,
+            height: size.h,
+            cardW,
+            cardH,
+            padding: TABLETOP_CONFIG.SCATTER_PADDING,
+            maxRotation,
+          });
+          // Push z above any other unselected card so it's clearly on top
+          // when it lands; selected cards still sit in the 1000+ band.
+          const maxZ = prev.reduce(
+            (m, c) => (c.selectionOrder === null && c.z > m ? c.z : m),
+            0,
+          );
+          return prev.map((c) =>
+            c.id === id
+              ? {
+                  ...c,
+                  selectionOrder: null,
+                  x: newPos.x,
+                  y: newPos.y,
+                  rotation: newPos.rotation,
+                  z: maxZ + 1,
+                }
+              : c,
+          );
+        }
+        // Single-card / yes_no: keep the original toggle behavior.
         const removedOrder = target.selectionOrder;
         return prev.map((c) => {
           if (c.id === id) return { ...c, selectionOrder: null };
@@ -425,7 +586,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]">
       {/* Temporary resting-opacity test slider — fixed upper-left, top
-          layer so cards never sit above its controls. */}
+          layer so cards never sit above its controls. Desktop-only:
+          hidden on mobile per design (it is a dev-only tool). */}
+      {!isMobile && (
       <div
         style={{
           position: "fixed",
@@ -463,6 +626,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           style={{ width: "100%", accentColor: "var(--gold)" }}
         />
       </div>
+      )}
 
       {/* Tabletop scatter area */}
       <div
@@ -493,6 +657,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                 : null
             }
             flightMs={TABLETOP_CONFIG.FLIGHT_MS}
+            containerOrigin={containerOrigin}
           />
         ))}
         {stirring && (
@@ -549,76 +714,30 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           })}
       </div>
 
-      {/* Bottom zen bar — three columns:
-            • left:   Stir icon (bottom edge) + Overlap chip (slightly above)
-            • center: "Choose N" / "Reveal" whisper, slightly elevated
-            • right:  Exit X (same baseline as Stir)
-          Everything sits at resting opacity. */}
-      <div
-        className="relative grid grid-cols-3 items-end"
-        style={{
-          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
-          paddingLeft: "calc(env(safe-area-inset-left, 0px) + 16px)",
-          paddingRight: "calc(env(safe-area-inset-right, 0px) + 16px)",
-          paddingTop: 8,
-        }}
-      >
-        {/* LEFT column: Stir (icon only) anchored to the bottom edge, with
-            the dev Overlap pill sitting just above it. */}
-        <div className="flex flex-col items-start gap-2">
-          <button
-            type="button"
-            onClick={() => setDebugOverlap((v) => !v)}
-            aria-pressed={debugOverlap}
-            aria-label="Toggle overlap debug overlay"
-            style={{ opacity: debugOverlap ? 1 : restingAlpha }}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
-              "font-display text-[9px] uppercase tracking-[0.25em] transition-opacity",
-              "hover:!opacity-100 focus:!opacity-100 focus:outline-none",
-              debugOverlap
-                ? "border-destructive/70 text-destructive-foreground bg-destructive/20"
-                : "border-gold/30 text-gold/70",
-            )}
+      {(() => {
+        // When the user is mid-pick we show the slot rail prominently. Once
+        // every slot is filled the rail visually steps aside for "Reveal",
+        // but its DOM stays mounted (just hidden) so the slotted cards keep
+        // their fixed-position anchors and don't fly back to the table.
+        const slotRailMounted = !revealedAll && usesSlots;
+        const showSlotRail = slotRailMounted && !ready;
+        const slotRail = slotRailMounted ? (
+          <div
+            className="flex flex-col items-center gap-1.5"
+            // When ready, hide the rail visually but keep it in the DOM so
+            // slot rects stay measurable — slotted cards anchor to them.
+            style={
+              !showSlotRail
+                ? {
+                    visibility: "hidden",
+                    position: "absolute",
+                    pointerEvents: "none",
+                  }
+                : undefined
+            }
+            aria-hidden={!showSlotRail}
           >
-            <span
-              aria-hidden="true"
-              className={cn(
-                "h-1.5 w-1.5 rounded-full",
-                debugOverlap ? "bg-destructive" : "bg-gold/50",
-              )}
-            />
-            Overlap {debugOverlap ? "On" : "Off"}
-          </button>
-          {!revealedAll && (
-            <button
-              type="button"
-              onClick={triggerStir}
-              disabled={revealing || stirring}
-              aria-label="Stir — rearrange unselected cards"
-              style={{ opacity: restingAlpha }}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed"
-            >
-              <Sparkles className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
-            </button>
-          )}
-        </div>
-
-        {/* CENTER column: cascades up — the focal element of the bar.
-            For multi-card spreads this is the slot row (with labels).
-            Once all slots are filled the slot row hides and "Reveal"
-            appears glowing in its place. For single-card spreads we keep
-            the original "Choose N" / "Reveal" whisper. */}
-        <div
-          className="flex items-end justify-center min-w-0"
-          style={{ transform: ready || !usesSlots ? "translateY(-8px)" : "translateY(0)" }}
-        >
-          {!revealedAll && usesSlots && !ready && (
-            <div className="flex flex-col items-center gap-1.5">
-              {/* Subtle progress whisper: filled / total. Sits centered just
-                  above the slot rail so the eye reads progress before
-                  scanning the slots themselves. Resting opacity keeps it
-                  from competing with the cards on the table. */}
+            {!isMobile && (
               <span
                 aria-live="polite"
                 aria-label={`${selectedCount} of ${required} cards chosen`}
@@ -637,18 +756,18 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                 <span style={{ margin: "0 4px", opacity: 0.5 }}>/</span>
                 <span>{required}</span>
               </span>
-              <div
-                className="flex items-end justify-center gap-2 overflow-x-auto px-1 pb-1"
-                role="list"
-                aria-label={`${meta.label} slots`}
-              >
+            )}
+            <div
+              className={cn(
+                "flex items-end justify-center px-1 pb-1",
+                required >= 10 ? "gap-1" : "gap-2",
+                "overflow-x-auto",
+              )}
+              role="list"
+              aria-label={`${meta.label} slots`}
+            >
               {Array.from({ length: required }).map((_, i) => {
-                const filled = cards.some(
-                  (c) => c.selectionOrder === i + 1,
-                );
-                // The "next" slot is the first empty one — i.e. the slot at
-                // index === current selectedCount. Highlight it with a soft
-                // gold beacon so the user can see where the next pick lands.
+                const filled = cards.some((c) => c.selectionOrder === i + 1);
                 const isNext = !filled && i === selectedCount;
                 return (
                   <div
@@ -662,12 +781,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                       }}
                       className={cn(isNext && "slot-next-frame")}
                       style={{
-                        width: cardW,
-                        height: cardH,
+                        width: slotW,
+                        height: slotH,
                         borderRadius: 10,
-                        // Default frame styling. The .slot-next-frame
-                        // animation overrides border/background/box-shadow
-                        // when this is the next-up slot.
                         border: isNext
                           ? undefined
                           : "1px solid rgba(212,175,55,0.2)",
@@ -694,13 +810,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                         isNext && "slot-next-label",
                       )}
                       style={{
-                        fontSize: 10,
+                        fontSize: required >= 10 ? (isMobile ? 8 : 9) : 10,
                         color: "var(--gold)",
-                        // The .slot-next-label animation drives opacity for
-                        // the active beacon; non-next labels stay at the
-                        // resting opacity so they recede.
                         opacity: isNext ? undefined : restingAlpha,
                         letterSpacing: "0.05em",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {slotLabels[i] ?? `Slot ${i + 1}`}
@@ -708,62 +822,176 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                   </div>
                 );
               })}
-              </div>
             </div>
-          )}
-          {!revealedAll && (!usesSlots || ready) &&
-            (ready ? (
+          </div>
+        ) : null;
+
+        const centerWhisper =
+          !revealedAll && (!usesSlots || ready)
+            ? ready
+              ? (
+                <button
+                  type="button"
+                  onClick={handleReveal}
+                  disabled={revealing}
+                  aria-busy={revealing}
+                  aria-label="Reveal your reading"
+                  className="reveal-cta-enter reveal-glow-pulse inline-flex items-center gap-2 bg-transparent font-display italic leading-none hover:scale-[1.02] focus:outline-none disabled:cursor-not-allowed"
+                  style={{
+                    fontSize: 24,
+                    color: "var(--gold)",
+                    opacity: 1,
+                    textShadow:
+                      "0 0 20px rgba(212,175,55,0.9), 0 0 40px rgba(212,175,55,0.4)",
+                    cursor: "pointer",
+                  }}
+                >
+                  {revealing && (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  )}
+                  {revealing ? "Revealing" : "Reveal"}
+                </button>
+              )
+              : (
+                <span
+                  aria-live="polite"
+                  aria-label={`Choose ${required - selectedCount} more`}
+                  className="font-display italic leading-none"
+                  style={{
+                    fontSize: 32,
+                    color: "var(--gold)",
+                    opacity: 1,
+                    textShadow: "0 0 20px rgba(212,175,55,0.8)",
+                  }}
+                >
+                  {required - selectedCount}
+                </span>
+              )
+            : null;
+
+        const mobileSlotCounter =
+          isMobile && showSlotRail ? (
+            <span
+              aria-live="polite"
+              aria-label={`${selectedCount} of ${required} cards chosen`}
+              className="font-display italic tabular-nums leading-none"
+              style={{
+                fontSize: 22,
+                letterSpacing: "0.05em",
+                color: "var(--gold)",
+                opacity: 1,
+                textShadow: "0 0 16px rgba(212,175,55,0.7)",
+              }}
+            >
+              <span>{selectedCount}</span>
+              <span style={{ margin: "0 4px", opacity: 0.5 }}>/</span>
+              <span>{required}</span>
+            </span>
+          ) : null;
+
+        const controlsRow = (
+          <div
+            className="relative grid grid-cols-3 items-end"
+            style={{
+              paddingBottom:
+                isMobile && showSlotRail
+                  ? 4
+                  : "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+              paddingLeft: "calc(env(safe-area-inset-left, 0px) + 16px)",
+              paddingRight: "calc(env(safe-area-inset-right, 0px) + 16px)",
+              paddingTop: 8,
+            }}
+          >
+            <div className="flex flex-col items-start gap-2">
+              {!isMobile && (
+                <button
+                  type="button"
+                  onClick={() => setDebugOverlap((v) => !v)}
+                  aria-pressed={debugOverlap}
+                  aria-label="Toggle overlap debug overlay"
+                  style={{ opacity: debugOverlap ? 1 : restingAlpha }}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
+                    "font-display text-[9px] uppercase tracking-[0.25em] transition-opacity",
+                    "hover:!opacity-100 focus:!opacity-100 focus:outline-none",
+                    debugOverlap
+                      ? "border-destructive/70 text-destructive-foreground bg-destructive/20"
+                      : "border-gold/30 text-gold/70",
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      debugOverlap ? "bg-destructive" : "bg-gold/50",
+                    )}
+                  />
+                  Overlap {debugOverlap ? "On" : "Off"}
+                </button>
+              )}
+              {!revealedAll && (
+                <button
+                  type="button"
+                  onClick={triggerStir}
+                  disabled={revealing || stirring}
+                  aria-label="Stir — rearrange unselected cards"
+                  style={{ opacity: restingAlpha }}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed"
+                >
+                  <Sparkles className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+
+            <div
+              className="flex items-end justify-center min-w-0"
+              style={{
+                transform:
+                  ready || !usesSlots
+                    ? "translateY(-8px)"
+                    : isMobile
+                      ? "translateY(-4px)"
+                      : "translateY(0)",
+              }}
+            >
+              {isMobile && showSlotRail ? mobileSlotCounter : slotRail}
+              {centerWhisper}
+            </div>
+
+            <div className="flex justify-end">
               <button
                 type="button"
-                onClick={handleReveal}
-                disabled={revealing}
-                aria-busy={revealing}
-                aria-label="Reveal your reading"
-                className="reveal-cta-enter reveal-glow-pulse inline-flex items-center gap-2 bg-transparent font-display italic leading-none hover:scale-[1.02] focus:outline-none disabled:cursor-not-allowed"
-                style={{
-                  fontSize: 24,
-                  color: "var(--gold)",
-                  opacity: 1,
-                  textShadow:
-                    "0 0 20px rgba(212,175,55,0.9), 0 0 40px rgba(212,175,55,0.4)",
-                  cursor: "pointer",
-                }}
+                onClick={handleExit}
+                aria-label="Close tabletop"
+                style={{ opacity: exitAlpha }}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
               >
-                {revealing && (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                )}
-                {revealing ? "Revealing" : "Reveal"}
+                <X className="h-5 w-5" strokeWidth={1.5} />
               </button>
-            ) : (
-              <span
-                aria-live="polite"
-                aria-label={`Choose ${required - selectedCount} more`}
-                className="font-display italic leading-none"
+            </div>
+          </div>
+        );
+
+        if (isMobile && showSlotRail) {
+          return (
+            <>
+              {controlsRow}
+              <div
+                className="flex justify-center"
                 style={{
-                  fontSize: 32,
-                  color: "var(--gold)",
-                  opacity: 1,
-                  textShadow: "0 0 20px rgba(212,175,55,0.8)",
+                  paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+                  paddingLeft: "calc(env(safe-area-inset-left, 0px) + 8px)",
+                  paddingRight: "calc(env(safe-area-inset-right, 0px) + 8px)",
                 }}
               >
-                {required - selectedCount}
-              </span>
-            ))}
-        </div>
+                {slotRail}
+              </div>
+            </>
+          );
+        }
 
-        {/* RIGHT column: Exit X — same baseline as the Stir icon. */}
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={handleExit}
-            aria-label="Close tabletop"
-            style={{ opacity: exitAlpha }}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          >
-            <X className="h-5 w-5" strokeWidth={1.5} />
-          </button>
-        </div>
-      </div>
+        return controlsRow;
+      })()}
     </div>
   );
 }
@@ -782,6 +1010,7 @@ function CardSlot({
   tapMoveThresholdPx,
   slotRect,
   flightMs,
+  containerOrigin,
 }: {
   card: CardState;
   cardW: number;
@@ -802,6 +1031,12 @@ function CardSlot({
    */
   slotRect: DOMRect | null;
   flightMs: number;
+  /**
+   * Viewport offset of the scatter container — needed to convert a
+   * card's container-relative scatter coords (card.x / card.y) into
+   * viewport coords for the return-flight animation.
+   */
+  containerOrigin: { left: number; top: number } | null;
 }) {
   const isSelected = card.selectionOrder !== null;
   const flying = isSelected && slotRect !== null;
@@ -814,20 +1049,42 @@ function CardSlot({
   // Flight state machine. 'idle' = scattered/in-place. 'launching' = card
   // freshly promoted to fixed positioning at its captured viewport rect (no
   // visual jump yet). 'arrived' = card has been told to move to the slot
-  // rect; CSS transition carries it there.
-  type FlightPhase = "idle" | "launching" | "arrived";
+  // rect; CSS transition carries it there. 'returning' = card is flying
+  // *back* from its last slot rect to a fresh scatter spot on the table.
+  type FlightPhase = "idle" | "launching" | "arrived" | "returning";
   const [flightPhase, setFlightPhase] = useState<FlightPhase>("idle");
   // Captured viewport rect at the moment the card was selected.
   const [launchRect, setLaunchRect] = useState<DOMRect | null>(null);
+  // The slot rect the card was occupying right before being released back
+  // to the table. Used as the starting position of the return flight.
+  const [returnFromRect, setReturnFromRect] = useState<DOMRect | null>(null);
   // Captured rotation at launch — we ease this back to 0 during flight.
   const launchRotationRef = useRef(0);
+  // Most recent slotRect we saw while flying. Tracked separately so that
+  // when the parent clears slotRect (card released) we still know where
+  // the card visually was a frame ago.
+  const lastSlotRectRef = useRef<DOMRect | null>(null);
+  useEffect(() => {
+    if (slotRect) lastSlotRectRef.current = slotRect;
+  }, [slotRect]);
 
   // Detect the moment the card becomes flying-eligible. Capture its current
   // bbox synchronously so the upcoming switch from absolute(scatter) →
   // fixed(viewport) does not produce a one-frame jump.
   useLayoutEffect(() => {
     if (!flying) {
-      if (flightPhase !== "idle") setFlightPhase("idle");
+      // Was on a flight (arrived/launching) and lost the slotRect → start
+      // a return flight from the last known slot position. Skip the
+      // transition only if we never had a meaningful flight to begin with.
+      if (
+        (flightPhase === "arrived" || flightPhase === "launching") &&
+        lastSlotRectRef.current
+      ) {
+        setReturnFromRect(lastSlotRectRef.current);
+        setFlightPhase("returning");
+      } else if (flightPhase !== "idle" && flightPhase !== "returning") {
+        setFlightPhase("idle");
+      }
       return;
     }
     if (flightPhase === "idle") {
@@ -848,6 +1105,29 @@ function CardSlot({
     });
     return () => window.cancelAnimationFrame(id);
   }, [flightPhase]);
+
+  // Returning: paint one frame at the last slot rect, then transition to
+  // the fresh scatter target. After flightMs settle back into 'idle' so
+  // the card returns to absolute positioning inside the scatter.
+  const [returnAnimating, setReturnAnimating] = useState(false);
+  useEffect(() => {
+    if (flightPhase !== "returning") return;
+    setReturnAnimating(false);
+    const raf1 = window.requestAnimationFrame(() => {
+      const raf2 = window.requestAnimationFrame(() => setReturnAnimating(true));
+      return () => window.cancelAnimationFrame(raf2);
+    });
+    const settle = window.setTimeout(() => {
+      setFlightPhase("idle");
+      setReturnFromRect(null);
+      lastSlotRectRef.current = null;
+      setReturnAnimating(false);
+    }, flightMs + 40);
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.clearTimeout(settle);
+    };
+  }, [flightPhase, flightMs]);
 
   // Re-trigger the tap micro-animation on every click by toggling a key.
   const [tapTick, setTapTick] = useState(0);
@@ -916,13 +1196,13 @@ function CardSlot({
             : "Face-down card"
       }
       className={cn(
-        flying
+        flying || flightPhase === "returning"
           ? "fixed outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
           : "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
         // While stirring, animate left/top/transform together so the card
         // drifts to its new scatter slot. Otherwise keep the snappier
         // transform-only transition for selection feedback.
-        flying
+        flying || flightPhase === "returning"
           ? null
           : stirring
           ? "card-stir-transition"
@@ -932,7 +1212,30 @@ function CardSlot({
         isSelected ? "z-30" : null,
       )}
       style={
-        flying && launchRect && slotRect
+        flightPhase === "returning" && returnFromRect && containerOrigin
+          ? {
+              // Fixed positioning during return flight. Start at the last
+              // slot rect; on the next frame transition to the new scatter
+              // viewport coords. After the transition completes the
+              // settle effect drops the card back to absolute (idle).
+              left: returnAnimating
+                ? containerOrigin.left + card.x
+                : returnFromRect.left,
+              top: returnAnimating
+                ? containerOrigin.top + card.y
+                : returnFromRect.top,
+              width: returnAnimating ? cardW : returnFromRect.width,
+              height: returnAnimating ? cardH : returnFromRect.height,
+              transform: returnAnimating
+                ? `rotate(${card.rotation}deg)`
+                : `rotate(0deg)`,
+              transition: returnAnimating
+                ? `left ${flightMs}ms cubic-bezier(0.22,1,0.36,1), top ${flightMs}ms cubic-bezier(0.22,1,0.36,1), width ${flightMs}ms cubic-bezier(0.22,1,0.36,1), height ${flightMs}ms cubic-bezier(0.22,1,0.36,1), transform ${flightMs}ms cubic-bezier(0.22,1,0.36,1)`
+                : "none",
+              zIndex: 1400,
+              ["--card-hit-inset" as string]: `${hitInset}px`,
+            }
+          : flying && launchRect && slotRect
           ? {
               // Fixed (viewport) positioning during flight. Phase 'launching'
               // sits at the captured rect; phase 'arrived' is the slot rect.

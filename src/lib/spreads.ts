@@ -2,7 +2,14 @@ export type SpreadMode = "daily" | "single" | "three" | "celtic" | "yes_no";
 
 export const SPREAD_META: Record<
   SpreadMode,
-  { label: string; count: number; description: string; positions?: string[] }
+  {
+    label: string;
+    count: number;
+    description: string;
+    positions?: string[];
+    /** Compact labels used when slot rail is space-constrained. */
+    positionsShort?: string[];
+  }
 > = {
   daily: { label: "Daily Draw", count: 1, description: "One card for today" },
   single: { label: "Single Reading", count: 1, description: "A single card" },
@@ -11,6 +18,7 @@ export const SPREAD_META: Record<
     count: 3,
     description: "Three cards across time",
     positions: ["Past", "Present", "Future"],
+    positionsShort: ["Past", "Pres", "Fut"],
   },
   celtic: {
     label: "Celtic Cross",
@@ -27,6 +35,18 @@ export const SPREAD_META: Record<
       "External",
       "Hopes",
       "Outcome",
+    ],
+    positionsShort: [
+      "Pres",
+      "Obs",
+      "Root",
+      "Past",
+      "Pot",
+      "Fut",
+      "Self",
+      "Ext",
+      "Hope",
+      "Out",
     ],
   },
   yes_no: { label: "Yes / No", count: 1, description: "A single guiding card" },
