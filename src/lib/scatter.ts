@@ -33,15 +33,26 @@ function makeRng(seed: number) {
 }
 
 /**
- * Loose-grid scatter (10×9 = 90 cells, pick `count` of them so some cells
- * stay empty for natural gaps). Each card is offset within ±40% of its cell
- * and given a visible rotation. Stacking order is shuffled.
+ * Loose-grid scatter. Grid shape adapts to viewport so cards fill space
+ * evenly across phones, tablets, and desktops. Each card is offset within
+ * ±30% of its cell and given a visible rotation. Stacking order is shuffled.
  */
 export function buildScatter(p: ScatterParams): ScatterCard[] {
   const rng = makeRng(p.seed);
 
-  const cols = 10;
-  const rows = 9;
+  // Adaptive grid: portrait phones get tall grids; desktop wide grids.
+  let cols: number;
+  let rows: number;
+  if (p.width < 768) {
+    cols = 8;
+    rows = 11;
+  } else if (p.width < 1024) {
+    cols = 9;
+    rows = 10;
+  } else {
+    cols = 10;
+    rows = 9;
+  }
   const totalCells = cols * rows;
   const pick = Math.min(p.count, totalCells);
 
@@ -75,9 +86,10 @@ export function buildScatter(p: ScatterParams): ScatterCard[] {
   const cellW = usableW / cols;
   const cellH = usableH / rows;
 
-  // ±40% of cell size → range = 0.8 * cell.
-  const jitterX = cellW * 0.8;
-  const jitterY = cellH * 0.8;
+  // ±30% of cell size → range = 0.6 * cell. Slightly tighter than ±40%
+  // so the field reads as fuller and more even.
+  const jitterX = cellW * 0.6;
+  const jitterY = cellH * 0.6;
 
   // Shuffle cell indices and take the first `pick`.
   const cellOrder = Array.from({ length: totalCells }, (_, i) => i);
