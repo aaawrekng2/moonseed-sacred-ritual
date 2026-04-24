@@ -626,6 +626,24 @@ function CardSlot({
 
   // Re-trigger the tap micro-animation on every click by toggling a key.
   const [tapTick, setTapTick] = useState(0);
+  // Sacred consecration: play a slow ceremonial animation once each time a
+  // card transitions from unselected → selected. Tracked via a tick that
+  // re-keys the animation wrapper so React replays it cleanly. Cleared
+  // after the animation duration so the static selected glow takes over.
+  const [consecrateTick, setConsecrateTick] = useState(0);
+  const [consecrating, setConsecrating] = useState(false);
+  const prevSelectedRef = useRef(isSelected);
+  useEffect(() => {
+    if (isSelected && !prevSelectedRef.current) {
+      setConsecrateTick((t) => t + 1);
+      setConsecrating(true);
+      const id = window.setTimeout(() => setConsecrating(false), 1400);
+      prevSelectedRef.current = isSelected;
+      return () => window.clearTimeout(id);
+    }
+    prevSelectedRef.current = isSelected;
+  }, [isSelected]);
+
   // Track pointer-down position so we can distinguish a deliberate tap from
   // a swipe / drag. Any movement past `tapMoveThresholdPx` cancels the tap
   // and the click handler bails out — selection only changes on real taps.
