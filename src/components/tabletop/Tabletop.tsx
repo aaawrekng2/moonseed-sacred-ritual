@@ -217,8 +217,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
   const ready = selectedCount === required;
-  const [revealing, setRevealing] = useState(false);
-  const [revealedAll, setRevealedAll] = useState(false);
 
   const triggerStir = useCallback(() => {
     if (revealing || revealedAll) return;
