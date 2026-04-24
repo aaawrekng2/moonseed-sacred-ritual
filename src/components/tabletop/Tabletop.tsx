@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -460,13 +460,25 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             onClick={handleReveal}
             disabled={!ready || revealing}
             className={cn(
-              "rounded-full border px-6 py-3 font-display text-sm uppercase tracking-[0.25em] transition-all",
+              "inline-flex items-center justify-center gap-2 rounded-full border px-6 py-3 font-display text-sm uppercase tracking-[0.25em] transition-all",
+              "disabled:cursor-not-allowed",
               ready && !revealing
                 ? "border-gold/60 bg-gold/10 text-gold animate-reveal-pulse"
                 : "border-border/50 bg-card/30 text-muted-foreground/60",
             )}
+            aria-busy={revealing}
           >
-            {revealing ? "Revealing…" : `Reveal ${required > 1 ? required + " cards" : "card"}`}
+            {revealing && (
+              <Loader2
+                className="h-4 w-4 animate-spin"
+                aria-hidden="true"
+              />
+            )}
+            <span>
+              {revealing
+                ? "Revealing…"
+                : `Reveal ${required > 1 ? required + " cards" : "card"}`}
+            </span>
           </button>
         )}
       </div>
