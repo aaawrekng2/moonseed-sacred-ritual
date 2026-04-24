@@ -161,9 +161,43 @@ html, body {
 /* Tabletop card flip — 3D transform */
 .flip-3d {
   transform-style: preserve-3d;
-  transition: transform var(--flip-ms, 600ms) ease-in-out;
+  transition: transform var(--flip-ms, 1100ms) cubic-bezier(0.65, 0, 0.35, 1);
+  will-change: transform;
 }
 .flip-3d.is-flipped { transform: rotateY(180deg); }
+/* Sacred reveal: gentle lift + breath at the apex of the flip, paired
+   with the rotateY transition above. Runs once per reveal. */
+@keyframes sacred-reveal-lift {
+  0%   { transform: translateY(0)    scale(1);     filter: brightness(1); }
+  45%  { transform: translateY(-6px) scale(1.045); filter: brightness(1.18); }
+  55%  { transform: translateY(-6px) scale(1.045); filter: brightness(1.18); }
+  100% { transform: translateY(0)    scale(1);     filter: brightness(1); }
+}
+.animate-sacred-reveal {
+  animation: sacred-reveal-lift var(--flip-ms, 1100ms) cubic-bezier(0.65, 0, 0.35, 1) both;
+}
+/* Gold halo that swells at the apex of the flip and fades as the face
+   settles. Sits behind the card via negative margin + blur. */
+@keyframes sacred-reveal-halo {
+  0%   { opacity: 0;   transform: scale(0.92); }
+  45%  { opacity: 0.9; transform: scale(1.08); }
+  100% { opacity: 0;   transform: scale(1.02); }
+}
+.sacred-reveal-halo {
+  position: absolute;
+  inset: -10px;
+  border-radius: 14px;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in oklab, var(--gold) 55%, transparent) 0%,
+    color-mix(in oklab, var(--gold) 18%, transparent) 45%,
+    transparent 75%
+  );
+  filter: blur(6px);
+  animation: sacred-reveal-halo var(--flip-ms, 1100ms) ease-in-out both;
+  z-index: -1;
+}
 .flip-face {
   position: absolute;
   inset: 0;

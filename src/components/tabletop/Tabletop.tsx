@@ -25,7 +25,9 @@ const TABLETOP_CONFIG = {
   SCATTER_PADDING: 10,
   SELECTION_GLOW_SPREAD: 6,
   SELECTION_GLOW_OPACITY: 0.8,
-  REVEAL_ANIMATION_MS: 600,
+  // Slow, ceremonial flip — long enough to feel reverent without
+  // dragging. Paired with sacred-reveal-lift in styles.css.
+  REVEAL_ANIMATION_MS: 1100,
   // Cards reveal simultaneously when the user taps Reveal — staggered
   // entrance broke the "ceremonial all-at-once" feel of multi-card spreads.
   REVEAL_STAGGER_MS: 0,
@@ -553,7 +555,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       .filter((c) => c.selectionOrder !== null)
       .sort((a, b) => (a.selectionOrder ?? 0) - (b.selectionOrder ?? 0));
 
-    // Pause for the sacred moment, then flip in selection order.
+    // Pause for the sacred moment, then flip every selected card together.
     window.setTimeout(() => {
       picks.forEach((p, i) => {
         window.setTimeout(() => {
@@ -565,14 +567,16 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       const total =
         picks.length * TABLETOP_CONFIG.REVEAL_STAGGER_MS +
         TABLETOP_CONFIG.REVEAL_ANIMATION_MS +
-        300;
+        // Lingering breath: let users savor the faces before the
+        // reading screen takes over.
+        650;
       window.setTimeout(() => {
         setRevealedAll(true);
         onComplete(
           picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
         );
       }, total);
-    }, 200);
+    }, 320);
   };
 
   const handleExit = () => {
@@ -1149,6 +1153,26 @@ function CardSlot({
     prevSelectedRef.current = isSelected;
   }, [isSelected]);
 
+  // Sacred flip: when this card transitions face-down → face-up, play the
+  // lift + halo animation alongside the rotateY flip. Tracked separately
+  // from `revealed` so the halo cleanly unmounts after the animation.
+  const [revealTick, setRevealTick] = useState(0);
+  const [flipping, setFlipping] = useState(false);
+  const prevRevealedRef = useRef(card.revealed);
+  useEffect(() => {
+    if (card.revealed && !prevRevealedRef.current) {
+      setRevealTick((t) => t + 1);
+      setFlipping(true);
+      const id = window.setTimeout(
+        () => setFlipping(false),
+        TABLETOP_CONFIG.REVEAL_ANIMATION_MS + 60,
+      );
+      prevRevealedRef.current = card.revealed;
+      return () => window.clearTimeout(id);
+    }
+    prevRevealedRef.current = card.revealed;
+  }, [card.revealed]);
+
   // Track pointer-down position so we can distinguish a deliberate tap from
   // a swipe / drag. Any movement past `tapMoveThresholdPx` cancels the tap
   // and the click handler bails out — selection only changes on real taps.
@@ -1282,13 +1306,14 @@ function CardSlot({
       {/* Invisible expanded hit area for easier tapping on mobile. */}
       <span aria-hidden="true" className="card-hit" />
       <div
-        key={`${tapTick}-${consecrateTick}`}
+        key={`${tapTick}-${consecrateTick}-${revealTick}`}
         className={cn(
           "relative h-full w-full rounded-[10px] flip-3d",
           card.revealed && "is-flipped",
           tapTick > 0 && !card.revealed && "animate-card-tap",
           stirring && !card.revealed && "animate-card-stir-glide",
           consecrating && !card.revealed && "animate-card-consecrate animate-card-consecrate-halo",
+          flipping && "animate-sacred-reveal",
         )}
         style={{
           // @ts-expect-error custom prop
@@ -1299,6 +1324,9 @@ function CardSlot({
           opacity: isSelected ? TABLETOP_CONFIG.SELECTION_GLOW_OPACITY + 0.2 : 1,
         }}
       >
+        {flipping && (
+          <span aria-hidden="true" className="sacred-reveal-halo" />
+        )}
         <div className="flip-face back">
           <CardBack id={cardBack} width={cardW} className="h-full w-full" />
         </div>
