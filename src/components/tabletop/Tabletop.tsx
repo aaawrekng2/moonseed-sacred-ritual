@@ -1158,17 +1158,36 @@ function CardSlot({
   // from `revealed` so the halo cleanly unmounts after the animation.
   const [revealTick, setRevealTick] = useState(0);
   const [flipping, setFlipping] = useState(false);
+  // Brief gold breath on the face once the flip is essentially done.
+  // Triggered shortly before the rotateY transition fully settles so the
+  // glow appears to "ignite" the freshly revealed face.
+  const [faceGlowing, setFaceGlowing] = useState(false);
+  const [faceGlowTick, setFaceGlowTick] = useState(0);
   const prevRevealedRef = useRef(card.revealed);
   useEffect(() => {
     if (card.revealed && !prevRevealedRef.current) {
       setRevealTick((t) => t + 1);
       setFlipping(true);
-      const id = window.setTimeout(
+      const flipDone = window.setTimeout(
         () => setFlipping(false),
         TABLETOP_CONFIG.REVEAL_ANIMATION_MS + 60,
       );
+      // Ignite the face glow at ~75% through the flip so it crests just
+      // as the front face becomes fully visible, then fades over ~1.4s.
+      const glowStart = window.setTimeout(() => {
+        setFaceGlowTick((t) => t + 1);
+        setFaceGlowing(true);
+      }, Math.round(TABLETOP_CONFIG.REVEAL_ANIMATION_MS * 0.75));
+      const glowEnd = window.setTimeout(
+        () => setFaceGlowing(false),
+        Math.round(TABLETOP_CONFIG.REVEAL_ANIMATION_MS * 0.75) + 1400 + 60,
+      );
       prevRevealedRef.current = card.revealed;
-      return () => window.clearTimeout(id);
+      return () => {
+        window.clearTimeout(flipDone);
+        window.clearTimeout(glowStart);
+        window.clearTimeout(glowEnd);
+      };
     }
     prevRevealedRef.current = card.revealed;
   }, [card.revealed]);
