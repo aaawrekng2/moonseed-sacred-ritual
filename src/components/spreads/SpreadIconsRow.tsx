@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { cn } from "@/lib/utils";
 import type { SpreadMode } from "@/lib/spreads";
@@ -48,7 +49,7 @@ function DiamondGlyph() {
   );
 }
 
-const SPREADS: { id: SpreadMode; label: string; Glyph: () => JSX.Element }[] = [
+const SPREADS: { id: SpreadMode; label: string; Glyph: () => ReactNode }[] = [
   { id: "single", label: "Single", Glyph: () => <StarGlyph size={14} /> },
   { id: "three", label: "Three", Glyph: ThreeStars },
   { id: "celtic", label: "Celtic", Glyph: CelticGlyph },
