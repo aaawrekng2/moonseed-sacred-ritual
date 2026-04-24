@@ -210,6 +210,10 @@ export function MoonCarousel() {
       className="relative animate-in fade-in slide-in-from-top-2 duration-500"
       style={{ minHeight: 280 }}
     >
+      {/* Mobile phase ladders — fixed to screen edges, visible on mobile only */}
+      <MobilePhaseLadder side="left" restingAlpha={restingAlpha} onJump={jumpToPhase} />
+      <MobilePhaseLadder side="right" restingAlpha={restingAlpha} onJump={jumpToPhase} />
+
       {/* Fixed-height row so cards never reflow as the user swipes between
           days. The today card is the tallest element; sizing here is set so
           it never clips and the chevrons never shift vertically. */}
@@ -343,11 +347,6 @@ export function MoonCarousel() {
         </div>
       )}
 
-      {/* Mobile-only phase ladders — pinned to the screen edges, overlaid
-          independently of the carousel flex row so the 5-day cascade gets
-          full horizontal space. Hidden on sm+ where PhaseLadder takes over. */}
-      <MobilePhaseLadder side="left" restingAlpha={restingAlpha} onJump={jumpToPhase} />
-      <MobilePhaseLadder side="right" restingAlpha={restingAlpha} onJump={jumpToPhase} />
     </section>
   );
 }
@@ -627,7 +626,7 @@ function MobilePhaseLadder({
           <span
             style={{
               background:
-                "radial-gradient(circle, rgba(212,175,55,0.18) 0%, transparent 70%)",
+                "radial-gradient(circle, rgba(212,175,55,0.40) 0%, transparent 70%)",
               borderRadius: "50%",
               padding: "3px",
               display: "inline-flex",
@@ -713,10 +712,10 @@ function PhaseLadder({
             )}
           >
             <span
-              className="moon-rung-glow inline-flex items-center justify-center rounded-full"
+              className="moon-rung-glow inline-flex items-center justify-center rounded-full group-hover:[background:radial-gradient(circle,rgba(212,175,55,0.55)_0%,transparent_70%)]"
               style={{
                 background:
-                  "radial-gradient(circle, rgba(212,175,55,0.18) 0%, transparent 70%)",
+                  "radial-gradient(circle, rgba(212,175,55,0.35) 0%, transparent 70%)",
                 padding: "3px",
                 transition: "background 200ms ease",
               }}
@@ -750,18 +749,18 @@ function PhaseLadder({
 
   return (
     <div
-      className="hidden sm:flex shrink-0 self-center flex-row items-start gap-3 md:gap-4 lg:gap-5"
+      className="hidden sm:flex shrink-0 self-center flex-row items-start gap-1.5 md:gap-2"
       aria-label={`${jumpVerb} phase navigator`}
     >
       {isLeft ? (
         <>
-          <div style={{ marginTop: 36 }}>{chevronButton}</div>
+          <div style={{ marginTop: 40 }}>{chevronButton}</div>
           {ladderColumn}
         </>
       ) : (
         <>
           {ladderColumn}
-          <div style={{ marginTop: 36 }}>{chevronButton}</div>
+          <div style={{ marginTop: 40 }}>{chevronButton}</div>
         </>
       )}
     </div>
