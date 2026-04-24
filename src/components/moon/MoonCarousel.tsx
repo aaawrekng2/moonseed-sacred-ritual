@@ -626,7 +626,7 @@ function MobilePhaseLadder({
           <span
             style={{
               background:
-                "radial-gradient(circle, rgba(212,175,55,0.18) 0%, transparent 70%)",
+                "radial-gradient(circle, rgba(212,175,55,0.40) 0%, transparent 70%)",
               borderRadius: "50%",
               padding: "3px",
               display: "inline-flex",
