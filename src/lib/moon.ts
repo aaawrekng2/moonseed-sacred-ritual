@@ -80,3 +80,33 @@ export function getMoonSign(date: Date = new Date()): ZodiacSign {
   const idx = Math.floor(lon / 30) % 12;
   return ZODIAC_SIGNS[idx];
 }
+
+/**
+ * Find the offset (in days) from `fromDate` to the next/previous occurrence
+ * of a given moon phase. If `fromDate` already matches the target phase, the
+ * search skips the immediate continuation so the user actually moves to a
+ * fresh occurrence rather than staying on a multi-day phase window.
+ * Returns 0 if no occurrence is found within ±60 days.
+ */
+export function findNextPhaseOccurrence(
+  targetPhase: MoonPhaseName,
+  fromDate: Date,
+  direction: "next" | "previous",
+): number {
+  const step = direction === "next" ? 1 : -1;
+  const currentPhase = getCurrentMoonPhase(fromDate).phase;
+  const startAlreadyMatches = currentPhase === targetPhase;
+
+  for (let i = 1; i <= 60; i++) {
+    const d = new Date(fromDate);
+    d.setDate(fromDate.getDate() + step * i);
+    const phase = getCurrentMoonPhase(d).phase;
+    if (phase === targetPhase) {
+      // If start already matched, skip the immediate continuation window so
+      // we land on the *next* distinct occurrence.
+      if (startAlreadyMatches && i < 3) continue;
+      return step * i;
+    }
+  }
+  return 0;
+}
