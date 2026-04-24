@@ -8,6 +8,14 @@ type Props = {
   className?: string;
   ariaHidden?: boolean;
   /**
+   * Illumination percentage (0–100). When provided, drives the terminator
+   * width for crescent/gibbous phases so a 58%-lit moon and an 85%-lit moon
+   * render visibly different shapes. When omitted, a canonical mid-phase
+   * value is used (good for icons that represent the phase category itself,
+   * like the ladder rungs).
+   */
+  illumination?: number;
+  /**
    * Optional gold ring rendered INSIDE the SVG, touching the moon body.
    * Use this instead of a CSS border on the wrapper element — a CSS border
    * traces the SVG box edge, which leaves a visible halo gap because the
@@ -46,6 +54,7 @@ export function MoonPhaseIcon({
   size = 64,
   className,
   ariaHidden = true,
+  illumination,
   ringColor = null,
   ringWidth = 1.5,
 }: Props) {
@@ -143,7 +152,7 @@ export function MoonPhaseIcon({
           <stop offset="100%" stopColor="rgba(212,175,55,0.18)" />
         </radialGradient>
         {/* Mask used for crescent/gibbous: white = visible pearl, black = hidden */}
-        <PhaseMask phase={phase} maskId={`${id}-mask`} />
+        <PhaseMask phase={phase} maskId={`${id}-mask`} illumination={illumination} />
       </defs>
       <circle cx={CX} cy={CY} r={R + 2} fill={`url(#${id}-halo)`} />
       <circle cx={CX} cy={CY} r={R} fill={`url(#${bodyId})`} />
