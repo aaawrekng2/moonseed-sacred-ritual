@@ -133,6 +133,11 @@ export function MoonCarousel() {
   if (error) return <MoonErrorFallback message={error} onRetry={handleRetry} />;
   if (!ready || days.length === 0) return <MoonSkeleton />;
 
+  // The currently-viewed day sits in the middle of the 5-day window. Use its
+  // phase to highlight the matching rung in both ladders so the user sees
+  // exactly where they are in the lunar cycle.
+  const viewedPhase = days[2]?.info.phase ?? null;
+
   return (
     <section
       aria-label="Moon phase calendar"
@@ -173,6 +178,8 @@ export function MoonCarousel() {
         <PhaseLadder
           side="left"
           restingAlpha={restingAlpha}
+          activePhase={viewedPhase}
+          offset={offset}
           onJump={(p) => jumpToPhase(p, "previous")}
           onStep={() => shift(-1)}
         />
@@ -210,6 +217,8 @@ export function MoonCarousel() {
         <PhaseLadder
           side="right"
           restingAlpha={restingAlpha}
+          activePhase={viewedPhase}
+          offset={offset}
           onJump={(p) => jumpToPhase(p, "next")}
           onStep={() => shift(1)}
         />
@@ -365,11 +374,15 @@ const LADDER_RUNGS: LadderRung[] = [
 function PhaseLadder({
   side,
   restingAlpha,
+  activePhase,
+  offset,
   onJump,
   onStep,
 }: {
   side: "left" | "right";
   restingAlpha: number;
+  activePhase: MoonPhaseName | null;
+  offset: number;
   onJump: (phase: MoonPhaseName) => void;
   onStep: () => void;
 }) {
@@ -377,6 +390,17 @@ function PhaseLadder({
   const Chevron = isLeft ? ChevronLeft : ChevronRight;
   const stepLabel = isLeft ? "Previous day" : "Next day";
   const jumpVerb = isLeft ? "Previous" : "Next";
+
+  // Find which rung (if any) is currently "active" — the first rung whose
+  // phase matches the viewed day. Note: New Moon appears twice (top + Dark
+  // Moon at bottom); we only highlight the first match for visual clarity.
+  const activeIdx = activePhase
+    ? LADDER_RUNGS.findIndex((r) => r.phase === activePhase)
+    : -1;
+
+  // Re-fire the glow/scale animation whenever the offset changes while a
+  // rung is active. Keying on `${offset}-${activeIdx}` resets the animation.
+  const pulseKey = `${offset}-${activeIdx}`;
 
   return (
     <div
@@ -394,8 +418,9 @@ function PhaseLadder({
           onClick={() => onJump(r.phase)}
           aria-label={`${jumpVerb} ${r.label}`}
           title={`${jumpVerb} ${r.label}`}
+          aria-current={i === activeIdx ? "true" : undefined}
           style={{
-            opacity: restingAlpha,
+            opacity: i === activeIdx ? 1 : restingAlpha,
             [isLeft ? "marginLeft" : "marginRight"]: r.inset,
           }}
           className={cn(
@@ -403,9 +428,20 @@ function PhaseLadder({
             "transition-all duration-200 ease-out",
             "hover:!opacity-100 hover:scale-110",
             "focus:outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            i === activeIdx && "moon-rung-active",
           )}
         >
-          <MoonPhaseIcon phase={r.phase} size={r.size} />
+          <span
+            // Re-mount the inner span on offset change so the pulse animation
+            // restarts cleanly — pure CSS animations don't otherwise replay.
+            key={i === activeIdx ? pulseKey : "idle"}
+            className={cn(
+              "inline-flex items-center justify-center rounded-full",
+              i === activeIdx && "moon-rung-pulse",
+            )}
+          >
+            <MoonPhaseIcon phase={r.phase} size={r.size} />
+          </span>
         </button>
       ))}
       <button
