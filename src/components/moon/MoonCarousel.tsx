@@ -606,7 +606,7 @@ function MobilePhaseLadder({
     <div
       className="fixed sm:hidden flex flex-col gap-[2px] z-10"
       style={{
-        top: "12px",
+        top: "50px",
         transform: "none",
         alignItems: isLeft ? "flex-start" : "flex-end",
         [isLeft ? "left" : "right"]: 0,
