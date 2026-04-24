@@ -218,3 +218,28 @@ html, body {
     z-index: 9999;
   }
 }
+
+/* Moon carousel — luminous shimmer for phase jumps. A single sweep of
+   diagonal light passes left→right while a soft radial glow blooms and
+   fades, signalling that the offset has changed in a calm, intentional way. */
+@keyframes moon-shimmer-sweep {
+  0%   { transform: translateX(0%);   opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateX(450%); opacity: 0; }
+}
+@keyframes moon-shimmer-glow {
+  0%   { opacity: 0; }
+  30%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+.moon-shimmer-sweep {
+  animation: moon-shimmer-sweep 900ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+}
+.moon-shimmer-glow {
+  animation: moon-shimmer-glow 900ms ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .moon-shimmer-sweep,
+  .moon-shimmer-glow { animation: none; opacity: 0; }
+}
