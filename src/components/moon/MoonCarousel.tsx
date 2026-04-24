@@ -703,7 +703,6 @@ function PhaseLadder({
         // Anchor icons to the outer edge so they grow inward.
         isLeft ? "items-start" : "items-end",
       )}
-      style={{ maxHeight: 100 }}
     >
       {LADDER_RUNGS.map((r, i) => (
         <button
