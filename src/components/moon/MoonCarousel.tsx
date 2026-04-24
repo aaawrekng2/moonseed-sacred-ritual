@@ -231,11 +231,11 @@ export function MoonCarousel() {
           {days.map((d) => {
             const isExpanded = expandedRel === d.relative;
             const absRel = Math.abs(d.relative);
-            const stepOffset = absRel === 0 ? 0 : absRel === 1 ? 20 : 38;
+            const stepOffset = absRel === 0 ? 0 : absRel === 1 ? 24 : 44;
             return (
               <div
                 key={d.info.date.toDateString()}
-                style={{ marginTop: `${stepOffset}px` }}
+                style={{ paddingTop: `${stepOffset}px` }}
                 className={cn(
                   "flex flex-col items-center transition-all duration-300 ease-out",
                   d.isToday ? "z-10 opacity-100" : isExpanded ? "z-10 opacity-100" : "opacity-70",
