@@ -425,11 +425,41 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     setCards((prev) => {
       const target = prev.find((c) => c.id === id);
       if (!target) return prev;
-      // No take-backs in slot-based spreads — once a card is in a slot it
-      // stays there until Stir/Begin-again. For single-card flows we keep
-      // the original toggle behavior so the user can re-pick freely.
+      // Tapping a slotted card sends it back to the table. The other slots
+      // hold their cards (we never compact / shift indices). The returning
+      // card lands at a fresh random position so the table reads as
+      // "shuffled" rather than the card returning to its origin.
       if (target.selectionOrder !== null) {
-        if (usesSlots) return prev;
+        if (usesSlots) {
+          if (!size) return prev;
+          const newPos = pickReturnSpot(prev, target.id, {
+            width: size.w,
+            height: size.h,
+            cardW,
+            cardH,
+            padding: TABLETOP_CONFIG.SCATTER_PADDING,
+            maxRotation,
+          });
+          // Push z above any other unselected card so it's clearly on top
+          // when it lands; selected cards still sit in the 1000+ band.
+          const maxZ = prev.reduce(
+            (m, c) => (c.selectionOrder === null && c.z > m ? c.z : m),
+            0,
+          );
+          return prev.map((c) =>
+            c.id === id
+              ? {
+                  ...c,
+                  selectionOrder: null,
+                  x: newPos.x,
+                  y: newPos.y,
+                  rotation: newPos.rotation,
+                  z: maxZ + 1,
+                }
+              : c,
+          );
+        }
+        // Single-card / yes_no: keep the original toggle behavior.
         const removedOrder = target.selectionOrder;
         return prev.map((c) => {
           if (c.id === id) return { ...c, selectionOrder: null };
