@@ -11,10 +11,11 @@ type Tab = {
   primary?: boolean;
 };
 
-// Order: Home (left), Cards (center, primary), Settings (right).
+// Order: Cards (left), Home (center, primary), Settings (right).
+// Home is the moon-phase landing — the primary destination of the app.
 const TABS: readonly Tab[] = [
-  { to: "/", label: "Home", Icon: Moon },
-  { to: "/cards", label: "Cards", Icon: Layers, primary: true },
+  { to: "/cards", label: "Cards", Icon: Layers },
+  { to: "/", label: "Home", Icon: Moon, primary: true },
   { to: "/settings", label: "Settings", Icon: SlidersHorizontal },
 ] as const;
 
