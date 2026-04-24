@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw } from "lucide-react";
 import {
-  findNextPhaseOccurrence,
+  findNearestPhaseOccurrence,
   getCurrentMoonPhase,
   getMoonSign,
   type MoonInfo,
@@ -41,13 +41,15 @@ export function MoonCarousel() {
   const [ready, setReady] = useState(false);
   const [shimmerKey, setShimmerKey] = useState(0);
   const prevOffsetRef = useRef(0);
+  const tweenRafRef = useRef<number | null>(null);
 
   // Trigger a brief luminous shimmer whenever offset shifts by more than one
   // day (i.e. a phase-ladder jump or a "Today" return). Single-day steps and
-  // swipes feel calm enough already and don't need the flourish.
+  // swipes feel calm enough already and don't need the flourish. Skipped
+  // while a tween is running so it only fires once at the start of a jump.
   useEffect(() => {
     const prev = prevOffsetRef.current;
-    if (Math.abs(offset - prev) > 1) {
+    if (!tweenRafRef.current && Math.abs(offset - prev) > 1) {
       setShimmerKey((k) => k + 1);
     }
     prevOffsetRef.current = offset;
@@ -108,14 +110,55 @@ export function MoonCarousel() {
   const goToToday = () => { setOffset(0); setExpandedRel(null); };
   const toggleExpand = (rel: number) => { setExpandedRel((cur) => (cur === rel ? null : rel)); };
 
-  // Jump to the next/previous occurrence of a tapped phase, relative to TODAY
-  // (not the currently-viewed day) so the ladder is predictable.
-  const jumpToPhase = (phase: MoonPhaseName, direction: "next" | "previous") => {
-    const delta = findNextPhaseOccurrence(phase, new Date(), direction);
-    if (delta === 0) return;
-    setOffset(delta);
+  // Smoothly tween the offset from its current value to `target` so the
+  // carousel feels like it scrolls through intermediate days rather than
+  // snap-jumping. Cancels any in-flight tween before starting a new one.
+  const tweenOffsetTo = (target: number) => {
+    if (tweenRafRef.current) cancelAnimationFrame(tweenRafRef.current);
     setExpandedRel(null);
+
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+    setOffset((start) => {
+      const distance = target - start;
+      if (distance === 0) return start;
+      // Fire the shimmer once at the start of any multi-day jump.
+      if (Math.abs(distance) > 1) setShimmerKey((k) => k + 1);
+      if (reduceMotion) return target;
+
+      // 60ms per step, capped so very long jumps still feel snappy.
+      const duration = Math.min(900, Math.max(280, Math.abs(distance) * 60));
+      const startTime = performance.now();
+      const ease = (t: number) => 1 - Math.pow(1 - t, 3); // easeOutCubic
+
+      const tick = (now: number) => {
+        const t = Math.min(1, (now - startTime) / duration);
+        const next = Math.round(start + distance * ease(t));
+        setOffset(next);
+        if (t < 1) {
+          tweenRafRef.current = requestAnimationFrame(tick);
+        } else {
+          tweenRafRef.current = null;
+        }
+      };
+      tweenRafRef.current = requestAnimationFrame(tick);
+      return start;
+    });
   };
+
+  // Tap a ladder rung → jump to the *nearest* occurrence of that phase in
+  // either direction. Side-specific arrows (chevrons) still step ±1 day.
+  const jumpToPhase = (phase: MoonPhaseName) => {
+    const delta = findNearestPhaseOccurrence(phase, new Date());
+    if (delta === 0) return;
+    tweenOffsetTo(delta);
+  };
+
+  useEffect(() => {
+    return () => { if (tweenRafRef.current) cancelAnimationFrame(tweenRafRef.current); };
+  }, []);
 
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const onTouchStart = (e: React.TouchEvent) => {
@@ -180,7 +223,7 @@ export function MoonCarousel() {
           restingAlpha={restingAlpha}
           activePhase={viewedPhase}
           offset={offset}
-          onJump={(p) => jumpToPhase(p, "previous")}
+          onJump={(p) => jumpToPhase(p)}
           onStep={() => shift(-1)}
         />
 
@@ -219,7 +262,7 @@ export function MoonCarousel() {
           restingAlpha={restingAlpha}
           activePhase={viewedPhase}
           offset={offset}
-          onJump={(p) => jumpToPhase(p, "next")}
+          onJump={(p) => jumpToPhase(p)}
           onStep={() => shift(1)}
         />
       </div>
