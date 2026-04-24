@@ -264,3 +264,13 @@ html, body {
   .moon-rung-pulse { animation: none; }
   .moon-rung-active { filter: drop-shadow(0 0 3px color-mix(in oklab, var(--gold) 40%, transparent)); }
 }
+
+/* Soft radial halo behind every ladder icon so they remain legible against
+   the dark backdrop. Brightens slightly on hover/focus for tactility. */
+.moon-rung-halo {
+  background: radial-gradient(circle, color-mix(in oklab, var(--gold) 15%, transparent) 0%, transparent 70%);
+}
+button:hover > .moon-rung-halo,
+button:focus-visible > .moon-rung-halo {
+  background: radial-gradient(circle, color-mix(in oklab, var(--gold) 30%, transparent) 0%, transparent 70%);
+}
