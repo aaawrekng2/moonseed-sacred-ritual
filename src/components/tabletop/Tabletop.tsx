@@ -471,8 +471,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           right: "calc(env(safe-area-inset-right, 0px) + 16px)",
           opacity: exitAlpha,
         }}
-        className="absolute z-50 flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        className="absolute z-50 flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
       >
+        {/* Invisible hit-area expansion so the effective touch target meets
+            Apple HIG / Material's 44–48px minimum even though the visible
+            glyph stays small and zen. */}
+        <span aria-hidden="true" className="absolute -inset-2" />
         <X className="h-5 w-5" strokeWidth={1.5} />
       </button>
 
