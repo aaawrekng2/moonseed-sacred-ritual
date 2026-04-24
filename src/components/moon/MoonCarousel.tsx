@@ -680,6 +680,9 @@ function MobilePhaseLadder({
   // Smaller, edge-pinned cascade — sized down from the desktop ladder so it
   // sits comfortably on the very edge of mobile viewports.
   const RUNG_SIZES = [12, 15, 22, 15, 12];
+  // Reverse cascade — Full Moon sits furthest from the edge, New/Dark Moon
+  // are flush. Applied via marginLeft (left ladder) or marginRight (right).
+  const MOBILE_RUNG_INSETS = [0, 6, 12, 6, 0];
   return (
     <div
       className="fixed sm:hidden flex flex-col gap-[2px] z-10"
@@ -700,7 +703,10 @@ function MobilePhaseLadder({
           type="button"
           onClick={() => onJump(r.phase)}
           aria-label={`Jump to ${isLeft ? "previous" : "next"} ${r.label}`}
-          style={{ opacity: restingAlpha }}
+          style={{
+            opacity: restingAlpha,
+            [isLeft ? "marginLeft" : "marginRight"]: MOBILE_RUNG_INSETS[i],
+          }}
           className="group cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <span
@@ -709,7 +715,7 @@ function MobilePhaseLadder({
               alignItems: "center",
               justifyContent: "center",
               borderRadius: "50%",
-              padding: "3px",
+              padding: "1px",
               border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
               transition: "border-color 200ms ease",
             }}
@@ -783,7 +789,7 @@ function PhaseLadder({
               alignItems: "center",
               justifyContent: "center",
               borderRadius: "50%",
-              padding: "3px",
+              padding: "1px",
               border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
               transition: "border-color 200ms ease, opacity 200ms ease",
             }}
@@ -818,20 +824,20 @@ function PhaseLadder({
   return (
     <div
       className="hidden sm:flex shrink-0 self-start flex-row items-start gap-1.5 md:gap-2"
-      style={{ marginTop: 8 }}
+      style={{ marginTop: 20 }}
       role="toolbar"
       aria-orientation="vertical"
       aria-label={`${jumpVerb} phase navigator`}
     >
       {isLeft ? (
         <>
-          <div style={{ marginTop: 52 }}>{chevronButton}</div>
+          <div style={{ marginTop: 60 }}>{chevronButton}</div>
           {ladderColumn}
         </>
       ) : (
         <>
           {ladderColumn}
-          <div style={{ marginTop: 52 }}>{chevronButton}</div>
+          <div style={{ marginTop: 60 }}>{chevronButton}</div>
         </>
       )}
     </div>
