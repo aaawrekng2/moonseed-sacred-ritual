@@ -926,32 +926,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             }}
           >
             <div className="flex flex-col items-start gap-2">
-              {!isMobile && (
-                <button
-                  type="button"
-                  onClick={() => setDebugOverlap((v) => !v)}
-                  aria-pressed={debugOverlap}
-                  aria-label="Toggle overlap debug overlay"
-                  style={{ opacity: debugOverlap ? 1 : restingAlpha }}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
-                    "font-display text-[9px] uppercase tracking-[0.25em] transition-opacity",
-                    "hover:!opacity-100 focus:!opacity-100 focus:outline-none",
-                    debugOverlap
-                      ? "border-destructive/70 text-destructive-foreground bg-destructive/20"
-                      : "border-gold/30 text-gold/70",
-                  )}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      debugOverlap ? "bg-destructive" : "bg-gold/50",
-                    )}
-                  />
-                  Overlap {debugOverlap ? "On" : "Off"}
-                </button>
-              )}
               {!revealedAll && (
                 <button
                   type="button"
