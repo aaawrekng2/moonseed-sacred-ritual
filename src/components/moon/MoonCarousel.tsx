@@ -724,20 +724,12 @@ function MobilePhaseLadder({
           }}
           className="group cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: "50%",
-              padding: "0px",
-              border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
-              transition: "border-color 200ms ease",
-            }}
-            className="group-hover:!border-gold"
-          >
-            <MoonPhaseIcon phase={r.phase} size={RUNG_SIZES[i]} />
-          </span>
+          <MoonPhaseIcon
+            phase={r.phase}
+            size={RUNG_SIZES[i]}
+            ringColor={`rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`}
+            ringWidth={1.5}
+          />
         </button>
       ))}
     </div>
@@ -803,23 +795,19 @@ function PhaseLadder({
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              borderRadius: "50%",
-              padding: "0px",
-              border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
-              transition: "border-color 200ms ease, opacity 200ms ease",
-              // Desktop layout guard: lock the wrapper to the icon's exact
-              // box, never shrink in a flex parent, never clip child SVG.
-              // This makes it structurally impossible for a future flex/
-              // min-width/overflow rule to crop a ladder rung.
               width: r.size,
               height: r.size,
               flex: "none",
               overflow: "visible",
               boxSizing: "content-box",
             }}
-            className="group-hover:!border-gold"
           >
-            <MoonPhaseIcon phase={r.phase} size={r.size} />
+            <MoonPhaseIcon
+              phase={r.phase}
+              size={r.size}
+              ringColor={`rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`}
+              ringWidth={1.5}
+            />
           </span>
         </button>
       ))}
