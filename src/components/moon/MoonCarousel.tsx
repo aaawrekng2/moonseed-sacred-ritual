@@ -250,24 +250,20 @@ export function MoonCarousel() {
           onStep={() => shift(-1)}
         />
 
-        <div className="relative flex-1 max-w-2xl" style={{ height: 260 }}>
+        <div className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl">
           {days.map((d) => {
             const isExpanded = expandedRel === d.relative;
             const absRel = Math.abs(d.relative);
             const rel = d.relative - offset; // -2..+2 within current window
-            const topOffset = absRel === 0 ? 0 : absRel === 1 ? 28 : 52;
-            const leftPercent =
-              rel === -2 ? 10 : rel === -1 ? 28 : rel === 0 ? 50 : rel === 1 ? 72 : 90;
+            const topOffset = absRel === 0 ? 0 : absRel === 1 ? 24 : 44;
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
             return (
               <div
                 key={d.info.date.toDateString()}
                 style={{
-                  position: "absolute",
-                  top: `${topOffset}px`,
-                  left: `${leftPercent}%`,
-                  transform: "translateX(-50%)",
+                  alignSelf: "flex-start",
+                  marginTop: `${topOffset}px`,
                 }}
                 className={cn(
                   "flex flex-col items-center transition-all duration-300 ease-out",
@@ -604,40 +600,8 @@ function PhaseLadder({
   // rung is active. Keying on `${offset}-${activeIdx}` resets the animation.
   const pulseKey = `${offset}-${activeIdx}`;
 
-  // Measure the live vertical center of the middle rung (Full Moon) so the
-  // chevron stays aligned with it regardless of font scaling, viewport
-  // changes, or layout shifts. Falls back to a sensible default until the
-  // first measurement lands.
-  const ladderRef = useRef<HTMLDivElement | null>(null);
-  const middleRungRef = useRef<HTMLButtonElement | null>(null);
-  const [chevronTop, setChevronTop] = useState<number>(40);
-
-  useEffect(() => {
-    const measure = () => {
-      const ladder = ladderRef.current;
-      const rung = middleRungRef.current;
-      if (!ladder || !rung) return;
-      const ladderRect = ladder.getBoundingClientRect();
-      const rungRect = rung.getBoundingClientRect();
-      const center = rungRect.top - ladderRect.top + rungRect.height / 2;
-      setChevronTop(Math.round(center - 10)); // 10 = half of 20px chevron
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    if (ladderRef.current) ro.observe(ladderRef.current);
-    if (middleRungRef.current) ro.observe(middleRungRef.current);
-    window.addEventListener("resize", measure);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, []);
-
-  const middleIdx = Math.floor(LADDER_RUNGS.length / 2);
-
   const ladderColumn = (
     <div
-      ref={ladderRef}
       className={cn(
         "flex flex-col gap-[2px] py-0",
         // Anchor icons to the outer edge so they grow inward.
@@ -648,7 +612,6 @@ function PhaseLadder({
       {LADDER_RUNGS.map((r, i) => (
         <button
           key={`${r.label}-${i}`}
-          ref={i === middleIdx ? middleRungRef : undefined}
           type="button"
           onClick={() => onJump(r.phase)}
           aria-label={`${jumpVerb} ${r.label}`}
@@ -710,20 +673,20 @@ function PhaseLadder({
 
   return (
     <div
-      className="hidden sm:block relative shrink-0 self-center"
+      className="hidden sm:flex shrink-0 self-center flex-row items-center gap-2"
       aria-label={`${jumpVerb} phase navigator`}
-      style={{ width: 60 }}
     >
-      {ladderColumn}
-      <div
-        className="absolute"
-        style={{
-          top: chevronTop,
-          ...(isLeft ? { left: -8 } : { right: -8 }),
-        }}
-      >
-        {chevronButton}
-      </div>
+      {isLeft ? (
+        <>
+          {chevronButton}
+          {ladderColumn}
+        </>
+      ) : (
+        <>
+          {ladderColumn}
+          {chevronButton}
+        </>
+      )}
     </div>
   );
 }
