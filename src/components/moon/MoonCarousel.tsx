@@ -600,10 +600,19 @@ function MobilePhaseLadder({
   onJump: (phase: MoonPhaseName) => void;
 }) {
   const isLeft = side === "left";
+  // Smaller, edge-pinned cascade — sized down from the desktop ladder so it
+  // sits comfortably on the very edge of mobile viewports.
+  const RUNG_SIZES = [12, 15, 22, 15, 12];
   return (
     <div
-      className="flex sm:hidden shrink-0 self-center flex-col gap-[2px]"
-      style={{ alignItems: isLeft ? "flex-start" : "flex-end" }}
+      className="fixed sm:hidden flex flex-col gap-[2px] z-10"
+      style={{
+        top: "50%",
+        transform: "translateY(-60%)",
+        alignItems: isLeft ? "flex-start" : "flex-end",
+        [isLeft ? "left" : "right"]: 0,
+        [isLeft ? "paddingLeft" : "paddingRight"]: 6,
+      }}
       aria-label={`${isLeft ? "Previous" : "Next"} phase navigator`}
     >
       {LADDER_RUNGS.map((r, i) => (
@@ -626,7 +635,7 @@ function MobilePhaseLadder({
               justifyContent: "center",
             }}
           >
-            <MoonPhaseIcon phase={r.phase} size={r.size} />
+            <MoonPhaseIcon phase={r.phase} size={RUNG_SIZES[i]} />
           </span>
         </button>
       ))}
