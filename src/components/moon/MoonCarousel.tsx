@@ -192,7 +192,7 @@ export function MoonCarousel() {
           it never clips and the chevrons never shift vertically. */}
       <div
         className="flex items-start justify-center gap-1 sm:gap-4 touch-pan-y overflow-visible"
-        style={{ height: 220 }}
+        style={{ height: 260 }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
