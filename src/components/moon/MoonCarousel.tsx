@@ -726,7 +726,7 @@ function PhaseLadder({
           key={`${r.label}-${i}`}
           type="button"
           onClick={() => onJump(r.phase)}
-          aria-label={`${jumpVerb} ${r.label}`}
+          aria-label={`Jump to ${jumpVerb.toLowerCase()} ${r.label}`}
           title={`${jumpVerb} ${r.label}`}
           aria-current={i === activeIdx ? "true" : undefined}
           style={{
@@ -737,7 +737,7 @@ function PhaseLadder({
             "group cursor-pointer rounded-full bg-transparent border-0 p-0",
             "transition-all duration-200 ease-out",
             "hover:!opacity-100 hover:scale-110",
-            "focus:outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            "outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
             i === activeIdx && "moon-rung-active",
           )}
         >
@@ -776,13 +776,13 @@ function PhaseLadder({
       className={cn(
         "inline-flex shrink-0 items-center justify-center rounded-full bg-transparent border-0 p-0 cursor-pointer",
         "text-muted-foreground transition-all duration-200",
-        "hover:text-gold hover:!opacity-100 focus:outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/60",
+        "hover:text-gold hover:!opacity-100 outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
       )}
     >
       {/* Match the chevron's visual weight to the Full Moon rung (26px) so
           it reads as a sibling control, not a smaller satellite. Scales
           modestly across breakpoints to keep parity with the rung sizes. */}
-      <Chevron className="h-[22px] w-[22px] md:h-[26px] md:w-[26px]" strokeWidth={1.75} />
+      <Chevron className="h-[22px] w-[22px] md:h-[26px] md:w-[26px]" strokeWidth={1.75} aria-hidden="true" />
     </button>
   );
 
@@ -790,6 +790,8 @@ function PhaseLadder({
     <div
       className="hidden sm:flex shrink-0 self-start flex-row items-start gap-1.5 md:gap-2"
       style={{ marginTop: 8 }}
+      role="toolbar"
+      aria-orientation="vertical"
       aria-label={`${jumpVerb} phase navigator`}
     >
       {isLeft ? (
