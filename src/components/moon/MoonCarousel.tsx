@@ -701,7 +701,7 @@ function PhaseLadder({
 
   return (
     <div
-      className="hidden sm:flex shrink-0 self-center flex-row items-center gap-1.5 md:gap-2 lg:gap-3"
+      className="hidden sm:flex shrink-0 self-center flex-row items-center gap-3 md:gap-4 lg:gap-5"
       aria-label={`${jumpVerb} phase navigator`}
     >
       {isLeft ? (
