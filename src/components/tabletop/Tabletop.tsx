@@ -1153,6 +1153,26 @@ function CardSlot({
     prevSelectedRef.current = isSelected;
   }, [isSelected]);
 
+  // Sacred flip: when this card transitions face-down → face-up, play the
+  // lift + halo animation alongside the rotateY flip. Tracked separately
+  // from `revealed` so the halo cleanly unmounts after the animation.
+  const [revealTick, setRevealTick] = useState(0);
+  const [flipping, setFlipping] = useState(false);
+  const prevRevealedRef = useRef(card.revealed);
+  useEffect(() => {
+    if (card.revealed && !prevRevealedRef.current) {
+      setRevealTick((t) => t + 1);
+      setFlipping(true);
+      const id = window.setTimeout(
+        () => setFlipping(false),
+        TABLETOP_CONFIG.REVEAL_ANIMATION_MS + 60,
+      );
+      prevRevealedRef.current = card.revealed;
+      return () => window.clearTimeout(id);
+    }
+    prevRevealedRef.current = card.revealed;
+  }, [card.revealed]);
+
   // Track pointer-down position so we can distinguish a deliberate tap from
   // a swipe / drag. Any movement past `tapMoveThresholdPx` cancels the tap
   // and the click handler bails out — selection only changes on real taps.
