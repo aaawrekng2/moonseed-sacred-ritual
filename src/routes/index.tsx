@@ -26,7 +26,7 @@ function Index() {
 
   return (
     <main
-      className="relative flex min-h-screen flex-col pb-24"
+      className="relative flex h-[100dvh] flex-col overflow-hidden pb-24"
       style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
     >
       {/* Top-right controls (fixed overlay) */}
@@ -37,28 +37,27 @@ function Index() {
         <MoonCarousel />
       </header>
 
-      {/* Streak — quietly present, centered below carousel */}
-      <div className="mt-2 flex items-center justify-center">
-        <div
-          className="flex items-center gap-1.5 text-gold"
-          style={{ opacity: restingAlpha }}
-          title="Your practice streak"
-          aria-label="Practice streak: 0 days"
-        >
-          <Flame size={18} strokeWidth={1.6} />
-          <span className="font-display text-sm leading-none">0</span>
-        </div>
-      </div>
-
       {/* Hero gateway card — centered in remaining space */}
       <section className="flex flex-1 flex-col items-center justify-center px-6">
-        <button
-          type="button"
-          aria-label="Begin today's draw"
-          className="animate-breathe-glow transition-transform active:scale-[0.98]"
-        >
-          <CardBack id={cardBack} width={180} />
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            aria-label="Begin today's draw"
+            className="animate-breathe-glow transition-transform active:scale-[0.98]"
+          >
+            <CardBack id={cardBack} width={180} />
+          </button>
+          {/* Streak — bottom-left of gateway card */}
+          <div
+            className="absolute left-0 flex items-center gap-1 text-gold"
+            style={{ bottom: "12%", opacity: restingAlpha }}
+            title="Your practice streak"
+            aria-label="Practice streak: 0 days"
+          >
+            <Flame size={16} strokeWidth={1.6} />
+            <span className="font-display text-[13px] leading-none">0</span>
+          </div>
+        </div>
         <p
           className="mt-4 font-display text-[13px] italic"
           style={{ color: "rgba(255,255,255,0.5)" }}
