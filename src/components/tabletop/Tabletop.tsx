@@ -218,6 +218,27 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const [revealing, setRevealing] = useState(false);
   const [revealedAll, setRevealedAll] = useState(false);
 
+  const triggerStir = useCallback(() => {
+    if (revealing || revealedAll) return;
+    setStirring(true);
+    setStirNonce((n) => n + 1);
+    if (stirTimerRef.current != null) {
+      window.clearTimeout(stirTimerRef.current);
+    }
+    stirTimerRef.current = window.setTimeout(() => {
+      setStirring(false);
+      stirTimerRef.current = null;
+    }, 760);
+  }, [revealing, revealedAll]);
+
+  useEffect(() => {
+    return () => {
+      if (stirTimerRef.current != null) {
+        window.clearTimeout(stirTimerRef.current);
+      }
+    };
+  }, []);
+
   const toggleSelect = (id: number) => {
     if (revealing || revealedAll) return;
     setCards((prev) => {
