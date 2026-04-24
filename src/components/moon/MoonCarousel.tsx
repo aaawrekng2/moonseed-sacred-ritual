@@ -87,7 +87,7 @@ export function MoonCarousel() {
         </button>
 
         <div className="flex flex-1 items-end justify-center gap-2">
-          {cells.map(({ rel, date, info, sign }) => {
+          {ready && cells.map(({ rel, date, info, sign }) => {
             const isToday = rel === 0;
             const expanded = isToday || expandedRel === rel;
             const alpha = cellAlpha(rel);
