@@ -526,8 +526,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         {!revealedAll && (
           <button
             type="button"
-            onClick={() => setStirNonce((n) => n + 1)}
-            disabled={revealing}
+            onClick={triggerStir}
+            disabled={revealing || stirring}
             aria-label="Stir — rearrange unselected cards"
             style={{
               opacity: restingAlpha,
