@@ -106,12 +106,25 @@ export function MoonCarousel() {
   if (!ready || days.length === 0) return <MoonSkeleton />;
 
   return (
-    <section aria-label="Moon phase calendar" className="relative animate-in fade-in slide-in-from-top-2 duration-500">
-      <div className="flex items-start justify-center gap-1 sm:gap-4 touch-pan-y" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+    <section
+      aria-label="Moon phase calendar"
+      className="relative animate-in fade-in slide-in-from-top-2 duration-500"
+      style={{ minHeight: 280 }}
+    >
+      {/* Fixed-height row so cards never reflow as the user swipes between
+          days. The today card is the tallest element; sizing here is set so
+          it never clips and the chevrons never shift vertically. */}
+      <div
+        className="flex items-start justify-center gap-1 sm:gap-4 touch-pan-y overflow-visible"
+        style={{ height: 220 }}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
         <button
           type="button"
           onClick={() => shift(-1)}
           className="hidden sm:flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-full text-muted-foreground transition-colors hover:bg-card/40 hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          style={{ alignSelf: "center" }}
           aria-label="Previous day"
         >
           <ChevronLeft className="h-5 w-5" />
@@ -151,6 +164,7 @@ export function MoonCarousel() {
           type="button"
           onClick={() => shift(1)}
           className="hidden sm:flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-full text-muted-foreground transition-colors hover:bg-card/40 hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          style={{ alignSelf: "center" }}
           aria-label="Next day"
         >
           <ChevronRight className="h-5 w-5" />
