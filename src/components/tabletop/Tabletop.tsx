@@ -4,7 +4,7 @@ import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
-import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
+import { SPREAD_META, spreadUsesSlots, type SpreadMode } from "@/lib/spreads";
 import {
   MAX_RESTING_OPACITY,
   MIN_RESTING_OPACITY,
@@ -19,7 +19,10 @@ const TABLETOP_CONFIG = {
   SELECTION_GLOW_SPREAD: 6,
   SELECTION_GLOW_OPACITY: 0.8,
   REVEAL_ANIMATION_MS: 600,
-  REVEAL_STAGGER_MS: 100,
+  // Cards reveal simultaneously when the user taps Reveal — staggered
+  // entrance broke the "ceremonial all-at-once" feel of multi-card spreads.
+  REVEAL_STAGGER_MS: 0,
+  FLIGHT_MS: 420,
   DECK_SIZE: 78,
 };
 
