@@ -695,7 +695,7 @@ function MobilePhaseLadder({
               border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
               transition: "border-color 200ms ease",
             }}
-            className="group-hover:[border-color:rgb(var(--gold-rgb,212_175_55))]"
+            className="group-hover:!border-gold"
           >
             <MoonPhaseIcon phase={r.phase} size={RUNG_SIZES[i]} />
           </span>
