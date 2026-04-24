@@ -588,6 +588,7 @@ function CardSlot({
   faceIndex,
   disabled,
   hitInset,
+  stirring,
   onSelect,
   settleDelay,
 }: {
@@ -627,7 +628,12 @@ function CardSlot({
       }
       className={cn(
         "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
-        "transition-transform duration-200 ease-out",
+        // While stirring, animate left/top/transform together so the card
+        // drifts to its new scatter slot. Otherwise keep the snappier
+        // transform-only transition for selection feedback.
+        stirring
+          ? "card-stir-transition"
+          : "transition-transform duration-200 ease-out",
         // Remove default tap highlight on iOS / Android.
         "[-webkit-tap-highlight-color:transparent] touch-manipulation",
         isSelected ? "z-30" : null,
