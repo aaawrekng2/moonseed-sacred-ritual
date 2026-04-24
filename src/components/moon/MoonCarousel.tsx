@@ -363,12 +363,12 @@ type LadderRung = {
 };
 
 const LADDER_RUNGS: LadderRung[] = [
-  { label: "New Moon",        phase: "New Moon",        size: 14, inset: 16 },
-  { label: "Waxing Crescent", phase: "Waxing Crescent", size: 18, inset: 8 },
+  { label: "New Moon",        phase: "New Moon",        size: 14, inset: 28 },
+  { label: "Waxing Crescent", phase: "Waxing Crescent", size: 18, inset: 14 },
   { label: "Full Moon",       phase: "Full Moon",       size: 26, inset: 0 },
-  { label: "Waning Gibbous",  phase: "Waning Gibbous",  size: 18, inset: 8 },
+  { label: "Waning Gibbous",  phase: "Waning Gibbous",  size: 18, inset: 14 },
   // "Dark Moon" rung — calculated as New Moon, displayed as the same dark glyph.
-  { label: "Dark Moon",       phase: "New Moon",        size: 14, inset: 16 },
+  { label: "Dark Moon",       phase: "New Moon",        size: 14, inset: 28 },
 ];
 
 function PhaseLadder({
@@ -405,7 +405,7 @@ function PhaseLadder({
   return (
     <div
       className={cn(
-        "hidden sm:flex shrink-0 self-center flex-col items-stretch gap-[6px] py-1",
+        "hidden sm:flex shrink-0 self-center flex-col items-stretch gap-[3px] py-1",
         // Anchor icons to the outer edge so they grow inward.
         isLeft ? "items-start" : "items-end",
       )}
@@ -436,7 +436,7 @@ function PhaseLadder({
             // restarts cleanly — pure CSS animations don't otherwise replay.
             key={i === activeIdx ? pulseKey : "idle"}
             className={cn(
-              "inline-flex items-center justify-center rounded-full",
+              "moon-rung-halo inline-flex items-center justify-center rounded-full p-1 transition-all duration-200 ease-out",
               i === activeIdx && "moon-rung-pulse",
             )}
           >
