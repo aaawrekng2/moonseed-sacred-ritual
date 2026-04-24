@@ -25,6 +25,7 @@ export function BottomNav() {
 
   return (
     <nav
+      aria-label="Primary"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-[color:var(--border)] backdrop-blur-xl"
       style={{
         background: "linear-gradient(to top, rgba(10,8,22,0.85), rgba(10,8,22,0.55))",
@@ -41,12 +42,14 @@ export function BottomNav() {
             <li key={to}>
               <Link
                 to={to}
+                aria-label={`${label}${active ? " (current page)" : ""}`}
                 style={{
                   opacity: active ? 1 : restingAlpha,
                   transform: primary ? undefined : "translateY(4px)",
                 }}
                 className={cn(
-                  "flex flex-col items-center gap-1 transition-all hover:opacity-100",
+                  "flex flex-col items-center gap-1 rounded-lg px-2 py-1 transition-all hover:opacity-100",
+                  "outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   active
                     ? "text-gold"
                     : primary
@@ -55,7 +58,7 @@ export function BottomNav() {
                 )}
                 aria-current={active ? "page" : undefined}
               >
-                <Icon size={iconSize} strokeWidth={primary ? 1.5 : 1.6} />
+                <Icon size={iconSize} strokeWidth={primary ? 1.5 : 1.6} aria-hidden="true" />
                 <span
                   className={cn(
                     "font-display tracking-wide",
