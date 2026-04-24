@@ -237,6 +237,37 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     });
   }, [stirNonce, size, cardW, cardH, maxRotation, seed, exclusionZones]);
 
+  // Per-card visible-area ratio (0–1), derived from current card positions
+  // and the same overlap heuristic used by buildScatter's enforcement pass.
+  // Only computed when the debug overlay is on.
+  const visibilityByCardId = useMemo(() => {
+    const map = new Map<number, number>();
+    if (!debugOverlap || cards.length === 0) return map;
+    const area = cardW * cardH;
+    if (area <= 0) return map;
+    // Sort by z; higher-z cards (later in the array) render on top.
+    const byZ = [...cards].sort((a, b) => a.z - b.z);
+    for (let i = 0; i < byZ.length; i++) {
+      const c = byZ[i];
+      let covered = 0;
+      for (let j = i + 1; j < byZ.length; j++) {
+        const o = byZ[j];
+        const ow = Math.max(
+          0,
+          Math.min(c.x + cardW, o.x + cardW) - Math.max(c.x, o.x),
+        );
+        const oh = Math.max(
+          0,
+          Math.min(c.y + cardH, o.y + cardH) - Math.max(c.y, o.y),
+        );
+        covered += ow * oh;
+        if (covered >= area) break;
+      }
+      map.set(c.id, Math.max(0, 1 - Math.min(area, covered) / area));
+    }
+    return map;
+  }, [debugOverlap, cards, cardW, cardH]);
+
   const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
   const ready = selectedCount === required;
 
