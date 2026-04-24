@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { MoonPhaseName } from "@/lib/moon";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +14,16 @@ const R = 26;
 const CX = 32;
 const CY = 32;
 
+// Dev-only: warn at most once per (phase + reason) so a regression can't
+// silently re-introduce the "empty rung" bug. No-op in production builds.
+const warnedKeys = new Set<string>();
+function warnOnce(key: string, message: string) {
+  if (warnedKeys.has(key)) return;
+  warnedKeys.add(key);
+  // eslint-disable-next-line no-console
+  console.warn(`[MoonPhaseIcon] ${message}`);
+}
+
 export function MoonPhaseIcon({ phase, size = 64, className, ariaHidden = true }: Props) {
   // useId guarantees a unique base for every rendered instance, so multiple
   // icons in the document never collide on <defs>/<mask>/<radialGradient> IDs.
@@ -25,9 +35,60 @@ export function MoonPhaseIcon({ phase, size = 64, className, ariaHidden = true }
   const bodyId = `${id}-body`;
   const glowId = `${id}-glow`;
   const pearlId = `${id}-pearl`;
+  const svgRef = useRef<SVGSVGElement | null>(null);
+
+  // Dev-only assertion: after mount, verify (a) the SVG has non-zero box,
+  // and (b) every url(#...) reference inside it resolves to a real def in
+  // the same document. Catches regressions where a parent rule clips the
+  // icon to 0×0, or where a future refactor breaks the unique-id wiring.
+  useEffect(() => {
+    if (import.meta.env.PROD) return;
+    const svg = svgRef.current;
+    if (!svg) return;
+    // Defer one frame so layout has settled before measuring.
+    const raf = requestAnimationFrame(() => {
+      // Skip if the element was unmounted between schedule and tick — a
+      // 0×0 box on a detached node is an unmount race, not a layout bug.
+      if (!svg.isConnected) return;
+      // Skip if any ancestor has display:none (e.g. mobile ladder on a
+      // desktop viewport, or vice versa). A hidden subtree always measures
+      // 0×0 and that's expected, not a clip bug.
+      let node: Element | null = svg;
+      while (node) {
+        const cs = getComputedStyle(node);
+        if (cs.display === "none" || cs.visibility === "hidden") return;
+        node = node.parentElement;
+      }
+      const rect = svg.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        warnOnce(
+          `${phase}-zero-box`,
+          `phase "${phase}" rendered with zero box (${rect.width}×${rect.height}). A parent flex/clip rule is likely cropping the icon.`,
+        );
+      }
+      const refs = svg.querySelectorAll<SVGElement>(
+        "[mask], [fill^='url('], [stroke^='url(']",
+      );
+      refs.forEach((el) => {
+        for (const attr of ["mask", "fill", "stroke"] as const) {
+          const val = el.getAttribute(attr);
+          if (!val || !val.startsWith("url(#")) continue;
+          const refId = val.slice(5, -1);
+          if (!svg.querySelector(`#${CSS.escape(refId)}`)) {
+            warnOnce(
+              `${phase}-missing-${refId}`,
+              `phase "${phase}" references missing def "#${refId}" via ${attr}. Mask/gradient wiring is broken.`,
+            );
+          }
+        }
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [phase]);
 
   return (
     <svg
+      ref={svgRef}
       width={size}
       height={size}
       viewBox={`0 0 ${VB} ${VB}`}

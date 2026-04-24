@@ -807,6 +807,15 @@ function PhaseLadder({
               padding: "0px",
               border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
               transition: "border-color 200ms ease, opacity 200ms ease",
+              // Desktop layout guard: lock the wrapper to the icon's exact
+              // box, never shrink in a flex parent, never clip child SVG.
+              // This makes it structurally impossible for a future flex/min-
+              // width/overflow rule to crop a ladder rung.
+              width: r.size,
+              height: r.size,
+              flex: "none",
+              overflow: "visible",
+              boxSizing: "content-box",
             }}
             className="group-hover:!border-gold"
           >
