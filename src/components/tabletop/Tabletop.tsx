@@ -97,6 +97,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // they drift to their new slots instead of snapping.
   const [stirring, setStirring] = useState(false);
   const stirTimerRef = useRef<number | null>(null);
+  const [revealing, setRevealing] = useState(false);
+  const [revealedAll, setRevealedAll] = useState(false);
   const { opacity: restingOpacityPct } = useRestingOpacity();
   const restingAlpha = restingOpacityPct / 100;
   const exitAlpha = Math.min(1, restingAlpha + 0.1);
