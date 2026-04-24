@@ -39,6 +39,19 @@ export function MoonCarousel() {
   const [offset, setOffset] = useState(0);
   const [expandedRel, setExpandedRel] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
+  const [shimmerKey, setShimmerKey] = useState(0);
+  const prevOffsetRef = useRef(0);
+
+  // Trigger a brief luminous shimmer whenever offset shifts by more than one
+  // day (i.e. a phase-ladder jump or a "Today" return). Single-day steps and
+  // swipes feel calm enough already and don't need the flourish.
+  useEffect(() => {
+    const prev = prevOffsetRef.current;
+    if (Math.abs(offset - prev) > 1) {
+      setShimmerKey((k) => k + 1);
+    }
+    prevOffsetRef.current = offset;
+  }, [offset]);
 
   const accent = useMoonseedAccent();
   const { opacity } = useRestingOpacity();
@@ -135,6 +148,28 @@ export function MoonCarousel() {
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
+        {shimmerKey > 0 && (
+          <span
+            key={shimmerKey}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-20 overflow-hidden rounded-2xl"
+          >
+            <span
+              className="absolute inset-y-0 -left-1/3 w-1/3 moon-shimmer-sweep"
+              style={{
+                background: `linear-gradient(100deg, transparent 0%, ${accent}00 20%, ${accent}55 50%, ${accent}00 80%, transparent 100%)`,
+                filter: "blur(8px)",
+              }}
+            />
+            <span
+              className="absolute inset-0 moon-shimmer-glow"
+              style={{
+                background: `radial-gradient(ellipse at center, ${accent}22 0%, transparent 60%)`,
+              }}
+            />
+          </span>
+        )}
+
         <PhaseLadder
           side="left"
           restingAlpha={restingAlpha}
