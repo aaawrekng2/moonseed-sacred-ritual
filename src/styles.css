@@ -240,6 +240,20 @@ html, body {
     transform 700ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* During a stir, briefly soften unselected cards: opacity dips and a small
+   blur is applied at the midpoint, then both restore. Combined with the
+   position transition this reads as the cards "gliding" through space
+   rather than snapping. */
+@keyframes card-stir-glide {
+  0%   { opacity: 1;   filter: blur(0); }
+  35%  { opacity: 0.55; filter: blur(2.5px); }
+  65%  { opacity: 0.7;  filter: blur(1.5px); }
+  100% { opacity: 1;   filter: blur(0); }
+}
+.animate-card-stir-glide {
+  animation: card-stir-glide 700ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* Tap-target helper: invisible hit area extends past the visible card on
    touch devices to make small scattered cards easier to select.
    The inset is driven by --card-hit-inset so the surrounding component can
