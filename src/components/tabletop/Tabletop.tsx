@@ -526,6 +526,40 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </button>
         )}
 
+        {/* Dev-only overlap debug toggle. Sits just above Stir so it never
+            competes with the zen affordances. Hidden chip styling, plain
+            English label so its purpose is obvious. */}
+        <button
+          type="button"
+          onClick={() => setDebugOverlap((v) => !v)}
+          aria-pressed={debugOverlap}
+          aria-label="Toggle overlap debug overlay"
+          style={{
+            position: "absolute",
+            left: "calc(env(safe-area-inset-left, 0px) + 20px)",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 56px)",
+            opacity: debugOverlap ? 1 : restingAlpha,
+            zIndex: 21,
+          }}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
+            "font-display text-[9px] uppercase tracking-[0.25em] transition-opacity",
+            "hover:!opacity-100 focus:!opacity-100 focus:outline-none",
+            debugOverlap
+              ? "border-red-400/70 text-red-200 bg-red-500/10"
+              : "border-gold/30 text-gold/70",
+          )}
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              "h-1.5 w-1.5 rounded-full",
+              debugOverlap ? "bg-red-400" : "bg-gold/50",
+            )}
+          />
+          Overlap {debugOverlap ? "On" : "Off"}
+        </button>
+
         {/* Centered whisper. When the spread is incomplete, this is a quiet
             status line ("Choose N more"). Once all picks are made it morphs
             into a soft pill that taps to reveal — same scale, same opacity,
