@@ -533,10 +533,24 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           return c;
         });
       }
-      const used = prev.filter((c) => c.selectionOrder !== null).length;
-      if (used >= required) return prev;
+      // Pick the lowest-numbered empty slot (1..required). When a card is
+      // returned to the table from slot N, the next selection refills slot N
+      // rather than appending past the last filled slot.
+      const occupied = new Set(
+        prev
+          .map((c) => c.selectionOrder)
+          .filter((n): n is number => n !== null),
+      );
+      let nextSlot: number | null = null;
+      for (let i = 1; i <= required; i++) {
+        if (!occupied.has(i)) {
+          nextSlot = i;
+          break;
+        }
+      }
+      if (nextSlot === null) return prev;
       return prev.map((c) =>
-        c.id === id ? { ...c, selectionOrder: used + 1 } : c,
+        c.id === id ? { ...c, selectionOrder: nextSlot } : c,
       );
     });
   };
