@@ -48,6 +48,27 @@ export function adaptiveMaxRotation(viewportW: number, base: number): number {
   return Math.round(value * 2) / 2;
 }
 
+/**
+ * Compute the invisible hit-area inset around each card so the effective
+ * touch target reaches an Apple-HIG-friendly minimum width regardless of
+ * how small the rendered card is. Coarse pointers (touch) target 44px min;
+ * fine pointers (mouse) target ~28px and never inset more than 8px.
+ *
+ * Returns CSS pixels (positive number). The card-hit element negates this
+ * for `inset`, so a value of 12 means the hit area extends 12px on every
+ * side of the visible card.
+ */
+export function adaptiveHitInset(
+  cardW: number,
+  isCoarsePointer: boolean,
+): number {
+  const targetMin = isCoarsePointer ? 44 : 28;
+  const expansion = Math.max(0, (targetMin - cardW) / 2);
+  // Clamp so the hit area never grows so large it overlaps neighbours.
+  const cap = isCoarsePointer ? 16 : 8;
+  return Math.min(cap, Math.round(expansion));
+}
+
 type TabletopProps = {
   spread: SpreadMode;
   onExit: () => void;
@@ -93,6 +114,21 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     size?.w ?? 0,
     TABLETOP_CONFIG.CARD_MAX_ROTATION,
   );
+
+  // Detect coarse pointer once (and on media-query change) so we can scale
+  // the hit area appropriately. Defaults to true on first render so SSR /
+  // pre-mount touches still feel generous.
+  const [isCoarsePointer, setIsCoarsePointer] = useState(true);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia("(pointer: coarse)");
+    const update = () => setIsCoarsePointer(mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    return () => mq.removeEventListener?.("change", update);
+  }, []);
+
+  const hitInset = adaptiveHitInset(cardW, isCoarsePointer);
 
   const scatter = useMemo(() => {
     if (!size) return [] as ScatterCard[];
@@ -385,6 +421,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             cardBack={cardBack}
             faceIndex={deckMapping[c.id]}
             disabled={revealing || revealedAll}
+            hitInset={hitInset}
             onSelect={() => {
               if (shouldSuppressClick()) return;
               toggleSelect(c.id);
@@ -426,6 +463,7 @@ function CardSlot({
   cardBack,
   faceIndex,
   disabled,
+  hitInset,
   onSelect,
   settleDelay,
 }: {
@@ -435,6 +473,7 @@ function CardSlot({
   cardBack: CardBackId;
   faceIndex: number;
   disabled: boolean;
+  hitInset: number;
   onSelect: () => void;
   settleDelay: number;
 }) {
@@ -477,6 +516,9 @@ function CardSlot({
         zIndex: isSelected ? 40 : card.z + 1,
         animation: `settle-in 320ms ease-out both`,
         animationDelay: `${settleDelay}ms`,
+        // Drives the .card-hit element's inset via a CSS variable so the
+        // touch target scales with the rendered card size.
+        ["--card-hit-inset" as string]: `${hitInset}px`,
       }}
     >
       {/* Invisible expanded hit area for easier tapping on mobile. */}
