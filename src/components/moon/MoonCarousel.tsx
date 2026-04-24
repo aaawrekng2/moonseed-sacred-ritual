@@ -74,11 +74,29 @@ export function MoonCarousel() {
     return d;
   }, []);
 
+  // Currently-viewed center date — used so phase jumps anchor on what the
+  // user is looking at, not on real-world today.
+  const viewedDate = useMemo(() => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + offset);
+    d.setHours(12, 0, 0, 0);
+    return d;
+  }, [today, offset]);
+
+  // Mobile shows a 3-day window (-1, 0, +1); desktop shows 5 (-2..+2).
+  const isMobile =
+    typeof window !== "undefined" && window.innerWidth < 640;
+  const dayRange = isMobile ? 1 : 2;
+
+  // True while a multi-day tween is animating. Used to suppress per-cell
+  // layout transitions that would otherwise fight the position tween.
+  const [transitioning, setTransitioning] = useState(false);
+
   const [retryNonce, setRetryNonce] = useState(0);
   const { days, todayMoonSign, error } = useMemo(() => {
     try {
       const out: DayCell[] = [];
-      for (let i = -2; i <= 2; i++) {
+      for (let i = -dayRange; i <= dayRange; i++) {
         const d = new Date(today);
         d.setDate(today.getDate() + offset + i);
         const info = getCurrentMoonPhase(d);
@@ -90,7 +108,7 @@ export function MoonCarousel() {
       return { days: [] as DayCell[], todayMoonSign: "", error: e instanceof Error ? e.message : "Unknown error" };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [offset, today, retryNonce]);
+  }, [offset, today, retryNonce, dayRange]);
 
   const [recomputing, setRecomputing] = useState(false);
   const recomputeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -149,6 +167,8 @@ export function MoonCarousel() {
       if (Math.abs(distance) > 1) setShimmerKey((k) => k + 1);
       if (reduceMotion) return target;
 
+      setTransitioning(true);
+
       // 60ms per step, capped so very long jumps still feel snappy.
       const duration = Math.min(900, Math.max(280, Math.abs(distance) * 60));
       const startTime = performance.now();
@@ -162,6 +182,7 @@ export function MoonCarousel() {
           tweenRafRef.current = requestAnimationFrame(tick);
         } else {
           tweenRafRef.current = null;
+          setTransitioning(false);
         }
       };
       tweenRafRef.current = requestAnimationFrame(tick);
@@ -172,9 +193,9 @@ export function MoonCarousel() {
   // Tap a ladder rung → jump to the *nearest* occurrence of that phase in
   // either direction. Side-specific arrows (chevrons) still step ±1 day.
   const jumpToPhase = (phase: MoonPhaseName) => {
-    const delta = findNearestPhaseOccurrence(phase, new Date());
+    const delta = findNearestPhaseOccurrence(phase, viewedDate);
     if (delta === 0) return;
-    tweenOffsetTo(delta);
+    tweenOffsetTo(offset + delta);
   };
 
   useEffect(() => {
@@ -202,7 +223,8 @@ export function MoonCarousel() {
   // selected day has scrolled out of the visible window we ignore it.
   const selectedDay =
     selectedRel !== null ? days.find((d) => d.relative === selectedRel) : undefined;
-  const viewedPhase = (selectedDay ?? days[2])?.info.phase ?? null;
+  const centerDay = days.find((d) => d.relative === offset);
+  const viewedPhase = (selectedDay ?? centerDay)?.info.phase ?? null;
 
   return (
     <section
@@ -277,7 +299,8 @@ export function MoonCarousel() {
                   transformOrigin: "top center",
                 }}
                 className={cn(
-                  "flex flex-col items-center transition-all duration-300 ease-out",
+                  "flex flex-col items-center",
+                  !transitioning && "transition-all duration-300 ease-out",
                   isCenter || isSelected
                     ? "z-10 opacity-100"
                     : isExpanded
@@ -606,7 +629,7 @@ function MobilePhaseLadder({
     <div
       className="fixed sm:hidden flex flex-col gap-[2px] z-10"
       style={{
-        top: "50px",
+        top: "70px",
         transform: "none",
         alignItems: isLeft ? "flex-start" : "flex-end",
         [isLeft ? "left" : "right"]: 0,
@@ -680,7 +703,6 @@ function PhaseLadder({
         // Anchor icons to the outer edge so they grow inward.
         isLeft ? "items-start" : "items-end",
       )}
-      style={{ maxHeight: 100 }}
     >
       {LADDER_RUNGS.map((r, i) => (
         <button
