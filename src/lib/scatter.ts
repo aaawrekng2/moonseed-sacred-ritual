@@ -45,8 +45,33 @@ export function buildScatter(p: ScatterParams): ScatterCard[] {
   const totalCells = cols * rows;
   const pick = Math.min(p.count, totalCells);
 
-  const usableW = Math.max(1, p.width - p.padding * 2);
-  const usableH = Math.max(1, p.height - p.padding * 2);
+  // Rotated bounding box of the card at maxRotation (worst case).
+  // A rotated rect of (w,h) at angle θ has bbox
+  //   bw = |w·cosθ| + |h·sinθ|, bh = |w·sinθ| + |h·cosθ|
+  const theta = (p.maxRotation * Math.PI) / 180;
+  const cosT = Math.abs(Math.cos(theta));
+  const sinT = Math.abs(Math.sin(theta));
+  const bboxW = p.cardWidth * cosT + p.cardHeight * sinT;
+  const bboxH = p.cardWidth * sinT + p.cardHeight * cosT;
+
+  // Extra horizontal/vertical slack from rotation (half on each side, since we
+  // position by the un-rotated top-left but the visual extends symmetrically
+  // around the center).
+  const rotSlackX = (bboxW - p.cardWidth) / 2;
+  const rotSlackY = (bboxH - p.cardHeight) / 2;
+
+  // Effective inner padding accounts for rotation slack so a tilted card never
+  // pokes past the container edge — critical on narrow portrait viewports.
+  const padX = p.padding + rotSlackX;
+  const padY = p.padding + rotSlackY;
+
+  // If the container is too small to fit even one card with full padding,
+  // gracefully shrink padding rather than producing negative usable space.
+  const safePadX = Math.min(padX, Math.max(0, (p.width - p.cardWidth) / 2));
+  const safePadY = Math.min(padY, Math.max(0, (p.height - p.cardHeight) / 2));
+
+  const usableW = Math.max(1, p.width - safePadX * 2);
+  const usableH = Math.max(1, p.height - safePadY * 2);
   const cellW = usableW / cols;
   const cellH = usableH / rows;
 
@@ -67,8 +92,8 @@ export function buildScatter(p: ScatterParams): ScatterCard[] {
     const cell = chosen[i];
     const col = cell % cols;
     const row = Math.floor(cell / cols);
-    const baseX = p.padding + col * cellW + (cellW - p.cardWidth) / 2;
-    const baseY = p.padding + row * cellH + (cellH - p.cardHeight) / 2;
+    const baseX = safePadX + col * cellW + (cellW - p.cardWidth) / 2;
+    const baseY = safePadY + row * cellH + (cellH - p.cardHeight) / 2;
     const dx = (rng() - 0.5) * jitterX;
     const dy = (rng() - 0.5) * jitterY;
 
@@ -76,8 +101,10 @@ export function buildScatter(p: ScatterParams): ScatterCard[] {
     let rot = (rng() - 0.5) * 2 * p.maxRotation;
     if (Math.abs(rot) < 1) rot = rot < 0 ? -1 : 1;
 
-    const x = clamp(baseX + dx, p.padding, p.width - p.padding - p.cardWidth);
-    const y = clamp(baseY + dy, p.padding, p.height - p.padding - p.cardHeight);
+    // Clamp using the rotation-aware safe padding so the rotated bbox
+    // (not just the un-rotated top-left rect) stays inside the container.
+    const x = clamp(baseX + dx, safePadX, p.width - safePadX - p.cardWidth);
+    const y = clamp(baseY + dy, safePadY, p.height - safePadY - p.cardHeight);
 
     cards.push({ id: i, x, y, rotation: rot, z: i });
   }
