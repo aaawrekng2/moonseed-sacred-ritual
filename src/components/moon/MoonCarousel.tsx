@@ -354,12 +354,12 @@ type LadderRung = {
 };
 
 const LADDER_RUNGS: LadderRung[] = [
-  { label: "New Moon",        phase: "New Moon",        size: 16, inset: 4 },
-  { label: "Waxing Crescent", phase: "Waxing Crescent", size: 20, inset: 2 },
-  { label: "Full Moon",       phase: "Full Moon",       size: 28, inset: 0 },
-  { label: "Waning Gibbous",  phase: "Waning Gibbous",  size: 20, inset: 2 },
+  { label: "New Moon",        phase: "New Moon",        size: 14, inset: 16 },
+  { label: "Waxing Crescent", phase: "Waxing Crescent", size: 18, inset: 8 },
+  { label: "Full Moon",       phase: "Full Moon",       size: 26, inset: 0 },
+  { label: "Waning Gibbous",  phase: "Waning Gibbous",  size: 18, inset: 8 },
   // "Dark Moon" rung — calculated as New Moon, displayed as the same dark glyph.
-  { label: "Dark Moon",       phase: "New Moon",        size: 16, inset: 4 },
+  { label: "Dark Moon",       phase: "New Moon",        size: 14, inset: 16 },
 ];
 
 function PhaseLadder({
@@ -381,7 +381,7 @@ function PhaseLadder({
   return (
     <div
       className={cn(
-        "hidden sm:flex shrink-0 self-center flex-col items-stretch gap-1.5 py-1",
+        "hidden sm:flex shrink-0 self-center flex-col items-stretch gap-[6px] py-1",
         // Anchor icons to the outer edge so they grow inward.
         isLeft ? "items-start" : "items-end",
       )}
@@ -416,7 +416,7 @@ function PhaseLadder({
           "mt-1 inline-flex items-center justify-center rounded-full bg-transparent border-0 p-0 cursor-pointer",
           "text-muted-foreground transition-colors duration-200",
           "hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60",
-          isLeft ? "self-start ml-1" : "self-end mr-1",
+          "self-center",
         )}
       >
         <Chevron className="h-7 w-7" />
