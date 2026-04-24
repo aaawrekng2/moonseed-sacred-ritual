@@ -606,11 +606,11 @@ function MobilePhaseLadder({
     <div
       className="fixed sm:hidden flex flex-col gap-[2px] z-10"
       style={{
-        top: "50%",
-        transform: "translateY(-60%)",
+        top: "12px",
+        transform: "none",
         alignItems: isLeft ? "flex-start" : "flex-end",
         [isLeft ? "left" : "right"]: 0,
-        [isLeft ? "paddingLeft" : "paddingRight"]: 6,
+        [isLeft ? "paddingLeft" : "paddingRight"]: 8,
       }}
       aria-label={`${isLeft ? "Previous" : "Next"} phase navigator`}
     >
@@ -626,7 +626,7 @@ function MobilePhaseLadder({
           <span
             style={{
               background:
-                "radial-gradient(circle, rgba(212,175,55,0.40) 0%, transparent 70%)",
+                "radial-gradient(circle, rgba(212,175,55,0.60) 0%, transparent 70%)",
               borderRadius: "50%",
               padding: "3px",
               display: "inline-flex",
@@ -707,16 +707,16 @@ function PhaseLadder({
             // restarts cleanly — pure CSS animations don't otherwise replay.
             key={i === activeIdx ? pulseKey : "idle"}
             className={cn(
-              "moon-rung-halo inline-flex items-center justify-center rounded-full p-1 transition-all duration-200 ease-out",
+              "moon-rung-halo inline-flex items-center justify-center rounded-full transition-all duration-200 ease-out",
               i === activeIdx && "moon-rung-pulse",
             )}
           >
             <span
-              className="moon-rung-glow inline-flex items-center justify-center rounded-full group-hover:[background:radial-gradient(circle,rgba(212,175,55,0.55)_0%,transparent_70%)]"
+              className="moon-rung-glow inline-flex items-center justify-center rounded-full group-hover:[background:radial-gradient(circle,rgba(212,175,55,0.80)_0%,transparent_70%)]"
               style={{
                 background:
-                  "radial-gradient(circle, rgba(212,175,55,0.35) 0%, transparent 70%)",
-                padding: "3px",
+                  "radial-gradient(circle, rgba(212,175,55,0.55) 0%, transparent 70%)",
+                padding: "4px",
                 transition: "background 200ms ease",
               }}
             >
