@@ -136,16 +136,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // Always use the full ±CARD_MAX_ROTATION range so no card sits axis-aligned.
   const maxRotation = TABLETOP_CONFIG.CARD_MAX_ROTATION;
 
-  // No-spawn zone for the top-right close button. Slightly larger than the
-  // visible 44×44 hit area so even rotated cards stay clear of it.
-  const exclusionZones = useMemo(() => {
-    if (!size) return [] as { x: number; y: number; w: number; h: number }[];
-    const zoneW = 80;
-    const zoneH = 80;
-    return [
-      { x: Math.max(0, size.w - zoneW), y: 0, w: zoneW, h: zoneH },
-    ];
-  }, [size]);
+  // The exit X now lives in the bottom bar (outside the scatter area), and
+  // cards are explicitly allowed to scatter beneath the upper-left opacity
+  // slider. No exclusion zones needed inside the scatter container.
+  const exclusionZones = useMemo(
+    () => [] as { x: number; y: number; w: number; h: number }[],
+    [],
+  );
 
   // Detect coarse pointer once (and on media-query change) so we can scale
   // the hit area appropriately. Defaults to true on first render so SSR /
@@ -361,24 +358,45 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]">
-      {/* Minimal exit affordance — single zen X in the top-right. */}
-      <button
-        type="button"
-        onClick={handleExit}
-        aria-label="Close tabletop"
+      {/* Temporary resting-opacity test slider — upper-left. Cards are
+          allowed to scatter beneath it. */}
+      <div
         style={{
+          position: "absolute",
           top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          right: "calc(env(safe-area-inset-right, 0px) + 16px)",
-          opacity: exitAlpha,
+          left: "calc(env(safe-area-inset-left, 0px) + 16px)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+          width: 130,
+          zIndex: 50,
+          opacity: restingAlpha,
+          pointerEvents: "auto",
         }}
-        className="absolute z-50 flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        className="transition-opacity hover:!opacity-100 focus-within:!opacity-100"
       >
-        {/* Invisible hit-area expansion so the effective touch target meets
-            Apple HIG / Material's 44–48px minimum even though the visible
-            glyph stays small and zen. */}
-        <span aria-hidden="true" className="absolute -inset-2" />
-        <X className="h-5 w-5" strokeWidth={1.5} />
-      </button>
+        <label
+          htmlFor="tabletop-resting-opacity"
+          style={{
+            fontSize: 9,
+            color: "var(--gold)",
+            fontFamily: "var(--font-serif)",
+            letterSpacing: "0.2em",
+            textTransform: "uppercase",
+          }}
+        >
+          Opacity {restingOpacityPct}
+        </label>
+        <input
+          id="tabletop-resting-opacity"
+          type="range"
+          min={MIN_RESTING_OPACITY}
+          max={MAX_RESTING_OPACITY}
+          value={restingOpacityPct}
+          onChange={(e) => setRestingOpacity(Number(e.target.value))}
+          style={{ width: "100%", accentColor: "var(--gold)" }}
+        />
+      </div>
 
       {/* Tabletop scatter area */}
       <div
