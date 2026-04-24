@@ -207,6 +207,30 @@ html, body {
 .flip-face.back { transform: rotateY(0deg); }
 .flip-face.front { transform: rotateY(180deg); }
 
+/* Post-flip face glow: a brief gold breath that washes over the
+   revealed face once the flip settles, then fades out gracefully. */
+@keyframes face-reveal-glow {
+  0%   { opacity: 0;    box-shadow: 0 0 0   0   color-mix(in oklab, var(--gold) 0%,  transparent); }
+  35%  { opacity: 1;    box-shadow: 0 0 28px 4px color-mix(in oklab, var(--gold) 70%, transparent); }
+  100% { opacity: 0;    box-shadow: 0 0 0   0   color-mix(in oklab, var(--gold) 0%,  transparent); }
+}
+.face-reveal-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  pointer-events: none;
+  /* Soft inner gold wash plus an outer halo via box-shadow above. */
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in oklab, var(--gold) 28%, transparent) 0%,
+    color-mix(in oklab, var(--gold) 10%, transparent) 55%,
+    transparent 80%
+  );
+  mix-blend-mode: screen;
+  animation: face-reveal-glow 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  z-index: 2;
+}
+
 @keyframes reveal-pulse {
   0%, 100% { box-shadow: 0 0 0 0 oklch(0.82 0.14 82 / 0); }
   50%      { box-shadow: 0 0 24px 2px oklch(0.82 0.14 82 / 0.5); }
