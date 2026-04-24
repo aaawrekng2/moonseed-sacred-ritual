@@ -532,41 +532,51 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           )}
         </div>
 
-        {/* CENTER column: whisper status / Reveal word — slightly elevated
-            above the Stir/X baseline. No pill, no border, just the word. */}
-        <div className="flex items-end justify-center pb-3">
-          {!revealedAll && (
-            <span
-              aria-live="polite"
-              className="font-display text-[11px] uppercase tracking-[0.4em] transition-opacity duration-500"
-              style={{
-                opacity: restingAlpha,
-                color: ready ? "var(--gold)" : "var(--foreground)",
-                textShadow: ready
-                  ? "0 0 12px color-mix(in oklab, var(--gold) 70%, transparent), 0 0 24px color-mix(in oklab, var(--gold) 40%, transparent)"
-                  : "none",
-              }}
-            >
-              {ready ? (
-                <button
-                  type="button"
-                  onClick={handleReveal}
-                  disabled={revealing}
-                  aria-busy={revealing}
-                  aria-label="Reveal your reading"
-                  className="reveal-cta-enter inline-flex items-center gap-2 bg-transparent font-display text-[11px] uppercase tracking-[0.4em] text-gold hover:!opacity-100 focus:!opacity-100 focus:outline-none disabled:cursor-not-allowed"
-                  style={{ color: "var(--gold)" }}
-                >
-                  {revealing && (
-                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
-                  )}
-                  {revealing ? "Revealing" : "Reveal"}
-                </button>
-              ) : (
-                `Choose ${required - selectedCount}`
-              )}
-            </span>
-          )}
+        {/* CENTER column: cascades up — the focal element of the bar.
+            Shows a large glowing italic number of cards still needed, or
+            the word "Reveal" once all are picked. Always at 100% opacity. */}
+        <div
+          className="flex items-end justify-center"
+          style={{ transform: "translateY(-8px)" }}
+        >
+          {!revealedAll &&
+            (ready ? (
+              <button
+                type="button"
+                onClick={handleReveal}
+                disabled={revealing}
+                aria-busy={revealing}
+                aria-label="Reveal your reading"
+                className="reveal-cta-enter reveal-glow-pulse inline-flex items-center gap-2 bg-transparent font-display italic leading-none hover:scale-[1.02] focus:outline-none disabled:cursor-not-allowed"
+                style={{
+                  fontSize: 24,
+                  color: "var(--gold)",
+                  opacity: 1,
+                  textShadow:
+                    "0 0 20px rgba(212,175,55,0.9), 0 0 40px rgba(212,175,55,0.4)",
+                  cursor: "pointer",
+                }}
+              >
+                {revealing && (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                )}
+                {revealing ? "Revealing" : "Reveal"}
+              </button>
+            ) : (
+              <span
+                aria-live="polite"
+                aria-label={`Choose ${required - selectedCount} more`}
+                className="font-display italic leading-none"
+                style={{
+                  fontSize: 32,
+                  color: "var(--gold)",
+                  opacity: 1,
+                  textShadow: "0 0 20px rgba(212,175,55,0.8)",
+                }}
+              >
+                {required - selectedCount}
+              </span>
+            ))}
         </div>
 
         {/* RIGHT column: Exit X — same baseline as the Stir icon. */}
