@@ -1,134 +1,109 @@
 import type { MoonPhaseName } from "@/lib/moon";
+import { cn } from "@/lib/utils";
 
-interface Props {
+type Props = {
   phase: MoonPhaseName;
   size?: number;
   className?: string;
   ariaHidden?: boolean;
-}
+};
 
+const VB = 64;
+const R = 26;
 const CX = 32;
 const CY = 32;
-const R = 26;
 
-function crescentPath(side: "right" | "left", thickness: number): string {
-  const rx = R * (1 - thickness * 2);
-  const sweepOuter = side === "right" ? 1 : 0;
-  const sweepInner = side === "right" ? 0 : 1;
-  return `M ${CX} ${CY - R} A ${R} ${R} 0 0 ${sweepOuter} ${CX} ${CY + R} A ${Math.abs(rx)} ${R} 0 0 ${sweepInner} ${CX} ${CY - R} Z`;
-}
-
-function gibbousPath(side: "right" | "left", thickness: number): string {
-  const rx = R * (thickness * 2 - 1);
-  const sweepOuter = side === "right" ? 1 : 0;
-  const sweepInner = side === "right" ? 1 : 0;
-  return `M ${CX} ${CY - R} A ${R} ${R} 0 0 ${sweepOuter} ${CX} ${CY + R} A ${Math.abs(rx)} ${R} 0 0 ${sweepInner} ${CX} ${CY - R} Z`;
-}
-
-export function MoonPhaseIcon({
-  phase,
-  size = 64,
-  className,
-  ariaHidden = true,
-}: Props) {
-  const id = `moon-${phase.replace(/\s+/g, "-").toLowerCase()}`;
-  const pearl = `pearl-${id}`;
-  const glow = `glow-${id}`;
+export function MoonPhaseIcon({ phase, size = 64, className, ariaHidden = true }: Props) {
+  const id = `mp-${phase.replace(/\s+/g, "-").toLowerCase()}`;
+  const bodyId = `${id}-body`;
+  const glowId = `${id}-glow`;
+  const pearlId = `${id}-pearl`;
 
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 64 64"
-      className={className}
+      viewBox={`0 0 ${VB} ${VB}`}
+      className={cn("block", className)}
       aria-hidden={ariaHidden}
+      role={ariaHidden ? undefined : "img"}
     >
       <defs>
-        <radialGradient id={pearl} cx="50%" cy="45%" r="55%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-          <stop offset="55%" stopColor="#e6e6f0" stopOpacity="0.95" />
-          <stop offset="100%" stopColor="#a8a8c0" stopOpacity="0.6" />
+        <radialGradient id={bodyId} cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#1a1438" />
+          <stop offset="70%" stopColor="#0d0a24" />
+          <stop offset="100%" stopColor="#06051a" />
         </radialGradient>
-        <filter id={glow} x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="2" result="b" />
+        <radialGradient id={pearlId} cx="40%" cy="40%" r="60%">
+          <stop offset="0%" stopColor="#fffbe8" />
+          <stop offset="60%" stopColor="#e8e3d0" />
+          <stop offset="100%" stopColor="#a8a392" />
+        </radialGradient>
+        <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="1.5" result="b" />
           <feMerge>
             <feMergeNode in="b" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+        <radialGradient id={`${id}-halo`} cx="50%" cy="50%" r="50%">
+          <stop offset="60%" stopColor="rgba(212,175,55,0)" />
+          <stop offset="100%" stopColor="rgba(212,175,55,0.18)" />
+        </radialGradient>
       </defs>
-
-      {phase === "New Moon" && (
-        <>
-          <circle cx={CX} cy={CY} r={R} fill="#1a1530" />
-          <circle
-            cx={CX}
-            cy={CY}
-            r={R}
-            fill="none"
-            stroke="rgba(220,210,255,0.25)"
-            strokeWidth="0.6"
-          />
-        </>
-      )}
-
-      {phase === "Full Moon" && (
-        <circle
-          cx={CX}
-          cy={CY}
-          r={R}
-          fill={`url(#${pearl})`}
-          filter={`url(#${glow})`}
-        />
-      )}
-
-      {phase === "First Quarter" && (
-        <>
-          <circle cx={CX} cy={CY} r={R} fill="#1a1530" />
-          <path
-            d={`M ${CX} ${CY - R} A ${R} ${R} 0 0 1 ${CX} ${CY + R} Z`}
-            fill={`url(#${pearl})`}
-          />
-        </>
-      )}
-
-      {phase === "Last Quarter" && (
-        <>
-          <circle cx={CX} cy={CY} r={R} fill="#1a1530" />
-          <path
-            d={`M ${CX} ${CY - R} A ${R} ${R} 0 0 0 ${CX} ${CY + R} Z`}
-            fill={`url(#${pearl})`}
-          />
-        </>
-      )}
-
-      {phase === "Waxing Crescent" && (
-        <>
-          <circle cx={CX} cy={CY} r={R} fill="#1a1530" />
-          <path d={crescentPath("right", 0.15)} fill={`url(#${pearl})`} />
-        </>
-      )}
-
-      {phase === "Waning Crescent" && (
-        <>
-          <circle cx={CX} cy={CY} r={R} fill="#1a1530" />
-          <path d={crescentPath("left", 0.15)} fill={`url(#${pearl})`} />
-        </>
-      )}
-
-      {phase === "Waxing Gibbous" && (
-        <>
-          <circle cx={CX} cy={CY} r={R} fill="#1a1530" />
-          <path d={gibbousPath("right", 0.7)} fill={`url(#${pearl})`} />
-        </>
-      )}
-
-      {phase === "Waning Gibbous" && (
-        <>
-          <circle cx={CX} cy={CY} r={R} fill="#1a1530" />
-          <path d={gibbousPath("left", 0.7)} fill={`url(#${pearl})`} />
-        </>
-      )}
+      <circle cx={CX} cy={CY} r={R + 4} fill={`url(#${id}-halo)`} />
+      <circle cx={CX} cy={CY} r={R} fill={`url(#${bodyId})`} />
+      <PhaseIllumination phase={phase} pearlId={pearlId} glowId={glowId} />
+      <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgba(212,175,55,0.25)" strokeWidth={0.5} />
     </svg>
   );
+}
+
+function PhaseIllumination({ phase, pearlId, glowId }: { phase: MoonPhaseName; pearlId: string; glowId: string }) {
+  const pearl = `url(#${pearlId})`;
+  const filter = `url(#${glowId})`;
+  switch (phase) {
+    case "New Moon":
+      return <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgba(255,251,232,0.18)" strokeWidth={0.6} />;
+    case "Full Moon":
+      return <circle cx={CX} cy={CY} r={R} fill={pearl} filter={filter} />;
+    case "First Quarter":
+      return <path d={`M ${CX} ${CY - R} A ${R} ${R} 0 0 1 ${CX} ${CY + R} Z`} fill={pearl} filter={filter} />;
+    case "Last Quarter":
+      return <path d={`M ${CX} ${CY - R} A ${R} ${R} 0 0 0 ${CX} ${CY + R} Z`} fill={pearl} filter={filter} />;
+    case "Waxing Crescent":
+      return <path d={crescentPath({ side: "right", thickness: 0.35 })} fill={pearl} filter={filter} />;
+    case "Waning Crescent":
+      return <path d={crescentPath({ side: "left", thickness: 0.35 })} fill={pearl} filter={filter} />;
+    case "Waxing Gibbous":
+      return <path d={gibbousPath({ side: "right", thickness: 0.7 })} fill={pearl} filter={filter} />;
+    case "Waning Gibbous":
+      return <path d={gibbousPath({ side: "left", thickness: 0.7 })} fill={pearl} filter={filter} />;
+  }
+}
+
+function crescentPath({ side, thickness }: { side: "left" | "right"; thickness: number }): string {
+  const sweepOuter = side === "right" ? 1 : 0;
+  const sweepInner = side === "right" ? 0 : 1;
+  const rx = R * (1 - thickness * 2);
+  const innerRx = Math.abs(rx);
+  return [
+    `M ${CX} ${CY - R}`,
+    `A ${R} ${R} 0 0 ${sweepOuter} ${CX} ${CY + R}`,
+    `A ${innerRx} ${R} 0 0 ${sweepInner} ${CX} ${CY - R}`,
+    "Z",
+  ].join(" ");
+}
+
+function gibbousPath({ side, thickness }: { side: "left" | "right"; thickness: number }): string {
+  const sweepOuter = side === "right" ? 1 : 0;
+  const sweepInner = side === "right" ? 1 : 0;
+  const rx = R * (thickness * 2 - 1);
+  const innerRx = Math.max(0.001, rx);
+  return [
+    `M ${CX} ${CY - R}`,
+    `A ${R} ${R} 0 0 ${sweepOuter} ${CX} ${CY + R}`,
+    `A ${innerRx} ${R} 0 0 ${sweepInner} ${CX} ${CY - R}`,
+    "Z",
+  ].join(" ");
 }
