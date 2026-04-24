@@ -255,7 +255,9 @@ export function MoonCarousel() {
             const isExpanded = expandedRel === d.relative;
             const rel = d.relative - offset; // -2..+2 within current window
             const absRel = Math.abs(rel);    // window position, NOT distance from today
-            const topOffset = absRel === 0 ? 0 : absRel === 1 ? 24 : 44;
+            // Compensate for the CenterCard's "Today/date" header so the moon
+            // GRAPHIC tops cascade correctly — not just the cell tops.
+            const topOffset = absRel === 0 ? 0 : absRel === 1 ? 52 : 68;
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
             return (
@@ -701,18 +703,18 @@ function PhaseLadder({
 
   return (
     <div
-      className="hidden sm:flex shrink-0 self-center flex-row items-center gap-3 md:gap-4 lg:gap-5"
+      className="hidden sm:flex shrink-0 self-center flex-row items-start gap-3 md:gap-4 lg:gap-5"
       aria-label={`${jumpVerb} phase navigator`}
     >
       {isLeft ? (
         <>
-          {chevronButton}
+          <div style={{ marginTop: 36 }}>{chevronButton}</div>
           {ladderColumn}
         </>
       ) : (
         <>
           {ladderColumn}
-          {chevronButton}
+          <div style={{ marginTop: 36 }}>{chevronButton}</div>
         </>
       )}
     </div>
