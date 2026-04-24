@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { Loader2, Sparkles, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
+import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { cn } from "@/lib/utils";
 
 const TABLETOP_CONFIG = {
