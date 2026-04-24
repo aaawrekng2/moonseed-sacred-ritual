@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw } from "lucide-react";
-import { getCurrentMoonPhase, getMoonSign, type MoonInfo } from "@/lib/moon";
+import {
+  findNextPhaseOccurrence,
+  getCurrentMoonPhase,
+  getMoonSign,
+  type MoonInfo,
+  type MoonPhaseName,
+} from "@/lib/moon";
 import { MoonPhaseIcon } from "./MoonPhaseIcon";
 import { cn } from "@/lib/utils";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
@@ -89,6 +95,15 @@ export function MoonCarousel() {
   const goToToday = () => { setOffset(0); setExpandedRel(null); };
   const toggleExpand = (rel: number) => { setExpandedRel((cur) => (cur === rel ? null : rel)); };
 
+  // Jump to the next/previous occurrence of a tapped phase, relative to TODAY
+  // (not the currently-viewed day) so the ladder is predictable.
+  const jumpToPhase = (phase: MoonPhaseName, direction: "next" | "previous") => {
+    const delta = findNextPhaseOccurrence(phase, new Date(), direction);
+    if (delta === 0) return;
+    setOffset(delta);
+    setExpandedRel(null);
+  };
+
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const onTouchStart = (e: React.TouchEvent) => {
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -120,15 +135,12 @@ export function MoonCarousel() {
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        <button
-          type="button"
-          onClick={() => shift(-1)}
-          className="hidden sm:flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-full text-muted-foreground transition-colors hover:bg-card/40 hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          style={{ alignSelf: "center" }}
-          aria-label="Previous day"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
+        <PhaseLadder
+          side="left"
+          restingAlpha={restingAlpha}
+          onJump={(p) => jumpToPhase(p, "previous")}
+          onStep={() => shift(-1)}
+        />
 
         <div className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl">
           {days.map((d) => {
@@ -160,15 +172,12 @@ export function MoonCarousel() {
           })}
         </div>
 
-        <button
-          type="button"
-          onClick={() => shift(1)}
-          className="hidden sm:flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-full text-muted-foreground transition-colors hover:bg-card/40 hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          style={{ alignSelf: "center" }}
-          aria-label="Next day"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
+        <PhaseLadder
+          side="right"
+          restingAlpha={restingAlpha}
+          onJump={(p) => jumpToPhase(p, "next")}
+          onStep={() => shift(1)}
+        />
       </div>
 
       <p className="mt-1 text-center text-[10px] uppercase tracking-[0.25em] text-muted-foreground/60 sm:hidden">
