@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Loader2, Sparkles, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
@@ -753,6 +760,48 @@ function CardSlot({
   const isSelected = card.selectionOrder !== null;
   const flying = isSelected && slotRect !== null;
   const glow = `0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD}px var(--gold)`;
+
+  // Ref to the root button so we can measure its viewport rect before the
+  // flight begins (FLIP-style: capture First, set Last, animate transform).
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+
+  // Flight state machine. 'idle' = scattered/in-place. 'launching' = card
+  // freshly promoted to fixed positioning at its captured viewport rect (no
+  // visual jump yet). 'arrived' = card has been told to move to the slot
+  // rect; CSS transition carries it there.
+  type FlightPhase = "idle" | "launching" | "arrived";
+  const [flightPhase, setFlightPhase] = useState<FlightPhase>("idle");
+  // Captured viewport rect at the moment the card was selected.
+  const [launchRect, setLaunchRect] = useState<DOMRect | null>(null);
+  // Captured rotation at launch — we ease this back to 0 during flight.
+  const launchRotationRef = useRef(0);
+
+  // Detect the moment the card becomes flying-eligible. Capture its current
+  // bbox synchronously so the upcoming switch from absolute(scatter) →
+  // fixed(viewport) does not produce a one-frame jump.
+  useLayoutEffect(() => {
+    if (!flying) {
+      if (flightPhase !== "idle") setFlightPhase("idle");
+      return;
+    }
+    if (flightPhase === "idle") {
+      const r = btnRef.current?.getBoundingClientRect() ?? null;
+      setLaunchRect(r);
+      launchRotationRef.current = card.rotation;
+      setFlightPhase("launching");
+    }
+  }, [flying, flightPhase, card.rotation]);
+
+  // After one paint at the launch rect, transition to the slot rect.
+  useEffect(() => {
+    if (flightPhase !== "launching") return;
+    const id = window.requestAnimationFrame(() => {
+      // Second rAF guarantees the browser has painted the launch frame
+      // before applying the destination styles, so the transition fires.
+      window.requestAnimationFrame(() => setFlightPhase("arrived"));
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [flightPhase]);
 
   // Re-trigger the tap micro-animation on every click by toggling a key.
   const [tapTick, setTapTick] = useState(0);
