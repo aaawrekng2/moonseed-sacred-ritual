@@ -715,7 +715,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       </div>
 
       {(() => {
-        const showSlotRail = !revealedAll && usesSlots && !ready;
+        // When the user is mid-pick we show the slot rail prominently. Once
+        // every slot is filled the rail visually steps aside for "Reveal",
+        // but its DOM stays mounted (just hidden) so the slotted cards keep
+        // their fixed-position anchors and don't fly back to the table.
+        const slotRailMounted = !revealedAll && usesSlots;
+        const showSlotRail = slotRailMounted && !ready;
         const slotRail = showSlotRail ? (
           <div className="flex flex-col items-center gap-1.5">
             {!isMobile && (
