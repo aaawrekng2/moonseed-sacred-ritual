@@ -133,6 +133,11 @@ export function MoonCarousel() {
   if (error) return <MoonErrorFallback message={error} onRetry={handleRetry} />;
   if (!ready || days.length === 0) return <MoonSkeleton />;
 
+  // The currently-viewed day sits in the middle of the 5-day window. Use its
+  // phase to highlight the matching rung in both ladders so the user sees
+  // exactly where they are in the lunar cycle.
+  const viewedPhase = days[2]?.info.phase ?? null;
+
   return (
     <section
       aria-label="Moon phase calendar"
@@ -173,6 +178,8 @@ export function MoonCarousel() {
         <PhaseLadder
           side="left"
           restingAlpha={restingAlpha}
+          activePhase={viewedPhase}
+          offset={offset}
           onJump={(p) => jumpToPhase(p, "previous")}
           onStep={() => shift(-1)}
         />
@@ -210,6 +217,8 @@ export function MoonCarousel() {
         <PhaseLadder
           side="right"
           restingAlpha={restingAlpha}
+          activePhase={viewedPhase}
+          offset={offset}
           onJump={(p) => jumpToPhase(p, "next")}
           onStep={() => shift(1)}
         />
