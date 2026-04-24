@@ -45,10 +45,11 @@ export function MoonCarousel() {
 
   // Trigger a brief luminous shimmer whenever offset shifts by more than one
   // day (i.e. a phase-ladder jump or a "Today" return). Single-day steps and
-  // swipes feel calm enough already and don't need the flourish.
+  // swipes feel calm enough already and don't need the flourish. Skipped
+  // while a tween is running so it only fires once at the start of a jump.
   useEffect(() => {
     const prev = prevOffsetRef.current;
-    if (Math.abs(offset - prev) > 1) {
+    if (!tweenRafRef.current && Math.abs(offset - prev) > 1) {
       setShimmerKey((k) => k + 1);
     }
     prevOffsetRef.current = offset;
