@@ -254,10 +254,17 @@ function CardSlot({
   const isSelected = card.selectionOrder !== null;
   const glow = `0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD}px var(--gold)`;
 
+  // Re-trigger the tap micro-animation on every click by toggling a key.
+  const [tapTick, setTapTick] = useState(0);
+  const handleClick = () => {
+    setTapTick((t) => t + 1);
+    onSelect();
+  };
+
   return (
     <button
       type="button"
-      onClick={onSelect}
+      onClick={handleClick}
       disabled={disabled && !card.revealed}
       aria-label={
         card.revealed
@@ -269,6 +276,8 @@ function CardSlot({
       className={cn(
         "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
         "transition-transform duration-200 ease-out",
+        // Remove default tap highlight on iOS / Android.
+        "[-webkit-tap-highlight-color:transparent] touch-manipulation",
         isSelected ? "z-30" : null,
       )}
       style={{
@@ -282,8 +291,15 @@ function CardSlot({
         animationDelay: `${settleDelay}ms`,
       }}
     >
+      {/* Invisible expanded hit area for easier tapping on mobile. */}
+      <span aria-hidden="true" className="card-hit" />
       <div
-        className={cn("relative h-full w-full rounded-[10px] flip-3d", card.revealed && "is-flipped")}
+        key={tapTick}
+        className={cn(
+          "relative h-full w-full rounded-[10px] flip-3d",
+          card.revealed && "is-flipped",
+          tapTick > 0 && !card.revealed && "animate-card-tap",
+        )}
         style={{
           // @ts-expect-error custom prop
           "--flip-ms": `${TABLETOP_CONFIG.REVEAL_ANIMATION_MS}ms`,
