@@ -258,6 +258,24 @@ html, body {
   animation: card-stir-glide 700ms cubic-bezier(0.45, 0.05, 0.55, 0.95);
 }
 
+/* Zen reveal CTA entrance — when all required cards are picked, the Reveal
+   pill fades in and floats up softly above the status whisper. Long, gentle
+   easing so it feels like the table itself is exhaling, not a UI affordance
+   demanding action. A slow ambient breathe loop follows the entrance. */
+@keyframes reveal-cta-rise {
+  0%   { opacity: 0; transform: translateY(8px); filter: blur(2px); letter-spacing: 0.5em; }
+  100% { opacity: var(--reveal-resting-alpha, 0.5); transform: translateY(0); filter: blur(0); letter-spacing: 0.4em; }
+}
+@keyframes reveal-cta-breathe {
+  0%, 100% { opacity: var(--reveal-resting-alpha, 0.5); }
+  50%      { opacity: calc(var(--reveal-resting-alpha, 0.5) + 0.18); }
+}
+.reveal-cta-enter {
+  animation:
+    reveal-cta-rise 900ms cubic-bezier(0.22, 0.61, 0.36, 1) both,
+    reveal-cta-breathe 4200ms ease-in-out 900ms infinite;
+}
+
 /* Tap-target helper: invisible hit area extends past the visible card on
    touch devices to make small scattered cards easier to select.
    The inset is driven by --card-hit-inset so the surrounding component can
