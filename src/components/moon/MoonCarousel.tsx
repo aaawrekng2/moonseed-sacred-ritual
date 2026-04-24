@@ -84,8 +84,22 @@ export function MoonCarousel() {
   }, [today, offset]);
 
   // Mobile shows a 3-day window (-1, 0, +1); desktop shows 5 (-2..+2).
-  const isMobile =
-    typeof window !== "undefined" && window.innerWidth < 640;
+  // Tracked via matchMedia so the layout updates live on resize/rotation —
+  // a single window.innerWidth read at mount would freeze in landscape.
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia
+      ? window.matchMedia("(max-width: 639px)").matches
+      : false,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia("(max-width: 639px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    // Sync once in case the initial SSR/hydration value disagrees.
+    setIsMobile(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
   const dayRange = isMobile ? 1 : 2;
 
   // True while a multi-day tween is animating. Used to suppress per-cell
