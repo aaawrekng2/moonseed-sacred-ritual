@@ -800,7 +800,16 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                 <span>{required}</span>
               </span>
               <div
-                className="flex items-end justify-center gap-2 overflow-x-auto px-1 pb-1"
+                className={cn(
+                  "flex items-end justify-center px-1 pb-1",
+                  // Tighten the gap on dense rails so all 10 Celtic slots
+                  // fit without horizontal scroll.
+                  required >= 10 ? "gap-1" : "gap-2",
+                  // Scroll only as a last-resort fallback (e.g. extreme
+                  // narrow viewports). Per design the rail should never
+                  // need to scroll for the supported spreads.
+                  "overflow-x-auto",
+                )}
                 role="list"
                 aria-label={`${meta.label} slots`}
               >
