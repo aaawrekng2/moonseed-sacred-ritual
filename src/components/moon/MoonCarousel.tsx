@@ -250,24 +250,20 @@ export function MoonCarousel() {
           onStep={() => shift(-1)}
         />
 
-        <div className="relative flex-1 max-w-2xl" style={{ height: 260 }}>
+        <div className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl">
           {days.map((d) => {
             const isExpanded = expandedRel === d.relative;
             const absRel = Math.abs(d.relative);
             const rel = d.relative - offset; // -2..+2 within current window
-            const topOffset = absRel === 0 ? 0 : absRel === 1 ? 28 : 52;
-            const leftPercent =
-              rel === -2 ? 10 : rel === -1 ? 28 : rel === 0 ? 50 : rel === 1 ? 72 : 90;
+            const topOffset = absRel === 0 ? 0 : absRel === 1 ? 24 : 44;
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
             return (
               <div
                 key={d.info.date.toDateString()}
                 style={{
-                  position: "absolute",
-                  top: `${topOffset}px`,
-                  left: `${leftPercent}%`,
-                  transform: "translateX(-50%)",
+                  alignSelf: "flex-start",
+                  marginTop: `${topOffset}px`,
                 }}
                 className={cn(
                   "flex flex-col items-center transition-all duration-300 ease-out",
