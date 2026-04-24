@@ -132,6 +132,21 @@ html, body {
   animation: pulse-gold 3.5s ease-in-out infinite;
 }
 
+@keyframes breathe-glow {
+  0%, 100% {
+    box-shadow: 0 0 40px oklch(0.82 0.14 82 / 0.18);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 80px oklch(0.82 0.14 82 / 0.32);
+    transform: scale(1.01);
+  }
+}
+.animate-breathe-glow {
+  animation: breathe-glow 4s ease-in-out infinite;
+  border-radius: 10px;
+}
+
 @media (orientation: landscape) and (max-height: 500px) {
   body::before {
     content: "Please rotate your device";

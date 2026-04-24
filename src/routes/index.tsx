@@ -4,6 +4,7 @@ import { Flame } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
+import { TopRightControls } from "@/components/nav/TopRightControls";
 import { useBgGradient } from "@/lib/use-bg-gradient";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
@@ -24,42 +25,50 @@ function Index() {
   }, []);
 
   return (
-    <main className="relative flex min-h-screen flex-col pb-24">
+    <main
+      className="relative flex min-h-screen flex-col pb-24"
+      style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+    >
+      {/* Top-right controls (fixed overlay) */}
+      <TopRightControls />
+
       {/* Moon strip */}
       <header className="px-2">
         <MoonCarousel />
       </header>
 
-      {/* Streak */}
-      <div className="mt-4 flex items-center justify-end px-5">
+      {/* Streak — quietly present, centered below carousel */}
+      <div className="mt-2 flex items-center justify-center">
         <div
           className="flex items-center gap-1.5 text-gold"
           style={{ opacity: restingAlpha }}
+          title="Your practice streak"
+          aria-label="Practice streak: 0 days"
         >
-          <Flame size={16} strokeWidth={1.6} />
-          <span className="font-display text-sm">0</span>
+          <Flame size={18} strokeWidth={1.6} />
+          <span className="font-display text-sm leading-none">0</span>
         </div>
       </div>
 
-      {/* Hero gateway card */}
+      {/* Hero gateway card — centered in remaining space */}
       <section className="flex flex-1 flex-col items-center justify-center px-6">
         <button
           type="button"
           aria-label="Begin today's draw"
-          className="animate-pulse-gold rounded-[12px] shadow-glow transition-transform active:scale-[0.98]"
+          className="animate-breathe-glow transition-transform active:scale-[0.98]"
         >
-          <CardBack id={cardBack} width={170} />
+          <CardBack id={cardBack} width={180} />
         </button>
         <p
-          className="mt-6 font-display text-base italic text-muted-foreground"
-          style={{ opacity: restingAlpha }}
+          className="mt-4 font-display text-[13px] italic"
+          style={{ color: "rgba(255,255,255,0.5)" }}
         >
           Tap to begin today's draw
         </p>
       </section>
 
-      {/* Spread icons */}
-      <section className="mb-6 mt-2">
+      {/* Spread icons — sit just above bottom nav */}
+      <section>
         <SpreadIconsRow />
       </section>
     </main>
