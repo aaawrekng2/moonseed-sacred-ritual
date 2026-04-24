@@ -460,6 +460,7 @@ function CardSlot({
   stirring,
   onSelect,
   settleDelay,
+  tapMoveThresholdPx,
 }: {
   card: CardState;
   cardW: number;
@@ -471,13 +472,36 @@ function CardSlot({
   stirring: boolean;
   onSelect: () => void;
   settleDelay: number;
+  tapMoveThresholdPx: number;
 }) {
   const isSelected = card.selectionOrder !== null;
   const glow = `0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD}px var(--gold)`;
 
   // Re-trigger the tap micro-animation on every click by toggling a key.
   const [tapTick, setTapTick] = useState(0);
+  // Track pointer-down position so we can distinguish a deliberate tap from
+  // a swipe / drag. Any movement past `tapMoveThresholdPx` cancels the tap
+  // and the click handler bails out — selection only changes on real taps.
+  const downPosRef = useRef<{ x: number; y: number; cancelled: boolean } | null>(
+    null,
+  );
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    downPosRef.current = { x: e.clientX, y: e.clientY, cancelled: false };
+  };
+  const handlePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = downPosRef.current;
+    if (!d || d.cancelled) return;
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (dx * dx + dy * dy > tapMoveThresholdPx * tapMoveThresholdPx) {
+      d.cancelled = true;
+    }
+  };
   const handleClick = () => {
+    const d = downPosRef.current;
+    downPosRef.current = null;
+    if (d?.cancelled) return; // swipe — never selects
     setTapTick((t) => t + 1);
     onSelect();
   };
@@ -486,6 +510,11 @@ function CardSlot({
     <button
       type="button"
       onClick={handleClick}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerCancel={() => {
+        if (downPosRef.current) downPosRef.current.cancelled = true;
+      }}
       disabled={disabled && !card.revealed}
       data-card-id={card.id}
       aria-label={
