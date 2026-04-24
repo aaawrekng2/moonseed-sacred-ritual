@@ -229,9 +229,17 @@ export function MoonCarousel() {
   return (
     <section
       aria-label="Moon phase calendar"
+      aria-roledescription="carousel"
       className="relative animate-in fade-in slide-in-from-top-2 duration-500"
       style={{ minHeight: 280 }}
     >
+      {/* Screen-reader-only live status describing the currently centered day. */}
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {centerDay
+          ? `Viewing ${centerDay.isToday ? "today" : formatShortDate(centerDay.info.date)}, ${centerDay.info.phase}, ${centerDay.info.illumination}% illuminated, Moon in ${centerDay.isToday ? todayMoonSign : centerDay.sign}.`
+          : ""}
+      </p>
+
       {/* Mobile phase ladders — fixed to screen edges, visible on mobile only */}
       <MobilePhaseLadder side="left" restingAlpha={restingAlpha} onJump={jumpToPhase} />
       <MobilePhaseLadder side="right" restingAlpha={restingAlpha} onJump={jumpToPhase} />
@@ -277,7 +285,11 @@ export function MoonCarousel() {
           onStep={() => shift(-1)}
         />
 
-        <div className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl overflow-visible">
+        <div
+          className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl overflow-visible"
+          role="group"
+          aria-label={`Day strip, ${days.length} days`}
+        >
           {days.map((d) => {
             const isExpanded = expandedRel === d.relative;
             const rel = d.relative - offset; // -2..+2 within current window
@@ -290,6 +302,9 @@ export function MoonCarousel() {
             return (
               <div
                 key={d.info.date.toDateString()}
+                role="group"
+                aria-roledescription="day"
+                aria-label={`${d.isToday ? "Today" : formatShortDate(d.info.date)}, ${d.info.phase}`}
                 style={{
                   alignSelf: "flex-start",
                   marginTop: `${topOffset}px`,
