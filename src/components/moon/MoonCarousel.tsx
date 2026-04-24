@@ -232,17 +232,18 @@ export function MoonCarousel() {
             const isExpanded = expandedRel === d.relative;
             const absRel = Math.abs(d.relative);
             const stepOffset = absRel === 0 ? 0 : absRel === 1 ? 24 : 44;
+            const isCenter = d.relative === offset; // center slot of the 5-card window
             return (
               <div
                 key={d.info.date.toDateString()}
                 style={{ transform: `translateY(${stepOffset}px)` }}
                 className={cn(
                   "flex flex-col items-center transition-all duration-300 ease-out",
-                  d.isToday ? "z-10 opacity-100" : isExpanded ? "z-10 opacity-100" : "opacity-70",
+                  isCenter ? "z-10 opacity-100" : isExpanded ? "z-10 opacity-100" : "opacity-70",
                 )}
               >
-                {d.isToday ? (
-                  <TodayCard info={d.info} moonSign={todayMoonSign} />
+                {isCenter ? (
+                  <CenterCard info={d.info} moonSign={d.isToday ? todayMoonSign : d.sign} isToday={d.isToday} />
                 ) : (
                   <AdjacentCard
                     info={d.info}
@@ -296,10 +297,12 @@ export function MoonCarousel() {
   );
 }
 
-function TodayCard({ info, moonSign }: { info: MoonInfo; moonSign: string }) {
+function CenterCard({ info, moonSign, isToday }: { info: MoonInfo; moonSign: string; isToday: boolean }) {
   return (
     <div className="flex flex-col items-center gap-1.5" style={{ minWidth: 120, maxWidth: 160 }}>
-      <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-gold">Today</span>
+      <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-gold">
+        {isToday ? "Today" : formatShortDate(info.date)}
+      </span>
       <div className="w-full rounded-2xl border border-gold/30 bg-card/60 px-3 py-4 sm:px-4 shadow-[0_8px_30px_-12px_rgba(212,175,55,0.4)] backdrop-blur-sm">
         <div className="flex flex-col items-center gap-2 text-center">
           <MoonPhaseIcon phase={info.phase} size={72} />
