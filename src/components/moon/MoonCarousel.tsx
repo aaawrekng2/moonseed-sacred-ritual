@@ -666,7 +666,7 @@ function MobilePhaseLadder({
     <div
       className="fixed sm:hidden flex flex-col gap-[2px] z-10"
       style={{
-        top: "70px",
+        top: "90px",
         transform: "none",
         alignItems: isLeft ? "flex-start" : "flex-end",
         [isLeft ? "left" : "right"]: 0,
@@ -683,18 +683,19 @@ function MobilePhaseLadder({
           onClick={() => onJump(r.phase)}
           aria-label={`Jump to ${isLeft ? "previous" : "next"} ${r.label}`}
           style={{ opacity: restingAlpha }}
-          className="cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="group cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <span
             style={{
-              background:
-                "radial-gradient(circle, rgba(212,175,55,0.60) 0%, transparent 70%)",
-              borderRadius: "50%",
-              padding: "3px",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
+              borderRadius: "50%",
+              padding: "3px",
+              border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
+              transition: "border-color 200ms ease",
             }}
+            className="group-hover:[border-color:rgb(var(--gold-rgb,212_175_55))]"
           >
             <MoonPhaseIcon phase={r.phase} size={RUNG_SIZES[i]} />
           </span>
