@@ -714,76 +714,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           })}
       </div>
 
-      {/* Bottom zen bar — three columns:
-            • left:   Stir icon (bottom edge) + Overlap chip (slightly above)
-            • center: "Choose N" / "Reveal" whisper, slightly elevated
-            • right:  Exit X (same baseline as Stir)
-          Everything sits at resting opacity. */}
-      <div
-        className="relative grid grid-cols-3 items-end"
-        style={{
-          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
-          paddingLeft: "calc(env(safe-area-inset-left, 0px) + 16px)",
-          paddingRight: "calc(env(safe-area-inset-right, 0px) + 16px)",
-          paddingTop: 8,
-        }}
-      >
-        {/* LEFT column: Stir (icon only) anchored to the bottom edge, with
-            the dev Overlap pill sitting just above it. */}
-        <div className="flex flex-col items-start gap-2">
-          <button
-            type="button"
-            onClick={() => setDebugOverlap((v) => !v)}
-            aria-pressed={debugOverlap}
-            aria-label="Toggle overlap debug overlay"
-            style={{ opacity: debugOverlap ? 1 : restingAlpha }}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
-              "font-display text-[9px] uppercase tracking-[0.25em] transition-opacity",
-              "hover:!opacity-100 focus:!opacity-100 focus:outline-none",
-              debugOverlap
-                ? "border-destructive/70 text-destructive-foreground bg-destructive/20"
-                : "border-gold/30 text-gold/70",
-            )}
-          >
-            <span
-              aria-hidden="true"
-              className={cn(
-                "h-1.5 w-1.5 rounded-full",
-                debugOverlap ? "bg-destructive" : "bg-gold/50",
-              )}
-            />
-            Overlap {debugOverlap ? "On" : "Off"}
-          </button>
-          {!revealedAll && (
-            <button
-              type="button"
-              onClick={triggerStir}
-              disabled={revealing || stirring}
-              aria-label="Stir — rearrange unselected cards"
-              style={{ opacity: restingAlpha }}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed"
-            >
-              <Sparkles className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
-            </button>
-          )}
-        </div>
-
-        {/* CENTER column: cascades up — the focal element of the bar.
-            For multi-card spreads this is the slot row (with labels).
-            Once all slots are filled the slot row hides and "Reveal"
-            appears glowing in its place. For single-card spreads we keep
-            the original "Choose N" / "Reveal" whisper. */}
-        <div
-          className="flex items-end justify-center min-w-0"
-          style={{ transform: ready || !usesSlots ? "translateY(-8px)" : "translateY(0)" }}
-        >
-          {!revealedAll && usesSlots && !ready && (
-            <div className="flex flex-col items-center gap-1.5">
-              {/* Subtle progress whisper: filled / total. Sits centered just
-                  above the slot rail so the eye reads progress before
-                  scanning the slots themselves. Resting opacity keeps it
-                  from competing with the cards on the table. */}
+      {(() => {
+        const showSlotRail = !revealedAll && usesSlots && !ready;
+        const slotRail = showSlotRail ? (
+          <div className="flex flex-col items-center gap-1.5">
+            {!isMobile && (
               <span
                 aria-live="polite"
                 aria-label={`${selectedCount} of ${required} cards chosen`}
@@ -802,27 +737,18 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                 <span style={{ margin: "0 4px", opacity: 0.5 }}>/</span>
                 <span>{required}</span>
               </span>
-              <div
-                className={cn(
-                  "flex items-end justify-center px-1 pb-1",
-                  // Tighten the gap on dense rails so all 10 Celtic slots
-                  // fit without horizontal scroll.
-                  required >= 10 ? "gap-1" : "gap-2",
-                  // Scroll only as a last-resort fallback (e.g. extreme
-                  // narrow viewports). Per design the rail should never
-                  // need to scroll for the supported spreads.
-                  "overflow-x-auto",
-                )}
-                role="list"
-                aria-label={`${meta.label} slots`}
-              >
+            )}
+            <div
+              className={cn(
+                "flex items-end justify-center px-1 pb-1",
+                required >= 10 ? "gap-1" : "gap-2",
+                "overflow-x-auto",
+              )}
+              role="list"
+              aria-label={`${meta.label} slots`}
+            >
               {Array.from({ length: required }).map((_, i) => {
-                const filled = cards.some(
-                  (c) => c.selectionOrder === i + 1,
-                );
-                // The "next" slot is the first empty one — i.e. the slot at
-                // index === current selectedCount. Highlight it with a soft
-                // gold beacon so the user can see where the next pick lands.
+                const filled = cards.some((c) => c.selectionOrder === i + 1);
                 const isNext = !filled && i === selectedCount;
                 return (
                   <div
@@ -839,9 +765,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                         width: slotW,
                         height: slotH,
                         borderRadius: 10,
-                        // Default frame styling. The .slot-next-frame
-                        // animation overrides border/background/box-shadow
-                        // when this is the next-up slot.
                         border: isNext
                           ? undefined
                           : "1px solid rgba(212,175,55,0.2)",
@@ -868,13 +791,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                         isNext && "slot-next-label",
                       )}
                       style={{
-                        // Smaller font for the dense Celtic Cross rail on
-                        // small screens so 10 labels don't wrap or clip.
                         fontSize: required >= 10 ? (isMobile ? 8 : 9) : 10,
                         color: "var(--gold)",
-                        // The .slot-next-label animation drives opacity for
-                        // the active beacon; non-next labels stay at the
-                        // resting opacity so they recede.
                         opacity: isNext ? undefined : restingAlpha,
                         letterSpacing: "0.05em",
                         whiteSpace: "nowrap",
@@ -885,62 +803,176 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                   </div>
                 );
               })}
-              </div>
             </div>
-          )}
-          {!revealedAll && (!usesSlots || ready) &&
-            (ready ? (
+          </div>
+        ) : null;
+
+        const centerWhisper =
+          !revealedAll && (!usesSlots || ready)
+            ? ready
+              ? (
+                <button
+                  type="button"
+                  onClick={handleReveal}
+                  disabled={revealing}
+                  aria-busy={revealing}
+                  aria-label="Reveal your reading"
+                  className="reveal-cta-enter reveal-glow-pulse inline-flex items-center gap-2 bg-transparent font-display italic leading-none hover:scale-[1.02] focus:outline-none disabled:cursor-not-allowed"
+                  style={{
+                    fontSize: 24,
+                    color: "var(--gold)",
+                    opacity: 1,
+                    textShadow:
+                      "0 0 20px rgba(212,175,55,0.9), 0 0 40px rgba(212,175,55,0.4)",
+                    cursor: "pointer",
+                  }}
+                >
+                  {revealing && (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  )}
+                  {revealing ? "Revealing" : "Reveal"}
+                </button>
+              )
+              : (
+                <span
+                  aria-live="polite"
+                  aria-label={`Choose ${required - selectedCount} more`}
+                  className="font-display italic leading-none"
+                  style={{
+                    fontSize: 32,
+                    color: "var(--gold)",
+                    opacity: 1,
+                    textShadow: "0 0 20px rgba(212,175,55,0.8)",
+                  }}
+                >
+                  {required - selectedCount}
+                </span>
+              )
+            : null;
+
+        const mobileSlotCounter =
+          isMobile && showSlotRail ? (
+            <span
+              aria-live="polite"
+              aria-label={`${selectedCount} of ${required} cards chosen`}
+              className="font-display italic tabular-nums leading-none"
+              style={{
+                fontSize: 22,
+                letterSpacing: "0.05em",
+                color: "var(--gold)",
+                opacity: 1,
+                textShadow: "0 0 16px rgba(212,175,55,0.7)",
+              }}
+            >
+              <span>{selectedCount}</span>
+              <span style={{ margin: "0 4px", opacity: 0.5 }}>/</span>
+              <span>{required}</span>
+            </span>
+          ) : null;
+
+        const controlsRow = (
+          <div
+            className="relative grid grid-cols-3 items-end"
+            style={{
+              paddingBottom:
+                isMobile && showSlotRail
+                  ? 4
+                  : "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+              paddingLeft: "calc(env(safe-area-inset-left, 0px) + 16px)",
+              paddingRight: "calc(env(safe-area-inset-right, 0px) + 16px)",
+              paddingTop: 8,
+            }}
+          >
+            <div className="flex flex-col items-start gap-2">
+              {!isMobile && (
+                <button
+                  type="button"
+                  onClick={() => setDebugOverlap((v) => !v)}
+                  aria-pressed={debugOverlap}
+                  aria-label="Toggle overlap debug overlay"
+                  style={{ opacity: debugOverlap ? 1 : restingAlpha }}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
+                    "font-display text-[9px] uppercase tracking-[0.25em] transition-opacity",
+                    "hover:!opacity-100 focus:!opacity-100 focus:outline-none",
+                    debugOverlap
+                      ? "border-destructive/70 text-destructive-foreground bg-destructive/20"
+                      : "border-gold/30 text-gold/70",
+                  )}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      debugOverlap ? "bg-destructive" : "bg-gold/50",
+                    )}
+                  />
+                  Overlap {debugOverlap ? "On" : "Off"}
+                </button>
+              )}
+              {!revealedAll && (
+                <button
+                  type="button"
+                  onClick={triggerStir}
+                  disabled={revealing || stirring}
+                  aria-label="Stir — rearrange unselected cards"
+                  style={{ opacity: restingAlpha }}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed"
+                >
+                  <Sparkles className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+
+            <div
+              className="flex items-end justify-center min-w-0"
+              style={{
+                transform:
+                  ready || !usesSlots
+                    ? "translateY(-8px)"
+                    : isMobile
+                      ? "translateY(-4px)"
+                      : "translateY(0)",
+              }}
+            >
+              {isMobile && showSlotRail ? mobileSlotCounter : slotRail}
+              {centerWhisper}
+            </div>
+
+            <div className="flex justify-end">
               <button
                 type="button"
-                onClick={handleReveal}
-                disabled={revealing}
-                aria-busy={revealing}
-                aria-label="Reveal your reading"
-                className="reveal-cta-enter reveal-glow-pulse inline-flex items-center gap-2 bg-transparent font-display italic leading-none hover:scale-[1.02] focus:outline-none disabled:cursor-not-allowed"
-                style={{
-                  fontSize: 24,
-                  color: "var(--gold)",
-                  opacity: 1,
-                  textShadow:
-                    "0 0 20px rgba(212,175,55,0.9), 0 0 40px rgba(212,175,55,0.4)",
-                  cursor: "pointer",
-                }}
+                onClick={handleExit}
+                aria-label="Close tabletop"
+                style={{ opacity: exitAlpha }}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
               >
-                {revealing && (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                )}
-                {revealing ? "Revealing" : "Reveal"}
+                <X className="h-5 w-5" strokeWidth={1.5} />
               </button>
-            ) : (
-              <span
-                aria-live="polite"
-                aria-label={`Choose ${required - selectedCount} more`}
-                className="font-display italic leading-none"
+            </div>
+          </div>
+        );
+
+        if (isMobile && showSlotRail) {
+          return (
+            <>
+              {controlsRow}
+              <div
+                className="flex justify-center"
                 style={{
-                  fontSize: 32,
-                  color: "var(--gold)",
-                  opacity: 1,
-                  textShadow: "0 0 20px rgba(212,175,55,0.8)",
+                  paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+                  paddingLeft: "calc(env(safe-area-inset-left, 0px) + 8px)",
+                  paddingRight: "calc(env(safe-area-inset-right, 0px) + 8px)",
                 }}
               >
-                {required - selectedCount}
-              </span>
-            ))}
-        </div>
+                {slotRail}
+              </div>
+            </>
+          );
+        }
 
-        {/* RIGHT column: Exit X — same baseline as the Stir icon. */}
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={handleExit}
-            aria-label="Close tabletop"
-            style={{ opacity: exitAlpha }}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          >
-            <X className="h-5 w-5" strokeWidth={1.5} />
-          </button>
-        </div>
-      </div>
+        return controlsRow;
+      })()}
     </div>
   );
 }
