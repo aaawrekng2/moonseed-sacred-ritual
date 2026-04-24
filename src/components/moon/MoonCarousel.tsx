@@ -724,16 +724,20 @@ function MobilePhaseLadder({
           }}
           className="group cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          {/* Ring is painted INSIDE the SVG so it always touches the moon
-              body, regardless of the icon's render size. A CSS border on a
-              wrapper would trace the SVG box edge and leave a halo gap. */}
-          <MoonPhaseIcon
-            phase={r.phase}
-            size={RUNG_SIZES[i]}
-            ringColor={`rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`}
-            ringWidth={1.75}
-            className="transition-opacity duration-200 group-hover:[&>circle:last-of-type]:stroke-gold"
-          />
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              padding: "0px",
+              border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
+              transition: "border-color 200ms ease",
+            }}
+            className="group-hover:!border-gold"
+          >
+            <MoonPhaseIcon phase={r.phase} size={RUNG_SIZES[i]} />
+          </span>
         </button>
       ))}
     </div>
