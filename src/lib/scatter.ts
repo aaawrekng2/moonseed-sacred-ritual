@@ -33,37 +33,48 @@ function makeRng(seed: number) {
 }
 
 /**
- * Loose-grid scatter: divide usable area into cells, jitter each card inside
- * its cell, give it a random rotation, then shuffle stacking order so the
- * deck doesn't read top-left → bottom-right.
+ * Loose-grid scatter (10×9 = 90 cells, pick `count` of them so some cells
+ * stay empty for natural gaps). Each card is offset within ±40% of its cell
+ * and given a visible rotation. Stacking order is shuffled.
  */
 export function buildScatter(p: ScatterParams): ScatterCard[] {
   const rng = makeRng(p.seed);
 
-  const usableW = Math.max(1, p.width - p.padding * 2 - p.cardWidth);
-  const usableH = Math.max(1, p.height - p.padding * 2 - p.cardHeight);
+  const cols = 10;
+  const rows = 9;
+  const totalCells = cols * rows;
+  const pick = Math.min(p.count, totalCells);
 
-  // Aim for a roughly card-shaped grid that fits `count` cells.
-  const aspect = usableW / Math.max(1, usableH);
-  const cols = Math.max(1, Math.round(Math.sqrt(p.count * aspect)));
-  const rows = Math.max(1, Math.ceil(p.count / cols));
-
+  const usableW = Math.max(1, p.width - p.padding * 2);
+  const usableH = Math.max(1, p.height - p.padding * 2);
   const cellW = usableW / cols;
   const cellH = usableH / rows;
 
-  // Jitter inside each cell — keep card center within the cell.
-  const jitterX = cellW * 0.55;
-  const jitterY = cellH * 0.55;
+  // ±40% of cell size → range = 0.8 * cell.
+  const jitterX = cellW * 0.8;
+  const jitterY = cellH * 0.8;
+
+  // Shuffle cell indices and take the first `pick`.
+  const cellOrder = Array.from({ length: totalCells }, (_, i) => i);
+  for (let i = cellOrder.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [cellOrder[i], cellOrder[j]] = [cellOrder[j], cellOrder[i]];
+  }
+  const chosen = cellOrder.slice(0, pick).sort((a, b) => a - b);
 
   const cards: ScatterCard[] = [];
-  for (let i = 0; i < p.count; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
+  for (let i = 0; i < pick; i++) {
+    const cell = chosen[i];
+    const col = cell % cols;
+    const row = Math.floor(cell / cols);
     const baseX = p.padding + col * cellW + (cellW - p.cardWidth) / 2;
     const baseY = p.padding + row * cellH + (cellH - p.cardHeight) / 2;
     const dx = (rng() - 0.5) * jitterX;
     const dy = (rng() - 0.5) * jitterY;
-    const rot = (rng() - 0.5) * 2 * p.maxRotation;
+
+    // Rotation: ±maxRotation, but never axis-aligned (min |1°|).
+    let rot = (rng() - 0.5) * 2 * p.maxRotation;
+    if (Math.abs(rot) < 1) rot = rot < 0 ? -1 : 1;
 
     const x = clamp(baseX + dx, p.padding, p.width - p.padding - p.cardWidth);
     const y = clamp(baseY + dy, p.padding, p.height - p.padding - p.cardHeight);
