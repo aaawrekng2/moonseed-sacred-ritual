@@ -560,42 +560,55 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           Overlap {debugOverlap ? "On" : "Off"}
         </button>
 
-        {/* Centered whisper. When the spread is incomplete, this is a quiet
-            status line ("Choose N more"). Once all picks are made it morphs
-            into a soft pill that taps to reveal — same scale, same opacity,
-            no bold UI screaming for attention. */}
+        {/* Centered zen stack:
+            - Reveal CTA fades + rises in above the status whisper, but ONLY
+              when every required card is selected. It never replaces the
+              status — both stay visible so the layout doesn't jump.
+            - The status whisper is always present (until reveal completes),
+              softening to "All chosen" once ready so it stops counting down.
+            Both honour resting opacity and never compete with the cards. */}
         {!revealedAll && (
-          ready ? (
-            <button
-              type="button"
-              onClick={handleReveal}
-              disabled={revealing}
-              aria-busy={revealing}
-              aria-live="polite"
-              style={{ opacity: restingAlpha }}
-              className={cn(
-                "inline-flex items-center justify-center gap-2",
-                "rounded-full border border-gold/30 px-5 py-1.5",
-                "font-display text-[10px] uppercase tracking-[0.4em] text-gold",
-                "transition-opacity hover:!opacity-100 focus:!opacity-100",
-                "focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/40",
-                "disabled:cursor-not-allowed",
+          <div className="flex flex-col items-center gap-2">
+            {/* Reserve vertical space so the whisper never shifts when the
+                CTA appears — keeps the bottom rhythm perfectly still. */}
+            <div className="flex h-7 items-center justify-center">
+              {ready && (
+                <button
+                  type="button"
+                  onClick={handleReveal}
+                  disabled={revealing}
+                  aria-busy={revealing}
+                  aria-label="Reveal your reading"
+                  style={
+                    {
+                      ["--reveal-resting-alpha" as string]: String(restingAlpha),
+                    } as React.CSSProperties
+                  }
+                  className={cn(
+                    "reveal-cta-enter",
+                    "inline-flex items-center justify-center gap-2",
+                    "rounded-full border border-gold/30 px-5 py-1.5",
+                    "font-display text-[10px] uppercase tracking-[0.4em] text-gold",
+                    "transition-opacity duration-500 hover:!opacity-100 focus:!opacity-100",
+                    "focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/40",
+                    "disabled:cursor-not-allowed",
+                  )}
+                >
+                  {revealing && (
+                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                  )}
+                  <span>{revealing ? "Revealing" : "Reveal"}</span>
+                </button>
               )}
-            >
-              {revealing && (
-                <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
-              )}
-              <span>{revealing ? "Revealing" : "Reveal"}</span>
-            </button>
-          ) : (
+            </div>
             <span
-              className="font-display text-[10px] uppercase tracking-[0.4em] text-foreground"
+              className="font-display text-[10px] uppercase tracking-[0.4em] text-foreground transition-opacity duration-500"
               style={{ opacity: restingAlpha }}
               aria-live="polite"
             >
-              {`Choose ${required - selectedCount} more`}
+              {ready ? "All chosen" : `Choose ${required - selectedCount} more`}
             </span>
-          )
+          </div>
         )}
       </div>
     </div>
