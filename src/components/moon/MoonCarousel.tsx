@@ -225,15 +225,20 @@ export function MoonCarousel() {
   }, []);
 
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const swipedRef = useRef(false);
   const onTouchStart = (e: React.TouchEvent) => {
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    swipedRef.current = false;
   };
   const onTouchEnd = (e: React.TouchEvent) => {
     if (!touchStart.current) return;
     const dx = e.changedTouches[0].clientX - touchStart.current.x;
     const dy = e.changedTouches[0].clientY - touchStart.current.y;
     touchStart.current = null;
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) shift(dx > 0 ? -1 : 1);
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      swipedRef.current = true;
+      shift(dx > 0 ? -1 : 1);
+    }
   };
 
   if (recomputing) return <MoonSkeleton label="Recomputing moon data…" />;
