@@ -604,6 +604,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         setRevealedAll(true);
         onComplete(
           picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
+          "reveal",
         );
       }, total);
     }, 320);
