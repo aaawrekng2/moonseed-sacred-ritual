@@ -7,6 +7,18 @@ type Props = {
   size?: number;
   className?: string;
   ariaHidden?: boolean;
+  /**
+   * Optional gold ring rendered INSIDE the SVG, touching the moon body.
+   * Use this instead of a CSS border on the wrapper element — a CSS border
+   * traces the SVG box edge, which leaves a visible halo gap because the
+   * moon body only occupies the inner ~81% of the viewBox. Drawing the
+   * ring inside the SVG makes it hug the moon at every rendered size.
+   *
+   * Pass `null` (default) for no ring; pass an rgba/hex string to enable.
+   */
+  ringColor?: string | null;
+  /** Stroke width of the ring, in viewBox units (1 unit ≈ size/64 px). */
+  ringWidth?: number;
 };
 
 const VB = 64;
@@ -24,7 +36,14 @@ function warnOnce(key: string, message: string) {
   console.warn(`[MoonPhaseIcon] ${message}`);
 }
 
-export function MoonPhaseIcon({ phase, size = 64, className, ariaHidden = true }: Props) {
+export function MoonPhaseIcon({
+  phase,
+  size = 64,
+  className,
+  ariaHidden = true,
+  ringColor = null,
+  ringWidth = 1.5,
+}: Props) {
   // useId guarantees a unique base for every rendered instance, so multiple
   // icons in the document never collide on <defs>/<mask>/<radialGradient> IDs.
   // Without this the second-and-later instances of the same phase can render
@@ -125,6 +144,18 @@ export function MoonPhaseIcon({ phase, size = 64, className, ariaHidden = true }
       <circle cx={CX} cy={CY} r={R} fill={`url(#${bodyId})`} />
       <PhaseIllumination phase={phase} pearlId={pearlId} glowId={glowId} maskId={`${id}-mask`} />
       <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgba(212,175,55,0.25)" strokeWidth={0.5} />
+      {ringColor && (
+        // Ring sits at exactly the moon body radius, offset outward by half
+        // its stroke width so the inner edge of the ring kisses the body.
+        <circle
+          cx={CX}
+          cy={CY}
+          r={R + ringWidth / 2}
+          fill="none"
+          stroke={ringColor}
+          strokeWidth={ringWidth}
+        />
+      )}
     </svg>
   );
 }
