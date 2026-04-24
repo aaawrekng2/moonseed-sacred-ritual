@@ -727,6 +727,8 @@ function CardSlot({
   onSelect,
   settleDelay,
   tapMoveThresholdPx,
+  slotRect,
+  flightMs,
 }: {
   card: CardState;
   cardW: number;
@@ -739,8 +741,17 @@ function CardSlot({
   onSelect: () => void;
   settleDelay: number;
   tapMoveThresholdPx: number;
+  /**
+   * Viewport-coordinate rect of this card's slot when it has been
+   * selected as part of a multi-card spread. When non-null the card
+   * positions itself with `position: fixed` and animates to the slot.
+   * Null for unselected cards or single-card spreads (in-place glow).
+   */
+  slotRect: DOMRect | null;
+  flightMs: number;
 }) {
   const isSelected = card.selectionOrder !== null;
+  const flying = isSelected && slotRect !== null;
   const glow = `0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD}px var(--gold)`;
 
   // Re-trigger the tap micro-animation on every click by toggling a key.
