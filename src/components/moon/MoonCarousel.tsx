@@ -305,3 +305,87 @@ function MoonErrorFallback({ message, onRetry }: { message: string; onRetry: () 
     </section>
   );
 }
+
+// ---------------------------------------------------------------------------
+// PhaseLadder — vertical stack of jump-to-phase buttons + a chevron stepper.
+// Visible on sm+ only; mobile relies on swipe.
+// ---------------------------------------------------------------------------
+
+type LadderRung = {
+  label: string;            // accessible label
+  phase: MoonPhaseName;     // phase to search for
+  size: number;             // icon px
+  inset: number;            // edge inset px (margin-left for "left", margin-right for "right")
+};
+
+const LADDER_RUNGS: LadderRung[] = [
+  { label: "New Moon",        phase: "New Moon",        size: 16, inset: 4 },
+  { label: "Waxing Crescent", phase: "Waxing Crescent", size: 20, inset: 2 },
+  { label: "Full Moon",       phase: "Full Moon",       size: 28, inset: 0 },
+  { label: "Waning Gibbous",  phase: "Waning Gibbous",  size: 20, inset: 2 },
+  // "Dark Moon" rung — calculated as New Moon, displayed as the same dark glyph.
+  { label: "Dark Moon",       phase: "New Moon",        size: 16, inset: 4 },
+];
+
+function PhaseLadder({
+  side,
+  restingAlpha,
+  onJump,
+  onStep,
+}: {
+  side: "left" | "right";
+  restingAlpha: number;
+  onJump: (phase: MoonPhaseName) => void;
+  onStep: () => void;
+}) {
+  const isLeft = side === "left";
+  const Chevron = isLeft ? ChevronLeft : ChevronRight;
+  const stepLabel = isLeft ? "Previous day" : "Next day";
+  const jumpVerb = isLeft ? "Previous" : "Next";
+
+  return (
+    <div
+      className={cn(
+        "hidden sm:flex shrink-0 self-center flex-col items-stretch gap-1.5 py-1",
+        // Anchor icons to the outer edge so they grow inward.
+        isLeft ? "items-start" : "items-end",
+      )}
+      aria-label={`${jumpVerb} phase navigator`}
+    >
+      {LADDER_RUNGS.map((r, i) => (
+        <button
+          key={`${r.label}-${i}`}
+          type="button"
+          onClick={() => onJump(r.phase)}
+          aria-label={`${jumpVerb} ${r.label}`}
+          title={`${jumpVerb} ${r.label}`}
+          style={{
+            opacity: restingAlpha,
+            [isLeft ? "marginLeft" : "marginRight"]: r.inset,
+          }}
+          className={cn(
+            "group cursor-pointer rounded-full bg-transparent border-0 p-0",
+            "transition-all duration-200 ease-out",
+            "hover:!opacity-100 hover:scale-110",
+            "focus:outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+          )}
+        >
+          <MoonPhaseIcon phase={r.phase} size={r.size} />
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={onStep}
+        aria-label={stepLabel}
+        className={cn(
+          "mt-1 inline-flex items-center justify-center rounded-full bg-transparent border-0 p-0 cursor-pointer",
+          "text-muted-foreground transition-colors duration-200",
+          "hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60",
+          isLeft ? "self-start ml-1" : "self-end mr-1",
+        )}
+      >
+        <Chevron className="h-7 w-7" />
+      </button>
+    </div>
+  );
+}
