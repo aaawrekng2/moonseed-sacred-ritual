@@ -444,7 +444,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       {/* Reveal bar */}
       <div
         className="flex items-center justify-center px-6 pt-3"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)" }}
       >
         {!revealedAll && (
           <button
