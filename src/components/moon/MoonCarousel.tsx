@@ -408,7 +408,7 @@ function CenterCard({
       onClick={onToggle}
       aria-pressed={selected}
       aria-label={`${isToday ? "Today" : formatShortDate(info.date)}, ${info.phase}. Tap to ${selected ? "deselect" : "select"}.`}
-      className="flex flex-col items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 rounded-2xl"
+      className="flex flex-col items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       style={{ minWidth: 120, maxWidth: 160 }}
     >
       <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-gold">
