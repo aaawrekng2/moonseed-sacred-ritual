@@ -1,12 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Flame } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Flame, Loader2 } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
 import { TopRightControls } from "@/components/nav/TopRightControls";
 import { useBgGradient } from "@/lib/use-bg-gradient";
-import { useRestingOpacity } from "@/lib/use-resting-opacity";
+import {
+  useRestingOpacity,
+  MIN_RESTING_OPACITY,
+  MAX_RESTING_OPACITY,
+} from "@/lib/use-resting-opacity";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 
 export const Route = createFileRoute("/")({
@@ -16,7 +20,7 @@ export const Route = createFileRoute("/")({
 function Index() {
   // Initialize gradient + opacity systems on first mount.
   useBgGradient();
-  const { opacity } = useRestingOpacity();
+  const { opacity, setOpacity } = useRestingOpacity();
   const restingAlpha = opacity / 100;
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const navigate = useNavigate();
@@ -25,11 +29,85 @@ function Index() {
     setCardBack(getStoredCardBack());
   }, []);
 
+  // Pull-to-refresh: track a vertical drag that starts at the very top of
+  // the screen and reload once the user pulls past the threshold.
+  const PULL_THRESHOLD = 80;
+  const pullStartY = useRef<number | null>(null);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (refreshing) return;
+    const t = e.touches[0];
+    // Only arm a pull if the touch starts near the very top edge.
+    if (t.clientY <= 40) {
+      pullStartY.current = t.clientY;
+    } else {
+      pullStartY.current = null;
+    }
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (pullStartY.current == null || refreshing) return;
+    const dy = e.touches[0].clientY - pullStartY.current;
+    if (dy > 0) {
+      // Resistance curve so it feels rubbery.
+      setPullDistance(Math.min(120, dy * 0.5));
+    }
+  };
+  const onTouchEnd = () => {
+    if (pullStartY.current == null) return;
+    pullStartY.current = null;
+    if (pullDistance >= PULL_THRESHOLD) {
+      setRefreshing(true);
+      setPullDistance(60);
+      setTimeout(() => {
+        if (typeof window !== "undefined") window.location.reload();
+      }, 400);
+    } else {
+      setPullDistance(0);
+    }
+  };
+
   return (
     <main
       className="relative flex h-[100dvh] flex-col overflow-hidden pb-24"
       style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
     >
+      {/* Pull-to-refresh indicator */}
+      {(pullDistance > 0 || refreshing) && (
+        <div
+          aria-hidden={!refreshing}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: pullDistance,
+            pointerEvents: "none",
+            zIndex: 30,
+            transition: pullStartY.current == null ? "height 200ms ease" : undefined,
+          }}
+        >
+          <Loader2
+            size={20}
+            style={{
+              color: "var(--gold)",
+              opacity: Math.min(1, pullDistance / PULL_THRESHOLD),
+              animation: refreshing ? "spin 1s linear infinite" : undefined,
+              transform: refreshing
+                ? undefined
+                : `rotate(${(pullDistance / PULL_THRESHOLD) * 360}deg)`,
+            }}
+          />
+        </div>
+      )}
+
       {/* Top-right controls (fixed overlay) */}
       <TopRightControls />
 
@@ -84,6 +162,42 @@ function Index() {
 
       {/* Spread icons — sit just above bottom nav */}
       <section>
+        {/* Temporary resting-opacity test slider */}
+        <div
+          style={{
+            position: "absolute",
+            left: 12,
+            bottom: 110,
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            width: 140,
+            zIndex: 20,
+          }}
+        >
+          <label
+            htmlFor="resting-opacity-slider"
+            style={{
+              fontSize: 10,
+              color: "var(--gold)",
+              opacity: 0.7,
+              fontFamily: "var(--font-serif)",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}
+          >
+            Opacity {opacity}
+          </label>
+          <input
+            id="resting-opacity-slider"
+            type="range"
+            min={MIN_RESTING_OPACITY}
+            max={MAX_RESTING_OPACITY}
+            value={opacity}
+            onChange={(e) => setOpacity(Number(e.target.value))}
+            style={{ width: "100%", accentColor: "var(--gold)" }}
+          />
+        </div>
         <SpreadIconsRow
           onSelect={(spread) =>
             navigate({ to: "/draw", search: { spread } })
