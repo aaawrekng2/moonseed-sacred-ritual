@@ -480,6 +480,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             tapMoveThresholdPx={TAP_MOVE_THRESHOLD_PX}
             onSelect={() => toggleSelect(c.id)}
             settleDelay={Math.min(idx * 4, 320)}
+            slotRect={
+              usesSlots && c.selectionOrder !== null
+                ? slotRects[c.selectionOrder - 1] ?? null
+                : null
+            }
+            flightMs={TABLETOP_CONFIG.FLIGHT_MS}
           />
         ))}
         {stirring && (
@@ -592,13 +598,67 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         </div>
 
         {/* CENTER column: cascades up — the focal element of the bar.
-            Shows a large glowing italic number of cards still needed, or
-            the word "Reveal" once all are picked. Always at 100% opacity. */}
+            For multi-card spreads this is the slot row (with labels).
+            Once all slots are filled the slot row hides and "Reveal"
+            appears glowing in its place. For single-card spreads we keep
+            the original "Choose N" / "Reveal" whisper. */}
         <div
-          className="flex items-end justify-center"
-          style={{ transform: "translateY(-8px)" }}
+          className="flex items-end justify-center min-w-0"
+          style={{ transform: ready || !usesSlots ? "translateY(-8px)" : "translateY(0)" }}
         >
-          {!revealedAll &&
+          {!revealedAll && usesSlots && !ready && (
+            <div
+              className="flex items-end justify-center gap-2 overflow-x-auto px-1 pb-1"
+              role="list"
+              aria-label={`${meta.label} slots`}
+            >
+              {Array.from({ length: required }).map((_, i) => {
+                const filled = cards.some(
+                  (c) => c.selectionOrder === i + 1,
+                );
+                return (
+                  <div
+                    key={i}
+                    role="listitem"
+                    className="flex flex-col items-center gap-1 shrink-0"
+                  >
+                    <div
+                      ref={(el) => {
+                        slotRefs.current[i] = el;
+                      }}
+                      style={{
+                        width: cardW,
+                        height: cardH,
+                        borderRadius: 10,
+                        border: "1px solid rgba(212,175,55,0.2)",
+                        background: filled
+                          ? "transparent"
+                          : "rgba(212,175,55,0.03)",
+                        transition: "background 200ms ease-out",
+                      }}
+                      aria-label={
+                        filled
+                          ? `${slotLabels[i] ?? `Slot ${i + 1}`} — filled`
+                          : `${slotLabels[i] ?? `Slot ${i + 1}`} — empty`
+                      }
+                    />
+                    <span
+                      className="font-display italic"
+                      style={{
+                        fontSize: 10,
+                        color: "var(--gold)",
+                        opacity: restingAlpha,
+                        letterSpacing: "0.05em",
+                      }}
+                    >
+                      {slotLabels[i] ?? `Slot ${i + 1}`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {!revealedAll && (!usesSlots || ready) &&
             (ready ? (
               <button
                 type="button"
