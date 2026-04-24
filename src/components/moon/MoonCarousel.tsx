@@ -223,7 +223,8 @@ export function MoonCarousel() {
   // selected day has scrolled out of the visible window we ignore it.
   const selectedDay =
     selectedRel !== null ? days.find((d) => d.relative === selectedRel) : undefined;
-  const viewedPhase = (selectedDay ?? days[2])?.info.phase ?? null;
+  const centerDay = days.find((d) => d.relative === offset);
+  const viewedPhase = (selectedDay ?? centerDay)?.info.phase ?? null;
 
   return (
     <section
@@ -298,7 +299,8 @@ export function MoonCarousel() {
                   transformOrigin: "top center",
                 }}
                 className={cn(
-                  "flex flex-col items-center transition-all duration-300 ease-out",
+                  "flex flex-col items-center",
+                  !transitioning && "transition-all duration-300 ease-out",
                   isCenter || isSelected
                     ? "z-10 opacity-100"
                     : isExpanded
