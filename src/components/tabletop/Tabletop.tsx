@@ -25,7 +25,9 @@ const TABLETOP_CONFIG = {
   SCATTER_PADDING: 10,
   SELECTION_GLOW_SPREAD: 6,
   SELECTION_GLOW_OPACITY: 0.8,
-  REVEAL_ANIMATION_MS: 600,
+  // Slow, ceremonial flip — long enough to feel reverent without
+  // dragging. Paired with sacred-reveal-lift in styles.css.
+  REVEAL_ANIMATION_MS: 1100,
   // Cards reveal simultaneously when the user taps Reveal — staggered
   // entrance broke the "ceremonial all-at-once" feel of multi-card spreads.
   REVEAL_STAGGER_MS: 0,
@@ -553,7 +555,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       .filter((c) => c.selectionOrder !== null)
       .sort((a, b) => (a.selectionOrder ?? 0) - (b.selectionOrder ?? 0));
 
-    // Pause for the sacred moment, then flip in selection order.
+    // Pause for the sacred moment, then flip every selected card together.
     window.setTimeout(() => {
       picks.forEach((p, i) => {
         window.setTimeout(() => {
@@ -565,14 +567,16 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       const total =
         picks.length * TABLETOP_CONFIG.REVEAL_STAGGER_MS +
         TABLETOP_CONFIG.REVEAL_ANIMATION_MS +
-        300;
+        // Lingering breath: let users savor the faces before the
+        // reading screen takes over.
+        650;
       window.setTimeout(() => {
         setRevealedAll(true);
         onComplete(
           picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
         );
       }, total);
-    }, 200);
+    }, 320);
   };
 
   const handleExit = () => {
