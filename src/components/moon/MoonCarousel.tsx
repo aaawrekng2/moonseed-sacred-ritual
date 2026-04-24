@@ -225,15 +225,20 @@ export function MoonCarousel() {
   }, []);
 
   const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const swipedRef = useRef(false);
   const onTouchStart = (e: React.TouchEvent) => {
     touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    swipedRef.current = false;
   };
   const onTouchEnd = (e: React.TouchEvent) => {
     if (!touchStart.current) return;
     const dx = e.changedTouches[0].clientX - touchStart.current.x;
     const dy = e.changedTouches[0].clientY - touchStart.current.y;
     touchStart.current = null;
-    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) shift(dx > 0 ? -1 : 1);
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      swipedRef.current = true;
+      shift(dx > 0 ? -1 : 1);
+    }
   };
 
   if (recomputing) return <MoonSkeleton label="Recomputing moon data…" />;
@@ -274,7 +279,7 @@ export function MoonCarousel() {
           it never clips and the chevrons never shift vertically. */}
       <div
         className="relative flex items-start justify-center gap-1 sm:gap-4 touch-pan-y overflow-visible px-8 sm:px-0"
-        style={{ height: 260 }}
+        style={{ height: 240 }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -354,7 +359,13 @@ export function MoonCarousel() {
                     moonSign={d.isToday ? todayMoonSign : d.sign}
                     isToday={d.isToday}
                     selected={isSelected}
-                    onToggle={() => selectCenter(d.relative)}
+                    onToggle={() => {
+                      if (swipedRef.current) {
+                        swipedRef.current = false;
+                        return;
+                      }
+                      selectCenter(d.relative);
+                    }}
                   />
                 ) : (
                   <AdjacentCard
@@ -363,6 +374,10 @@ export function MoonCarousel() {
                     expanded={isExpanded}
                     selected={isSelected}
                     onToggle={() => {
+                      if (swipedRef.current) {
+                        swipedRef.current = false;
+                        return;
+                      }
                       // Tapping an adjacent card shifts the carousel so that
                       // day becomes the new center, instead of expanding
                       // it in place. Two-step jumps (absRel === 2) chain a
@@ -397,14 +412,14 @@ export function MoonCarousel() {
       </div>
 
       <p
-        className="mt-1 text-center text-[9px] uppercase tracking-[0.25em] text-muted-foreground sm:hidden"
+        className="-mt-2 text-center text-[9px] uppercase tracking-[0.25em] text-muted-foreground sm:hidden"
         style={{ opacity: restingAlpha * 0.6 }}
       >
         Swipe to browse · Tap a day for details
       </p>
 
       {offset !== 0 && (
-        <div className="mt-2 flex w-full justify-center animate-in fade-in duration-300">
+        <div className="mt-1 flex w-full justify-center animate-in fade-in duration-300">
           <button
             type="button"
             onClick={goToToday}
@@ -715,7 +730,7 @@ function MobilePhaseLadder({
               alignItems: "center",
               justifyContent: "center",
               borderRadius: "50%",
-              padding: "1px",
+              padding: "0px",
               border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
               transition: "border-color 200ms ease",
             }}
@@ -789,7 +804,7 @@ function PhaseLadder({
               alignItems: "center",
               justifyContent: "center",
               borderRadius: "50%",
-              padding: "1px",
+              padding: "0px",
               border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
               transition: "border-color 200ms ease, opacity 200ms ease",
             }}
@@ -824,20 +839,20 @@ function PhaseLadder({
   return (
     <div
       className="hidden sm:flex shrink-0 self-start flex-row items-start gap-1.5 md:gap-2"
-      style={{ marginTop: 20 }}
+      style={{ marginTop: 70 }}
       role="toolbar"
       aria-orientation="vertical"
       aria-label={`${jumpVerb} phase navigator`}
     >
       {isLeft ? (
         <>
-          <div style={{ marginTop: 60 }}>{chevronButton}</div>
+          <div style={{ marginTop: 30 }}>{chevronButton}</div>
           {ladderColumn}
         </>
       ) : (
         <>
           {ladderColumn}
-          <div style={{ marginTop: 60 }}>{chevronButton}</div>
+          <div style={{ marginTop: 30 }}>{chevronButton}</div>
         </>
       )}
     </div>
