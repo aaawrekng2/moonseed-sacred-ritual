@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { buildScatter } from "@/lib/scatter";
-import { Tabletop } from "@/components/tabletop/Tabletop";
+import { Tabletop, adaptiveMaxRotation } from "@/components/tabletop/Tabletop";
 import type { SpreadMode } from "@/lib/spreads";
 import { SPREAD_META } from "@/lib/spreads";
 import { cn } from "@/lib/utils";
@@ -71,13 +71,17 @@ function checkClipping(opts: {
   seed: number;
 }): ClipReport {
   const { width, height, cardW, cardH, seed } = opts;
+  const maxRotation = adaptiveMaxRotation(
+    width,
+    TEST_CONSTANTS.CARD_MAX_ROTATION,
+  );
   const cards = buildScatter({
     width,
     height,
     count: TEST_CONSTANTS.DECK_SIZE,
     cardWidth: cardW,
     cardHeight: cardH,
-    maxRotation: TEST_CONSTANTS.CARD_MAX_ROTATION,
+    maxRotation,
     padding: TEST_CONSTANTS.SCATTER_PADDING,
     seed,
   });
