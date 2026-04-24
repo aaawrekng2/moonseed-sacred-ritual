@@ -17,14 +17,18 @@ function emit(value: number) {
 }
 
 export function useRestingOpacity() {
-  const [value, setValue] = useState<number>(() => {
-    if (typeof window === "undefined") return DEFAULT_RESTING_OPACITY;
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? clamp(Number(stored)) : DEFAULT_RESTING_OPACITY;
-  });
+  // IMPORTANT: do NOT read localStorage during initial state — that runs only
+  // on the client and produces a different value than the server-rendered
+  // HTML, causing a hydration mismatch. Instead, start from the default
+  // (matching the server) and sync from localStorage in an effect.
+  const [value, setValue] = useState<number>(DEFAULT_RESTING_OPACITY);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored != null) setValue(clamp(Number(stored)));
+    }
     setLoaded(true);
   }, []);
 
