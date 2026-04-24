@@ -315,36 +315,37 @@ function VerdantBack() {
 
 const STYLES: Record<
   CardBackId,
-  { bg: string; border: string; insets: string }
+  { bg: string; borderColor: string; innerOuter: string; innerInner: string }
 > = {
   celestial: {
     bg: "radial-gradient(ellipse at 40% 25%, #3d2575 0%, #251555 45%, #130d38 100%)",
-    border: "1px solid rgba(200,170,255,0.5)",
-    insets:
-      "inset 0 0 0 8px rgba(200,170,255,0.45), inset 0 0 0 14px rgba(200,170,255,0.2)",
+    borderColor: "rgba(200,170,255,0.5)",
+    innerOuter: "rgba(200,170,255,0.45)",
+    innerInner: "rgba(200,170,255,0.2)",
   },
   void: {
     bg: "radial-gradient(ellipse at 50% 35%, #1e1c2e 0%, #111020 55%, #080710 100%)",
-    border: "1px solid rgba(255,255,255,0.2)",
-    insets: "inset 0 0 0 8px rgba(255,255,255,0.18)",
+    borderColor: "rgba(255,255,255,0.2)",
+    innerOuter: "rgba(255,255,255,0.18)",
+    innerInner: "rgba(255,255,255,0.10)",
   },
   ember: {
     bg: "radial-gradient(ellipse at 45% 30%, #3d1e06 0%, #241008 50%, #110602 100%)",
-    border: "1px solid rgba(251,191,36,0.55)",
-    insets:
-      "inset 0 0 0 8px rgba(251,191,36,0.5), inset 0 0 0 14px rgba(251,191,36,0.25)",
+    borderColor: "rgba(251,191,36,0.55)",
+    innerOuter: "rgba(251,191,36,0.5)",
+    innerInner: "rgba(251,191,36,0.25)",
   },
   ocean: {
     bg: "radial-gradient(ellipse at 45% 28%, #0a2540 0%, #061528 55%, #020a14 100%)",
-    border: "1px solid rgba(56,189,248,0.45)",
-    insets:
-      "inset 0 0 0 8px rgba(56,189,248,0.4), inset 0 0 0 14px rgba(56,189,248,0.2)",
+    borderColor: "rgba(56,189,248,0.45)",
+    innerOuter: "rgba(56,189,248,0.4)",
+    innerInner: "rgba(56,189,248,0.2)",
   },
   verdant: {
     bg: "radial-gradient(ellipse at 45% 30%, #0a2210 0%, #061508 55%, #020a03 100%)",
-    border: "1px solid rgba(74,222,128,0.45)",
-    insets:
-      "inset 0 0 0 8px rgba(74,222,128,0.4), inset 0 0 0 14px rgba(74,222,128,0.2)",
+    borderColor: "rgba(74,222,128,0.45)",
+    innerOuter: "rgba(74,222,128,0.4)",
+    innerInner: "rgba(74,222,128,0.2)",
   },
 };
 
@@ -352,15 +353,6 @@ export function CardBack({ id = "celestial", width = 160, className, ariaLabel }
   const height = Math.round(width * RATIO);
   const style = STYLES[id];
   const m = scaleMetrics(width);
-  // Color tokens for each style's inner ornament rings.
-  const innerColors: Record<CardBackId, { outer: string; inner: string }> = {
-    celestial: { outer: "rgba(200,170,255,0.45)", inner: "rgba(200,170,255,0.20)" },
-    void:      { outer: "rgba(255,255,255,0.18)", inner: "rgba(255,255,255,0.10)" },
-    ember:     { outer: "rgba(251,191,36,0.50)",  inner: "rgba(251,191,36,0.25)"  },
-    ocean:     { outer: "rgba(56,189,248,0.40)",  inner: "rgba(56,189,248,0.20)"  },
-    verdant:   { outer: "rgba(74,222,128,0.40)",  inner: "rgba(74,222,128,0.20)"  },
-  };
-  const ic = innerColors[id];
   return (
     <div
       role="img"
@@ -371,25 +363,16 @@ export function CardBack({ id = "celestial", width = 160, className, ariaLabel }
         height,
         borderRadius: m.radius,
         background: style.bg,
-        // Border width scales with card size; color comes from preset.
-        border: `${m.border}px solid ${style.border.replace(/^[^,]+,\s*/, "").replace(/^.*?\(/, "rgba(").replace(/^[^r].*/, style.border.split(" ").slice(2).join(" "))}`,
-        // Use boxShadow inner rings sized via scaled inset for proportional look.
-        boxShadow: `inset 0 0 0 ${m.innerInset}px ${ic.outer}, inset 0 0 0 ${m.innerInset * 1.7}px ${ic.inner}`,
+        border: `${m.border}px solid ${style.borderColor}`,
+        // Inner double-ring scales with card size for a proportional look.
+        boxShadow: `inset 0 0 0 ${m.innerInset}px ${style.innerOuter}, inset 0 0 0 ${Math.round(m.innerInset * 1.7)}px ${style.innerInner}`,
       }}
     >
-      {/* Inner SVG / overlays already use percentage / viewBox scaling so
-          they remain proportional. We pass the scaled metrics down via a
-          CSS variable for any pixel-anchored stars. */}
-      <div
-        className="absolute inset-0"
-        style={{ ["--star-dot" as string]: `${m.starDot}px`, ["--corner-size" as string]: `${m.cornerSize}px` }}
-      >
-        {id === "celestial" && <CelestialBack width={width} />}
-        {id === "void" && <VoidBack />}
-        {id === "ember" && <EmberBack />}
-        {id === "ocean" && <OceanBack />}
-        {id === "verdant" && <VerdantBack />}
-      </div>
+      {id === "celestial" && <CelestialBack width={width} />}
+      {id === "void" && <VoidBack />}
+      {id === "ember" && <EmberBack />}
+      {id === "ocean" && <OceanBack />}
+      {id === "verdant" && <VerdantBack />}
     </div>
   );
 }
