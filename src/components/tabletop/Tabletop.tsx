@@ -618,6 +618,20 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     onExit();
   };
 
+  // Cast: skip the in-place flip and hand off to the spread layout screen
+  // immediately with cards still face-down. Picks are ordered by
+  // selectionOrder so position 1 maps to spread slot 1, etc.
+  const handleCast = () => {
+    if (!ready || revealing) return;
+    const picks = cards
+      .filter((c) => c.selectionOrder !== null)
+      .sort((a, b) => (a.selectionOrder ?? 0) - (b.selectionOrder ?? 0));
+    onComplete(
+      picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
+      "cast",
+    );
+  };
+
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]">
       {/* Temporary resting-opacity test slider — fixed upper-left, top
