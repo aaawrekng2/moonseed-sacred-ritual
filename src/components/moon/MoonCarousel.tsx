@@ -445,14 +445,13 @@ function PhaseLadder({
   // rung is active. Keying on `${offset}-${activeIdx}` resets the animation.
   const pulseKey = `${offset}-${activeIdx}`;
 
-  return (
+  const ladderColumn = (
     <div
       className={cn(
-        "hidden sm:flex shrink-0 self-center flex-col items-stretch gap-[3px] py-1",
+        "flex flex-col gap-[3px] py-1",
         // Anchor icons to the outer edge so they grow inward.
         isLeft ? "items-start" : "items-end",
       )}
-      aria-label={`${jumpVerb} phase navigator`}
     >
       {LADDER_RUNGS.map((r, i) => (
         <button
@@ -487,19 +486,41 @@ function PhaseLadder({
           </span>
         </button>
       ))}
-      <button
-        type="button"
-        onClick={onStep}
-        aria-label={stepLabel}
-        className={cn(
-          "mt-1 inline-flex items-center justify-center rounded-full bg-transparent border-0 p-0 cursor-pointer",
-          "text-muted-foreground transition-colors duration-200",
-          "hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60",
-          "self-center",
-        )}
-      >
-        <Chevron className="h-7 w-7" />
-      </button>
+    </div>
+  );
+
+  const chevronButton = (
+    <button
+      type="button"
+      onClick={onStep}
+      aria-label={stepLabel}
+      style={{ opacity: restingAlpha }}
+      className={cn(
+        "inline-flex items-center justify-center rounded-full bg-transparent border-0 p-0 cursor-pointer",
+        "text-muted-foreground transition-all duration-200",
+        "hover:text-gold hover:!opacity-100 focus:outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/60",
+      )}
+    >
+      <Chevron style={{ width: 20, height: 20 }} />
+    </button>
+  );
+
+  return (
+    <div
+      className="hidden sm:flex shrink-0 self-center flex-row items-center gap-2"
+      aria-label={`${jumpVerb} phase navigator`}
+    >
+      {isLeft ? (
+        <>
+          {chevronButton}
+          {ladderColumn}
+        </>
+      ) : (
+        <>
+          {ladderColumn}
+          {chevronButton}
+        </>
+      )}
     </div>
   );
 }
