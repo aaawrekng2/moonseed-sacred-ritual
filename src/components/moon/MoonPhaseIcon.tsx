@@ -47,6 +47,9 @@ export function MoonPhaseIcon({ phase, size = 64, className, ariaHidden = true }
     if (!svg) return;
     // Defer one frame so layout has settled before measuring.
     const raf = requestAnimationFrame(() => {
+      // Skip if the element was unmounted between schedule and tick — a
+      // 0×0 box on a detached node is an unmount race, not a layout bug.
+      if (!svg.isConnected) return;
       const rect = svg.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) {
         warnOnce(
