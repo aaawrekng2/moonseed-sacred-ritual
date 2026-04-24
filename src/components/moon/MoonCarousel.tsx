@@ -279,7 +279,7 @@ export function MoonCarousel() {
           it never clips and the chevrons never shift vertically. */}
       <div
         className="relative flex items-start justify-center gap-1 sm:gap-4 touch-pan-y overflow-visible px-8 sm:px-0"
-        style={{ height: 260 }}
+        style={{ height: 240 }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -359,7 +359,13 @@ export function MoonCarousel() {
                     moonSign={d.isToday ? todayMoonSign : d.sign}
                     isToday={d.isToday}
                     selected={isSelected}
-                    onToggle={() => selectCenter(d.relative)}
+                    onToggle={() => {
+                      if (swipedRef.current) {
+                        swipedRef.current = false;
+                        return;
+                      }
+                      selectCenter(d.relative);
+                    }}
                   />
                 ) : (
                   <AdjacentCard
@@ -368,6 +374,10 @@ export function MoonCarousel() {
                     expanded={isExpanded}
                     selected={isSelected}
                     onToggle={() => {
+                      if (swipedRef.current) {
+                        swipedRef.current = false;
+                        return;
+                      }
                       // Tapping an adjacent card shifts the carousel so that
                       // day becomes the new center, instead of expanding
                       // it in place. Two-step jumps (absRel === 2) chain a
@@ -402,14 +412,14 @@ export function MoonCarousel() {
       </div>
 
       <p
-        className="mt-1 text-center text-[9px] uppercase tracking-[0.25em] text-muted-foreground sm:hidden"
+        className="-mt-2 text-center text-[9px] uppercase tracking-[0.25em] text-muted-foreground sm:hidden"
         style={{ opacity: restingAlpha * 0.6 }}
       >
         Swipe to browse · Tap a day for details
       </p>
 
       {offset !== 0 && (
-        <div className="mt-2 flex w-full justify-center animate-in fade-in duration-300">
+        <div className="mt-1 flex w-full justify-center animate-in fade-in duration-300">
           <button
             type="button"
             onClick={goToToday}
