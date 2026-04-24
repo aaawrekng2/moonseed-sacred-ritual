@@ -196,14 +196,14 @@ html, body {
 .animate-card-tap { animation: card-tap 220ms cubic-bezier(0.34, 1.56, 0.64, 1); }
 
 /* Tap-target helper: invisible hit area extends past the visible card on
-   touch devices to make small scattered cards easier to select. */
+   touch devices to make small scattered cards easier to select.
+   The inset is driven by --card-hit-inset so the surrounding component can
+   tune the expansion based on the rendered card size (smaller cards →
+   larger expansion to keep a consistent touch target). */
 .card-hit {
   position: absolute;
-  inset: -10px;
-  border-radius: 14px;
-}
-@media (pointer: coarse) {
-  .card-hit { inset: -14px; }
+  inset: calc(var(--card-hit-inset, 10px) * -1);
+  border-radius: calc(10px + var(--card-hit-inset, 10px) * 0.4);
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
