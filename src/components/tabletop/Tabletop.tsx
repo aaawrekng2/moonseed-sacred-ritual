@@ -31,6 +31,13 @@ const TABLETOP_CONFIG = {
   REVEAL_STAGGER_MS: 0,
   FLIGHT_MS: 420,
   DECK_SIZE: 78,
+  /**
+   * Mobile breakpoint (CSS px). Below this the layout switches to:
+   *   - Slot rail anchored at the very bottom of the screen.
+   *   - Stir / counter / X arranged on a thinner row above it.
+   *   - Opacity slider hidden (desktop dev tool only).
+   */
+  MOBILE_BREAKPOINT: 768,
 };
 
 // Responsive card width: 42px mobile, 52px tablet, 64px desktop.
@@ -38,6 +45,34 @@ function responsiveCardWidth(viewportW: number): number {
   if (viewportW < 768) return 42;
   if (viewportW < 1024) return 52;
   return 64;
+}
+
+/**
+ * Per-spread slot dimensions. Slots are sized differently from the table
+ * cards because the rail must fit a fixed number of positions in one row
+ * with no horizontal scrolling, even on narrow phones (10 for Celtic).
+ *
+ * Returns the visible slot card width — height is derived from
+ * CARD_ASPECT_RATIO.
+ */
+function responsiveSlotWidth(viewportW: number, count: number): number {
+  const isMobile = viewportW < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
+  if (count <= 3) {
+    // Three-card spread: roomy slots both layouts.
+    return isMobile ? 48 : 72;
+  }
+  if (count >= 10) {
+    // Celtic Cross: 10 slots must fit in a single non-scrolling row. Sizes
+    // chosen so 10 * (slotW + gap) stays inside common viewport widths.
+    if (isMobile) {
+      // Aim for ≤360px of rail on a 390px viewport (room for safe-area).
+      // 10 slots × 28 + 9 gaps × 4 ≈ 316px → comfortably fits.
+      return 28;
+    }
+    return 44;
+  }
+  // Fallback for any future spread with 4–9 cards.
+  return isMobile ? 38 : 56;
 }
 
 /**
