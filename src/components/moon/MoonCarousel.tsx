@@ -210,6 +210,10 @@ export function MoonCarousel() {
       className="relative animate-in fade-in slide-in-from-top-2 duration-500"
       style={{ minHeight: 280 }}
     >
+      {/* Mobile phase ladders — fixed to screen edges, visible on mobile only */}
+      <MobilePhaseLadder side="left" restingAlpha={restingAlpha} onJump={jumpToPhase} />
+      <MobilePhaseLadder side="right" restingAlpha={restingAlpha} onJump={jumpToPhase} />
+
       {/* Fixed-height row so cards never reflow as the user swipes between
           days. The today card is the tallest element; sizing here is set so
           it never clips and the chevrons never shift vertically. */}
@@ -343,11 +347,6 @@ export function MoonCarousel() {
         </div>
       )}
 
-      {/* Mobile-only phase ladders — pinned to the screen edges, overlaid
-          independently of the carousel flex row so the 5-day cascade gets
-          full horizontal space. Hidden on sm+ where PhaseLadder takes over. */}
-      <MobilePhaseLadder side="left" restingAlpha={restingAlpha} onJump={jumpToPhase} />
-      <MobilePhaseLadder side="right" restingAlpha={restingAlpha} onJump={jumpToPhase} />
     </section>
   );
 }
