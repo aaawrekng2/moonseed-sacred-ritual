@@ -358,18 +358,18 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]">
-      {/* Temporary resting-opacity test slider — upper-left. Cards are
-          allowed to scatter beneath it. */}
+      {/* Temporary resting-opacity test slider — fixed upper-left, top
+          layer so cards never sit above its controls. */}
       <div
         style={{
-          position: "absolute",
+          position: "fixed",
           top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          left: "calc(env(safe-area-inset-left, 0px) + 16px)",
+          left: "calc(env(safe-area-inset-left, 0px) + 12px)",
           display: "flex",
           flexDirection: "column",
           gap: 4,
           width: 130,
-          zIndex: 50,
+          zIndex: 100,
           opacity: restingAlpha,
           pointerEvents: "auto",
         }}
