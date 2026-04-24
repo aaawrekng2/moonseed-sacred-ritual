@@ -650,6 +650,8 @@ function MobilePhaseLadder({
         [isLeft ? "left" : "right"]: 0,
         [isLeft ? "paddingLeft" : "paddingRight"]: 8,
       }}
+      role="toolbar"
+      aria-orientation="vertical"
       aria-label={`${isLeft ? "Previous" : "Next"} phase navigator`}
     >
       {LADDER_RUNGS.map((r, i) => (
@@ -657,9 +659,9 @@ function MobilePhaseLadder({
           key={`mobile-${r.label}-${i}`}
           type="button"
           onClick={() => onJump(r.phase)}
-          aria-label={`${isLeft ? "Previous" : "Next"} ${r.label}`}
+          aria-label={`Jump to ${isLeft ? "previous" : "next"} ${r.label}`}
           style={{ opacity: restingAlpha }}
-          className="cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 focus:outline-none"
+          className="cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <span
             style={{
