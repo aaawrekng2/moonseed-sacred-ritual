@@ -448,10 +448,11 @@ function PhaseLadder({
   const ladderColumn = (
     <div
       className={cn(
-        "flex flex-col gap-[3px] py-1",
+        "flex flex-col gap-[2px] py-0",
         // Anchor icons to the outer edge so they grow inward.
         isLeft ? "items-start" : "items-end",
       )}
+      style={{ maxHeight: 100 }}
     >
       {LADDER_RUNGS.map((r, i) => (
         <button
