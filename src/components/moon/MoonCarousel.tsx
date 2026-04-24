@@ -38,6 +38,10 @@ type DayCell = {
 export function MoonCarousel() {
   const [offset, setOffset] = useState(0);
   const [expandedRel, setExpandedRel] = useState<number | null>(null);
+  // Day card the user has explicitly tapped to "select". Stored as the
+  // absolute relative-day value (matches `d.relative`) so it survives swipes
+  // until the day scrolls out of the visible 5-day window.
+  const [selectedRel, setSelectedRel] = useState<number | null>(null);
   const [ready, setReady] = useState(false);
   const [shimmerKey, setShimmerKey] = useState(0);
   const prevOffsetRef = useRef(0);
@@ -94,6 +98,7 @@ export function MoonCarousel() {
   const handleRetry = () => {
     setOffset(0);
     setExpandedRel(null);
+    setSelectedRel(null);
     setRecomputing(true);
     if (recomputeTimer.current) clearTimeout(recomputeTimer.current);
     requestAnimationFrame(() => {
@@ -106,9 +111,24 @@ export function MoonCarousel() {
     return () => { if (recomputeTimer.current) clearTimeout(recomputeTimer.current); };
   }, []);
 
-  const shift = (dir: -1 | 1) => { setOffset((o) => o + dir); setExpandedRel(null); };
-  const goToToday = () => { setOffset(0); setExpandedRel(null); };
-  const toggleExpand = (rel: number) => { setExpandedRel((cur) => (cur === rel ? null : rel)); };
+  const shift = (dir: -1 | 1) => {
+    setOffset((o) => o + dir);
+    setExpandedRel(null);
+    setSelectedRel(null);
+  };
+  const goToToday = () => {
+    setOffset(0);
+    setExpandedRel(null);
+    setSelectedRel(null);
+  };
+  const toggleExpand = (rel: number) => {
+    setExpandedRel((cur) => (cur === rel ? null : rel));
+    // Tapping a card also selects it (toggles off if already selected).
+    setSelectedRel((cur) => (cur === rel ? null : rel));
+  };
+  const selectCenter = (rel: number) => {
+    setSelectedRel((cur) => (cur === rel ? null : rel));
+  };
 
   // Smoothly tween the offset from its current value to `target` so the
   // carousel feels like it scrolls through intermediate days rather than
@@ -116,6 +136,7 @@ export function MoonCarousel() {
   const tweenOffsetTo = (target: number) => {
     if (tweenRafRef.current) cancelAnimationFrame(tweenRafRef.current);
     setExpandedRel(null);
+    setSelectedRel(null);
 
     const reduceMotion =
       typeof window !== "undefined" &&
@@ -176,10 +197,12 @@ export function MoonCarousel() {
   if (error) return <MoonErrorFallback message={error} onRetry={handleRetry} />;
   if (!ready || days.length === 0) return <MoonSkeleton />;
 
-  // The currently-viewed day sits in the middle of the 5-day window. Use its
-  // phase to highlight the matching rung in both ladders so the user sees
-  // exactly where they are in the lunar cycle.
-  const viewedPhase = days[2]?.info.phase ?? null;
+  // Prefer the explicitly-selected day's phase for ladder highlighting; fall
+  // back to the centered (middle) day when nothing is selected. If the
+  // selected day has scrolled out of the visible window we ignore it.
+  const selectedDay =
+    selectedRel !== null ? days.find((d) => d.relative === selectedRel) : undefined;
+  const viewedPhase = (selectedDay ?? days[2])?.info.phase ?? null;
 
   return (
     <section
@@ -236,6 +259,7 @@ export function MoonCarousel() {
             const leftPercent =
               rel === -2 ? 10 : rel === -1 ? 28 : rel === 0 ? 50 : rel === 1 ? 72 : 90;
             const isCenter = rel === 0;
+            const isSelected = selectedRel === d.relative;
             return (
               <div
                 key={d.info.date.toDateString()}
@@ -247,16 +271,27 @@ export function MoonCarousel() {
                 }}
                 className={cn(
                   "flex flex-col items-center transition-all duration-300 ease-out",
-                  isCenter ? "z-10 opacity-100" : isExpanded ? "z-10 opacity-100" : "opacity-70",
+                  isCenter || isSelected
+                    ? "z-10 opacity-100"
+                    : isExpanded
+                      ? "z-10 opacity-100"
+                      : "opacity-70",
                 )}
               >
                 {isCenter ? (
-                  <CenterCard info={d.info} moonSign={d.isToday ? todayMoonSign : d.sign} isToday={d.isToday} />
+                  <CenterCard
+                    info={d.info}
+                    moonSign={d.isToday ? todayMoonSign : d.sign}
+                    isToday={d.isToday}
+                    selected={isSelected}
+                    onToggle={() => selectCenter(d.relative)}
+                  />
                 ) : (
                   <AdjacentCard
                     info={d.info}
                     sign={d.sign}
                     expanded={isExpanded}
+                    selected={isSelected}
                     onToggle={() => toggleExpand(d.relative)}
                     size={absRel === 1 ? "medium" : "small"}
                   />
