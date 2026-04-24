@@ -730,7 +730,7 @@ function MobilePhaseLadder({
               alignItems: "center",
               justifyContent: "center",
               borderRadius: "50%",
-              padding: "1px",
+              padding: "0px",
               border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
               transition: "border-color 200ms ease",
             }}
@@ -804,7 +804,7 @@ function PhaseLadder({
               alignItems: "center",
               justifyContent: "center",
               borderRadius: "50%",
-              padding: "1px",
+              padding: "0px",
               border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
               transition: "border-color 200ms ease, opacity 200ms ease",
             }}
@@ -839,20 +839,20 @@ function PhaseLadder({
   return (
     <div
       className="hidden sm:flex shrink-0 self-start flex-row items-start gap-1.5 md:gap-2"
-      style={{ marginTop: 20 }}
+      style={{ marginTop: 70 }}
       role="toolbar"
       aria-orientation="vertical"
       aria-label={`${jumpVerb} phase navigator`}
     >
       {isLeft ? (
         <>
-          <div style={{ marginTop: 60 }}>{chevronButton}</div>
+          <div style={{ marginTop: 30 }}>{chevronButton}</div>
           {ladderColumn}
         </>
       ) : (
         <>
           {ladderColumn}
-          <div style={{ marginTop: 60 }}>{chevronButton}</div>
+          <div style={{ marginTop: 30 }}>{chevronButton}</div>
         </>
       )}
     </div>
