@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw } from "lucide-react";
 import {
-  findNextPhaseOccurrence,
   findNearestPhaseOccurrence,
   getCurrentMoonPhase,
   getMoonSign,
