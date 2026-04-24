@@ -1,3 +1,4 @@
+import { useId } from "react";
 import type { MoonPhaseName } from "@/lib/moon";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +15,13 @@ const CX = 32;
 const CY = 32;
 
 export function MoonPhaseIcon({ phase, size = 64, className, ariaHidden = true }: Props) {
-  const id = `mp-${phase.replace(/\s+/g, "-").toLowerCase()}`;
+  // useId guarantees a unique base for every rendered instance, so multiple
+  // icons in the document never collide on <defs>/<mask>/<radialGradient> IDs.
+  // Without this the second-and-later instances of the same phase can render
+  // empty in some browsers because the URL reference resolves to a stripped
+  // duplicate def.
+  const reactId = useId().replace(/[:]/g, "");
+  const id = `mp-${phase.replace(/\s+/g, "-").toLowerCase()}-${reactId}`;
   const bodyId = `${id}-body`;
   const glowId = `${id}-glow`;
   const pearlId = `${id}-pearl`;
