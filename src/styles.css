@@ -195,6 +195,51 @@ html, body {
 }
 .animate-card-tap { animation: card-tap 220ms cubic-bezier(0.34, 1.56, 0.64, 1); }
 
+/* Stir: a brief, gentle shimmer + tilt swept across the tabletop after the
+   user invokes "Stir". Pure visual flourish — does not affect layout. */
+@keyframes tabletop-shimmer {
+  0%   { background-position: -40% 50%; opacity: 0; }
+  20%  { opacity: 1; }
+  100% { background-position: 140% 50%; opacity: 0; }
+}
+@keyframes tabletop-tilt {
+  0%   { transform: rotate(0deg); }
+  25%  { transform: rotate(0.6deg); }
+  60%  { transform: rotate(-0.4deg); }
+  100% { transform: rotate(0deg); }
+}
+.animate-tabletop-tilt {
+  animation: tabletop-tilt 720ms cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: 50% 60%;
+}
+.tabletop-shimmer-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 35%,
+    oklch(0.82 0.14 82 / 0.18) 50%,
+    transparent 65%,
+    transparent 100%
+  );
+  background-size: 250% 100%;
+  background-repeat: no-repeat;
+  animation: tabletop-shimmer 720ms cubic-bezier(0.4, 0, 0.2, 1);
+  mix-blend-mode: screen;
+}
+
+/* When .is-stirring is on a card, animate its position changes so unselected
+   cards drift to their new scatter slots instead of snapping. Selected
+   cards never receive this class so dragging stays instant. */
+.card-stir-transition {
+  transition:
+    left 700ms cubic-bezier(0.4, 0, 0.2, 1),
+    top 700ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 700ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 /* Tap-target helper: invisible hit area extends past the visible card on
    touch devices to make small scattered cards easier to select.
    The inset is driven by --card-hit-inset so the surrounding component can

@@ -92,6 +92,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // Bumped each time the user "stirs" the table. Used to derive a fresh
   // scatter seed for unselected cards while preserving selected ones.
   const [stirNonce, setStirNonce] = useState(0);
+  // True for the duration of the stir animation. Drives the tabletop tilt
+  // overlay and toggles a position-transition class on unselected cards so
+  // they drift to their new slots instead of snapping.
+  const [stirring, setStirring] = useState(false);
+  const stirTimerRef = useRef<number | null>(null);
   const { opacity: restingOpacityPct } = useRestingOpacity();
   const restingAlpha = restingOpacityPct / 100;
   const exitAlpha = Math.min(1, restingAlpha + 0.1);
@@ -212,6 +217,27 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const ready = selectedCount === required;
   const [revealing, setRevealing] = useState(false);
   const [revealedAll, setRevealedAll] = useState(false);
+
+  const triggerStir = useCallback(() => {
+    if (revealing || revealedAll) return;
+    setStirring(true);
+    setStirNonce((n) => n + 1);
+    if (stirTimerRef.current != null) {
+      window.clearTimeout(stirTimerRef.current);
+    }
+    stirTimerRef.current = window.setTimeout(() => {
+      setStirring(false);
+      stirTimerRef.current = null;
+    }, 760);
+  }, [revealing, revealedAll]);
+
+  useEffect(() => {
+    return () => {
+      if (stirTimerRef.current != null) {
+        window.clearTimeout(stirTimerRef.current);
+      }
+    };
+  }, []);
 
   const toggleSelect = (id: number) => {
     if (revealing || revealedAll) return;
@@ -452,7 +478,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       {/* Tabletop scatter area */}
       <div
         ref={containerRef}
-        className="relative flex-1 overflow-hidden touch-none select-none"
+        className={cn(
+          "relative flex-1 overflow-hidden touch-none select-none",
+          stirring && "animate-tabletop-tilt",
+        )}
         style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)" }}
         onPointerDown={onContainerPointerDown}
         onPointerMove={onContainerPointerMove}
@@ -469,6 +498,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             faceIndex={deckMapping[c.id]}
             disabled={revealing || revealedAll}
             hitInset={hitInset}
+            stirring={stirring && c.selectionOrder === null}
             onSelect={() => {
               if (shouldSuppressClick()) return;
               toggleSelect(c.id);
@@ -476,6 +506,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             settleDelay={Math.min(idx * 4, 320)}
           />
         ))}
+        {stirring && (
+          <span
+            aria-hidden="true"
+            className="tabletop-shimmer-overlay"
+          />
+        )}
       </div>
 
       {/* Bottom zen bar: status whisper + soft reveal + stir affordance.
@@ -490,8 +526,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         {!revealedAll && (
           <button
             type="button"
-            onClick={() => setStirNonce((n) => n + 1)}
-            disabled={revealing}
+            onClick={triggerStir}
+            disabled={revealing || stirring}
             aria-label="Stir — rearrange unselected cards"
             style={{
               opacity: restingAlpha,
@@ -552,6 +588,7 @@ function CardSlot({
   faceIndex,
   disabled,
   hitInset,
+  stirring,
   onSelect,
   settleDelay,
 }: {
@@ -562,6 +599,7 @@ function CardSlot({
   faceIndex: number;
   disabled: boolean;
   hitInset: number;
+  stirring: boolean;
   onSelect: () => void;
   settleDelay: number;
 }) {
@@ -590,7 +628,12 @@ function CardSlot({
       }
       className={cn(
         "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
-        "transition-transform duration-200 ease-out",
+        // While stirring, animate left/top/transform together so the card
+        // drifts to its new scatter slot. Otherwise keep the snappier
+        // transform-only transition for selection feedback.
+        stirring
+          ? "card-stir-transition"
+          : "transition-transform duration-200 ease-out",
         // Remove default tap highlight on iOS / Android.
         "[-webkit-tap-highlight-color:transparent] touch-manipulation",
         isSelected ? "z-30" : null,
