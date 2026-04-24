@@ -242,8 +242,6 @@ export function MoonCarousel() {
         )}
 
         {/* Mobile ladder — left side, visible on mobile only */}
-        <MobilePhaseLadder side="left" restingAlpha={restingAlpha} onJump={jumpToPhase} />
-
         <PhaseLadder
           side="left"
           restingAlpha={restingAlpha}
@@ -314,9 +312,6 @@ export function MoonCarousel() {
           onJump={(p) => jumpToPhase(p)}
           onStep={() => shift(1)}
         />
-
-        {/* Mobile ladder — right side, visible on mobile only */}
-        <MobilePhaseLadder side="right" restingAlpha={restingAlpha} onJump={jumpToPhase} />
       </div>
 
       <p
@@ -347,6 +342,12 @@ export function MoonCarousel() {
           </button>
         </div>
       )}
+
+      {/* Mobile-only phase ladders — pinned to the screen edges, overlaid
+          independently of the carousel flex row so the 5-day cascade gets
+          full horizontal space. Hidden on sm+ where PhaseLadder takes over. */}
+      <MobilePhaseLadder side="left" restingAlpha={restingAlpha} onJump={jumpToPhase} />
+      <MobilePhaseLadder side="right" restingAlpha={restingAlpha} onJump={jumpToPhase} />
     </section>
   );
 }
