@@ -245,7 +245,10 @@ export function MoonCarousel() {
   // selected day has scrolled out of the visible window we ignore it.
   const selectedDay =
     selectedRel !== null ? days.find((d) => d.relative === selectedRel) : undefined;
-  const centerDay = days.find((d) => d.relative === offset);
+  // Always pick the actual middle of the visible window — the relative
+  // values stay relative to today, not to `offset`, so a `find` against
+  // `offset` can miss after long jumps.
+  const centerDay = days[Math.floor(days.length / 2)];
   const viewedPhase = (selectedDay ?? centerDay)?.info.phase ?? null;
 
   return (
@@ -359,7 +362,22 @@ export function MoonCarousel() {
                     sign={d.sign}
                     expanded={isExpanded}
                     selected={isSelected}
-                    onToggle={() => toggleExpand(d.relative)}
+                    onToggle={() => {
+                      // Tapping an adjacent card shifts the carousel so that
+                      // day becomes the new center, instead of expanding
+                      // it in place. Two-step jumps (absRel === 2) chain a
+                      // second shift on the next frame.
+                      const stepsToCenter = rel;
+                      if (stepsToCenter !== 0) {
+                        shift(stepsToCenter > 0 ? 1 : -1);
+                        if (Math.abs(stepsToCenter) === 2) {
+                          setTimeout(
+                            () => shift(stepsToCenter > 0 ? 1 : -1),
+                            50,
+                          );
+                        }
+                      }
+                    }}
                     size={absRel === 1 ? "medium" : "small"}
                   />
                 )}

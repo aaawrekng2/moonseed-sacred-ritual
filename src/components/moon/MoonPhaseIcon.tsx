@@ -79,6 +79,9 @@ function PhaseIllumination({ phase, pearlId, glowId }: { phase: MoonPhaseName; p
       return <path d={gibbousPath({ side: "right", thickness: 0.7 })} fill={pearl} filter={filter} />;
     case "Waning Gibbous":
       return <path d={gibbousPath({ side: "left", thickness: 0.7 })} fill={pearl} filter={filter} />;
+    default:
+      // Safety fallback — render a Full Moon so no phase ever renders empty.
+      return <circle cx={CX} cy={CY} r={R} fill={pearl} filter={filter} />;
   }
 }
 
