@@ -144,6 +144,10 @@ export function MoonCarousel() {
   }, []);
 
   const shift = (dir: -1 | 1) => {
+    if (tweenRafRef.current) {
+      cancelAnimationFrame(tweenRafRef.current);
+      tweenRafRef.current = null;
+    }
     setOffset((o) => o + dir);
     setExpandedRel(null);
     setSelectedRel(null);
@@ -183,15 +187,19 @@ export function MoonCarousel() {
 
       setTransitioning(true);
 
-      // 60ms per step, capped so very long jumps still feel snappy.
-      const duration = Math.min(900, Math.max(280, Math.abs(distance) * 60));
+      // 40ms per step, capped so very long jumps still feel snappy.
+      const duration = Math.min(600, Math.max(200, Math.abs(distance) * 40));
       const startTime = performance.now();
       const ease = (t: number) => 1 - Math.pow(1 - t, 3); // easeOutCubic
 
+      let prevNext: number | null = null;
       const tick = (now: number) => {
         const t = Math.min(1, (now - startTime) / duration);
         const next = Math.round(start + distance * ease(t));
-        setOffset(next);
+        if (next !== prevNext) {
+          setOffset(next);
+          prevNext = next;
+        }
         if (t < 1) {
           tweenRafRef.current = requestAnimationFrame(tick);
         } else {
@@ -658,7 +666,7 @@ function MobilePhaseLadder({
     <div
       className="fixed sm:hidden flex flex-col gap-[2px] z-10"
       style={{
-        top: "70px",
+        top: "90px",
         transform: "none",
         alignItems: isLeft ? "flex-start" : "flex-end",
         [isLeft ? "left" : "right"]: 0,
@@ -675,18 +683,19 @@ function MobilePhaseLadder({
           onClick={() => onJump(r.phase)}
           aria-label={`Jump to ${isLeft ? "previous" : "next"} ${r.label}`}
           style={{ opacity: restingAlpha }}
-          className="cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="group cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <span
             style={{
-              background:
-                "radial-gradient(circle, rgba(212,175,55,0.60) 0%, transparent 70%)",
-              borderRadius: "50%",
-              padding: "3px",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
+              borderRadius: "50%",
+              padding: "3px",
+              border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
+              transition: "border-color 200ms ease",
             }}
+            className="group-hover:!border-gold"
           >
             <MoonPhaseIcon phase={r.phase} size={RUNG_SIZES[i]} />
           </span>
@@ -723,10 +732,6 @@ function PhaseLadder({
     ? LADDER_RUNGS.findIndex((r) => r.phase === activePhase)
     : -1;
 
-  // Re-fire the glow/scale animation whenever the offset changes while a
-  // rung is active. Keying on `${offset}-${activeIdx}` resets the animation.
-  const pulseKey = `${offset}-${activeIdx}`;
-
   const ladderColumn = (
     <div
       className={cn(
@@ -752,29 +757,21 @@ function PhaseLadder({
             "transition-all duration-200 ease-out",
             "hover:!opacity-100 hover:scale-110",
             "outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-            i === activeIdx && "moon-rung-active",
           )}
         >
           <span
-            // Re-mount the inner span on offset change so the pulse animation
-            // restarts cleanly — pure CSS animations don't otherwise replay.
-            key={i === activeIdx ? pulseKey : "idle"}
-            className={cn(
-              "moon-rung-halo inline-flex items-center justify-center rounded-full transition-all duration-200 ease-out",
-              i === activeIdx && "moon-rung-pulse",
-            )}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              padding: "3px",
+              border: `1px solid rgba(212,175,55,${Math.min(1, restingAlpha + 0.25)})`,
+              transition: "border-color 200ms ease, opacity 200ms ease",
+            }}
+            className="group-hover:!border-gold"
           >
-            <span
-              className="moon-rung-glow inline-flex items-center justify-center rounded-full group-hover:[background:radial-gradient(circle,rgba(212,175,55,0.80)_0%,transparent_70%)]"
-              style={{
-                background:
-                  "radial-gradient(circle, rgba(212,175,55,0.55) 0%, transparent 70%)",
-                padding: "4px",
-                transition: "background 200ms ease",
-              }}
-            >
-              <MoonPhaseIcon phase={r.phase} size={r.size} />
-            </span>
+            <MoonPhaseIcon phase={r.phase} size={r.size} />
           </span>
         </button>
       ))}
