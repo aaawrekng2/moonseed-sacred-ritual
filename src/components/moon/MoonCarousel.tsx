@@ -662,18 +662,21 @@ function PhaseLadder({
       aria-label={stepLabel}
       style={{ opacity: restingAlpha }}
       className={cn(
-        "inline-flex items-center justify-center rounded-full bg-transparent border-0 p-0 cursor-pointer",
+        "inline-flex shrink-0 items-center justify-center rounded-full bg-transparent border-0 p-0 cursor-pointer",
         "text-muted-foreground transition-all duration-200",
         "hover:text-gold hover:!opacity-100 focus:outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/60",
       )}
     >
-      <Chevron style={{ width: 20, height: 20 }} />
+      {/* Match the chevron's visual weight to the Full Moon rung (26px) so
+          it reads as a sibling control, not a smaller satellite. Scales
+          modestly across breakpoints to keep parity with the rung sizes. */}
+      <Chevron className="h-[22px] w-[22px] md:h-[26px] md:w-[26px]" strokeWidth={1.75} />
     </button>
   );
 
   return (
     <div
-      className="hidden sm:flex shrink-0 self-center flex-row items-center gap-2"
+      className="hidden sm:flex shrink-0 self-center flex-row items-center gap-1.5 md:gap-2 lg:gap-3"
       aria-label={`${jumpVerb} phase navigator`}
     >
       {isLeft ? (
