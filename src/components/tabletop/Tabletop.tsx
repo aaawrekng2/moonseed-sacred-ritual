@@ -721,12 +721,13 @@ function CardSlot({
       {/* Invisible expanded hit area for easier tapping on mobile. */}
       <span aria-hidden="true" className="card-hit" />
       <div
-        key={tapTick}
+        key={`${tapTick}-${consecrateTick}`}
         className={cn(
           "relative h-full w-full rounded-[10px] flip-3d",
           card.revealed && "is-flipped",
           tapTick > 0 && !card.revealed && "animate-card-tap",
           stirring && !card.revealed && "animate-card-stir-glide",
+          consecrating && !card.revealed && "animate-card-consecrate animate-card-consecrate-halo",
         )}
         style={{
           // @ts-expect-error custom prop
@@ -759,6 +760,9 @@ function CardSlot({
             </span>
           </div>
         </div>
+        {consecrating && !card.revealed && (
+          <span aria-hidden="true" className="card-consecrate-shimmer" />
+        )}
       </div>
       {isSelected && !card.revealed && (
         <span
