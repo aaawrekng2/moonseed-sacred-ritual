@@ -13,6 +13,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScatterTestRouteImport } from './routes/scatter-test'
 import { Route as JournalRouteImport } from './routes/journal'
 import { Route as DrawRouteImport } from './routes/draw'
+import { Route as CardsRouteImport } from './routes/cards'
 import { Route as IndexRouteImport } from './routes/index'
 
 const SettingsRoute = SettingsRouteImport.update({
@@ -35,6 +36,11 @@ const DrawRoute = DrawRouteImport.update({
   path: '/draw',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CardsRoute = CardsRouteImport.update({
+  id: '/cards',
+  path: '/cards',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -43,6 +49,7 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/cards': typeof CardsRoute
   '/draw': typeof DrawRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cards': typeof CardsRoute
   '/draw': typeof DrawRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/cards': typeof CardsRoute
   '/draw': typeof DrawRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
@@ -65,14 +74,28 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/draw' | '/journal' | '/scatter-test' | '/settings'
+  fullPaths:
+    | '/'
+    | '/cards'
+    | '/draw'
+    | '/journal'
+    | '/scatter-test'
+    | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/draw' | '/journal' | '/scatter-test' | '/settings'
-  id: '__root__' | '/' | '/draw' | '/journal' | '/scatter-test' | '/settings'
+  to: '/' | '/cards' | '/draw' | '/journal' | '/scatter-test' | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/cards'
+    | '/draw'
+    | '/journal'
+    | '/scatter-test'
+    | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CardsRoute: typeof CardsRoute
   DrawRoute: typeof DrawRoute
   JournalRoute: typeof JournalRoute
   ScatterTestRoute: typeof ScatterTestRoute
@@ -109,6 +132,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DrawRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cards': {
+      id: '/cards'
+      path: '/cards'
+      fullPath: '/cards'
+      preLoaderRoute: typeof CardsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -121,6 +151,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CardsRoute: CardsRoute,
   DrawRoute: DrawRoute,
   JournalRoute: JournalRoute,
   ScatterTestRoute: ScatterTestRoute,
