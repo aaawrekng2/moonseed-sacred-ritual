@@ -91,6 +91,8 @@ type CardState = ScatterCard & {
 export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const meta = SPREAD_META[spread];
   const required = meta.count;
+  const usesSlots = spreadUsesSlots(spread);
+  const slotLabels = meta.positions ?? [];
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -106,6 +108,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const stirTimerRef = useRef<number | null>(null);
   const [revealing, setRevealing] = useState(false);
   const [revealedAll, setRevealedAll] = useState(false);
+  // Refs to each slot DOM element. Used to compute flight target rects in
+  // viewport coordinates so a selected card can animate from its current
+  // scatter position to its slot.
+  const slotRefs = useRef<(HTMLDivElement | null)[]>([]);
+  // Viewport-coordinate rect for each slot (id'd by slot index 0..N-1).
+  // Re-measured on resize and when slot row mounts.
+  const [slotRects, setSlotRects] = useState<Array<DOMRect | null>>([]);
   const { opacity: restingOpacityPct, setOpacity: setRestingOpacity } =
     useRestingOpacity();
   const restingAlpha = restingOpacityPct / 100;
@@ -200,7 +209,37 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         revealed: false,
       })),
     );
-  }, [initialScatter]);
+    setSlotRects(usesSlots ? Array(required).fill(null) : []);
+  }, [initialScatter, usesSlots, required]);
+
+  // Measure slot rects after layout (and on resize). Selected-card flight
+  // animations read from these rects to compute their flight target.
+  useEffect(() => {
+    if (!usesSlots) return;
+    const measure = () => {
+      const next = slotRefs.current.map((el) =>
+        el ? el.getBoundingClientRect() : null,
+      );
+      setSlotRects(next);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [usesSlots, size, required, cards.length]);
+
+  // Re-measure slots whenever any selection changes (slot row may grow / re-flow).
+  const selectionSig = cards.map((c) => c.selectionOrder ?? "_").join(",");
+  useEffect(() => {
+    if (!usesSlots) return;
+    // Two ticks: layout pass + paint, then read.
+    const id = window.requestAnimationFrame(() => {
+      const next = slotRefs.current.map((el) =>
+        el ? el.getBoundingClientRect() : null,
+      );
+      setSlotRects(next);
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [usesSlots, selectionSig]);
 
   // Stir: rebuild scatter for unselected cards only. Selected cards keep
   // their position, rotation, z-order, and slot number untouched.
