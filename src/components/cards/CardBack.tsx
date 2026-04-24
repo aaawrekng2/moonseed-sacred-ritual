@@ -41,42 +41,121 @@ function Corners({ color, dotColor }: { color: string; dotColor: string }) {
   );
 }
 
-function CelestialBack() {
-  const stars = [
-    { x: 18, y: 14, r: 1.4, o: 0.85 },
-    { x: 62, y: 18, r: 1, o: 0.7 },
-    { x: 12, y: 50, r: 1.2, o: 0.75 },
-    { x: 70, y: 60, r: 1.6, o: 0.9 },
-    { x: 24, y: 72, r: 1, o: 0.6 },
-    { x: 56, y: 78, r: 1.3, o: 0.8 },
-    { x: 40, y: 6, r: 0.8, o: 0.65 },
-    { x: 8, y: 30, r: 0.9, o: 0.7 },
+/**
+ * Celestial back — luminosity pass.
+ * Stars are absolutely positioned in CSS pixels (assumes width=180).
+ * SVG motif fills the card and contains crescent + rings + cardinal accents.
+ */
+function CelestialBack({ width }: { width: number }) {
+  // Star coordinates given for a 180px wide card. Scale proportionally.
+  const scale = width / 180;
+  const STARS: { size: number; top: number; left: number; opacity: number }[] = [
+    { size: 2.5, top: 26, left: 20, opacity: 0.95 },
+    { size: 2, top: 38, left: 72, opacity: 0.8 },
+    { size: 1.5, top: 52, left: 32, opacity: 0.6 },
+    { size: 2.5, top: 20, left: 82, opacity: 0.9 },
+    { size: 1.5, top: 148, left: 22, opacity: 0.7 },
+    { size: 2, top: 158, left: 80, opacity: 0.8 },
+    { size: 1, top: 135, left: 55, opacity: 0.5 },
+    { size: 1.5, top: 65, left: 88, opacity: 0.55 },
   ];
   return (
-    <svg viewBox="0 0 80 80" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-      <Stars dots={stars} />
-      {/* central crescent + rings */}
-      <g
-        transform="translate(40 42)"
-        stroke="rgba(220,195,255,0.9)"
-        strokeWidth="0.6"
-        fill="none"
-      >
-        <circle r="14" opacity="0.55" />
-        <circle r="10" opacity="0.75" />
-        <path
-          d="M -5 -7 A 8 8 0 1 0 -5 7 A 6 6 0 1 1 -5 -7 Z"
-          fill="rgba(220,195,255,0.85)"
-          stroke="none"
+    <>
+      {/* Soft inner radial glow */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 45%, rgba(161,130,220,0.10), transparent 60%)",
+        }}
+      />
+      {/* Double inner border */}
+      <div
+        className="pointer-events-none absolute"
+        style={{
+          inset: 8,
+          borderRadius: 6,
+          border: "1px solid rgba(200,170,255,0.45)",
+        }}
+      />
+      <div
+        className="pointer-events-none absolute"
+        style={{
+          inset: 14,
+          borderRadius: 4,
+          border: "1px solid rgba(200,170,255,0.20)",
+        }}
+      />
+      {/* Stars */}
+      {STARS.map((s, i) => (
+        <span
+          key={i}
+          className="pointer-events-none absolute rounded-full bg-white"
+          style={{
+            top: s.top * scale,
+            left: s.left * scale,
+            width: s.size * scale,
+            height: s.size * scale,
+            opacity: s.opacity,
+            boxShadow: `0 0 ${s.size * 2 * scale}px rgba(220,195,255,${s.opacity * 0.6})`,
+          }}
         />
-        {/* cardinal dots */}
-        <circle cx="0" cy="-14" r="0.9" fill="rgba(220,195,255,0.7)" stroke="none" />
-        <circle cx="0" cy="14" r="0.9" fill="rgba(220,195,255,0.7)" stroke="none" />
-        <circle cx="-14" cy="0" r="0.9" fill="rgba(220,195,255,0.7)" stroke="none" />
-        <circle cx="14" cy="0" r="0.9" fill="rgba(220,195,255,0.7)" stroke="none" />
-      </g>
-      <Corners color="rgba(210,185,255,0.7)" dotColor="rgba(210,185,255,0.85)" />
-    </svg>
+      ))}
+      {/* Central motif */}
+      <svg
+        viewBox="0 0 74 74"
+        preserveAspectRatio="xMidYMid meet"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[44%] w-[44%] -translate-x-1/2 -translate-y-1/2"
+      >
+        <g transform="translate(37 37)" fill="none">
+          {/* concentric rings */}
+          <circle r="22" stroke="rgba(200,170,255,0.25)" strokeWidth="0.8" />
+          <circle r="16" stroke="rgba(200,170,255,0.35)" strokeWidth="0.8" />
+          {/* crescent moon */}
+          <path
+            d="M -4 -9 A 10 10 0 1 0 -4 9 A 7.5 7.5 0 1 1 -4 -9 Z"
+            fill="rgba(230,215,255,0.92)"
+            stroke="rgba(220,195,255,0.95)"
+            strokeWidth="0.6"
+          />
+          {/* cardinal tick lines */}
+          <line x1="0" y1="-22" x2="0" y2="-19" stroke="rgba(220,195,255,0.7)" strokeWidth="0.8" />
+          <line x1="0" y1="19" x2="0" y2="22" stroke="rgba(220,195,255,0.7)" strokeWidth="0.8" />
+          <line x1="-22" y1="0" x2="-19" y2="0" stroke="rgba(220,195,255,0.7)" strokeWidth="0.8" />
+          <line x1="19" y1="0" x2="22" y2="0" stroke="rgba(220,195,255,0.7)" strokeWidth="0.8" />
+          {/* cardinal dot accents */}
+          <circle cx="0" cy="-22" r="1.4" fill="rgba(220,195,255,0.75)" />
+          <circle cx="0" cy="22" r="1.4" fill="rgba(220,195,255,0.75)" />
+          <circle cx="-22" cy="0" r="1.4" fill="rgba(220,195,255,0.75)" />
+          <circle cx="22" cy="0" r="1.4" fill="rgba(220,195,255,0.75)" />
+        </g>
+      </svg>
+      {/* Corner ornaments */}
+      <svg
+        viewBox="0 0 80 80"
+        preserveAspectRatio="none"
+        className="pointer-events-none absolute inset-0 h-full w-full"
+      >
+        <g stroke="rgba(210,185,255,0.7)" strokeWidth="0.8" fill="none">
+          {/* top-left */}
+          <line x1="6" y1="6" x2="14" y2="6" />
+          <line x1="6" y1="6" x2="6" y2="14" />
+          <circle cx="6" cy="6" r="1.2" fill="rgba(220,195,255,0.9)" stroke="none" />
+          {/* top-right */}
+          <line x1="74" y1="6" x2="66" y2="6" />
+          <line x1="74" y1="6" x2="74" y2="14" />
+          <circle cx="74" cy="6" r="1.2" fill="rgba(220,195,255,0.9)" stroke="none" />
+          {/* bottom-left */}
+          <line x1="6" y1="74" x2="14" y2="74" />
+          <line x1="6" y1="74" x2="6" y2="66" />
+          <circle cx="6" cy="74" r="1.2" fill="rgba(220,195,255,0.9)" stroke="none" />
+          {/* bottom-right */}
+          <line x1="74" y1="74" x2="66" y2="74" />
+          <line x1="74" y1="74" x2="74" y2="66" />
+          <circle cx="74" cy="74" r="1.2" fill="rgba(220,195,255,0.9)" stroke="none" />
+        </g>
+      </svg>
+    </>
   );
 }
 
@@ -274,7 +353,7 @@ export function CardBack({ id = "celestial", width = 160, className, ariaLabel }
         boxShadow: style.insets,
       }}
     >
-      {id === "celestial" && <CelestialBack />}
+      {id === "celestial" && <CelestialBack width={width} />}
       {id === "void" && <VoidBack />}
       {id === "ember" && <EmberBack />}
       {id === "ocean" && <OceanBack />}
