@@ -231,7 +231,7 @@ export function MoonCarousel() {
           {days.map((d) => {
             const isExpanded = expandedRel === d.relative;
             const absRel = Math.abs(d.relative);
-            const stepOffset = absRel === 0 ? 0 : absRel === 1 ? 16 : 32;
+            const stepOffset = absRel === 0 ? 0 : absRel === 1 ? 20 : 38;
             return (
               <div
                 key={d.info.date.toDateString()}
