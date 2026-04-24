@@ -60,8 +60,8 @@ export function SpreadIconsRow() {
 
   return (
     <div
-      className="grid w-full grid-cols-4 px-6 pb-4"
-      style={{ opacity: restingAlpha }}
+      className="grid grid-cols-4 px-6 pb-4"
+      style={{ opacity: restingAlpha, maxWidth: 380, width: "100%", margin: "0 auto" }}
     >
       {SPREADS.map(({ id, label, Glyph }) => (
         <button
