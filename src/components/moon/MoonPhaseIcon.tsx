@@ -50,16 +50,28 @@ export function MoonPhaseIcon({ phase, size = 64, className, ariaHidden = true }
           <stop offset="60%" stopColor="rgba(212,175,55,0)" />
           <stop offset="100%" stopColor="rgba(212,175,55,0.18)" />
         </radialGradient>
+        {/* Mask used for crescent/gibbous: white = visible pearl, black = hidden */}
+        <PhaseMask phase={phase} maskId={`${id}-mask`} />
       </defs>
-      <circle cx={CX} cy={CY} r={R + 4} fill={`url(#${id}-halo)`} />
+      <circle cx={CX} cy={CY} r={R + 2} fill={`url(#${id}-halo)`} />
       <circle cx={CX} cy={CY} r={R} fill={`url(#${bodyId})`} />
-      <PhaseIllumination phase={phase} pearlId={pearlId} glowId={glowId} />
+      <PhaseIllumination phase={phase} pearlId={pearlId} glowId={glowId} maskId={`${id}-mask`} />
       <circle cx={CX} cy={CY} r={R} fill="none" stroke="rgba(212,175,55,0.25)" strokeWidth={0.5} />
     </svg>
   );
 }
 
-function PhaseIllumination({ phase, pearlId, glowId }: { phase: MoonPhaseName; pearlId: string; glowId: string }) {
+function PhaseIllumination({
+  phase,
+  pearlId,
+  glowId,
+  maskId,
+}: {
+  phase: MoonPhaseName;
+  pearlId: string;
+  glowId: string;
+  maskId: string;
+}) {
   const pearl = `url(#${pearlId})`;
   const filter = `url(#${glowId})`;
   switch (phase) {
@@ -72,41 +84,83 @@ function PhaseIllumination({ phase, pearlId, glowId }: { phase: MoonPhaseName; p
     case "Last Quarter":
       return <path d={`M ${CX} ${CY - R} A ${R} ${R} 0 0 0 ${CX} ${CY + R} Z`} fill={pearl} filter={filter} />;
     case "Waxing Crescent":
-      return <path d={crescentPath({ side: "right", thickness: 0.35 })} fill={pearl} filter={filter} />;
     case "Waning Crescent":
-      return <path d={crescentPath({ side: "left", thickness: 0.35 })} fill={pearl} filter={filter} />;
     case "Waxing Gibbous":
-      return <path d={gibbousPath({ side: "right", thickness: 0.7 })} fill={pearl} filter={filter} />;
     case "Waning Gibbous":
-      return <path d={gibbousPath({ side: "left", thickness: 0.7 })} fill={pearl} filter={filter} />;
+      // Render the full pearl disc and mask away the dark portion. This is
+      // far more reliable than two-arc paths (which can degenerate to empty
+      // shapes if sweep flags or radii are off) and guarantees the moon is
+      // always visibly illuminated.
+      return (
+        <circle
+          cx={CX}
+          cy={CY}
+          r={R}
+          fill={pearl}
+          filter={filter}
+          mask={`url(#${maskId})`}
+        />
+      );
     default:
       // Safety fallback — render a Full Moon so no phase ever renders empty.
       return <circle cx={CX} cy={CY} r={R} fill={pearl} filter={filter} />;
   }
 }
 
-function crescentPath({ side, thickness }: { side: "left" | "right"; thickness: number }): string {
-  const sweepOuter = side === "right" ? 1 : 0;
-  const sweepInner = side === "right" ? 0 : 1;
-  const rx = R * (1 - thickness * 2);
-  const innerRx = Math.abs(rx);
-  return [
-    `M ${CX} ${CY - R}`,
-    `A ${R} ${R} 0 0 ${sweepOuter} ${CX} ${CY + R}`,
-    `A ${innerRx} ${R} 0 0 ${sweepInner} ${CX} ${CY - R}`,
-    "Z",
-  ].join(" ");
-}
-
-function gibbousPath({ side, thickness }: { side: "left" | "right"; thickness: number }): string {
-  const sweepOuter = side === "right" ? 1 : 0;
-  const sweepInner = side === "right" ? 1 : 0;
-  const rx = R * (thickness * 2 - 1);
-  const innerRx = Math.max(0.001, rx);
-  return [
-    `M ${CX} ${CY - R}`,
-    `A ${R} ${R} 0 0 ${sweepOuter} ${CX} ${CY + R}`,
-    `A ${innerRx} ${R} 0 0 ${sweepInner} ${CX} ${CY - R}`,
-    "Z",
-  ].join(" ");
+/**
+ * Build an SVG <mask> for crescent/gibbous phases. White areas = visible
+ * pearl; black areas = hidden (dark side of the moon).
+ *
+ * Approach: start with a full-white disc (entire moon visible), then paint
+ * a black ellipse to subtract the shadowed portion. Ellipse position and
+ * width are chosen so the visible illumination matches the named phase.
+ */
+function PhaseMask({ phase, maskId }: { phase: MoonPhaseName; maskId: string }) {
+  // shadowSide = which side of the moon is dark.
+  // shadowWidth = horizontal radius of the shadow ellipse, as a fraction of R.
+  //   Smaller value → smaller shadow → more illumination (gibbous).
+  //   Larger value → larger shadow → less illumination (crescent).
+  let shadowSide: "left" | "right";
+  let shadowWidthFrac: number;
+  let shadowOffsetFrac: number; // how far the shadow ellipse center sits from CX, as fraction of R
+  switch (phase) {
+    case "Waxing Crescent":
+      shadowSide = "left";
+      shadowWidthFrac = 0.85;
+      shadowOffsetFrac = 0.35;
+      break;
+    case "Waning Crescent":
+      shadowSide = "right";
+      shadowWidthFrac = 0.85;
+      shadowOffsetFrac = 0.35;
+      break;
+    case "Waxing Gibbous":
+      shadowSide = "left";
+      shadowWidthFrac = 0.55;
+      shadowOffsetFrac = 0.85;
+      break;
+    case "Waning Gibbous":
+      shadowSide = "right";
+      shadowWidthFrac = 0.55;
+      shadowOffsetFrac = 0.85;
+      break;
+    default:
+      // Mask is only consulted for crescent/gibbous; default to "all visible".
+      return (
+        <mask id={maskId}>
+          <rect x={0} y={0} width={VB} height={VB} fill="white" />
+        </mask>
+      );
+  }
+  const shadowCx =
+    shadowSide === "left" ? CX - R * shadowOffsetFrac : CX + R * shadowOffsetFrac;
+  const shadowRx = R * shadowWidthFrac;
+  return (
+    <mask id={maskId}>
+      {/* Reveal the entire moon disc */}
+      <circle cx={CX} cy={CY} r={R} fill="white" />
+      {/* Subtract the dark side */}
+      <ellipse cx={shadowCx} cy={CY} rx={shadowRx} ry={R} fill="black" />
+    </mask>
+  );
 }
