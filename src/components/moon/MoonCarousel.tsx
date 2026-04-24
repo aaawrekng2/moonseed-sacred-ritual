@@ -732,10 +732,6 @@ function PhaseLadder({
     ? LADDER_RUNGS.findIndex((r) => r.phase === activePhase)
     : -1;
 
-  // Re-fire the glow/scale animation whenever the offset changes while a
-  // rung is active. Keying on `${offset}-${activeIdx}` resets the animation.
-  const pulseKey = `${offset}-${activeIdx}`;
-
   const ladderColumn = (
     <div
       className={cn(
