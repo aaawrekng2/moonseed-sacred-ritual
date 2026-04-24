@@ -712,10 +712,10 @@ function PhaseLadder({
             )}
           >
             <span
-              className="moon-rung-glow inline-flex items-center justify-center rounded-full"
+              className="moon-rung-glow inline-flex items-center justify-center rounded-full group-hover:[background:radial-gradient(circle,rgba(212,175,55,0.55)_0%,transparent_70%)]"
               style={{
                 background:
-                  "radial-gradient(circle, rgba(212,175,55,0.18) 0%, transparent 70%)",
+                  "radial-gradient(circle, rgba(212,175,55,0.35) 0%, transparent 70%)",
                 padding: "3px",
                 transition: "background 200ms ease",
               }}
