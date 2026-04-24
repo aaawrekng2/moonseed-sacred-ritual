@@ -144,6 +144,10 @@ export function MoonCarousel() {
   }, []);
 
   const shift = (dir: -1 | 1) => {
+    if (tweenRafRef.current) {
+      cancelAnimationFrame(tweenRafRef.current);
+      tweenRafRef.current = null;
+    }
     setOffset((o) => o + dir);
     setExpandedRel(null);
     setSelectedRel(null);
@@ -183,15 +187,19 @@ export function MoonCarousel() {
 
       setTransitioning(true);
 
-      // 60ms per step, capped so very long jumps still feel snappy.
-      const duration = Math.min(900, Math.max(280, Math.abs(distance) * 60));
+      // 40ms per step, capped so very long jumps still feel snappy.
+      const duration = Math.min(600, Math.max(200, Math.abs(distance) * 40));
       const startTime = performance.now();
       const ease = (t: number) => 1 - Math.pow(1 - t, 3); // easeOutCubic
 
+      let prevNext: number | null = null;
       const tick = (now: number) => {
         const t = Math.min(1, (now - startTime) / duration);
         const next = Math.round(start + distance * ease(t));
-        setOffset(next);
+        if (next !== prevNext) {
+          setOffset(next);
+          prevNext = next;
+        }
         if (t < 1) {
           tweenRafRef.current = requestAnimationFrame(tick);
         } else {
