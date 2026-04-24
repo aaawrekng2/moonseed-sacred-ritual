@@ -50,6 +50,15 @@ export function MoonPhaseIcon({ phase, size = 64, className, ariaHidden = true }
       // Skip if the element was unmounted between schedule and tick — a
       // 0×0 box on a detached node is an unmount race, not a layout bug.
       if (!svg.isConnected) return;
+      // Skip if any ancestor has display:none (e.g. mobile ladder on a
+      // desktop viewport, or vice versa). A hidden subtree always measures
+      // 0×0 and that's expected, not a clip bug.
+      let node: Element | null = svg;
+      while (node) {
+        const cs = getComputedStyle(node);
+        if (cs.display === "none" || cs.visibility === "hidden") return;
+        node = node.parentElement;
+      }
       const rect = svg.getBoundingClientRect();
       if (rect.width === 0 || rect.height === 0) {
         warnOnce(
