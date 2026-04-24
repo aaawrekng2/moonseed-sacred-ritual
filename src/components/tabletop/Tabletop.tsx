@@ -137,7 +137,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const hitInset = adaptiveHitInset(cardW, isCoarsePointer);
 
-  const scatter = useMemo(() => {
+  // Initial scatter — only depends on session seed + geometry, NOT stirNonce,
+  // so resizing or first-mount doesn't wipe the user's selections.
+  const initialScatter = useMemo(() => {
     if (!size) return [] as ScatterCard[];
     return buildScatter({
       width: size.w,
@@ -159,12 +161,52 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const [cards, setCards] = useState<CardState[]>([]);
 
+  // Reset / rebuild whenever the underlying scatter geometry changes
+  // (mount, resize, breakpoint change). Stir is handled separately so it
+  // can preserve selected cards.
   useEffect(() => {
-    if (scatter.length === 0) return;
+    if (initialScatter.length === 0) return;
     setCards(
-      scatter.map((s) => ({ ...s, selectionOrder: null, revealed: false })),
+      initialScatter.map((s) => ({
+        ...s,
+        selectionOrder: null,
+        revealed: false,
+      })),
     );
-  }, [scatter]);
+  }, [initialScatter]);
+
+  // Stir: rebuild scatter for unselected cards only. Selected cards keep
+  // their position, rotation, z-order, and slot number untouched.
+  useEffect(() => {
+    if (stirNonce === 0) return;
+    if (!size) return;
+    setCards((prev) => {
+      if (prev.length === 0) return prev;
+      const fresh = buildScatter({
+        width: size.w,
+        height: size.h,
+        count: TABLETOP_CONFIG.DECK_SIZE,
+        cardWidth: cardW,
+        cardHeight: cardH,
+        maxRotation,
+        padding: TABLETOP_CONFIG.SCATTER_PADDING,
+        seed: (seed ^ (stirNonce * 0x9e3779b9)) >>> 0,
+      });
+      // Use the fresh scatter slots in order to re-place each unselected card.
+      let cursor = 0;
+      return prev.map((c) => {
+        if (c.selectionOrder !== null) return c; // preserve selected exactly
+        const next = fresh[cursor++ % fresh.length];
+        return {
+          ...c,
+          x: next.x,
+          y: next.y,
+          rotation: next.rotation,
+          z: next.z,
+        };
+      });
+    });
+  }, [stirNonce, size, cardW, cardH, maxRotation, seed]);
 
   const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
   const ready = selectedCount === required;
