@@ -108,6 +108,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const restingAlpha = restingOpacityPct / 100;
   const exitAlpha = Math.min(1, restingAlpha + 0.1);
 
+  // Dev-only overlap debug overlay. Visualises each card's visible-area
+  // ratio so the 30% minimum visibility rule can be eyeballed at a glance.
+  const [debugOverlap, setDebugOverlap] = useState(false);
+
   // Read selected card back once on mount.
   useEffect(() => {
     setCardBack(getStoredCardBack());
@@ -232,6 +236,37 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       });
     });
   }, [stirNonce, size, cardW, cardH, maxRotation, seed, exclusionZones]);
+
+  // Per-card visible-area ratio (0–1), derived from current card positions
+  // and the same overlap heuristic used by buildScatter's enforcement pass.
+  // Only computed when the debug overlay is on.
+  const visibilityByCardId = useMemo(() => {
+    const map = new Map<number, number>();
+    if (!debugOverlap || cards.length === 0) return map;
+    const area = cardW * cardH;
+    if (area <= 0) return map;
+    // Sort by z; higher-z cards (later in the array) render on top.
+    const byZ = [...cards].sort((a, b) => a.z - b.z);
+    for (let i = 0; i < byZ.length; i++) {
+      const c = byZ[i];
+      let covered = 0;
+      for (let j = i + 1; j < byZ.length; j++) {
+        const o = byZ[j];
+        const ow = Math.max(
+          0,
+          Math.min(c.x + cardW, o.x + cardW) - Math.max(c.x, o.x),
+        );
+        const oh = Math.max(
+          0,
+          Math.min(c.y + cardH, o.y + cardH) - Math.max(c.y, o.y),
+        );
+        covered += ow * oh;
+        if (covered >= area) break;
+      }
+      map.set(c.id, Math.max(0, 1 - Math.min(area, covered) / area));
+    }
+    return map;
+  }, [debugOverlap, cards, cardW, cardH]);
 
   const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
   const ready = selectedCount === required;
@@ -376,6 +411,52 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             className="tabletop-shimmer-overlay"
           />
         )}
+        {/* Dev overlap debug overlay. Each card gets a tinted rectangle at
+            its bounding-box position with its visible-area % shown. Red <30%
+            (violates the rule), amber 30–60%, green ≥60%. */}
+        {debugOverlap &&
+          cards.map((c) => {
+            const ratio = visibilityByCardId.get(c.id) ?? 1;
+            const pct = Math.round(ratio * 100);
+            const violates = ratio < 0.3;
+            const tint = violates
+              ? "rgba(239, 68, 68, 0.45)" // red
+              : ratio < 0.6
+                ? "rgba(245, 158, 11, 0.35)" // amber
+                : "rgba(34, 197, 94, 0.30)"; // green
+            const border = violates
+              ? "2px solid rgba(239, 68, 68, 0.95)"
+              : ratio < 0.6
+                ? "1px dashed rgba(245, 158, 11, 0.9)"
+                : "1px dashed rgba(34, 197, 94, 0.8)";
+            return (
+              <div
+                key={`dbg-${c.id}`}
+                aria-hidden="true"
+                className="pointer-events-none absolute"
+                style={{
+                  left: c.x,
+                  top: c.y,
+                  width: cardW,
+                  height: cardH,
+                  background: tint,
+                  border,
+                  borderRadius: 10,
+                  zIndex: 9000 + c.z,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: "var(--font-mono, monospace)",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "white",
+                  textShadow: "0 1px 2px rgba(0,0,0,0.8)",
+                }}
+              >
+                {pct}%
+              </div>
+            );
+          })}
       </div>
 
       {/* Bottom zen bar: status whisper + soft reveal + stir affordance.
@@ -444,6 +525,40 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             Stir
           </button>
         )}
+
+        {/* Dev-only overlap debug toggle. Sits just above Stir so it never
+            competes with the zen affordances. Hidden chip styling, plain
+            English label so its purpose is obvious. */}
+        <button
+          type="button"
+          onClick={() => setDebugOverlap((v) => !v)}
+          aria-pressed={debugOverlap}
+          aria-label="Toggle overlap debug overlay"
+          style={{
+            position: "absolute",
+            left: "calc(env(safe-area-inset-left, 0px) + 20px)",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 56px)",
+            opacity: debugOverlap ? 1 : restingAlpha,
+            zIndex: 21,
+          }}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
+            "font-display text-[9px] uppercase tracking-[0.25em] transition-opacity",
+            "hover:!opacity-100 focus:!opacity-100 focus:outline-none",
+            debugOverlap
+              ? "border-red-400/70 text-red-200 bg-red-500/10"
+              : "border-gold/30 text-gold/70",
+          )}
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              "h-1.5 w-1.5 rounded-full",
+              debugOverlap ? "bg-red-400" : "bg-gold/50",
+            )}
+          />
+          Overlap {debugOverlap ? "On" : "Off"}
+        </button>
 
         {/* Centered whisper. When the spread is incomplete, this is a quiet
             status line ("Choose N more"). Once all picks are made it morphs
