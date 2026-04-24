@@ -586,7 +586,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]">
       {/* Temporary resting-opacity test slider — fixed upper-left, top
-          layer so cards never sit above its controls. */}
+          layer so cards never sit above its controls. Desktop-only:
+          hidden on mobile per design (it is a dev-only tool). */}
+      {!isMobile && (
       <div
         style={{
           position: "fixed",
@@ -624,6 +626,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           style={{ width: "100%", accentColor: "var(--gold)" }}
         />
       </div>
+      )}
 
       {/* Tabletop scatter area */}
       <div
