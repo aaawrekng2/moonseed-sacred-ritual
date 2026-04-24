@@ -44,7 +44,11 @@ export function BottomNav() {
                 }}
                 className={cn(
                   "flex flex-col items-center gap-1 py-1.5 transition-all hover:opacity-100",
-                  active || primary ? "text-gold" : "text-muted-foreground",
+                  active
+                    ? "text-gold"
+                    : primary
+                      ? "text-gold/80"
+                      : "text-muted-foreground",
                 )}
                 aria-current={active ? "page" : undefined}
               >
