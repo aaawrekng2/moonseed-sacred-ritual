@@ -158,6 +158,32 @@ html, body {
   border-radius: 10px;
 }
 
+/* Tabletop card flip — 3D transform */
+.flip-3d {
+  transform-style: preserve-3d;
+  transition: transform var(--flip-ms, 600ms) ease-in-out;
+}
+.flip-3d.is-flipped { transform: rotateY(180deg); }
+.flip-face {
+  position: absolute;
+  inset: 0;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.flip-face.back { transform: rotateY(0deg); }
+.flip-face.front { transform: rotateY(180deg); }
+
+@keyframes reveal-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(0.82 0.14 82 / 0); }
+  50%      { box-shadow: 0 0 24px 2px oklch(0.82 0.14 82 / 0.5); }
+}
+.animate-reveal-pulse { animation: reveal-pulse 2.4s ease-in-out infinite; }
+
+@keyframes settle-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 @media (orientation: landscape) and (max-height: 500px) {
   body::before {
     content: "Please rotate your device";
