@@ -853,6 +853,7 @@ function CardSlot({
   return (
     <button
       type="button"
+      ref={btnRef}
       onClick={handleClick}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
@@ -869,33 +870,65 @@ function CardSlot({
             : "Face-down card"
       }
       className={cn(
-        "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
+        flying
+          ? "fixed outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
+          : "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
         // While stirring, animate left/top/transform together so the card
         // drifts to its new scatter slot. Otherwise keep the snappier
         // transform-only transition for selection feedback.
-        stirring
+        flying
+          ? null
+          : stirring
           ? "card-stir-transition"
           : "transition-transform duration-200 ease-out",
         // Remove default tap highlight on iOS / Android.
         "[-webkit-tap-highlight-color:transparent] touch-manipulation",
         isSelected ? "z-30" : null,
       )}
-      style={{
-        left: card.x,
-        top: card.y,
-        width: cardW,
-        height: cardH,
-        transform: `rotate(${card.rotation}deg) translateY(${isSelected ? "-4px" : "0"})`,
-        // Selected cards (and their numbered badges) must always sit above
-        // every unselected card. Use a large constant well above any
-        // possible scatter z value.
-        zIndex: isSelected ? 1000 + (card.selectionOrder ?? 0) : card.z + 1,
-        animation: `settle-in 320ms ease-out both`,
-        animationDelay: `${settleDelay}ms`,
-        // Drives the .card-hit element's inset via a CSS variable so the
-        // touch target scales with the rendered card size.
-        ["--card-hit-inset" as string]: `${hitInset}px`,
-      }}
+      style={
+        flying && launchRect && slotRect
+          ? {
+              // Fixed (viewport) positioning during flight. Phase 'launching'
+              // sits at the captured rect; phase 'arrived' is the slot rect.
+              // The CSS transition between the two creates the flight.
+              left:
+                flightPhase === "launching" ? launchRect.left : slotRect.left,
+              top:
+                flightPhase === "launching" ? launchRect.top : slotRect.top,
+              width:
+                flightPhase === "launching" ? launchRect.width : slotRect.width,
+              height:
+                flightPhase === "launching"
+                  ? launchRect.height
+                  : slotRect.height,
+              transform:
+                flightPhase === "launching"
+                  ? `rotate(${launchRotationRef.current}deg)`
+                  : `rotate(0deg)`,
+              transition:
+                flightPhase === "launching"
+                  ? "none"
+                  : `left ${flightMs}ms cubic-bezier(0.22,1,0.36,1), top ${flightMs}ms cubic-bezier(0.22,1,0.36,1), width ${flightMs}ms cubic-bezier(0.22,1,0.36,1), height ${flightMs}ms cubic-bezier(0.22,1,0.36,1), transform ${flightMs}ms cubic-bezier(0.22,1,0.36,1)`,
+              zIndex: 1500 + (card.selectionOrder ?? 0),
+              ["--card-hit-inset" as string]: `${hitInset}px`,
+            }
+          : {
+              left: card.x,
+              top: card.y,
+              width: cardW,
+              height: cardH,
+              transform: `rotate(${card.rotation}deg) translateY(${isSelected ? "-4px" : "0"})`,
+              // Selected cards (and their numbered badges) must always sit above
+              // every unselected card. Use a large constant well above any
+              // possible scatter z value.
+              zIndex: isSelected ? 1000 + (card.selectionOrder ?? 0) : card.z + 1,
+              animation: `settle-in 320ms ease-out both`,
+              animationDelay: `${settleDelay}ms`,
+              // Drives the .card-hit element's inset via a CSS variable so the
+              // touch target scales with the rendered card size.
+              ["--card-hit-inset" as string]: `${hitInset}px`,
+            }
+      }
     >
       {/* Invisible expanded hit area for easier tapping on mobile. */}
       <span aria-hidden="true" className="card-hit" />
