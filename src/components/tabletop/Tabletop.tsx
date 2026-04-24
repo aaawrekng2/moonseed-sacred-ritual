@@ -76,6 +76,56 @@ function responsiveSlotWidth(viewportW: number, count: number): number {
 }
 
 /**
+ * Pick a random scatter spot for a card returning from a slot. Tries to
+ * minimise overlap with existing un-rotated card rects so the returned
+ * card is visible. Falls back to a random position if no roomy spot is
+ * found within a few tries (the table is intentionally cluttered).
+ */
+function pickReturnSpot(
+  cards: CardState[],
+  excludeId: number,
+  geo: {
+    width: number;
+    height: number;
+    cardW: number;
+    cardH: number;
+    padding: number;
+    maxRotation: number;
+  },
+): { x: number; y: number; rotation: number } {
+  const others = cards.filter((c) => c.id !== excludeId);
+  const maxX = Math.max(0, geo.width - geo.padding * 2 - geo.cardW);
+  const maxY = Math.max(0, geo.height - geo.padding * 2 - geo.cardH);
+  const tries = 20;
+  let best: { x: number; y: number; coverage: number } | null = null;
+  for (let i = 0; i < tries; i++) {
+    const x = geo.padding + Math.random() * maxX;
+    const y = geo.padding + Math.random() * maxY;
+    let coverage = 0;
+    for (const o of others) {
+      const ow = Math.max(
+        0,
+        Math.min(x + geo.cardW, o.x + geo.cardW) - Math.max(x, o.x),
+      );
+      const oh = Math.max(
+        0,
+        Math.min(y + geo.cardH, o.y + geo.cardH) - Math.max(y, o.y),
+      );
+      coverage += ow * oh;
+    }
+    if (best === null || coverage < best.coverage) {
+      best = { x, y, coverage };
+      // Good enough — visible enough that we won't waste cycles searching.
+      if (coverage < geo.cardW * geo.cardH * 0.4) break;
+    }
+  }
+  const spot = best ?? { x: geo.padding, y: geo.padding, coverage: 0 };
+  let rotation = (Math.random() * 2 - 1) * geo.maxRotation;
+  if (Math.abs(rotation) < 1) rotation = rotation >= 0 ? 1 : -1;
+  return { x: spot.x, y: spot.y, rotation };
+}
+
+/**
  * Adaptive max rotation: on very narrow portrait widths the rotated bounding
  * box of a card eats meaningful horizontal real-estate, making the scatter
  * feel cramped. Scale the tilt down smoothly so layouts stay spacious and
