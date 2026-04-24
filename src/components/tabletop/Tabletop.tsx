@@ -1367,6 +1367,13 @@ function CardSlot({
               {getCardName(faceIndex)}
             </span>
           </div>
+          {faceGlowing && (
+            <span
+              key={`face-glow-${faceGlowTick}`}
+              aria-hidden="true"
+              className="face-reveal-glow"
+            />
+          )}
         </div>
         {consecrating && !card.revealed && (
           <span aria-hidden="true" className="card-consecrate-shimmer" />
