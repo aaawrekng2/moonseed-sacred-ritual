@@ -253,8 +253,8 @@ export function MoonCarousel() {
         <div className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl">
           {days.map((d) => {
             const isExpanded = expandedRel === d.relative;
-            const absRel = Math.abs(d.relative);
             const rel = d.relative - offset; // -2..+2 within current window
+            const absRel = Math.abs(rel);    // window position, NOT distance from today
             const topOffset = absRel === 0 ? 0 : absRel === 1 ? 24 : 44;
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
