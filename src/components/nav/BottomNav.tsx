@@ -31,14 +31,14 @@ export function BottomNav() {
       }}
     >
       <ul
-        className="mx-auto flex max-w-md items-end justify-around px-4 pb-[calc(env(safe-area-inset-bottom)+8px)]"
-        style={{ height: 64 }}
+        className="mx-auto flex items-end justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+8px)]"
+        style={{ height: 64, maxWidth: 320, gap: 48 }}
       >
         {TABS.map(({ to, label, Icon, primary }) => {
           const active = location.pathname === to;
           const iconSize = primary ? 32 : 20;
           return (
-            <li key={to} className="flex-1">
+            <li key={to}>
               <Link
                 to={to}
                 style={{

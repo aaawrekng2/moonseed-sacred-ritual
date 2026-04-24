@@ -192,7 +192,7 @@ export function MoonCarousel() {
           it never clips and the chevrons never shift vertically. */}
       <div
         className="flex items-start justify-center gap-1 sm:gap-4 touch-pan-y overflow-visible"
-        style={{ height: 220 }}
+        style={{ height: 260 }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -227,16 +227,24 @@ export function MoonCarousel() {
           onStep={() => shift(-1)}
         />
 
-        <div className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl">
+        <div className="relative flex-1 max-w-2xl" style={{ height: 260 }}>
           {days.map((d) => {
             const isExpanded = expandedRel === d.relative;
             const absRel = Math.abs(d.relative);
-            const stepOffset = absRel === 0 ? 0 : absRel === 1 ? 24 : 44;
-            const isCenter = d.relative === offset; // center slot of the 5-card window
+            const rel = d.relative - offset; // -2..+2 within current window
+            const topOffset = absRel === 0 ? 0 : absRel === 1 ? 28 : 52;
+            const leftPercent =
+              rel === -2 ? 10 : rel === -1 ? 28 : rel === 0 ? 50 : rel === 1 ? 72 : 90;
+            const isCenter = rel === 0;
             return (
               <div
                 key={d.info.date.toDateString()}
-                style={{ transform: `translateY(${stepOffset}px)` }}
+                style={{
+                  position: "absolute",
+                  top: `${topOffset}px`,
+                  left: `${leftPercent}%`,
+                  transform: "translateX(-50%)",
+                }}
                 className={cn(
                   "flex flex-col items-center transition-all duration-300 ease-out",
                   isCenter ? "z-10 opacity-100" : isExpanded ? "z-10 opacity-100" : "opacity-70",
@@ -521,20 +529,20 @@ function PhaseLadder({
 
   return (
     <div
-      className="hidden sm:flex shrink-0 self-center flex-row items-center gap-2"
+      className="hidden sm:block relative shrink-0 self-center"
       aria-label={`${jumpVerb} phase navigator`}
+      style={{ width: 60 }}
     >
-      {isLeft ? (
-        <>
-          {chevronButton}
-          {ladderColumn}
-        </>
-      ) : (
-        <>
-          {ladderColumn}
-          {chevronButton}
-        </>
-      )}
+      {ladderColumn}
+      <div
+        className="absolute"
+        style={{
+          top: 36,
+          ...(isLeft ? { left: -8 } : { right: -8 }),
+        }}
+      >
+        {chevronButton}
+      </div>
     </div>
   );
 }
