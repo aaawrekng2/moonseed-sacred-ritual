@@ -220,51 +220,70 @@ function PhaseIllumination({
  * width are chosen so the visible illumination matches the named phase.
  */
 function PhaseMask({ phase, maskId }: { phase: MoonPhaseName; maskId: string }) {
-  // shadowSide = which side of the moon is dark.
-  // shadowWidth = horizontal radius of the shadow ellipse, as a fraction of R.
-  //   Smaller value → smaller shadow → more illumination (gibbous).
-  //   Larger value → larger shadow → less illumination (crescent).
+  // The terminator (boundary between lit and dark) on a real moon is an
+  // ellipse whose horizontal radius shrinks as the phase approaches full and
+  // grows as it approaches new. We model the dark side as a half-disc (the
+  // unlit hemisphere) UNIONED with an ellipse that either eats into the lit
+  // side (crescent: terminator bulges toward the lit side, leaving a sliver)
+  // or carves out of the dark side (gibbous: terminator bulges away from the
+  // lit side, leaving only a sliver of dark).
+  //
+  // Implementation: paint the unlit hemisphere black, then paint a white or
+  // black ellipse centered at CX to nudge the terminator. Width of that
+  // ellipse encodes how far past center the terminator reaches.
+  //
+  // shadowSide = which hemisphere is unlit.
+  // terminatorRx = horizontal radius of the terminator ellipse (fraction of R).
+  //   For crescents: large value → terminator bulges into lit side → thin sliver lit.
+  //   For gibbous:   large value → terminator bulges into dark side → thin sliver dark.
   let shadowSide: "left" | "right";
-  let shadowWidthFrac: number;
-  let shadowOffsetFrac: number; // how far the shadow ellipse center sits from CX, as fraction of R
+  let kind: "crescent" | "gibbous";
+  let terminatorRxFrac: number;
   switch (phase) {
     case "Waxing Crescent":
       shadowSide = "left";
-      shadowWidthFrac = 0.85;
-      shadowOffsetFrac = 0.35;
+      kind = "crescent";
+      terminatorRxFrac = 0.6; // ~25% illumination
       break;
     case "Waning Crescent":
       shadowSide = "right";
-      shadowWidthFrac = 0.85;
-      shadowOffsetFrac = 0.35;
+      kind = "crescent";
+      terminatorRxFrac = 0.6;
       break;
     case "Waxing Gibbous":
       shadowSide = "left";
-      shadowWidthFrac = 0.55;
-      shadowOffsetFrac = 0.85;
+      kind = "gibbous";
+      terminatorRxFrac = 0.6; // ~75% illumination
       break;
     case "Waning Gibbous":
       shadowSide = "right";
-      shadowWidthFrac = 0.55;
-      shadowOffsetFrac = 0.85;
+      kind = "gibbous";
+      terminatorRxFrac = 0.6;
       break;
     default:
-      // Mask is only consulted for crescent/gibbous; default to "all visible".
       return (
         <mask id={maskId}>
           <rect x={0} y={0} width={VB} height={VB} fill="white" />
         </mask>
       );
   }
-  const shadowCx =
-    shadowSide === "left" ? CX - R * shadowOffsetFrac : CX + R * shadowOffsetFrac;
-  const shadowRx = R * shadowWidthFrac;
+  const terminatorRx = R * terminatorRxFrac;
+  // Half-rect covering the unlit hemisphere.
+  const halfX = shadowSide === "left" ? CX - R : CX;
+  const halfWidth = R;
+  // For a crescent, the terminator ellipse is BLACK and overlaps onto the lit
+  // side, shrinking the lit area to a sliver. For a gibbous, the terminator
+  // ellipse is WHITE and overlaps onto the dark side, shrinking the dark
+  // area to a sliver.
+  const terminatorFill = kind === "crescent" ? "black" : "white";
   return (
     <mask id={maskId}>
       {/* Reveal the entire moon disc */}
       <circle cx={CX} cy={CY} r={R} fill="white" />
-      {/* Subtract the dark side */}
-      <ellipse cx={shadowCx} cy={CY} rx={shadowRx} ry={R} fill="black" />
+      {/* Paint the entire unlit hemisphere black. */}
+      <rect x={halfX} y={CY - R} width={halfWidth} height={R * 2} fill="black" />
+      {/* Nudge the terminator with an ellipse centered on the moon's center. */}
+      <ellipse cx={CX} cy={CY} rx={terminatorRx} ry={R} fill={terminatorFill} />
     </mask>
   );
 }
