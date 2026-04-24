@@ -703,18 +703,18 @@ function PhaseLadder({
 
   return (
     <div
-      className="hidden sm:flex shrink-0 self-center flex-row items-center gap-3 md:gap-4 lg:gap-5"
+      className="hidden sm:flex shrink-0 self-center flex-row items-start gap-3 md:gap-4 lg:gap-5"
       aria-label={`${jumpVerb} phase navigator`}
     >
       {isLeft ? (
         <>
-          {chevronButton}
+          <div style={{ marginTop: 36 }}>{chevronButton}</div>
           {ladderColumn}
         </>
       ) : (
         <>
           {ladderColumn}
-          {chevronButton}
+          <div style={{ marginTop: 36 }}>{chevronButton}</div>
         </>
       )}
     </div>
