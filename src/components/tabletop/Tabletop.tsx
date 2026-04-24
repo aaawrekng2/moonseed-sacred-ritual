@@ -247,8 +247,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const isMobile = (size?.w ?? 0) < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
   // Slot rail uses its own width (smaller on mobile / for many-slot
   // spreads) so all slots fit in one row without scrolling.
-  const slotW = responsiveSlotWidth(size?.w ?? 0, required);
-  const slotH = Math.round(slotW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
+  // Slot dimensions: on desktop they match the table card exactly (per
+  // design: empty slots read as full-size mirrors of the cards). On mobile
+  // they shrink so a 10-slot Celtic rail still fits in one row.
+  const slotW = isMobile ? responsiveSlotWidth(size?.w ?? 0, required) : cardW;
+  const slotH = isMobile
+    ? Math.round(slotW * TABLETOP_CONFIG.CARD_ASPECT_RATIO)
+    : cardH;
   // On mobile, abbreviate position labels so the rail isn't cluttered.
   const slotLabels = (isMobile ? meta.positionsShort : meta.positions) ?? [];
   // Always use the full ±CARD_MAX_ROTATION range so no card sits axis-aligned.
