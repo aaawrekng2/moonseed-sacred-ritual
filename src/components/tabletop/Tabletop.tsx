@@ -663,6 +663,7 @@ function CardSlot({
           "relative h-full w-full rounded-[10px] flip-3d",
           card.revealed && "is-flipped",
           tapTick > 0 && !card.revealed && "animate-card-tap",
+          stirring && !card.revealed && "animate-card-stir-glide",
         )}
         style={{
           // @ts-expect-error custom prop
