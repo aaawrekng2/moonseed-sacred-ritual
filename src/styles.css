@@ -280,3 +280,26 @@ button:hover .moon-rung-glow,
 button:focus-visible .moon-rung-glow {
   background: radial-gradient(circle, rgba(212, 175, 55, 0.35) 0%, transparent 70%) !important;
 }
+
+/* Calm gold shimmer sweep used by the MoonCarousel mount skeleton. A single
+   slow pass that loops, gentler than the phase-jump shimmer. Disabled under
+   prefers-reduced-motion so the skeleton stays a simple static placeholder. */
+@keyframes moon-skeleton-sweep {
+  0%   { transform: translateX(0%); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateX(500%); opacity: 0; }
+}
+.moon-skeleton-sweep {
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    color-mix(in oklab, var(--gold) 18%, transparent) 50%,
+    transparent 100%
+  );
+  filter: blur(8px);
+  animation: moon-skeleton-sweep 1800ms ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .moon-skeleton-sweep { animation: none; opacity: 0; }
+}
