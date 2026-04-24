@@ -92,6 +92,30 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // Bumped each time the user "stirs" the table. Used to derive a fresh
   // scatter seed for unselected cards while preserving selected ones.
   const [stirNonce, setStirNonce] = useState(0);
+  // True for the duration of the stir animation. Drives the tabletop tilt
+  // overlay and toggles a position-transition class on unselected cards so
+  // they drift to their new slots instead of snapping.
+  const [stirring, setStirring] = useState(false);
+  const stirTimerRef = useRef<number | null>(null);
+  const triggerStir = useCallback(() => {
+    if (revealing || revealedAll) return;
+    setStirring(true);
+    setStirNonce((n) => n + 1);
+    if (stirTimerRef.current != null) {
+      window.clearTimeout(stirTimerRef.current);
+    }
+    stirTimerRef.current = window.setTimeout(() => {
+      setStirring(false);
+      stirTimerRef.current = null;
+    }, 760);
+  }, [revealing, revealedAll]);
+  useEffect(() => {
+    return () => {
+      if (stirTimerRef.current != null) {
+        window.clearTimeout(stirTimerRef.current);
+      }
+    };
+  }, []);
   const { opacity: restingOpacityPct } = useRestingOpacity();
   const restingAlpha = restingOpacityPct / 100;
   const exitAlpha = Math.min(1, restingAlpha + 0.1);
