@@ -167,6 +167,8 @@ export function MoonCarousel() {
       if (Math.abs(distance) > 1) setShimmerKey((k) => k + 1);
       if (reduceMotion) return target;
 
+      setTransitioning(true);
+
       // 60ms per step, capped so very long jumps still feel snappy.
       const duration = Math.min(900, Math.max(280, Math.abs(distance) * 60));
       const startTime = performance.now();
@@ -180,6 +182,7 @@ export function MoonCarousel() {
           tweenRafRef.current = requestAnimationFrame(tick);
         } else {
           tweenRafRef.current = null;
+          setTransitioning(false);
         }
       };
       tweenRafRef.current = requestAnimationFrame(tick);
@@ -190,9 +193,9 @@ export function MoonCarousel() {
   // Tap a ladder rung → jump to the *nearest* occurrence of that phase in
   // either direction. Side-specific arrows (chevrons) still step ±1 day.
   const jumpToPhase = (phase: MoonPhaseName) => {
-    const delta = findNearestPhaseOccurrence(phase, new Date());
+    const delta = findNearestPhaseOccurrence(phase, viewedDate);
     if (delta === 0) return;
-    tweenOffsetTo(delta);
+    tweenOffsetTo(offset + delta);
   };
 
   useEffect(() => {
