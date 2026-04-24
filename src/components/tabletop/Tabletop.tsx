@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { Loader2, Sparkles, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
+import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { cn } from "@/lib/utils";
 
 const TABLETOP_CONFIG = {
@@ -88,6 +89,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [seed] = useState(() => (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
+  // Bumped each time the user "stirs" the table. Used to derive a fresh
+  // scatter seed for unselected cards while preserving selected ones.
+  const [stirNonce, setStirNonce] = useState(0);
+  const { opacity: restingOpacityPct } = useRestingOpacity();
+  const restingAlpha = restingOpacityPct / 100;
+  const exitAlpha = Math.min(1, restingAlpha + 0.1);
 
   // Read selected card back once on mount.
   useEffect(() => {
@@ -130,7 +137,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const hitInset = adaptiveHitInset(cardW, isCoarsePointer);
 
-  const scatter = useMemo(() => {
+  // Initial scatter — only depends on session seed + geometry, NOT stirNonce,
+  // so resizing or first-mount doesn't wipe the user's selections.
+  const initialScatter = useMemo(() => {
     if (!size) return [] as ScatterCard[];
     return buildScatter({
       width: size.w,
@@ -152,12 +161,52 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const [cards, setCards] = useState<CardState[]>([]);
 
+  // Reset / rebuild whenever the underlying scatter geometry changes
+  // (mount, resize, breakpoint change). Stir is handled separately so it
+  // can preserve selected cards.
   useEffect(() => {
-    if (scatter.length === 0) return;
+    if (initialScatter.length === 0) return;
     setCards(
-      scatter.map((s) => ({ ...s, selectionOrder: null, revealed: false })),
+      initialScatter.map((s) => ({
+        ...s,
+        selectionOrder: null,
+        revealed: false,
+      })),
     );
-  }, [scatter]);
+  }, [initialScatter]);
+
+  // Stir: rebuild scatter for unselected cards only. Selected cards keep
+  // their position, rotation, z-order, and slot number untouched.
+  useEffect(() => {
+    if (stirNonce === 0) return;
+    if (!size) return;
+    setCards((prev) => {
+      if (prev.length === 0) return prev;
+      const fresh = buildScatter({
+        width: size.w,
+        height: size.h,
+        count: TABLETOP_CONFIG.DECK_SIZE,
+        cardWidth: cardW,
+        cardHeight: cardH,
+        maxRotation,
+        padding: TABLETOP_CONFIG.SCATTER_PADDING,
+        seed: (seed ^ (stirNonce * 0x9e3779b9)) >>> 0,
+      });
+      // Use the fresh scatter slots in order to re-place each unselected card.
+      let cursor = 0;
+      return prev.map((c) => {
+        if (c.selectionOrder !== null) return c; // preserve selected exactly
+        const next = fresh[cursor++ % fresh.length];
+        return {
+          ...c,
+          x: next.x,
+          y: next.y,
+          rotation: next.rotation,
+          z: next.z,
+        };
+      });
+    });
+  }, [stirNonce, size, cardW, cardH, maxRotation, seed]);
 
   const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
   const ready = selectedCount === required;
@@ -386,37 +435,25 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]">
-      {/* Header */}
-      <div
-        className="flex items-center justify-between px-4"
-        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 10px)" }}
+      {/* Minimal exit affordance — single zen X in the top-right. */}
+      <button
+        type="button"
+        onClick={handleExit}
+        aria-label="Close tabletop"
+        style={{
+          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          opacity: exitAlpha,
+        }}
+        className="absolute right-4 z-50 flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
       >
-        <div className="flex flex-col">
-          <span className="text-[10px] uppercase tracking-[0.3em] text-gold/80">
-            {meta.label}
-          </span>
-          <span className="font-display text-sm text-foreground/80">
-            {revealedAll
-              ? "Revealed"
-              : ready
-                ? "Ready to reveal"
-                : `Choose ${required - selectedCount} more`}
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={handleExit}
-          aria-label="Close tabletop"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-card/40 hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
+        <X className="h-5 w-5" strokeWidth={1.5} />
+      </button>
 
       {/* Tabletop scatter area */}
       <div
         ref={containerRef}
         className="relative flex-1 overflow-hidden touch-none select-none"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)" }}
         onPointerDown={onContainerPointerDown}
         onPointerMove={onContainerPointerMove}
         onPointerUp={onContainerPointerUp}
@@ -441,44 +478,65 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         ))}
       </div>
 
-      {/* Reveal bar */}
+      {/* Bottom zen bar: status whisper + soft reveal + stir affordance.
+          Sits at resting opacity so nothing competes with the cards. */}
       <div
-        className="flex flex-col items-center justify-center gap-2 px-6 pt-3"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)" }}
+        className="relative flex flex-col items-center justify-center gap-3 px-6 pt-2"
+        style={{
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+        }}
       >
+        {/* Stir — anchored bottom-left at resting opacity. Single, quiet word. */}
+        {!revealedAll && (
+          <button
+            type="button"
+            onClick={() => setStirNonce((n) => n + 1)}
+            disabled={revealing}
+            aria-label="Stir — rearrange unselected cards"
+            style={{
+              opacity: restingAlpha,
+              bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+            }}
+            className="absolute left-5 inline-flex items-center gap-1.5 font-display text-[11px] uppercase tracking-[0.3em] text-gold/80 transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none disabled:cursor-not-allowed"
+          >
+            <Sparkles className="h-3 w-3" strokeWidth={1.5} aria-hidden="true" />
+            Stir
+          </button>
+        )}
+
         {!revealedAll && (
           <span
-            className="font-display text-[11px] uppercase tracking-[0.25em] text-gold/70"
+            className="font-display text-[10px] uppercase tracking-[0.4em] text-foreground"
+            style={{ opacity: restingAlpha }}
             aria-live="polite"
           >
-            {selectedCount} / {required} selected
+            {ready
+              ? "Ready"
+              : `Choose ${required - selectedCount} more`}
           </span>
         )}
+
         {!revealedAll && (
           <button
             type="button"
             onClick={handleReveal}
             disabled={!ready || revealing}
-            className={cn(
-              "inline-flex items-center justify-center gap-2 rounded-full border px-6 py-3 font-display text-sm uppercase tracking-[0.25em] transition-all",
-              "disabled:cursor-not-allowed",
-              ready && !revealing
-                ? "border-gold/60 bg-gold/10 text-gold animate-reveal-pulse"
-                : "border-border/50 bg-card/30 text-muted-foreground/60",
-            )}
             aria-busy={revealing}
+            className={cn(
+              "inline-flex items-center justify-center gap-2 font-display text-[12px] uppercase tracking-[0.4em] transition-all",
+              "border-b border-transparent pb-1 disabled:cursor-not-allowed",
+              ready && !revealing
+                ? "text-gold border-gold/40 hover:border-gold/80"
+                : "text-muted-foreground/40",
+            )}
           >
             {revealing && (
               <Loader2
-                className="h-4 w-4 animate-spin"
+                className="h-3.5 w-3.5 animate-spin"
                 aria-hidden="true"
               />
             )}
-            <span>
-              {revealing
-                ? "Revealing…"
-                : `Reveal ${required > 1 ? required + " cards" : "card"}`}
-            </span>
+            <span>{revealing ? "Revealing" : "Reveal"}</span>
           </button>
         )}
       </div>

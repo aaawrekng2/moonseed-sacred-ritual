@@ -1,4 +1,4 @@
-import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
+import { Outlet, Link, createRootRoute, HeadContent, Scripts, useLocation } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
 import { BottomNav } from "@/components/nav/BottomNav";
@@ -87,10 +87,14 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  const location = useLocation();
+  // Hide global chrome (bottom nav) on the immersive draw screen — it owns its
+  // own minimal header and exit affordance.
+  const hideChrome = location.pathname.startsWith("/draw");
   return (
     <div className="relative flex min-h-screen flex-col">
       <Outlet />
-      <BottomNav />
+      {!hideChrome && <BottomNav />}
     </div>
   );
 }
