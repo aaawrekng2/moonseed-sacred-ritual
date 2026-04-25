@@ -351,6 +351,7 @@ function CelticCross({
         {/* Center column: Future / (Present+Obstacle) / Root */}
         <div className="flex flex-col items-center" style={{ gap: rowGap }}>
           {cardWithLabel(future, labels[5] ?? "Future", 50)}
+          <div className="flex flex-col items-center gap-1.5">
           <div
             className="relative flex items-center justify-center"
             style={{ width: sizing.w, height: sizing.h }}
@@ -376,6 +377,12 @@ function CelticCross({
                 />
               </div>
             ) : null}
+          </div>
+          <PositionLabel>
+            {labels[0] ?? "Present"}
+            <span style={{ opacity: 0.4, margin: "0 4px" }}>·</span>
+            {labels[1] ?? "Obstacle"}
+          </PositionLabel>
           </div>
           {cardWithLabel(root, labels[2] ?? "Root", 200)}
         </div>
