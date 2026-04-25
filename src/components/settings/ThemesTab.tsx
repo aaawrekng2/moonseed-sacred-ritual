@@ -1445,35 +1445,42 @@ function SavedThemesSection() {
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
-                  <span
-                    aria-hidden
-                    className="block h-20 w-full rounded-xl ring-1 ring-border/40"
-                    style={{
-                      background: `linear-gradient(to right, ${theme.bg_left}, ${theme.bg_right})`,
-                    }}
-                  />
-                  <div className="flex items-start gap-2">
+                  <button
+                    type="button"
+                    onClick={() => requestLoad(theme)}
+                    aria-label={`Load ${theme.name}`}
+                    className="flex flex-1 flex-col gap-3 text-left focus:outline-none"
+                  >
                     <span
                       aria-hidden
-                      className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-border/60"
-                      style={{ backgroundColor: theme.accent }}
+                      className="block h-20 w-full rounded-xl ring-1 ring-border/40"
+                      style={{
+                        background: `linear-gradient(to right, ${theme.bg_left}, ${theme.bg_right})`,
+                      }}
                     />
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={cn(
-                          "truncate italic text-sm",
-                          active ? "text-gold" : "text-foreground",
-                        )}
-                        style={{ fontFamily: "var(--font-serif)" }}
-                      >
-                        {theme.name}
-                      </p>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                        Slot {slot}
-                        {active && " · active"}
-                      </p>
+                    <div className="flex items-start gap-2">
+                      <span
+                        aria-hidden
+                        className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-border/60"
+                        style={{ backgroundColor: theme.accent }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={cn(
+                            "truncate italic text-sm",
+                            active ? "text-gold" : "text-foreground",
+                          )}
+                          style={{ fontFamily: "var(--font-serif)" }}
+                        >
+                          {theme.name}
+                        </p>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Slot {slot}
+                          {active && " · active"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  </button>
                   <div className="mt-auto grid grid-cols-2 gap-2">
                     <Button
                       variant="outline"
@@ -1485,12 +1492,13 @@ function SavedThemesSection() {
                       Overwrite
                     </Button>
                     <Button
-                      variant="default"
+                      variant="outline"
                       size="sm"
-                      onClick={() => requestLoad(theme)}
-                      className="bg-gold-gradient text-gold-foreground hover:opacity-95"
+                      onClick={() => setDeleteTarget(theme)}
+                      className="gap-1 text-muted-foreground hover:text-destructive"
                     >
-                      Return here
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Erase
                     </Button>
                   </div>
                 </>
