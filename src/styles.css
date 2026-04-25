@@ -506,7 +506,7 @@ html, body {
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
-  body::before {
+  body:not([data-allow-landscape="true"])::before {
     content: "Please rotate your device";
     position: fixed; inset: 0;
     background: #0f0d1a;
