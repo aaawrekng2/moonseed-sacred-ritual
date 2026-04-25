@@ -319,8 +319,8 @@ function AccentColorSection() {
 
   return (
     <SettingsSection
-      title="Accent Color"
-      description="The gold-equivalent that highlights headings, rings and active states."
+      title="The Thread"
+      description="The color that runs through everything."
     >
       <div className="flex flex-wrap gap-3">
         {ACCENT_PRESETS.map((p) => {
@@ -338,18 +338,15 @@ function AccentColorSection() {
               )}
             >
               <span
-                className={cn(
-                  "block h-10 w-10 rounded-full transition-all",
-                  active
-                    ? "ring-2 ring-gold ring-offset-2 ring-offset-background shadow-glow"
-                    : "ring-1 ring-border/60 group-hover:ring-gold/50",
-                )}
+                className="block h-10 w-10 rounded-full ring-1 ring-border/60 transition-all group-hover:ring-gold/50"
                 style={{ backgroundColor: p.swatch }}
               />
               <span
                 className={cn(
-                  "text-[11px] leading-tight",
-                  active ? "text-gold" : "text-muted-foreground",
+                  "text-[11px] leading-tight pb-0.5 border-b-2 transition-colors",
+                  active
+                    ? "border-gold text-gold"
+                    : "border-transparent text-muted-foreground",
                 )}
               >
                 {p.label}
