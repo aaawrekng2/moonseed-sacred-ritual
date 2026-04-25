@@ -2309,8 +2309,13 @@ function CardSlot({
               // every unselected card. Use a large constant well above any
               // possible scatter z value.
               zIndex: isSelected ? 1000 + (card.selectionOrder ?? 0) : card.z + 1,
-              animation: `settle-in 320ms ease-out both`,
-              animationDelay: `${settleDelay}ms`,
+              // Skip the settle-in entrance animation if the card was just
+              // dragged — it's already at the drop position and replaying
+              // the opacity:0 → 1 fade looks like a disappear/reappear.
+              animation: wasDraggedRef.current
+                ? "none"
+                : `settle-in 320ms ease-out both`,
+              animationDelay: wasDraggedRef.current ? "0ms" : `${settleDelay}ms`,
               // Drives the .card-hit element's inset via a CSS variable so the
               // touch target scales with the rendered card size.
               ["--card-hit-inset" as string]: `${hitInset}px`,
