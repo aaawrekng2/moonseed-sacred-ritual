@@ -1,7 +1,14 @@
 import { useEffect, useState, useCallback } from "react";
 
-export const DEFAULT_BG_LEFT = "#1e1b4b";
-export const DEFAULT_BG_RIGHT = "#0f172a";
+/**
+ * Background gradient direction rule:
+ *   left  = darkest (the past, dim)
+ *   right = brightest (the future, bright)
+ * Every preset below honors this. Do not flip — see the
+ * "Community Themes + Gradient Direction" spec.
+ */
+export const DEFAULT_BG_LEFT = "#0f0c29";
+export const DEFAULT_BG_RIGHT = "#1e1b4b";
 
 export type BgPresetName =
   | "midnight"
@@ -12,12 +19,12 @@ export type BgPresetName =
   | "forest";
 
 export const BG_PRESETS = [
-  { value: "midnight", label: "Midnight", left: "#1e1b4b", right: "#0f172a" },
-  { value: "obsidian", label: "Obsidian", left: "#1a1a1a", right: "#2d2d2d" },
+  { value: "midnight",   label: "Midnight",   left: "#0f0c29", right: "#1e1b4b" },
+  { value: "obsidian",   label: "Obsidian",   left: "#1a1a1a", right: "#2d2d2d" },
   { value: "deep-ocean", label: "Deep Ocean", left: "#0c1445", right: "#0d3b3b" },
-  { value: "twilight", label: "Twilight", left: "#2d1b69", right: "#0f1a3d" },
-  { value: "ember", label: "Ember", left: "#2d1a0e", right: "#3d0a1a" },
-  { value: "forest", label: "Forest", left: "#0a2e1a", right: "#0a0a0a" },
+  { value: "twilight",   label: "Twilight",   left: "#0f1a3d", right: "#2d1b69" },
+  { value: "ember",      label: "Ember",      left: "#2d1a0e", right: "#3d0a1a" },
+  { value: "forest",     label: "Forest",     left: "#0a0a0a", right: "#0a2e1a" },
 ] as const;
 
 const STORAGE_KEY = "moonseed:bg-preset";
