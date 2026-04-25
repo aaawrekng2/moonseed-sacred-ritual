@@ -2110,7 +2110,7 @@ function CardSlot({
           ? null
           : stirring
           ? "card-stir-transition"
-          : "transition-transform duration-200 ease-out",
+          : "card-idle-transition",
         // Remove default tap highlight on iOS / Android.
         "[-webkit-tap-highlight-color:transparent] touch-manipulation",
         isSelected ? "z-30" : null,
