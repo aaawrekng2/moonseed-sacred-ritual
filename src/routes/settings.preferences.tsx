@@ -1,9 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from "@tanstack/react-router";
+import { PreferencesTab } from "@/components/settings/sections";
 
-export const Route = createFileRoute('/settings/preferences')({
-  component: RouteComponent,
-})
-
-function RouteComponent() {
-  return <div>Hello "/settings/preferences"!</div>
-}
+export const Route = createFileRoute("/settings/preferences")({
+  head: () => ({
+    meta: [{ title: "Preferences — Settings — Moonseed" }],
+  }),
+  component: PreferencesTab,
+});
