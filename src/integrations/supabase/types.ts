@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      readings: {
+        Row: {
+          card_ids: number[]
+          created_at: string
+          id: string
+          interpretation: string | null
+          spread_type: string
+          user_id: string
+        }
+        Insert: {
+          card_ids: number[]
+          created_at?: string
+          id?: string
+          interpretation?: string | null
+          spread_type: string
+          user_id: string
+        }
+        Update: {
+          card_ids?: number[]
+          created_at?: string
+          id?: string
+          interpretation?: string | null
+          spread_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_preferences: {
         Row: {
           accent: string
