@@ -155,22 +155,24 @@ function SpreadContent({
   labels,
   cardBack,
   revealed,
+  showLabels,
 }: {
   spread: SpreadMode;
   picks: Pick[];
   labels: string[];
   cardBack: CardBackId;
   revealed: boolean;
+  showLabels: boolean;
 }) {
   // Pick a card width that fits the spread + viewport. Celtic Cross has
   // the densest layout so it gets the smallest cards.
   const sizing = useMemo(() => spreadSizing(spread), [spread]);
 
   if (spread === "celtic") {
-    return <CelticCross picks={picks} labels={labels} cardBack={cardBack} revealed={revealed} sizing={sizing} />;
+    return <CelticCross picks={picks} labels={labels} cardBack={cardBack} revealed={revealed} sizing={sizing} showLabels={showLabels} />;
   }
   if (spread === "three") {
-    return <ThreeRow picks={picks} labels={labels} cardBack={cardBack} revealed={revealed} sizing={sizing} />;
+    return <ThreeRow picks={picks} labels={labels} cardBack={cardBack} revealed={revealed} sizing={sizing} showLabels={showLabels} />;
   }
   // single / daily / yes_no — one large card centered.
   return <SingleCard pick={picks[0]} cardBack={cardBack} revealed={revealed} sizing={sizing} />;
@@ -289,12 +291,14 @@ function ThreeRow({
   cardBack,
   revealed,
   sizing,
+  showLabels,
 }: {
   picks: Pick[];
   labels: string[];
   cardBack: CardBackId;
   revealed: boolean;
   sizing: Sizing;
+  showLabels: boolean;
 }) {
   return (
     <div className="flex items-end gap-6">
@@ -306,7 +310,9 @@ function ThreeRow({
             revealed={revealed}
             sizing={sizing}
           />
-          <PositionLabel>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
+          {showLabels && (
+            <PositionLabel>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
+          )}
         </div>
       ))}
     </div>
@@ -330,12 +336,14 @@ function CelticCross({
   cardBack,
   revealed,
   sizing,
+  showLabels,
 }: {
   picks: Pick[];
   labels: string[];
   cardBack: CardBackId;
   revealed: boolean;
   sizing: Sizing;
+  showLabels: boolean;
 }) {
   // Spacing constants tuned to the chosen card size.
   const colGap = Math.round(sizing.w * 0.35);
