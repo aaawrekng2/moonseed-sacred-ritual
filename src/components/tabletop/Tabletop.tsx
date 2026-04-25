@@ -894,21 +894,23 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                             : `${slotLabels[i] ?? `Slot ${i + 1}`} — empty`
                       }
                     />
-                    <span
-                      className={cn(
-                        "font-display italic",
-                        isNext && "slot-next-label",
-                      )}
-                      style={{
-                        fontSize: required >= 10 ? (isMobile ? 8 : 9) : 10,
-                        color: "var(--gold)",
-                        opacity: isNext ? undefined : restingAlpha,
-                        letterSpacing: "0.05em",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {slotLabels[i] ?? `Slot ${i + 1}`}
-                    </span>
+                    {showLabels && (
+                      <span
+                        className={cn(
+                          "font-display italic",
+                          isNext && "slot-next-label",
+                        )}
+                        style={{
+                          fontSize: required >= 10 ? (isMobile ? 8 : 9) : 10,
+                          color: "var(--gold)",
+                          opacity: isNext ? undefined : restingAlpha,
+                          letterSpacing: "0.05em",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {slotLabels[i] ?? `Slot ${i + 1}`}
+                      </span>
+                    )}
                   </div>
                 );
               })}
