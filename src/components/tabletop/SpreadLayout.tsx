@@ -373,7 +373,7 @@ function CelticCross({
           rotated={rotated}
           delayMs={delay}
         />
-        <PositionLabel>{label}</PositionLabel>
+        {showLabels && <PositionLabel>{label}</PositionLabel>}
       </div>
     ) : null;
 
@@ -414,11 +414,13 @@ function CelticCross({
               </div>
             ) : null}
           </div>
-          <PositionLabel>
-            {labels[0] ?? "Present"}
-            <span style={{ opacity: 0.4, margin: "0 4px" }}>·</span>
-            {labels[1] ?? "Obstacle"}
-          </PositionLabel>
+          {showLabels && (
+            <PositionLabel>
+              {labels[0] ?? "Present"}
+              <span style={{ opacity: 0.4, margin: "0 4px" }}>·</span>
+              {labels[1] ?? "Obstacle"}
+            </PositionLabel>
+          )}
           </div>
           {cardWithLabel(root, labels[2] ?? "Root", 200)}
         </div>
@@ -439,7 +441,9 @@ function CelticCross({
                 sizing={sizing}
                 delayMs={300 + i * 60}
               />
-              <PositionLabel>{labels[6 + i] ?? `Slot ${7 + i}`}</PositionLabel>
+              {showLabels && (
+                <PositionLabel>{labels[6 + i] ?? `Slot ${7 + i}`}</PositionLabel>
+              )}
             </div>
           ) : null,
         )}
