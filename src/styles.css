@@ -129,6 +129,10 @@ html, body {
 .tabletop-gutter-right {
   display: none;
 }
+.tabletop-stage,
+.tabletop-bottom-bar {
+  width: 100%;
+}
 @media (min-width: 768px) {
   .tabletop-gutter-left,
   .tabletop-gutter-right {
@@ -147,6 +151,12 @@ html, body {
   .tabletop-gutter-right {
     right: 0;
     background: var(--tabletop-gutter-right);
+  }
+  .tabletop-stage,
+  .tabletop-bottom-bar {
+    max-width: var(--tabletop-max-width);
+    margin-left: auto;
+    margin-right: auto;
   }
 }
 .font-display {
