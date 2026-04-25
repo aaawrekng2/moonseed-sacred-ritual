@@ -815,6 +815,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           originalY: s.y,
           originalRotation: s.rotation,
           originalZ: s.z,
+          lastTableX: s.x,
+          lastTableY: s.y,
+          lastTableRotation: s.rotation,
         })),
       );
       initializedRef.current = true;
@@ -833,6 +836,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           originalY: s.y,
           originalRotation: s.rotation,
           originalZ: s.z,
+          lastTableX: s.x,
+          lastTableY: s.y,
+          lastTableRotation: s.rotation,
         }));
       }
       let cursor = 0;
@@ -853,6 +859,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           originalY: next.y,
           originalRotation: next.rotation,
           originalZ: next.z,
+          lastTableX: next.x,
+          lastTableY: next.y,
+          lastTableRotation: next.rotation,
         };
       });
     });
