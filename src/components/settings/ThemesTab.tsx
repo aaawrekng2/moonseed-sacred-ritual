@@ -155,6 +155,7 @@ function ThemesTabInner() {
   return (
     <>
       <BaselineCapture />
+      <OracleDirtyWatcher />
       <UnsavedChangesGuard />
       <div className="space-y-10">
         <header className="flex items-start justify-between gap-4">
