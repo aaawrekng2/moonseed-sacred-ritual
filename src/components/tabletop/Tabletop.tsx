@@ -379,11 +379,33 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // Persisted preference for showing spread position labels under each
   // slot. Defaults to ON (annotated). Mirrored on the SpreadLayout
   // screen so the choice carries through the entire draw flow.
-  const { showLabels, toggleShowLabels } = useShowLabels();
+  const { showLabels, setShowLabels } = useShowLabels();
+  const { isOracle } = useOracleMode();
 
-  // Dev-only overlap debug overlay. Visualises each card's visible-area
-  // ratio so the 30% minimum visibility rule can be eyeballed at a glance.
-  const [debugOverlap, setDebugOverlap] = useState(false);
+  // Three-level UI density for the draw screen, controlled by the eye
+  // icon in the top-bar.
+  //   0 → labels under slots + bottom whisper (richest)
+  //   1 → labels under slots only (whisper hidden)
+  //   2 → labels and whisper hidden (most minimal)
+  // Persisted across sessions on `showLabels` (level 2 ↔ off) plus a
+  // local `showWhisper` flag for the middle tier.
+  const [showWhisper, setShowWhisper] = useState(true);
+  const densityLevel: 0 | 1 | 2 = !showLabels ? 2 : !showWhisper ? 1 : 0;
+  const cycleDensity = () => {
+    if (densityLevel === 0) {
+      setShowLabels(true);
+      setShowWhisper(false);
+    } else if (densityLevel === 1) {
+      setShowLabels(false);
+      setShowWhisper(false);
+    } else {
+      setShowLabels(true);
+      setShowWhisper(true);
+    }
+  };
+
+  // On-brand confirmation dialog state (replaces window.confirm calls).
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
 
   // Read selected card back once on mount.
   useEffect(() => {
