@@ -147,6 +147,20 @@ html, body {
   padding: 1.25rem;
   backdrop-filter: blur(12px);
 }
+.settings-tabbar {
+  background: oklch(0.14 0.04 280);
+}
+.settings-tab {
+  border: 1px solid transparent;
+  color: var(--muted-foreground);
+  transition: color 300ms ease, background-color 300ms ease, border-color 300ms ease, box-shadow 300ms ease;
+}
+.settings-tab[data-active="true"] {
+  border-color: oklch(0.82 0.14 82 / 0.40);
+  background: oklch(0.82 0.14 82 / 0.12);
+  color: var(--gold);
+  box-shadow: 0 0 22px oklch(0.82 0.14 82 / 0.10);
+}
 
 @keyframes pulse-gold {
   0%, 100% { opacity: 1; transform: scale(1); }
