@@ -279,8 +279,16 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const slotH = isMobile
     ? Math.round(slotW * TABLETOP_CONFIG.CARD_ASPECT_RATIO)
     : cardH;
-  // On mobile, abbreviate position labels so the rail isn't cluttered.
-  const slotLabels = (isMobile ? meta.positionsShort : meta.positions) ?? [];
+  // The slot rail always uses the short labels — slot tiles are tiny on
+  // mobile and only ~64px wide on desktop, so the new full position names
+  // ("The Present", "Hopes & Fears", …) wouldn't fit. The full names are
+  // surfaced in the bottom-bar whisper (`Draw: The Present` + description)
+  // so the user still sees the proper name as they draw.
+  const slotLabels = meta.positionsShort ?? meta.positions ?? [];
+  // Full-length position labels (e.g. "The Present") + their per-position
+  // descriptions, used by the two-line whisper above the rail.
+  const fullPositionLabels = meta.positions ?? [];
+  const positionDescriptions = meta.positionDescriptions ?? [];
   // Always use the full ±CARD_MAX_ROTATION range so no card sits axis-aligned.
   const maxRotation = TABLETOP_CONFIG.CARD_MAX_ROTATION;
 
