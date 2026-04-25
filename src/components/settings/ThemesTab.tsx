@@ -1237,127 +1237,107 @@ function SavedThemesSection() {
 
   return (
     <SettingsSection
-      title="Saved Themes"
-      description={`Snapshot the current look — up to ${MAX_SAVED_THEMES} slots.`}
+      title="Your Sanctuaries"
+      description="Capture the atmosphere of a perfect reading. Return to it anytime."
     >
-      <div className="-mx-2 overflow-x-auto">
-        <div
-          className="flex gap-3 px-2 pb-2 snap-x snap-mandatory"
-          onScroll={(e) => {
-            const el = e.currentTarget;
-            const card = 220 + 12; // width + gap
-            const idx = Math.round(el.scrollLeft / card);
-            setActiveIndex(Math.min(MAX_SAVED_THEMES - 1, Math.max(0, idx)));
-          }}
-        >
-          {slots.map(({ slot, theme }) => {
-            const active = activeSlot === slot;
-            return (
-              <div
-                key={slot}
-                className={cn(
-                  "relative flex w-[220px] shrink-0 snap-start flex-col gap-3 rounded-2xl border p-3 transition",
-                  active
-                    ? "border-gold shadow-glow"
-                    : "border-border/60 hover:border-gold/40",
-                )}
-              >
-                {theme ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTarget(theme)}
-                      aria-label={`Delete ${theme.name}`}
-                      className="absolute right-2 top-2 z-10 rounded-full bg-background/70 p-1 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-destructive focus:opacity-100"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+      <ThemeCarousel count={MAX_SAVED_THEMES} ariaLabel="Your sanctuaries">
+        {slots.map(({ slot, theme }) => {
+          const active = activeSlot === slot;
+          return (
+            <div
+              key={slot}
+              className={cn(
+                "group relative flex w-[220px] shrink-0 snap-start flex-col gap-3 rounded-2xl p-3 transition",
+                active
+                  ? "border-2 border-gold shadow-glow"
+                  : "border border-border/60 hover:border-gold/40",
+              )}
+            >
+              {theme ? (
+                <>
+                  {active && (
                     <span
                       aria-hidden
-                      className="block h-20 w-full rounded-xl ring-1 ring-border/40"
-                      style={{
-                        background: `linear-gradient(to right, ${theme.bg_left}, ${theme.bg_right})`,
-                      }}
-                    />
-                    <div className="flex items-start gap-2">
-                      <span
-                        aria-hidden
-                        className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-border/60"
-                        style={{ backgroundColor: theme.accent }}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className={cn(
-                            "truncate text-sm font-medium",
-                            active ? "text-gold" : "text-foreground",
-                          )}
-                        >
-                          {theme.name}
-                        </p>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Slot {slot}
-                          {active && " · active"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-auto grid grid-cols-2 gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSaveClick(slot, theme)}
-                        className="gap-1"
-                      >
-                        <Save className="h-3.5 w-3.5" />
-                        Save
-                      </Button>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => requestLoad(theme)}
-                        className="bg-gold-gradient text-gold-foreground hover:opacity-95"
-                      >
-                        Load
-                      </Button>
-                    </div>
-                  </>
-                ) : (
+                      className="absolute left-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-gold text-gold-foreground"
+                    >
+                      <Check className="h-3 w-3" strokeWidth={3} />
+                    </span>
+                  )}
                   <button
                     type="button"
-                    onClick={() => handleSaveClick(slot, null)}
-                    aria-label={`Save current theme to slot ${slot}`}
-                    className="flex h-full min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 text-muted-foreground transition hover:border-gold/50 hover:text-gold"
+                    onClick={() => setDeleteTarget(theme)}
+                    aria-label={`Delete ${theme.name}`}
+                    className="absolute right-2 top-2 z-10 rounded-full bg-background/70 p-1 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-destructive focus:opacity-100"
                   >
-                    <Plus className="h-6 w-6" />
-                    <span className="text-xs">Save current theme</span>
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
-                      Slot {slot}
-                    </span>
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Dot pagination */}
-      <div className="mt-2 flex items-center justify-center gap-1.5">
-        {slots.map((_, i) => (
-          <span
-            key={i}
-            aria-hidden
-            className={cn(
-              "block h-1.5 rounded-full transition-all",
-              i === activeIndex
-                ? "w-4 bg-gold"
-                : "w-1.5 bg-border/70",
-            )}
-          />
-        ))}
-      </div>
-      <p className="mt-1 text-center text-[10px] uppercase tracking-widest text-muted-foreground/70">
-        Swipe to explore
-      </p>
+                  <span
+                    aria-hidden
+                    className="block h-20 w-full rounded-xl ring-1 ring-border/40"
+                    style={{
+                      background: `linear-gradient(to right, ${theme.bg_left}, ${theme.bg_right})`,
+                    }}
+                  />
+                  <div className="flex items-start gap-2">
+                    <span
+                      aria-hidden
+                      className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-border/60"
+                      style={{ backgroundColor: theme.accent }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={cn(
+                          "truncate italic text-sm",
+                          active ? "text-gold" : "text-foreground",
+                        )}
+                        style={{ fontFamily: "var(--font-serif)" }}
+                      >
+                        {theme.name}
+                      </p>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Slot {slot}
+                        {active && " · active"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-auto grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSaveClick(slot, theme)}
+                      className="gap-1"
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      Overwrite
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => requestLoad(theme)}
+                      className="bg-gold-gradient text-gold-foreground hover:opacity-95"
+                    >
+                      Return here
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSaveClick(slot, null)}
+                  aria-label={`Preserve current theme to slot ${slot}`}
+                  className="flex h-full min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 text-muted-foreground transition hover:border-gold/50 hover:text-gold"
+                >
+                  <Plus className="h-6 w-6" />
+                  <span className="text-xs">Preserve this moment</span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                    Slot {slot}
+                  </span>
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </ThemeCarousel>
 
       {!loaded && (
         <p className="mt-3 text-center text-xs text-muted-foreground">
