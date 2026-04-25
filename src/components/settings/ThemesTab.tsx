@@ -17,7 +17,7 @@
  * DOM, and `usePreferencesSync` mirrors them to the Supabase row.
  */
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Play, Plus, RotateCcw, Save, Trash2, Wand2 } from "lucide-react";
+import { Loader2, Plus, RotateCcw, Save, Trash2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
@@ -69,6 +69,11 @@ import {
   type SavedTheme,
   type ThemeFont,
 } from "@/lib/use-saved-themes";
+import {
+  COMMUNITY_THEMES,
+  getStoredCommunityTheme,
+  setStoredCommunityTheme,
+} from "@/lib/community-themes";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 import {
   ThemeDirtyProvider,
