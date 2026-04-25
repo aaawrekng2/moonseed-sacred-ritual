@@ -750,7 +750,7 @@ function BgHexPicker({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-4">
+      <div className="flex flex-col items-start gap-2">
         <button
           type="button"
           onClick={onToggle}
@@ -759,12 +759,7 @@ function BgHexPicker({
           className="relative inline-flex aspect-square w-12 shrink-0 rounded-full ring-1 ring-border/60 transition-all hover:ring-gold/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold ring-offset-2 ring-offset-background"
           style={{ backgroundColor: value }}
         />
-        <div className="min-w-0 flex-1">
-          <Label className="text-sm font-medium text-foreground">{label}</Label>
-          <p className="mt-0.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground-weak">
-            {value.toUpperCase()}
-          </p>
-        </div>
+        <Label className="text-xs text-muted-foreground">{label}</Label>
       </div>
       {open && (
         <div className="rounded-xl border border-border/60 bg-card/80 p-4 backdrop-blur-xl">
