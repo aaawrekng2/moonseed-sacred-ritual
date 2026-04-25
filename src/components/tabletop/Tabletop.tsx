@@ -611,7 +611,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const TAP_MOVE_THRESHOLD_PX = 8;
 
   const handleReveal = () => {
-    if (!ready || revealing) return;
+    if (!ready || revealing || revealedAll) return;
     setRevealing(true);
     const picks = cards
       .filter((c) => c.selectionOrder !== null)
