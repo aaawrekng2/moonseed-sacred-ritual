@@ -950,6 +950,46 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         </div>
       )}
 
+      {/* First-visit onboarding hint. Explains the hold-to-drag gesture
+          and dropping onto slots. Auto-fades after the first successful
+          drop (handled in handleDragEnd via dismissDragHint). */}
+      {showDragHint && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 96px)",
+            transform: "translateX(-50%)",
+            zIndex: 55,
+            maxWidth: "min(92vw, 360px)",
+          }}
+          className="pointer-events-auto animate-fade-in"
+        >
+          <div className="flex items-start gap-2 rounded-2xl border border-gold/30 bg-cosmos/85 px-4 py-3 text-center shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-md">
+            <p className="flex-1 text-[13px] leading-snug text-foreground/85">
+              <span className="text-gold">Hold</span> a card to lift it, then{" "}
+              {usesSlots ? (
+                <>
+                  drag it onto a <span className="text-gold">slot</span> to place it.
+                </>
+              ) : (
+                <>drag it anywhere on the table.</>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={dismissDragHint}
+              aria-label="Dismiss hint"
+              className="-mr-1 -mt-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-foreground/60 transition hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+            >
+              <X className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Temporary resting-opacity test slider — fixed upper-left, top
           layer so cards never sit above its controls. Desktop-only:
           hidden on mobile per design (it is a dev-only tool). */}
