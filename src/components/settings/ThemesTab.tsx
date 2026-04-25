@@ -489,6 +489,10 @@ function CustomAccentSection() {
         "--ring",
         `${prefs.accent_color}99`,
       );
+      document.documentElement.style.setProperty(
+        "--sidebar-primary",
+        prefs.accent_color,
+      );
     }
   }, [prefs.accent_color]);
 
@@ -498,6 +502,7 @@ function CustomAccentSection() {
     document.documentElement.style.setProperty("--gold", draft);
     document.documentElement.style.setProperty("--primary", draft);
     document.documentElement.style.setProperty("--ring", `${draft}99`);
+    document.documentElement.style.setProperty("--sidebar-primary", draft);
     const { error } = await updateUserPreferences(user.id, {
       accent_color: draft.toLowerCase(),
     });
@@ -517,6 +522,7 @@ function CustomAccentSection() {
     document.documentElement.style.removeProperty("--gold");
     document.documentElement.style.removeProperty("--primary");
     document.documentElement.style.removeProperty("--ring");
+    document.documentElement.style.removeProperty("--sidebar-primary");
     await updateUserPreferences(user.id, { accent_color: null });
     setPrefs({ ...prefs, accent_color: null });
     setSaving(false);
