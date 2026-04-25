@@ -1799,6 +1799,8 @@ function CardSlot({
     if (flightPhase === "idle") {
       const r = btnRef.current?.getBoundingClientRect() ?? null;
       setLaunchRect(r);
+      // Capture the card's actual current visual rotation so the launch
+      // frame paints at the same orientation, preventing a visible jump.
       launchRotationRef.current = card.rotation;
       setFlightPhase("launching");
     }
