@@ -1958,12 +1958,10 @@ function UnsavedChangesGuard() {
               className="flex w-full flex-col items-start gap-1 px-1 py-3 text-left transition hover:text-gold"
             >
               <span className="text-sm text-foreground">
-                {isOracle ? "Release these changes" : "Discard changes"}
+                Leave without saving to a sanctuary
               </span>
               <span className="text-[11px] text-muted-foreground">
-                {isOracle
-                  ? "Your atmosphere will return to its last saved state"
-                  : "Changes are not saved and will be lost"}
+                Your current look stays, but won't be preserved
               </span>
             </button>
           </div>
