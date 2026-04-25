@@ -930,9 +930,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                     visibility: "hidden",
                     pointerEvents: "none",
                     overflow: "visible",
-                    paddingTop: 12,
+                    paddingTop: 4,
                   }
-                : { overflow: "visible", paddingTop: 12 }
+                : { overflow: "visible", paddingTop: 4 }
             }
             aria-hidden={!showSlotRail}
           >
@@ -1060,7 +1060,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               textShadow: "0 0 14px rgba(212,175,55,0.55)",
             }}
           >
-            Draw
+            {usesSlots && slotLabels[selectedCount]
+              ? `Draw: ${slotLabels[selectedCount]}`
+              : "Draw"}
           </span>
         );
 
