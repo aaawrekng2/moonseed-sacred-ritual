@@ -16,6 +16,7 @@ import { Route as DrawRouteImport } from './routes/draw'
 import { Route as CardsRouteImport } from './routes/cards'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsProfileRouteImport } from './routes/settings.profile'
+import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -52,6 +53,11 @@ const SettingsProfileRoute = SettingsProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsBlueprintRoute = SettingsBlueprintRouteImport.update({
+  id: '/blueprint',
+  path: '/blueprint',
+  getParentRoute: () => SettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/profile': typeof SettingsProfileRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/profile': typeof SettingsProfileRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/profile': typeof SettingsProfileRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/scatter-test'
     | '/settings'
+    | '/settings/blueprint'
     | '/settings/profile'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/scatter-test'
     | '/settings'
+    | '/settings/blueprint'
     | '/settings/profile'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/scatter-test'
     | '/settings'
+    | '/settings/blueprint'
     | '/settings/profile'
   fileRoutesById: FileRoutesById
 }
@@ -171,14 +183,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsProfileRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/blueprint': {
+      id: '/settings/blueprint'
+      path: '/blueprint'
+      fullPath: '/settings/blueprint'
+      preLoaderRoute: typeof SettingsBlueprintRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
 
 interface SettingsRouteChildren {
+  SettingsBlueprintRoute: typeof SettingsBlueprintRoute
   SettingsProfileRoute: typeof SettingsProfileRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsBlueprintRoute: SettingsBlueprintRoute,
   SettingsProfileRoute: SettingsProfileRoute,
 }
 
