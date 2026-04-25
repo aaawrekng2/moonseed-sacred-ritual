@@ -1442,7 +1442,7 @@ function SavedThemesSection() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete confirm */}
+      {/* Erase confirm */}
       <AlertDialog
         open={deleteTarget != null}
         onOpenChange={(o) => !o && setDeleteTarget(null)}
@@ -1450,10 +1450,11 @@ function SavedThemesSection() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete {deleteTarget?.name ?? "this theme"}?
+              Erase this sanctuary?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              The slot becomes empty and the snapshot is gone for good.
+              {deleteTarget?.name ? `"${deleteTarget.name}" ` : ""}
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1462,12 +1463,12 @@ function SavedThemesSection() {
               onClick={() => {
                 if (deleteTarget) {
                   void deleteSlot(deleteTarget.slot);
-                  toast.success(`Deleted "${deleteTarget.name}"`);
+                  toast.success(`Erased "${deleteTarget.name}"`);
                   setDeleteTarget(null);
                 }
               }}
             >
-              Delete
+              Erase
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
