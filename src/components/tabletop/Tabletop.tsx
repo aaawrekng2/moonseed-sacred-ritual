@@ -2081,13 +2081,8 @@ function CardSlot({
         flying || flightPhase === "returning" || dragging || (skipFlight && slotRect)
           ? "fixed outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
           : "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
-        // While stirring, animate left/top/transform together so the card
-        // drifts to its new scatter slot. Otherwise keep the snappier
-        // transform-only transition for selection feedback.
         flying || flightPhase === "returning" || dragging
           ? null
-          : stirring
-          ? "card-stir-transition"
           : "card-idle-transition",
         // Remove default tap highlight on iOS / Android.
         "[-webkit-tap-highlight-color:transparent] touch-manipulation",
