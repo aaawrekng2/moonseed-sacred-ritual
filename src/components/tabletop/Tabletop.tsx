@@ -353,6 +353,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           ...s,
           selectionOrder: null,
           revealed: false,
+          originalX: s.x,
+          originalY: s.y,
+          originalRotation: s.rotation,
+          originalZ: s.z,
         })),
       );
       initializedRef.current = true;
@@ -367,18 +371,30 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           ...s,
           selectionOrder: null,
           revealed: false,
+          originalX: s.x,
+          originalY: s.y,
+          originalRotation: s.rotation,
+          originalZ: s.z,
         }));
       }
       let cursor = 0;
       return prev.map((c) => {
         if (c.selectionOrder !== null) return c; // never disturb a pick
         const next = initialScatter[cursor++ % initialScatter.length];
+        // Geometry has changed (resize). Refresh both the live position
+        // AND the stored "home" — this card has never been placed yet, so
+        // we want its return-target to match wherever the new scatter put
+        // it. Cards in slots are skipped above and keep their originals.
         return {
           ...c,
           x: next.x,
           y: next.y,
           rotation: next.rotation,
           z: next.z,
+          originalX: next.x,
+          originalY: next.y,
+          originalRotation: next.rotation,
+          originalZ: next.z,
         };
       });
     });
