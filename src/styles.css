@@ -239,6 +239,59 @@ html, body {
 }
 .animate-reveal-pulse { animation: reveal-pulse 2.4s ease-in-out infinite; }
 
+/* Cast screen — hint glow on the next card the user should tap. */
+@keyframes cast-next-hint {
+  0%, 100% {
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--gold) 0%, transparent),
+      0 6px 18px rgba(0, 0, 0, 0.5);
+  }
+  50% {
+    box-shadow:
+      0 0 28px 4px color-mix(in oklab, var(--gold) 55%, transparent),
+      0 6px 18px rgba(0, 0, 0, 0.5);
+  }
+}
+.cast-next-hint {
+  animation: cast-next-hint 2.2s ease-in-out infinite;
+  border-radius: 12px;
+}
+
+/* Cast screen — brief red border flash on a wrong tap. */
+@keyframes cast-wrong-flash {
+  0%   { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.85), 0 6px 18px rgba(0, 0, 0, 0.5); }
+  100% { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0),    0 6px 18px rgba(0, 0, 0, 0.5); }
+}
+.cast-wrong-flash {
+  animation: cast-wrong-flash 400ms ease-out both;
+  border-radius: 12px;
+}
+
+/* Cast screen entry — outer container fades in from black. */
+@keyframes cast-screen-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.cast-screen-enter {
+  animation: cast-screen-fade 400ms ease-out both;
+}
+
+/* Cast screen entry — each card emerges from screen center to its slot. */
+@keyframes cast-card-emerge {
+  0% {
+    transform: translate(var(--emerge-dx, 0px), var(--emerge-dy, 0px)) scale(0.4);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+}
+.cast-card-emerge {
+  animation: cast-card-emerge 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--emerge-delay, 0ms);
+}
+
 @keyframes settle-in {
   from { opacity: 0; transform: translateY(6px) scale(0.96); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
