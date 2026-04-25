@@ -286,14 +286,20 @@ function CardFace({
   const interactive = !revealed && !!onTap;
   return (
     <div
-      className="relative cast-card-emerge"
+      className="cast-card-emerge"
+      style={{
+        // Custom prop consumed by the cast-card-emerge keyframes.
+        ...({ "--emerge-delay": `${emergeDelayMs ?? 0}ms` } as React.CSSProperties),
+        display: "inline-block",
+      }}
+    >
+    <div
+      className="relative"
       style={{
         width: sizing.w,
         height: sizing.h,
         transform: rotated ? "rotate(90deg)" : undefined,
         transformOrigin: "center center",
-        // Custom prop consumed by the cast-card-emerge keyframes.
-        ...({ "--emerge-delay": `${emergeDelayMs ?? 0}ms` } as React.CSSProperties),
       }}
     >
       <div
@@ -340,6 +346,7 @@ function CardFace({
           style={{ background: "transparent" }}
         />
       )}
+    </div>
     </div>
   );
 }
