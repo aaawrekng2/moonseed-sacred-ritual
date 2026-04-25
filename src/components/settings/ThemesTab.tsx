@@ -1127,7 +1127,7 @@ function CommunityThemesSection() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Saved Themes — 5-slot carousel                                     */
+/*  Your Sanctuaries — 5-slot carousel (formerly Saved Themes)         */
 /* ------------------------------------------------------------------ */
 
 function SavedThemesSection() {
@@ -1143,7 +1143,6 @@ function SavedThemesSection() {
   const { setOpacity } = useRestingOpacity();
   const { hasUnsavedChanges, markClean } = useThemeDirty();
 
-  const [activeIndex, setActiveIndex] = useState(0);
   const [nameDialogSlot, setNameDialogSlot] = useState<number | null>(null);
   const [nameDraft, setNameDraft] = useState("");
   const [overwriteSlot, setOverwriteSlot] = useState<number | null>(null);
