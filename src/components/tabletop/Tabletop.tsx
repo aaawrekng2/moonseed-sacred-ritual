@@ -1021,6 +1021,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const ready = selectedCount === required;
 
   const toggleSelect = (id: number) => {
+    let recordedAction: DragAction | null = null;
     setCards((prev) => {
       const target = prev.find((c) => c.id === id);
       if (!target) return prev;
@@ -1030,6 +1031,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       // "shuffled" rather than the card returning to its origin.
       if (target.selectionOrder !== null) {
         if (usesSlots) {
+          recordedAction = {
+            kind: "tap-unplace",
+            cardId: id,
+            fromSlot: target.selectionOrder - 1,
+            toX: target.lastTableX,
+            toY: target.lastTableY,
+          };
           // Return the card to its LAST KNOWN table position — the
           // spot it was at when the user lifted it into the slot. If
           // the card was tap-selected (never dragged), lastTableX/Y
@@ -1074,10 +1082,24 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         }
       }
       if (nextSlot === null) return prev;
+      if (usesSlots) {
+        recordedAction = {
+          kind: "tap-place",
+          cardId: id,
+          toSlot: nextSlot - 1,
+          fromX: target.x,
+          fromY: target.y,
+        };
+      }
       return prev.map((c) =>
         c.id === id ? { ...c, selectionOrder: nextSlot, isDragDrop: false } : c,
       );
     });
+    if (recordedAction) {
+      const action = recordedAction;
+      setUndoStack((s) => [...s, action]);
+      setRedoStack([]);
+    }
   };
 
   // ---- Tap-only selection -------------------------------------------------
@@ -1087,15 +1109,16 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // ignoring the click if the pointer moved beyond a small threshold.
   const TAP_MOVE_THRESHOLD_PX = 8;
 
-  const handleExit = () => {
-    if (selectedCount > 0) {
-      const ok = window.confirm("Leave this reading? Your selections will be lost.");
-      if (!ok) return;
-    }
-    // Explicit exit ends the session — drop the saved snapshot so the
-    // next visit starts with a fresh scatter and empty undo stack.
+  const performExit = () => {
     clearTabletopSession(spread);
     onExit();
+  };
+  const handleExit = () => {
+    if (selectedCount > 0) {
+      setExitConfirmOpen(true);
+      return;
+    }
+    performExit();
   };
 
   // Mirror current cards + undo/redo stacks into the cross-route
