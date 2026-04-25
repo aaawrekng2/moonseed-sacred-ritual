@@ -611,7 +611,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const TAP_MOVE_THRESHOLD_PX = 8;
 
   const handleReveal = () => {
-    if (!ready || revealing) return;
+    if (!ready || revealing || revealedAll) return;
     setRevealing(true);
     const picks = cards
       .filter((c) => c.selectionOrder !== null)
@@ -634,6 +634,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         650;
       window.setTimeout(() => {
         setRevealedAll(true);
+        setRevealing(false);
         // Per design: after Reveal we STAY on the draw table. No
         // navigation, no "reading would appear here" handoff. The bottom
         // bar simply quiets down — Stir and X remain, Reveal/Cast/Draw
@@ -907,11 +908,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       </div>
 
       {(() => {
-        // When the user is mid-pick we show the slot rail prominently. Once
-        // every slot is filled the rail visually steps aside for "Reveal",
-        // but its DOM stays mounted (just hidden) so the slotted cards keep
-        // their fixed-position anchors and don't fly back to the table.
-        const slotRailMounted = !revealedAll && usesSlots;
+        // The slot rail stays mounted for the entire ceremony — even after
+        // Reveal — so slotted cards keep their fixed-position anchors and
+        // never fly back to the table. While the user is still mid-pick the
+        // rail is fully visible; once every slot is filled it visually
+        // steps aside for the "Reveal · Cast" whisper but the DOM nodes
+        // remain so slot rects stay measurable.
+        const slotRailMounted = usesSlots;
         const showSlotRail = slotRailMounted && !ready;
         const slotRail = slotRailMounted ? (
           <div
@@ -1047,7 +1050,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               fontSize: 18,
               color: "var(--gold)",
               opacity: restingAlpha,
-              padding: "4px 10px",
+              padding: "0 10px",
+              margin: "4px 0",
               letterSpacing: "0.08em",
               textShadow: "0 0 14px rgba(212,175,55,0.55)",
             }}
@@ -1111,13 +1115,15 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </span>
         );
 
-        const centerWhisper = revealedAll
-          ? null
-          : ready
-            ? dualActions
-            : !usesSlots
-              ? drawWord
-              : null;
+        // "Reveal · Cast" persists even after the cards have flipped face up.
+        // Reveal becomes a no-op once everything is revealed (cards stay
+        // face up in their slots) but Cast remains tappable so the user
+        // can proceed to the spread layout.
+        const centerWhisper = ready || revealedAll
+          ? dualActions
+          : !usesSlots
+            ? drawWord
+            : null;
 
         // Mobile: when the slot rail is visible the center column shows
         // the same "Draw" word so the call-to-action language stays
