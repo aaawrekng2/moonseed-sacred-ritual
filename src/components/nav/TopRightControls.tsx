@@ -77,6 +77,10 @@ export function TopRightControls({ initial }: Props) {
     if (!next) return;
     applySanctuary(next, setOpacity);
     void setActiveSlot(next.slot);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("moonseed:sanctuary-changed"));
+      window.dispatchEvent(new CustomEvent("moonseed:theme-changed"));
+    }
   };
 
   const currentLabel =
