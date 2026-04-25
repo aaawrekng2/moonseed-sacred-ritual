@@ -268,31 +268,44 @@ function CardFace({
   revealed,
   sizing,
   rotated,
-  delayMs,
+  isNext,
+  isWrong,
+  onTap,
+  emergeDelayMs,
 }: {
   pick: Pick;
   cardBack: CardBackId;
   revealed: boolean;
   sizing: Sizing;
   rotated?: boolean;
-  delayMs?: number;
+  isNext?: boolean;
+  isWrong?: boolean;
+  onTap?: () => void;
+  emergeDelayMs?: number;
 }) {
+  const interactive = !revealed && !!onTap;
   return (
     <div
-      className="relative"
+      className="relative cast-card-emerge"
       style={{
         width: sizing.w,
         height: sizing.h,
         transform: rotated ? "rotate(90deg)" : undefined,
         transformOrigin: "center center",
+        // Custom prop consumed by the cast-card-emerge keyframes.
+        ...({ "--emerge-delay": `${emergeDelayMs ?? 0}ms` } as React.CSSProperties),
       }}
     >
       <div
-        className={cn("relative h-full w-full rounded-[10px] flip-3d", revealed && "is-flipped")}
+        className={cn(
+          "relative h-full w-full rounded-[10px] flip-3d",
+          revealed && "is-flipped",
+          !revealed && isNext && "cast-next-hint",
+          isWrong && "cast-wrong-flash",
+        )}
         style={{
           // @ts-expect-error custom prop
           "--flip-ms": "1100ms",
-          transitionDelay: delayMs ? `${delayMs}ms` : undefined,
           boxShadow: "0 6px 18px rgba(0,0,0,0.5)",
         }}
       >
@@ -316,6 +329,17 @@ function CardFace({
           </div>
         </div>
       </div>
+      {interactive && (
+        <button
+          type="button"
+          aria-label={
+            isNext ? "Reveal this card" : "Tap the highlighted card first"
+          }
+          onClick={onTap}
+          className="absolute inset-0 z-10 cursor-pointer rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          style={{ background: "transparent" }}
+        />
+      )}
     </div>
   );
 }
@@ -341,16 +365,31 @@ function SingleCard({
   pick,
   cardBack,
   revealed,
+  isNext,
+  isWrong,
+  onTap,
   sizing,
 }: {
   pick: Pick;
   cardBack: CardBackId;
   revealed: boolean;
+  isNext: boolean;
+  isWrong: boolean;
+  onTap: () => void;
   sizing: Sizing;
 }) {
   return (
     <div className="flex flex-col items-center gap-3">
-      <CardFace pick={pick} cardBack={cardBack} revealed={revealed} sizing={sizing} />
+      <CardFace
+        pick={pick}
+        cardBack={cardBack}
+        revealed={revealed}
+        isNext={isNext}
+        isWrong={isWrong}
+        onTap={onTap}
+        sizing={sizing}
+        emergeDelayMs={0}
+      />
     </div>
   );
 }
@@ -359,14 +398,20 @@ function ThreeRow({
   picks,
   labels,
   cardBack,
-  revealed,
+  revealedFlags,
+  nextIndex,
+  wrongIndex,
+  onTap,
   sizing,
   showLabels,
 }: {
   picks: Pick[];
   labels: string[];
   cardBack: CardBackId;
-  revealed: boolean;
+  revealedFlags: boolean[];
+  nextIndex: number;
+  wrongIndex: number | null;
+  onTap: (i: number) => void;
   sizing: Sizing;
   showLabels: boolean;
 }) {
@@ -377,8 +422,12 @@ function ThreeRow({
           <CardFace
             pick={pick}
             cardBack={cardBack}
-            revealed={revealed}
+            revealed={!!revealedFlags[i]}
+            isNext={nextIndex === i}
+            isWrong={wrongIndex === i}
+            onTap={() => onTap(i)}
             sizing={sizing}
+            emergeDelayMs={i * 90}
           />
           {showLabels && (
             <PositionLabel>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
@@ -404,14 +453,20 @@ function CelticCross({
   picks,
   labels,
   cardBack,
-  revealed,
+  revealedFlags,
+  nextIndex,
+  wrongIndex,
+  onTap,
   sizing,
   showLabels,
 }: {
   picks: Pick[];
   labels: string[];
   cardBack: CardBackId;
-  revealed: boolean;
+  revealedFlags: boolean[];
+  nextIndex: number;
+  wrongIndex: number | null;
+  onTap: (i: number) => void;
   sizing: Sizing;
   showLabels: boolean;
 }) {
@@ -419,29 +474,34 @@ function CelticCross({
   const colGap = Math.round(sizing.w * 0.35);
   const rowGap = Math.round(sizing.h * 0.18);
 
-  const present = picks[0];
-  const obstacle = picks[1];
-  const root = picks[2];
-  const past = picks[3];
-  const potential = picks[4];
-  const future = picks[5];
-  const staff = [picks[6], picks[7], picks[8], picks[9]]; // Self/Ext/Hope/Out
+  // Each card carries its slot index (0-based) so we can wire in the
+  // per-card revealed / next / wrong / tap state.
+  const slotCard = (i: number) => ({ pick: picks[i], slotIndex: i });
+  const present = slotCard(0);
+  const obstacle = slotCard(1);
+  const root = slotCard(2);
+  const past = slotCard(3);
+  const potential = slotCard(4);
+  const future = slotCard(5);
+  const staff = [slotCard(6), slotCard(7), slotCard(8), slotCard(9)];
 
   const cardWithLabel = (
-    p: Pick | undefined,
+    cell: { pick: Pick | undefined; slotIndex: number },
     label: string,
-    delay: number,
     rotated = false,
   ) =>
-    p ? (
+    cell.pick ? (
       <div className="flex flex-col items-center gap-1.5">
         <CardFace
-          pick={p}
+          pick={cell.pick}
           cardBack={cardBack}
-          revealed={revealed}
+          revealed={!!revealedFlags[cell.slotIndex]}
+          isNext={nextIndex === cell.slotIndex}
+          isWrong={wrongIndex === cell.slotIndex}
+          onTap={() => onTap(cell.slotIndex)}
           sizing={sizing}
           rotated={rotated}
-          delayMs={delay}
+          emergeDelayMs={cell.slotIndex * 70}
         />
         {showLabels && <PositionLabel>{label}</PositionLabel>}
       </div>
@@ -452,11 +512,11 @@ function CelticCross({
       {/* Cross block */}
       <div className="flex items-center" style={{ gap: colGap }}>
         {/* Past — left of cross */}
-        {cardWithLabel(past, labels[3] ?? "Past", 0)}
+        {cardWithLabel(past, labels[3] ?? "Past")}
 
         {/* Center column: Future / (Present+Obstacle) / Root */}
         <div className="flex flex-col items-center" style={{ gap: rowGap }}>
-          {cardWithLabel(future, labels[5] ?? "Future", 50)}
+          {cardWithLabel(future, labels[5] ?? "Future")}
           <div className="flex flex-col items-center gap-1.5">
           <div
             className="relative flex items-center justify-center"
@@ -464,22 +524,28 @@ function CelticCross({
           >
             <div className="absolute inset-0 flex items-center justify-center">
               <CardFace
-                pick={present}
+                pick={present.pick!}
                 cardBack={cardBack}
-                revealed={revealed}
+                revealed={!!revealedFlags[0]}
+                isNext={nextIndex === 0}
+                isWrong={wrongIndex === 0}
+                onTap={() => onTap(0)}
                 sizing={sizing}
-                delayMs={100}
+                emergeDelayMs={0}
               />
             </div>
-            {obstacle ? (
+            {obstacle.pick ? (
               <div className="absolute inset-0 flex items-center justify-center">
                 <CardFace
-                  pick={obstacle}
+                  pick={obstacle.pick}
                   cardBack={cardBack}
-                  revealed={revealed}
+                  revealed={!!revealedFlags[1]}
+                  isNext={nextIndex === 1}
+                  isWrong={wrongIndex === 1}
+                  onTap={() => onTap(1)}
                   sizing={sizing}
                   rotated
-                  delayMs={150}
+                  emergeDelayMs={70}
                 />
               </div>
             ) : null}
@@ -492,24 +558,27 @@ function CelticCross({
             </PositionLabel>
           )}
           </div>
-          {cardWithLabel(root, labels[2] ?? "Root", 200)}
+          {cardWithLabel(root, labels[2] ?? "Root")}
         </div>
 
         {/* Potential — right of cross */}
-        {cardWithLabel(potential, labels[4] ?? "Potential", 250)}
+        {cardWithLabel(potential, labels[4] ?? "Potential")}
       </div>
 
       {/* Staff column on the right */}
       <div className="flex flex-col" style={{ gap: rowGap * 0.6 }}>
-        {staff.map((p, i) =>
-          p ? (
-            <div key={p.id} className="flex items-center gap-2">
+        {staff.map((cell, i) =>
+          cell.pick ? (
+            <div key={cell.pick.id} className="flex items-center gap-2">
               <CardFace
-                pick={p}
+                pick={cell.pick}
                 cardBack={cardBack}
-                revealed={revealed}
+                revealed={!!revealedFlags[cell.slotIndex]}
+                isNext={nextIndex === cell.slotIndex}
+                isWrong={wrongIndex === cell.slotIndex}
+                onTap={() => onTap(cell.slotIndex)}
                 sizing={sizing}
-                delayMs={300 + i * 60}
+                emergeDelayMs={cell.slotIndex * 70}
               />
               {showLabels && (
                 <PositionLabel>{labels[6 + i] ?? `Slot ${7 + i}`}</PositionLabel>
