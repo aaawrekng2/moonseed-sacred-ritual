@@ -842,6 +842,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         const slotRail = slotRailMounted ? (
           <div
             className="flex flex-col items-center gap-1.5"
+            style={
+              !showSlotRail
+                ? undefined
+                : { overflow: "visible" }
+            }
             // When ready, hide the rail visually but keep it in the DOM so
             // slot rects stay measurable — slotted cards anchor to them.
             style={
