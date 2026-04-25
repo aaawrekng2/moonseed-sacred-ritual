@@ -1200,17 +1200,6 @@ function CardSlot({
   const flying = isSelected && slotRect !== null;
   const glow = `0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD}px var(--gold)`;
 
-  // During flight on mobile (and any layout where slot < table card), the
-  // button's width animates from launchRect.width down to slotRect.width.
-  // The inner CardBack/face content is rendered at fixed cardW pixels for
-  // sharp ornament scaling, so we layer a CSS transform: scale on the
-  // inner wrapper to make the visible content shrink in lock-step with the
-  // shrinking button. Origin is top-left so the scaled content fits the
-  // parent rect exactly. After landing the parent stays at slotRect dims
-  // and the scale stays at scaleRatio (no jump).
-  const scaleRatio =
-    flying && slotRect && cardW > 0 ? slotRect.width / cardW : 1;
-
   // Ref to the root button so we can measure its viewport rect before the
   // flight begins (FLIP-style: capture First, set Last, animate transform).
   const btnRef = useRef<HTMLButtonElement | null>(null);
