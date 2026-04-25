@@ -67,3 +67,6 @@ export function getCardImagePath(id: TarotCardId): string {
   const padded = String(id).padStart(2, "0");
   return `/cards/card-${padded}.jpg`;
 }
+
+// Alias kept for newer call sites / docs that reference `getCardImageUrl`.
+export const getCardImageUrl = getCardImagePath;
