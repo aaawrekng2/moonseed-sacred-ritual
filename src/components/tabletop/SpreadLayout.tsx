@@ -408,8 +408,12 @@ function CardFace({
             isNext ? "Reveal this card" : "Tap the highlighted card first"
           }
           onClick={onTap}
-          className="absolute inset-0 z-10 cursor-pointer rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          style={{ background: "transparent" }}
+          className="absolute inset-0 cursor-pointer rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          // The "next" card must always sit on top of any sibling card's
+          // tap target — critical for the Celtic Cross where the rotated
+          // Obstacle (slot 2) overlaps the Present (slot 1) and would
+          // otherwise swallow every tap meant for Present.
+          style={{ background: "transparent", zIndex: isNext ? 30 : 10 }}
         />
       )}
     </div>
