@@ -1057,6 +1057,16 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     onExit();
   };
 
+  // Mirror current cards + undo/redo stacks into the cross-route
+  // session store on every change. This is what makes the session
+  // survive accidental navigation away from /draw — when <Tabletop>
+  // remounts, its initial state hydrates from the same snapshot.
+  // Only writes once cards exist (skip the empty pre-init render).
+  useEffect(() => {
+    if (cards.length === 0) return;
+    writeTabletopSession(spread, { cards, undoStack, redoStack });
+  }, [spread, cards, undoStack, redoStack]);
+
   // Auto-transition: when the user fills the final slot, pause briefly
   // (the "sacred pause" — long enough to feel intentional, short enough
   // not to frustrate) then hand off to the spread layout screen with
