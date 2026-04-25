@@ -212,6 +212,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  const [viewportW, setViewportW] = useState(() =>
+    typeof window === "undefined" ? 0 : window.innerWidth,
+  );
   // Viewport-coordinate origin of the scatter container. Passed to
   // CardSlot so a card returning from a slot to the table can compute
   // its absolute landing point in viewport space (slot rects are in
@@ -267,9 +270,17 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     return () => ro.disconnect();
   }, []);
 
-  const cardW = responsiveCardWidth(size?.w ?? 0);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const update = () => setViewportW(window.innerWidth);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  const isMobile = viewportW < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
+  const cardW = isMobile ? responsiveCardWidth(size?.w ?? 0) : 52;
   const cardH = Math.round(cardW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
-  const isMobile = (size?.w ?? 0) < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
   // Slot rail uses its own width (smaller on mobile / for many-slot
   // spreads) so all slots fit in one row without scrolling.
   // Slot dimensions: on desktop they match the table card exactly (per
