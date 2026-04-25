@@ -1503,8 +1503,8 @@ function CardSlot({
               ? `transform ${flightMs}ms cubic-bezier(0.22,1,0.36,1)`
               : undefined,
           boxShadow: isSelected
-            ? `${glow}, 0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD * 2}px var(--gold)`
-            : "0 4px 12px rgba(0,0,0,0.4)",
+            ? `var(--tabletop-card-shadow), ${glow}, 0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD * 2}px var(--gold)`
+            : "var(--tabletop-card-shadow)",
           opacity: isSelected ? TABLETOP_CONFIG.SELECTION_GLOW_OPACITY + 0.2 : 1,
         }}
       >
