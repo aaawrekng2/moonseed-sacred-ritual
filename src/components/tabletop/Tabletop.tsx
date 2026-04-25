@@ -379,6 +379,195 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   );
 
   const [cards, setCards] = useState<CardState[]>([]);
+
+  // ---- Drag + undo/redo (session-only) ----------------------------------
+  const [undoStack, setUndoStack] = useState<DragAction[]>([]);
+  const [redoStack, setRedoStack] = useState<DragAction[]>([]);
+  // Highlighted slot index while a card is being dragged over the rail.
+  const [dragHoverSlot, setDragHoverSlot] = useState<number | null>(null);
+
+  /**
+   * Apply a DragAction to the cards array in the "do/redo" direction.
+   * The reverse direction (undo) is computed inline in `undo()` below
+   * because the inverse for `place` involves restoring the previous slot
+   * occupant if any.
+   */
+  const applyAction = useCallback(
+    (action: DragAction) => {
+      setCards((prev) => {
+        if (action.kind === "move") {
+          return prev.map((c) =>
+            c.id === action.cardId ? { ...c, x: action.toX, y: action.toY } : c,
+          );
+        }
+        if (action.kind === "place") {
+          const targetOrder = action.slotIndex + 1;
+          return prev.map((c) => {
+            if (c.id === action.cardId) {
+              return { ...c, selectionOrder: targetOrder };
+            }
+            if (
+              action.displacedCardId !== null &&
+              c.id === action.displacedCardId
+            ) {
+              return {
+                ...c,
+                selectionOrder: null,
+                x: action.displacedFromX,
+                y: action.displacedFromY,
+              };
+            }
+            return c;
+          });
+        }
+        return prev;
+      });
+    },
+    [],
+  );
+
+  /** Undo the most recent action. */
+  const undo = useCallback(() => {
+    setUndoStack((stack) => {
+      if (stack.length === 0) return stack;
+      const action = stack[stack.length - 1];
+      setCards((prev) => {
+        if (action.kind === "move") {
+          return prev.map((c) =>
+            c.id === action.cardId
+              ? { ...c, x: action.fromX, y: action.fromY }
+              : c,
+          );
+        }
+        // place: send dragged card back to its pre-drag table coords;
+        // restore any displaced card to the slot it was bumped from.
+        const targetOrder = action.slotIndex + 1;
+        return prev.map((c) => {
+          if (c.id === action.cardId) {
+            return {
+              ...c,
+              selectionOrder: null,
+              x: action.fromX,
+              y: action.fromY,
+            };
+          }
+          if (
+            action.displacedCardId !== null &&
+            c.id === action.displacedCardId
+          ) {
+            return { ...c, selectionOrder: targetOrder };
+          }
+          return c;
+        });
+      });
+      setRedoStack((r) => [...r, action]);
+      return stack.slice(0, -1);
+    });
+  }, []);
+
+  /** Redo the most recently undone action. */
+  const redo = useCallback(() => {
+    setRedoStack((stack) => {
+      if (stack.length === 0) return stack;
+      const action = stack[stack.length - 1];
+      applyAction(action);
+      setUndoStack((u) => [...u, action]);
+      return stack.slice(0, -1);
+    });
+  }, [applyAction]);
+
+  /**
+   * Resolve a viewport (clientX, clientY) to a slot index 0..required-1
+   * if it falls inside a slot rect, else null. Uses the cached slotRects
+   * already maintained for the flight animation system.
+   */
+  const slotIndexAtPoint = useCallback(
+    (clientX: number, clientY: number): number | null => {
+      for (let i = 0; i < slotRects.length; i++) {
+        const r = slotRects[i];
+        if (!r) continue;
+        if (
+          clientX >= r.left &&
+          clientX <= r.right &&
+          clientY >= r.top &&
+          clientY <= r.bottom
+        ) {
+          return i;
+        }
+      }
+      return null;
+    },
+    [slotRects],
+  );
+
+  /**
+   * Called by CardSlot when a drag finishes. Decides whether the drop
+   * lands in a slot or on the table, mutates state, and records an
+   * undoable action.
+   */
+  const handleDragEnd = useCallback(
+    (
+      cardId: number,
+      clientX: number,
+      clientY: number,
+      tableX: number,
+      tableY: number,
+      fromX: number,
+      fromY: number,
+    ) => {
+      setDragHoverSlot(null);
+      const slotIdx = usesSlots && !ready ? slotIndexAtPoint(clientX, clientY) : null;
+      if (slotIdx !== null) {
+        // Dropping into a slot. If the slot is already occupied, the
+        // current occupant gets displaced back to the dragged card's
+        // pre-drag table position so neither card is lost.
+        const targetOrder = slotIdx + 1;
+        const occupant = cards.find((c) => c.selectionOrder === targetOrder);
+        const action: DragAction = {
+          kind: "place",
+          cardId,
+          slotIndex: slotIdx,
+          fromX,
+          fromY,
+          displacedCardId:
+            occupant && occupant.id !== cardId ? occupant.id : null,
+          displacedFromX: fromX,
+          displacedFromY: fromY,
+        };
+        applyAction(action);
+        setUndoStack((s) => [...s, action]);
+        setRedoStack([]);
+        return;
+      }
+      // Dropping on the table — pure move.
+      if (tableX === fromX && tableY === fromY) return; // no-op
+      const action: DragAction = {
+        kind: "move",
+        cardId,
+        fromX,
+        fromY,
+        toX: tableX,
+        toY: tableY,
+      };
+      applyAction(action);
+      setUndoStack((s) => [...s, action]);
+      setRedoStack([]);
+    },
+    [applyAction, cards, ready, slotIndexAtPoint, usesSlots],
+  );
+
+  /** Called continuously while dragging so we can light up a slot. */
+  const handleDragMove = useCallback(
+    (clientX: number, clientY: number) => {
+      if (!usesSlots || ready) {
+        setDragHoverSlot(null);
+        return;
+      }
+      setDragHoverSlot(slotIndexAtPoint(clientX, clientY));
+    },
+    [usesSlots, ready, slotIndexAtPoint],
+  );
+
   // Once cards are initialized we never wipe selections automatically.
   // Subsequent geometry changes (e.g. the bottom bar growing/shrinking
   // when the slot rail collapses on Reveal) reflow the unselected cards
