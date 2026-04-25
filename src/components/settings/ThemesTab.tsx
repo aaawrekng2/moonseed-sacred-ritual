@@ -1059,63 +1059,69 @@ function CommunityThemesSection() {
 
   return (
     <SettingsSection
-      title="Community Themes"
-      description="Curated looks crafted by the Moonseed community."
+      title="Celestial Palettes"
+      description="Curated atmospheres — designed with intention, named for the cosmos."
     >
-      <div className="-mx-2 overflow-x-auto">
-        <div className="flex gap-3 px-2 pb-2 snap-x snap-mandatory">
-          {COMMUNITY_THEMES.map((theme) => {
-            const active = activeKey === theme.key;
-            return (
-              <button
-                key={theme.key}
-                type="button"
-                onClick={() => void apply(theme)}
-                aria-pressed={active}
-                aria-label={`Apply ${theme.name} theme`}
-                className={cn(
-                  "group relative flex w-[220px] shrink-0 snap-start flex-col gap-2 rounded-2xl border p-3 text-left transition",
-                  active
-                    ? "border-gold shadow-glow"
-                    : "border-border/60 hover:border-gold/40",
-                )}
-              >
+      <ThemeCarousel
+        count={COMMUNITY_THEMES.length}
+        ariaLabel="Celestial palettes"
+      >
+        {COMMUNITY_THEMES.map((theme) => {
+          const active = activeKey === theme.key;
+          return (
+            <button
+              key={theme.key}
+              type="button"
+              onClick={() => void apply(theme)}
+              aria-pressed={active}
+              aria-label={`Apply ${theme.name} theme`}
+              className={cn(
+                "group relative flex w-[220px] shrink-0 snap-start flex-col gap-2 rounded-2xl p-3 text-left transition",
+                active
+                  ? "border-2 border-gold shadow-glow"
+                  : "border border-border/60 hover:border-gold/40",
+              )}
+            >
+              {active && (
                 <span
                   aria-hidden
-                  className="block h-20 w-full rounded-xl ring-1 ring-border/40"
-                  style={{
-                    background: `linear-gradient(to right, ${theme.bgLeft}, ${theme.bgRight})`,
-                  }}
+                  className="absolute left-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-gold text-gold-foreground"
+                >
+                  <Check className="h-3 w-3" strokeWidth={3} />
+                </span>
+              )}
+              <span
+                aria-hidden
+                className="block h-20 w-full rounded-xl ring-1 ring-border/40"
+                style={{
+                  background: `linear-gradient(to right, ${theme.bgLeft}, ${theme.bgRight})`,
+                }}
+              />
+              <div className="flex items-start gap-2">
+                <span
+                  aria-hidden
+                  className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-border/60"
+                  style={{ backgroundColor: theme.accent }}
                 />
-                <div className="flex items-start gap-2">
-                  <span
-                    aria-hidden
-                    className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-border/60"
-                    style={{ backgroundColor: theme.accent }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={cn(
-                        "truncate italic text-sm",
-                        active ? "text-gold" : "text-foreground",
-                      )}
-                      style={{ fontFamily: "var(--font-serif)" }}
-                    >
-                      {theme.name}
-                    </p>
-                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
-                      {theme.tagline}
-                    </p>
-                  </div>
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={cn(
+                      "truncate italic text-sm",
+                      active ? "text-gold" : "text-foreground",
+                    )}
+                    style={{ fontFamily: "var(--font-serif)" }}
+                  >
+                    {theme.name}
+                  </p>
+                  <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+                    {theme.tagline}
+                  </p>
                 </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <p className="mt-2 text-center text-[10px] uppercase tracking-widest text-muted-foreground/70">
-        Swipe to explore
-      </p>
+              </div>
+            </button>
+          );
+        })}
+      </ThemeCarousel>
     </SettingsSection>
   );
 }
