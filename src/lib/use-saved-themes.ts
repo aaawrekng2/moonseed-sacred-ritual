@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
+import { subscribeActiveThemeChanged } from "@/lib/theme-events";
 import type { CardBackId } from "@/lib/card-backs";
 
 export const MAX_SAVED_THEMES = 5;
@@ -176,13 +177,27 @@ export function useSavedThemes() {
   // Cross-instance sync: when one component updates the active sanctuary
   // (e.g. the wand in TopRightControls), every other mounted hook
   // refreshes from the server so its local activeSlot stays in step.
+  // We also short-circuit when the payload tells us the change wasn't a
+  // sanctuary load — we can update activeSlot locally without a round
+  // trip in that case.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const refresh = () => void fetchFromServer();
-    window.addEventListener("moonseed:sanctuary-changed", refresh);
-    return () => {
-      window.removeEventListener("moonseed:sanctuary-changed", refresh);
-    };
+    return subscribeActiveThemeChanged((detail) => {
+      if (detail) {
+        if (detail.source === "sanctuary") {
+          setActiveSlot(detail.sanctuarySlot);
+          return;
+        }
+        if (detail.source === "community" || detail.source === "cleared") {
+          setActiveSlot(null);
+          return;
+        }
+        // accent / custom: sanctuary highlight is unaffected.
+        return;
+      }
+      // Legacy event with no payload — fall back to a server fetch.
+      void fetchFromServer();
+    });
   }, [fetchFromServer]);
 
   const persist = useCallback(
