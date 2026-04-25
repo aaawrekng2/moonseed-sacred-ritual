@@ -386,6 +386,31 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // Highlighted slot index while a card is being dragged over the rail.
   const [dragHoverSlot, setDragHoverSlot] = useState<number | null>(null);
 
+  // ---- Onboarding hint --------------------------------------------------
+  // Show a small hint on the tabletop that explains the hold-to-drag
+  // gesture and dropping onto slots. Persists "seen" via localStorage so
+  // returning users aren't nagged. Fades out after the first successful
+  // drop into a slot (or any drop, for spreads without slots).
+  const HINT_STORAGE_KEY = "moonseed:tabletop:drag-hint-seen";
+  const [showDragHint, setShowDragHint] = useState(false);
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return;
+      const seen = window.localStorage.getItem(HINT_STORAGE_KEY);
+      if (!seen) setShowDragHint(true);
+    } catch {
+      // localStorage may be blocked — silently skip the hint.
+    }
+  }, []);
+  const dismissDragHint = useCallback(() => {
+    setShowDragHint(false);
+    try {
+      window.localStorage.setItem(HINT_STORAGE_KEY, "1");
+    } catch {
+      // ignore
+    }
+  }, []);
+
   /**
    * Apply a DragAction to the cards array in the "do/redo" direction.
    * The reverse direction (undo) is computed inline in `undo()` below
@@ -540,6 +565,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         applyAction(action);
         setUndoStack((s) => [...s, action]);
         setRedoStack([]);
+        // First successful slot drop → fade the onboarding hint.
+        dismissDragHint();
         return;
       }
       // Dropping on the table — pure move.
@@ -555,8 +582,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       applyAction(action);
       setUndoStack((s) => [...s, action]);
       setRedoStack([]);
+      // For spreads without slots, any successful move dismisses the hint.
+      if (!usesSlots) dismissDragHint();
     },
-    [applyAction, cards, required, slotIndexAtPoint, usesSlots],
+    [applyAction, cards, required, slotIndexAtPoint, usesSlots, dismissDragHint],
   );
 
   /** Called continuously while dragging so we can light up a slot. */
@@ -918,6 +947,46 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           >
             <Redo2 className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
           </button>
+        </div>
+      )}
+
+      {/* First-visit onboarding hint. Explains the hold-to-drag gesture
+          and dropping onto slots. Auto-fades after the first successful
+          drop (handled in handleDragEnd via dismissDragHint). */}
+      {showDragHint && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            left: "50%",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 96px)",
+            transform: "translateX(-50%)",
+            zIndex: 55,
+            maxWidth: "min(92vw, 360px)",
+          }}
+          className="pointer-events-auto animate-fade-in"
+        >
+          <div className="flex items-start gap-2 rounded-2xl border border-gold/30 bg-cosmos/85 px-4 py-3 text-center shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-md">
+            <p className="flex-1 text-[13px] leading-snug text-foreground/85">
+              <span className="text-gold">Hold</span> a card to lift it, then{" "}
+              {usesSlots ? (
+                <>
+                  drag it onto a <span className="text-gold">slot</span> to place it.
+                </>
+              ) : (
+                <>drag it anywhere on the table.</>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={dismissDragHint}
+              aria-label="Dismiss hint"
+              className="-mr-1 -mt-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-foreground/60 transition hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+            >
+              <X className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       )}
 
