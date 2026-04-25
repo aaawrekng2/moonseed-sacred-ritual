@@ -439,11 +439,22 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     [seed],
   );
 
-  const [cards, setCards] = useState<CardState[]>([]);
+  // Hydrate cards + undo/redo from the cross-route session store on
+  // first mount. If the user navigated away from /draw and came back,
+  // their entire in-flight session (scatter, picks, history) is
+  // restored rather than starting over.
+  const restored = readTabletopSession(spread);
+  const [cards, setCards] = useState<CardState[]>(
+    () => restored?.cards ?? [],
+  );
 
-  // ---- Drag + undo/redo (session-only) ----------------------------------
-  const [undoStack, setUndoStack] = useState<DragAction[]>([]);
-  const [redoStack, setRedoStack] = useState<DragAction[]>([]);
+  // ---- Drag + undo/redo (cross-route session) ---------------------------
+  const [undoStack, setUndoStack] = useState<DragAction[]>(
+    () => restored?.undoStack ?? [],
+  );
+  const [redoStack, setRedoStack] = useState<DragAction[]>(
+    () => restored?.redoStack ?? [],
+  );
   // Highlighted slot index while a card is being dragged over the rail.
   const [dragHoverSlot, setDragHoverSlot] = useState<number | null>(null);
   // Ghost preview of where the card would land if dropped on the table
