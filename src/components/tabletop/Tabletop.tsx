@@ -192,6 +192,17 @@ type TabletopProps = {
 type CardState = ScatterCard & {
   selectionOrder: number | null;
   revealed: boolean;
+  /**
+   * The card's home position on the table, captured exactly once when the
+   * scatter is first built. When a card is returned from a slot (via Stir
+   * or by tapping it again) it animates back to these coordinates so the
+   * table reads as the same scatter the user has been navigating, not a
+   * fresh shuffle. NEVER overwrite these after initial assignment.
+   */
+  originalX: number;
+  originalY: number;
+  originalRotation: number;
+  originalZ: number;
 };
 
 export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
@@ -342,6 +353,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           ...s,
           selectionOrder: null,
           revealed: false,
+          originalX: s.x,
+          originalY: s.y,
+          originalRotation: s.rotation,
+          originalZ: s.z,
         })),
       );
       initializedRef.current = true;
@@ -356,18 +371,30 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           ...s,
           selectionOrder: null,
           revealed: false,
+          originalX: s.x,
+          originalY: s.y,
+          originalRotation: s.rotation,
+          originalZ: s.z,
         }));
       }
       let cursor = 0;
       return prev.map((c) => {
         if (c.selectionOrder !== null) return c; // never disturb a pick
         const next = initialScatter[cursor++ % initialScatter.length];
+        // Geometry has changed (resize). Refresh both the live position
+        // AND the stored "home" — this card has never been placed yet, so
+        // we want its return-target to match wherever the new scatter put
+        // it. Cards in slots are skipped above and keep their originals.
         return {
           ...c,
           x: next.x,
           y: next.y,
           rotation: next.rotation,
           z: next.z,
+          originalX: next.x,
+          originalY: next.y,
+          originalRotation: next.rotation,
+          originalZ: next.z,
         };
       });
     });
@@ -480,9 +507,21 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     if (anySelected) {
       const ok = window.confirm("Begin again? Your picks will return to the table.");
       if (!ok) return;
+      // Send every slotted card back to its original scatter position,
+      // rotation and z. Stir is "begin again" — the table should look
+      // exactly as it did before the user started picking.
       setCards((prev) =>
         prev.map((c) =>
-          c.selectionOrder !== null ? { ...c, selectionOrder: null } : c,
+          c.selectionOrder !== null
+            ? {
+                ...c,
+                selectionOrder: null,
+                x: c.originalX,
+                y: c.originalY,
+                rotation: c.originalRotation,
+                z: c.originalZ,
+              }
+            : c,
         ),
       );
     }
@@ -516,30 +555,18 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       // "shuffled" rather than the card returning to its origin.
       if (target.selectionOrder !== null) {
         if (usesSlots) {
-          if (!size) return prev;
-          const newPos = pickReturnSpot(prev, target.id, {
-            width: size.w,
-            height: size.h,
-            cardW,
-            cardH,
-            padding: TABLETOP_CONFIG.SCATTER_PADDING,
-            maxRotation,
-          });
-          // Push z above any other unselected card so it's clearly on top
-          // when it lands; selected cards still sit in the 1000+ band.
-          const maxZ = prev.reduce(
-            (m, c) => (c.selectionOrder === null && c.z > m ? c.z : m),
-            0,
-          );
+          // Return the card to its exact original scatter position.
+          // No randomization — the table must read as the same scatter
+          // the user has been navigating, not a fresh shuffle.
           return prev.map((c) =>
             c.id === id
               ? {
                   ...c,
                   selectionOrder: null,
-                  x: newPos.x,
-                  y: newPos.y,
-                  rotation: newPos.rotation,
-                  z: maxZ + 1,
+                  x: c.originalX,
+                  y: c.originalY,
+                  rotation: c.originalRotation,
+                  z: c.originalZ,
                 }
               : c,
           );
@@ -607,10 +634,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         650;
       window.setTimeout(() => {
         setRevealedAll(true);
-        onComplete(
-          picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
-          "reveal",
-        );
+        // Per design: after Reveal we STAY on the draw table. No
+        // navigation, no "reading would appear here" handoff. The bottom
+        // bar simply quiets down — Stir and X remain, Reveal/Cast/Draw
+        // disappear. The user sits with the revealed cards.
+        // (Cast still navigates via handleCast → onComplete("cast").)
       }, total);
     }, 320);
   };
@@ -822,8 +850,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                     visibility: "hidden",
                     position: "absolute",
                     pointerEvents: "none",
+                    overflow: "visible",
                   }
-                : undefined
+                : { overflow: "visible", paddingTop: 12 }
             }
             aria-hidden={!showSlotRail}
           >
@@ -851,8 +880,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               className={cn(
                 "flex items-end justify-center px-1 pb-1",
                 required >= 10 ? "gap-1" : "gap-2",
-                "overflow-x-auto",
+                // Slot row must allow the active "breathing" beacon's
+                // box-shadow to bleed past its own bounds; hidden overflow
+                // would clip the gold pulse. (Was overflow-x-auto.)
+                "overflow-visible",
               )}
+              style={{ paddingTop: 12 }}
               role="list"
               aria-label={`${meta.label} slots`}
             >
@@ -864,19 +897,25 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                     key={i}
                     role="listitem"
                     className="flex flex-col items-center gap-1 shrink-0"
+                    style={{ overflow: "visible" }}
                   >
                     <div
                       ref={(el) => {
                         slotRefs.current[i] = el;
                       }}
-                      className={cn(isNext && "slot-next-frame")}
+                      className={cn(
+                        isNext && "slot-next-frame",
+                        filled && !isNext && "slot-filled-static",
+                      )}
                       style={{
                         width: slotW,
                         height: slotH,
                         borderRadius: 10,
                         border: isNext
                           ? undefined
-                          : "1px solid rgba(212,175,55,0.2)",
+                          : filled
+                            ? "1px solid rgba(212,175,55,0.35)"
+                            : "1px solid rgba(212,175,55,0.2)",
                         background: isNext
                           ? undefined
                           : filled
@@ -1442,7 +1481,7 @@ function CardSlot({
       <div
         key={`${tapTick}-${consecrateTick}-${revealTick}`}
         className={cn(
-          "relative h-full w-full rounded-[10px] flip-3d",
+          "relative rounded-[10px] flip-3d",
           card.revealed && "is-flipped",
           tapTick > 0 && !card.revealed && "animate-card-tap",
           stirring && !card.revealed && "animate-card-stir-glide",
@@ -1452,6 +1491,30 @@ function CardSlot({
         style={{
           // @ts-expect-error custom prop
           "--flip-ms": `${TABLETOP_CONFIG.REVEAL_ANIMATION_MS}ms`,
+          // Inner content is always rendered at the table card dimensions
+          // for crisp ornament scaling. While flying to a smaller slot we
+          // apply a CSS scale transform so the visible content shrinks
+          // smoothly to slot size, in lock-step with the button width
+          // animating from cardW → slotRect.width.
+          width: cardW,
+          height: cardH,
+          transform:
+            flightPhase === "launching"
+              ? "scale(1)"
+              : flightPhase === "arrived" && slotRect
+                ? `scale(${slotRect.width / cardW})`
+                : flightPhase === "returning"
+                  ? returnAnimating
+                    ? "scale(1)"
+                    : returnFromRect && cardW > 0
+                      ? `scale(${returnFromRect.width / cardW})`
+                      : "scale(1)"
+                  : undefined,
+          transformOrigin: "top left",
+          transition:
+            flightPhase === "arrived" || flightPhase === "returning"
+              ? `transform ${flightMs}ms cubic-bezier(0.22,1,0.36,1)`
+              : undefined,
           boxShadow: isSelected
             ? `${glow}, 0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD * 2}px var(--gold)`
             : "0 4px 12px rgba(0,0,0,0.4)",
