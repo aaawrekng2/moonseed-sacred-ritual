@@ -190,6 +190,90 @@ function ThemesTabInner() {
 /*  Baseline capture                                                   */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/*  Current Theme Badge                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Displays an "always-current" pill below the Themes tab title showing
+ * the active theme's name and accent color. Updates instantly when the
+ * user loads a sanctuary, applies a Celestial Palette, or changes the
+ * accent preset — driven by the `moonseed:theme-changed` and
+ * `moonseed:sanctuary-changed` custom events plus reactive state from
+ * `useSavedThemes`/`useSettings`.
+ */
+function CurrentThemeBadge() {
+  const { isOracle } = useOracleMode();
+  const { prefs } = useSettings();
+  const { occupied, activeSlot } = useSavedThemes();
+  const [communityKey, setCommunityKey] = useState<string | null>(null);
+  const [, bump] = useState(0);
+
+  useEffect(() => {
+    setCommunityKey(getStoredCommunityTheme());
+    const refresh = () => {
+      setCommunityKey(getStoredCommunityTheme());
+      bump((n) => n + 1);
+    };
+    if (typeof window === "undefined") return;
+    window.addEventListener("moonseed:theme-changed", refresh);
+    window.addEventListener("moonseed:sanctuary-changed", refresh);
+    return () => {
+      window.removeEventListener("moonseed:theme-changed", refresh);
+      window.removeEventListener("moonseed:sanctuary-changed", refresh);
+    };
+  }, []);
+
+  // Resolution order: active sanctuary → active community palette →
+  // accent preset label → custom hex → "Custom".
+  const sanctuary = occupied.find((t) => t.slot === activeSlot) ?? null;
+  const community = communityKey
+    ? COMMUNITY_THEMES.find((t) => t.key === communityKey) ?? null
+    : null;
+  const accentPreset = ACCENT_PRESETS.find(
+    (p) => p.value === getAccentTheme(),
+  );
+
+  let name: string;
+  let dot: string;
+  if (sanctuary) {
+    name = sanctuary.name;
+    dot = sanctuary.accent;
+  } else if (community) {
+    name = community.name;
+    dot = community.accent;
+  } else if (accentPreset) {
+    name = accentPreset.label;
+    dot = prefs.accent_color ?? accentPreset.swatch;
+  } else {
+    name = "Custom";
+    dot = prefs.accent_color ?? "var(--gold)";
+  }
+
+  return (
+    <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-xs">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        {isOracle ? "Current atmosphere" : "Current theme"}
+      </span>
+      <span
+        aria-hidden
+        className="h-3 w-3 rounded-full ring-1 ring-border/60"
+        style={{ backgroundColor: dot }}
+      />
+      <span
+        className="font-medium italic text-foreground"
+        style={{ fontFamily: "var(--font-serif)" }}
+      >
+        {name}
+      </span>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Baseline capture                                                   */
+/* ------------------------------------------------------------------ */
+
 /**
  * On first mount of the Themes tab, snapshot the currently-applied
  * theme into the dirty-context baseline. The "Keep exploring" → discard
