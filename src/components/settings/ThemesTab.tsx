@@ -1438,10 +1438,13 @@ function SavedThemesSection() {
     markClean();
     // Loading a sanctuary supersedes any community palette selection.
     setStoredCommunityTheme(null);
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("moonseed:sanctuary-changed"));
-      window.dispatchEvent(new CustomEvent("moonseed:theme-changed"));
-    }
+    dispatchActiveThemeChanged({
+      source: "sanctuary",
+      name: theme.name,
+      accent: theme.accent,
+      sanctuarySlot: theme.slot,
+      communityKey: null,
+    });
     toast.success(`Loaded "${theme.name}"`);
   };
 
