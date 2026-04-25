@@ -178,8 +178,8 @@ function ThemesTabInner() {
           <ResetToDefaultsButton />
         </header>
 
-        <CardBackSection />
         <CustomAccentSection />
+        <CardBackSection />
         <BackgroundGradientSection />
         <HeadingFontSection />
         <InterfaceFadeSection />
