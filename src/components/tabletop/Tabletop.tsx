@@ -753,7 +753,16 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           "relative flex-1 overflow-hidden select-none",
           stirring && "animate-tabletop-tilt",
         )}
-        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)" }}
+        style={{
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)",
+          // Cap the scatter width on large screens so the 78-card spread
+          // stays visually dense instead of stretching across ultrawide
+          // monitors. Mobile/tablet layouts still take the full width.
+          maxWidth: 900,
+          width: "100%",
+          marginLeft: "auto",
+          marginRight: "auto",
+        }}
       >
         {cards.map((c, idx) => (
           <CardSlot
