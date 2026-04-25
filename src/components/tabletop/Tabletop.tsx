@@ -1143,12 +1143,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                   : "calc(env(safe-area-inset-bottom, 0px) + 12px)",
               paddingLeft: "calc(env(safe-area-inset-left, 0px) + 16px)",
               paddingRight: "calc(env(safe-area-inset-right, 0px) + 16px)",
-              paddingTop: 8,
+              paddingTop: 4,
             }}
           >
             <div
-              className="flex flex-col items-center justify-end min-w-0 gap-2"
+              className="flex flex-col items-center justify-end min-w-0"
               style={{
+                gap: 4,
                 transform:
                   ready || !usesSlots
                     ? "translateY(-8px)"
@@ -1157,32 +1158,16 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                       : "translateY(0)",
               }}
             >
-              {/* Whisper sits ABOVE the slot rail per design — "Draw"
-                  while picking, "Reveal · Cast" once every slot is
-                  filled. 8px gap between whisper and the slot row. */}
-              {centerWhisper}
-              {isMobile && showSlotRail ? mobileSlotCounter : slotRail}
+              {/* Whisper ALWAYS sits above the slot rail — "Draw" while
+                  picking, "Reveal · Cast" once every slot is filled. The
+                  slot rail is rendered in the same wrapper across mobile
+                  and desktop so its DOM nodes never unmount mid-flight,
+                  keeping slotted cards anchored to their slots. */}
+              {centerWhisper ?? mobileSlotCounter}
+              {slotRail}
             </div>
           </div>
         );
-
-        if (isMobile && showSlotRail) {
-          return (
-            <>
-              {controlsRow}
-              <div
-                className="flex justify-center"
-                style={{
-                  paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
-                  paddingLeft: "calc(env(safe-area-inset-left, 0px) + 8px)",
-                  paddingRight: "calc(env(safe-area-inset-right, 0px) + 8px)",
-                }}
-              >
-                {slotRail}
-              </div>
-            </>
-          );
-        }
 
         return controlsRow;
       })()}
