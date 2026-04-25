@@ -1009,13 +1009,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </div>
         ) : null;
 
-        // When the user has filled every slot we present TWO ceremonial
-        // options side-by-side: "Reveal" (flips on the tabletop in place)
-        // and "Cast" (transitions straight to the spread layout, cards
-        // still face-down). A subtle middle dot separates them. While
-        // selection is still in progress we show a single italic "Draw"
-        // word that breathes — encouraging continued tapping without
-        // showing a hard counter.
+        // While selection is still in progress we show a single italic
+        // "Draw" word that breathes — encouraging continued tapping
+        // without showing a hard counter. Once the final slot is filled
+        // the whisper is replaced by a single pulsing gold dot (the
+        // "transition cue") while the 1500ms sacred pause runs before
+        // the spread layout takes over.
         const drawWord = (
           <span
             aria-live="polite"
@@ -1038,77 +1037,41 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </span>
         );
 
-        const dualActions = (
+        // Transition cue: a single gold dot that pulses softly during the
+        // 1500ms sacred pause after the last card is selected. Communicates
+        // "the reading is beginning" without words.
+        const transitionCue = (
           <span
-            className="inline-flex items-center gap-3 leading-none"
-            aria-label="Reveal or Cast your reading"
-          >
-            <button
-              type="button"
-              onClick={handleReveal}
-              disabled={revealing}
-              aria-busy={revealing}
-              aria-label="Reveal cards in place"
-              className="reveal-cta-enter reveal-glow-pulse inline-flex items-center gap-2 bg-transparent font-display italic leading-none hover:scale-[1.04] focus:outline-none disabled:cursor-not-allowed"
-              style={{
-                fontSize: 16,
-                color: "var(--gold)",
-                opacity: 1,
-                textShadow:
-                  "0 0 16px rgba(212,175,55,0.85), 0 0 32px rgba(212,175,55,0.35)",
-                cursor: "pointer",
-              }}
-            >
-              {revealing && (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-              )}
-              {revealing ? "Revealing" : "Reveal"}
-            </button>
-            <span
-              aria-hidden="true"
-              className="font-display"
-              style={{
-                fontSize: 14,
-                color: "var(--gold)",
-                opacity: 0.45,
-              }}
-            >
-              ·
-            </span>
-            <button
-              type="button"
-              onClick={handleCast}
-              disabled={revealing}
-              aria-label="Cast — go to spread layout"
-              className="reveal-cta-enter inline-flex items-center bg-transparent font-display italic leading-none transition-transform hover:scale-[1.04] focus:outline-none disabled:cursor-not-allowed"
-              style={{
-                fontSize: 16,
-                color: "rgba(255,255,255,0.9)",
-                cursor: "pointer",
-                textShadow: "0 0 12px rgba(255,255,255,0.25)",
-              }}
-            >
-              Cast
-            </button>
-          </span>
+            role="status"
+            aria-label="The reading is beginning"
+            className="inline-block animate-breathe-glow"
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              backgroundColor: "var(--gold)",
+              boxShadow:
+                "0 0 14px rgba(212,175,55,0.85), 0 0 28px rgba(212,175,55,0.45)",
+              margin: "6px 0",
+            }}
+          />
         );
 
-        // "Reveal · Cast" persists even after the cards have flipped face up.
-        // Reveal becomes a no-op once everything is revealed (cards stay
-        // face up in their slots) but Cast remains tappable so the user
-        // can proceed to the spread layout.
-        const centerWhisper = ready || revealedAll
-          ? dualActions
+        // While picking: show the breathing "Draw" whisper. Once the user
+        // selects the final card, the whisper goes quiet and the gold dot
+        // pulses through the auto-transition pause.
+        const centerWhisper = ready
+          ? transitionCue
           : !usesSlots
             ? drawWord
             : null;
 
         // Mobile: when the slot rail is visible the center column shows
         // the same "Draw" word so the call-to-action language stays
-        // consistent across breakpoints. Once ready, the dual actions
-        // (Reveal · Cast) take over.
+        // consistent across breakpoints. Once ready, the transition cue
+        // takes over.
         const mobileSlotCounter =
-          isMobile && showSlotRail ? drawWord : null;
+          isMobile && showSlotRail && !ready ? drawWord : null;
 
         const controlsRow = (
           <div
