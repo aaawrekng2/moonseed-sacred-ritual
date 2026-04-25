@@ -1209,6 +1209,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               {Array.from({ length: required }).map((_, i) => {
                 const filled = cards.some((c) => c.selectionOrder === i + 1);
                 const isNext = !filled && i === selectedCount;
+                const isDragHover = dragHoverSlot === i;
                 return (
                   <div
                     key={i}
@@ -1228,16 +1229,23 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                         width: slotW,
                         height: slotH,
                         borderRadius: 10,
-                        border: isNext
+                        border: isDragHover
+                          ? "2px solid var(--gold)"
+                          : isNext
                           ? undefined
                           : filled
                             ? "1px solid rgba(212,175,55,0.35)"
                             : "1px solid rgba(212,175,55,0.2)",
-                        background: isNext
+                        background: isDragHover
+                          ? "rgba(212,175,55,0.18)"
+                          : isNext
                           ? undefined
                           : filled
                             ? "transparent"
                             : "rgba(212,175,55,0.03)",
+                        boxShadow: isDragHover
+                          ? "0 0 18px var(--gold), 0 0 32px rgba(212,175,55,0.6)"
+                          : undefined,
                         transition: isNext
                           ? undefined
                           : "background 200ms ease-out, border-color 200ms ease-out, box-shadow 200ms ease-out",
