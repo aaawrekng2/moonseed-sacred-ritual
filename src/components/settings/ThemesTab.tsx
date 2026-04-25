@@ -870,7 +870,7 @@ function HeadingFontSection() {
 /* ------------------------------------------------------------------ */
 
 function InterfaceFadeSection() {
-  const { user } = useSettings();
+  const { user, prefs, setPrefs } = useSettings();
   const { opacity, setOpacity } = useRestingOpacity();
   const { markDirty } = useThemeDirty();
   const [draft, setDraft] = useState(opacity);
@@ -883,6 +883,7 @@ function InterfaceFadeSection() {
     setOpacity(next);
     markDirty();
     await updateUserPreferences(user.id, { resting_opacity: next });
+    setPrefs({ ...prefs, resting_opacity: next });
   };
 
   return (
