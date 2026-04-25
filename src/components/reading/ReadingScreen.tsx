@@ -36,24 +36,29 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   // the default fetch on server functions doesn't add it. We call the RPC
   // ourselves with supabase.auth.getSession() to grab the JWT.
   const startedRef = useRef(false);
+  const requestSeqRef = useRef(0);
 
   useEffect(() => {
-    let cancelled = false;
     // Effect runs twice in StrictMode dev — guard so we don't spend two
-    // of the user's three daily readings on the same draw.
+    // of the user's three daily readings on the same draw. Do not cancel in
+    // cleanup: StrictMode immediately runs cleanup after the first pass, and
+    // that was preventing the one real response from ever updating state.
     if (startedRef.current) return;
     startedRef.current = true;
+    const requestSeq = ++requestSeqRef.current;
+    const isCurrentRequest = () => requestSeqRef.current === requestSeq;
 
     void (async () => {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData.session?.access_token;
         if (!token) {
-          if (!cancelled)
+          if (isCurrentRequest()) {
             setState({
               kind: "error",
               message: "You need to be signed in to receive a reading.",
             });
+          }
           return;
         }
 
@@ -62,7 +67,7 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (cancelled) return;
+        if (!isCurrentRequest()) return;
 
         if (result.ok) {
           setState({ kind: "loaded", interpretation: result.interpretation });
@@ -72,7 +77,7 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
           setState({ kind: "error", message: result.message });
         }
       } catch (e) {
-        if (cancelled) return;
+        if (!isCurrentRequest()) return;
         console.error("ReadingScreen interpret error:", e);
         setState({
           kind: "error",
@@ -80,10 +85,6 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
         });
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
     // retryNonce intentionally re-arms the effect for the Retry button.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retryNonce]);
