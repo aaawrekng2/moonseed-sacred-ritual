@@ -208,22 +208,27 @@ function CurrentThemeBadge() {
   const { prefs } = useSettings();
   const { occupied, activeSlot } = useSavedThemes();
   const [communityKey, setCommunityKey] = useState<string | null>(null);
+  // Last payload we received from the shared event bus. When present we
+  // trust its `name`/`accent` directly so the badge reflects the change
+  // in the same tick the dispatcher fired — no re-fetch, no race with
+  // useSavedThemes' refetch.
+  const [payload, setPayload] = useState<ActiveThemeDetail | null>(null);
   const [, bump] = useState(0);
 
   useEffect(() => {
     setCommunityKey(getStoredCommunityTheme());
-    const refresh = () => {
+    return subscribeActiveThemeChanged((detail) => {
       setCommunityKey(getStoredCommunityTheme());
+      setPayload(detail);
       bump((n) => n + 1);
-    };
-    if (typeof window === "undefined") return;
-    window.addEventListener("moonseed:theme-changed", refresh);
-    window.addEventListener("moonseed:sanctuary-changed", refresh);
-    return () => {
-      window.removeEventListener("moonseed:theme-changed", refresh);
-      window.removeEventListener("moonseed:sanctuary-changed", refresh);
-    };
+    });
   }, []);
+
+  if (payload && payload.source !== "cleared") {
+    return (
+      <BadgeShell isOracle={isOracle} dot={payload.accent} name={payload.name} />
+    );
+  }
 
   // Resolution order: active sanctuary → active community palette →
   // accent preset label → custom hex → "Custom".
@@ -251,6 +256,18 @@ function CurrentThemeBadge() {
     dot = prefs.accent_color ?? "var(--gold)";
   }
 
+  return <BadgeShell isOracle={isOracle} dot={dot} name={name} />;
+}
+
+function BadgeShell({
+  isOracle,
+  dot,
+  name,
+}: {
+  isOracle: boolean;
+  dot: string;
+  name: string;
+}) {
   return (
     <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-xs">
       <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
