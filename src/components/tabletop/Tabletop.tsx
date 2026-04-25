@@ -555,30 +555,18 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       // "shuffled" rather than the card returning to its origin.
       if (target.selectionOrder !== null) {
         if (usesSlots) {
-          if (!size) return prev;
-          const newPos = pickReturnSpot(prev, target.id, {
-            width: size.w,
-            height: size.h,
-            cardW,
-            cardH,
-            padding: TABLETOP_CONFIG.SCATTER_PADDING,
-            maxRotation,
-          });
-          // Push z above any other unselected card so it's clearly on top
-          // when it lands; selected cards still sit in the 1000+ band.
-          const maxZ = prev.reduce(
-            (m, c) => (c.selectionOrder === null && c.z > m ? c.z : m),
-            0,
-          );
+          // Return the card to its exact original scatter position.
+          // No randomization — the table must read as the same scatter
+          // the user has been navigating, not a fresh shuffle.
           return prev.map((c) =>
             c.id === id
               ? {
                   ...c,
                   selectionOrder: null,
-                  x: newPos.x,
-                  y: newPos.y,
-                  rotation: newPos.rotation,
-                  z: maxZ + 1,
+                  x: c.originalX,
+                  y: c.originalY,
+                  rotation: c.originalRotation,
+                  z: c.originalZ,
                 }
               : c,
           );
