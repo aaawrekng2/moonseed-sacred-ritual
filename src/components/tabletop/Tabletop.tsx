@@ -1656,7 +1656,6 @@ function CardSlot({
   faceIndex,
   disabled,
   hitInset,
-  stirring,
   onSelect,
   settleDelay,
   tapMoveThresholdPx,
@@ -1675,7 +1674,6 @@ function CardSlot({
   faceIndex: number;
   disabled: boolean;
   hitInset: number;
-  stirring: boolean;
   onSelect: () => void;
   settleDelay: number;
   tapMoveThresholdPx: number;
