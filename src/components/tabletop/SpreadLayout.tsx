@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Eye, EyeOff, Loader2, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Eye, EyeOff, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
@@ -26,31 +26,66 @@ type Props = {
 export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
   const meta = SPREAD_META[spread];
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
-  const [revealed, setRevealed] = useState(false);
-  const [revealing, setRevealing] = useState(false);
   const { showLabels, toggleShowLabels } = useShowLabels();
+
+  // Per-card revealed state. Cards must be flipped in slot order.
+  const [revealedFlags, setRevealedFlags] = useState<boolean[]>(
+    () => picks.map(() => false),
+  );
+  // Index of the card that just received a wrong tap (red border flash).
+  // Cleared 400ms after it's set.
+  const [wrongIndex, setWrongIndex] = useState<number | null>(null);
+  const wrongTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const continuedRef = useRef(false);
 
   useEffect(() => {
     setCardBack(getStoredCardBack());
   }, []);
 
+  useEffect(
+    () => () => {
+      if (wrongTimer.current) clearTimeout(wrongTimer.current);
+    },
+    [],
+  );
+
   const labels = meta.positions ?? meta.positionsShort ?? [];
 
-  const handleReveal = () => {
-    if (revealed || revealing) return;
-    setRevealing(true);
-    // Flip together; brief lingering pause before the reading screen.
-    window.setTimeout(() => {
-      setRevealed(true);
-    }, 80);
-    window.setTimeout(() => {
-      onContinue();
-    }, 2400);
-  };
+  // The lowest unrevealed index — that's the card the user must tap next.
+  const nextIndex = revealedFlags.findIndex((r) => !r);
+  const allRevealed = nextIndex === -1;
+
+  // Once every card is face-up, give the user a beat to take it in,
+  // then push them into the reading.
+  useEffect(() => {
+    if (!allRevealed || continuedRef.current) return;
+    continuedRef.current = true;
+    const t = window.setTimeout(() => onContinue(), 1600);
+    return () => window.clearTimeout(t);
+  }, [allRevealed, onContinue]);
+
+  const handleTap = useCallback(
+    (i: number) => {
+      if (revealedFlags[i]) return;
+      if (i !== nextIndex) {
+        // Wrong card — brief red flash, no other penalty.
+        setWrongIndex(i);
+        if (wrongTimer.current) clearTimeout(wrongTimer.current);
+        wrongTimer.current = setTimeout(() => setWrongIndex(null), 400);
+        return;
+      }
+      setRevealedFlags((prev) => {
+        const next = prev.slice();
+        next[i] = true;
+        return next;
+      });
+    },
+    [nextIndex, revealedFlags],
+  );
 
   return (
     <main
-      className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]"
+      className="cast-screen-enter fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]"
       aria-label={`${meta.label} spread layout`}
     >
       <button
@@ -97,7 +132,10 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
           picks={picks}
           labels={labels}
           cardBack={cardBack}
-          revealed={revealed}
+          revealedFlags={revealedFlags}
+          nextIndex={nextIndex}
+          wrongIndex={wrongIndex}
+          onTap={handleTap}
           showLabels={showLabels}
         />
       </div>
@@ -109,28 +147,7 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
           paddingTop: 8,
         }}
       >
-        {!revealed ? (
-          <button
-            type="button"
-            onClick={handleReveal}
-            disabled={revealing}
-            aria-busy={revealing}
-            aria-label="Reveal all cards"
-            className="reveal-glow-pulse inline-flex items-center gap-2 bg-transparent font-display italic leading-none transition-transform hover:scale-[1.04] focus:outline-none disabled:cursor-not-allowed"
-            style={{
-              fontSize: 22,
-              color: "var(--gold)",
-              cursor: "pointer",
-              textShadow:
-                "0 0 18px rgba(212,175,55,0.85), 0 0 36px rgba(212,175,55,0.4)",
-            }}
-          >
-            {revealing && (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            )}
-            {revealing ? "Revealing" : "Reveal"}
-          </button>
-        ) : (
+        {allRevealed ? (
           <span
             className="font-display italic leading-none"
             style={{
@@ -143,6 +160,19 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
           >
             Opening reading…
           </span>
+        ) : (
+          <span
+            className="font-display italic leading-none"
+            style={{
+              fontSize: 13,
+              color: "var(--gold)",
+              opacity: 0.7,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+            }}
+          >
+            Tap card {nextIndex + 1} of {picks.length}
+          </span>
         )}
       </div>
     </main>
@@ -154,14 +184,20 @@ function SpreadContent({
   picks,
   labels,
   cardBack,
-  revealed,
+  revealedFlags,
+  nextIndex,
+  wrongIndex,
+  onTap,
   showLabels,
 }: {
   spread: SpreadMode;
   picks: Pick[];
   labels: string[];
   cardBack: CardBackId;
-  revealed: boolean;
+  revealedFlags: boolean[];
+  nextIndex: number;
+  wrongIndex: number | null;
+  onTap: (i: number) => void;
   showLabels: boolean;
 }) {
   // Pick a card width that fits the spread + viewport. Celtic Cross has
@@ -169,13 +205,47 @@ function SpreadContent({
   const sizing = useMemo(() => spreadSizing(spread), [spread]);
 
   if (spread === "celtic") {
-    return <CelticCross picks={picks} labels={labels} cardBack={cardBack} revealed={revealed} sizing={sizing} showLabels={showLabels} />;
+    return (
+      <CelticCross
+        picks={picks}
+        labels={labels}
+        cardBack={cardBack}
+        revealedFlags={revealedFlags}
+        nextIndex={nextIndex}
+        wrongIndex={wrongIndex}
+        onTap={onTap}
+        sizing={sizing}
+        showLabels={showLabels}
+      />
+    );
   }
   if (spread === "three") {
-    return <ThreeRow picks={picks} labels={labels} cardBack={cardBack} revealed={revealed} sizing={sizing} showLabels={showLabels} />;
+    return (
+      <ThreeRow
+        picks={picks}
+        labels={labels}
+        cardBack={cardBack}
+        revealedFlags={revealedFlags}
+        nextIndex={nextIndex}
+        wrongIndex={wrongIndex}
+        onTap={onTap}
+        sizing={sizing}
+        showLabels={showLabels}
+      />
+    );
   }
   // single / daily / yes_no — one large card centered.
-  return <SingleCard pick={picks[0]} cardBack={cardBack} revealed={revealed} sizing={sizing} />;
+  return (
+    <SingleCard
+      pick={picks[0]}
+      cardBack={cardBack}
+      revealed={!!revealedFlags[0]}
+      isNext={nextIndex === 0}
+      isWrong={wrongIndex === 0}
+      onTap={() => onTap(0)}
+      sizing={sizing}
+    />
+  );
 }
 
 type Sizing = { w: number; h: number };
