@@ -685,16 +685,43 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   /** Called continuously while dragging so we can light up a slot. */
   const handleDragMove = useCallback(
-    (clientX: number, clientY: number) => {
+    (
+      clientX: number,
+      clientY: number,
+      projectedLeft: number,
+      projectedTop: number,
+    ) => {
       const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
       const isReady = selectedCount === required;
-      if (!usesSlots || isReady) {
-        setDragHoverSlot(null);
+      const overSlot =
+        usesSlots && !isReady ? slotIndexAtPoint(clientX, clientY) : null;
+      setDragHoverSlot(overSlot);
+      // Compute the clamped table landing point in container coords. We
+      // mirror the same clamp `finishDrag` will apply on release so the
+      // ghost shows the *exact* spot where the card will snap.
+      if (overSlot !== null || !containerOrigin || !size) {
+        setTableGhost(null);
         return;
       }
-      setDragHoverSlot(slotIndexAtPoint(clientX, clientY));
+      const targetLeft = projectedLeft - containerOrigin.left;
+      const targetTop = projectedTop - containerOrigin.top;
+      const clampedX = Math.max(
+        TABLETOP_CONFIG.SCATTER_PADDING,
+        Math.min(
+          size.w - cardW - TABLETOP_CONFIG.SCATTER_PADDING,
+          targetLeft,
+        ),
+      );
+      const clampedY = Math.max(
+        TABLETOP_CONFIG.SCATTER_PADDING,
+        Math.min(
+          size.h - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+          targetTop,
+        ),
+      );
+      setTableGhost({ x: clampedX, y: clampedY });
     },
-    [cards, required, usesSlots, slotIndexAtPoint],
+    [cards, required, usesSlots, slotIndexAtPoint, containerOrigin, size, cardW, cardH],
   );
 
   // Once cards are initialized we never wipe selections automatically.
