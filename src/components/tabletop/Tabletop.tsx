@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Eye, EyeOff, Loader2, Sparkles, X } from "lucide-react";
+import { Eye, EyeOff, Sparkles, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -227,8 +227,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // they drift to their new slots instead of snapping.
   const [stirring, setStirring] = useState(false);
   const stirTimerRef = useRef<number | null>(null);
-  const [revealing, setRevealing] = useState(false);
-  const [revealedAll, setRevealedAll] = useState(false);
   // Refs to each slot DOM element. Used to compute flight target rects in
   // viewport coordinates so a selected card can animate from its current
   // scatter position to its slot.
@@ -499,7 +497,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const ready = selectedCount === required;
 
   const triggerStir = useCallback(() => {
-    if (revealing || revealedAll) return;
+    // No-op once cards are flying to slots / auto-transitioning is moot
+    // because Stir can only be tapped while the user is still picking.
     // If any cards are already in slots, ask before clearing them. Per
     // design: Stir is the "begin again" gesture — never silently destroy
     // the user's intentional picks.
@@ -534,7 +533,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       setStirring(false);
       stirTimerRef.current = null;
     }, 760);
-  }, [revealing, revealedAll, cards]);
+  }, [cards]);
 
   useEffect(() => {
     return () => {
@@ -545,7 +544,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   }, []);
 
   const toggleSelect = (id: number) => {
-    if (revealing || revealedAll) return;
     setCards((prev) => {
       const target = prev.find((c) => c.id === id);
       if (!target) return prev;
@@ -610,61 +608,37 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // ignoring the click if the pointer moved beyond a small threshold.
   const TAP_MOVE_THRESHOLD_PX = 8;
 
-  const handleReveal = () => {
-    if (!ready || revealing || revealedAll) return;
-    setRevealing(true);
-    const picks = cards
-      .filter((c) => c.selectionOrder !== null)
-      .sort((a, b) => (a.selectionOrder ?? 0) - (b.selectionOrder ?? 0));
-
-    // Pause for the sacred moment, then flip every selected card together.
-    window.setTimeout(() => {
-      picks.forEach((p, i) => {
-        window.setTimeout(() => {
-          setCards((prev) =>
-            prev.map((c) => (c.id === p.id ? { ...c, revealed: true } : c)),
-          );
-        }, i * TABLETOP_CONFIG.REVEAL_STAGGER_MS);
-      });
-      const total =
-        picks.length * TABLETOP_CONFIG.REVEAL_STAGGER_MS +
-        TABLETOP_CONFIG.REVEAL_ANIMATION_MS +
-        // Lingering breath: let users savor the faces before the
-        // reading screen takes over.
-        650;
-      window.setTimeout(() => {
-        setRevealedAll(true);
-        setRevealing(false);
-        // Per design: after Reveal we STAY on the draw table. No
-        // navigation, no "reading would appear here" handoff. The bottom
-        // bar simply quiets down — Stir and X remain, Reveal/Cast/Draw
-        // disappear. The user sits with the revealed cards.
-        // (Cast still navigates via handleCast → onComplete("cast").)
-      }, total);
-    }, 320);
-  };
-
   const handleExit = () => {
-    if (selectedCount > 0 && !revealedAll) {
+    if (selectedCount > 0) {
       const ok = window.confirm("Leave this reading? Your selections will be lost.");
       if (!ok) return;
     }
     onExit();
   };
 
-  // Cast: skip the in-place flip and hand off to the spread layout screen
-  // immediately with cards still face-down. Picks are ordered by
-  // selectionOrder so position 1 maps to spread slot 1, etc.
-  const handleCast = () => {
-    if (!ready || revealing) return;
+  // Auto-transition: when the user fills the final slot, pause briefly
+  // (the "sacred pause" — long enough to feel intentional, short enough
+  // not to frustrate) then hand off to the spread layout screen with
+  // cards still face-down. Picks are ordered by selectionOrder so
+  // position 1 maps to spread slot 1, etc.
+  useEffect(() => {
+    if (!ready || required === 0) return;
     const picks = cards
       .filter((c) => c.selectionOrder !== null)
       .sort((a, b) => (a.selectionOrder ?? 0) - (b.selectionOrder ?? 0));
-    onComplete(
-      picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
-      "cast",
-    );
-  };
+    const timer = window.setTimeout(() => {
+      onComplete(
+        picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
+        "cast",
+      );
+    }, 1500);
+    return () => window.clearTimeout(timer);
+    // We intentionally only re-run when readiness changes — the picks
+    // array is stable once the final slot is filled (tapping a slotted
+    // card to remove it would flip `ready` back to false and cancel
+    // the timer via the cleanup above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, required]);
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]">
@@ -773,19 +747,17 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         >
           <X className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
         </button>
-        {!revealedAll && (
-          <button
+        <button
             type="button"
             onClick={triggerStir}
-            disabled={revealing || stirring}
+            disabled={stirring}
             aria-label="Stir — rearrange unselected cards"
             style={{ opacity: restingAlpha }}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed"
           >
             <Sparkles className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
           </button>
-        )}
-        {!revealedAll && usesSlots && (
+        {usesSlots && (
           <button
             type="button"
             onClick={toggleShowLabels}
@@ -838,7 +810,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             cardH={cardH}
             cardBack={cardBack}
             faceIndex={deckMapping[c.id]}
-            disabled={revealing || revealedAll}
+            disabled={ready}
             hitInset={hitInset}
             stirring={stirring && c.selectionOrder === null}
             tapMoveThresholdPx={TAP_MOVE_THRESHOLD_PX}
@@ -1037,13 +1009,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </div>
         ) : null;
 
-        // When the user has filled every slot we present TWO ceremonial
-        // options side-by-side: "Reveal" (flips on the tabletop in place)
-        // and "Cast" (transitions straight to the spread layout, cards
-        // still face-down). A subtle middle dot separates them. While
-        // selection is still in progress we show a single italic "Draw"
-        // word that breathes — encouraging continued tapping without
-        // showing a hard counter.
+        // While selection is still in progress we show a single italic
+        // "Draw" word that breathes — encouraging continued tapping
+        // without showing a hard counter. Once the final slot is filled
+        // the whisper is replaced by a single pulsing gold dot (the
+        // "transition cue") while the 1500ms sacred pause runs before
+        // the spread layout takes over.
         const drawWord = (
           <span
             aria-live="polite"
@@ -1066,77 +1037,41 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </span>
         );
 
-        const dualActions = (
+        // Transition cue: a single gold dot that pulses softly during the
+        // 1500ms sacred pause after the last card is selected. Communicates
+        // "the reading is beginning" without words.
+        const transitionCue = (
           <span
-            className="inline-flex items-center gap-3 leading-none"
-            aria-label="Reveal or Cast your reading"
-          >
-            <button
-              type="button"
-              onClick={handleReveal}
-              disabled={revealing}
-              aria-busy={revealing}
-              aria-label="Reveal cards in place"
-              className="reveal-cta-enter reveal-glow-pulse inline-flex items-center gap-2 bg-transparent font-display italic leading-none hover:scale-[1.04] focus:outline-none disabled:cursor-not-allowed"
-              style={{
-                fontSize: 16,
-                color: "var(--gold)",
-                opacity: 1,
-                textShadow:
-                  "0 0 16px rgba(212,175,55,0.85), 0 0 32px rgba(212,175,55,0.35)",
-                cursor: "pointer",
-              }}
-            >
-              {revealing && (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-              )}
-              {revealing ? "Revealing" : "Reveal"}
-            </button>
-            <span
-              aria-hidden="true"
-              className="font-display"
-              style={{
-                fontSize: 14,
-                color: "var(--gold)",
-                opacity: 0.45,
-              }}
-            >
-              ·
-            </span>
-            <button
-              type="button"
-              onClick={handleCast}
-              disabled={revealing}
-              aria-label="Cast — go to spread layout"
-              className="reveal-cta-enter inline-flex items-center bg-transparent font-display italic leading-none transition-transform hover:scale-[1.04] focus:outline-none disabled:cursor-not-allowed"
-              style={{
-                fontSize: 16,
-                color: "rgba(255,255,255,0.9)",
-                cursor: "pointer",
-                textShadow: "0 0 12px rgba(255,255,255,0.25)",
-              }}
-            >
-              Cast
-            </button>
-          </span>
+            role="status"
+            aria-label="The reading is beginning"
+            className="inline-block animate-breathe-glow"
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              backgroundColor: "var(--gold)",
+              boxShadow:
+                "0 0 14px rgba(212,175,55,0.85), 0 0 28px rgba(212,175,55,0.45)",
+              margin: "6px 0",
+            }}
+          />
         );
 
-        // "Reveal · Cast" persists even after the cards have flipped face up.
-        // Reveal becomes a no-op once everything is revealed (cards stay
-        // face up in their slots) but Cast remains tappable so the user
-        // can proceed to the spread layout.
-        const centerWhisper = ready || revealedAll
-          ? dualActions
+        // While picking: show the breathing "Draw" whisper. Once the user
+        // selects the final card, the whisper goes quiet and the gold dot
+        // pulses through the auto-transition pause.
+        const centerWhisper = ready
+          ? transitionCue
           : !usesSlots
             ? drawWord
             : null;
 
         // Mobile: when the slot rail is visible the center column shows
         // the same "Draw" word so the call-to-action language stays
-        // consistent across breakpoints. Once ready, the dual actions
-        // (Reveal · Cast) take over.
+        // consistent across breakpoints. Once ready, the transition cue
+        // takes over.
         const mobileSlotCounter =
-          isMobile && showSlotRail ? drawWord : null;
+          isMobile && showSlotRail && !ready ? drawWord : null;
 
         const controlsRow = (
           <div
