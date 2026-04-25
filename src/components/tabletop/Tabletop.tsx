@@ -1027,6 +1027,27 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             }}
           >
             <div className="flex flex-col items-start gap-2">
+              {!revealedAll && usesSlots && (
+                <button
+                  type="button"
+                  onClick={toggleShowLabels}
+                  aria-pressed={showLabels}
+                  aria-label={
+                    showLabels
+                      ? "Hide spread position labels"
+                      : "Show spread position labels"
+                  }
+                  title={showLabels ? "Hide labels" : "Show labels"}
+                  style={{ opacity: showLabels ? Math.min(1, restingAlpha + 0.15) : restingAlpha }}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+                >
+                  {showLabels ? (
+                    <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                  ) : (
+                    <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                  )}
+                </button>
+              )}
               {!revealedAll && (
                 <button
                   type="button"
