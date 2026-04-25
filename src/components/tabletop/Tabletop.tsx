@@ -192,6 +192,17 @@ type TabletopProps = {
 type CardState = ScatterCard & {
   selectionOrder: number | null;
   revealed: boolean;
+  /**
+   * The card's home position on the table, captured exactly once when the
+   * scatter is first built. When a card is returned from a slot (via Stir
+   * or by tapping it again) it animates back to these coordinates so the
+   * table reads as the same scatter the user has been navigating, not a
+   * fresh shuffle. NEVER overwrite these after initial assignment.
+   */
+  originalX: number;
+  originalY: number;
+  originalRotation: number;
+  originalZ: number;
 };
 
 export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
