@@ -903,14 +903,19 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                       ref={(el) => {
                         slotRefs.current[i] = el;
                       }}
-                      className={cn(isNext && "slot-next-frame")}
+                      className={cn(
+                        isNext && "slot-next-frame",
+                        filled && !isNext && "slot-filled-static",
+                      )}
                       style={{
                         width: slotW,
                         height: slotH,
                         borderRadius: 10,
                         border: isNext
                           ? undefined
-                          : "1px solid rgba(212,175,55,0.2)",
+                          : filled
+                            ? "1px solid rgba(212,175,55,0.35)"
+                            : "1px solid rgba(212,175,55,0.2)",
                         background: isNext
                           ? undefined
                           : filled
