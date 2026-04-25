@@ -43,6 +43,14 @@ export const LANG = {
   moonFeatures:        { plain: "Moon Features",    oracle: "Lunar Awareness" },
   // Draw screen
   drawWhisper:         { plain: "Draw",             oracle: "Draw" },
+  // Tabletop confirmations
+  beginAgainTitle:     { plain: "Begin again?",          oracle: "Clear the altar?" },
+  beginAgainBody:      { plain: "Your picks will return to the table.", oracle: "Your picks will return to the table." },
+  beginAgainConfirm:   { plain: "Begin again",           oracle: "Begin again" },
+  leaveReadingTitle:   { plain: "Leave this reading?",   oracle: "Leave the altar?" },
+  leaveReadingBody:    { plain: "Your selections will be lost.", oracle: "Your selections will dissolve." },
+  leaveReadingConfirm: { plain: "Leave",                 oracle: "Leave the altar" },
+  cancel:              { plain: "Cancel",                oracle: "Stay" },
   // General
   settings:            { plain: "Settings",         oracle: "The Inner Sanctum" },
   profile:             { plain: "Profile",          oracle: "The Seeker" },
