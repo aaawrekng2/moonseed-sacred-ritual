@@ -1,9 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { DataTab } from '@/components/settings/DataTab'
 
 export const Route = createFileRoute('/settings/data')({
-  component: RouteComponent,
+  component: DataTab,
 })
-
-function RouteComponent() {
-  return <div>Hello "/settings/data"!</div>
-}
