@@ -1,7 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { Moon, Layers, SlidersHorizontal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { cn } from "@/lib/utils";
 
 type Tab = {
@@ -20,8 +19,6 @@ const TABS: readonly Tab[] = [
 ] as const;
 
 export function BottomNav() {
-  const { opacity } = useRestingOpacity();
-  const restingAlpha = opacity / 100;
   const location = useLocation();
 
   return (
@@ -39,14 +36,15 @@ export function BottomNav() {
         {TABS.map(({ to, label, Icon, primary }) => {
           const active = location.pathname === to;
           const iconSize = primary ? 32 : 20;
-          // Home (the primary moon tab) gets a gentle opacity boost so it
-          // reads as the centerpiece even when the rest of the chrome is
-          // resting at low opacity. When active, Home is fully solid.
+          // Bottom-nav opacity follows the global resting opacity tokens.
+          // Active tab → resting + 10%. Home (primary, non-active) gets a
+          // gentle +20% bump so it remains the visual centerpiece.
+          // Inactive secondary tabs sit at the base resting level.
           const tabAlpha = active
-            ? 1
+            ? "var(--ro-plus-10)"
             : primary
-              ? Math.min(1, restingAlpha + 0.2)
-              : restingAlpha;
+              ? "var(--ro-plus-20)"
+              : "var(--ro-plus-0)";
           return (
             <li key={to}>
               <Link
