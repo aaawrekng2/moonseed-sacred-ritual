@@ -89,6 +89,11 @@ import {
 import { SettingsSection } from "@/components/settings/sections";
 import { useSettings } from "@/components/settings/SettingsContext";
 import { useOracleMode } from "@/lib/use-oracle-mode";
+import {
+  dispatchActiveThemeChanged,
+  subscribeActiveThemeChanged,
+  type ActiveThemeDetail,
+} from "@/lib/theme-events";
 import { useBlocker } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
