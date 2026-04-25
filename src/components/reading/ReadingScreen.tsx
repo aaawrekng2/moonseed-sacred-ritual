@@ -190,22 +190,44 @@ function CardStrip({
   positionLabels: string[];
   spread: SpreadMode;
 }) {
-  // Track viewport so the 3-card spread can render larger on desktop per
-  // spec (twice the mobile size). Other spreads keep their existing tuning.
-  const [isDesktop, setIsDesktop] = useState(
-    typeof window !== "undefined" ? window.innerWidth >= 768 : false,
+  // Track viewport size + orientation. The 3-card spread doubles on
+  // desktop, and any spread in landscape uses card height tuned to the
+  // viewport height so the row fills 60-70% of the visible area.
+  const [vp, setVp] = useState(() =>
+    typeof window !== "undefined"
+      ? { w: window.innerWidth, h: window.innerHeight }
+      : { w: 0, h: 0 },
   );
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const onResize = () => setIsDesktop(window.innerWidth >= 768);
+    const onResize = () =>
+      setVp({ w: window.innerWidth, h: window.innerHeight });
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
   }, []);
+  const isDesktop = vp.w >= 768;
+  const isLandscape = vp.w > vp.h && vp.h <= 500;
 
   // Tighter cards for Celtic (10 cards) so the strip stays one or two rows.
-  // 3-card spread doubles on desktop only — mobile sizing unchanged.
+  // 3-card spread doubles on desktop only — mobile portrait sizing unchanged.
+  // In landscape we size by viewport height instead so cards fill ~60-70%
+  // of the available vertical space in a single row.
   let w: number;
-  if (picks.length >= 8) {
+  if (isLandscape) {
+    // Target card height ≈ 65% of viewport height; derive width from the
+    // card aspect ratio (1.75). Then clamp so 10-card celtic still fits.
+    const targetH = Math.min(vp.h * 0.65, 360);
+    const targetW = Math.round(targetH / 1.75);
+    // Reserve space for gaps + label so we don't overflow horizontally.
+    const usableW = vp.w * 0.92;
+    const gap = 12;
+    const fitW = Math.floor((usableW - gap * (picks.length - 1)) / picks.length);
+    w = Math.max(36, Math.min(targetW, fitW));
+  } else if (picks.length >= 8) {
     w = 44;
   } else if (spread === "three") {
     w = isDesktop ? 160 : 80;
