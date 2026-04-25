@@ -17,7 +17,6 @@ import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
 import { TopRightControls } from "@/components/nav/TopRightControls";
-import { BottomNav } from "@/components/nav/BottomNav";
 
 /**
  * /settings — layout route. The route itself redirects to
@@ -121,7 +120,14 @@ function SettingsLayout() {
 
   return (
     <SettingsProvider>
-      <main className="min-h-screen overflow-y-auto bg-cosmos pb-28 pt-[calc(env(safe-area-inset-top)+24px)] text-foreground">
+      {/*
+        Scroll fix: html/body/#root are pinned with overflow:hidden, so this
+        scroll container needs an explicit viewport height (h-dvh) and its
+        own overflow-y-auto to make the Settings content scrollable. The
+        bottom padding clears the global BottomNav rendered in __root.tsx
+        (do NOT render another BottomNav here — that would duplicate it).
+      */}
+      <main className="h-dvh overflow-y-auto bg-cosmos pb-28 pt-[calc(env(safe-area-inset-top)+24px)] text-foreground">
         <TopRightControls />
         <div className="mx-auto w-full max-w-5xl px-4">
           {/* Mobile tab bar: horizontally scrollable underline. */}
@@ -164,7 +170,20 @@ function SettingsLayout() {
 
           {/* Desktop two-column shell: sidebar + content */}
           <div className="flex gap-0 md:gap-10">
-            <aside className="sticky top-6 hidden h-fit shrink-0 self-start rounded-2xl border border-gold/10 bg-[oklch(0.13_0.04_280)] py-3 md:flex md:w-[240px] md:flex-col">
+            {/*
+              Sidebar: flush against the content edge — no rounded card,
+              no surrounding border. Only a faint right divider separates
+              it from the content. Sticks to the top of the scroll
+              container and grows to roughly the visible viewport height.
+            */}
+            <aside
+              className="sticky top-0 -my-[calc(env(safe-area-inset-top)+24px)] hidden shrink-0 self-start py-6 md:flex md:w-[240px] md:flex-col"
+              style={{
+                background: "oklch(0.13 0.04 280)",
+                borderRight: "1px solid oklch(0.30 0.04 285 / 0.25)",
+                minHeight: "100dvh",
+              }}
+            >
               {TABS.map((t) => {
                 const Icon = t.icon;
                 const active = activeTab === t.key;
@@ -179,7 +198,19 @@ function SettingsLayout() {
                         : "text-muted-foreground hover:bg-[oklch(0.82_0.14_82_/_0.05)] hover:text-foreground/80",
                     )}
                   >
-                    <Icon className="h-4 w-4 opacity-70" />
+                    {/*
+                      Sidebar nav icons obey the global resting opacity at
+                      rest, with active rows getting a +10% bump per the
+                      design system.
+                    */}
+                    <Icon
+                      className="h-4 w-4"
+                      style={{
+                        opacity: active
+                          ? "var(--ro-plus-10)"
+                          : "var(--ro-plus-0)",
+                      }}
+                    />
                     <span>{t.label}</span>
                   </Link>
                 );
@@ -191,7 +222,6 @@ function SettingsLayout() {
             </div>
           </div>
         </div>
-        <BottomNav />
       </main>
     </SettingsProvider>
   );
