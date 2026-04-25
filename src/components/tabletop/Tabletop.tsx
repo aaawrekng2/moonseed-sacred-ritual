@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Eye, EyeOff, Sparkles, Undo2, Redo2, X } from "lucide-react";
+import { Eye, EyeOff, EyeClosed, Undo2, Redo2, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -18,6 +18,19 @@ import {
   useRestingOpacity,
 } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
+import { useOracleMode } from "@/lib/use-oracle-mode";
+import { t } from "@/lib/oracle-language";
+import { TopRightControls } from "@/components/nav/TopRightControls";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 const TABLETOP_CONFIG = {
