@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Eye, EyeOff, Sparkles, Undo2, Redo2, X } from "lucide-react";
+import { Eye, EyeOff, EyeClosed, Undo2, Redo2, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -18,6 +18,19 @@ import {
   useRestingOpacity,
 } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
+import { useOracleMode } from "@/lib/use-oracle-mode";
+import { t } from "@/lib/oracle-language";
+import { TopRightControls } from "@/components/nav/TopRightControls";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 
 const TABLETOP_CONFIG = {
@@ -316,6 +329,25 @@ type DragAction =
       fromSlot: number;
       toX: number;
       toY: number;
+    }
+  | {
+      // Tap-to-slot: card was tapped on the table and assigned to the
+      // lowest empty slot. Reversible: undo returns the card to the
+      // table at its previous coords and clears the slot.
+      kind: "tap-place";
+      cardId: number;
+      toSlot: number;
+      fromX: number;
+      fromY: number;
+    }
+  | {
+      // Tap-deselect: a slotted card was tapped and returned to the table
+      // at its lastTable coords. Undo restores the slot.
+      kind: "tap-unplace";
+      cardId: number;
+      fromSlot: number;
+      toX: number;
+      toY: number;
     };
 
 export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
@@ -333,14 +365,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const [containerOrigin, setContainerOrigin] = useState<{ left: number; top: number } | null>(null);
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [seed] = useState(() => (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
-  // Bumped each time the user "stirs" the table. Used to derive a fresh
-  // scatter seed for unselected cards while preserving selected ones.
-  const [stirNonce, setStirNonce] = useState(0);
-  // True for the duration of the stir animation. Drives the tabletop tilt
-  // overlay and toggles a position-transition class on unselected cards so
-  // they drift to their new slots instead of snapping.
-  const [stirring, setStirring] = useState(false);
-  const stirTimerRef = useRef<number | null>(null);
   // Refs to each slot DOM element. Used to compute flight target rects in
   // viewport coordinates so a selected card can animate from its current
   // scatter position to its slot.
@@ -355,11 +379,33 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // Persisted preference for showing spread position labels under each
   // slot. Defaults to ON (annotated). Mirrored on the SpreadLayout
   // screen so the choice carries through the entire draw flow.
-  const { showLabels, toggleShowLabels } = useShowLabels();
+  const { showLabels, setShowLabels } = useShowLabels();
+  const { isOracle } = useOracleMode();
 
-  // Dev-only overlap debug overlay. Visualises each card's visible-area
-  // ratio so the 30% minimum visibility rule can be eyeballed at a glance.
-  const [debugOverlap, setDebugOverlap] = useState(false);
+  // Three-level UI density for the draw screen, controlled by the eye
+  // icon in the top-bar.
+  //   0 → labels under slots + bottom whisper (richest)
+  //   1 → labels under slots only (whisper hidden)
+  //   2 → labels and whisper hidden (most minimal)
+  // Persisted across sessions on `showLabels` (level 2 ↔ off) plus a
+  // local `showWhisper` flag for the middle tier.
+  const [showWhisper, setShowWhisper] = useState(true);
+  const densityLevel: 0 | 1 | 2 = !showLabels ? 2 : !showWhisper ? 1 : 0;
+  const cycleDensity = () => {
+    if (densityLevel === 0) {
+      setShowLabels(true);
+      setShowWhisper(false);
+    } else if (densityLevel === 1) {
+      setShowLabels(false);
+      setShowWhisper(false);
+    } else {
+      setShowLabels(true);
+      setShowWhisper(true);
+    }
+  };
+
+  // On-brand confirmation dialog state (replaces window.confirm calls).
+  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
 
   // Read selected card back once on mount.
   useEffect(() => {
@@ -589,6 +635,29 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               : c,
           );
         }
+        if (action.kind === "tap-place") {
+          const targetOrder = action.toSlot + 1;
+          return prev.map((c) =>
+            c.id === action.cardId
+              ? { ...c, selectionOrder: targetOrder, isDragDrop: false }
+              : c,
+          );
+        }
+        if (action.kind === "tap-unplace") {
+          return prev.map((c) =>
+            c.id === action.cardId
+              ? {
+                  ...c,
+                  selectionOrder: null,
+                  x: action.toX,
+                  y: action.toY,
+                  lastTableX: action.toX,
+                  lastTableY: action.toY,
+                  isDragDrop: false,
+                }
+              : c,
+          );
+        }
         return prev;
       });
     },
@@ -645,7 +714,23 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             return c;
           });
         }
-        // unplace: card returns to its slot.
+        if (action.kind === "tap-place") {
+          // Undo a tap selection: clear the slot and restore table coords.
+          return prev.map((c) =>
+            c.id === action.cardId
+              ? {
+                  ...c,
+                  selectionOrder: null,
+                  x: action.fromX,
+                  y: action.fromY,
+                  lastTableX: action.fromX,
+                  lastTableY: action.fromY,
+                  isDragDrop: false,
+                }
+              : c,
+          );
+        }
+        // unplace / tap-unplace: card returns to its slot.
         return prev.map((c) =>
           c.id === action.cardId
             ? { ...c, selectionOrder: action.fromSlot + 1, isDragDrop: false }
@@ -932,123 +1017,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     return () => window.cancelAnimationFrame(id);
   }, [usesSlots, selectionSig]);
 
-  // Stir: rebuild scatter for unselected cards only. Selected cards keep
-  // their position, rotation, z-order, and slot number untouched.
-  useEffect(() => {
-    if (stirNonce === 0) return;
-    if (!size) return;
-    setCards((prev) => {
-      if (prev.length === 0) return prev;
-      const fresh = buildScatter({
-        width: size.w,
-        height: size.h,
-        count: TABLETOP_CONFIG.DECK_SIZE,
-        cardWidth: cardW,
-        cardHeight: cardH,
-        maxRotation,
-        padding: TABLETOP_CONFIG.SCATTER_PADDING,
-        seed: (seed ^ (stirNonce * 0x9e3779b9)) >>> 0,
-        exclusionZones,
-        minVisibleRatio: 0.3,
-      });
-      // Use the fresh scatter slots in order to re-place each unselected card.
-      let cursor = 0;
-      return prev.map((c) => {
-        if (c.selectionOrder !== null) return c; // preserve selected exactly
-        const next = fresh[cursor++ % fresh.length];
-        return {
-          ...c,
-          x: next.x,
-          y: next.y,
-          rotation: next.rotation,
-          z: next.z,
-        };
-      });
-    });
-  }, [stirNonce, size, cardW, cardH, maxRotation, seed, exclusionZones]);
-
-  // Per-card visible-area ratio (0–1), derived from current card positions
-  // and the same overlap heuristic used by buildScatter's enforcement pass.
-  // Only computed when the debug overlay is on.
-  const visibilityByCardId = useMemo(() => {
-    const map = new Map<number, number>();
-    if (!debugOverlap || cards.length === 0) return map;
-    const area = cardW * cardH;
-    if (area <= 0) return map;
-    // Sort by z; higher-z cards (later in the array) render on top.
-    const byZ = [...cards].sort((a, b) => a.z - b.z);
-    for (let i = 0; i < byZ.length; i++) {
-      const c = byZ[i];
-      let covered = 0;
-      for (let j = i + 1; j < byZ.length; j++) {
-        const o = byZ[j];
-        const ow = Math.max(
-          0,
-          Math.min(c.x + cardW, o.x + cardW) - Math.max(c.x, o.x),
-        );
-        const oh = Math.max(
-          0,
-          Math.min(c.y + cardH, o.y + cardH) - Math.max(c.y, o.y),
-        );
-        covered += ow * oh;
-        if (covered >= area) break;
-      }
-      map.set(c.id, Math.max(0, 1 - Math.min(area, covered) / area));
-    }
-    return map;
-  }, [debugOverlap, cards, cardW, cardH]);
-
   const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
   const ready = selectedCount === required;
 
-  const triggerStir = useCallback(() => {
-    // No-op once cards are flying to slots / auto-transitioning is moot
-    // because Stir can only be tapped while the user is still picking.
-    // If any cards are already in slots, ask before clearing them. Per
-    // design: Stir is the "begin again" gesture — never silently destroy
-    // the user's intentional picks.
-    const anySelected = cards.some((c) => c.selectionOrder !== null);
-    if (anySelected) {
-      const ok = window.confirm("Begin again? Your picks will return to the table.");
-      if (!ok) return;
-      // Send every slotted card back to its original scatter position,
-      // rotation and z. Stir is "begin again" — the table should look
-      // exactly as it did before the user started picking.
-      setCards((prev) =>
-        prev.map((c) =>
-          c.selectionOrder !== null
-            ? {
-                ...c,
-                selectionOrder: null,
-                x: c.originalX,
-                y: c.originalY,
-                rotation: c.originalRotation,
-                z: c.originalZ,
-              }
-            : c,
-        ),
-      );
-    }
-    setStirring(true);
-    setStirNonce((n) => n + 1);
-    if (stirTimerRef.current != null) {
-      window.clearTimeout(stirTimerRef.current);
-    }
-    stirTimerRef.current = window.setTimeout(() => {
-      setStirring(false);
-      stirTimerRef.current = null;
-    }, 760);
-  }, [cards]);
-
-  useEffect(() => {
-    return () => {
-      if (stirTimerRef.current != null) {
-        window.clearTimeout(stirTimerRef.current);
-      }
-    };
-  }, []);
-
   const toggleSelect = (id: number) => {
+    let recordedAction: DragAction | null = null;
     setCards((prev) => {
       const target = prev.find((c) => c.id === id);
       if (!target) return prev;
@@ -1058,6 +1031,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       // "shuffled" rather than the card returning to its origin.
       if (target.selectionOrder !== null) {
         if (usesSlots) {
+          recordedAction = {
+            kind: "tap-unplace",
+            cardId: id,
+            fromSlot: target.selectionOrder - 1,
+            toX: target.lastTableX,
+            toY: target.lastTableY,
+          };
           // Return the card to its LAST KNOWN table position — the
           // spot it was at when the user lifted it into the slot. If
           // the card was tap-selected (never dragged), lastTableX/Y
@@ -1102,10 +1082,24 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         }
       }
       if (nextSlot === null) return prev;
+      if (usesSlots) {
+        recordedAction = {
+          kind: "tap-place",
+          cardId: id,
+          toSlot: nextSlot - 1,
+          fromX: target.x,
+          fromY: target.y,
+        };
+      }
       return prev.map((c) =>
         c.id === id ? { ...c, selectionOrder: nextSlot, isDragDrop: false } : c,
       );
     });
+    if (recordedAction) {
+      const action = recordedAction;
+      setUndoStack((s) => [...s, action]);
+      setRedoStack([]);
+    }
   };
 
   // ---- Tap-only selection -------------------------------------------------
@@ -1115,15 +1109,16 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // ignoring the click if the pointer moved beyond a small threshold.
   const TAP_MOVE_THRESHOLD_PX = 8;
 
-  const handleExit = () => {
-    if (selectedCount > 0) {
-      const ok = window.confirm("Leave this reading? Your selections will be lost.");
-      if (!ok) return;
-    }
-    // Explicit exit ends the session — drop the saved snapshot so the
-    // next visit starts with a fresh scatter and empty undo stack.
+  const performExit = () => {
     clearTabletopSession(spread);
     onExit();
+  };
+  const handleExit = () => {
+    if (selectedCount > 0) {
+      setExitConfirmOpen(true);
+      return;
+    }
+    performExit();
   };
 
   // Mirror current cards + undo/redo stacks into the cross-route
@@ -1286,112 +1281,74 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       </div>
       )}
 
-      {/* Overlap debug pill — fixed upper-right, leaves room for the X
-          close button in the bottom bar but mirrors the dev slider on
-          the opposite corner. Desktop only. */}
-      {!isMobile && (
-        <button
-          type="button"
-          onClick={() => setDebugOverlap((v) => !v)}
-          aria-pressed={debugOverlap}
-          aria-label="Toggle overlap debug overlay"
-          style={{
-            position: "fixed",
-            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-            right: "calc(env(safe-area-inset-right, 0px) + 52px)",
-            zIndex: 50,
-            opacity: debugOverlap ? 1 : restingAlpha,
-          }}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
-            "font-display text-[9px] uppercase tracking-[0.25em] transition-opacity",
-            "hover:!opacity-100 focus:!opacity-100 focus:outline-none",
-            debugOverlap
-              ? "border-destructive/70 text-destructive-foreground bg-destructive/20"
-              : "border-gold/30 text-gold/70",
-          )}
-        >
-          <span
-            aria-hidden="true"
-            className={cn(
-              "h-1.5 w-1.5 rounded-full",
-              debugOverlap ? "bg-destructive" : "bg-gold/50",
-            )}
-          />
-          Overlap {debugOverlap ? "On" : "Off"}
-        </button>
-      )}
-
-      {/* Right-side vertical control stack: X (exit), Stir (shuffle),
-          Eye (toggle position labels). Per design: all three live in a
-          fixed column on the right edge so the bottom bar can be reserved
-          purely for the slot rail and Draw / Reveal · Cast whisper. */}
+      {/* Standard top-bar (profile / sanctuary cycler / Oracle voice).
+          Self-positions fixed at the top-right of the viewport. */}
+      <TopRightControls />
+      {/* Draw-screen-specific top bar: three-level eye (whisper + labels
+          density) and the X close button. Positioned to the LEFT of the
+          standard TopRightControls cluster. */}
       <div
         style={{
           position: "fixed",
           top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+          // TopRightControls sits at right-4 (1rem) and is roughly
+          // 7rem wide when the wand pill is collapsed. Offset us past
+          // it so we never overlap the profile chip.
+          right: "calc(env(safe-area-inset-right, 0px) + 9rem)",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-end",
-          gap: 12,
+          alignItems: "center",
+          gap: 8,
           zIndex: 60,
           pointerEvents: "auto",
         }}
       >
         <button
           type="button"
+          onClick={cycleDensity}
+          aria-label={
+            densityLevel === 0
+              ? "Hide draw whisper"
+              : densityLevel === 1
+                ? "Hide spread position labels"
+                : "Show spread position labels and draw whisper"
+          }
+          title={
+            densityLevel === 0
+              ? "Whisper + labels"
+              : densityLevel === 1
+                ? "Labels only"
+                : "Minimal"
+          }
+          style={{
+            opacity: densityLevel === 0
+              ? Math.min(1, restingAlpha + 0.15)
+              : restingAlpha,
+          }}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        >
+          {densityLevel === 0 ? (
+            <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          ) : densityLevel === 1 ? (
+            <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          ) : (
+            <EyeClosed className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          )}
+        </button>
+        <button
+          type="button"
           onClick={handleExit}
           aria-label="Close tabletop"
           style={{ opacity: exitAlpha }}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
         >
-          <X className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+          <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         </button>
-        <button
-            type="button"
-            onClick={triggerStir}
-            disabled={stirring}
-            aria-label="Stir — rearrange unselected cards"
-            style={{ opacity: restingAlpha }}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed"
-          >
-            <Sparkles className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
-          </button>
-        {usesSlots && (
-          <button
-            type="button"
-            onClick={toggleShowLabels}
-            aria-pressed={showLabels}
-            aria-label={
-              showLabels
-                ? "Hide spread position labels"
-                : "Show spread position labels"
-            }
-            title={showLabels ? "Hide labels" : "Show labels"}
-            style={{
-              opacity: showLabels
-                ? Math.min(1, restingAlpha + 0.15)
-                : restingAlpha,
-            }}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          >
-            {showLabels ? (
-              <Eye className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
-            ) : (
-              <EyeOff className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
-            )}
-          </button>
-        )}
       </div>
 
       {/* Tabletop scatter area */}
       <div
         ref={containerRef}
-        className={cn(
-          "tabletop-stage relative flex-1 overflow-hidden select-none",
-          stirring && "animate-tabletop-tilt",
-        )}
+        className="tabletop-stage relative flex-1 overflow-hidden select-none"
         style={{
           paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)",
         }}
@@ -1406,7 +1363,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             faceIndex={deckMapping[c.id]}
             disabled={ready}
             hitInset={hitInset}
-            stirring={stirring && c.selectionOrder === null}
             tapMoveThresholdPx={TAP_MOVE_THRESHOLD_PX}
             onSelect={() => toggleSelect(c.id)}
             onDragEnd={handleDragEnd}
@@ -1432,12 +1388,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             containerOrigin={containerOrigin}
           />
         ))}
-        {stirring && (
-          <span
-            aria-hidden="true"
-            className="tabletop-shimmer-overlay"
-          />
-        )}
         {/* Drop-target ghost. Subtle dashed outline at the clamped
             landing point so the user sees exactly where a release on
             the table would snap to. Hidden whenever the pointer is
@@ -1460,52 +1410,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             }}
           />
         )}
-        {/* Dev overlap debug overlay. Each card gets a tinted rectangle at
-            its bounding-box position with its visible-area % shown. Red <30%
-            (violates the rule), amber 30–60%, green ≥60%. */}
-        {debugOverlap &&
-          cards.map((c) => {
-            const ratio = visibilityByCardId.get(c.id) ?? 1;
-            const pct = Math.round(ratio * 100);
-            const violates = ratio < 0.3;
-            const tint = violates
-              ? "rgba(239, 68, 68, 0.45)" // red
-              : ratio < 0.6
-                ? "rgba(245, 158, 11, 0.35)" // amber
-                : "rgba(34, 197, 94, 0.30)"; // green
-            const border = violates
-              ? "2px solid rgba(239, 68, 68, 0.95)"
-              : ratio < 0.6
-                ? "1px dashed rgba(245, 158, 11, 0.9)"
-                : "1px dashed rgba(34, 197, 94, 0.8)";
-            return (
-              <div
-                key={`dbg-${c.id}`}
-                aria-hidden="true"
-                className="pointer-events-none absolute"
-                style={{
-                  left: c.x,
-                  top: c.y,
-                  width: cardW,
-                  height: cardH,
-                  background: tint,
-                  border,
-                  borderRadius: 10,
-                  zIndex: 9000 + c.z,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontFamily: "var(--font-mono, monospace)",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: "white",
-                  textShadow: "0 1px 2px rgba(0,0,0,0.8)",
-                }}
-              >
-                {pct}%
-              </div>
-            );
-          })}
       </div>
 
       {(() => {
@@ -1763,6 +1667,22 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
         return controlsRow;
       })()}
+      <AlertDialog open={exitConfirmOpen} onOpenChange={setExitConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("leaveReadingTitle", isOracle)}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("leaveReadingBody", isOracle)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel", isOracle)}</AlertDialogCancel>
+            <AlertDialogAction onClick={performExit}>
+              {t("leaveReadingConfirm", isOracle)}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -1775,7 +1695,6 @@ function CardSlot({
   faceIndex,
   disabled,
   hitInset,
-  stirring,
   onSelect,
   settleDelay,
   tapMoveThresholdPx,
@@ -1794,7 +1713,6 @@ function CardSlot({
   faceIndex: number;
   disabled: boolean;
   hitInset: number;
-  stirring: boolean;
   onSelect: () => void;
   settleDelay: number;
   tapMoveThresholdPx: number;
@@ -1897,6 +1815,8 @@ function CardSlot({
     if (flightPhase === "idle") {
       const r = btnRef.current?.getBoundingClientRect() ?? null;
       setLaunchRect(r);
+      // Capture the card's actual current visual rotation so the launch
+      // frame paints at the same orientation, preventing a visible jump.
       launchRotationRef.current = card.rotation;
       setFlightPhase("launching");
     }
@@ -2202,13 +2122,8 @@ function CardSlot({
         flying || flightPhase === "returning" || dragging || (skipFlight && slotRect)
           ? "fixed outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
           : "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
-        // While stirring, animate left/top/transform together so the card
-        // drifts to its new scatter slot. Otherwise keep the snappier
-        // transform-only transition for selection feedback.
         flying || flightPhase === "returning" || dragging
           ? null
-          : stirring
-          ? "card-stir-transition"
           : "card-idle-transition",
         // Remove default tap highlight on iOS / Android.
         "[-webkit-tap-highlight-color:transparent] touch-manipulation",
@@ -2329,7 +2244,6 @@ function CardSlot({
         className={cn(
           "relative rounded-[10px]",
           tapTick > 0 && !card.revealed && "animate-card-tap",
-          stirring && !card.revealed && "animate-card-stir-glide",
           consecrating && !card.revealed && "animate-card-consecrate animate-card-consecrate-halo",
           flipping && "animate-sacred-reveal",
         )}
@@ -2410,14 +2324,6 @@ function CardSlot({
           <span aria-hidden="true" className="card-consecrate-shimmer" />
         )}
       </div>
-      {isSelected && !card.revealed && !flying && (
-        <span
-          className="pointer-events-none absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-gold text-[9px] font-bold text-background"
-          style={{ transform: `rotate(${-card.rotation}deg)` }}
-        >
-          {card.selectionOrder}
-        </span>
-      )}
     </button>
   );
 }
