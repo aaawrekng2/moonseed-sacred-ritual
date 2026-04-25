@@ -2090,10 +2090,17 @@ function CardSlot({
     if (!s) return;
     if (!dragging) return;
     s.didDrag = true;
-    setDragPos({
-      x: e.clientX - s.pointerOffsetX,
-      y: e.clientY - s.pointerOffsetY,
-    });
+    // Move the card via direct DOM mutation rather than React state so
+    // every pointermove doesn't trigger a render. The `dragging` style
+    // branch is already active (set once in beginDrag) and uses
+    // `position: absolute` with `left`/`top`, so writing those properties
+    // here is enough — and crucially avoids any React reconciliation
+    // that could momentarily detach the inline styles.
+    const el = btnRef.current;
+    if (el) {
+      el.style.left = `${e.clientX - s.pointerOffsetX}px`;
+      el.style.top = `${e.clientY - s.pointerOffsetY}px`;
+    }
     onDragMove(
       e.clientX,
       e.clientY,
