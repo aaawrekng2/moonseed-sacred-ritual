@@ -507,7 +507,6 @@ function CustomAccentSection() {
 
 function BackgroundGradientSection() {
   const { user, prefs, setPrefs } = useSettings();
-  const { preset, setPreset } = useBgGradient();
   const { markDirty } = useThemeDirty();
 
   const [leftHex, setLeftHex] = useState(
@@ -534,20 +533,6 @@ function BackgroundGradientSection() {
     }
   }, [prefs.bg_gradient_from, prefs.bg_gradient_to]);
 
-  const choosePreset = async (name: BgPresetName) => {
-    setPreset(name);
-    markDirty();
-    const found = BG_PRESETS.find((p) => p.value === name);
-    if (!found) return;
-    setLeftHex(found.left);
-    setRightHex(found.right);
-    await updateUserPreferences(user.id, {
-      bg_gradient_from: null,
-      bg_gradient_to: null,
-    });
-    setPrefs({ ...prefs, bg_gradient_from: null, bg_gradient_to: null });
-  };
-
   const applyCustom = async (left: string, right: string) => {
     if (!isHex(left) || !isHex(right)) return;
     document.documentElement.style.setProperty("--bg-gradient-left", left);
@@ -571,63 +556,21 @@ function BackgroundGradientSection() {
 
   return (
     <SettingsSection
-      title="Background Gradient"
-      description="The deep gradient behind every screen."
+      title="The Horizon"
+      description="The sky behind every reading — dark on the left where the past recedes, bright on the right where futures open."
     >
       <div className="space-y-5">
         <div
           aria-hidden
-          className="h-20 w-full rounded-2xl border border-gold/30"
+          className="h-12 w-full rounded-lg border border-gold/30"
           style={{
             background: `linear-gradient(to right, ${liveLeft}, ${liveRight})`,
           }}
         />
 
-        <div className="space-y-2">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-            Presets
-          </Label>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-            {BG_PRESETS.map((p) => {
-              const active = preset === p.value && !prefs.bg_gradient_from;
-              return (
-                <button
-                  key={p.value}
-                  type="button"
-                  onClick={() => void choosePreset(p.value)}
-                  aria-pressed={active}
-                  className={cn(
-                    "group flex flex-col items-center gap-1.5 focus:outline-none",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "block h-12 w-full rounded-lg transition-all",
-                      active
-                        ? "ring-2 ring-gold shadow-glow"
-                        : "ring-1 ring-border/60 group-hover:ring-gold/50",
-                    )}
-                    style={{
-                      background: `linear-gradient(to right, ${p.left}, ${p.right})`,
-                    }}
-                  />
-                  <span
-                    className={cn(
-                      "text-[10px] leading-tight",
-                      active ? "text-gold" : "text-muted-foreground",
-                    )}
-                  >
-                    {p.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         <div className="space-y-4">
           <BgHexPicker
-            label="Left Color"
+            label="The Past"
             value={liveLeft}
             open={openSide === "left"}
             onToggle={() => setOpenSide(openSide === "left" ? null : "left")}
@@ -635,7 +578,7 @@ function BackgroundGradientSection() {
             onReset={() => void applyCustom(DEFAULT_BG_LEFT, liveRight)}
           />
           <BgHexPicker
-            label="Right Color"
+            label="The Future"
             value={liveRight}
             open={openSide === "right"}
             onToggle={() => setOpenSide(openSide === "right" ? null : "right")}
