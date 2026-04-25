@@ -522,7 +522,17 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       setCards((prev) => {
         if (action.kind === "move") {
           return prev.map((c) =>
-            c.id === action.cardId ? { ...c, x: action.toX, y: action.toY } : c,
+            c.id === action.cardId
+              ? {
+                  ...c,
+                  x: action.toX,
+                  y: action.toY,
+                  lastTableX: action.toX,
+                  lastTableY: action.toY,
+                  lastTableRotation: c.rotation,
+                  isDragDrop: false,
+                }
+              : c,
           );
         }
         if (action.kind === "place") {
@@ -532,7 +542,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             : null;
           return prev.map((c) => {
             if (c.id === action.cardId) {
-              return { ...c, selectionOrder: targetOrder };
+              return { ...c, selectionOrder: targetOrder, isDragDrop: true };
             }
             if (
               action.displacedCardId !== null &&
@@ -543,6 +553,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                 return {
                   ...c,
                   selectionOrder: action.displacedToSlot + 1,
+                  isDragDrop: false,
                 };
               }
               // Bumped onto the table at its own pre-drag coords.
@@ -551,6 +562,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                 selectionOrder: null,
                 x: action.displacedFromX,
                 y: action.displacedFromY,
+                lastTableX: action.displacedFromX,
+                lastTableY: action.displacedFromY,
+                lastTableRotation: c.rotation,
+                isDragDrop: false,
               };
             }
             return c;
@@ -561,7 +576,16 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         if (action.kind === "unplace") {
           return prev.map((c) =>
             c.id === action.cardId
-              ? { ...c, selectionOrder: null, x: action.toX, y: action.toY }
+              ? {
+                  ...c,
+                  selectionOrder: null,
+                  x: action.toX,
+                  y: action.toY,
+                  lastTableX: action.toX,
+                  lastTableY: action.toY,
+                  lastTableRotation: c.rotation,
+                  isDragDrop: false,
+                }
               : c,
           );
         }
@@ -580,7 +604,15 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         if (action.kind === "move") {
           return prev.map((c) =>
             c.id === action.cardId
-              ? { ...c, x: action.fromX, y: action.fromY }
+              ? {
+                  ...c,
+                  x: action.fromX,
+                  y: action.fromY,
+                  lastTableX: action.fromX,
+                  lastTableY: action.fromY,
+                  lastTableRotation: c.rotation,
+                  isDragDrop: false,
+                }
               : c,
           );
         }
@@ -590,13 +622,17 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             if (c.id === action.cardId) {
               // Send dragged card back to wherever it came from.
               if (action.fromSlot !== null) {
-                return { ...c, selectionOrder: action.fromSlot + 1 };
+                return { ...c, selectionOrder: action.fromSlot + 1, isDragDrop: false };
               }
               return {
                 ...c,
                 selectionOrder: null,
                 x: action.fromX,
                 y: action.fromY,
+                lastTableX: action.fromX,
+                lastTableY: action.fromY,
+                lastTableRotation: c.rotation,
+                isDragDrop: false,
               };
             }
             if (
@@ -604,7 +640,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               c.id === action.displacedCardId
             ) {
               // Displaced card returns to the slot we just vacated.
-              return { ...c, selectionOrder: targetOrder };
+              return { ...c, selectionOrder: targetOrder, isDragDrop: false };
             }
             return c;
           });
@@ -612,7 +648,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         // unplace: card returns to its slot.
         return prev.map((c) =>
           c.id === action.cardId
-            ? { ...c, selectionOrder: action.fromSlot + 1 }
+            ? { ...c, selectionOrder: action.fromSlot + 1, isDragDrop: false }
             : c,
         );
       });
