@@ -1436,7 +1436,7 @@ function SavedThemesSection() {
                 }
               }}
             >
-              Overwrite
+              Overwrite this sanctuary
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
