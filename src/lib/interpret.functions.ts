@@ -56,6 +56,12 @@ Always respond in this exact JSON format and nothing else:
   "closing": "One final sentence — a gentle invitation to reflect"
 }`;
 
+const ANTHROPIC_MODELS = [
+  "claude-sonnet-4-6",
+  "claude-sonnet-4-5-20250929",
+  "claude-haiku-4-5-20251001",
+] as const;
+
 /**
  * Server-side gate + Claude call. Lives in `.functions.ts` so the TanStack
  * server-fn plugin replaces the body with an RPC stub for the client bundle
