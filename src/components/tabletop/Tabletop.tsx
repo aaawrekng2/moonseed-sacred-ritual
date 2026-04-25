@@ -1675,7 +1675,13 @@ function CardSlot({
     fromX: number,
     fromY: number,
   ) => void;
-  onDragMove: (clientX: number, clientY: number) => void;
+  onDragMove: (
+    clientX: number,
+    clientY: number,
+    /** Card's projected top-left in viewport coords if dropped now. */
+    projectedLeft: number,
+    projectedTop: number,
+  ) => void;
   isCoarsePointer: boolean;
   containerRect:
     | { left: number; top: number; width: number; height: number }
