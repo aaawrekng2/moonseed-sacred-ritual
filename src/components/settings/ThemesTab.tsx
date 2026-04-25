@@ -561,9 +561,6 @@ function CustomAccentSection() {
           <p className="text-sm text-foreground">
             {prefs.accent_color ? "Custom" : "Using preset"}
           </p>
-          <p className="mt-0.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground-weak">
-            {display.toUpperCase()}
-          </p>
         </div>
       </div>
 
