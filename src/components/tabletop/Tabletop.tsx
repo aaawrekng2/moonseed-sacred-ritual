@@ -206,6 +206,39 @@ type CardState = ScatterCard & {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Session store — keep undo/redo + cards across route transitions    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * In-memory snapshot of an in-flight tabletop session. Survives
+ * unmount/remount of <Tabletop /> (e.g. the user navigates to /journal
+ * and then back to /draw) but is intentionally NOT persisted to
+ * localStorage — the scatter geometry is viewport-specific and stale
+ * across reloads. Clearing happens on:
+ *   1. handleExit() — explicit "Leave this reading"
+ *   2. onComplete   — the spread fills and we move to cast/reading
+ *   3. spread mode change — different spread = fresh stack
+ *
+ * Keyed by spread mode so each spread has an independent session.
+ */
+type TabletopSession = {
+  cards: CardState[];
+  undoStack: DragAction[];
+  redoStack: DragAction[];
+};
+const tabletopSessions = new Map<string, TabletopSession>();
+
+function readTabletopSession(spread: string): TabletopSession | null {
+  return tabletopSessions.get(spread) ?? null;
+}
+function writeTabletopSession(spread: string, snapshot: TabletopSession) {
+  tabletopSessions.set(spread, snapshot);
+}
+function clearTabletopSession(spread: string) {
+  tabletopSessions.delete(spread);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Drag + undo/redo                                                   */
 /* ------------------------------------------------------------------ */
 
