@@ -1325,10 +1325,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       {/* Tabletop scatter area */}
       <div
         ref={containerRef}
-        className={cn(
-          "tabletop-stage relative flex-1 overflow-hidden select-none",
-          stirring && "animate-tabletop-tilt",
-        )}
+        className="tabletop-stage relative flex-1 overflow-hidden select-none"
         style={{
           paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)",
         }}
@@ -1343,7 +1340,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             faceIndex={deckMapping[c.id]}
             disabled={ready}
             hitInset={hitInset}
-            stirring={stirring && c.selectionOrder === null}
             tapMoveThresholdPx={TAP_MOVE_THRESHOLD_PX}
             onSelect={() => toggleSelect(c.id)}
             onDragEnd={handleDragEnd}
@@ -1369,12 +1365,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             containerOrigin={containerOrigin}
           />
         ))}
-        {stirring && (
-          <span
-            aria-hidden="true"
-            className="tabletop-shimmer-overlay"
-          />
-        )}
         {/* Drop-target ghost. Subtle dashed outline at the clamped
             landing point so the user sees exactly where a release on
             the table would snap to. Hidden whenever the pointer is
@@ -1397,52 +1387,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             }}
           />
         )}
-        {/* Dev overlap debug overlay. Each card gets a tinted rectangle at
-            its bounding-box position with its visible-area % shown. Red <30%
-            (violates the rule), amber 30–60%, green ≥60%. */}
-        {debugOverlap &&
-          cards.map((c) => {
-            const ratio = visibilityByCardId.get(c.id) ?? 1;
-            const pct = Math.round(ratio * 100);
-            const violates = ratio < 0.3;
-            const tint = violates
-              ? "rgba(239, 68, 68, 0.45)" // red
-              : ratio < 0.6
-                ? "rgba(245, 158, 11, 0.35)" // amber
-                : "rgba(34, 197, 94, 0.30)"; // green
-            const border = violates
-              ? "2px solid rgba(239, 68, 68, 0.95)"
-              : ratio < 0.6
-                ? "1px dashed rgba(245, 158, 11, 0.9)"
-                : "1px dashed rgba(34, 197, 94, 0.8)";
-            return (
-              <div
-                key={`dbg-${c.id}`}
-                aria-hidden="true"
-                className="pointer-events-none absolute"
-                style={{
-                  left: c.x,
-                  top: c.y,
-                  width: cardW,
-                  height: cardH,
-                  background: tint,
-                  border,
-                  borderRadius: 10,
-                  zIndex: 9000 + c.z,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontFamily: "var(--font-mono, monospace)",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: "white",
-                  textShadow: "0 1px 2px rgba(0,0,0,0.8)",
-                }}
-              >
-                {pct}%
-              </div>
-            );
-          })}
       </div>
 
       {(() => {
