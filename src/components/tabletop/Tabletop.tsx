@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Eye, EyeOff, Loader2, Sparkles, X } from "lucide-react";
+import { Eye, EyeOff, Sparkles, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -227,8 +227,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // they drift to their new slots instead of snapping.
   const [stirring, setStirring] = useState(false);
   const stirTimerRef = useRef<number | null>(null);
-  const [revealing, setRevealing] = useState(false);
-  const [revealedAll, setRevealedAll] = useState(false);
   // Refs to each slot DOM element. Used to compute flight target rects in
   // viewport coordinates so a selected card can animate from its current
   // scatter position to its slot.
