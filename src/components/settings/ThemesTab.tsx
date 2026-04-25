@@ -149,6 +149,7 @@ export function ThemesTab() {
         <BackgroundGradientSection />
         <HeadingFontSection />
         <InterfaceFadeSection />
+        <CommunityThemesSection />
         <SavedThemesSection />
       </div>
     </ThemeDirtyProvider>
