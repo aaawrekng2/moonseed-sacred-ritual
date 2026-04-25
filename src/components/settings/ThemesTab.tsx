@@ -142,6 +142,20 @@ function applyAccentTheme(value: string) {
 export function ThemesTab() {
   return (
     <ThemeDirtyProvider>
+      <ThemesTabInner />
+    </ThemeDirtyProvider>
+  );
+}
+
+/**
+ * Inner shell that runs INSIDE the ThemeDirtyProvider so it can capture
+ * the baseline snapshot on mount and mount the unsaved-changes guard.
+ */
+function ThemesTabInner() {
+  return (
+    <>
+      <BaselineCapture />
+      <UnsavedChangesGuard />
       <div className="space-y-10">
         <header className="flex items-start justify-between gap-4">
           <div className="min-w-0 space-y-2">
@@ -167,8 +181,47 @@ export function ThemesTab() {
         <CommunityThemesSection />
         <SavedThemesSection />
       </div>
-    </ThemeDirtyProvider>
+    </>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Baseline capture                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * On first mount of the Themes tab, snapshot the currently-applied
+ * theme into the dirty-context baseline. The "Keep exploring" → discard
+ * action reverts every knob to this snapshot.
+ *
+ * After the baseline is captured we also call `markClean()` so a fresh
+ * mount never trips the unsaved-changes prompt.
+ */
+function BaselineCapture() {
+  const { prefs, loaded } = useSettings();
+  const { isOracle } = useOracleMode();
+  const { setBaseline, markClean } = useThemeDirty();
+  const captured = useRef(false);
+
+  useEffect(() => {
+    if (captured.current) return;
+    if (!loaded) return;
+    captured.current = true;
+    setBaseline({
+      accent: getAccentTheme(),
+      accent_color: prefs.accent_color ?? null,
+      bg_left: prefs.bg_gradient_from ?? DEFAULT_BG_LEFT,
+      bg_right: prefs.bg_gradient_to ?? DEFAULT_BG_RIGHT,
+      font: (prefs.heading_font as ThemeFont) ?? DEFAULT_THEME_FONT,
+      font_size: prefs.heading_font_size ?? DEFAULT_FONT_SIZE,
+      card_back: getStoredCardBack(),
+      resting_opacity: prefs.resting_opacity ?? DEFAULT_RESTING_OPACITY,
+      oracle_mode: isOracle,
+    });
+    markClean();
+  }, [loaded, prefs, isOracle, setBaseline, markClean]);
+
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
