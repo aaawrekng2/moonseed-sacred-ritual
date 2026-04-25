@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Wand2 } from "lucide-react";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { BG_PRESETS, useBgGradient, type BgPresetName } from "@/lib/use-bg-gradient";
+import { useAuth } from "@/lib/auth";
 
 const ORDER: BgPresetName[] = [
   "midnight",
@@ -16,11 +17,25 @@ interface Props {
   initial?: string;
 }
 
-export function TopRightControls({ initial = "M" }: Props) {
+export function TopRightControls({ initial }: Props) {
   const { preset, setPreset } = useBgGradient();
   const { opacity } = useRestingOpacity();
   const restingAlpha = opacity / 100;
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const derivedInitial =
+    initial ??
+    (() => {
+      const meta = (user?.user_metadata ?? {}) as Record<string, unknown>;
+      const name =
+        (typeof meta.display_name === "string" && meta.display_name) ||
+        (typeof meta.full_name === "string" && meta.full_name) ||
+        (typeof meta.name === "string" && meta.name) ||
+        user?.email ||
+        "M";
+      return name.trim().charAt(0) || "M";
+    })();
 
   const cycleTheme = () => {
     const idx = ORDER.indexOf(preset);
@@ -63,7 +78,7 @@ export function TopRightControls({ initial = "M" }: Props) {
               "1px solid color-mix(in oklch, var(--gold) 40%, transparent)",
           }}
         >
-          {initial.slice(0, 1).toUpperCase()}
+          {derivedInitial.slice(0, 1).toUpperCase()}
         </span>
       </button>
     </div>
