@@ -542,15 +542,15 @@ button:focus-visible .moon-rung-glow {
     border-color: rgba(212, 175, 55, 0.55);
     background: rgba(212, 175, 55, 0.06);
     box-shadow:
-      0 0 0 1px rgba(212, 175, 55, 0.18),
-      0 0 12px rgba(212, 175, 55, 0.18);
+      0 0 6px rgba(212, 175, 55, 0.20),
+      inset 0 0 6px rgba(212, 175, 55, 0.10);
   }
   50% {
     border-color: rgba(212, 175, 55, 0.95);
     background: rgba(212, 175, 55, 0.13);
     box-shadow:
-      0 0 0 1px rgba(212, 175, 55, 0.35),
-      0 0 22px rgba(212, 175, 55, 0.45);
+      0 0 16px rgba(212, 175, 55, 0.50),
+      inset 0 0 12px rgba(212, 175, 55, 0.15);
   }
 }
 @keyframes slot-next-label-pulse {
@@ -567,6 +567,13 @@ button:focus-visible .moon-rung-glow {
 }
 .slot-next-frame {
   animation: slot-next-frame-pulse 2200ms ease-in-out infinite;
+}
+/* Filled slot: static, dimmer glow at ~50% of empty-slot peak. No
+   breathing animation — only the next slot should breathe. */
+.slot-filled-static {
+  box-shadow:
+    0 0 8px rgba(212, 175, 55, 0.25),
+    inset 0 0 6px rgba(212, 175, 55, 0.08);
 }
 .slot-next-label {
   animation: slot-next-label-pulse 2200ms ease-in-out infinite;
