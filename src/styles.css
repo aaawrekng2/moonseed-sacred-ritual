@@ -162,7 +162,11 @@ html, body {
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .panel {
   border-radius: 1rem;
-  border: 1px solid oklch(0.30 0.04 285 / 60%);
+  /* Panel borders use the resting opacity (+40%) design token so they
+     fade in lockstep with the rest of the chrome when the user lowers
+     Interface Fade. Multiplied by 0.6 to keep the absolute alpha within
+     the original "60% of the border color" envelope. */
+  border: 1px solid color-mix(in oklab, oklch(0.30 0.04 285) calc(var(--ro-plus-40) * 60%), transparent);
   background: oklch(0.20 0.045 282 / 40%);
   padding: 1.25rem;
   backdrop-filter: blur(12px);
