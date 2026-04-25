@@ -880,8 +880,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               className={cn(
                 "flex items-end justify-center px-1 pb-1",
                 required >= 10 ? "gap-1" : "gap-2",
-                "overflow-x-auto",
+                // Slot row must allow the active "breathing" beacon's
+                // box-shadow to bleed past its own bounds; hidden overflow
+                // would clip the gold pulse. (Was overflow-x-auto.)
+                "overflow-visible",
               )}
+              style={{ paddingTop: 12 }}
               role="list"
               aria-label={`${meta.label} slots`}
             >
@@ -893,6 +897,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                     key={i}
                     role="listitem"
                     className="flex flex-col items-center gap-1 shrink-0"
+                    style={{ overflow: "visible" }}
                   >
                     <div
                       ref={(el) => {
