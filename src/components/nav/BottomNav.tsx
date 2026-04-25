@@ -39,13 +39,21 @@ export function BottomNav() {
         {TABS.map(({ to, label, Icon, primary }) => {
           const active = location.pathname === to;
           const iconSize = primary ? 32 : 20;
+          // Home (the primary moon tab) gets a gentle opacity boost so it
+          // reads as the centerpiece even when the rest of the chrome is
+          // resting at low opacity. When active, Home is fully solid.
+          const tabAlpha = active
+            ? 1
+            : primary
+              ? Math.min(1, restingAlpha + 0.2)
+              : restingAlpha;
           return (
             <li key={to}>
               <Link
                 to={to}
                 aria-label={`${label}${active ? " (current page)" : ""}`}
                 style={{
-                  opacity: active ? 1 : restingAlpha,
+                  opacity: tabAlpha,
                   transform: primary ? undefined : "translateY(4px)",
                 }}
                 className={cn(
