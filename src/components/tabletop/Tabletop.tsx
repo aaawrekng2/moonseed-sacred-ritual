@@ -911,68 +911,100 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </div>
         ) : null;
 
-        const centerWhisper =
-          !revealedAll && (!usesSlots || ready)
-            ? ready
-              ? (
-                <button
-                  type="button"
-                  onClick={handleReveal}
-                  disabled={revealing}
-                  aria-busy={revealing}
-                  aria-label="Reveal your reading"
-                  className="reveal-cta-enter reveal-glow-pulse inline-flex items-center gap-2 bg-transparent font-display italic leading-none hover:scale-[1.02] focus:outline-none disabled:cursor-not-allowed"
-                  style={{
-                    fontSize: 24,
-                    color: "var(--gold)",
-                    opacity: 1,
-                    textShadow:
-                      "0 0 20px rgba(212,175,55,0.9), 0 0 40px rgba(212,175,55,0.4)",
-                    cursor: "pointer",
-                  }}
-                >
-                  {revealing && (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  )}
-                  {revealing ? "Revealing" : "Reveal"}
-                </button>
-              )
-              : (
-                <span
-                  aria-live="polite"
-                  aria-label={`Choose ${required - selectedCount} more`}
-                  className="font-display italic leading-none"
-                  style={{
-                    fontSize: 32,
-                    color: "var(--gold)",
-                    opacity: 1,
-                    textShadow: "0 0 20px rgba(212,175,55,0.8)",
-                  }}
-                >
-                  {required - selectedCount}
-                </span>
-              )
-            : null;
+        // When the user has filled every slot we present TWO ceremonial
+        // options side-by-side: "Reveal" (flips on the tabletop in place)
+        // and "Cast" (transitions straight to the spread layout, cards
+        // still face-down). A subtle middle dot separates them. While
+        // selection is still in progress we show a single italic "Draw"
+        // word that breathes — encouraging continued tapping without
+        // showing a hard counter.
+        const drawWord = (
+          <span
+            aria-live="polite"
+            aria-label={`Draw — ${required - selectedCount} more`}
+            className="font-display italic leading-none animate-breathe-glow"
+            style={{
+              fontSize: 18,
+              color: "var(--gold)",
+              opacity: restingAlpha,
+              padding: "4px 10px",
+              letterSpacing: "0.08em",
+              textShadow: "0 0 14px rgba(212,175,55,0.55)",
+            }}
+          >
+            Draw
+          </span>
+        );
 
-        const mobileSlotCounter =
-          isMobile && showSlotRail ? (
-            <span
-              aria-live="polite"
-              aria-label={`${selectedCount} of ${required} cards chosen`}
-              className="font-display italic tabular-nums leading-none"
+        const dualActions = (
+          <span
+            className="inline-flex items-center gap-3 leading-none"
+            aria-label="Reveal or Cast your reading"
+          >
+            <button
+              type="button"
+              onClick={handleReveal}
+              disabled={revealing}
+              aria-busy={revealing}
+              aria-label="Reveal cards in place"
+              className="reveal-cta-enter reveal-glow-pulse inline-flex items-center gap-2 bg-transparent font-display italic leading-none hover:scale-[1.04] focus:outline-none disabled:cursor-not-allowed"
               style={{
-                fontSize: 22,
-                letterSpacing: "0.05em",
+                fontSize: 16,
                 color: "var(--gold)",
                 opacity: 1,
-                textShadow: "0 0 16px rgba(212,175,55,0.7)",
+                textShadow:
+                  "0 0 16px rgba(212,175,55,0.85), 0 0 32px rgba(212,175,55,0.35)",
+                cursor: "pointer",
               }}
             >
-              <span>{selectedCount}</span>
-              <span style={{ margin: "0 4px", opacity: 0.5 }}>/</span>
-              <span>{required}</span>
+              {revealing && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              )}
+              {revealing ? "Revealing" : "Reveal"}
+            </button>
+            <span
+              aria-hidden="true"
+              className="font-display"
+              style={{
+                fontSize: 14,
+                color: "var(--gold)",
+                opacity: 0.45,
+              }}
+            >
+              ·
             </span>
-          ) : null;
+            <button
+              type="button"
+              onClick={handleCast}
+              disabled={revealing}
+              aria-label="Cast — go to spread layout"
+              className="reveal-cta-enter inline-flex items-center bg-transparent font-display italic leading-none transition-transform hover:scale-[1.04] focus:outline-none disabled:cursor-not-allowed"
+              style={{
+                fontSize: 16,
+                color: "rgba(255,255,255,0.9)",
+                cursor: "pointer",
+                textShadow: "0 0 12px rgba(255,255,255,0.25)",
+              }}
+            >
+              Cast
+            </button>
+          </span>
+        );
+
+        const centerWhisper = revealedAll
+          ? null
+          : ready
+            ? dualActions
+            : !usesSlots
+              ? drawWord
+              : null;
+
+        // Mobile: when the slot rail is visible the center column shows
+        // the same "Draw" word so the call-to-action language stays
+        // consistent across breakpoints. Once ready, the dual actions
+        // (Reveal · Cast) take over.
+        const mobileSlotCounter =
+          isMobile && showSlotRail ? drawWord : null;
 
         const controlsRow = (
           <div
