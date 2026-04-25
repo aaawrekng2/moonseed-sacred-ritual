@@ -218,20 +218,20 @@ function ResetToDefaultsButton() {
         className="gap-2 text-muted-foreground hover:text-foreground"
       >
         <RotateCcw className="h-3.5 w-3.5" />
-        Reset
+        Return to silence
       </Button>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reset all theme settings?</AlertDialogTitle>
+            <AlertDialogTitle>Clear the altar?</AlertDialogTitle>
             <AlertDialogDescription>
-              Card back, accent, background, font and interface fade will return
-              to their original Moonseed defaults. Your saved themes are kept.
+              The veil, the thread, the horizon, the voice, and the veil
+              opacity all return to silence. Your sanctuaries are kept.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={reset}>Reset</AlertDialogAction>
+            <AlertDialogAction onClick={reset}>Return to silence</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
