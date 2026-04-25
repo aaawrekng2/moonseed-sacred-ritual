@@ -635,6 +635,29 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               : c,
           );
         }
+        if (action.kind === "tap-place") {
+          const targetOrder = action.toSlot + 1;
+          return prev.map((c) =>
+            c.id === action.cardId
+              ? { ...c, selectionOrder: targetOrder, isDragDrop: false }
+              : c,
+          );
+        }
+        if (action.kind === "tap-unplace") {
+          return prev.map((c) =>
+            c.id === action.cardId
+              ? {
+                  ...c,
+                  selectionOrder: null,
+                  x: action.toX,
+                  y: action.toY,
+                  lastTableX: action.toX,
+                  lastTableY: action.toY,
+                  isDragDrop: false,
+                }
+              : c,
+          );
+        }
         return prev;
       });
     },
