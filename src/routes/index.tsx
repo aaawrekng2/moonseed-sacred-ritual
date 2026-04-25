@@ -91,7 +91,7 @@ function Index() {
 
   return (
     <main
-      className="relative flex h-[100dvh] flex-col overflow-hidden pb-24"
+      className="relative flex h-[100dvh] flex-col overflow-hidden bg-cosmos pb-24"
       style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
@@ -143,7 +143,7 @@ function Index() {
           <button
             type="button"
             aria-label="Begin today's draw"
-            className="animate-breathe-glow transition-transform active:scale-[0.98]"
+            className="gateway-card-frame animate-breathe-glow overflow-hidden rounded-[12px] transition-transform active:scale-[0.98]"
             onClick={() => navigate({ to: "/draw", search: { spread: "daily" } })}
           >
             <CardBack id={cardBack} width={180} />

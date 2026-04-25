@@ -212,6 +212,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  const [viewportW, setViewportW] = useState<number | null>(null);
   // Viewport-coordinate origin of the scatter container. Passed to
   // CardSlot so a card returning from a slot to the table can compute
   // its absolute landing point in viewport space (slot rects are in
@@ -267,9 +268,17 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     return () => ro.disconnect();
   }, []);
 
-  const cardW = responsiveCardWidth(size?.w ?? 0);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const update = () => setViewportW(window.innerWidth);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  const isMobile = viewportW === null || viewportW < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
+  const cardW = isMobile ? responsiveCardWidth(size?.w ?? 0) : 52;
   const cardH = Math.round(cardW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
-  const isMobile = (size?.w ?? 0) < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
   // Slot rail uses its own width (smaller on mobile / for many-slot
   // spreads) so all slots fit in one row without scrolling.
   // Slot dimensions: on desktop they match the table card exactly (per
@@ -649,7 +658,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   }, [ready, required]);
 
   return (
-    <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]">
+    <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-cosmos">
+      <span aria-hidden="true" className="tabletop-gutter-left" />
+      <span aria-hidden="true" className="tabletop-gutter-right" />
       {/* Temporary resting-opacity test slider — fixed upper-left, top
           layer so cards never sit above its controls. Desktop-only:
           hidden on mobile per design (it is a dev-only tool). */}
@@ -796,18 +807,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       <div
         ref={containerRef}
         className={cn(
-          "relative flex-1 overflow-hidden select-none",
+          "tabletop-stage relative flex-1 overflow-hidden select-none",
           stirring && "animate-tabletop-tilt",
         )}
         style={{
           paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)",
-          // Cap the scatter width on large screens so the 78-card spread
-          // stays visually dense instead of stretching across ultrawide
-          // monitors. Mobile/tablet layouts still take the full width.
-          maxWidth: 900,
-          width: "100%",
-          marginLeft: "auto",
-          marginRight: "auto",
         }}
       >
         {cards.map((c, idx) => (
@@ -1098,7 +1102,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
         const controlsRow = (
           <div
-            className="relative flex items-end justify-center"
+            className="tabletop-bottom-bar relative flex items-end justify-center"
             style={{
               paddingBottom:
                 isMobile && showSlotRail
@@ -1499,8 +1503,8 @@ function CardSlot({
               ? `transform ${flightMs}ms cubic-bezier(0.22,1,0.36,1)`
               : undefined,
           boxShadow: isSelected
-            ? `${glow}, 0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD * 2}px var(--gold)`
-            : "0 4px 12px rgba(0,0,0,0.4)",
+            ? `var(--tabletop-card-shadow), ${glow}, 0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD * 2}px var(--gold)`
+            : "var(--tabletop-card-shadow)",
           opacity: isSelected ? TABLETOP_CONFIG.SELECTION_GLOW_OPACITY + 0.2 : 1,
         }}
       >
