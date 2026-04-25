@@ -38,6 +38,17 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   const startedRef = useRef(false);
   const requestSeqRef = useRef(0);
 
+  // Allow landscape on the Reading screen ONLY. Other screens stay
+  // portrait-locked via the global `body::before` rotate overlay in
+  // styles.css; we whitelist this screen by tagging <body>.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.body.setAttribute("data-allow-landscape", "true");
+    return () => {
+      document.body.removeAttribute("data-allow-landscape");
+    };
+  }, []);
+
   useEffect(() => {
     // Effect runs twice in StrictMode dev — guard so we don't spend two
     // of the user's three daily readings on the same draw. Do not cancel in
