@@ -2308,14 +2308,6 @@ function CardSlot({
           <span aria-hidden="true" className="card-consecrate-shimmer" />
         )}
       </div>
-      {isSelected && !card.revealed && !flying && (
-        <span
-          className="pointer-events-none absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-gold text-[9px] font-bold text-background"
-          style={{ transform: `rotate(${-card.rotation}deg)` }}
-        >
-          {card.selectionOrder}
-        </span>
-      )}
     </button>
   );
 }
