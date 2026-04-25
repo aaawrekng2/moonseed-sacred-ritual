@@ -2139,6 +2139,12 @@ function CardSlot({
       );
       onDragEnd(card.id, clientX, clientY, clampedX, clampedY, s.fromX, s.fromY);
     }
+    if (wasDragging) {
+      // Suppress the `settle-in` fade/scale animation on the next render
+      // — the card is already on screen at the drop position, animating
+      // it back in from opacity:0 reads as a flicker.
+      wasDraggedRef.current = true;
+    }
     dragStateRef.current = null;
     setDragging(false);
     setDragPos(null);
