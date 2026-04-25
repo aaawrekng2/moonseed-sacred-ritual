@@ -420,8 +420,8 @@ function CustomAccentSection() {
 
   return (
     <SettingsSection
-      title="Custom Accent"
-      description="Pick any hex color — overrides the preset above."
+      title="Your Signature"
+      description="Cast your own color into the space."
     >
       <div className="flex items-start gap-4">
         <button
