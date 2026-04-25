@@ -89,6 +89,11 @@ import {
 import { SettingsSection } from "@/components/settings/sections";
 import { useSettings } from "@/components/settings/SettingsContext";
 import { useOracleMode } from "@/lib/use-oracle-mode";
+import {
+  dispatchActiveThemeChanged,
+  subscribeActiveThemeChanged,
+  type ActiveThemeDetail,
+} from "@/lib/theme-events";
 import { useBlocker } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
@@ -203,22 +208,27 @@ function CurrentThemeBadge() {
   const { prefs } = useSettings();
   const { occupied, activeSlot } = useSavedThemes();
   const [communityKey, setCommunityKey] = useState<string | null>(null);
+  // Last payload we received from the shared event bus. When present we
+  // trust its `name`/`accent` directly so the badge reflects the change
+  // in the same tick the dispatcher fired — no re-fetch, no race with
+  // useSavedThemes' refetch.
+  const [payload, setPayload] = useState<ActiveThemeDetail | null>(null);
   const [, bump] = useState(0);
 
   useEffect(() => {
     setCommunityKey(getStoredCommunityTheme());
-    const refresh = () => {
+    return subscribeActiveThemeChanged((detail) => {
       setCommunityKey(getStoredCommunityTheme());
+      setPayload(detail);
       bump((n) => n + 1);
-    };
-    if (typeof window === "undefined") return;
-    window.addEventListener("moonseed:theme-changed", refresh);
-    window.addEventListener("moonseed:sanctuary-changed", refresh);
-    return () => {
-      window.removeEventListener("moonseed:theme-changed", refresh);
-      window.removeEventListener("moonseed:sanctuary-changed", refresh);
-    };
+    });
   }, []);
+
+  if (payload && payload.source !== "cleared") {
+    return (
+      <BadgeShell isOracle={isOracle} dot={payload.accent} name={payload.name} />
+    );
+  }
 
   // Resolution order: active sanctuary → active community palette →
   // accent preset label → custom hex → "Custom".
@@ -246,6 +256,18 @@ function CurrentThemeBadge() {
     dot = prefs.accent_color ?? "var(--gold)";
   }
 
+  return <BadgeShell isOracle={isOracle} dot={dot} name={name} />;
+}
+
+function BadgeShell({
+  isOracle,
+  dot,
+  name,
+}: {
+  isOracle: boolean;
+  dot: string;
+  name: string;
+}) {
   return (
     <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-xs">
       <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -1174,14 +1196,15 @@ function CommunityThemesSection() {
 
   useEffect(() => {
     setActiveKey(getStoredCommunityTheme());
-    if (typeof window === "undefined") return;
-    const refresh = () => setActiveKey(getStoredCommunityTheme());
-    window.addEventListener("moonseed:theme-changed", refresh);
-    window.addEventListener("moonseed:sanctuary-changed", refresh);
-    return () => {
-      window.removeEventListener("moonseed:theme-changed", refresh);
-      window.removeEventListener("moonseed:sanctuary-changed", refresh);
-    };
+    return subscribeActiveThemeChanged((detail) => {
+      // If a payload tells us the active source isn't `community`, drop
+      // our highlight immediately rather than waiting on a re-read.
+      if (detail && detail.source !== "community") {
+        setActiveKey(null);
+        return;
+      }
+      setActiveKey(getStoredCommunityTheme());
+    });
   }, []);
 
   const apply = async (theme: (typeof COMMUNITY_THEMES)[number]) => {
@@ -1212,9 +1235,13 @@ function CommunityThemesSection() {
       bg_gradient_to: theme.bgRight.toLowerCase(),
       accent_color: theme.accent.toLowerCase(),
     });
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("moonseed:theme-changed"));
-    }
+    dispatchActiveThemeChanged({
+      source: "community",
+      name: theme.name,
+      accent: theme.accent,
+      sanctuarySlot: null,
+      communityKey: theme.key,
+    });
     toast.success(`Applied ${theme.name}`);
   };
 
@@ -1411,10 +1438,13 @@ function SavedThemesSection() {
     markClean();
     // Loading a sanctuary supersedes any community palette selection.
     setStoredCommunityTheme(null);
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("moonseed:sanctuary-changed"));
-      window.dispatchEvent(new CustomEvent("moonseed:theme-changed"));
-    }
+    dispatchActiveThemeChanged({
+      source: "sanctuary",
+      name: theme.name,
+      accent: theme.accent,
+      sanctuarySlot: theme.slot,
+      communityKey: null,
+    });
     toast.success(`Loaded "${theme.name}"`);
   };
 

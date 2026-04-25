@@ -11,6 +11,8 @@ import {
 } from "@/lib/use-saved-themes";
 import { setStoredCardBack } from "@/lib/card-backs";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
+import { dispatchActiveThemeChanged } from "@/lib/theme-events";
+import { setStoredCommunityTheme } from "@/lib/community-themes";
 import { cn } from "@/lib/utils";
 
 /**
@@ -110,10 +112,15 @@ export function TopRightControls({ initial }: Props) {
     if (!next) return;
     applySanctuary(next, setOpacity);
     void setActiveSlot(next.slot);
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("moonseed:sanctuary-changed"));
-      window.dispatchEvent(new CustomEvent("moonseed:theme-changed"));
-    }
+    // Loading a sanctuary supersedes any community palette selection.
+    setStoredCommunityTheme(null);
+    dispatchActiveThemeChanged({
+      source: "sanctuary",
+      name: next.name,
+      accent: next.accent,
+      sanctuarySlot: next.slot,
+      communityKey: null,
+    });
   };
 
   const currentLabel =
