@@ -2203,7 +2203,6 @@ function CardSlot({
         className={cn(
           "relative rounded-[10px]",
           tapTick > 0 && !card.revealed && "animate-card-tap",
-          stirring && !card.revealed && "animate-card-stir-glide",
           consecrating && !card.revealed && "animate-card-consecrate animate-card-consecrate-halo",
           flipping && "animate-sacred-reveal",
         )}
