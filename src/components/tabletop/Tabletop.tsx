@@ -386,6 +386,31 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // Highlighted slot index while a card is being dragged over the rail.
   const [dragHoverSlot, setDragHoverSlot] = useState<number | null>(null);
 
+  // ---- Onboarding hint --------------------------------------------------
+  // Show a small hint on the tabletop that explains the hold-to-drag
+  // gesture and dropping onto slots. Persists "seen" via localStorage so
+  // returning users aren't nagged. Fades out after the first successful
+  // drop into a slot (or any drop, for spreads without slots).
+  const HINT_STORAGE_KEY = "moonseed:tabletop:drag-hint-seen";
+  const [showDragHint, setShowDragHint] = useState(false);
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return;
+      const seen = window.localStorage.getItem(HINT_STORAGE_KEY);
+      if (!seen) setShowDragHint(true);
+    } catch {
+      // localStorage may be blocked — silently skip the hint.
+    }
+  }, []);
+  const dismissDragHint = useCallback(() => {
+    setShowDragHint(false);
+    try {
+      window.localStorage.setItem(HINT_STORAGE_KEY, "1");
+    } catch {
+      // ignore
+    }
+  }, []);
+
   /**
    * Apply a DragAction to the cards array in the "do/redo" direction.
    * The reverse direction (undo) is computed inline in `undo()` below
