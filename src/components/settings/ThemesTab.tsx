@@ -468,68 +468,6 @@ function CardBackSection() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Accent Color (presets)                                             */
-/* ------------------------------------------------------------------ */
-
-function AccentColorSection() {
-  const { user } = useSettings();
-  const { markDirty } = useThemeDirty();
-  const [accent, setAccent] = useState<string>("default");
-
-  useEffect(() => {
-    setAccent(getAccentTheme());
-  }, []);
-
-  const choose = async (value: string) => {
-    setAccent(value);
-    applyAccentTheme(value);
-    markDirty();
-    await updateUserPreferences(user.id, { accent: value });
-  };
-
-  return (
-    <SettingsSection
-      title="The Thread"
-      description="The color that runs through everything."
-    >
-      <div className="flex flex-wrap gap-3">
-        {ACCENT_PRESETS.map((p) => {
-          const active = accent === p.value;
-          return (
-            <button
-              key={p.value}
-              type="button"
-              onClick={() => void choose(p.value)}
-              aria-pressed={active}
-              aria-label={`Apply ${p.label} accent`}
-              className={cn(
-                "group flex flex-col items-center gap-2 rounded-lg p-2 transition",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-gold",
-              )}
-            >
-              <span
-                className="block h-10 w-10 rounded-full ring-1 ring-border/60 transition-all group-hover:ring-gold/50"
-                style={{ backgroundColor: p.swatch }}
-              />
-              <span
-                className={cn(
-                  "text-[11px] leading-tight pb-0.5 border-b-2 transition-colors",
-                  active
-                    ? "border-gold text-gold"
-                    : "border-transparent text-muted-foreground",
-                )}
-              >
-                {p.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </SettingsSection>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  Custom Accent Picker                                               */
 /* ------------------------------------------------------------------ */
 
