@@ -16,6 +16,20 @@ function emit(value: number) {
   window.dispatchEvent(new CustomEvent<number>(EVENT, { detail: value }));
 }
 
+/**
+ * Write the current resting opacity value to the global CSS variable
+ * so every component that consumes `var(--ro-plus-N)` updates instantly
+ * without having to subscribe to the React hook.
+ */
+function writeCssVar(percentage: number) {
+  if (typeof document === "undefined") return;
+  const fraction = Math.max(0, Math.min(1, percentage / 100));
+  document.documentElement.style.setProperty(
+    "--resting-opacity",
+    String(fraction),
+  );
+}
+
 export function useRestingOpacity() {
   // IMPORTANT: do NOT read localStorage during initial state — that runs only
   // on the client and produces a different value than the server-rendered
@@ -27,7 +41,9 @@ export function useRestingOpacity() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored != null) setValue(clamp(Number(stored)));
+      const initial = stored != null ? clamp(Number(stored)) : DEFAULT_RESTING_OPACITY;
+      setValue(initial);
+      writeCssVar(initial);
     }
     setLoaded(true);
   }, []);
@@ -36,7 +52,11 @@ export function useRestingOpacity() {
     if (typeof window === "undefined") return;
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<number>).detail;
-      if (typeof detail === "number") setValue(clamp(detail));
+      if (typeof detail === "number") {
+        const next = clamp(detail);
+        setValue(next);
+        writeCssVar(next);
+      }
     };
     window.addEventListener(EVENT, handler);
     return () => window.removeEventListener(EVENT, handler);
@@ -46,6 +66,7 @@ export function useRestingOpacity() {
     const clamped = clamp(next);
     setValue(clamped);
     emit(clamped);
+    writeCssVar(clamped);
     localStorage.setItem(STORAGE_KEY, String(clamped));
   }, []);
 
