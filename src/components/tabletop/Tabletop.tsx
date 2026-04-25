@@ -2009,6 +2009,12 @@ function CardSlot({
   // handler is suppressed so selection state is preserved.
   const [dragging, setDragging] = useState(false);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  // After a drag completes, the card re-renders into the absolute "idle"
+  // style branch which carries `animation: settle-in 320ms` — that
+  // animation starts at `opacity: 0` and is the source of the visible
+  // disappear/reappear flicker on release. We track the most recent drag
+  // so we can suppress `settle-in` for one render cycle after dropping.
+  const wasDraggedRef = useRef(false);
   const dragStateRef = useRef<{
     pointerId: number;
     startClientX: number;
@@ -2084,10 +2090,17 @@ function CardSlot({
     if (!s) return;
     if (!dragging) return;
     s.didDrag = true;
-    setDragPos({
-      x: e.clientX - s.pointerOffsetX,
-      y: e.clientY - s.pointerOffsetY,
-    });
+    // Move the card via direct DOM mutation rather than React state so
+    // every pointermove doesn't trigger a render. The `dragging` style
+    // branch is already active (set once in beginDrag) and uses
+    // `position: absolute` with `left`/`top`, so writing those properties
+    // here is enough — and crucially avoids any React reconciliation
+    // that could momentarily detach the inline styles.
+    const el = btnRef.current;
+    if (el) {
+      el.style.left = `${e.clientX - s.pointerOffsetX}px`;
+      el.style.top = `${e.clientY - s.pointerOffsetY}px`;
+    }
     onDragMove(
       e.clientX,
       e.clientY,
@@ -2125,6 +2138,12 @@ function CardSlot({
         ),
       );
       onDragEnd(card.id, clientX, clientY, clampedX, clampedY, s.fromX, s.fromY);
+    }
+    if (wasDragging) {
+      // Suppress the `settle-in` fade/scale animation on the next render
+      // — the card is already on screen at the drop position, animating
+      // it back in from opacity:0 reads as a flicker.
+      wasDraggedRef.current = true;
     }
     dragStateRef.current = null;
     setDragging(false);
@@ -2290,8 +2309,13 @@ function CardSlot({
               // every unselected card. Use a large constant well above any
               // possible scatter z value.
               zIndex: isSelected ? 1000 + (card.selectionOrder ?? 0) : card.z + 1,
-              animation: `settle-in 320ms ease-out both`,
-              animationDelay: `${settleDelay}ms`,
+              // Skip the settle-in entrance animation if the card was just
+              // dragged — it's already at the drop position and replaying
+              // the opacity:0 → 1 fade looks like a disappear/reappear.
+              animation: wasDraggedRef.current
+                ? "none"
+                : `settle-in 320ms ease-out both`,
+              animationDelay: wasDraggedRef.current ? "0ms" : `${settleDelay}ms`,
               // Drives the .card-hit element's inset via a CSS variable so the
               // touch target scales with the rendered card size.
               ["--card-hit-inset" as string]: `${hitInset}px`,
