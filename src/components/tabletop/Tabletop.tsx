@@ -497,7 +497,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const ready = selectedCount === required;
 
   const triggerStir = useCallback(() => {
-    if (revealing || revealedAll) return;
+    // No-op once cards are flying to slots / auto-transitioning is moot
+    // because Stir can only be tapped while the user is still picking.
     // If any cards are already in slots, ask before clearing them. Per
     // design: Stir is the "begin again" gesture — never silently destroy
     // the user's intentional picks.
@@ -532,7 +533,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       setStirring(false);
       stirTimerRef.current = null;
     }, 760);
-  }, [revealing, revealedAll, cards]);
+  }, [cards]);
 
   useEffect(() => {
     return () => {
@@ -543,7 +544,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   }, []);
 
   const toggleSelect = (id: number) => {
-    if (revealing || revealedAll) return;
     setCards((prev) => {
       const target = prev.find((c) => c.id === id);
       if (!target) return prev;
@@ -608,61 +608,37 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // ignoring the click if the pointer moved beyond a small threshold.
   const TAP_MOVE_THRESHOLD_PX = 8;
 
-  const handleReveal = () => {
-    if (!ready || revealing || revealedAll) return;
-    setRevealing(true);
-    const picks = cards
-      .filter((c) => c.selectionOrder !== null)
-      .sort((a, b) => (a.selectionOrder ?? 0) - (b.selectionOrder ?? 0));
-
-    // Pause for the sacred moment, then flip every selected card together.
-    window.setTimeout(() => {
-      picks.forEach((p, i) => {
-        window.setTimeout(() => {
-          setCards((prev) =>
-            prev.map((c) => (c.id === p.id ? { ...c, revealed: true } : c)),
-          );
-        }, i * TABLETOP_CONFIG.REVEAL_STAGGER_MS);
-      });
-      const total =
-        picks.length * TABLETOP_CONFIG.REVEAL_STAGGER_MS +
-        TABLETOP_CONFIG.REVEAL_ANIMATION_MS +
-        // Lingering breath: let users savor the faces before the
-        // reading screen takes over.
-        650;
-      window.setTimeout(() => {
-        setRevealedAll(true);
-        setRevealing(false);
-        // Per design: after Reveal we STAY on the draw table. No
-        // navigation, no "reading would appear here" handoff. The bottom
-        // bar simply quiets down — Stir and X remain, Reveal/Cast/Draw
-        // disappear. The user sits with the revealed cards.
-        // (Cast still navigates via handleCast → onComplete("cast").)
-      }, total);
-    }, 320);
-  };
-
   const handleExit = () => {
-    if (selectedCount > 0 && !revealedAll) {
+    if (selectedCount > 0) {
       const ok = window.confirm("Leave this reading? Your selections will be lost.");
       if (!ok) return;
     }
     onExit();
   };
 
-  // Cast: skip the in-place flip and hand off to the spread layout screen
-  // immediately with cards still face-down. Picks are ordered by
-  // selectionOrder so position 1 maps to spread slot 1, etc.
-  const handleCast = () => {
-    if (!ready || revealing) return;
+  // Auto-transition: when the user fills the final slot, pause briefly
+  // (the "sacred pause" — long enough to feel intentional, short enough
+  // not to frustrate) then hand off to the spread layout screen with
+  // cards still face-down. Picks are ordered by selectionOrder so
+  // position 1 maps to spread slot 1, etc.
+  useEffect(() => {
+    if (!ready || required === 0) return;
     const picks = cards
       .filter((c) => c.selectionOrder !== null)
       .sort((a, b) => (a.selectionOrder ?? 0) - (b.selectionOrder ?? 0));
-    onComplete(
-      picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
-      "cast",
-    );
-  };
+    const timer = window.setTimeout(() => {
+      onComplete(
+        picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
+        "cast",
+      );
+    }, 1500);
+    return () => window.clearTimeout(timer);
+    // We intentionally only re-run when readiness changes — the picks
+    // array is stable once the final slot is filled (tapping a slotted
+    // card to remove it would flip `ready` back to false and cancel
+    // the timer via the cleanup above).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, required]);
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]">
