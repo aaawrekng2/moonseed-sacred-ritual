@@ -29,7 +29,7 @@
 
 :root {
   --radius: 0.625rem;
-  --background:                oklch(0.16 0.04 280);
+  --background:                oklch(0.14 0.04 280);
   --foreground:                oklch(0.95 0.02 80);
   --card:                      oklch(0.20 0.045 282);
   --card-foreground:           oklch(0.95 0.02 80);
@@ -58,9 +58,8 @@
     linear-gradient(160deg, oklch(0.12 0.05 282), oklch(0.18 0.04 278) 60%, oklch(0.20 0.05 285));
   --gradient-gold:             linear-gradient(135deg, oklch(0.85 0.14 82), oklch(0.72 0.14 60));
   --shadow-glow:               0 0 40px oklch(0.80 0.13 80 / 0.25);
-  --tabletop-max-width:         480px;
-  --tabletop-gutter-left:       oklch(0.14 0.04 280);
-  --tabletop-gutter-right:      oklch(0.16 0.04 280);
+  --tabletop-max-width:         1280px;
+  --tabletop-page-bg:           oklch(0.14 0.04 280);
   --tabletop-card-shadow:       0 2px 8px oklch(0 0 0 / 0.4), 0 0 0 1px oklch(0.82 0.14 82 / 0.12), inset 0 1px 0 oklch(1 0 0 / 0.04);
   --accent-transition:
     color 300ms ease, background-color 300ms ease,
@@ -76,11 +75,7 @@ html, body {
   overflow: hidden;
   position: fixed;
   width: 100%;
-  background: linear-gradient(
-    to right,
-    var(--bg-gradient-left, #1e1b4b),
-    var(--bg-gradient-right, #0f172a)
-  );
+  background: oklch(0.14 0.04 280);
   color: var(--color-foreground);
   font-family: var(--font-sans);
 }
