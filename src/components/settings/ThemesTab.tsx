@@ -260,7 +260,10 @@ function CardBackSection() {
   };
 
   return (
-    <SettingsSection title="Card Back" description="The back face of every drawn card.">
+    <SettingsSection
+      title="The Veil"
+      description="What the cards show before they speak."
+    >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
         {CARD_BACKS.map((back) => {
           const active = cardBack === back.id;
@@ -270,16 +273,20 @@ function CardBackSection() {
               type="button"
               onClick={() => void choose(back.id)}
               className={cn(
-                "flex flex-col items-center gap-2 rounded-2xl border p-3 transition",
-                active
-                  ? "border-gold shadow-glow"
-                  : "border-border/60 hover:border-gold/40",
+                "flex flex-col items-center gap-2 rounded-2xl p-3 transition focus:outline-none",
               )}
               aria-pressed={active}
               aria-label={`Use ${back.label} card back`}
             >
               <CardBack id={back.id} width={48} />
-              <span className="text-xs text-muted-foreground-strong">
+              <span
+                className={cn(
+                  "text-xs pb-0.5 border-b-2 transition-colors",
+                  active
+                    ? "border-gold text-gold"
+                    : "border-transparent text-muted-foreground-strong",
+                )}
+              >
                 {back.label}
               </span>
             </button>
