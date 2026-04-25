@@ -16,8 +16,18 @@
  * (useBgGradient, useRestingOpacity, getStoredCardBack) drive the live
  * DOM, and `usePreferencesSync` mirrors them to the Supabase row.
  */
-import { useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, RotateCcw, Save, Trash2, Wand2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Save,
+  Trash2,
+  Wand2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
@@ -43,11 +53,8 @@ import {
   type CardBackId,
 } from "@/lib/card-backs";
 import {
-  BG_PRESETS,
   DEFAULT_BG_LEFT,
   DEFAULT_BG_RIGHT,
-  useBgGradient,
-  type BgPresetName,
 } from "@/lib/use-bg-gradient";
 import {
   DEFAULT_RESTING_OPACITY,
@@ -135,9 +142,14 @@ export function ThemesTab() {
       <div className="space-y-10">
         <header className="flex items-start justify-between gap-4">
           <div className="min-w-0 space-y-2">
-            <h2 className="text-xl font-semibold tracking-tight">Themes</h2>
+            <h2
+              className="text-2xl font-semibold tracking-tight italic text-gold"
+              style={{ fontFamily: "var(--font-serif)" }}
+            >
+              The Atmosphere
+            </h2>
             <p className="text-sm text-muted-foreground">
-              Make your reading room your own.
+              Shape the space where your readings live.
             </p>
           </div>
           <ResetToDefaultsButton />
@@ -162,7 +174,6 @@ export function ThemesTab() {
 
 function ResetToDefaultsButton() {
   const { user } = useSettings();
-  const { setPreset } = useBgGradient();
   const { setOpacity } = useRestingOpacity();
   const { markClean } = useThemeDirty();
   const [open, setOpen] = useState(false);
@@ -170,7 +181,16 @@ function ResetToDefaultsButton() {
   const reset = async () => {
     setStoredCardBack(DEFAULT_CARD_BACK);
     applyAccentTheme("default");
-    setPreset("midnight");
+    if (typeof document !== "undefined") {
+      document.documentElement.style.setProperty(
+        "--bg-gradient-left",
+        DEFAULT_BG_LEFT,
+      );
+      document.documentElement.style.setProperty(
+        "--bg-gradient-right",
+        DEFAULT_BG_RIGHT,
+      );
+    }
     setOpacity(DEFAULT_RESTING_OPACITY);
     applyHeadingFont(DEFAULT_THEME_FONT);
     applyHeadingFontSize(DEFAULT_FONT_SIZE);
@@ -198,20 +218,20 @@ function ResetToDefaultsButton() {
         className="gap-2 text-muted-foreground hover:text-foreground"
       >
         <RotateCcw className="h-3.5 w-3.5" />
-        Reset
+        Return to silence
       </Button>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reset all theme settings?</AlertDialogTitle>
+            <AlertDialogTitle>Clear the altar?</AlertDialogTitle>
             <AlertDialogDescription>
-              Card back, accent, background, font and interface fade will return
-              to their original Moonseed defaults. Your saved themes are kept.
+              The veil, the thread, the horizon, the voice, and the veil
+              opacity all return to silence. Your sanctuaries are kept.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={reset}>Reset</AlertDialogAction>
+            <AlertDialogAction onClick={reset}>Return to silence</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -240,7 +260,10 @@ function CardBackSection() {
   };
 
   return (
-    <SettingsSection title="Card Back" description="The back face of every drawn card.">
+    <SettingsSection
+      title="The Veil"
+      description="What the cards show before they speak."
+    >
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
         {CARD_BACKS.map((back) => {
           const active = cardBack === back.id;
@@ -250,16 +273,20 @@ function CardBackSection() {
               type="button"
               onClick={() => void choose(back.id)}
               className={cn(
-                "flex flex-col items-center gap-2 rounded-2xl border p-3 transition",
-                active
-                  ? "border-gold shadow-glow"
-                  : "border-border/60 hover:border-gold/40",
+                "flex flex-col items-center gap-2 rounded-2xl p-3 transition focus:outline-none",
               )}
               aria-pressed={active}
               aria-label={`Use ${back.label} card back`}
             >
               <CardBack id={back.id} width={48} />
-              <span className="text-xs text-muted-foreground-strong">
+              <span
+                className={cn(
+                  "text-xs pb-0.5 border-b-2 transition-colors",
+                  active
+                    ? "border-gold text-gold"
+                    : "border-transparent text-muted-foreground-strong",
+                )}
+              >
                 {back.label}
               </span>
             </button>
@@ -292,8 +319,8 @@ function AccentColorSection() {
 
   return (
     <SettingsSection
-      title="Accent Color"
-      description="The gold-equivalent that highlights headings, rings and active states."
+      title="The Thread"
+      description="The color that runs through everything."
     >
       <div className="flex flex-wrap gap-3">
         {ACCENT_PRESETS.map((p) => {
@@ -311,18 +338,15 @@ function AccentColorSection() {
               )}
             >
               <span
-                className={cn(
-                  "block h-10 w-10 rounded-full transition-all",
-                  active
-                    ? "ring-2 ring-gold ring-offset-2 ring-offset-background shadow-glow"
-                    : "ring-1 ring-border/60 group-hover:ring-gold/50",
-                )}
+                className="block h-10 w-10 rounded-full ring-1 ring-border/60 transition-all group-hover:ring-gold/50"
                 style={{ backgroundColor: p.swatch }}
               />
               <span
                 className={cn(
-                  "text-[11px] leading-tight",
-                  active ? "text-gold" : "text-muted-foreground",
+                  "text-[11px] leading-tight pb-0.5 border-b-2 transition-colors",
+                  active
+                    ? "border-gold text-gold"
+                    : "border-transparent text-muted-foreground",
                 )}
               >
                 {p.label}
@@ -396,8 +420,8 @@ function CustomAccentSection() {
 
   return (
     <SettingsSection
-      title="Custom Accent"
-      description="Pick any hex color — overrides the preset above."
+      title="Your Signature"
+      description="Cast your own color into the space."
     >
       <div className="flex items-start gap-4">
         <button
@@ -492,7 +516,6 @@ function CustomAccentSection() {
 
 function BackgroundGradientSection() {
   const { user, prefs, setPrefs } = useSettings();
-  const { preset, setPreset } = useBgGradient();
   const { markDirty } = useThemeDirty();
 
   const [leftHex, setLeftHex] = useState(
@@ -519,20 +542,6 @@ function BackgroundGradientSection() {
     }
   }, [prefs.bg_gradient_from, prefs.bg_gradient_to]);
 
-  const choosePreset = async (name: BgPresetName) => {
-    setPreset(name);
-    markDirty();
-    const found = BG_PRESETS.find((p) => p.value === name);
-    if (!found) return;
-    setLeftHex(found.left);
-    setRightHex(found.right);
-    await updateUserPreferences(user.id, {
-      bg_gradient_from: null,
-      bg_gradient_to: null,
-    });
-    setPrefs({ ...prefs, bg_gradient_from: null, bg_gradient_to: null });
-  };
-
   const applyCustom = async (left: string, right: string) => {
     if (!isHex(left) || !isHex(right)) return;
     document.documentElement.style.setProperty("--bg-gradient-left", left);
@@ -556,63 +565,21 @@ function BackgroundGradientSection() {
 
   return (
     <SettingsSection
-      title="Background Gradient"
-      description="The deep gradient behind every screen."
+      title="The Horizon"
+      description="The sky behind every reading — dark on the left where the past recedes, bright on the right where futures open."
     >
       <div className="space-y-5">
         <div
           aria-hidden
-          className="h-20 w-full rounded-2xl border border-gold/30"
+          className="h-12 w-full rounded-lg border border-gold/30"
           style={{
             background: `linear-gradient(to right, ${liveLeft}, ${liveRight})`,
           }}
         />
 
-        <div className="space-y-2">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-            Presets
-          </Label>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-            {BG_PRESETS.map((p) => {
-              const active = preset === p.value && !prefs.bg_gradient_from;
-              return (
-                <button
-                  key={p.value}
-                  type="button"
-                  onClick={() => void choosePreset(p.value)}
-                  aria-pressed={active}
-                  className={cn(
-                    "group flex flex-col items-center gap-1.5 focus:outline-none",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "block h-12 w-full rounded-lg transition-all",
-                      active
-                        ? "ring-2 ring-gold shadow-glow"
-                        : "ring-1 ring-border/60 group-hover:ring-gold/50",
-                    )}
-                    style={{
-                      background: `linear-gradient(to right, ${p.left}, ${p.right})`,
-                    }}
-                  />
-                  <span
-                    className={cn(
-                      "text-[10px] leading-tight",
-                      active ? "text-gold" : "text-muted-foreground",
-                    )}
-                  >
-                    {p.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         <div className="space-y-4">
           <BgHexPicker
-            label="Left Color"
+            label="The Past"
             value={liveLeft}
             open={openSide === "left"}
             onToggle={() => setOpenSide(openSide === "left" ? null : "left")}
@@ -620,7 +587,7 @@ function BackgroundGradientSection() {
             onReset={() => void applyCustom(DEFAULT_BG_LEFT, liveRight)}
           />
           <BgHexPicker
-            label="Right Color"
+            label="The Future"
             value={liveRight}
             open={openSide === "right"}
             onToggle={() => setOpenSide(openSide === "right" ? null : "right")}
@@ -765,11 +732,11 @@ function HeadingFontSection() {
 
   return (
     <SettingsSection
-      title="Heading Font"
-      description="The display font + size used across headings."
+      title="The Voice"
+      description="How the cards speak in text."
     >
       <div className="space-y-4">
-        <div className="flex flex-wrap gap-2.5">
+        <div className="flex flex-wrap gap-x-5 gap-y-2.5">
           {THEME_FONTS.map((f) => {
             const selected = f === font;
             return (
@@ -778,10 +745,10 @@ function HeadingFontSection() {
                 type="button"
                 onClick={() => void pickFont(f)}
                 className={cn(
-                  "rounded-full border px-4 py-2 text-sm transition",
+                  "px-1 py-1 text-sm transition border-b-2",
                   selected
-                    ? "border-gold bg-gold/15 text-gold"
-                    : "border-border/60 text-muted-foreground hover:border-gold/40",
+                    ? "border-gold text-gold"
+                    : "border-transparent text-muted-foreground hover:text-gold/80",
                 )}
                 style={{ fontFamily: `"${f}", ui-serif, Georgia, serif` }}
               >
@@ -816,7 +783,7 @@ function HeadingFontSection() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              Font Size
+              The Weight
             </Label>
             <span className="font-mono text-sm tabular-nums text-foreground">
               {size}px
@@ -864,14 +831,14 @@ function InterfaceFadeSection() {
 
   return (
     <SettingsSection
-      title="Interface Fade"
-      description="How subtle the top bar icons appear at rest."
+      title="The Veil Opacity"
+      description="How quietly the interface rests when not needed."
     >
       <div className="space-y-3">
         <FadePreviewBar opacity={draft} />
         <div className="flex items-center justify-between">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-            Resting opacity
+            At rest
           </Label>
           <span className="font-mono text-sm tabular-nums text-foreground">
             {draft}%
@@ -892,8 +859,8 @@ function InterfaceFadeSection() {
           }}
         />
         <div className="flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground/70">
-          <span>Subtle</span>
-          <span>Bold</span>
+          <span>Whisper</span>
+          <span>Speak</span>
         </div>
       </div>
     </SettingsSection>
@@ -950,7 +917,95 @@ function FadePreviewBar({ opacity }: { opacity: number }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Community Themes carousel                                          */
+/*  Shared carousel chrome (hover arrows + dot pagination)             */
+/* ------------------------------------------------------------------ */
+
+const CARD_WIDTH = 220;
+const CARD_GAP = 12;
+
+/**
+ * Wraps a horizontal snap-scroll row with hover-revealed left/right
+ * arrow buttons, dot pagination beneath the row, and a "Swipe to
+ * explore" hint. The caller passes children = the actual cards. The
+ * hook owns the scroll math so both Celestial Palettes and Your
+ * Sanctuaries behave identically.
+ */
+function ThemeCarousel({
+  count,
+  children,
+  ariaLabel,
+}: {
+  count: number;
+  children: React.ReactNode;
+  ariaLabel: string;
+}) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const scrollByCard = useCallback((dir: 1 | -1) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * (CARD_WIDTH + CARD_GAP), behavior: "smooth" });
+  }, []);
+
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      const idx = Math.round(el.scrollLeft / (CARD_WIDTH + CARD_GAP));
+      setActiveIndex(Math.min(count - 1, Math.max(0, idx)));
+    },
+    [count],
+  );
+
+  return (
+    <>
+      <div className="group/carousel relative -mx-2">
+        <div
+          ref={scrollerRef}
+          onScroll={handleScroll}
+          aria-label={ariaLabel}
+          className="flex gap-3 overflow-x-auto px-2 pb-2 snap-x snap-mandatory scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {children}
+        </div>
+        <button
+          type="button"
+          aria-label="Scroll left"
+          onClick={() => scrollByCard(-1)}
+          className="absolute left-1 top-1/2 -translate-y-1/2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/80 text-gold opacity-0 ring-1 ring-gold/40 backdrop-blur transition-opacity duration-200 hover:bg-background group-hover/carousel:opacity-100 focus-visible:opacity-100"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          aria-label="Scroll right"
+          onClick={() => scrollByCard(1)}
+          className="absolute right-1 top-1/2 -translate-y-1/2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/80 text-gold opacity-0 ring-1 ring-gold/40 backdrop-blur transition-opacity duration-200 hover:bg-background group-hover/carousel:opacity-100 focus-visible:opacity-100"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
+      <div className="mt-2 flex items-center justify-center gap-1.5">
+        {Array.from({ length: count }).map((_, i) => (
+          <span
+            key={i}
+            aria-hidden
+            className={cn(
+              "block h-1.5 rounded-full transition-all",
+              i === activeIndex ? "w-4 bg-gold" : "w-1.5 bg-gold/30",
+            )}
+          />
+        ))}
+      </div>
+      <p className="mt-1 text-center text-[10px] uppercase tracking-widest text-gold/70">
+        Swipe to explore
+      </p>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Celestial Palettes carousel (formerly Community Themes)            */
 /* ------------------------------------------------------------------ */
 
 /**
@@ -1004,69 +1059,75 @@ function CommunityThemesSection() {
 
   return (
     <SettingsSection
-      title="Community Themes"
-      description="Curated looks crafted by the Moonseed community."
+      title="Celestial Palettes"
+      description="Curated atmospheres — designed with intention, named for the cosmos."
     >
-      <div className="-mx-2 overflow-x-auto">
-        <div className="flex gap-3 px-2 pb-2 snap-x snap-mandatory">
-          {COMMUNITY_THEMES.map((theme) => {
-            const active = activeKey === theme.key;
-            return (
-              <button
-                key={theme.key}
-                type="button"
-                onClick={() => void apply(theme)}
-                aria-pressed={active}
-                aria-label={`Apply ${theme.name} theme`}
-                className={cn(
-                  "group relative flex w-[220px] shrink-0 snap-start flex-col gap-2 rounded-2xl border p-3 text-left transition",
-                  active
-                    ? "border-gold shadow-glow"
-                    : "border-border/60 hover:border-gold/40",
-                )}
-              >
+      <ThemeCarousel
+        count={COMMUNITY_THEMES.length}
+        ariaLabel="Celestial palettes"
+      >
+        {COMMUNITY_THEMES.map((theme) => {
+          const active = activeKey === theme.key;
+          return (
+            <button
+              key={theme.key}
+              type="button"
+              onClick={() => void apply(theme)}
+              aria-pressed={active}
+              aria-label={`Apply ${theme.name} theme`}
+              className={cn(
+                "group relative flex w-[220px] shrink-0 snap-start flex-col gap-2 rounded-2xl p-3 text-left transition",
+                active
+                  ? "border-2 border-gold shadow-glow"
+                  : "border border-border/60 hover:border-gold/40",
+              )}
+            >
+              {active && (
                 <span
                   aria-hidden
-                  className="block h-20 w-full rounded-xl ring-1 ring-border/40"
-                  style={{
-                    background: `linear-gradient(to right, ${theme.bgLeft}, ${theme.bgRight})`,
-                  }}
+                  className="absolute left-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-gold text-gold-foreground"
+                >
+                  <Check className="h-3 w-3" strokeWidth={3} />
+                </span>
+              )}
+              <span
+                aria-hidden
+                className="block h-20 w-full rounded-xl ring-1 ring-border/40"
+                style={{
+                  background: `linear-gradient(to right, ${theme.bgLeft}, ${theme.bgRight})`,
+                }}
+              />
+              <div className="flex items-start gap-2">
+                <span
+                  aria-hidden
+                  className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-border/60"
+                  style={{ backgroundColor: theme.accent }}
                 />
-                <div className="flex items-start gap-2">
-                  <span
-                    aria-hidden
-                    className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-border/60"
-                    style={{ backgroundColor: theme.accent }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={cn(
-                        "truncate italic text-sm",
-                        active ? "text-gold" : "text-foreground",
-                      )}
-                      style={{ fontFamily: "var(--font-serif)" }}
-                    >
-                      {theme.name}
-                    </p>
-                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
-                      {theme.tagline}
-                    </p>
-                  </div>
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={cn(
+                      "truncate italic text-sm",
+                      active ? "text-gold" : "text-foreground",
+                    )}
+                    style={{ fontFamily: "var(--font-serif)" }}
+                  >
+                    {theme.name}
+                  </p>
+                  <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+                    {theme.tagline}
+                  </p>
                 </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <p className="mt-2 text-center text-[10px] uppercase tracking-widest text-muted-foreground/70">
-        Swipe to explore
-      </p>
+              </div>
+            </button>
+          );
+        })}
+      </ThemeCarousel>
     </SettingsSection>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/*  Saved Themes — 5-slot carousel                                     */
+/*  Your Sanctuaries — 5-slot carousel (formerly Saved Themes)         */
 /* ------------------------------------------------------------------ */
 
 function SavedThemesSection() {
@@ -1082,7 +1143,6 @@ function SavedThemesSection() {
   const { setOpacity } = useRestingOpacity();
   const { hasUnsavedChanges, markClean } = useThemeDirty();
 
-  const [activeIndex, setActiveIndex] = useState(0);
   const [nameDialogSlot, setNameDialogSlot] = useState<number | null>(null);
   const [nameDraft, setNameDraft] = useState("");
   const [overwriteSlot, setOverwriteSlot] = useState<number | null>(null);
@@ -1177,127 +1237,107 @@ function SavedThemesSection() {
 
   return (
     <SettingsSection
-      title="Saved Themes"
-      description={`Snapshot the current look — up to ${MAX_SAVED_THEMES} slots.`}
+      title="Your Sanctuaries"
+      description="Capture the atmosphere of a perfect reading. Return to it anytime."
     >
-      <div className="-mx-2 overflow-x-auto">
-        <div
-          className="flex gap-3 px-2 pb-2 snap-x snap-mandatory"
-          onScroll={(e) => {
-            const el = e.currentTarget;
-            const card = 220 + 12; // width + gap
-            const idx = Math.round(el.scrollLeft / card);
-            setActiveIndex(Math.min(MAX_SAVED_THEMES - 1, Math.max(0, idx)));
-          }}
-        >
-          {slots.map(({ slot, theme }) => {
-            const active = activeSlot === slot;
-            return (
-              <div
-                key={slot}
-                className={cn(
-                  "relative flex w-[220px] shrink-0 snap-start flex-col gap-3 rounded-2xl border p-3 transition",
-                  active
-                    ? "border-gold shadow-glow"
-                    : "border-border/60 hover:border-gold/40",
-                )}
-              >
-                {theme ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteTarget(theme)}
-                      aria-label={`Delete ${theme.name}`}
-                      className="absolute right-2 top-2 z-10 rounded-full bg-background/70 p-1 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-destructive focus:opacity-100"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+      <ThemeCarousel count={MAX_SAVED_THEMES} ariaLabel="Your sanctuaries">
+        {slots.map(({ slot, theme }) => {
+          const active = activeSlot === slot;
+          return (
+            <div
+              key={slot}
+              className={cn(
+                "group relative flex w-[220px] shrink-0 snap-start flex-col gap-3 rounded-2xl p-3 transition",
+                active
+                  ? "border-2 border-gold shadow-glow"
+                  : "border border-border/60 hover:border-gold/40",
+              )}
+            >
+              {theme ? (
+                <>
+                  {active && (
                     <span
                       aria-hidden
-                      className="block h-20 w-full rounded-xl ring-1 ring-border/40"
-                      style={{
-                        background: `linear-gradient(to right, ${theme.bg_left}, ${theme.bg_right})`,
-                      }}
-                    />
-                    <div className="flex items-start gap-2">
-                      <span
-                        aria-hidden
-                        className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-border/60"
-                        style={{ backgroundColor: theme.accent }}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className={cn(
-                            "truncate text-sm font-medium",
-                            active ? "text-gold" : "text-foreground",
-                          )}
-                        >
-                          {theme.name}
-                        </p>
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Slot {slot}
-                          {active && " · active"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-auto grid grid-cols-2 gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSaveClick(slot, theme)}
-                        className="gap-1"
-                      >
-                        <Save className="h-3.5 w-3.5" />
-                        Save
-                      </Button>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => requestLoad(theme)}
-                        className="bg-gold-gradient text-gold-foreground hover:opacity-95"
-                      >
-                        Load
-                      </Button>
-                    </div>
-                  </>
-                ) : (
+                      className="absolute left-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-gold text-gold-foreground"
+                    >
+                      <Check className="h-3 w-3" strokeWidth={3} />
+                    </span>
+                  )}
                   <button
                     type="button"
-                    onClick={() => handleSaveClick(slot, null)}
-                    aria-label={`Save current theme to slot ${slot}`}
-                    className="flex h-full min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 text-muted-foreground transition hover:border-gold/50 hover:text-gold"
+                    onClick={() => setDeleteTarget(theme)}
+                    aria-label={`Delete ${theme.name}`}
+                    className="absolute right-2 top-2 z-10 rounded-full bg-background/70 p-1 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-destructive focus:opacity-100"
                   >
-                    <Plus className="h-6 w-6" />
-                    <span className="text-xs">Save current theme</span>
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
-                      Slot {slot}
-                    </span>
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Dot pagination */}
-      <div className="mt-2 flex items-center justify-center gap-1.5">
-        {slots.map((_, i) => (
-          <span
-            key={i}
-            aria-hidden
-            className={cn(
-              "block h-1.5 rounded-full transition-all",
-              i === activeIndex
-                ? "w-4 bg-gold"
-                : "w-1.5 bg-border/70",
-            )}
-          />
-        ))}
-      </div>
-      <p className="mt-1 text-center text-[10px] uppercase tracking-widest text-muted-foreground/70">
-        Swipe to explore
-      </p>
+                  <span
+                    aria-hidden
+                    className="block h-20 w-full rounded-xl ring-1 ring-border/40"
+                    style={{
+                      background: `linear-gradient(to right, ${theme.bg_left}, ${theme.bg_right})`,
+                    }}
+                  />
+                  <div className="flex items-start gap-2">
+                    <span
+                      aria-hidden
+                      className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-border/60"
+                      style={{ backgroundColor: theme.accent }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={cn(
+                          "truncate italic text-sm",
+                          active ? "text-gold" : "text-foreground",
+                        )}
+                        style={{ fontFamily: "var(--font-serif)" }}
+                      >
+                        {theme.name}
+                      </p>
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Slot {slot}
+                        {active && " · active"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-auto grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSaveClick(slot, theme)}
+                      className="gap-1"
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      Overwrite
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => requestLoad(theme)}
+                      className="bg-gold-gradient text-gold-foreground hover:opacity-95"
+                    >
+                      Return here
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleSaveClick(slot, null)}
+                  aria-label={`Preserve current theme to slot ${slot}`}
+                  className="flex h-full min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 text-muted-foreground transition hover:border-gold/50 hover:text-gold"
+                >
+                  <Plus className="h-6 w-6" />
+                  <span className="text-xs">Preserve this moment</span>
+                  <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                    Slot {slot}
+                  </span>
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </ThemeCarousel>
 
       {!loaded && (
         <p className="mt-3 text-center text-xs text-muted-foreground">
@@ -1357,9 +1397,9 @@ function SavedThemesSection() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Overwrite{" "}
+              Overwrite this sanctuary{" "}
               {overwriteSlot != null
-                ? slots.find((s) => s.slot === overwriteSlot)?.theme?.name
+                ? `— ${slots.find((s) => s.slot === overwriteSlot)?.theme?.name}`
                 : ""}
               ?
             </AlertDialogTitle>
@@ -1396,7 +1436,7 @@ function SavedThemesSection() {
                 }
               }}
             >
-              Overwrite
+              Overwrite this sanctuary
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
