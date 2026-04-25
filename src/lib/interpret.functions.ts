@@ -1,0 +1,183 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { SPREAD_META, isValidSpreadMode } from "@/lib/spreads";
+import { getCardName } from "@/lib/tarot";
+
+/** Maximum readings any single user may create in a UTC day. */
+const DAILY_LIMIT = 3;
+
+const InterpretInput = z.object({
+  spread: z.string().refine(isValidSpreadMode, "Unknown spread"),
+  picks: z
+    .array(
+      z.object({
+        id: z.number().int(),
+        cardIndex: z.number().int().min(0).max(77),
+      }),
+    )
+    .min(1)
+    .max(10),
+});
+
+export type InterpretedPosition = {
+  position: string;
+  card: string;
+  interpretation: string;
+};
+
+export type InterpretationPayload = {
+  overview: string;
+  positions: InterpretedPosition[];
+  closing: string;
+};
+
+export type InterpretSuccess = {
+  ok: true;
+  readingId: string;
+  interpretation: InterpretationPayload;
+};
+
+export type InterpretError = {
+  ok: false;
+  /** Stable codes the UI can branch on. */
+  error: "daily_limit_reached" | "ai_unavailable" | "invalid_response" | "internal";
+  message: string;
+};
+
+const SYSTEM_PROMPT = `You are Moonseed, a wise and atmospheric tarot guide. You speak in a warm, poetic but grounded voice — never vague or evasive. You give honest, specific interpretations that feel personally meaningful, not generic horoscope filler. You treat tarot as a tool for reflection, not prediction.
+
+Always respond in this exact JSON format and nothing else:
+{
+  "overview": "2-3 sentence reading of the spread as a whole",
+  "positions": [
+    { "position": "Position name", "card": "Card name", "interpretation": "2-3 sentences specific to this card in this position" }
+  ],
+  "closing": "One final sentence — a gentle invitation to reflect"
+}`;
+
+/**
+ * Server-side gate + Claude call. Lives in `.functions.ts` so the TanStack
+ * server-fn plugin replaces the body with an RPC stub for the client bundle
+ * (the ANTHROPIC_API_KEY never reaches the browser).
+ */
+export const interpretReading = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => InterpretInput.parse(raw))
+  .handler(async ({ data, context }): Promise<InterpretSuccess | InterpretError> => {
+    const { supabase, userId } = context;
+    const spread = data.spread as keyof typeof SPREAD_META;
+    const meta = SPREAD_META[spread];
+
+    // 1. Enforce the 3/day UTC limit using the user's own RLS-scoped client.
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+
+    const { count, error: countErr } = await supabase
+      .from("readings")
+      .select("*", { count: "exact", head: true })
+      .gte("created_at", startOfDay.toISOString());
+
+    if (countErr) {
+      console.error("interpretReading count error:", countErr);
+      return { ok: false, error: "internal", message: "Could not check daily quota." };
+    }
+    if ((count ?? 0) >= DAILY_LIMIT) {
+      return {
+        ok: false,
+        error: "daily_limit_reached",
+        message: "You have drawn your three readings for today.",
+      };
+    }
+
+    // 2. Build the user prompt from the picks + spread metadata.
+    const positionLabels: string[] =
+      meta.positions ?? data.picks.map((_, i) => `Card ${i + 1}`);
+    const lines = data.picks.map(
+      (p, i) => `- ${positionLabels[i] ?? `Card ${i + 1}`}: ${getCardName(p.cardIndex)}`,
+    );
+    const userPrompt = `Spread: ${meta.label}\nCards drawn:\n${lines.join("\n")}\n\nPlease interpret this reading.`;
+
+    // 3. Call the Anthropic Messages API.
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      console.error("ANTHROPIC_API_KEY is not set");
+      return { ok: false, error: "ai_unavailable", message: "Interpreter is not configured." };
+    }
+
+    let interpretation: InterpretationPayload;
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1024,
+          system: SYSTEM_PROMPT,
+          messages: [{ role: "user", content: userPrompt }],
+        }),
+      });
+
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => "");
+        console.error("Anthropic API error:", resp.status, errText);
+        return {
+          ok: false,
+          error: "ai_unavailable",
+          message: "The reader could not be reached. Please try again.",
+        };
+      }
+
+      const json = (await resp.json()) as {
+        content?: Array<{ type: string; text?: string }>;
+      };
+      const text =
+        json.content?.find((c) => c.type === "text")?.text?.trim() ?? "";
+
+      // Models occasionally wrap JSON in ```json fences — strip them.
+      const cleaned = text
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```$/i, "")
+        .trim();
+
+      interpretation = JSON.parse(cleaned) as InterpretationPayload;
+
+      if (
+        typeof interpretation.overview !== "string" ||
+        typeof interpretation.closing !== "string" ||
+        !Array.isArray(interpretation.positions)
+      ) {
+        throw new Error("Malformed interpretation shape");
+      }
+    } catch (e) {
+      console.error("interpretReading parse/network error:", e);
+      return {
+        ok: false,
+        error: "invalid_response",
+        message: "The reading came back garbled. Please try again.",
+      };
+    }
+
+    // 4. Persist the reading. RLS ensures user_id must equal auth.uid().
+    const { data: inserted, error: insertErr } = await supabase
+      .from("readings")
+      .insert({
+        user_id: userId,
+        spread_type: spread,
+        card_ids: data.picks.map((p) => p.cardIndex),
+        interpretation: JSON.stringify(interpretation),
+      })
+      .select("id")
+      .single();
+
+    if (insertErr || !inserted) {
+      console.error("interpretReading insert error:", insertErr);
+      return { ok: false, error: "internal", message: "Could not save reading." };
+    }
+
+    return { ok: true, readingId: inserted.id, interpretation };
+  });

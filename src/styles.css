@@ -292,6 +292,22 @@ html, body {
   animation-delay: var(--emerge-delay, 0ms);
 }
 
+/* Phase 4 reading screen */
+@keyframes reading-breathe {
+  0%, 100% { opacity: 0.55; letter-spacing: 0.25em; }
+  50%      { opacity: 1;    letter-spacing: 0.32em; }
+}
+.reading-breathe {
+  animation: reading-breathe 2400ms ease-in-out infinite;
+}
+@keyframes reading-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.reading-fade {
+  animation: reading-fade-in 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @keyframes settle-in {
   from { opacity: 0; transform: translateY(6px) scale(0.96); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
