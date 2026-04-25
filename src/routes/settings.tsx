@@ -53,30 +53,67 @@ function SettingsPage() {
 
   return (
     <main className="min-h-screen overflow-y-auto bg-cosmos px-4 pb-28 pt-[calc(env(safe-area-inset-top)+24px)] text-foreground">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-        <h1 className="font-display text-4xl italic text-gold md:text-5xl">🌙 Settings</h1>
+      <div className="mx-auto w-full max-w-5xl">
+        <header className="px-0 pb-6 pt-2">
+          <h1 className="font-display text-3xl italic text-foreground md:text-4xl">🌙 Settings</h1>
+        </header>
 
-        <div className="settings-tabbar sticky top-0 z-20 -mx-4 overflow-x-auto border-y border-border/40 px-4 py-3 backdrop-blur-xl scrollbar-none">
-          <div className="flex min-w-max gap-2">
-            {TABS.map((tab) => (
+        {/* Mobile: pill tab bar */}
+        <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto border-b border-gold/10 px-4 pb-3 md:hidden scrollbar-none">
+          {TABS.map((tab) => {
+            const active = activeTab === tab;
+            return (
               <button
                 key={tab}
                 type="button"
-                data-active={activeTab === tab}
                 onClick={() => setActiveTab(tab)}
-                className="settings-tab rounded-full px-4 py-2 font-display text-sm italic"
+                className={cn(
+                  "shrink-0 rounded-full border px-4 py-1.5 font-display text-sm italic transition-colors duration-200",
+                  active
+                    ? "border-gold/40 bg-gold/10 text-gold"
+                    : "border-border/40 bg-transparent text-muted-foreground",
+                )}
               >
                 {tab}
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
-        {activeTab === "Profile" && <ProfilePanel />}
-        {activeTab === "Blueprint" && <BlueprintPanel />}
-        {activeTab === "Preferences" && <PreferencesPanel />}
-        {activeTab === "Themes" && <ThemesPanel />}
-        {activeTab === "Data" && <DataPanel />}
+        {/* Desktop: sidebar + content. Mobile: content only */}
+        <div className="flex gap-0 md:gap-8">
+          <aside className="hidden shrink-0 self-start rounded-2xl border-r border-gold/10 bg-[oklch(0.14_0.04_280)] py-3 md:flex md:w-[200px] md:flex-col">
+            <p className="px-4 pb-2 pt-1 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
+              Settings
+            </p>
+            {TABS.map((tab) => {
+              const active = activeTab === tab;
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    "border-l-2 px-4 py-2.5 text-left font-display text-sm italic transition-colors duration-200",
+                    active
+                      ? "border-gold bg-[oklch(0.82_0.14_82_/_0.08)] text-gold"
+                      : "border-transparent text-muted-foreground hover:bg-[oklch(0.82_0.14_82_/_0.04)] hover:text-foreground",
+                  )}
+                >
+                  {tab}
+                </button>
+              );
+            })}
+          </aside>
+
+          <div className="min-w-0 flex-1 md:pl-0">
+            {activeTab === "Profile" && <ProfilePanel />}
+            {activeTab === "Blueprint" && <BlueprintPanel />}
+            {activeTab === "Preferences" && <PreferencesPanel />}
+            {activeTab === "Themes" && <ThemesPanel />}
+            {activeTab === "Data" && <DataPanel />}
+          </div>
+        </div>
       </div>
     </main>
   );
