@@ -1051,6 +1051,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       const ok = window.confirm("Leave this reading? Your selections will be lost.");
       if (!ok) return;
     }
+    // Explicit exit ends the session — drop the saved snapshot so the
+    // next visit starts with a fresh scatter and empty undo stack.
+    clearTabletopSession(spread);
     onExit();
   };
 
