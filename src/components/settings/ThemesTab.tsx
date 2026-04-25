@@ -1196,14 +1196,15 @@ function CommunityThemesSection() {
 
   useEffect(() => {
     setActiveKey(getStoredCommunityTheme());
-    if (typeof window === "undefined") return;
-    const refresh = () => setActiveKey(getStoredCommunityTheme());
-    window.addEventListener("moonseed:theme-changed", refresh);
-    window.addEventListener("moonseed:sanctuary-changed", refresh);
-    return () => {
-      window.removeEventListener("moonseed:theme-changed", refresh);
-      window.removeEventListener("moonseed:sanctuary-changed", refresh);
-    };
+    return subscribeActiveThemeChanged((detail) => {
+      // If a payload tells us the active source isn't `community`, drop
+      // our highlight immediately rather than waiting on a re-read.
+      if (detail && detail.source !== "community") {
+        setActiveKey(null);
+        return;
+      }
+      setActiveKey(getStoredCommunityTheme());
+    });
   }, []);
 
   const apply = async (theme: (typeof COMMUNITY_THEMES)[number]) => {
@@ -1234,9 +1235,13 @@ function CommunityThemesSection() {
       bg_gradient_to: theme.bgRight.toLowerCase(),
       accent_color: theme.accent.toLowerCase(),
     });
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("moonseed:theme-changed"));
-    }
+    dispatchActiveThemeChanged({
+      source: "community",
+      name: theme.name,
+      accent: theme.accent,
+      sanctuarySlot: null,
+      communityKey: theme.key,
+    });
     toast.success(`Applied ${theme.name}`);
   };
 
