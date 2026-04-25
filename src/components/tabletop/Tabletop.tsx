@@ -1748,9 +1748,8 @@ function CardSlot({
       onClick={handleClick}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerCancel={() => {
-        if (downPosRef.current) downPosRef.current.cancelled = true;
-      }}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
       disabled={disabled && !card.revealed}
       data-card-id={card.id}
       aria-label={
