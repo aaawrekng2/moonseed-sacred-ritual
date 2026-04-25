@@ -168,6 +168,7 @@ function ThemesTabInner() {
             <p className="text-sm text-muted-foreground">
               Shape the space where your readings live.
             </p>
+            <CurrentThemeBadge />
           </div>
           <ResetToDefaultsButton />
         </header>
@@ -182,6 +183,86 @@ function ThemesTabInner() {
         <SavedThemesSection />
       </div>
     </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Current Theme Badge                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Displays an "always-current" pill below the Themes tab title showing
+ * the active theme's name and accent color. Updates instantly when the
+ * user loads a sanctuary, applies a Celestial Palette, or changes the
+ * accent preset — driven by the `moonseed:theme-changed` and
+ * `moonseed:sanctuary-changed` custom events plus reactive state from
+ * `useSavedThemes`/`useSettings`.
+ */
+function CurrentThemeBadge() {
+  const { isOracle } = useOracleMode();
+  const { prefs } = useSettings();
+  const { occupied, activeSlot } = useSavedThemes();
+  const [communityKey, setCommunityKey] = useState<string | null>(null);
+  const [, bump] = useState(0);
+
+  useEffect(() => {
+    setCommunityKey(getStoredCommunityTheme());
+    const refresh = () => {
+      setCommunityKey(getStoredCommunityTheme());
+      bump((n) => n + 1);
+    };
+    if (typeof window === "undefined") return;
+    window.addEventListener("moonseed:theme-changed", refresh);
+    window.addEventListener("moonseed:sanctuary-changed", refresh);
+    return () => {
+      window.removeEventListener("moonseed:theme-changed", refresh);
+      window.removeEventListener("moonseed:sanctuary-changed", refresh);
+    };
+  }, []);
+
+  // Resolution order: active sanctuary → active community palette →
+  // accent preset label → custom hex → "Custom".
+  const sanctuary = occupied.find((t) => t.slot === activeSlot) ?? null;
+  const community = communityKey
+    ? COMMUNITY_THEMES.find((t) => t.key === communityKey) ?? null
+    : null;
+  const accentPreset = ACCENT_PRESETS.find(
+    (p) => p.value === getAccentTheme(),
+  );
+
+  let name: string;
+  let dot: string;
+  if (sanctuary) {
+    name = sanctuary.name;
+    dot = sanctuary.accent;
+  } else if (community) {
+    name = community.name;
+    dot = community.accent;
+  } else if (accentPreset) {
+    name = accentPreset.label;
+    dot = prefs.accent_color ?? accentPreset.swatch;
+  } else {
+    name = "Custom";
+    dot = prefs.accent_color ?? "var(--gold)";
+  }
+
+  return (
+    <div className="inline-flex items-center gap-2 rounded-full border border-border/60 bg-card/60 px-3 py-1 text-xs">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        {isOracle ? "Current atmosphere" : "Current theme"}
+      </span>
+      <span
+        aria-hidden
+        className="h-3 w-3 rounded-full ring-1 ring-border/60"
+        style={{ backgroundColor: dot }}
+      />
+      <span
+        className="font-medium italic text-foreground"
+        style={{ fontFamily: "var(--font-serif)" }}
+      >
+        {name}
+      </span>
+    </div>
   );
 }
 
@@ -1093,6 +1174,14 @@ function CommunityThemesSection() {
 
   useEffect(() => {
     setActiveKey(getStoredCommunityTheme());
+    if (typeof window === "undefined") return;
+    const refresh = () => setActiveKey(getStoredCommunityTheme());
+    window.addEventListener("moonseed:theme-changed", refresh);
+    window.addEventListener("moonseed:sanctuary-changed", refresh);
+    return () => {
+      window.removeEventListener("moonseed:theme-changed", refresh);
+      window.removeEventListener("moonseed:sanctuary-changed", refresh);
+    };
   }, []);
 
   const apply = async (theme: (typeof COMMUNITY_THEMES)[number]) => {
@@ -1123,6 +1212,9 @@ function CommunityThemesSection() {
       bg_gradient_to: theme.bgRight.toLowerCase(),
       accent_color: theme.accent.toLowerCase(),
     });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("moonseed:theme-changed"));
+    }
     toast.success(`Applied ${theme.name}`);
   };
 
@@ -1317,6 +1409,12 @@ function SavedThemesSection() {
       oracle_mode: isOracle,
     });
     markClean();
+    // Loading a sanctuary supersedes any community palette selection.
+    setStoredCommunityTheme(null);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("moonseed:sanctuary-changed"));
+      window.dispatchEvent(new CustomEvent("moonseed:theme-changed"));
+    }
     toast.success(`Loaded "${theme.name}"`);
   };
 
@@ -1364,35 +1462,42 @@ function SavedThemesSection() {
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
-                  <span
-                    aria-hidden
-                    className="block h-20 w-full rounded-xl ring-1 ring-border/40"
-                    style={{
-                      background: `linear-gradient(to right, ${theme.bg_left}, ${theme.bg_right})`,
-                    }}
-                  />
-                  <div className="flex items-start gap-2">
+                  <button
+                    type="button"
+                    onClick={() => requestLoad(theme)}
+                    aria-label={`Load ${theme.name}`}
+                    className="flex flex-1 flex-col gap-3 text-left focus:outline-none"
+                  >
                     <span
                       aria-hidden
-                      className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-border/60"
-                      style={{ backgroundColor: theme.accent }}
+                      className="block h-20 w-full rounded-xl ring-1 ring-border/40"
+                      style={{
+                        background: `linear-gradient(to right, ${theme.bg_left}, ${theme.bg_right})`,
+                      }}
                     />
-                    <div className="min-w-0 flex-1">
-                      <p
-                        className={cn(
-                          "truncate italic text-sm",
-                          active ? "text-gold" : "text-foreground",
-                        )}
-                        style={{ fontFamily: "var(--font-serif)" }}
-                      >
-                        {theme.name}
-                      </p>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                        Slot {slot}
-                        {active && " · active"}
-                      </p>
+                    <div className="flex items-start gap-2">
+                      <span
+                        aria-hidden
+                        className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-border/60"
+                        style={{ backgroundColor: theme.accent }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={cn(
+                            "truncate italic text-sm",
+                            active ? "text-gold" : "text-foreground",
+                          )}
+                          style={{ fontFamily: "var(--font-serif)" }}
+                        >
+                          {theme.name}
+                        </p>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Slot {slot}
+                          {active && " · active"}
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  </button>
                   <div className="mt-auto grid grid-cols-2 gap-2">
                     <Button
                       variant="outline"
@@ -1404,12 +1509,13 @@ function SavedThemesSection() {
                       Overwrite
                     </Button>
                     <Button
-                      variant="default"
+                      variant="outline"
                       size="sm"
-                      onClick={() => requestLoad(theme)}
-                      className="bg-gold-gradient text-gold-foreground hover:opacity-95"
+                      onClick={() => setDeleteTarget(theme)}
+                      className="gap-1 text-muted-foreground hover:text-destructive"
                     >
-                      Return here
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Erase
                     </Button>
                   </div>
                 </>

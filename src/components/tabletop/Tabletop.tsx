@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Eye, EyeOff, Sparkles, X } from "lucide-react";
+import { Eye, EyeOff, Sparkles, Undo2, Redo2, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -205,6 +205,36 @@ type CardState = ScatterCard & {
   originalZ: number;
 };
 
+/* ------------------------------------------------------------------ */
+/*  Drag + undo/redo                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Session-only undo/redo actions captured each time the user drags a
+ * card. The Tabletop applies these forward (do/redo) and inversely
+ * (undo). Cleared when the tabletop unmounts (the user exits the draw).
+ *
+ *  - "move"     — card dragged from (fromX,fromY) → (toX,toY) on the table
+ *  - "place"    — card dragged into a slot (slotIndex 0-based). May
+ *                 displace another card whose previous slot is recorded.
+ *  - "displace" — card dragged off a slot back to the table at (toX,toY).
+ */
+type DragAction =
+  | { kind: "move"; cardId: number; fromX: number; fromY: number; toX: number; toY: number }
+  | {
+      kind: "place";
+      cardId: number;
+      slotIndex: number;
+      fromX: number;
+      fromY: number;
+      // If the slot already held a card, that card is bumped to its
+      // previous on-table coordinates. Both endpoints are stored so we
+      // can undo/redo without losing the displaced card's whereabouts.
+      displacedCardId: number | null;
+      displacedFromX: number;
+      displacedFromY: number;
+    };
+
 export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const meta = SPREAD_META[spread];
   const required = meta.count;
@@ -349,6 +379,200 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   );
 
   const [cards, setCards] = useState<CardState[]>([]);
+
+  // ---- Drag + undo/redo (session-only) ----------------------------------
+  const [undoStack, setUndoStack] = useState<DragAction[]>([]);
+  const [redoStack, setRedoStack] = useState<DragAction[]>([]);
+  // Highlighted slot index while a card is being dragged over the rail.
+  const [dragHoverSlot, setDragHoverSlot] = useState<number | null>(null);
+
+  /**
+   * Apply a DragAction to the cards array in the "do/redo" direction.
+   * The reverse direction (undo) is computed inline in `undo()` below
+   * because the inverse for `place` involves restoring the previous slot
+   * occupant if any.
+   */
+  const applyAction = useCallback(
+    (action: DragAction) => {
+      setCards((prev) => {
+        if (action.kind === "move") {
+          return prev.map((c) =>
+            c.id === action.cardId ? { ...c, x: action.toX, y: action.toY } : c,
+          );
+        }
+        if (action.kind === "place") {
+          const targetOrder = action.slotIndex + 1;
+          return prev.map((c) => {
+            if (c.id === action.cardId) {
+              return { ...c, selectionOrder: targetOrder };
+            }
+            if (
+              action.displacedCardId !== null &&
+              c.id === action.displacedCardId
+            ) {
+              return {
+                ...c,
+                selectionOrder: null,
+                x: action.displacedFromX,
+                y: action.displacedFromY,
+              };
+            }
+            return c;
+          });
+        }
+        return prev;
+      });
+    },
+    [],
+  );
+
+  /** Undo the most recent action. */
+  const undo = useCallback(() => {
+    setUndoStack((stack) => {
+      if (stack.length === 0) return stack;
+      const action = stack[stack.length - 1];
+      setCards((prev) => {
+        if (action.kind === "move") {
+          return prev.map((c) =>
+            c.id === action.cardId
+              ? { ...c, x: action.fromX, y: action.fromY }
+              : c,
+          );
+        }
+        // place: send dragged card back to its pre-drag table coords;
+        // restore any displaced card to the slot it was bumped from.
+        const targetOrder = action.slotIndex + 1;
+        return prev.map((c) => {
+          if (c.id === action.cardId) {
+            return {
+              ...c,
+              selectionOrder: null,
+              x: action.fromX,
+              y: action.fromY,
+            };
+          }
+          if (
+            action.displacedCardId !== null &&
+            c.id === action.displacedCardId
+          ) {
+            return { ...c, selectionOrder: targetOrder };
+          }
+          return c;
+        });
+      });
+      setRedoStack((r) => [...r, action]);
+      return stack.slice(0, -1);
+    });
+  }, []);
+
+  /** Redo the most recently undone action. */
+  const redo = useCallback(() => {
+    setRedoStack((stack) => {
+      if (stack.length === 0) return stack;
+      const action = stack[stack.length - 1];
+      applyAction(action);
+      setUndoStack((u) => [...u, action]);
+      return stack.slice(0, -1);
+    });
+  }, [applyAction]);
+
+  /**
+   * Resolve a viewport (clientX, clientY) to a slot index 0..required-1
+   * if it falls inside a slot rect, else null. Uses the cached slotRects
+   * already maintained for the flight animation system.
+   */
+  const slotIndexAtPoint = useCallback(
+    (clientX: number, clientY: number): number | null => {
+      for (let i = 0; i < slotRects.length; i++) {
+        const r = slotRects[i];
+        if (!r) continue;
+        if (
+          clientX >= r.left &&
+          clientX <= r.right &&
+          clientY >= r.top &&
+          clientY <= r.bottom
+        ) {
+          return i;
+        }
+      }
+      return null;
+    },
+    [slotRects],
+  );
+
+  /**
+   * Called by CardSlot when a drag finishes. Decides whether the drop
+   * lands in a slot or on the table, mutates state, and records an
+   * undoable action.
+   */
+  const handleDragEnd = useCallback(
+    (
+      cardId: number,
+      clientX: number,
+      clientY: number,
+      tableX: number,
+      tableY: number,
+      fromX: number,
+      fromY: number,
+    ) => {
+      setDragHoverSlot(null);
+      const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
+      const isReady = selectedCount === required;
+      const slotIdx =
+        usesSlots && !isReady ? slotIndexAtPoint(clientX, clientY) : null;
+      if (slotIdx !== null) {
+        // Dropping into a slot. If the slot is already occupied, the
+        // current occupant gets displaced back to the dragged card's
+        // pre-drag table position so neither card is lost.
+        const targetOrder = slotIdx + 1;
+        const occupant = cards.find((c) => c.selectionOrder === targetOrder);
+        const action: DragAction = {
+          kind: "place",
+          cardId,
+          slotIndex: slotIdx,
+          fromX,
+          fromY,
+          displacedCardId:
+            occupant && occupant.id !== cardId ? occupant.id : null,
+          displacedFromX: fromX,
+          displacedFromY: fromY,
+        };
+        applyAction(action);
+        setUndoStack((s) => [...s, action]);
+        setRedoStack([]);
+        return;
+      }
+      // Dropping on the table — pure move.
+      if (tableX === fromX && tableY === fromY) return; // no-op
+      const action: DragAction = {
+        kind: "move",
+        cardId,
+        fromX,
+        fromY,
+        toX: tableX,
+        toY: tableY,
+      };
+      applyAction(action);
+      setUndoStack((s) => [...s, action]);
+      setRedoStack([]);
+    },
+    [applyAction, cards, required, slotIndexAtPoint, usesSlots],
+  );
+
+  /** Called continuously while dragging so we can light up a slot. */
+  const handleDragMove = useCallback(
+    (clientX: number, clientY: number) => {
+      const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
+      const isReady = selectedCount === required;
+      if (!usesSlots || isReady) {
+        setDragHoverSlot(null);
+        return;
+      }
+      setDragHoverSlot(slotIndexAtPoint(clientX, clientY));
+    },
+    [cards, required, usesSlots, slotIndexAtPoint],
+  );
+
   // Once cards are initialized we never wipe selections automatically.
   // Subsequent geometry changes (e.g. the bottom bar growing/shrinking
   // when the slot rail collapses on Reveal) reflow the unselected cards
@@ -659,6 +883,44 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-cosmos">
+      {/* Undo / Redo — fixed top-center, above the X close button. Only
+          rendered while there's something to undo or redo so the chrome
+          stays minimal during a fresh draw. */}
+      {(undoStack.length > 0 || redoStack.length > 0) && (
+        <div
+          style={{
+            position: "fixed",
+            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 60,
+            display: "flex",
+            gap: 8,
+            opacity: restingAlpha,
+          }}
+          className="transition-opacity hover:!opacity-100 focus-within:!opacity-100"
+        >
+          <button
+            type="button"
+            onClick={undo}
+            disabled={undoStack.length === 0}
+            aria-label="Undo last drag"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <Undo2 className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={redo}
+            disabled={redoStack.length === 0}
+            aria-label="Redo last drag"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <Redo2 className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
       {/* Temporary resting-opacity test slider — fixed upper-left, top
           layer so cards never sit above its controls. Desktop-only:
           hidden on mobile per design (it is a dev-only tool). */}
@@ -825,6 +1087,19 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             stirring={stirring && c.selectionOrder === null}
             tapMoveThresholdPx={TAP_MOVE_THRESHOLD_PX}
             onSelect={() => toggleSelect(c.id)}
+            onDragEnd={handleDragEnd}
+            onDragMove={handleDragMove}
+            isCoarsePointer={isCoarsePointer}
+            containerRect={
+              containerOrigin && size
+                ? {
+                    left: containerOrigin.left,
+                    top: containerOrigin.top,
+                    width: size.w,
+                    height: size.h,
+                  }
+                : null
+            }
             settleDelay={Math.min(idx * 4, 320)}
             slotRect={
               usesSlots && c.selectionOrder !== null
@@ -934,6 +1209,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               {Array.from({ length: required }).map((_, i) => {
                 const filled = cards.some((c) => c.selectionOrder === i + 1);
                 const isNext = !filled && i === selectedCount;
+                const isDragHover = dragHoverSlot === i;
                 return (
                   <div
                     key={i}
@@ -953,16 +1229,23 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                         width: slotW,
                         height: slotH,
                         borderRadius: 10,
-                        border: isNext
+                        border: isDragHover
+                          ? "2px solid var(--gold)"
+                          : isNext
                           ? undefined
                           : filled
                             ? "1px solid rgba(212,175,55,0.35)"
                             : "1px solid rgba(212,175,55,0.2)",
-                        background: isNext
+                        background: isDragHover
+                          ? "rgba(212,175,55,0.18)"
+                          : isNext
                           ? undefined
                           : filled
                             ? "transparent"
                             : "rgba(212,175,55,0.03)",
+                        boxShadow: isDragHover
+                          ? "0 0 18px var(--gold), 0 0 32px rgba(212,175,55,0.6)"
+                          : undefined,
                         transition: isNext
                           ? undefined
                           : "background 200ms ease-out, border-color 200ms ease-out, box-shadow 200ms ease-out",
@@ -1155,6 +1438,10 @@ function CardSlot({
   slotRect,
   flightMs,
   containerOrigin,
+  onDragEnd,
+  onDragMove,
+  isCoarsePointer,
+  containerRect,
 }: {
   card: CardState;
   cardW: number;
@@ -1181,6 +1468,27 @@ function CardSlot({
    * viewport coords for the return-flight animation.
    */
   containerOrigin: { left: number; top: number } | null;
+  /**
+   * Drag pipeline. Pointer is held for ≥150ms (touch) or moved past
+   * the tap threshold (mouse) → CardSlot enters drag mode, follows the
+   * pointer, and on release calls `onDragEnd` so the parent can decide
+   * slot-drop vs. table-move. `containerRect` and `containerOrigin` let
+   * us convert between viewport and container coordinates.
+   */
+  onDragEnd: (
+    cardId: number,
+    clientX: number,
+    clientY: number,
+    tableX: number,
+    tableY: number,
+    fromX: number,
+    fromY: number,
+  ) => void;
+  onDragMove: (clientX: number, clientY: number) => void;
+  isCoarsePointer: boolean;
+  containerRect:
+    | { left: number; top: number; width: number; height: number }
+    | null;
 }) {
   const isSelected = card.selectionOrder !== null;
   const flying = isSelected && slotRect !== null;
@@ -1339,25 +1647,145 @@ function CardSlot({
     null,
   );
 
+  // ---- Drag state machine -----------------------------------------------
+  // `dragging` flips true once the pointer has been held for 150ms (the
+  // hold-to-drag threshold from the spec) — at which point the card lifts,
+  // follows the pointer with `position: fixed`, and the eventual click
+  // handler is suppressed so selection state is preserved.
+  const [dragging, setDragging] = useState(false);
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const dragStateRef = useRef<{
+    pointerId: number;
+    startClientX: number;
+    startClientY: number;
+    pointerOffsetX: number; // pointer offset inside the card on grab
+    pointerOffsetY: number;
+    fromX: number; // card's pre-drag table coords
+    fromY: number;
+    holdTimer: number | null;
+    didDrag: boolean;
+  } | null>(null);
+
+  const beginDrag = useCallback(() => {
+    setDragging(true);
+    if (dragStateRef.current) {
+      // Fire one immediate move so the card jumps to the pointer location
+      // (it was sitting at its scatter slot during the hold).
+      const s = dragStateRef.current;
+      setDragPos({
+        x: s.startClientX - s.pointerOffsetX,
+        y: s.startClientY - s.pointerOffsetY,
+      });
+      onDragMove(s.startClientX, s.startClientY);
+    }
+  }, [onDragMove]);
+
+  const HOLD_MS = 150;
+
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (card.revealed) return; // never drag a face-up card
     downPosRef.current = { x: e.clientX, y: e.clientY, cancelled: false };
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    // Capture the pointer so we keep receiving move/up events even if the
+    // pointer leaves the button bounds during the drag.
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* setPointerCapture can throw in rare edge cases — safe to ignore */
+    }
+    dragStateRef.current = {
+      pointerId: e.pointerId,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      pointerOffsetX: e.clientX - rect.left,
+      pointerOffsetY: e.clientY - rect.top,
+      fromX: card.x,
+      fromY: card.y,
+      holdTimer: window.setTimeout(beginDrag, HOLD_MS),
+      didDrag: false,
+    };
   };
+
   const handlePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
     const d = downPosRef.current;
-    if (!d || d.cancelled) return;
-    const dx = e.clientX - d.x;
-    const dy = e.clientY - d.y;
-    if (dx * dx + dy * dy > tapMoveThresholdPx * tapMoveThresholdPx) {
-      d.cancelled = true;
+    if (d && !d.cancelled) {
+      const dx = e.clientX - d.x;
+      const dy = e.clientY - d.y;
+      if (dx * dx + dy * dy > tapMoveThresholdPx * tapMoveThresholdPx) {
+        d.cancelled = true;
+      }
     }
+    const s = dragStateRef.current;
+    if (!s) return;
+    if (!dragging) return;
+    s.didDrag = true;
+    setDragPos({
+      x: e.clientX - s.pointerOffsetX,
+      y: e.clientY - s.pointerOffsetY,
+    });
+    onDragMove(e.clientX, e.clientY);
   };
+
+  const finishDrag = (clientX: number, clientY: number) => {
+    const s = dragStateRef.current;
+    if (!s) return false;
+    if (s.holdTimer != null) {
+      window.clearTimeout(s.holdTimer);
+      s.holdTimer = null;
+    }
+    const wasDragging = dragging && s.didDrag;
+    if (wasDragging && containerRect) {
+      // Convert the drop point (top-left of the card under the pointer)
+      // back into container coordinates and clamp it inside the table so
+      // a card never lands fully off-screen.
+      const targetLeft = clientX - s.pointerOffsetX - containerRect.left;
+      const targetTop = clientY - s.pointerOffsetY - containerRect.top;
+      const clampedX = Math.max(
+        TABLETOP_CONFIG.SCATTER_PADDING,
+        Math.min(
+          containerRect.width - cardW - TABLETOP_CONFIG.SCATTER_PADDING,
+          targetLeft,
+        ),
+      );
+      const clampedY = Math.max(
+        TABLETOP_CONFIG.SCATTER_PADDING,
+        Math.min(
+          containerRect.height - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+          targetTop,
+        ),
+      );
+      onDragEnd(card.id, clientX, clientY, clampedX, clampedY, s.fromX, s.fromY);
+    }
+    dragStateRef.current = null;
+    setDragging(false);
+    setDragPos(null);
+    return wasDragging;
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    finishDrag(e.clientX, e.clientY);
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (downPosRef.current) downPosRef.current.cancelled = true;
+    finishDrag(e.clientX, e.clientY);
+  };
+
   const handleClick = () => {
     const d = downPosRef.current;
     downPosRef.current = null;
     if (d?.cancelled) return; // swipe — never selects
+    // Suppress the click that fires after a drag release — selection
+    // state must be preserved across drags per spec.
+    if (dragStateRef.current?.didDrag || dragging) return;
     setTapTick((t) => t + 1);
     onSelect();
   };
+
+  // Suppress isCoarsePointer-only lint complaint — we accept the prop for
+  // future tuning even though the hold delay is currently unified.
+  void isCoarsePointer;
 
   return (
     <button
@@ -1366,9 +1794,8 @@ function CardSlot({
       onClick={handleClick}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
-      onPointerCancel={() => {
-        if (downPosRef.current) downPosRef.current.cancelled = true;
-      }}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
       disabled={disabled && !card.revealed}
       data-card-id={card.id}
       aria-label={
@@ -1379,13 +1806,13 @@ function CardSlot({
             : "Face-down card"
       }
       className={cn(
-        flying || flightPhase === "returning"
+        flying || flightPhase === "returning" || dragging
           ? "fixed outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
           : "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
         // While stirring, animate left/top/transform together so the card
         // drifts to its new scatter slot. Otherwise keep the snappier
         // transform-only transition for selection feedback.
-        flying || flightPhase === "returning"
+        flying || flightPhase === "returning" || dragging
           ? null
           : stirring
           ? "card-stir-transition"
@@ -1395,7 +1822,23 @@ function CardSlot({
         isSelected ? "z-30" : null,
       )}
       style={
-        flightPhase === "returning" && returnFromRect && containerOrigin
+        dragging && dragPos
+          ? {
+              // Card is being dragged — follow the pointer with a slight
+              // lift (scale 1.05) and a subtle shadow. Selection state is
+              // preserved via the existing render path; only positioning
+              // is overridden here. zIndex jumps above every other card.
+              left: dragPos.x,
+              top: dragPos.y,
+              width: cardW,
+              height: cardH,
+              transform: "rotate(0deg) scale(1.05)",
+              transition: "none",
+              zIndex: 9999,
+              filter: "drop-shadow(0 12px 18px rgba(0,0,0,0.55))",
+              ["--card-hit-inset" as string]: `${hitInset}px`,
+            }
+          : flightPhase === "returning" && returnFromRect && containerOrigin
           ? {
               // Fixed positioning during return flight. Start at the last
               // slot rect; on the next frame transition to the new scatter
