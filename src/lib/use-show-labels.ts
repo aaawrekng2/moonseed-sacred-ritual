@@ -44,6 +44,9 @@ export function useShowLabels(): {
     current = v;
     try {
       window.localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
+      window.dispatchEvent(
+        new CustomEvent<boolean>("moonseed:show-labels-changed", { detail: v }),
+      );
     } catch {
       /* ignore storage errors */
     }

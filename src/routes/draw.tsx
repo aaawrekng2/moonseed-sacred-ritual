@@ -4,6 +4,7 @@ import { Tabletop } from "@/components/tabletop/Tabletop";
 import { SpreadLayout } from "@/components/tabletop/SpreadLayout";
 import { isValidSpreadMode, SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { getCardName } from "@/lib/tarot";
+import { useStreak } from "@/lib/use-streak";
 
 type Search = { spread?: string };
 
@@ -18,6 +19,7 @@ function DrawPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const spread: SpreadMode = isValidSpreadMode(search.spread) ? search.spread : "daily";
+  const { recordDraw } = useStreak();
 
   const [picks, setPicks] = useState<{ id: number; cardIndex: number }[] | null>(null);
   // "reveal" = cards already flipped on the tabletop, jump straight to
@@ -51,6 +53,8 @@ function DrawPage() {
       onComplete={(p, mode) => {
         setPicks(p);
         setPhase(mode === "cast" ? "cast" : "reading");
+        // Reaching reveal/cast counts as today's practice. Fire-and-forget.
+        void recordDraw();
       }}
     />
   );

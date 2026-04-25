@@ -21,4 +21,7 @@ export function getStoredCardBack(): CardBackId {
 export function setStoredCardBack(id: CardBackId): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, id);
+  window.dispatchEvent(
+    new CustomEvent<CardBackId>("moonseed:card-back-changed", { detail: id }),
+  );
 }

@@ -12,6 +12,7 @@ import {
   MAX_RESTING_OPACITY,
 } from "@/lib/use-resting-opacity";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
+import { useStreak } from "@/lib/use-streak";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -24,6 +25,7 @@ function Index() {
   const restingAlpha = opacity / 100;
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const navigate = useNavigate();
+  const { currentStreak } = useStreak();
 
   useEffect(() => {
     setCardBack(getStoredCardBack());
@@ -156,7 +158,7 @@ function Index() {
               gap: "4px",
             }}
             title="Your practice streak"
-            aria-label="Practice streak: 0 days"
+            aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`}
           >
             <Flame size={16} style={{ color: "var(--gold)", opacity: restingAlpha }} />
             <span
@@ -167,7 +169,7 @@ function Index() {
                 fontFamily: "var(--font-serif)",
               }}
             >
-              0
+              {currentStreak}
             </span>
           </div>
         </div>

@@ -2,6 +2,8 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts, useLocation } from
 
 import appCss from "../styles.css?url";
 import { BottomNav } from "@/components/nav/BottomNav";
+import { useAuth } from "@/lib/auth";
+import { usePreferencesSync } from "@/lib/use-preferences-sync";
 
 function NotFoundComponent() {
   return (
@@ -88,6 +90,13 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const location = useLocation();
+  // Anonymous-first auth: ensure every visitor has a Supabase session
+  // before any feature reads/writes user-scoped data.
+  useAuth();
+  // Mirror local preference values to the Cloud user_preferences row
+  // once auth has settled. Local storage stays the source of truth for
+  // initial render; this just keeps the server copy fresh.
+  usePreferencesSync();
   // Hide global chrome (bottom nav) on the immersive draw screen — it owns its
   // own minimal header and exit affordance.
   const hideChrome = location.pathname.startsWith("/draw");
