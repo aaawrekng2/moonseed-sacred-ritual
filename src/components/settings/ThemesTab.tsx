@@ -178,8 +178,8 @@ function ThemesTabInner() {
           <ResetToDefaultsButton />
         </header>
 
-        <CardBackSection />
         <CustomAccentSection />
+        <CardBackSection />
         <BackgroundGradientSection />
         <HeadingFontSection />
         <InterfaceFadeSection />
@@ -561,9 +561,6 @@ function CustomAccentSection() {
           <p className="text-sm text-foreground">
             {prefs.accent_color ? "Custom" : "Using preset"}
           </p>
-          <p className="mt-0.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground-weak">
-            {display.toUpperCase()}
-          </p>
         </div>
       </div>
 
@@ -691,22 +688,34 @@ function BackgroundGradientSection() {
           }}
         />
 
-        <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
           <BgHexPicker
             label="The Past"
             value={liveLeft}
             open={openSide === "left"}
             onToggle={() => setOpenSide(openSide === "left" ? null : "left")}
-            onApply={(hex) => void applyCustom(hex, liveRight)}
-            onReset={() => void applyCustom(DEFAULT_BG_LEFT, liveRight)}
+            onApply={(hex) => {
+              void applyCustom(hex, liveRight);
+              setOpenSide(null);
+            }}
+            onReset={() => {
+              void applyCustom(DEFAULT_BG_LEFT, liveRight);
+              setOpenSide(null);
+            }}
           />
           <BgHexPicker
             label="The Future"
             value={liveRight}
             open={openSide === "right"}
             onToggle={() => setOpenSide(openSide === "right" ? null : "right")}
-            onApply={(hex) => void applyCustom(liveLeft, hex)}
-            onReset={() => void applyCustom(liveLeft, DEFAULT_BG_RIGHT)}
+            onApply={(hex) => {
+              void applyCustom(liveLeft, hex);
+              setOpenSide(null);
+            }}
+            onReset={() => {
+              void applyCustom(liveLeft, DEFAULT_BG_RIGHT);
+              setOpenSide(null);
+            }}
           />
         </div>
       </div>
@@ -741,7 +750,7 @@ function BgHexPicker({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-4">
+      <div className="flex flex-col items-start gap-2">
         <button
           type="button"
           onClick={onToggle}
@@ -750,12 +759,7 @@ function BgHexPicker({
           className="relative inline-flex aspect-square w-12 shrink-0 rounded-full ring-1 ring-border/60 transition-all hover:ring-gold/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold ring-offset-2 ring-offset-background"
           style={{ backgroundColor: value }}
         />
-        <div className="min-w-0 flex-1">
-          <Label className="text-sm font-medium text-foreground">{label}</Label>
-          <p className="mt-0.5 font-mono text-[11px] uppercase tracking-wider text-muted-foreground-weak">
-            {value.toUpperCase()}
-          </p>
-        </div>
+        <Label className="text-xs text-muted-foreground">{label}</Label>
       </div>
       {open && (
         <div className="rounded-xl border border-border/60 bg-card/80 p-4 backdrop-blur-xl">
@@ -1958,12 +1962,10 @@ function UnsavedChangesGuard() {
               className="flex w-full flex-col items-start gap-1 px-1 py-3 text-left transition hover:text-gold"
             >
               <span className="text-sm text-foreground">
-                {isOracle ? "Release these changes" : "Discard changes"}
+                Leave without saving to a sanctuary
               </span>
               <span className="text-[11px] text-muted-foreground">
-                {isOracle
-                  ? "Your atmosphere will return to its last saved state"
-                  : "Changes are not saved and will be lost"}
+                Your current look stays, but won't be preserved
               </span>
             </button>
           </div>

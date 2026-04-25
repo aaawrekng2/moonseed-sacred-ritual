@@ -1506,23 +1506,29 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                             : `${slotLabels[i] ?? `Slot ${i + 1}`} — empty`
                       }
                     />
-                    {showLabels && (
-                      <span
-                        className={cn(
-                          "font-display italic",
-                          isNext && "slot-next-label",
-                        )}
-                        style={{
-                          fontSize: required >= 10 ? (isMobile ? 8 : 9) : 10,
-                          color: "var(--gold)",
-                          opacity: isNext ? undefined : restingAlpha,
-                          letterSpacing: "0.05em",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {slotLabels[i] ?? `Slot ${i + 1}`}
-                      </span>
-                    )}
+                    {/*
+                      Slot label: ALWAYS mounted with a reserved height
+                      so toggling the eyeball density doesn't reflow the
+                      tabletop. Only opacity / pointer-events change.
+                    */}
+                    <span
+                      className={cn(
+                        "font-display italic",
+                        isNext && showLabels && "slot-next-label",
+                      )}
+                      style={{
+                        fontSize: required >= 10 ? (isMobile ? 8 : 9) : 10,
+                        color: "var(--gold)",
+                        opacity: showLabels ? (isNext ? undefined : restingAlpha) : 0,
+                        letterSpacing: "0.05em",
+                        whiteSpace: "nowrap",
+                        pointerEvents: showLabels ? undefined : "none",
+                        transition: "opacity 200ms ease-out",
+                      }}
+                      aria-hidden={!showLabels}
+                    >
+                      {slotLabels[i] ?? `Slot ${i + 1}`}
+                    </span>
                   </div>
                 );
               })}
