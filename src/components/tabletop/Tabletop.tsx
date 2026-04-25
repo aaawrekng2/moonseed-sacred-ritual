@@ -516,7 +516,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       fromY: number,
     ) => {
       setDragHoverSlot(null);
-      const slotIdx = usesSlots && !ready ? slotIndexAtPoint(clientX, clientY) : null;
+      const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
+      const isReady = selectedCount === required;
+      const slotIdx =
+        usesSlots && !isReady ? slotIndexAtPoint(clientX, clientY) : null;
       if (slotIdx !== null) {
         // Dropping into a slot. If the slot is already occupied, the
         // current occupant gets displaced back to the dragged card's
@@ -553,19 +556,21 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       setUndoStack((s) => [...s, action]);
       setRedoStack([]);
     },
-    [applyAction, cards, ready, slotIndexAtPoint, usesSlots],
+    [applyAction, cards, required, slotIndexAtPoint, usesSlots],
   );
 
   /** Called continuously while dragging so we can light up a slot. */
   const handleDragMove = useCallback(
     (clientX: number, clientY: number) => {
-      if (!usesSlots || ready) {
+      const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
+      const isReady = selectedCount === required;
+      if (!usesSlots || isReady) {
         setDragHoverSlot(null);
         return;
       }
       setDragHoverSlot(slotIndexAtPoint(clientX, clientY));
     },
-    [usesSlots, ready, slotIndexAtPoint],
+    [cards, required, usesSlots, slotIndexAtPoint],
   );
 
   // Once cards are initialized we never wipe selections automatically.
