@@ -179,7 +179,6 @@ function ThemesTabInner() {
         </header>
 
         <CardBackSection />
-        <AccentColorSection />
         <CustomAccentSection />
         <BackgroundGradientSection />
         <HeadingFontSection />
@@ -469,68 +468,6 @@ function CardBackSection() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Accent Color (presets)                                             */
-/* ------------------------------------------------------------------ */
-
-function AccentColorSection() {
-  const { user } = useSettings();
-  const { markDirty } = useThemeDirty();
-  const [accent, setAccent] = useState<string>("default");
-
-  useEffect(() => {
-    setAccent(getAccentTheme());
-  }, []);
-
-  const choose = async (value: string) => {
-    setAccent(value);
-    applyAccentTheme(value);
-    markDirty();
-    await updateUserPreferences(user.id, { accent: value });
-  };
-
-  return (
-    <SettingsSection
-      title="The Thread"
-      description="The color that runs through everything."
-    >
-      <div className="flex flex-wrap gap-3">
-        {ACCENT_PRESETS.map((p) => {
-          const active = accent === p.value;
-          return (
-            <button
-              key={p.value}
-              type="button"
-              onClick={() => void choose(p.value)}
-              aria-pressed={active}
-              aria-label={`Apply ${p.label} accent`}
-              className={cn(
-                "group flex flex-col items-center gap-2 rounded-lg p-2 transition",
-                "focus:outline-none focus-visible:ring-2 focus-visible:ring-gold",
-              )}
-            >
-              <span
-                className="block h-10 w-10 rounded-full ring-1 ring-border/60 transition-all group-hover:ring-gold/50"
-                style={{ backgroundColor: p.swatch }}
-              />
-              <span
-                className={cn(
-                  "text-[11px] leading-tight pb-0.5 border-b-2 transition-colors",
-                  active
-                    ? "border-gold text-gold"
-                    : "border-transparent text-muted-foreground",
-                )}
-              >
-                {p.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </SettingsSection>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  Custom Accent Picker                                               */
 /* ------------------------------------------------------------------ */
 
@@ -552,6 +489,10 @@ function CustomAccentSection() {
         "--ring",
         `${prefs.accent_color}99`,
       );
+      document.documentElement.style.setProperty(
+        "--sidebar-primary",
+        prefs.accent_color,
+      );
     }
   }, [prefs.accent_color]);
 
@@ -561,6 +502,7 @@ function CustomAccentSection() {
     document.documentElement.style.setProperty("--gold", draft);
     document.documentElement.style.setProperty("--primary", draft);
     document.documentElement.style.setProperty("--ring", `${draft}99`);
+    document.documentElement.style.setProperty("--sidebar-primary", draft);
     const { error } = await updateUserPreferences(user.id, {
       accent_color: draft.toLowerCase(),
     });
@@ -580,6 +522,7 @@ function CustomAccentSection() {
     document.documentElement.style.removeProperty("--gold");
     document.documentElement.style.removeProperty("--primary");
     document.documentElement.style.removeProperty("--ring");
+    document.documentElement.style.removeProperty("--sidebar-primary");
     await updateUserPreferences(user.id, { accent_color: null });
     setPrefs({ ...prefs, accent_color: null });
     setSaving(false);
@@ -2014,9 +1957,13 @@ function UnsavedChangesGuard() {
               onClick={() => void discardAndProceed()}
               className="flex w-full flex-col items-start gap-1 px-1 py-3 text-left transition hover:text-gold"
             >
-              <span className="text-sm text-foreground">Keep exploring</span>
+              <span className="text-sm text-foreground">
+                {isOracle ? "Release these changes" : "Discard changes"}
+              </span>
               <span className="text-[11px] text-muted-foreground">
-                Changes are not saved and will be lost
+                {isOracle
+                  ? "Your atmosphere will return to its last saved state"
+                  : "Changes are not saved and will be lost"}
               </span>
             </button>
           </div>

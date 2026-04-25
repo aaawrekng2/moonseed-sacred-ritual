@@ -8,8 +8,7 @@ export const LANG = {
   // Settings → Themes
   themes:              { plain: "Themes",           oracle: "The Atmosphere" },
   cardBack:            { plain: "Card Back",        oracle: "The Veil" },
-  accentColor:         { plain: "Accent Color",     oracle: "The Thread" },
-  customAccent:        { plain: "Custom Accent",    oracle: "Your Signature" },
+  yourSignature:       { plain: "Custom Accent Color", oracle: "Your Signature" },
   backgroundGradient:  { plain: "Background",       oracle: "The Horizon" },
   leftColor:           { plain: "Left Color",       oracle: "The Past" },
   rightColor:          { plain: "Right Color",      oracle: "The Future" },

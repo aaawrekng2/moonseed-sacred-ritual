@@ -206,6 +206,25 @@ type CardState = ScatterCard & {
   originalY: number;
   originalRotation: number;
   originalZ: number;
+  /**
+   * Last known position the card occupied while resting on the table.
+   * Updated whenever the user drops the card on the table (drag-move or
+   * drag-unplace). When a slotted card is returned to the table by a
+   * tap (deselect) or by being displaced, it goes back to this spot
+   * rather than its original random scatter coords — so the user's
+   * deliberate placement is preserved.
+   */
+  lastTableX: number;
+  lastTableY: number;
+  lastTableRotation: number;
+  /**
+   * Set when the card just landed in a slot via a physical drag-drop
+   * (rather than a tap). The flight animation is skipped for this
+   * card on the next render — it appears in its slot exactly where
+   * the user released it. Cleared once the card transitions back to
+   * the table or another action runs.
+   */
+  isDragDrop?: boolean;
 };
 
 /* ------------------------------------------------------------------ */
@@ -503,7 +522,17 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       setCards((prev) => {
         if (action.kind === "move") {
           return prev.map((c) =>
-            c.id === action.cardId ? { ...c, x: action.toX, y: action.toY } : c,
+            c.id === action.cardId
+              ? {
+                  ...c,
+                  x: action.toX,
+                  y: action.toY,
+                  lastTableX: action.toX,
+                  lastTableY: action.toY,
+                  lastTableRotation: c.rotation,
+                  isDragDrop: false,
+                }
+              : c,
           );
         }
         if (action.kind === "place") {
@@ -513,7 +542,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             : null;
           return prev.map((c) => {
             if (c.id === action.cardId) {
-              return { ...c, selectionOrder: targetOrder };
+              return { ...c, selectionOrder: targetOrder, isDragDrop: true };
             }
             if (
               action.displacedCardId !== null &&
@@ -524,6 +553,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                 return {
                   ...c,
                   selectionOrder: action.displacedToSlot + 1,
+                  isDragDrop: false,
                 };
               }
               // Bumped onto the table at its own pre-drag coords.
@@ -532,6 +562,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                 selectionOrder: null,
                 x: action.displacedFromX,
                 y: action.displacedFromY,
+                lastTableX: action.displacedFromX,
+                lastTableY: action.displacedFromY,
+                lastTableRotation: c.rotation,
+                isDragDrop: false,
               };
             }
             return c;
@@ -542,7 +576,16 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         if (action.kind === "unplace") {
           return prev.map((c) =>
             c.id === action.cardId
-              ? { ...c, selectionOrder: null, x: action.toX, y: action.toY }
+              ? {
+                  ...c,
+                  selectionOrder: null,
+                  x: action.toX,
+                  y: action.toY,
+                  lastTableX: action.toX,
+                  lastTableY: action.toY,
+                  lastTableRotation: c.rotation,
+                  isDragDrop: false,
+                }
               : c,
           );
         }
@@ -561,7 +604,15 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         if (action.kind === "move") {
           return prev.map((c) =>
             c.id === action.cardId
-              ? { ...c, x: action.fromX, y: action.fromY }
+              ? {
+                  ...c,
+                  x: action.fromX,
+                  y: action.fromY,
+                  lastTableX: action.fromX,
+                  lastTableY: action.fromY,
+                  lastTableRotation: c.rotation,
+                  isDragDrop: false,
+                }
               : c,
           );
         }
@@ -571,13 +622,17 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             if (c.id === action.cardId) {
               // Send dragged card back to wherever it came from.
               if (action.fromSlot !== null) {
-                return { ...c, selectionOrder: action.fromSlot + 1 };
+                return { ...c, selectionOrder: action.fromSlot + 1, isDragDrop: false };
               }
               return {
                 ...c,
                 selectionOrder: null,
                 x: action.fromX,
                 y: action.fromY,
+                lastTableX: action.fromX,
+                lastTableY: action.fromY,
+                lastTableRotation: c.rotation,
+                isDragDrop: false,
               };
             }
             if (
@@ -585,7 +640,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               c.id === action.displacedCardId
             ) {
               // Displaced card returns to the slot we just vacated.
-              return { ...c, selectionOrder: targetOrder };
+              return { ...c, selectionOrder: targetOrder, isDragDrop: false };
             }
             return c;
           });
@@ -593,7 +648,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         // unplace: card returns to its slot.
         return prev.map((c) =>
           c.id === action.cardId
-            ? { ...c, selectionOrder: action.fromSlot + 1 }
+            ? { ...c, selectionOrder: action.fromSlot + 1, isDragDrop: false }
             : c,
         );
       });
@@ -796,6 +851,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           originalY: s.y,
           originalRotation: s.rotation,
           originalZ: s.z,
+          lastTableX: s.x,
+          lastTableY: s.y,
+          lastTableRotation: s.rotation,
         })),
       );
       initializedRef.current = true;
@@ -814,6 +872,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           originalY: s.y,
           originalRotation: s.rotation,
           originalZ: s.z,
+          lastTableX: s.x,
+          lastTableY: s.y,
+          lastTableRotation: s.rotation,
         }));
       }
       let cursor = 0;
@@ -834,6 +895,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           originalY: next.y,
           originalRotation: next.rotation,
           originalZ: next.z,
+          lastTableX: next.x,
+          lastTableY: next.y,
+          lastTableRotation: next.rotation,
         };
       });
     });
@@ -994,18 +1058,20 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       // "shuffled" rather than the card returning to its origin.
       if (target.selectionOrder !== null) {
         if (usesSlots) {
-          // Return the card to its exact original scatter position.
-          // No randomization — the table must read as the same scatter
-          // the user has been navigating, not a fresh shuffle.
+          // Return the card to its LAST KNOWN table position — the
+          // spot it was at when the user lifted it into the slot. If
+          // the card was tap-selected (never dragged), lastTableX/Y
+          // were initialised to the original scatter coords so this
+          // still reads as the same scatter.
           return prev.map((c) =>
             c.id === id
               ? {
                   ...c,
                   selectionOrder: null,
-                  x: c.originalX,
-                  y: c.originalY,
-                  rotation: c.originalRotation,
-                  z: c.originalZ,
+                  x: c.lastTableX,
+                  y: c.lastTableY,
+                  rotation: c.lastTableRotation,
+                  isDragDrop: false,
                 }
               : c,
           );
@@ -1037,7 +1103,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       }
       if (nextSlot === null) return prev;
       return prev.map((c) =>
-        c.id === id ? { ...c, selectionOrder: nextSlot } : c,
+        c.id === id ? { ...c, selectionOrder: nextSlot, isDragDrop: false } : c,
       );
     });
   };
@@ -1775,7 +1841,12 @@ function CardSlot({
     | null;
 }) {
   const isSelected = card.selectionOrder !== null;
-  const flying = isSelected && slotRect !== null;
+  // When the card landed in the slot via a physical drag-drop we skip
+  // the FLIP-style flight animation entirely — the user just placed it
+  // there, animating it from the scatter coords (where it would re-mount
+  // for one frame) creates a jarring disappear/reappear flicker.
+  const skipFlight = isSelected && card.isDragDrop === true;
+  const flying = isSelected && slotRect !== null && !skipFlight;
   const glow = `0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD}px var(--gold)`;
 
   // Ref to the root button so we can measure its viewport rect before the
@@ -1973,6 +2044,10 @@ function CardSlot({
 
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (card.revealed) return; // never drag a face-up card
+    // Suppress the browser's native drag image / focus outline that would
+    // otherwise leave a "ghost" of the card at its original position once
+    // the user lifts their finger. Pointer events handle everything.
+    e.preventDefault();
     downPosRef.current = { x: e.clientX, y: e.clientY, cancelled: false };
     const rect = btnRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -2090,6 +2165,11 @@ function CardSlot({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
+      // Disable native HTML5 drag — we handle drag with pointer events.
+      // `draggable={false}` blocks the browser from initialising a drag
+      // image (which is the source of the dashed-outline ghost left
+      // behind on release).
+      draggable={false}
       disabled={disabled && !card.revealed}
       data-card-id={card.id}
       aria-label={
@@ -2100,7 +2180,7 @@ function CardSlot({
             : "Face-down card"
       }
       className={cn(
-        flying || flightPhase === "returning" || dragging
+        flying || flightPhase === "returning" || dragging || (skipFlight && slotRect)
           ? "fixed outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
           : "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
         // While stirring, animate left/top/transform together so the card
@@ -2113,6 +2193,9 @@ function CardSlot({
           : "card-idle-transition",
         // Remove default tap highlight on iOS / Android.
         "[-webkit-tap-highlight-color:transparent] touch-manipulation",
+        // Block the system drag-ghost on WebKit + suppress text selection
+        // and the focus outline that becomes a "dashed ring" artifact.
+        "select-none [-webkit-user-drag:none] [user-drag:none]",
         isSelected ? "z-30" : null,
       )}
       style={
@@ -2129,7 +2212,23 @@ function CardSlot({
               transform: "rotate(0deg) scale(1.05)",
               transition: "none",
               zIndex: 9999,
+              willChange: "left, top, transform",
               filter: "drop-shadow(0 12px 18px rgba(0,0,0,0.55))",
+              ["--card-hit-inset" as string]: `${hitInset}px`,
+            }
+          : skipFlight && slotRect
+          ? {
+              // Drag-drop placement: the card lives at its slot rect
+              // immediately, with no FLIP transition. The user already
+              // released over the slot — we don't want it to fly back
+              // out and in again.
+              left: slotRect.left,
+              top: slotRect.top,
+              width: slotRect.width,
+              height: slotRect.height,
+              transform: "rotate(0deg)",
+              transition: "none",
+              zIndex: 1500 + (card.selectionOrder ?? 0),
               ["--card-hit-inset" as string]: `${hitInset}px`,
             }
           : flightPhase === "returning" && returnFromRect && containerOrigin
@@ -2231,7 +2330,9 @@ function CardSlot({
                     : returnFromRect && cardW > 0
                       ? `scale(${returnFromRect.width / cardW})`
                       : "scale(1)"
-                  : undefined,
+                  : skipFlight && slotRect && cardW > 0
+                    ? `scale(${slotRect.width / cardW})`
+                    : undefined,
           transformOrigin: "top left",
           transition:
             flightPhase === "arrived" || flightPhase === "returning"
