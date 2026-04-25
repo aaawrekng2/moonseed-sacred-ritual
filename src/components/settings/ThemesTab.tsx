@@ -142,9 +142,14 @@ export function ThemesTab() {
       <div className="space-y-10">
         <header className="flex items-start justify-between gap-4">
           <div className="min-w-0 space-y-2">
-            <h2 className="text-xl font-semibold tracking-tight">Themes</h2>
+            <h2
+              className="text-2xl font-semibold tracking-tight italic text-gold"
+              style={{ fontFamily: "var(--font-serif)" }}
+            >
+              The Atmosphere
+            </h2>
             <p className="text-sm text-muted-foreground">
-              Make your reading room your own.
+              Shape the space where your readings live.
             </p>
           </div>
           <ResetToDefaultsButton />
