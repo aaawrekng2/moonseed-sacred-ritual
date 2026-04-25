@@ -714,7 +714,23 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             return c;
           });
         }
-        // unplace: card returns to its slot.
+        if (action.kind === "tap-place") {
+          // Undo a tap selection: clear the slot and restore table coords.
+          return prev.map((c) =>
+            c.id === action.cardId
+              ? {
+                  ...c,
+                  selectionOrder: null,
+                  x: action.fromX,
+                  y: action.fromY,
+                  lastTableX: action.fromX,
+                  lastTableY: action.fromY,
+                  isDragDrop: false,
+                }
+              : c,
+          );
+        }
+        // unplace / tap-unplace: card returns to its slot.
         return prev.map((c) =>
           c.id === action.cardId
             ? { ...c, selectionOrder: action.fromSlot + 1, isDragDrop: false }
