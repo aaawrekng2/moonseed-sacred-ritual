@@ -565,6 +565,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         applyAction(action);
         setUndoStack((s) => [...s, action]);
         setRedoStack([]);
+        // First successful slot drop → fade the onboarding hint.
+        dismissDragHint();
         return;
       }
       // Dropping on the table — pure move.
@@ -580,8 +582,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       applyAction(action);
       setUndoStack((s) => [...s, action]);
       setRedoStack([]);
+      // For spreads without slots, any successful move dismisses the hint.
+      if (!usesSlots) dismissDragHint();
     },
-    [applyAction, cards, required, slotIndexAtPoint, usesSlots],
+    [applyAction, cards, required, slotIndexAtPoint, usesSlots, dismissDragHint],
   );
 
   /** Called continuously while dragging so we can light up a slot. */
