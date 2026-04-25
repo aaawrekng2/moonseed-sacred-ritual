@@ -174,7 +174,18 @@ export function adaptiveHitInset(
 type TabletopProps = {
   spread: SpreadMode;
   onExit: () => void;
-  onComplete: (picks: { id: number; cardIndex: number }[]) => void;
+  /**
+   * Called when the reading is ready to display.
+   *  - mode "reveal": user tapped Reveal first; cards are flipped face-up
+   *    on the tabletop and the reading screen should open with cards
+   *    already revealed.
+   *  - mode "cast": user tapped Cast directly; cards remain face-down
+   *    and the spread layout screen should let the user reveal them there.
+   */
+  onComplete: (
+    picks: { id: number; cardIndex: number }[],
+    mode: "reveal" | "cast",
+  ) => void;
 };
 
 type CardState = ScatterCard & {
@@ -247,8 +258,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const isMobile = (size?.w ?? 0) < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
   // Slot rail uses its own width (smaller on mobile / for many-slot
   // spreads) so all slots fit in one row without scrolling.
-  const slotW = responsiveSlotWidth(size?.w ?? 0, required);
-  const slotH = Math.round(slotW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
+  // Slot dimensions: on desktop they match the table card exactly (per
+  // design: empty slots read as full-size mirrors of the cards). On mobile
+  // they shrink so a 10-slot Celtic rail still fits in one row.
+  const slotW = isMobile ? responsiveSlotWidth(size?.w ?? 0, required) : cardW;
+  const slotH = isMobile
+    ? Math.round(slotW * TABLETOP_CONFIG.CARD_ASPECT_RATIO)
+    : cardH;
   // On mobile, abbreviate position labels so the rail isn't cluttered.
   const slotLabels = (isMobile ? meta.positionsShort : meta.positions) ?? [];
   // Always use the full ±CARD_MAX_ROTATION range so no card sits axis-aligned.
@@ -533,10 +549,24 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           return c;
         });
       }
-      const used = prev.filter((c) => c.selectionOrder !== null).length;
-      if (used >= required) return prev;
+      // Pick the lowest-numbered empty slot (1..required). When a card is
+      // returned to the table from slot N, the next selection refills slot N
+      // rather than appending past the last filled slot.
+      const occupied = new Set(
+        prev
+          .map((c) => c.selectionOrder)
+          .filter((n): n is number => n !== null),
+      );
+      let nextSlot: number | null = null;
+      for (let i = 1; i <= required; i++) {
+        if (!occupied.has(i)) {
+          nextSlot = i;
+          break;
+        }
+      }
+      if (nextSlot === null) return prev;
       return prev.map((c) =>
-        c.id === id ? { ...c, selectionOrder: used + 1 } : c,
+        c.id === id ? { ...c, selectionOrder: nextSlot } : c,
       );
     });
   };
@@ -574,6 +604,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         setRevealedAll(true);
         onComplete(
           picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
+          "reveal",
         );
       }, total);
     }, 320);
@@ -585,6 +616,20 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       if (!ok) return;
     }
     onExit();
+  };
+
+  // Cast: skip the in-place flip and hand off to the spread layout screen
+  // immediately with cards still face-down. Picks are ordered by
+  // selectionOrder so position 1 maps to spread slot 1, etc.
+  const handleCast = () => {
+    if (!ready || revealing) return;
+    const picks = cards
+      .filter((c) => c.selectionOrder !== null)
+      .sort((a, b) => (a.selectionOrder ?? 0) - (b.selectionOrder ?? 0));
+    onComplete(
+      picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
+      "cast",
+    );
   };
 
   return (
@@ -630,6 +675,42 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           style={{ width: "100%", accentColor: "var(--gold)" }}
         />
       </div>
+      )}
+
+      {/* Overlap debug pill — fixed upper-right, leaves room for the X
+          close button in the bottom bar but mirrors the dev slider on
+          the opposite corner. Desktop only. */}
+      {!isMobile && (
+        <button
+          type="button"
+          onClick={() => setDebugOverlap((v) => !v)}
+          aria-pressed={debugOverlap}
+          aria-label="Toggle overlap debug overlay"
+          style={{
+            position: "fixed",
+            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+            right: "calc(env(safe-area-inset-right, 0px) + 52px)",
+            zIndex: 50,
+            opacity: debugOverlap ? 1 : restingAlpha,
+          }}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
+            "font-display text-[9px] uppercase tracking-[0.25em] transition-opacity",
+            "hover:!opacity-100 focus:!opacity-100 focus:outline-none",
+            debugOverlap
+              ? "border-destructive/70 text-destructive-foreground bg-destructive/20"
+              : "border-gold/30 text-gold/70",
+          )}
+        >
+          <span
+            aria-hidden="true"
+            className={cn(
+              "h-1.5 w-1.5 rounded-full",
+              debugOverlap ? "bg-destructive" : "bg-gold/50",
+            )}
+          />
+          Overlap {debugOverlap ? "On" : "Off"}
+        </button>
       )}
 
       {/* Tabletop scatter area */}
@@ -830,68 +911,100 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </div>
         ) : null;
 
-        const centerWhisper =
-          !revealedAll && (!usesSlots || ready)
-            ? ready
-              ? (
-                <button
-                  type="button"
-                  onClick={handleReveal}
-                  disabled={revealing}
-                  aria-busy={revealing}
-                  aria-label="Reveal your reading"
-                  className="reveal-cta-enter reveal-glow-pulse inline-flex items-center gap-2 bg-transparent font-display italic leading-none hover:scale-[1.02] focus:outline-none disabled:cursor-not-allowed"
-                  style={{
-                    fontSize: 24,
-                    color: "var(--gold)",
-                    opacity: 1,
-                    textShadow:
-                      "0 0 20px rgba(212,175,55,0.9), 0 0 40px rgba(212,175,55,0.4)",
-                    cursor: "pointer",
-                  }}
-                >
-                  {revealing && (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                  )}
-                  {revealing ? "Revealing" : "Reveal"}
-                </button>
-              )
-              : (
-                <span
-                  aria-live="polite"
-                  aria-label={`Choose ${required - selectedCount} more`}
-                  className="font-display italic leading-none"
-                  style={{
-                    fontSize: 32,
-                    color: "var(--gold)",
-                    opacity: 1,
-                    textShadow: "0 0 20px rgba(212,175,55,0.8)",
-                  }}
-                >
-                  {required - selectedCount}
-                </span>
-              )
-            : null;
+        // When the user has filled every slot we present TWO ceremonial
+        // options side-by-side: "Reveal" (flips on the tabletop in place)
+        // and "Cast" (transitions straight to the spread layout, cards
+        // still face-down). A subtle middle dot separates them. While
+        // selection is still in progress we show a single italic "Draw"
+        // word that breathes — encouraging continued tapping without
+        // showing a hard counter.
+        const drawWord = (
+          <span
+            aria-live="polite"
+            aria-label={`Draw — ${required - selectedCount} more`}
+            className="font-display italic leading-none animate-breathe-glow"
+            style={{
+              fontSize: 18,
+              color: "var(--gold)",
+              opacity: restingAlpha,
+              padding: "4px 10px",
+              letterSpacing: "0.08em",
+              textShadow: "0 0 14px rgba(212,175,55,0.55)",
+            }}
+          >
+            Draw
+          </span>
+        );
 
-        const mobileSlotCounter =
-          isMobile && showSlotRail ? (
-            <span
-              aria-live="polite"
-              aria-label={`${selectedCount} of ${required} cards chosen`}
-              className="font-display italic tabular-nums leading-none"
+        const dualActions = (
+          <span
+            className="inline-flex items-center gap-3 leading-none"
+            aria-label="Reveal or Cast your reading"
+          >
+            <button
+              type="button"
+              onClick={handleReveal}
+              disabled={revealing}
+              aria-busy={revealing}
+              aria-label="Reveal cards in place"
+              className="reveal-cta-enter reveal-glow-pulse inline-flex items-center gap-2 bg-transparent font-display italic leading-none hover:scale-[1.04] focus:outline-none disabled:cursor-not-allowed"
               style={{
-                fontSize: 22,
-                letterSpacing: "0.05em",
+                fontSize: 16,
                 color: "var(--gold)",
                 opacity: 1,
-                textShadow: "0 0 16px rgba(212,175,55,0.7)",
+                textShadow:
+                  "0 0 16px rgba(212,175,55,0.85), 0 0 32px rgba(212,175,55,0.35)",
+                cursor: "pointer",
               }}
             >
-              <span>{selectedCount}</span>
-              <span style={{ margin: "0 4px", opacity: 0.5 }}>/</span>
-              <span>{required}</span>
+              {revealing && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+              )}
+              {revealing ? "Revealing" : "Reveal"}
+            </button>
+            <span
+              aria-hidden="true"
+              className="font-display"
+              style={{
+                fontSize: 14,
+                color: "var(--gold)",
+                opacity: 0.45,
+              }}
+            >
+              ·
             </span>
-          ) : null;
+            <button
+              type="button"
+              onClick={handleCast}
+              disabled={revealing}
+              aria-label="Cast — go to spread layout"
+              className="reveal-cta-enter inline-flex items-center bg-transparent font-display italic leading-none transition-transform hover:scale-[1.04] focus:outline-none disabled:cursor-not-allowed"
+              style={{
+                fontSize: 16,
+                color: "rgba(255,255,255,0.9)",
+                cursor: "pointer",
+                textShadow: "0 0 12px rgba(255,255,255,0.25)",
+              }}
+            >
+              Cast
+            </button>
+          </span>
+        );
+
+        const centerWhisper = revealedAll
+          ? null
+          : ready
+            ? dualActions
+            : !usesSlots
+              ? drawWord
+              : null;
+
+        // Mobile: when the slot rail is visible the center column shows
+        // the same "Draw" word so the call-to-action language stays
+        // consistent across breakpoints. Once ready, the dual actions
+        // (Reveal · Cast) take over.
+        const mobileSlotCounter =
+          isMobile && showSlotRail ? drawWord : null;
 
         const controlsRow = (
           <div
@@ -907,32 +1020,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             }}
           >
             <div className="flex flex-col items-start gap-2">
-              {!isMobile && (
-                <button
-                  type="button"
-                  onClick={() => setDebugOverlap((v) => !v)}
-                  aria-pressed={debugOverlap}
-                  aria-label="Toggle overlap debug overlay"
-                  style={{ opacity: debugOverlap ? 1 : restingAlpha }}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
-                    "font-display text-[9px] uppercase tracking-[0.25em] transition-opacity",
-                    "hover:!opacity-100 focus:!opacity-100 focus:outline-none",
-                    debugOverlap
-                      ? "border-destructive/70 text-destructive-foreground bg-destructive/20"
-                      : "border-gold/30 text-gold/70",
-                  )}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      debugOverlap ? "bg-destructive" : "bg-gold/50",
-                    )}
-                  />
-                  Overlap {debugOverlap ? "On" : "Off"}
-                </button>
-              )}
               {!revealedAll && (
                 <button
                   type="button"

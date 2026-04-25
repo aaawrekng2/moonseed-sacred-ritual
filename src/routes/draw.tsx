@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Tabletop } from "@/components/tabletop/Tabletop";
+import { SpreadLayout } from "@/components/tabletop/SpreadLayout";
 import { isValidSpreadMode, SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { getCardName } from "@/lib/tarot";
 
@@ -19,20 +20,38 @@ function DrawPage() {
   const spread: SpreadMode = isValidSpreadMode(search.spread) ? search.spread : "daily";
 
   const [picks, setPicks] = useState<{ id: number; cardIndex: number }[] | null>(null);
+  // "reveal" = cards already flipped on the tabletop, jump straight to
+  // the placeholder reading. "cast" = render the classic spread layout
+  // with cards face-down, let the user reveal them there.
+  const [phase, setPhase] = useState<"select" | "cast" | "reading">("select");
 
   const exit = () => {
     void navigate({ to: "/" });
   };
 
-  if (picks) {
+  if (picks && phase === "reading") {
     return <PlaceholderReading spread={spread} picks={picks} onExit={exit} />;
+  }
+
+  if (picks && phase === "cast") {
+    return (
+      <SpreadLayout
+        spread={spread}
+        picks={picks}
+        onExit={exit}
+        onContinue={() => setPhase("reading")}
+      />
+    );
   }
 
   return (
     <Tabletop
       spread={spread}
       onExit={exit}
-      onComplete={(p) => setPicks(p)}
+      onComplete={(p, mode) => {
+        setPicks(p);
+        setPhase(mode === "cast" ? "cast" : "reading");
+      }}
     />
   );
 }
