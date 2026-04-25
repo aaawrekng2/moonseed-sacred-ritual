@@ -1174,6 +1174,14 @@ function CommunityThemesSection() {
 
   useEffect(() => {
     setActiveKey(getStoredCommunityTheme());
+    if (typeof window === "undefined") return;
+    const refresh = () => setActiveKey(getStoredCommunityTheme());
+    window.addEventListener("moonseed:theme-changed", refresh);
+    window.addEventListener("moonseed:sanctuary-changed", refresh);
+    return () => {
+      window.removeEventListener("moonseed:theme-changed", refresh);
+      window.removeEventListener("moonseed:sanctuary-changed", refresh);
+    };
   }, []);
 
   const apply = async (theme: (typeof COMMUNITY_THEMES)[number]) => {
