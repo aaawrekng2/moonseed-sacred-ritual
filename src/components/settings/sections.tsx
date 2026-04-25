@@ -150,7 +150,7 @@ function ProfileSectionInner({
         <IntentionField user={user} prefs={prefs} setPrefs={setPrefs} />
 
         <div>
-          <Button onClick={save} disabled={saving} className={goldButton}>
+          <Button variant="ghost" onClick={save} disabled={saving} className={goldButton}>
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Save Profile
           </Button>
@@ -358,7 +358,7 @@ function BlueprintSectionInner({
         )}
 
         <div>
-          <Button onClick={save} disabled={saving} className={goldButton}>
+          <Button variant="ghost" onClick={save} disabled={saving} className={goldButton}>
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Save Blueprint
           </Button>
@@ -423,7 +423,7 @@ function ReadingPreferencesSection({
           </Select>
         </div>
 
-        <Button onClick={save} disabled={saving} className={goldButton}>
+        <Button variant="ghost" onClick={save} disabled={saving} className={goldButton}>
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
           Save Preferences
         </Button>
