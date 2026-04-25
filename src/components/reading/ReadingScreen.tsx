@@ -38,6 +38,17 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   const startedRef = useRef(false);
   const requestSeqRef = useRef(0);
 
+  // Allow landscape on the Reading screen ONLY. Other screens stay
+  // portrait-locked via the global `body::before` rotate overlay in
+  // styles.css; we whitelist this screen by tagging <body>.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.body.setAttribute("data-allow-landscape", "true");
+    return () => {
+      document.body.removeAttribute("data-allow-landscape");
+    };
+  }, []);
+
   useEffect(() => {
     // Effect runs twice in StrictMode dev — guard so we don't spend two
     // of the user's three daily readings on the same draw. Do not cancel in
@@ -122,7 +133,11 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
           </span>
         </header>
 
-        <CardStrip picks={picks} positionLabels={positionLabels} />
+        <CardStrip
+          picks={picks}
+          positionLabels={positionLabels}
+          spread={spread}
+        />
 
         <section
           className="w-full"
@@ -169,16 +184,71 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
 function CardStrip({
   picks,
   positionLabels,
+  spread,
 }: {
   picks: Pick[];
   positionLabels: string[];
+  spread: SpreadMode;
 }) {
+  // Track viewport size + orientation. The 3-card spread doubles on
+  // desktop, and any spread in landscape uses card height tuned to the
+  // viewport height so the row fills 60-70% of the visible area.
+  const [vp, setVp] = useState(() =>
+    typeof window !== "undefined"
+      ? { w: window.innerWidth, h: window.innerHeight }
+      : { w: 0, h: 0 },
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onResize = () =>
+      setVp({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
+  const isDesktop = vp.w >= 768;
+  const isLandscape = vp.w > vp.h && vp.h <= 500;
+
   // Tighter cards for Celtic (10 cards) so the strip stays one or two rows.
-  const w = picks.length >= 8 ? 44 : picks.length >= 4 ? 56 : 80;
+  // 3-card spread doubles on desktop only — mobile portrait sizing unchanged.
+  // In landscape we size by viewport height instead so cards fill ~60-70%
+  // of the available vertical space in a single row.
+  let w: number;
+  if (isLandscape) {
+    // Target card height ≈ 65% of viewport height; derive width from the
+    // card aspect ratio (1.75). Then clamp so 10-card celtic still fits.
+    const targetH = Math.min(vp.h * 0.65, 360);
+    const targetW = Math.round(targetH / 1.75);
+    // Reserve space for gaps + label so we don't overflow horizontally.
+    const usableW = vp.w * 0.92;
+    const gap = 12;
+    const fitW = Math.floor((usableW - gap * (picks.length - 1)) / picks.length);
+    w = Math.max(36, Math.min(targetW, fitW));
+  } else if (picks.length >= 8) {
+    w = 44;
+  } else if (spread === "three") {
+    w = isDesktop ? 160 : 80;
+  } else if (picks.length >= 4) {
+    w = 56;
+  } else {
+    w = 80;
+  }
   const h = Math.round(w * 1.75);
+
+  // Celtic Cross gets larger, more prominent position labels below each card
+  // so the (now full-length) names like "Hopes & Fears" read clearly.
+  const isCeltic = spread === "celtic";
+  const labelFontSize = isCeltic ? (isDesktop ? 12 : 10) : 9;
+  const labelOpacity = isCeltic ? 0.7 : 0.65;
+  // Cap the label width to the card so long names truncate cleanly.
+  const labelMaxWidth = isCeltic ? Math.max(w + 16, 70) : w + 12;
+
   return (
     <div
-      className="flex flex-wrap items-end justify-center gap-x-2 gap-y-3"
+      className="flex flex-wrap items-end justify-center gap-x-3 gap-y-4"
       role="list"
     >
       {picks.map((pick, i) => (
@@ -201,10 +271,15 @@ function CardStrip({
           <span
             className="font-display italic"
             style={{
-              fontSize: 9,
+              fontSize: labelFontSize,
               color: "var(--gold)",
-              opacity: 0.65,
+              opacity: labelOpacity,
               letterSpacing: "0.05em",
+              maxWidth: labelMaxWidth,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              textAlign: "center",
             }}
           >
             {positionLabels[i] ?? `Card ${i + 1}`}
