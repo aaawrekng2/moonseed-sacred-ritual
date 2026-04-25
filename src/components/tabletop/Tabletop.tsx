@@ -772,7 +772,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // Subsequent geometry changes (e.g. the bottom bar growing/shrinking
   // when the slot rail collapses on Reveal) reflow the unselected cards
   // in place but preserve every selectionOrder and revealed flag.
-  const initializedRef = useRef(false);
+  // If we restored a session, treat ourselves as already initialized so
+  // the next initialScatter effect doesn't wipe the restored cards.
+  const initializedRef = useRef(restored !== null && restored.cards.length > 0);
 
   // First mount: build the initial card array from the scatter. After that,
   // geometry changes only re-place unselected cards — never reset selections.
