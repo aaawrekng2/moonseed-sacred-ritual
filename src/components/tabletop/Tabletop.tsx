@@ -1258,15 +1258,20 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       </div>
       )}
 
-      {/* Standard top-bar controls (profile, sanctuary cycler, Oracle/Plain
-          toggle) plus a draw-only X close button and three-level eye for
-          the draw screen's whisper/label density. The X stays in its
-          historical position on the far right; the eye sits next to it. */}
+      {/* Standard top-bar (profile / sanctuary cycler / Oracle voice).
+          Self-positions fixed at the top-right of the viewport. */}
+      <TopRightControls />
+      {/* Draw-screen-specific top bar: three-level eye (whisper + labels
+          density) and the X close button. Positioned to the LEFT of the
+          standard TopRightControls cluster. */}
       <div
         style={{
           position: "fixed",
           top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+          // TopRightControls sits at right-4 (1rem) and is roughly
+          // 7rem wide when the wand pill is collapsed. Offset us past
+          // it so we never overlap the profile chip.
+          right: "calc(env(safe-area-inset-right, 0px) + 9rem)",
           display: "flex",
           alignItems: "center",
           gap: 8,
@@ -1315,20 +1320,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         >
           <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         </button>
-      </div>
-      {/* Standard right-side controls (profile / sanctuary / oracle).
-          Renders to the LEFT of the X+eye pair via its own fixed
-          positioning offset. */}
-      <div
-        style={{
-          position: "fixed",
-          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          right: "calc(env(safe-area-inset-right, 0px) + 96px)",
-          zIndex: 60,
-          pointerEvents: "auto",
-        }}
-      >
-        <TopRightControlsInline />
       </div>
 
       {/* Tabletop scatter area */}
