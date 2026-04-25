@@ -688,22 +688,34 @@ function BackgroundGradientSection() {
           }}
         />
 
-        <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
           <BgHexPicker
             label="The Past"
             value={liveLeft}
             open={openSide === "left"}
             onToggle={() => setOpenSide(openSide === "left" ? null : "left")}
-            onApply={(hex) => void applyCustom(hex, liveRight)}
-            onReset={() => void applyCustom(DEFAULT_BG_LEFT, liveRight)}
+            onApply={(hex) => {
+              void applyCustom(hex, liveRight);
+              setOpenSide(null);
+            }}
+            onReset={() => {
+              void applyCustom(DEFAULT_BG_LEFT, liveRight);
+              setOpenSide(null);
+            }}
           />
           <BgHexPicker
             label="The Future"
             value={liveRight}
             open={openSide === "right"}
             onToggle={() => setOpenSide(openSide === "right" ? null : "right")}
-            onApply={(hex) => void applyCustom(liveLeft, hex)}
-            onReset={() => void applyCustom(liveLeft, DEFAULT_BG_RIGHT)}
+            onApply={(hex) => {
+              void applyCustom(liveLeft, hex);
+              setOpenSide(null);
+            }}
+            onReset={() => {
+              void applyCustom(liveLeft, DEFAULT_BG_RIGHT);
+              setOpenSide(null);
+            }}
           />
         </div>
       </div>
