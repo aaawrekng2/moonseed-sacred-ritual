@@ -916,26 +916,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             }
             aria-hidden={!showSlotRail}
           >
-            {!isMobile && (
-              <span
-                aria-live="polite"
-                aria-label={`${selectedCount} of ${required} cards chosen`}
-                className="font-display italic tabular-nums leading-none"
-                style={{
-                  fontSize: 10,
-                  letterSpacing: "0.18em",
-                  color: "var(--gold)",
-                  opacity: restingAlpha,
-                  textTransform: "uppercase",
-                }}
-              >
-                <span style={{ color: "var(--gold)", opacity: 1 }}>
-                  {selectedCount}
-                </span>
-                <span style={{ margin: "0 4px", opacity: 0.5 }}>/</span>
-                <span>{required}</span>
-              </span>
-            )}
             <div
               className={cn(
                 "flex items-end justify-center px-1 pb-1",
