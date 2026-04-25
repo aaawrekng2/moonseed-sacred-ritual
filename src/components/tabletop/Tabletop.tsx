@@ -1873,7 +1873,12 @@ function CardSlot({
         x: s.startClientX - s.pointerOffsetX,
         y: s.startClientY - s.pointerOffsetY,
       });
-      onDragMove(s.startClientX, s.startClientY);
+      onDragMove(
+        s.startClientX,
+        s.startClientY,
+        s.startClientX - s.pointerOffsetX,
+        s.startClientY - s.pointerOffsetY,
+      );
     }
   }, [onDragMove]);
 
@@ -1921,7 +1926,12 @@ function CardSlot({
       x: e.clientX - s.pointerOffsetX,
       y: e.clientY - s.pointerOffsetY,
     });
-    onDragMove(e.clientX, e.clientY);
+    onDragMove(
+      e.clientX,
+      e.clientY,
+      e.clientX - s.pointerOffsetX,
+      e.clientY - s.pointerOffsetY,
+    );
   };
 
   const finishDrag = (clientX: number, clientY: number) => {
