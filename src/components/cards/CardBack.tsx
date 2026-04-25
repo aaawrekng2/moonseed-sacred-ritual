@@ -1,6 +1,45 @@
 import type { CardBackId } from "@/lib/card-backs";
 import { cn } from "@/lib/utils";
 
+/**
+ * Card-back palette.
+ *
+ * Per design ("The Thread"), every card back's *color* is driven by the
+ * current accent (`--gold`) so swapping a sanctuary repaints all backs
+ * to match. Only the *artwork pattern* (Celestial / Void / Ember /
+ * Ocean / Verdant) is chosen by the user. We expose the accent via
+ * `color-mix` expressions so each back keeps its visual hierarchy
+ * (primary line, soft fill, dim ornament) regardless of which accent
+ * the active sanctuary applies.
+ */
+const ACCENT = {
+  /** Primary accent — most opaque ornament strokes / dots. */
+  primary: "color-mix(in oklch, var(--gold) 92%, transparent)",
+  /** Slightly softened primary for secondary strokes. */
+  strong: "color-mix(in oklch, var(--gold) 75%, transparent)",
+  /** Detail / pattern lines. */
+  pattern: "color-mix(in oklch, var(--gold) 60%, transparent)",
+  /** Ornament strokes. */
+  ornament: "color-mix(in oklch, var(--gold) 45%, transparent)",
+  /** Soft halo / glow. */
+  glow: "color-mix(in oklch, var(--gold) 30%, transparent)",
+  /** Faint background tint. */
+  faint: "color-mix(in oklch, var(--gold) 18%, transparent)",
+  /** Border color. */
+  border: "color-mix(in oklch, var(--gold) 50%, transparent)",
+  /** Inner ring outer (brighter). */
+  innerOuter: "color-mix(in oklch, var(--gold) 45%, transparent)",
+  /** Inner ring inner (dimmer). */
+  innerInner: "color-mix(in oklch, var(--gold) 22%, transparent)",
+};
+
+/** Background gradient anchored on the accent + a deep tint of it. */
+const ACCENT_BG =
+  "radial-gradient(ellipse at 45% 28%, " +
+  "color-mix(in oklch, var(--gold) 30%, oklch(0.14 0.04 280)) 0%, " +
+  "color-mix(in oklch, var(--gold) 18%, oklch(0.10 0.03 280)) 55%, " +
+  "color-mix(in oklch, var(--gold) 8%, oklch(0.06 0.02 280)) 100%)";
+
 interface Props {
   id?: CardBackId;
   width?: number;
@@ -22,11 +61,24 @@ function scaleMetrics(width: number) {
   };
 }
 
-function Stars({ dots }: { dots: { x: number; y: number; r: number; o: number; c?: string }[] }) {
+function Stars({
+  dots,
+  defaultColor,
+}: {
+  dots: { x: number; y: number; r: number; o: number; c?: string }[];
+  defaultColor?: string;
+}) {
   return (
     <>
       {dots.map((d, i) => (
-        <circle key={i} cx={d.x} cy={d.y} r={d.r} fill={d.c ?? "#ffffff"} opacity={d.o} />
+        <circle
+          key={i}
+          cx={d.x}
+          cy={d.y}
+          r={d.r}
+          fill={d.c ?? defaultColor ?? ACCENT.primary}
+          opacity={d.o}
+        />
       ))}
     </>
   );
@@ -77,8 +129,7 @@ function CelestialBack({ width }: { width: number }) {
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background:
-            "radial-gradient(ellipse at 50% 45%, rgba(161,130,220,0.10), transparent 60%)",
+          background: `radial-gradient(ellipse at 50% 45%, ${ACCENT.faint}, transparent 60%)`,
         }}
       />
       {/* Double inner border */}
@@ -87,7 +138,7 @@ function CelestialBack({ width }: { width: number }) {
         style={{
           inset: 8,
           borderRadius: 6,
-          border: "1px solid rgba(200,170,255,0.45)",
+          border: `1px solid ${ACCENT.innerOuter}`,
         }}
       />
       <div
@@ -95,21 +146,22 @@ function CelestialBack({ width }: { width: number }) {
         style={{
           inset: 14,
           borderRadius: 4,
-          border: "1px solid rgba(200,170,255,0.20)",
+          border: `1px solid ${ACCENT.innerInner}`,
         }}
       />
       {/* Stars */}
       {STARS.map((s, i) => (
         <span
           key={i}
-          className="pointer-events-none absolute rounded-full bg-white"
+          className="pointer-events-none absolute rounded-full"
           style={{
             top: s.top * scale,
             left: s.left * scale,
             width: s.size * scale,
             height: s.size * scale,
             opacity: s.opacity,
-            boxShadow: `0 0 ${s.size * 2 * scale}px rgba(220,195,255,${s.opacity * 0.6})`,
+            background: ACCENT.primary,
+            boxShadow: `0 0 ${s.size * 2 * scale}px ${ACCENT.glow}`,
           }}
         />
       ))}
@@ -121,25 +173,25 @@ function CelestialBack({ width }: { width: number }) {
       >
         <g transform="translate(37 37)" fill="none">
           {/* concentric rings */}
-          <circle r="22" stroke="rgba(200,170,255,0.25)" strokeWidth="0.8" />
-          <circle r="16" stroke="rgba(200,170,255,0.35)" strokeWidth="0.8" />
+          <circle r="22" stroke={ACCENT.glow} strokeWidth="0.8" />
+          <circle r="16" stroke={ACCENT.ornament} strokeWidth="0.8" />
           {/* crescent moon */}
           <path
             d="M -4 -9 A 10 10 0 1 0 -4 9 A 7.5 7.5 0 1 1 -4 -9 Z"
-            fill="rgba(230,215,255,0.92)"
-            stroke="rgba(220,195,255,0.95)"
+            fill={ACCENT.primary}
+            stroke={ACCENT.primary}
             strokeWidth="0.6"
           />
           {/* cardinal tick lines */}
-          <line x1="0" y1="-22" x2="0" y2="-19" stroke="rgba(220,195,255,0.7)" strokeWidth="0.8" />
-          <line x1="0" y1="19" x2="0" y2="22" stroke="rgba(220,195,255,0.7)" strokeWidth="0.8" />
-          <line x1="-22" y1="0" x2="-19" y2="0" stroke="rgba(220,195,255,0.7)" strokeWidth="0.8" />
-          <line x1="19" y1="0" x2="22" y2="0" stroke="rgba(220,195,255,0.7)" strokeWidth="0.8" />
+          <line x1="0" y1="-22" x2="0" y2="-19" stroke={ACCENT.strong} strokeWidth="0.8" />
+          <line x1="0" y1="19" x2="0" y2="22" stroke={ACCENT.strong} strokeWidth="0.8" />
+          <line x1="-22" y1="0" x2="-19" y2="0" stroke={ACCENT.strong} strokeWidth="0.8" />
+          <line x1="19" y1="0" x2="22" y2="0" stroke={ACCENT.strong} strokeWidth="0.8" />
           {/* cardinal dot accents */}
-          <circle cx="0" cy="-22" r="1.4" fill="rgba(220,195,255,0.75)" />
-          <circle cx="0" cy="22" r="1.4" fill="rgba(220,195,255,0.75)" />
-          <circle cx="-22" cy="0" r="1.4" fill="rgba(220,195,255,0.75)" />
-          <circle cx="22" cy="0" r="1.4" fill="rgba(220,195,255,0.75)" />
+          <circle cx="0" cy="-22" r="1.4" fill={ACCENT.strong} />
+          <circle cx="0" cy="22" r="1.4" fill={ACCENT.strong} />
+          <circle cx="-22" cy="0" r="1.4" fill={ACCENT.strong} />
+          <circle cx="22" cy="0" r="1.4" fill={ACCENT.strong} />
         </g>
       </svg>
       {/* Corner ornaments */}
@@ -148,23 +200,23 @@ function CelestialBack({ width }: { width: number }) {
         preserveAspectRatio="none"
         className="pointer-events-none absolute inset-0 h-full w-full"
       >
-        <g stroke="rgba(210,185,255,0.7)" strokeWidth="0.8" fill="none">
+        <g stroke={ACCENT.strong} strokeWidth="0.8" fill="none">
           {/* top-left */}
           <line x1="6" y1="6" x2="14" y2="6" />
           <line x1="6" y1="6" x2="6" y2="14" />
-          <circle cx="6" cy="6" r="1.2" fill="rgba(220,195,255,0.9)" stroke="none" />
+          <circle cx="6" cy="6" r="1.2" fill={ACCENT.primary} stroke="none" />
           {/* top-right */}
           <line x1="74" y1="6" x2="66" y2="6" />
           <line x1="74" y1="6" x2="74" y2="14" />
-          <circle cx="74" cy="6" r="1.2" fill="rgba(220,195,255,0.9)" stroke="none" />
+          <circle cx="74" cy="6" r="1.2" fill={ACCENT.primary} stroke="none" />
           {/* bottom-left */}
           <line x1="6" y1="74" x2="14" y2="74" />
           <line x1="6" y1="74" x2="6" y2="66" />
-          <circle cx="6" cy="74" r="1.2" fill="rgba(220,195,255,0.9)" stroke="none" />
+          <circle cx="6" cy="74" r="1.2" fill={ACCENT.primary} stroke="none" />
           {/* bottom-right */}
           <line x1="74" y1="74" x2="66" y2="74" />
           <line x1="74" y1="74" x2="74" y2="66" />
-          <circle cx="74" cy="74" r="1.2" fill="rgba(220,195,255,0.9)" stroke="none" />
+          <circle cx="74" cy="74" r="1.2" fill={ACCENT.primary} stroke="none" />
         </g>
       </svg>
     </>
@@ -184,8 +236,8 @@ function VoidBack() {
   ];
   return (
     <svg viewBox="0 0 80 80" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-      <Stars dots={stars} />
-      <g transform="translate(40 40)" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" fill="none">
+      <Stars dots={stars} defaultColor={ACCENT.primary} />
+      <g transform="translate(40 40)" stroke={ACCENT.ornament} strokeWidth="0.5" fill="none">
         <circle r="14" opacity="0.7" />
         <circle r="10" opacity="0.6" />
         <circle r="6" opacity="0.5" />
@@ -193,160 +245,146 @@ function VoidBack() {
         <line x1="0" y1="-14" x2="0" y2="14" />
         <line x1="-10" y1="-10" x2="10" y2="10" opacity="0.5" />
         <line x1="-10" y1="10" x2="10" y2="-10" opacity="0.5" />
-        <circle cx="0" cy="-14" r="0.9" fill="rgba(255,255,255,0.7)" stroke="none" />
-        <circle cx="0" cy="14" r="0.9" fill="rgba(255,255,255,0.7)" stroke="none" />
-        <circle cx="-14" cy="0" r="0.9" fill="rgba(255,255,255,0.7)" stroke="none" />
-        <circle cx="14" cy="0" r="0.9" fill="rgba(255,255,255,0.7)" stroke="none" />
-        <circle cx="0" cy="0" r="1.1" fill="rgba(255,255,255,0.85)" stroke="none" />
+        <circle cx="0" cy="-14" r="0.9" fill={ACCENT.strong} stroke="none" />
+        <circle cx="0" cy="14" r="0.9" fill={ACCENT.strong} stroke="none" />
+        <circle cx="-14" cy="0" r="0.9" fill={ACCENT.strong} stroke="none" />
+        <circle cx="14" cy="0" r="0.9" fill={ACCENT.strong} stroke="none" />
+        <circle cx="0" cy="0" r="1.1" fill={ACCENT.primary} stroke="none" />
       </g>
-      <Corners color="rgba(255,255,255,0.35)" dotColor="rgba(255,255,255,0.5)" />
+      <Corners color={ACCENT.ornament} dotColor={ACCENT.strong} />
     </svg>
   );
 }
 
 function EmberBack() {
   const stars = [
-    { x: 16, y: 12, r: 1.2, o: 0.9, c: "rgb(251,191,36)" },
-    { x: 64, y: 18, r: 1, o: 0.75, c: "rgb(251,191,36)" },
-    { x: 12, y: 64, r: 1.3, o: 0.85, c: "rgb(251,191,36)" },
-    { x: 70, y: 60, r: 1.1, o: 0.8, c: "rgb(251,191,36)" },
-    { x: 40, y: 8, r: 0.9, o: 0.7, c: "rgb(251,191,36)" },
+    { x: 16, y: 12, r: 1.2, o: 0.9 },
+    { x: 64, y: 18, r: 1, o: 0.75 },
+    { x: 12, y: 64, r: 1.3, o: 0.85 },
+    { x: 70, y: 60, r: 1.1, o: 0.8 },
+    { x: 40, y: 8, r: 0.9, o: 0.7 },
   ];
   return (
     <svg viewBox="0 0 80 80" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-      <Stars dots={stars} />
-      <g transform="translate(40 42)" stroke="rgba(251,191,36,0.85)" strokeWidth="0.6" fill="none">
+      <Stars dots={stars} defaultColor={ACCENT.primary} />
+      <g transform="translate(40 42)" stroke={ACCENT.strong} strokeWidth="0.6" fill="none">
         <polygon points="0,-14 12,8 -12,8" />
         <polygon points="0,-10 8.5,5.5 -8.5,5.5" opacity="0.85" />
         <polygon points="0,-6 5,3.5 -5,3.5" opacity="0.7" />
         <circle r="2" />
-        <circle r="0.8" fill="rgba(251,191,36,0.9)" stroke="none" />
+        <circle r="0.8" fill={ACCENT.primary} stroke="none" />
         {/* vertex accents */}
-        <circle cx="0" cy="-14" r="0.9" fill="rgba(251,191,36,0.9)" stroke="none" />
-        <circle cx="12" cy="8" r="0.9" fill="rgba(251,191,36,0.7)" stroke="none" />
-        <circle cx="-12" cy="8" r="0.9" fill="rgba(251,191,36,0.7)" stroke="none" />
+        <circle cx="0" cy="-14" r="0.9" fill={ACCENT.primary} stroke="none" />
+        <circle cx="12" cy="8" r="0.9" fill={ACCENT.strong} stroke="none" />
+        <circle cx="-12" cy="8" r="0.9" fill={ACCENT.strong} stroke="none" />
       </g>
-      <Corners color="rgba(251,191,36,0.7)" dotColor="rgba(251,191,36,0.9)" />
+      <Corners color={ACCENT.strong} dotColor={ACCENT.primary} />
     </svg>
   );
 }
 
 function OceanBack() {
   const stars = [
-    { x: 14, y: 12, r: 1.4, o: 0.9, c: "rgb(186,230,253)" },
-    { x: 66, y: 16, r: 1, o: 0.75, c: "rgb(186,230,253)" },
-    { x: 12, y: 60, r: 1.2, o: 0.8, c: "rgb(186,230,253)" },
-    { x: 70, y: 64, r: 1.6, o: 0.95, c: "rgb(186,230,253)" },
-    { x: 40, y: 6, r: 0.9, o: 0.7, c: "rgb(186,230,253)" },
-    { x: 8, y: 36, r: 0.9, o: 0.7, c: "rgb(186,230,253)" },
-    { x: 72, y: 40, r: 0.9, o: 0.7, c: "rgb(186,230,253)" },
+    { x: 14, y: 12, r: 1.4, o: 0.9 },
+    { x: 66, y: 16, r: 1, o: 0.75 },
+    { x: 12, y: 60, r: 1.2, o: 0.8 },
+    { x: 70, y: 64, r: 1.6, o: 0.95 },
+    { x: 40, y: 6, r: 0.9, o: 0.7 },
+    { x: 8, y: 36, r: 0.9, o: 0.7 },
+    { x: 72, y: 40, r: 0.9, o: 0.7 },
   ];
   return (
     <svg viewBox="0 0 80 80" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-      <Stars dots={stars} />
+      <Stars dots={stars} defaultColor={ACCENT.primary} />
       <g transform="translate(40 42)" fill="none">
-        <circle r="14" stroke="rgba(56,189,248,0.5)" strokeWidth="0.5" />
+        <circle r="14" stroke={ACCENT.ornament} strokeWidth="0.5" />
         <path
           d="M -12 0 Q -6 -5 0 0 T 12 0"
-          stroke="rgba(56,189,248,0.85)"
+          stroke={ACCENT.strong}
           strokeWidth="0.9"
         />
         <path
           d="M -12 0 Q -6 5 0 0 T 12 0"
-          stroke="rgba(56,189,248,0.85)"
+          stroke={ACCENT.strong}
           strokeWidth="0.9"
         />
         <path
           d="M -10 -5 Q -5 -8 0 -5 T 10 -5"
-          stroke="rgba(56,189,248,0.45)"
+          stroke={ACCENT.ornament}
           strokeWidth="0.6"
         />
         <path
           d="M -10 5 Q -5 8 0 5 T 10 5"
-          stroke="rgba(56,189,248,0.45)"
+          stroke={ACCENT.ornament}
           strokeWidth="0.6"
         />
-        <circle r="1.5" stroke="rgba(186,230,253,0.95)" strokeWidth="0.4" />
-        <circle r="0.6" fill="rgba(186,230,253,0.95)" />
+        <circle r="1.5" stroke={ACCENT.primary} strokeWidth="0.4" />
+        <circle r="0.6" fill={ACCENT.primary} />
       </g>
-      <Corners color="rgba(56,189,248,0.6)" dotColor="rgba(186,230,253,0.85)" />
+      <Corners color={ACCENT.strong} dotColor={ACCENT.primary} />
     </svg>
   );
 }
 
 function VerdantBack() {
   const stars = [
-    { x: 14, y: 12, r: 1.3, o: 0.85, c: "rgb(134,239,172)" },
-    { x: 66, y: 16, r: 1, o: 0.7, c: "rgb(134,239,172)" },
-    { x: 12, y: 60, r: 1.5, o: 0.95, c: "rgb(134,239,172)" },
-    { x: 70, y: 64, r: 1.1, o: 0.8, c: "rgb(134,239,172)" },
-    { x: 40, y: 6, r: 0.9, o: 0.7, c: "rgb(134,239,172)" },
-    { x: 8, y: 38, r: 0.9, o: 0.7, c: "rgb(134,239,172)" },
+    { x: 14, y: 12, r: 1.3, o: 0.85 },
+    { x: 66, y: 16, r: 1, o: 0.7 },
+    { x: 12, y: 60, r: 1.5, o: 0.95 },
+    { x: 70, y: 64, r: 1.1, o: 0.8 },
+    { x: 40, y: 6, r: 0.9, o: 0.7 },
+    { x: 8, y: 38, r: 0.9, o: 0.7 },
   ];
   return (
     <svg viewBox="0 0 80 80" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-      <Stars dots={stars} />
+      <Stars dots={stars} defaultColor={ACCENT.primary} />
       <g transform="translate(40 42)" fill="none">
         {/* teardrop right (bold) */}
         <path
           d="M 0 -14 C 8 -8 8 8 0 14 C 0 8 0 -8 0 -14 Z"
-          fill="rgba(74,222,128,0.55)"
-          stroke="rgba(74,222,128,0.9)"
+          fill={ACCENT.ornament}
+          stroke={ACCENT.primary}
           strokeWidth="0.6"
         />
         {/* teardrop left (lighter) */}
         <path
           d="M 0 -14 C -8 -8 -8 8 0 14 C 0 8 0 -8 0 -14 Z"
-          fill="rgba(74,222,128,0.25)"
-          stroke="rgba(74,222,128,0.6)"
+          fill={ACCENT.faint}
+          stroke={ACCENT.strong}
           strokeWidth="0.5"
         />
         {/* echo arcs */}
-        <path d="M -12 0 Q 0 -3 12 0" stroke="rgba(74,222,128,0.4)" strokeWidth="0.5" />
-        <path d="M -12 0 Q 0 3 12 0" stroke="rgba(74,222,128,0.4)" strokeWidth="0.5" />
-        <circle r="1.4" stroke="rgba(134,239,172,0.95)" strokeWidth="0.4" />
-        <circle r="0.6" fill="rgba(134,239,172,0.95)" />
-        <circle cx="0" cy="-14" r="0.9" fill="rgba(134,239,172,0.95)" />
+        <path d="M -12 0 Q 0 -3 12 0" stroke={ACCENT.ornament} strokeWidth="0.5" />
+        <path d="M -12 0 Q 0 3 12 0" stroke={ACCENT.ornament} strokeWidth="0.5" />
+        <circle r="1.4" stroke={ACCENT.primary} strokeWidth="0.4" />
+        <circle r="0.6" fill={ACCENT.primary} />
+        <circle cx="0" cy="-14" r="0.9" fill={ACCENT.primary} />
       </g>
-      <Corners color="rgba(74,222,128,0.6)" dotColor="rgba(134,239,172,0.85)" />
+      <Corners color={ACCENT.strong} dotColor={ACCENT.primary} />
     </svg>
   );
 }
 
+/**
+ * All five card backs share the same accent-driven palette ("The
+ * Thread"). The artwork pattern (Celestial / Void / Ember / Ocean /
+ * Verdant) is what differs — the colors all flow from `--gold`.
+ */
+const SHARED_STYLE = {
+  bg: ACCENT_BG,
+  borderColor: ACCENT.border,
+  innerOuter: ACCENT.innerOuter,
+  innerInner: ACCENT.innerInner,
+};
 const STYLES: Record<
   CardBackId,
   { bg: string; borderColor: string; innerOuter: string; innerInner: string }
 > = {
-  celestial: {
-    bg: "radial-gradient(ellipse at 40% 25%, #3d2575 0%, #251555 45%, #130d38 100%)",
-    borderColor: "rgba(200,170,255,0.5)",
-    innerOuter: "rgba(200,170,255,0.45)",
-    innerInner: "rgba(200,170,255,0.2)",
-  },
-  void: {
-    bg: "radial-gradient(ellipse at 50% 35%, #1e1c2e 0%, #111020 55%, #080710 100%)",
-    borderColor: "rgba(255,255,255,0.2)",
-    innerOuter: "rgba(255,255,255,0.18)",
-    innerInner: "rgba(255,255,255,0.10)",
-  },
-  ember: {
-    bg: "radial-gradient(ellipse at 45% 30%, #3d1e06 0%, #241008 50%, #110602 100%)",
-    borderColor: "rgba(251,191,36,0.55)",
-    innerOuter: "rgba(251,191,36,0.5)",
-    innerInner: "rgba(251,191,36,0.25)",
-  },
-  ocean: {
-    bg: "radial-gradient(ellipse at 45% 28%, #0a2540 0%, #061528 55%, #020a14 100%)",
-    borderColor: "rgba(56,189,248,0.45)",
-    innerOuter: "rgba(56,189,248,0.4)",
-    innerInner: "rgba(56,189,248,0.2)",
-  },
-  verdant: {
-    bg: "radial-gradient(ellipse at 45% 30%, #0a2210 0%, #061508 55%, #020a03 100%)",
-    borderColor: "rgba(74,222,128,0.45)",
-    innerOuter: "rgba(74,222,128,0.4)",
-    innerInner: "rgba(74,222,128,0.2)",
-  },
+  celestial: SHARED_STYLE,
+  void: SHARED_STYLE,
+  ember: SHARED_STYLE,
+  ocean: SHARED_STYLE,
+  verdant: SHARED_STYLE,
 };
 
 export function CardBack({ id = "celestial", width = 160, className, ariaLabel }: Props) {
