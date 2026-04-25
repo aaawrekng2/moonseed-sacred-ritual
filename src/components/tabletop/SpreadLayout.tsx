@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { Eye, EyeOff, Loader2, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
+import { useShowLabels } from "@/lib/use-show-labels";
 import { cn } from "@/lib/utils";
 
 type Pick = { id: number; cardIndex: number };
@@ -27,6 +28,7 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [revealed, setRevealed] = useState(false);
   const [revealing, setRevealing] = useState(false);
+  const { showLabels, toggleShowLabels } = useShowLabels();
 
   useEffect(() => {
     setCardBack(getStoredCardBack());
@@ -64,6 +66,31 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
         <X className="h-5 w-5" strokeWidth={1.5} />
       </button>
 
+      {/* Labels visibility toggle — mirrors the tabletop preference. */}
+      <button
+        type="button"
+        onClick={toggleShowLabels}
+        aria-pressed={showLabels}
+        aria-label={
+          showLabels
+            ? "Hide spread position labels"
+            : "Show spread position labels"
+        }
+        title={showLabels ? "Hide labels" : "Show labels"}
+        className="absolute left-3 top-3 z-50 inline-flex h-10 w-10 items-center justify-center rounded-full text-gold/80 transition-opacity hover:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        style={{
+          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          left: "calc(env(safe-area-inset-left, 0px) + 12px)",
+          opacity: showLabels ? 0.95 : 0.55,
+        }}
+      >
+        {showLabels ? (
+          <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+        ) : (
+          <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+        )}
+      </button>
+
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <SpreadContent
           spread={spread}
@@ -71,6 +98,7 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
           labels={labels}
           cardBack={cardBack}
           revealed={revealed}
+          showLabels={showLabels}
         />
       </div>
 
@@ -127,22 +155,24 @@ function SpreadContent({
   labels,
   cardBack,
   revealed,
+  showLabels,
 }: {
   spread: SpreadMode;
   picks: Pick[];
   labels: string[];
   cardBack: CardBackId;
   revealed: boolean;
+  showLabels: boolean;
 }) {
   // Pick a card width that fits the spread + viewport. Celtic Cross has
   // the densest layout so it gets the smallest cards.
   const sizing = useMemo(() => spreadSizing(spread), [spread]);
 
   if (spread === "celtic") {
-    return <CelticCross picks={picks} labels={labels} cardBack={cardBack} revealed={revealed} sizing={sizing} />;
+    return <CelticCross picks={picks} labels={labels} cardBack={cardBack} revealed={revealed} sizing={sizing} showLabels={showLabels} />;
   }
   if (spread === "three") {
-    return <ThreeRow picks={picks} labels={labels} cardBack={cardBack} revealed={revealed} sizing={sizing} />;
+    return <ThreeRow picks={picks} labels={labels} cardBack={cardBack} revealed={revealed} sizing={sizing} showLabels={showLabels} />;
   }
   // single / daily / yes_no — one large card centered.
   return <SingleCard pick={picks[0]} cardBack={cardBack} revealed={revealed} sizing={sizing} />;
@@ -261,12 +291,14 @@ function ThreeRow({
   cardBack,
   revealed,
   sizing,
+  showLabels,
 }: {
   picks: Pick[];
   labels: string[];
   cardBack: CardBackId;
   revealed: boolean;
   sizing: Sizing;
+  showLabels: boolean;
 }) {
   return (
     <div className="flex items-end gap-6">
@@ -278,7 +310,9 @@ function ThreeRow({
             revealed={revealed}
             sizing={sizing}
           />
-          <PositionLabel>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
+          {showLabels && (
+            <PositionLabel>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
+          )}
         </div>
       ))}
     </div>
@@ -302,12 +336,14 @@ function CelticCross({
   cardBack,
   revealed,
   sizing,
+  showLabels,
 }: {
   picks: Pick[];
   labels: string[];
   cardBack: CardBackId;
   revealed: boolean;
   sizing: Sizing;
+  showLabels: boolean;
 }) {
   // Spacing constants tuned to the chosen card size.
   const colGap = Math.round(sizing.w * 0.35);
@@ -337,7 +373,7 @@ function CelticCross({
           rotated={rotated}
           delayMs={delay}
         />
-        <PositionLabel>{label}</PositionLabel>
+        {showLabels && <PositionLabel>{label}</PositionLabel>}
       </div>
     ) : null;
 
@@ -378,11 +414,13 @@ function CelticCross({
               </div>
             ) : null}
           </div>
-          <PositionLabel>
-            {labels[0] ?? "Present"}
-            <span style={{ opacity: 0.4, margin: "0 4px" }}>·</span>
-            {labels[1] ?? "Obstacle"}
-          </PositionLabel>
+          {showLabels && (
+            <PositionLabel>
+              {labels[0] ?? "Present"}
+              <span style={{ opacity: 0.4, margin: "0 4px" }}>·</span>
+              {labels[1] ?? "Obstacle"}
+            </PositionLabel>
+          )}
           </div>
           {cardWithLabel(root, labels[2] ?? "Root", 200)}
         </div>
@@ -403,7 +441,9 @@ function CelticCross({
                 sizing={sizing}
                 delayMs={300 + i * 60}
               />
-              <PositionLabel>{labels[6 + i] ?? `Slot ${7 + i}`}</PositionLabel>
+              {showLabels && (
+                <PositionLabel>{labels[6 + i] ?? `Slot ${7 + i}`}</PositionLabel>
+              )}
             </div>
           ) : null,
         )}

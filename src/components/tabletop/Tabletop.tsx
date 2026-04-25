@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Loader2, Sparkles, X } from "lucide-react";
+import { Eye, EyeOff, Loader2, Sparkles, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -17,6 +17,7 @@ import {
   MIN_RESTING_OPACITY,
   useRestingOpacity,
 } from "@/lib/use-resting-opacity";
+import { useShowLabels } from "@/lib/use-show-labels";
 import { cn } from "@/lib/utils";
 
 const TABLETOP_CONFIG = {
@@ -228,6 +229,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     useRestingOpacity();
   const restingAlpha = restingOpacityPct / 100;
   const exitAlpha = Math.min(1, restingAlpha + 0.1);
+  // Persisted preference for showing spread position labels under each
+  // slot. Defaults to ON (annotated). Mirrored on the SpreadLayout
+  // screen so the choice carries through the entire draw flow.
+  const { showLabels, toggleShowLabels } = useShowLabels();
 
   // Dev-only overlap debug overlay. Visualises each card's visible-area
   // ratio so the 30% minimum visibility rule can be eyeballed at a glance.
@@ -889,21 +894,23 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                             : `${slotLabels[i] ?? `Slot ${i + 1}`} — empty`
                       }
                     />
-                    <span
-                      className={cn(
-                        "font-display italic",
-                        isNext && "slot-next-label",
-                      )}
-                      style={{
-                        fontSize: required >= 10 ? (isMobile ? 8 : 9) : 10,
-                        color: "var(--gold)",
-                        opacity: isNext ? undefined : restingAlpha,
-                        letterSpacing: "0.05em",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {slotLabels[i] ?? `Slot ${i + 1}`}
-                    </span>
+                    {showLabels && (
+                      <span
+                        className={cn(
+                          "font-display italic",
+                          isNext && "slot-next-label",
+                        )}
+                        style={{
+                          fontSize: required >= 10 ? (isMobile ? 8 : 9) : 10,
+                          color: "var(--gold)",
+                          opacity: isNext ? undefined : restingAlpha,
+                          letterSpacing: "0.05em",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {slotLabels[i] ?? `Slot ${i + 1}`}
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -1020,6 +1027,27 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             }}
           >
             <div className="flex flex-col items-start gap-2">
+              {!revealedAll && usesSlots && (
+                <button
+                  type="button"
+                  onClick={toggleShowLabels}
+                  aria-pressed={showLabels}
+                  aria-label={
+                    showLabels
+                      ? "Hide spread position labels"
+                      : "Show spread position labels"
+                  }
+                  title={showLabels ? "Hide labels" : "Show labels"}
+                  style={{ opacity: showLabels ? Math.min(1, restingAlpha + 0.15) : restingAlpha }}
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+                >
+                  {showLabels ? (
+                    <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                  ) : (
+                    <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                  )}
+                </button>
+              )}
               {!revealedAll && (
                 <button
                   type="button"
