@@ -113,28 +113,60 @@ export const interpretReading = createServerFn({ method: "POST" })
       }
 
       let rawText = "";
+      let lastProviderError = "";
       try {
-        const resp = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "claude-3-haiku-20240307",
-            max_tokens: 1024,
-            system: SYSTEM_PROMPT,
-            messages: [{ role: "user", content: userPrompt }],
-          }),
-        });
+        for (const model of ANTHROPIC_MODELS) {
+          const resp = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "x-api-key": apiKey,
+              "anthropic-version": "2023-06-01",
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({
+              model,
+              max_tokens: 1024,
+              system: SYSTEM_PROMPT,
+              messages: [{ role: "user", content: userPrompt }],
+            }),
+          });
 
-        if (!resp.ok) {
-          const errText = await resp.text().catch(() => "");
-          console.error("[interpretReading] Anthropic API error", {
-            status: resp.status,
-            statusText: resp.statusText,
-            body: errText.slice(0, 500),
+          if (!resp.ok) {
+            const errText = await resp.text().catch(() => "");
+            lastProviderError = errText;
+            console.error("[interpretReading] Anthropic API error", {
+              model,
+              status: resp.status,
+              statusText: resp.statusText,
+              body: errText.slice(0, 500),
+            });
+
+            // If a model has been retired or is not enabled for this key,
+            // try the next currently-listed model before failing the reading.
+            if (resp.status === 404 || resp.status === 410) {
+              continue;
+            }
+
+            return {
+              ok: false,
+              error: "ai_unavailable",
+              message: "The reader could not be reached. Please try again.",
+            };
+          }
+
+          const json = (await resp.json()) as {
+            content?: Array<{ type: string; text?: string }>;
+          };
+          rawText =
+            json.content?.find((c) => c.type === "text")?.text?.trim() ?? "";
+          console.log("[interpretReading] Anthropic OK", { model, textLen: rawText.length });
+          break;
+        }
+
+        if (!rawText) {
+          console.error("[interpretReading] Anthropic exhausted all fallback models", {
+            models: ANTHROPIC_MODELS,
+            lastProviderError: lastProviderError.slice(0, 500),
           });
           return {
             ok: false,
@@ -142,13 +174,6 @@ export const interpretReading = createServerFn({ method: "POST" })
             message: "The reader could not be reached. Please try again.",
           };
         }
-
-        const json = (await resp.json()) as {
-          content?: Array<{ type: string; text?: string }>;
-        };
-        rawText =
-          json.content?.find((c) => c.type === "text")?.text?.trim() ?? "";
-        console.log("[interpretReading] Anthropic OK", { textLen: rawText.length });
       } catch (networkErr) {
         console.error("[interpretReading] Anthropic network/fetch failure", networkErr);
         return {
