@@ -1519,18 +1519,27 @@ function CardSlot({
           // animating from cardW → slotRect.width.
           width: cardW,
           height: cardH,
-          transform:
-            flightPhase === "launching"
-              ? "scale(1)"
-              : flightPhase === "arrived" && slotRect
-                ? `scale(${slotRect.width / cardW})`
-                : flightPhase === "returning"
-                  ? returnAnimating
-                    ? "scale(1)"
-                    : returnFromRect && cardW > 0
-                      ? `scale(${returnFromRect.width / cardW})`
-                      : "scale(1)"
-                  : undefined,
+          transform: (() => {
+            // Inline transform overrides the .flip-3d.is-flipped CSS rule
+            // (rotateY(180deg)), so when the card is revealed we must compose
+            // the rotation into the same transform — otherwise the face stays
+            // hidden behind the back after the flip lands in a slot.
+            const scalePart =
+              flightPhase === "launching"
+                ? "scale(1)"
+                : flightPhase === "arrived" && slotRect
+                  ? `scale(${slotRect.width / cardW})`
+                  : flightPhase === "returning"
+                    ? returnAnimating
+                      ? "scale(1)"
+                      : returnFromRect && cardW > 0
+                        ? `scale(${returnFromRect.width / cardW})`
+                        : "scale(1)"
+                    : null;
+            const rotatePart = card.revealed ? "rotateY(180deg)" : null;
+            if (!scalePart && !rotatePart) return undefined;
+            return [scalePart, rotatePart].filter(Boolean).join(" ");
+          })(),
           transformOrigin: "top left",
           transition:
             flightPhase === "arrived" || flightPhase === "returning"
