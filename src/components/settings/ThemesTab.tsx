@@ -1398,6 +1398,12 @@ function SavedThemesSection() {
       oracle_mode: isOracle,
     });
     markClean();
+    // Loading a sanctuary supersedes any community palette selection.
+    setStoredCommunityTheme(null);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("moonseed:sanctuary-changed"));
+      window.dispatchEvent(new CustomEvent("moonseed:theme-changed"));
+    }
     toast.success(`Loaded "${theme.name}"`);
   };
 
