@@ -1049,6 +1049,19 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             stirring={stirring && c.selectionOrder === null}
             tapMoveThresholdPx={TAP_MOVE_THRESHOLD_PX}
             onSelect={() => toggleSelect(c.id)}
+            onDragEnd={handleDragEnd}
+            onDragMove={handleDragMove}
+            isCoarsePointer={isCoarsePointer}
+            containerRect={
+              containerOrigin && size
+                ? {
+                    left: containerOrigin.left,
+                    top: containerOrigin.top,
+                    width: size.w,
+                    height: size.h,
+                  }
+                : null
+            }
             settleDelay={Math.min(idx * 4, 320)}
             slotRect={
               usesSlots && c.selectionOrder !== null
