@@ -1512,11 +1512,14 @@ function CardSlot({
           transform:
             flightPhase === "launching"
               ? "scale(1)"
-              : (flightPhase === "arrived" || flightPhase === "returning") &&
-                  slotRect
+              : flightPhase === "arrived" && slotRect
                 ? `scale(${slotRect.width / cardW})`
                 : flightPhase === "returning"
-                  ? "scale(1)"
+                  ? returnAnimating
+                    ? "scale(1)"
+                    : returnFromRect && cardW > 0
+                      ? `scale(${returnFromRect.width / cardW})`
+                      : "scale(1)"
                   : undefined,
           transformOrigin: "top left",
           transition:
