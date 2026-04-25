@@ -16,8 +16,18 @@
  * (useBgGradient, useRestingOpacity, getStoredCardBack) drive the live
  * DOM, and `usePreferencesSync` mirrors them to the Supabase row.
  */
-import { useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, RotateCcw, Save, Trash2, Wand2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Save,
+  Trash2,
+  Wand2,
+} from "lucide-react";
 import { toast } from "sonner";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
@@ -43,11 +53,8 @@ import {
   type CardBackId,
 } from "@/lib/card-backs";
 import {
-  BG_PRESETS,
   DEFAULT_BG_LEFT,
   DEFAULT_BG_RIGHT,
-  useBgGradient,
-  type BgPresetName,
 } from "@/lib/use-bg-gradient";
 import {
   DEFAULT_RESTING_OPACITY,
