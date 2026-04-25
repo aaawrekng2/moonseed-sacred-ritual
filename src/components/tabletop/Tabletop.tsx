@@ -746,6 +746,71 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         </button>
       )}
 
+      {/* Right-side vertical control stack: X (exit), Stir (shuffle),
+          Eye (toggle position labels). Per design: all three live in a
+          fixed column on the right edge so the bottom bar can be reserved
+          purely for the slot rail and Draw / Reveal · Cast whisper. */}
+      <div
+        style={{
+          position: "fixed",
+          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: 12,
+          zIndex: 60,
+          pointerEvents: "auto",
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleExit}
+          aria-label="Close tabletop"
+          style={{ opacity: exitAlpha }}
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        >
+          <X className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+        </button>
+        {!revealedAll && (
+          <button
+            type="button"
+            onClick={triggerStir}
+            disabled={revealing || stirring}
+            aria-label="Stir — rearrange unselected cards"
+            style={{ opacity: restingAlpha }}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed"
+          >
+            <Sparkles className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        )}
+        {!revealedAll && usesSlots && (
+          <button
+            type="button"
+            onClick={toggleShowLabels}
+            aria-pressed={showLabels}
+            aria-label={
+              showLabels
+                ? "Hide spread position labels"
+                : "Show spread position labels"
+            }
+            title={showLabels ? "Hide labels" : "Show labels"}
+            style={{
+              opacity: showLabels
+                ? Math.min(1, restingAlpha + 0.15)
+                : restingAlpha,
+            }}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          >
+            {showLabels ? (
+              <Eye className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+            ) : (
+              <EyeOff className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+            )}
+          </button>
+        )}
+      </div>
+
       {/* Tabletop scatter area */}
       <div
         ref={containerRef}
