@@ -950,33 +950,163 @@ function FadePreviewBar({ opacity }: { opacity: number }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Saved Themes                                                       */
+/*  Community Themes carousel                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Curated, named gradient + accent presets. Tapping a card applies
+ * everything instantly and persists the choice.
+ *
+ * - Gradient + accent are written into user_preferences so other
+ *   devices pick up the look on next login.
+ * - The active community key is cached in localStorage to highlight the
+ *   selected card on reload (no DB column needed).
+ */
+function CommunityThemesSection() {
+  const { user, prefs, setPrefs } = useSettings();
+  const { markDirty } = useThemeDirty();
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveKey(getStoredCommunityTheme());
+  }, []);
+
+  const apply = async (theme: (typeof COMMUNITY_THEMES)[number]) => {
+    document.documentElement.style.setProperty(
+      "--bg-gradient-left",
+      theme.bgLeft,
+    );
+    document.documentElement.style.setProperty(
+      "--bg-gradient-right",
+      theme.bgRight,
+    );
+    document.documentElement.style.setProperty("--gold", theme.accent);
+    document.documentElement.style.setProperty("--primary", theme.accent);
+    document.documentElement.style.setProperty("--ring", `${theme.accent}99`);
+
+    setStoredCommunityTheme(theme.key);
+    setActiveKey(theme.key);
+    markDirty();
+
+    await updateUserPreferences(user.id, {
+      bg_gradient_from: theme.bgLeft.toLowerCase(),
+      bg_gradient_to: theme.bgRight.toLowerCase(),
+      accent_color: theme.accent.toLowerCase(),
+    });
+    setPrefs({
+      ...prefs,
+      bg_gradient_from: theme.bgLeft.toLowerCase(),
+      bg_gradient_to: theme.bgRight.toLowerCase(),
+      accent_color: theme.accent.toLowerCase(),
+    });
+    toast.success(`Applied ${theme.name}`);
+  };
+
+  return (
+    <SettingsSection
+      title="Community Themes"
+      description="Curated looks crafted by the Moonseed community."
+    >
+      <div className="-mx-2 overflow-x-auto">
+        <div className="flex gap-3 px-2 pb-2 snap-x snap-mandatory">
+          {COMMUNITY_THEMES.map((theme) => {
+            const active = activeKey === theme.key;
+            return (
+              <button
+                key={theme.key}
+                type="button"
+                onClick={() => void apply(theme)}
+                aria-pressed={active}
+                aria-label={`Apply ${theme.name} theme`}
+                className={cn(
+                  "group relative flex w-[220px] shrink-0 snap-start flex-col gap-2 rounded-2xl border p-3 text-left transition",
+                  active
+                    ? "border-gold shadow-glow"
+                    : "border-border/60 hover:border-gold/40",
+                )}
+              >
+                <span
+                  aria-hidden
+                  className="block h-20 w-full rounded-xl ring-1 ring-border/40"
+                  style={{
+                    background: `linear-gradient(to right, ${theme.bgLeft}, ${theme.bgRight})`,
+                  }}
+                />
+                <div className="flex items-start gap-2">
+                  <span
+                    aria-hidden
+                    className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-border/60"
+                    style={{ backgroundColor: theme.accent }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={cn(
+                        "truncate italic text-sm",
+                        active ? "text-gold" : "text-foreground",
+                      )}
+                      style={{ fontFamily: "var(--font-serif)" }}
+                    >
+                      {theme.name}
+                    </p>
+                    <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+                      {theme.tagline}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <p className="mt-2 text-center text-[10px] uppercase tracking-widest text-muted-foreground/70">
+        Swipe to explore
+      </p>
+    </SettingsSection>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Saved Themes — 5-slot carousel                                     */
 /* ------------------------------------------------------------------ */
 
 function SavedThemesSection() {
   const { prefs } = useSettings();
-  const { occupied, activeSlot, loaded, saveSlot, deleteSlot, setActiveSlot } =
-    useSavedThemes();
-  const { setPreset } = useBgGradient();
+  const {
+    themes,
+    activeSlot,
+    loaded,
+    saveSlot,
+    deleteSlot,
+    setActiveSlot,
+  } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
-  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
-  const [name, setName] = useState("");
+  const { hasUnsavedChanges, markClean } = useThemeDirty();
 
-  const nextEmptySlot = useMemo<number | null>(() => {
-    const filled = new Set(occupied.map((t) => t.slot));
-    for (let i = 1; i <= MAX_SAVED_THEMES; i++) {
-      if (!filled.has(i)) return i;
-    }
-    return null;
-  }, [occupied]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [nameDialogSlot, setNameDialogSlot] = useState<number | null>(null);
+  const [nameDraft, setNameDraft] = useState("");
+  const [overwriteSlot, setOverwriteSlot] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SavedTheme | null>(null);
+  const [discardThenLoad, setDiscardThenLoad] = useState<SavedTheme | null>(
+    null,
+  );
 
-  const captureCurrent = (): Omit<SavedTheme, "slot"> => {
-    const accentHex = prefs.accent_color ?? "#f59e0b";
+  const slots = useMemo(() => {
+    const bySlot = new Map(themes.map((t) => [t.slot, t]));
+    return Array.from({ length: MAX_SAVED_THEMES }, (_, i) => {
+      const n = i + 1;
+      return { slot: n, theme: bySlot.get(n) ?? null };
+    });
+  }, [themes]);
+
+  const captureCurrent = (
+    overrideName?: string,
+  ): Omit<SavedTheme, "slot"> => {
     return {
-      name: name.trim() || "My Theme",
+      name: (overrideName ?? "My Theme").trim().slice(0, 20) || "My Theme",
       bg_left: prefs.bg_gradient_from ?? DEFAULT_BG_LEFT,
       bg_right: prefs.bg_gradient_to ?? DEFAULT_BG_RIGHT,
-      accent: accentHex,
+      accent: prefs.accent_color ?? "#f59e0b",
       font: (prefs.heading_font as ThemeFont) ?? DEFAULT_THEME_FONT,
       font_size: prefs.heading_font_size ?? DEFAULT_FONT_SIZE,
       card_back: getStoredCardBack(),
@@ -984,40 +1114,65 @@ function SavedThemesSection() {
     };
   };
 
-  const handleSaveNew = async () => {
-    if (nextEmptySlot == null) {
-      toast.error("All 5 slots are full. Delete one first.");
+  const dontAskKey = "moonseed:overwrite-confirm-skip";
+  const skipOverwriteConfirm = () =>
+    typeof window !== "undefined" &&
+    window.localStorage.getItem(dontAskKey) === "1";
+
+  const performSave = async (slot: number, name: string) => {
+    await saveSlot(slot, captureCurrent(name));
+    markClean();
+    toast.success(`Saved to slot ${slot}`);
+  };
+
+  const handleSaveClick = (slot: number, existing: SavedTheme | null) => {
+    if (!existing) {
+      setNameDialogSlot(slot);
+      setNameDraft("");
       return;
     }
-    await saveSlot(nextEmptySlot, captureCurrent());
-    setSaveDialogOpen(false);
-    setName("");
-    toast.success(`Saved to slot ${nextEmptySlot}`);
+    if (skipOverwriteConfirm()) {
+      void performSave(slot, existing.name);
+      return;
+    }
+    setOverwriteSlot(slot);
   };
 
   const handleLoad = async (theme: SavedTheme) => {
-    // Apply background
     if (theme.bg_left && theme.bg_right) {
-      document.documentElement.style.setProperty("--bg-gradient-left", theme.bg_left);
-      document.documentElement.style.setProperty("--bg-gradient-right", theme.bg_right);
+      document.documentElement.style.setProperty(
+        "--bg-gradient-left",
+        theme.bg_left,
+      );
+      document.documentElement.style.setProperty(
+        "--bg-gradient-right",
+        theme.bg_right,
+      );
     }
-    // Apply accent
-    if (theme.accent && isHex(theme.accent)) {
+    if (theme.accent) {
       document.documentElement.style.setProperty("--gold", theme.accent);
       document.documentElement.style.setProperty("--primary", theme.accent);
-      document.documentElement.style.setProperty("--ring", `${theme.accent}99`);
+      document.documentElement.style.setProperty(
+        "--ring",
+        `${theme.accent}99`,
+      );
     }
     if (theme.font) applyHeadingFont(theme.font);
     if (theme.font_size) applyHeadingFontSize(theme.font_size);
     if (theme.card_back) setStoredCardBack(theme.card_back);
-    if (typeof theme.resting_opacity === "number") setOpacity(theme.resting_opacity);
+    if (typeof theme.resting_opacity === "number")
+      setOpacity(theme.resting_opacity);
     await setActiveSlot(theme.slot);
+    markClean();
     toast.success(`Loaded "${theme.name}"`);
   };
 
-  const handleDelete = async (slot: number) => {
-    await deleteSlot(slot);
-    toast.success(`Slot ${slot} cleared`);
+  const requestLoad = (theme: SavedTheme) => {
+    if (hasUnsavedChanges) {
+      setDiscardThenLoad(theme);
+      return;
+    }
+    void handleLoad(theme);
   };
 
   return (
@@ -1025,87 +1180,137 @@ function SavedThemesSection() {
       title="Saved Themes"
       description={`Snapshot the current look — up to ${MAX_SAVED_THEMES} slots.`}
     >
-      <div className="space-y-3">
-        {loaded && occupied.length === 0 && (
-          <p className="rounded-lg border border-dashed border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
-            No saved themes yet — pick your favorite combo above and save it.
-          </p>
-        )}
-
-        {occupied.map((theme) => {
-          const active = activeSlot === theme.slot;
-          return (
-            <div
-              key={theme.slot}
-              className={cn(
-                "flex items-center gap-3 rounded-lg border p-3 transition",
-                active
-                  ? "border-gold/60 bg-gold/[0.05]"
-                  : "border-border/60",
-              )}
-            >
-              <span
-                aria-hidden
-                className="block h-10 w-16 shrink-0 rounded-md ring-1 ring-border/60"
-                style={{
-                  background: `linear-gradient(to right, ${theme.bg_left}, ${theme.bg_right})`,
-                }}
-              />
-              <span
-                aria-hidden
-                className="block h-6 w-6 shrink-0 rounded-full ring-1 ring-border/60"
-                style={{ backgroundColor: theme.accent }}
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {theme.name}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Slot {theme.slot}
-                  {active && " · active"}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => void handleLoad(theme)}
-                className="gap-1"
-                aria-label={`Load ${theme.name}`}
-              >
-                <Play className="h-3.5 w-3.5" />
-                Load
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => void handleDelete(theme.slot)}
-                aria-label={`Delete ${theme.name}`}
-                className="text-muted-foreground hover:text-destructive"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          );
-        })}
-
-        <Button
-          variant="outline"
-          onClick={() => setSaveDialogOpen(true)}
-          disabled={nextEmptySlot == null}
-          className="w-full gap-2"
+      <div className="-mx-2 overflow-x-auto">
+        <div
+          className="flex gap-3 px-2 pb-2 snap-x snap-mandatory"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            const card = 220 + 12; // width + gap
+            const idx = Math.round(el.scrollLeft / card);
+            setActiveIndex(Math.min(MAX_SAVED_THEMES - 1, Math.max(0, idx)));
+          }}
         >
-          {nextEmptySlot == null ? (
-            <>All slots full</>
-          ) : (
-            <>
-              <Plus className="h-4 w-4" />
-              Save current look (slot {nextEmptySlot})
-            </>
-          )}
-        </Button>
+          {slots.map(({ slot, theme }) => {
+            const active = activeSlot === slot;
+            return (
+              <div
+                key={slot}
+                className={cn(
+                  "relative flex w-[220px] shrink-0 snap-start flex-col gap-3 rounded-2xl border p-3 transition",
+                  active
+                    ? "border-gold shadow-glow"
+                    : "border-border/60 hover:border-gold/40",
+                )}
+              >
+                {theme ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteTarget(theme)}
+                      aria-label={`Delete ${theme.name}`}
+                      className="absolute right-2 top-2 z-10 rounded-full bg-background/70 p-1 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-destructive focus:opacity-100"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                    <span
+                      aria-hidden
+                      className="block h-20 w-full rounded-xl ring-1 ring-border/40"
+                      style={{
+                        background: `linear-gradient(to right, ${theme.bg_left}, ${theme.bg_right})`,
+                      }}
+                    />
+                    <div className="flex items-start gap-2">
+                      <span
+                        aria-hidden
+                        className="mt-0.5 inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-border/60"
+                        style={{ backgroundColor: theme.accent }}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={cn(
+                            "truncate text-sm font-medium",
+                            active ? "text-gold" : "text-foreground",
+                          )}
+                        >
+                          {theme.name}
+                        </p>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Slot {slot}
+                          {active && " · active"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-auto grid grid-cols-2 gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleSaveClick(slot, theme)}
+                        className="gap-1"
+                      >
+                        <Save className="h-3.5 w-3.5" />
+                        Save
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => requestLoad(theme)}
+                        className="bg-gold-gradient text-gold-foreground hover:opacity-95"
+                      >
+                        Load
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleSaveClick(slot, null)}
+                    aria-label={`Save current theme to slot ${slot}`}
+                    className="flex h-full min-h-[180px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border/60 text-muted-foreground transition hover:border-gold/50 hover:text-gold"
+                  >
+                    <Plus className="h-6 w-6" />
+                    <span className="text-xs">Save current theme</span>
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">
+                      Slot {slot}
+                    </span>
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
-      <AlertDialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+      {/* Dot pagination */}
+      <div className="mt-2 flex items-center justify-center gap-1.5">
+        {slots.map((_, i) => (
+          <span
+            key={i}
+            aria-hidden
+            className={cn(
+              "block h-1.5 rounded-full transition-all",
+              i === activeIndex
+                ? "w-4 bg-gold"
+                : "w-1.5 bg-border/70",
+            )}
+          />
+        ))}
+      </div>
+      <p className="mt-1 text-center text-[10px] uppercase tracking-widest text-muted-foreground/70">
+        Swipe to explore
+      </p>
+
+      {!loaded && (
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />
+          Loading saved themes…
+        </p>
+      )}
+
+      {/* Name dialog (new save) */}
+      <AlertDialog
+        open={nameDialogSlot != null}
+        onOpenChange={(o) => !o && setNameDialogSlot(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Name this theme</AlertDialogTitle>
@@ -1115,18 +1320,143 @@ function SavedThemesSection() {
           </AlertDialogHeader>
           <Input
             autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
             maxLength={20}
             placeholder="Midnight Garden"
+            style={{ fontSize: 16 }}
           />
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setName("")}>
+            <AlertDialogCancel onClick={() => setNameDraft("")}>
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction onClick={() => void handleSaveNew()}>
+            <AlertDialogAction
+              onClick={() => {
+                if (nameDialogSlot != null) {
+                  void performSave(
+                    nameDialogSlot,
+                    nameDraft.trim() || "My Theme",
+                  );
+                  setNameDialogSlot(null);
+                  setNameDraft("");
+                }
+              }}
+            >
               <Save className="mr-1 h-4 w-4" />
               Save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Overwrite confirm */}
+      <AlertDialog
+        open={overwriteSlot != null}
+        onOpenChange={(o) => !o && setOverwriteSlot(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Overwrite{" "}
+              {overwriteSlot != null
+                ? slots.find((s) => s.slot === overwriteSlot)?.theme?.name
+                : ""}
+              ?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This replaces the saved snapshot with the current look. The
+              previous version cannot be recovered.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              onChange={(e) => {
+                if (typeof window === "undefined") return;
+                if (e.target.checked)
+                  window.localStorage.setItem(dontAskKey, "1");
+                else window.localStorage.removeItem(dontAskKey);
+              }}
+            />
+            Don&apos;t ask again
+          </label>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (overwriteSlot != null) {
+                  const existing = slots.find(
+                    (s) => s.slot === overwriteSlot,
+                  )?.theme;
+                  void performSave(
+                    overwriteSlot,
+                    existing?.name ?? "My Theme",
+                  );
+                  setOverwriteSlot(null);
+                }
+              }}
+            >
+              Overwrite
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete confirm */}
+      <AlertDialog
+        open={deleteTarget != null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {deleteTarget?.name ?? "this theme"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The slot becomes empty and the snapshot is gone for good.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteTarget) {
+                  void deleteSlot(deleteTarget.slot);
+                  toast.success(`Deleted "${deleteTarget.name}"`);
+                  setDeleteTarget(null);
+                }
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Discard-then-load confirm */}
+      <AlertDialog
+        open={discardThenLoad != null}
+        onOpenChange={(o) => !o && setDiscardThenLoad(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved theme changes. Loading{" "}
+              {discardThenLoad?.name ?? "this theme"} will replace them.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep editing</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (discardThenLoad) {
+                  void handleLoad(discardThenLoad);
+                  setDiscardThenLoad(null);
+                }
+              }}
+            >
+              Discard &amp; load
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
