@@ -329,6 +329,25 @@ type DragAction =
       fromSlot: number;
       toX: number;
       toY: number;
+    }
+  | {
+      // Tap-to-slot: card was tapped on the table and assigned to the
+      // lowest empty slot. Reversible: undo returns the card to the
+      // table at its previous coords and clears the slot.
+      kind: "tap-place";
+      cardId: number;
+      toSlot: number;
+      fromX: number;
+      fromY: number;
+    }
+  | {
+      // Tap-deselect: a slotted card was tapped and returned to the table
+      // at its lastTable coords. Undo restores the slot.
+      kind: "tap-unplace";
+      cardId: number;
+      fromSlot: number;
+      toX: number;
+      toY: number;
     };
 
 export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
