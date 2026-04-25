@@ -2044,6 +2044,10 @@ function CardSlot({
 
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (card.revealed) return; // never drag a face-up card
+    // Suppress the browser's native drag image / focus outline that would
+    // otherwise leave a "ghost" of the card at its original position once
+    // the user lifts their finger. Pointer events handle everything.
+    e.preventDefault();
     downPosRef.current = { x: e.clientX, y: e.clientY, cancelled: false };
     const rect = btnRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -2161,6 +2165,11 @@ function CardSlot({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
+      // Disable native HTML5 drag — we handle drag with pointer events.
+      // `draggable={false}` blocks the browser from initialising a drag
+      // image (which is the source of the dashed-outline ghost left
+      // behind on release).
+      draggable={false}
       disabled={disabled && !card.revealed}
       data-card-id={card.id}
       aria-label={
@@ -2171,7 +2180,7 @@ function CardSlot({
             : "Face-down card"
       }
       className={cn(
-        flying || flightPhase === "returning" || dragging
+        flying || flightPhase === "returning" || dragging || (skipFlight && slotRect)
           ? "fixed outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
           : "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
         // While stirring, animate left/top/transform together so the card
@@ -2184,6 +2193,9 @@ function CardSlot({
           : "card-idle-transition",
         // Remove default tap highlight on iOS / Android.
         "[-webkit-tap-highlight-color:transparent] touch-manipulation",
+        // Block the system drag-ghost on WebKit + suppress text selection
+        // and the focus outline that becomes a "dashed ring" artifact.
+        "select-none [-webkit-user-drag:none] [user-drag:none]",
         isSelected ? "z-30" : null,
       )}
       style={
@@ -2200,7 +2212,23 @@ function CardSlot({
               transform: "rotate(0deg) scale(1.05)",
               transition: "none",
               zIndex: 9999,
+              willChange: "left, top, transform",
               filter: "drop-shadow(0 12px 18px rgba(0,0,0,0.55))",
+              ["--card-hit-inset" as string]: `${hitInset}px`,
+            }
+          : skipFlight && slotRect
+          ? {
+              // Drag-drop placement: the card lives at its slot rect
+              // immediately, with no FLIP transition. The user already
+              // released over the slot — we don't want it to fly back
+              // out and in again.
+              left: slotRect.left,
+              top: slotRect.top,
+              width: slotRect.width,
+              height: slotRect.height,
+              transform: "rotate(0deg)",
+              transition: "none",
+              zIndex: 1500 + (card.selectionOrder ?? 0),
               ["--card-hit-inset" as string]: `${hitInset}px`,
             }
           : flightPhase === "returning" && returnFromRect && containerOrigin
