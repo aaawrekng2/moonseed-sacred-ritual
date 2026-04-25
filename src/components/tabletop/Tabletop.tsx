@@ -1051,7 +1051,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               color: "var(--gold)",
               opacity: restingAlpha,
               padding: "0 10px",
-              margin: "4px 0",
+              margin: "2px 0",
+              lineHeight: 1.2,
               letterSpacing: "0.08em",
               textShadow: "0 0 14px rgba(212,175,55,0.55)",
             }}
