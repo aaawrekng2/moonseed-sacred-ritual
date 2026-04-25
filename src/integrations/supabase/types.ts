@@ -14,7 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      user_preferences: {
+        Row: {
+          accent: string
+          card_back: string
+          resting_opacity: number
+          show_labels: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accent?: string
+          card_back?: string
+          resting_opacity?: number
+          show_labels?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accent?: string
+          card_back?: string
+          resting_opacity?: number
+          show_labels?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_streaks: {
+        Row: {
+          current_streak: number
+          last_draw_date: string | null
+          longest_streak: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          current_streak?: number
+          last_draw_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          current_streak?: number
+          last_draw_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
