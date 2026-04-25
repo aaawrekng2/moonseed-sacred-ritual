@@ -1957,9 +1957,13 @@ function UnsavedChangesGuard() {
               onClick={() => void discardAndProceed()}
               className="flex w-full flex-col items-start gap-1 px-1 py-3 text-left transition hover:text-gold"
             >
-              <span className="text-sm text-foreground">Keep exploring</span>
+              <span className="text-sm text-foreground">
+                {isOracle ? "Release these changes" : "Discard changes"}
+              </span>
               <span className="text-[11px] text-muted-foreground">
-                Changes are not saved and will be lost
+                {isOracle
+                  ? "Your atmosphere will return to its last saved state"
+                  : "Changes are not saved and will be lost"}
               </span>
             </button>
           </div>
