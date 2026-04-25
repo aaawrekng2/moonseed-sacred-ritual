@@ -56,6 +56,15 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
   const allRevealed = nextIndex === -1;
   const revealedCount = revealedFlags.filter(Boolean).length;
   const totalCount = picks.length;
+  // Friendly position name for the next required card. Falls back through
+  // the short labels and finally a generic "Card N" if the spread doesn't
+  // define position labels (e.g. single / daily / yes_no).
+  const nextLabel =
+    nextIndex >= 0
+      ? (meta.positions?.[nextIndex] ??
+        meta.positionsShort?.[nextIndex] ??
+        `Card ${nextIndex + 1}`)
+      : null;
 
   // Once every card is face-up, give the user a beat to take it in,
   // then push them into the reading.
@@ -182,6 +191,12 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
               }}
             >
               {revealedCount}/{totalCount} revealed
+              {nextLabel && (
+                <>
+                  <span style={{ opacity: 0.4, margin: "0 8px" }}>·</span>
+                  <span style={{ opacity: 0.95 }}>Next: {nextLabel}</span>
+                </>
+              )}
             </span>
           </div>
         )}
