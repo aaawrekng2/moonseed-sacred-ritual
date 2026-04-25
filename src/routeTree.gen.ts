@@ -9,12 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScatterTestRouteImport } from './routes/scatter-test'
 import { Route as JournalRouteImport } from './routes/journal'
 import { Route as DrawRouteImport } from './routes/draw'
 import { Route as CardsRouteImport } from './routes/cards'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ScatterTestRoute = ScatterTestRouteImport.update({
   id: '/scatter-test',
   path: '/scatter-test',
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/draw': typeof DrawRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/draw': typeof DrawRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +70,27 @@ export interface FileRoutesById {
   '/draw': typeof DrawRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
+  '/settings': typeof SettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cards' | '/draw' | '/journal' | '/scatter-test'
+  fullPaths:
+    | '/'
+    | '/cards'
+    | '/draw'
+    | '/journal'
+    | '/scatter-test'
+    | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cards' | '/draw' | '/journal' | '/scatter-test'
-  id: '__root__' | '/' | '/cards' | '/draw' | '/journal' | '/scatter-test'
+  to: '/' | '/cards' | '/draw' | '/journal' | '/scatter-test' | '/settings'
+  id:
+    | '__root__'
+    | '/'
+    | '/cards'
+    | '/draw'
+    | '/journal'
+    | '/scatter-test'
+    | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,10 +99,18 @@ export interface RootRouteChildren {
   DrawRoute: typeof DrawRoute
   JournalRoute: typeof JournalRoute
   ScatterTestRoute: typeof ScatterTestRoute
+  SettingsRoute: typeof SettingsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/scatter-test': {
       id: '/scatter-test'
       path: '/scatter-test'
@@ -125,6 +155,7 @@ const rootRouteChildren: RootRouteChildren = {
   DrawRoute: DrawRoute,
   JournalRoute: JournalRoute,
   ScatterTestRoute: ScatterTestRoute,
+  SettingsRoute: SettingsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
