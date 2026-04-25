@@ -997,32 +997,67 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </div>
         ) : null;
 
-        // While selection is still in progress we show a single italic
-        // "Draw" word that breathes — encouraging continued tapping
-        // without showing a hard counter. Once the final slot is filled
-        // the whisper is replaced by a single pulsing gold dot (the
-        // "transition cue") while the 1500ms sacred pause runs before
-        // the spread layout takes over.
+        // While selection is still in progress we show a two-line whisper:
+        //   line 1: "Draw: <Full Position Name>"  (e.g. "Draw: The Present")
+        //   line 2: a one-sentence description of that position
+        // The line 1 text breathes (existing animation); line 2 is calmer.
+        // For single-card spreads we just show "Draw".
+        const nextFullLabel = fullPositionLabels[selectedCount];
+        const nextDescription = positionDescriptions[selectedCount];
         const drawWord = (
-          <span
+          <div
             aria-live="polite"
-            aria-label={`Draw — ${required - selectedCount} more`}
-            className="font-display italic leading-none animate-breathe-glow"
+            aria-label={
+              nextFullLabel
+                ? `Draw ${nextFullLabel}${nextDescription ? `. ${nextDescription}` : ""}`
+                : `Draw — ${required - selectedCount} more`
+            }
+            className="flex flex-col items-center"
             style={{
-              fontSize: 18,
-              color: "var(--gold)",
-              opacity: restingAlpha,
               padding: "0 10px",
               margin: "2px 0",
-              lineHeight: 1.2,
-              letterSpacing: "0.08em",
-              textShadow: "0 0 14px rgba(212,175,55,0.55)",
+              gap: 2,
+              maxWidth: "min(92vw, 420px)",
             }}
           >
-            {usesSlots && slotLabels[selectedCount]
-              ? `Draw: ${slotLabels[selectedCount]}`
-              : "Draw"}
-          </span>
+            <span
+              className="font-display italic leading-none animate-breathe-glow"
+              style={{
+                fontSize: 18,
+                color: "var(--gold)",
+                opacity: restingAlpha,
+                lineHeight: 1.2,
+                letterSpacing: "0.08em",
+                textShadow: "0 0 14px rgba(212,175,55,0.55)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: "100%",
+              }}
+            >
+              {usesSlots && nextFullLabel
+                ? `Draw: ${nextFullLabel}`
+                : "Draw"}
+            </span>
+            {usesSlots && nextDescription && (
+              <span
+                className="font-display italic leading-none"
+                style={{
+                  fontSize: 11,
+                  color: "var(--gold)",
+                  opacity: 0.45,
+                  letterSpacing: "0.04em",
+                  textAlign: "center",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  maxWidth: "100%",
+                }}
+              >
+                {nextDescription}
+              </span>
+            )}
+          </div>
         );
 
         // Transition cue: a single gold dot that pulses softly during the
