@@ -1760,13 +1760,13 @@ function CardSlot({
             : "Face-down card"
       }
       className={cn(
-        flying || flightPhase === "returning"
+        flying || flightPhase === "returning" || dragging
           ? "fixed outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
           : "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
         // While stirring, animate left/top/transform together so the card
         // drifts to its new scatter slot. Otherwise keep the snappier
         // transform-only transition for selection feedback.
-        flying || flightPhase === "returning"
+        flying || flightPhase === "returning" || dragging
           ? null
           : stirring
           ? "card-stir-transition"
@@ -1776,7 +1776,23 @@ function CardSlot({
         isSelected ? "z-30" : null,
       )}
       style={
-        flightPhase === "returning" && returnFromRect && containerOrigin
+        dragging && dragPos
+          ? {
+              // Card is being dragged — follow the pointer with a slight
+              // lift (scale 1.05) and a subtle shadow. Selection state is
+              // preserved via the existing render path; only positioning
+              // is overridden here. zIndex jumps above every other card.
+              left: dragPos.x,
+              top: dragPos.y,
+              width: cardW,
+              height: cardH,
+              transform: "rotate(0deg) scale(1.05)",
+              transition: "none",
+              zIndex: 9999,
+              filter: "drop-shadow(0 12px 18px rgba(0,0,0,0.55))",
+              ["--card-hit-inset" as string]: `${hitInset}px`,
+            }
+          : flightPhase === "returning" && returnFromRect && containerOrigin
           ? {
               // Fixed positioning during return flight. Start at the last
               // slot rect; on the next frame transition to the new scatter
