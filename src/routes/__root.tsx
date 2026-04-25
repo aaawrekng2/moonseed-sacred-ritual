@@ -4,6 +4,7 @@ import appCss from "../styles.css?url";
 import { BottomNav } from "@/components/nav/BottomNav";
 import { useAuth } from "@/lib/auth";
 import { usePreferencesSync } from "@/lib/use-preferences-sync";
+import { OracleModeProvider } from "@/lib/use-oracle-mode";
 
 function NotFoundComponent() {
   return (
@@ -101,9 +102,11 @@ function RootComponent() {
   // own minimal header and exit affordance.
   const hideChrome = location.pathname.startsWith("/draw");
   return (
-    <div className="relative flex min-h-screen flex-col">
-      <Outlet />
-      {!hideChrome && <BottomNav />}
-    </div>
+    <OracleModeProvider>
+      <div className="relative flex min-h-screen flex-col">
+        <Outlet />
+        {!hideChrome && <BottomNav />}
+      </div>
+    </OracleModeProvider>
   );
 }
