@@ -883,6 +883,44 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-cosmos">
+      {/* Undo / Redo — fixed top-center, above the X close button. Only
+          rendered while there's something to undo or redo so the chrome
+          stays minimal during a fresh draw. */}
+      {(undoStack.length > 0 || redoStack.length > 0) && (
+        <div
+          style={{
+            position: "fixed",
+            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 60,
+            display: "flex",
+            gap: 8,
+            opacity: restingAlpha,
+          }}
+          className="transition-opacity hover:!opacity-100 focus-within:!opacity-100"
+        >
+          <button
+            type="button"
+            onClick={undo}
+            disabled={undoStack.length === 0}
+            aria-label="Undo last drag"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <Undo2 className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={redo}
+            disabled={redoStack.length === 0}
+            aria-label="Redo last drag"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <Redo2 className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
       {/* Temporary resting-opacity test slider — fixed upper-left, top
           layer so cards never sit above its controls. Desktop-only:
           hidden on mobile per design (it is a dev-only tool). */}
