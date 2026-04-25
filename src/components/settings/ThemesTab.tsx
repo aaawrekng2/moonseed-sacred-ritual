@@ -169,7 +169,6 @@ export function ThemesTab() {
 
 function ResetToDefaultsButton() {
   const { user } = useSettings();
-  const { setPreset } = useBgGradient();
   const { setOpacity } = useRestingOpacity();
   const { markClean } = useThemeDirty();
   const [open, setOpen] = useState(false);
@@ -177,7 +176,16 @@ function ResetToDefaultsButton() {
   const reset = async () => {
     setStoredCardBack(DEFAULT_CARD_BACK);
     applyAccentTheme("default");
-    setPreset("midnight");
+    if (typeof document !== "undefined") {
+      document.documentElement.style.setProperty(
+        "--bg-gradient-left",
+        DEFAULT_BG_LEFT,
+      );
+      document.documentElement.style.setProperty(
+        "--bg-gradient-right",
+        DEFAULT_BG_RIGHT,
+      );
+    }
     setOpacity(DEFAULT_RESTING_OPACITY);
     applyHeadingFont(DEFAULT_THEME_FONT);
     applyHeadingFontSize(DEFAULT_FONT_SIZE);
