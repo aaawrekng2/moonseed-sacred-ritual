@@ -22,7 +22,10 @@ import { cn } from "@/lib/utils";
 
 const TABLETOP_CONFIG = {
   CARD_ASPECT_RATIO: 1.75,
-  CARD_MAX_ROTATION: 8,
+  // Cards sit flat on the table — no rotation. The original scatter
+  // tilted each card by up to ±8°; per design the table now reads as a
+  // calm, axis-aligned spread so the eye isn't pulled around.
+  CARD_MAX_ROTATION: 0,
   SCATTER_PADDING: 10,
   SELECTION_GLOW_SPREAD: 6,
   SELECTION_GLOW_OPACITY: 0.8,
@@ -2107,7 +2110,7 @@ function CardSlot({
           ? null
           : stirring
           ? "card-stir-transition"
-          : "transition-transform duration-200 ease-out",
+          : "card-idle-transition",
         // Remove default tap highlight on iOS / Android.
         "[-webkit-tap-highlight-color:transparent] touch-manipulation",
         isSelected ? "z-30" : null,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ScrollText, Wand2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
@@ -13,7 +13,6 @@ import { setStoredCardBack } from "@/lib/card-backs";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { dispatchActiveThemeChanged } from "@/lib/theme-events";
 import { setStoredCommunityTheme } from "@/lib/community-themes";
-import { cn } from "@/lib/utils";
 
 /**
  * Apply every facet of a saved sanctuary to the live document so a
@@ -46,6 +45,102 @@ function applySanctuary(
   if (typeof theme.resting_opacity === "number") setOpacity(theme.resting_opacity);
 }
 
+/**
+ * Top-bar pill button: shows just the icon at rest, expands horizontally
+ * to icon + label when tapped, then contracts back to icon-only after
+ * 1500ms. The expansion uses a smooth width transition so the label
+ * appears to slide out of the icon. Used for both the Oracle/Plain
+ * toggle and the Sanctuary cycler — anywhere we need a brief, in-place
+ * confirmation of *what* the tap just did without a separate popover.
+ */
+function ExpandingIconButton({
+  icon,
+  label,
+  labelFont,
+  labelStyle = "muted",
+  isActive,
+  onClick,
+  ariaLabel,
+  title,
+}: {
+  icon: ReactNode;
+  label: string;
+  /** CSS font-family for the label text. */
+  labelFont?: string;
+  /** Italic gold (Oracle voice) vs. muted plain. */
+  labelStyle?: "italic-gold" | "muted";
+  /** Whether the underlying state is "on" — keeps the icon at full opacity. */
+  isActive?: boolean;
+  onClick: () => void;
+  ariaLabel: string;
+  title?: string;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const collapseTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (collapseTimer.current) window.clearTimeout(collapseTimer.current);
+    };
+  }, []);
+
+  const handleClick = () => {
+    onClick();
+    if (collapseTimer.current) window.clearTimeout(collapseTimer.current);
+    setExpanded(true);
+    collapseTimer.current = window.setTimeout(() => setExpanded(false), 1500);
+  };
+
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      title={title}
+      onClick={handleClick}
+      className="relative flex h-7 items-center justify-center overflow-hidden rounded-full text-gold focus:outline-none hover:!opacity-100 focus:!opacity-100"
+      style={{
+        // Width transitions from icon-only (1.75rem) to auto when expanded.
+        // Padding shifts in lockstep so the icon stays visually centred at
+        // rest and the label gets breathing room when expanded.
+        width: expanded ? "auto" : "1.75rem",
+        minWidth: "1.75rem",
+        paddingLeft: expanded ? "0.5rem" : "0",
+        paddingRight: expanded ? "0.5rem" : "0",
+        opacity: isActive ? 1 : "var(--ro-plus-0)",
+        background: expanded
+          ? "color-mix(in oklch, var(--gold) 12%, transparent)"
+          : "transparent",
+        border: expanded
+          ? "1px solid color-mix(in oklch, var(--gold) 30%, transparent)"
+          : "1px solid transparent",
+        transition:
+          "width 300ms cubic-bezier(0.22, 1, 0.36, 1), padding 300ms cubic-bezier(0.22, 1, 0.36, 1), background 200ms ease, border-color 200ms ease, opacity 200ms ease",
+      }}
+    >
+      {icon}
+      <span
+        aria-hidden
+        className="overflow-hidden whitespace-nowrap text-xs"
+        style={{
+          maxWidth: expanded ? "160px" : "0px",
+          opacity: expanded ? 1 : 0,
+          marginLeft: expanded ? "0.35rem" : "0",
+          fontFamily: labelFont,
+          fontStyle: labelStyle === "italic-gold" ? "italic" : "normal",
+          color:
+            labelStyle === "italic-gold"
+              ? "var(--gold)"
+              : "color-mix(in oklch, var(--gold) 70%, transparent)",
+          transition:
+            "max-width 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 150ms ease, margin-left 300ms cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
 interface Props {
   initial?: string;
 }
@@ -56,37 +151,11 @@ export function TopRightControls({ initial }: Props) {
   const { isOracle, toggle: toggleOracle } = useOracleMode();
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
-  const [oraclePopup, setOraclePopup] = useState<"in" | "out" | null>(null);
-  const popupTimers = useRef<{ out?: number; clear?: number }>({});
-
-  useEffect(() => {
-    return () => {
-      if (popupTimers.current.out) window.clearTimeout(popupTimers.current.out);
-      if (popupTimers.current.clear)
-        window.clearTimeout(popupTimers.current.clear);
-    };
-  }, []);
-
-  const showOraclePopup = () => {
-    if (popupTimers.current.out) window.clearTimeout(popupTimers.current.out);
-    if (popupTimers.current.clear)
-      window.clearTimeout(popupTimers.current.clear);
-    setOraclePopup("in");
-    popupTimers.current.out = window.setTimeout(
-      () => setOraclePopup("out"),
-      1500,
-    );
-    popupTimers.current.clear = window.setTimeout(
-      () => setOraclePopup(null),
-      1500 + 300,
-    );
-  };
-
-  const handleOracleClick = () => {
-    toggleOracle();
-    // Show the popup with the *new* mode label.
-    showOraclePopup();
-  };
+  // After cycling the wand we briefly show the just-loaded sanctuary
+  // name inside the wand pill so the user knows which atmosphere is now
+  // active. Tracked here (rather than inside ExpandingIconButton) so the
+  // label reflects the freshly-loaded sanctuary, not the previous one.
+  const [wandLabel, setWandLabel] = useState<string | null>(null);
 
   const derivedInitial =
     initial ??
@@ -121,6 +190,8 @@ export function TopRightControls({ initial }: Props) {
       sanctuarySlot: next.slot,
       communityKey: null,
     });
+    // Surface the loaded name briefly inside the wand pill.
+    setWandLabel(next.name);
   };
 
   const currentLabel =
@@ -133,50 +204,30 @@ export function TopRightControls({ initial }: Props) {
       className="fixed right-4 z-50 flex items-center gap-2"
       style={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
     >
-      <button
-        type="button"
-        aria-label={`Toggle Oracle voice (currently ${isOracle ? "Oracle" : "Plain"})`}
+      <ExpandingIconButton
+        icon={<ScrollText size={18} strokeWidth={1.5} />}
+        // After toggleOracle() runs synchronously inside onClick, the
+        // next render's `isOracle` reflects the *new* mode, so the
+        // pill expands with the correct label.
+        label={isOracle ? "Oracle" : "Plain"}
+        labelFont={isOracle ? "var(--font-serif)" : "var(--font-sans)"}
+        labelStyle={isOracle ? "italic-gold" : "muted"}
+        isActive={isOracle}
+        onClick={toggleOracle}
+        ariaLabel={`Toggle Oracle voice (currently ${isOracle ? "Oracle" : "Plain"})`}
         title={isOracle ? "Oracle voice on" : "Plain voice"}
-        onClick={handleOracleClick}
-        style={{ opacity: isOracle ? 1 : "var(--ro-plus-0)" }}
-        className="relative flex h-7 w-7 items-center justify-center text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none"
-      >
-        <ScrollText size={18} strokeWidth={1.5} />
-        {oraclePopup && (
-          <span
-            aria-hidden
-            className={cn(
-              "pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap text-xs",
-              // Note: `isOracle` is the *new* mode after toggle.
-              isOracle
-                ? "italic text-gold"
-                : "text-muted-foreground",
-              oraclePopup === "in"
-                ? "animate-in fade-in duration-150"
-                : "animate-out fade-out duration-300",
-            )}
-            style={{
-              fontFamily: isOracle
-                ? "var(--font-serif)"
-                : "var(--font-sans)",
-            }}
-          >
-            {isOracle ? "Oracle" : "Plain"}
-          </span>
-        )}
-      </button>
+      />
 
       {occupied.length > 0 && (
-        <button
-          type="button"
-          aria-label={`Cycle saved sanctuaries (current: ${currentLabel})`}
-          title={`Sanctuary: ${currentLabel}`}
+        <ExpandingIconButton
+          icon={<Wand2 size={18} strokeWidth={1.5} />}
+          label={wandLabel ?? currentLabel}
+          labelFont="var(--font-serif)"
+          labelStyle="italic-gold"
           onClick={cycleSanctuary}
-          style={{ opacity: "var(--ro-plus-0)" }}
-          className="flex h-7 w-7 items-center justify-center text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none"
-        >
-          <Wand2 size={18} strokeWidth={1.5} />
-        </button>
+          ariaLabel={`Cycle saved sanctuaries (current: ${currentLabel})`}
+          title={`Sanctuary: ${currentLabel}`}
+        />
       )}
 
       <button

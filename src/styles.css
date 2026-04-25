@@ -438,6 +438,17 @@ html, body {
     transform 700ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Idle (non-dragging, non-stirring, non-flying) transition for cards on
+   the tabletop. Includes left/top so an `undo` that re-positions a card
+   smoothly translates it back to its prior coordinates instead of
+   snapping. The transform stays snappy for selection feedback. */
+.card-idle-transition {
+  transition:
+    left 300ms cubic-bezier(0.22, 1, 0.36, 1),
+    top 300ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 200ms ease-out;
+}
+
 /* During a stir, briefly soften unselected cards: opacity dips and a small
    blur is applied at the midpoint, then both restore. Combined with the
    position transition this reads as the cards "gliding" through space
