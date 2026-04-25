@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Eye, EyeOff, Sparkles, X } from "lucide-react";
+import { Eye, EyeOff, Sparkles, Undo2, Redo2, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -204,6 +204,36 @@ type CardState = ScatterCard & {
   originalRotation: number;
   originalZ: number;
 };
+
+/* ------------------------------------------------------------------ */
+/*  Drag + undo/redo                                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Session-only undo/redo actions captured each time the user drags a
+ * card. The Tabletop applies these forward (do/redo) and inversely
+ * (undo). Cleared when the tabletop unmounts (the user exits the draw).
+ *
+ *  - "move"     — card dragged from (fromX,fromY) → (toX,toY) on the table
+ *  - "place"    — card dragged into a slot (slotIndex 0-based). May
+ *                 displace another card whose previous slot is recorded.
+ *  - "displace" — card dragged off a slot back to the table at (toX,toY).
+ */
+type DragAction =
+  | { kind: "move"; cardId: number; fromX: number; fromY: number; toX: number; toY: number }
+  | {
+      kind: "place";
+      cardId: number;
+      slotIndex: number;
+      fromX: number;
+      fromY: number;
+      // If the slot already held a card, that card is bumped to its
+      // previous on-table coordinates. Both endpoints are stored so we
+      // can undo/redo without losing the displaced card's whereabouts.
+      displacedCardId: number | null;
+      displacedFromX: number;
+      displacedFromY: number;
+    };
 
 export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const meta = SPREAD_META[spread];
