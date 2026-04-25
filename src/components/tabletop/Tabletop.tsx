@@ -206,6 +206,25 @@ type CardState = ScatterCard & {
   originalY: number;
   originalRotation: number;
   originalZ: number;
+  /**
+   * Last known position the card occupied while resting on the table.
+   * Updated whenever the user drops the card on the table (drag-move or
+   * drag-unplace). When a slotted card is returned to the table by a
+   * tap (deselect) or by being displaced, it goes back to this spot
+   * rather than its original random scatter coords — so the user's
+   * deliberate placement is preserved.
+   */
+  lastTableX: number;
+  lastTableY: number;
+  lastTableRotation: number;
+  /**
+   * Set when the card just landed in a slot via a physical drag-drop
+   * (rather than a tap). The flight animation is skipped for this
+   * card on the next render — it appears in its slot exactly where
+   * the user released it. Cleared once the card transitions back to
+   * the table or another action runs.
+   */
+  isDragDrop?: boolean;
 };
 
 /* ------------------------------------------------------------------ */
