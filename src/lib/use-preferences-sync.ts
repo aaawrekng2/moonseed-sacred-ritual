@@ -166,6 +166,8 @@ export function usePreferencesSync(): void {
     return () => {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener(OPACITY_EVENT, onOpacity);
+      window.removeEventListener("moonseed:show-labels-changed", onOpacity);
+      window.removeEventListener("moonseed:card-back-changed", onOpacity);
       document.removeEventListener("visibilitychange", onVisibility);
       if (timer) clearTimeout(timer);
     };
