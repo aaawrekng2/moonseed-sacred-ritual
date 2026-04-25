@@ -1068,6 +1068,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       .filter((c) => c.selectionOrder !== null)
       .sort((a, b) => (a.selectionOrder ?? 0) - (b.selectionOrder ?? 0));
     const timer = window.setTimeout(() => {
+      // Reading complete — the in-flight session is done. Clear the
+      // snapshot so navigating back to /draw produces a fresh draw.
+      clearTabletopSession(spread);
       onComplete(
         picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
         "cast",
