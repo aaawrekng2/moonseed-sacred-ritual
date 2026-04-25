@@ -658,7 +658,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   }, [ready, required]);
 
   return (
-    <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]">
+    <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-cosmos">
+      <span aria-hidden="true" className="tabletop-gutter-left" />
+      <span aria-hidden="true" className="tabletop-gutter-right" />
       {/* Temporary resting-opacity test slider — fixed upper-left, top
           layer so cards never sit above its controls. Desktop-only:
           hidden on mobile per design (it is a dev-only tool). */}
@@ -805,18 +807,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       <div
         ref={containerRef}
         className={cn(
-          "relative flex-1 overflow-hidden select-none",
+          "tabletop-stage relative flex-1 overflow-hidden select-none",
           stirring && "animate-tabletop-tilt",
         )}
         style={{
           paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)",
-          // Cap the scatter width on large screens so the 78-card spread
-          // stays visually dense instead of stretching across ultrawide
-          // monitors. Mobile/tablet layouts still take the full width.
-          maxWidth: 900,
-          width: "100%",
-          marginLeft: "auto",
-          marginRight: "auto",
         }}
       >
         {cards.map((c, idx) => (
@@ -1107,7 +1102,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
         const controlsRow = (
           <div
-            className="relative flex items-end justify-center"
+            className="tabletop-bottom-bar relative flex items-end justify-center"
             style={{
               paddingBottom:
                 isMobile && showSlotRail
