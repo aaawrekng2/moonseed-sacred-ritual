@@ -1,6 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
 import { Wand2 } from "lucide-react";
-import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { BG_PRESETS, useBgGradient, type BgPresetName } from "@/lib/use-bg-gradient";
 import { useAuth } from "@/lib/auth";
 
@@ -19,8 +18,6 @@ interface Props {
 
 export function TopRightControls({ initial }: Props) {
   const { preset, setPreset } = useBgGradient();
-  const { opacity } = useRestingOpacity();
-  const restingAlpha = opacity / 100;
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -56,7 +53,9 @@ export function TopRightControls({ initial }: Props) {
         aria-label={`Cycle background theme (current: ${currentLabel})`}
         title={`Theme: ${currentLabel}`}
         onClick={cycleTheme}
-        style={{ opacity: restingAlpha }}
+        // Top bar icons sit at the global resting opacity at rest and
+        // pop to full on hover/focus.
+        style={{ opacity: "var(--ro-plus-0)" }}
         className="flex h-7 w-7 items-center justify-center text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none"
       >
         <Wand2 size={18} strokeWidth={1.5} />
@@ -66,7 +65,7 @@ export function TopRightControls({ initial }: Props) {
         type="button"
         aria-label="Open settings"
         onClick={() => navigate({ to: "/settings" })}
-        style={{ opacity: restingAlpha }}
+        style={{ opacity: "var(--ro-plus-0)" }}
         className="flex h-7 w-7 items-center justify-center rounded-full font-display text-[13px] leading-none text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none"
         css-hint="gold-circle"
       >
