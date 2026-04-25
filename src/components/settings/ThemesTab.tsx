@@ -1201,6 +1201,7 @@ function CommunityThemesSection() {
 
 function SavedThemesSection() {
   const { prefs } = useSettings();
+  const { isOracle } = useOracleMode();
   const {
     themes,
     activeSlot,
@@ -1210,7 +1211,7 @@ function SavedThemesSection() {
     setActiveSlot,
   } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
-  const { hasUnsavedChanges, markClean } = useThemeDirty();
+  const { hasUnsavedChanges, markClean, setBaseline } = useThemeDirty();
 
   const [nameDialogSlot, setNameDialogSlot] = useState<number | null>(null);
   const [nameDraft, setNameDraft] = useState("");
@@ -1249,7 +1250,19 @@ function SavedThemesSection() {
     window.localStorage.getItem(dontAskKey) === "1";
 
   const performSave = async (slot: number, name: string) => {
-    await saveSlot(slot, captureCurrent(name));
+    const snap = captureCurrent(name);
+    await saveSlot(slot, snap);
+    setBaseline({
+      accent: getAccentTheme(),
+      accent_color: prefs.accent_color ?? null,
+      bg_left: snap.bg_left,
+      bg_right: snap.bg_right,
+      font: snap.font ?? DEFAULT_THEME_FONT,
+      font_size: snap.font_size ?? DEFAULT_FONT_SIZE,
+      card_back: snap.card_back ?? DEFAULT_CARD_BACK,
+      resting_opacity: snap.resting_opacity ?? DEFAULT_RESTING_OPACITY,
+      oracle_mode: isOracle,
+    });
     markClean();
     toast.success(`Saved to slot ${slot}`);
   };
@@ -1292,6 +1305,17 @@ function SavedThemesSection() {
     if (typeof theme.resting_opacity === "number")
       setOpacity(theme.resting_opacity);
     await setActiveSlot(theme.slot);
+    setBaseline({
+      accent: getAccentTheme(),
+      accent_color: theme.accent ?? null,
+      bg_left: theme.bg_left,
+      bg_right: theme.bg_right,
+      font: (theme.font as ThemeFont) ?? DEFAULT_THEME_FONT,
+      font_size: theme.font_size ?? DEFAULT_FONT_SIZE,
+      card_back: (theme.card_back as CardBackId) ?? DEFAULT_CARD_BACK,
+      resting_opacity: theme.resting_opacity ?? DEFAULT_RESTING_OPACITY,
+      oracle_mode: isOracle,
+    });
     markClean();
     toast.success(`Loaded "${theme.name}"`);
   };
