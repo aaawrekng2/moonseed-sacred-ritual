@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 
 // Moonseed-native accent resolver — reads --gold from active CSS theme.
-// Replaces Arcana's useReadingModeColorResolver until Phase 3 theme system is wired.
 function useMoonseedAccent(): string {
   const [accent, setAccent] = useState("#f1ba4b");
   useEffect(() => {
