@@ -1556,6 +1556,19 @@ function CardSlot({
           <div className="flip-face back">
             <CardBack id={cardBack} width={cardW} className="h-full w-full" />
           </div>
+          {(() => {
+            // TEMP debug: verify the front face has a valid card index and
+            // resolved image URL on every render. Remove once card faces are
+            // confirmed rendering correctly.
+            // eslint-disable-next-line no-console
+            console.log("[CardView] front-face render", {
+              cardId: card.id,
+              faceIndex,
+              imagePath: getCardImagePath(faceIndex),
+              revealed: card.revealed,
+            });
+            return null;
+          })()}
           <div className="flip-face front overflow-hidden rounded-[10px] border border-gold/40 bg-card">
             {/* Always render the face image so it's loaded and decoded before
                 the flip animation reaches the apex — gating on `card.revealed`
