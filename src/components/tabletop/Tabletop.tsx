@@ -1557,23 +1557,19 @@ function CardSlot({
             <CardBack id={cardBack} width={cardW} className="h-full w-full" />
           </div>
           <div className="flip-face front overflow-hidden rounded-[10px] border border-gold/40 bg-card">
-            {card.revealed ? (
-              <img
-                src={getCardImagePath(faceIndex)}
-                alt={getCardName(faceIndex)}
-                className="h-full w-full object-cover"
-                loading="lazy"
-                onError={(e) => {
-                  // Fallback: show the card name on a dark surface if face image is missing.
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
-              />
-            ) : null}
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-1 text-center">
-              <span className="font-display text-[8px] leading-tight text-foreground/70">
-                {getCardName(faceIndex)}
-              </span>
-            </div>
+            {/* Always render the face image so it's loaded and decoded before
+                the flip animation reaches the apex — gating on `card.revealed`
+                left the front blank for the first reveal. The back covers it
+                until the rotation completes (backface-visibility: hidden). */}
+            <img
+              src={getCardImagePath(faceIndex)}
+              alt={getCardName(faceIndex)}
+              className="h-full w-full object-cover"
+              loading="eager"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).style.display = "none";
+              }}
+            />
             {faceGlowing && (
               <span
                 key={`face-glow-${faceGlowTick}`}

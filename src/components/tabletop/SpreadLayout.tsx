@@ -385,22 +385,18 @@ function CardFace({
           <CardBack id={cardBack} width={sizing.w} className="h-full w-full" />
         </div>
         <div className="flip-face front overflow-hidden rounded-[10px] border border-gold/40 bg-card">
-          {revealed ? (
-            <img
-              src={getCardImagePath(pick.cardIndex)}
-              alt={getCardName(pick.cardIndex)}
-              className="h-full w-full object-cover"
-              loading="lazy"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
-              }}
-            />
-          ) : null}
-          <div className="pointer-events-none absolute inset-0 flex items-end justify-center p-1 text-center">
-            <span className="font-display text-[8px] leading-tight text-foreground/80 bg-background/40 rounded px-1">
-              {getCardName(pick.cardIndex)}
-            </span>
-          </div>
+          {/* Always render the face image so it's preloaded before the flip
+              animation begins — otherwise the first reveal shows a blank
+              front while the image is still fetching. */}
+          <img
+            src={getCardImagePath(pick.cardIndex)}
+            alt={getCardName(pick.cardIndex)}
+            className="h-full w-full object-cover"
+            loading="eager"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }}
+          />
         </div>
       </div>
       {interactive && (
