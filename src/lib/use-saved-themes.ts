@@ -173,6 +173,18 @@ export function useSavedThemes() {
     void fetchFromServer();
   }, [fetchFromServer]);
 
+  // Cross-instance sync: when one component updates the active sanctuary
+  // (e.g. the wand in TopRightControls), every other mounted hook
+  // refreshes from the server so its local activeSlot stays in step.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const refresh = () => void fetchFromServer();
+    window.addEventListener("moonseed:sanctuary-changed", refresh);
+    return () => {
+      window.removeEventListener("moonseed:sanctuary-changed", refresh);
+    };
+  }, [fetchFromServer]);
+
   const persist = useCallback(
     async (next: SavedTheme[]) => {
       setThemes(next);
