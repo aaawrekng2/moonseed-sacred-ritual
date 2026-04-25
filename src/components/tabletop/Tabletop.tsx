@@ -2330,7 +2330,9 @@ function CardSlot({
                     : returnFromRect && cardW > 0
                       ? `scale(${returnFromRect.width / cardW})`
                       : "scale(1)"
-                  : undefined,
+                  : skipFlight && slotRect && cardW > 0
+                    ? `scale(${slotRect.width / cardW})`
+                    : undefined,
           transformOrigin: "top left",
           transition:
             flightPhase === "arrived" || flightPhase === "returning"
