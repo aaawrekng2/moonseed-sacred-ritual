@@ -1599,3 +1599,327 @@ function SavedThemesSection() {
     </SettingsSection>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Oracle-mode dirty watcher                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The Oracle/Plain toggle lives in the global top bar. When the user
+ * flips it while sitting in the Themes tab we still want the unsaved-
+ * changes prompt to fire if they navigate away. This component watches
+ * the oracle flag against the baseline and calls `markDirty()` when it
+ * diverges.
+ */
+function OracleDirtyWatcher() {
+  const { isOracle } = useOracleMode();
+  const { baseline, markDirty } = useThemeDirty();
+  useEffect(() => {
+    if (!baseline) return;
+    if (isOracle !== baseline.oracle_mode) markDirty();
+  }, [isOracle, baseline, markDirty]);
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Unsaved-changes navigation guard                                   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Intercepts navigation away from /settings/themes when there are
+ * unsaved theme changes and shows a zen prompt with four options:
+ *
+ *   1. Save to current sanctuary  (when an active slot is loaded)
+ *   2. Preserve as new sanctuary  (when at least one slot is empty)
+ *   3. Replace a sanctuary        (when ALL slots are full — replaces #2)
+ *   4. Keep exploring             (discard, revert to baseline)
+ *
+ * Uses TanStack Router's `useBlocker` with `withResolver: true` so we
+ * can show the dialog and either `proceed()` or `reset()` the pending
+ * navigation based on the user's choice.
+ */
+function UnsavedChangesGuard() {
+  const { user, prefs, setPrefs } = useSettings();
+  const { hasUnsavedChanges, markClean, baseline } = useThemeDirty();
+  const { isOracle, setOracle } = useOracleMode();
+  const { themes, activeSlot, saveSlot, setActiveSlot } = useSavedThemes();
+  const { setOpacity } = useRestingOpacity();
+
+  const blocker = useBlocker({
+    shouldBlockFn: ({ current, next }) => {
+      if (!hasUnsavedChanges) return false;
+      // Don't block intra-tab navigation (no real change).
+      if (current.pathname === next.pathname) return false;
+      return true;
+    },
+    enableBeforeUnload: () => hasUnsavedChanges,
+    withResolver: true,
+  });
+
+  const [nameMode, setNameMode] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+
+  // Find the next empty slot (1..MAX_SAVED_THEMES) for "Save as new".
+  const nextEmptySlot = useMemo(() => {
+    const taken = new Set(themes.map((t) => t.slot));
+    for (let s = 1; s <= MAX_SAVED_THEMES; s++) {
+      if (!taken.has(s)) return s;
+    }
+    return null;
+  }, [themes]);
+
+  const allFull = nextEmptySlot == null;
+  const activeTheme = useMemo(
+    () => themes.find((t) => t.slot === activeSlot) ?? null,
+    [themes, activeSlot],
+  );
+
+  const open = blocker.status === "blocked";
+  const proceed = useCallback(() => {
+    markClean();
+    if (blocker.status === "blocked") blocker.proceed();
+  }, [blocker, markClean]);
+  const cancel = useCallback(() => {
+    if (blocker.status === "blocked") blocker.reset();
+    setNameMode(false);
+    setNameDraft("");
+  }, [blocker]);
+
+  const captureCurrent = useCallback(
+    (overrideName?: string): Omit<SavedTheme, "slot"> => ({
+      name: (overrideName ?? "My Theme").trim().slice(0, 20) || "My Theme",
+      bg_left: prefs.bg_gradient_from ?? DEFAULT_BG_LEFT,
+      bg_right: prefs.bg_gradient_to ?? DEFAULT_BG_RIGHT,
+      accent: prefs.accent_color ?? "#f59e0b",
+      font: (prefs.heading_font as ThemeFont) ?? DEFAULT_THEME_FONT,
+      font_size: prefs.heading_font_size ?? DEFAULT_FONT_SIZE,
+      card_back: getStoredCardBack(),
+      resting_opacity: prefs.resting_opacity ?? DEFAULT_RESTING_OPACITY,
+    }),
+    [prefs],
+  );
+
+  // Option 1: save to active sanctuary.
+  const saveToActive = useCallback(async () => {
+    if (!activeTheme) return;
+    await saveSlot(activeTheme.slot, captureCurrent(activeTheme.name));
+    toast.success(`Saved to ${activeTheme.name}`);
+    proceed();
+  }, [activeTheme, captureCurrent, saveSlot, proceed]);
+
+  // Option 2: save as new sanctuary (after name input).
+  const saveAsNew = useCallback(async () => {
+    if (nextEmptySlot == null) return;
+    const name = nameDraft.trim() || "My Theme";
+    await saveSlot(nextEmptySlot, captureCurrent(name));
+    await setActiveSlot(nextEmptySlot);
+    toast.success(`Preserved as "${name}"`);
+    setNameMode(false);
+    setNameDraft("");
+    proceed();
+  }, [
+    nextEmptySlot,
+    nameDraft,
+    captureCurrent,
+    saveSlot,
+    setActiveSlot,
+    proceed,
+  ]);
+
+  // Option 3: replace a sanctuary — close the dialog, scroll to the
+  // sanctuaries section so the user can pick which slot to overwrite.
+  // Does NOT proceed with navigation.
+  const replaceFlow = useCallback(() => {
+    if (blocker.status === "blocked") blocker.reset();
+    setNameMode(false);
+    setNameDraft("");
+    if (typeof document !== "undefined") {
+      const el = document.querySelector(
+        "[aria-label='Your sanctuaries']",
+      ) as HTMLElement | null;
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [blocker]);
+
+  // Option 4: keep exploring → discard all changes, revert to baseline.
+  const discardAndProceed = useCallback(async () => {
+    if (baseline) {
+      // Restore card back, accent, gradient, font, font size, opacity.
+      setStoredCardBack(baseline.card_back);
+      applyAccentTheme(baseline.accent);
+      if (typeof document !== "undefined") {
+        document.documentElement.style.setProperty(
+          "--bg-gradient-left",
+          baseline.bg_left,
+        );
+        document.documentElement.style.setProperty(
+          "--bg-gradient-right",
+          baseline.bg_right,
+        );
+        if (baseline.accent_color) {
+          document.documentElement.style.setProperty(
+            "--gold",
+            baseline.accent_color,
+          );
+          document.documentElement.style.setProperty(
+            "--primary",
+            baseline.accent_color,
+          );
+          document.documentElement.style.setProperty(
+            "--ring",
+            `${baseline.accent_color}99`,
+          );
+        } else {
+          document.documentElement.style.removeProperty("--gold");
+          document.documentElement.style.removeProperty("--primary");
+          document.documentElement.style.removeProperty("--ring");
+        }
+      }
+      applyHeadingFont(baseline.font);
+      applyHeadingFontSize(baseline.font_size);
+      setOpacity(baseline.resting_opacity);
+      if (isOracle !== baseline.oracle_mode) setOracle(baseline.oracle_mode);
+      // Persist the reverted state so future loads see the baseline.
+      await updateUserPreferences(user.id, {
+        card_back: baseline.card_back,
+        accent: baseline.accent,
+        accent_color: baseline.accent_color,
+        bg_gradient_from: baseline.accent_color
+          ? baseline.bg_left.toLowerCase()
+          : null,
+        bg_gradient_to: baseline.accent_color
+          ? baseline.bg_right.toLowerCase()
+          : null,
+        heading_font: baseline.font,
+        heading_font_size: baseline.font_size,
+        resting_opacity: baseline.resting_opacity,
+      });
+      setPrefs({
+        ...prefs,
+        accent_color: baseline.accent_color,
+        bg_gradient_from: baseline.accent_color
+          ? baseline.bg_left.toLowerCase()
+          : null,
+        bg_gradient_to: baseline.accent_color
+          ? baseline.bg_right.toLowerCase()
+          : null,
+        heading_font: baseline.font,
+        heading_font_size: baseline.font_size,
+        resting_opacity: baseline.resting_opacity,
+      });
+    }
+    proceed();
+  }, [baseline, isOracle, setOracle, setOpacity, proceed, user, prefs, setPrefs]);
+
+  return (
+    <AlertDialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) cancel();
+      }}
+    >
+      <AlertDialogContent className="panel animate-in fade-in duration-200">
+        <AlertDialogHeader>
+          <AlertDialogTitle
+            className="italic text-gold"
+            style={{ fontFamily: "var(--font-serif)" }}
+          >
+            {isOracle
+              ? "Your atmosphere has shifted"
+              : "You have unsaved changes"}
+          </AlertDialogTitle>
+          <AlertDialogDescription className="sr-only">
+            Choose how to handle your unsaved theme changes before leaving.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        {!nameMode ? (
+          <div className="flex flex-col">
+            {activeTheme && (
+              <button
+                type="button"
+                onClick={() => void saveToActive()}
+                className="flex w-full items-center justify-between gap-3 border-b border-border/40 px-1 py-3 text-left text-sm text-foreground transition hover:text-gold"
+              >
+                <span>
+                  {isOracle
+                    ? `Save to ${activeTheme.name}`
+                    : "Save to current theme"}
+                </span>
+                <Save className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+
+            {!allFull ? (
+              <button
+                type="button"
+                onClick={() => setNameMode(true)}
+                className="flex w-full items-center justify-between gap-3 border-b border-border/40 px-1 py-3 text-left text-sm text-foreground transition hover:text-gold"
+              >
+                <span>
+                  {isOracle ? "Preserve as new sanctuary" : "Save as new theme"}
+                </span>
+                <Plus className="h-4 w-4 text-muted-foreground" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={replaceFlow}
+                className="flex w-full items-center justify-between gap-3 border-b border-border/40 px-1 py-3 text-left text-sm text-foreground transition hover:text-gold"
+              >
+                <span>
+                  {isOracle ? "Replace a sanctuary" : "Replace a saved theme"}
+                </span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => void discardAndProceed()}
+              className="flex w-full flex-col items-start gap-1 px-1 py-3 text-left transition hover:text-gold"
+            >
+              <span className="text-sm text-foreground">Keep exploring</span>
+              <span className="text-[11px] text-muted-foreground">
+                Changes are not saved and will be lost
+              </span>
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Name this {isOracle ? "sanctuary" : "theme"}
+            </Label>
+            <Input
+              autoFocus
+              value={nameDraft}
+              onChange={(e) => setNameDraft(e.target.value)}
+              maxLength={20}
+              placeholder="Midnight Garden"
+              style={{ fontSize: 16 }}
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setNameMode(false);
+                  setNameDraft("");
+                }}
+                className="flex-1"
+              >
+                Back
+              </Button>
+              <Button
+                onClick={() => void saveAsNew()}
+                className="flex-1 bg-gold-gradient text-gold-foreground hover:opacity-95"
+              >
+                <Save className="mr-1 h-4 w-4" />
+                Save
+              </Button>
+            </div>
+          </div>
+        )}
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
