@@ -1258,103 +1258,77 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       </div>
       )}
 
-      {/* Overlap debug pill — fixed upper-right, leaves room for the X
-          close button in the bottom bar but mirrors the dev slider on
-          the opposite corner. Desktop only. */}
-      {!isMobile && (
-        <button
-          type="button"
-          onClick={() => setDebugOverlap((v) => !v)}
-          aria-pressed={debugOverlap}
-          aria-label="Toggle overlap debug overlay"
-          style={{
-            position: "fixed",
-            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-            right: "calc(env(safe-area-inset-right, 0px) + 52px)",
-            zIndex: 50,
-            opacity: debugOverlap ? 1 : restingAlpha,
-          }}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
-            "font-display text-[9px] uppercase tracking-[0.25em] transition-opacity",
-            "hover:!opacity-100 focus:!opacity-100 focus:outline-none",
-            debugOverlap
-              ? "border-destructive/70 text-destructive-foreground bg-destructive/20"
-              : "border-gold/30 text-gold/70",
-          )}
-        >
-          <span
-            aria-hidden="true"
-            className={cn(
-              "h-1.5 w-1.5 rounded-full",
-              debugOverlap ? "bg-destructive" : "bg-gold/50",
-            )}
-          />
-          Overlap {debugOverlap ? "On" : "Off"}
-        </button>
-      )}
-
-      {/* Right-side vertical control stack: X (exit), Stir (shuffle),
-          Eye (toggle position labels). Per design: all three live in a
-          fixed column on the right edge so the bottom bar can be reserved
-          purely for the slot rail and Draw / Reveal · Cast whisper. */}
+      {/* Standard top-bar controls (profile, sanctuary cycler, Oracle/Plain
+          toggle) plus a draw-only X close button and three-level eye for
+          the draw screen's whisper/label density. The X stays in its
+          historical position on the far right; the eye sits next to it. */}
       <div
         style={{
           position: "fixed",
           top: "calc(env(safe-area-inset-top, 0px) + 12px)",
           right: "calc(env(safe-area-inset-right, 0px) + 12px)",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-end",
-          gap: 12,
+          alignItems: "center",
+          gap: 8,
           zIndex: 60,
           pointerEvents: "auto",
         }}
       >
         <button
           type="button"
+          onClick={cycleDensity}
+          aria-label={
+            densityLevel === 0
+              ? "Hide draw whisper"
+              : densityLevel === 1
+                ? "Hide spread position labels"
+                : "Show spread position labels and draw whisper"
+          }
+          title={
+            densityLevel === 0
+              ? "Whisper + labels"
+              : densityLevel === 1
+                ? "Labels only"
+                : "Minimal"
+          }
+          style={{
+            opacity: densityLevel === 0
+              ? Math.min(1, restingAlpha + 0.15)
+              : restingAlpha,
+          }}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        >
+          {densityLevel === 0 ? (
+            <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          ) : densityLevel === 1 ? (
+            <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          ) : (
+            <EyeClosed className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          )}
+        </button>
+        <button
+          type="button"
           onClick={handleExit}
           aria-label="Close tabletop"
           style={{ opacity: exitAlpha }}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
         >
-          <X className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+          <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         </button>
-        <button
-            type="button"
-            onClick={triggerStir}
-            disabled={stirring}
-            aria-label="Stir — rearrange unselected cards"
-            style={{ opacity: restingAlpha }}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed"
-          >
-            <Sparkles className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
-          </button>
-        {usesSlots && (
-          <button
-            type="button"
-            onClick={toggleShowLabels}
-            aria-pressed={showLabels}
-            aria-label={
-              showLabels
-                ? "Hide spread position labels"
-                : "Show spread position labels"
-            }
-            title={showLabels ? "Hide labels" : "Show labels"}
-            style={{
-              opacity: showLabels
-                ? Math.min(1, restingAlpha + 0.15)
-                : restingAlpha,
-            }}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          >
-            {showLabels ? (
-              <Eye className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
-            ) : (
-              <EyeOff className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
-            )}
-          </button>
-        )}
+      </div>
+      {/* Standard right-side controls (profile / sanctuary / oracle).
+          Renders to the LEFT of the X+eye pair via its own fixed
+          positioning offset. */}
+      <div
+        style={{
+          position: "fixed",
+          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          right: "calc(env(safe-area-inset-right, 0px) + 96px)",
+          zIndex: 60,
+          pointerEvents: "auto",
+        }}
+      >
+        <TopRightControlsInline />
       </div>
 
       {/* Tabletop scatter area */}
