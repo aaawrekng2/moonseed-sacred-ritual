@@ -1204,6 +1204,9 @@ function CommunityThemesSection() {
       bg_gradient_to: theme.bgRight.toLowerCase(),
       accent_color: theme.accent.toLowerCase(),
     });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("moonseed:theme-changed"));
+    }
     toast.success(`Applied ${theme.name}`);
   };
 
