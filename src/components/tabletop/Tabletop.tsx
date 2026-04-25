@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Loader2, Sparkles, X } from "lucide-react";
+import { Loader2, Sparkles, Tag, TagOff, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -17,6 +17,7 @@ import {
   MIN_RESTING_OPACITY,
   useRestingOpacity,
 } from "@/lib/use-resting-opacity";
+import { useShowLabels } from "@/lib/use-show-labels";
 import { cn } from "@/lib/utils";
 
 const TABLETOP_CONFIG = {
