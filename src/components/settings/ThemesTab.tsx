@@ -917,7 +917,95 @@ function FadePreviewBar({ opacity }: { opacity: number }) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Community Themes carousel                                          */
+/*  Shared carousel chrome (hover arrows + dot pagination)             */
+/* ------------------------------------------------------------------ */
+
+const CARD_WIDTH = 220;
+const CARD_GAP = 12;
+
+/**
+ * Wraps a horizontal snap-scroll row with hover-revealed left/right
+ * arrow buttons, dot pagination beneath the row, and a "Swipe to
+ * explore" hint. The caller passes children = the actual cards. The
+ * hook owns the scroll math so both Celestial Palettes and Your
+ * Sanctuaries behave identically.
+ */
+function ThemeCarousel({
+  count,
+  children,
+  ariaLabel,
+}: {
+  count: number;
+  children: React.ReactNode;
+  ariaLabel: string;
+}) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const scrollByCard = useCallback((dir: 1 | -1) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * (CARD_WIDTH + CARD_GAP), behavior: "smooth" });
+  }, []);
+
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      const idx = Math.round(el.scrollLeft / (CARD_WIDTH + CARD_GAP));
+      setActiveIndex(Math.min(count - 1, Math.max(0, idx)));
+    },
+    [count],
+  );
+
+  return (
+    <>
+      <div className="group/carousel relative -mx-2">
+        <div
+          ref={scrollerRef}
+          onScroll={handleScroll}
+          aria-label={ariaLabel}
+          className="flex gap-3 overflow-x-auto px-2 pb-2 snap-x snap-mandatory scrollbar-none [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {children}
+        </div>
+        <button
+          type="button"
+          aria-label="Scroll left"
+          onClick={() => scrollByCard(-1)}
+          className="absolute left-1 top-1/2 -translate-y-1/2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/80 text-gold opacity-0 ring-1 ring-gold/40 backdrop-blur transition-opacity duration-200 hover:bg-background group-hover/carousel:opacity-100 focus-visible:opacity-100"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          aria-label="Scroll right"
+          onClick={() => scrollByCard(1)}
+          className="absolute right-1 top-1/2 -translate-y-1/2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-background/80 text-gold opacity-0 ring-1 ring-gold/40 backdrop-blur transition-opacity duration-200 hover:bg-background group-hover/carousel:opacity-100 focus-visible:opacity-100"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
+      <div className="mt-2 flex items-center justify-center gap-1.5">
+        {Array.from({ length: count }).map((_, i) => (
+          <span
+            key={i}
+            aria-hidden
+            className={cn(
+              "block h-1.5 rounded-full transition-all",
+              i === activeIndex ? "w-4 bg-gold" : "w-1.5 bg-gold/30",
+            )}
+          />
+        ))}
+      </div>
+      <p className="mt-1 text-center text-[10px] uppercase tracking-widest text-gold/70">
+        Swipe to explore
+      </p>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Celestial Palettes carousel (formerly Community Themes)            */
 /* ------------------------------------------------------------------ */
 
 /**
