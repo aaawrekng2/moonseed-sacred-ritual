@@ -1601,25 +1601,145 @@ function CardSlot({
     null,
   );
 
+  // ---- Drag state machine -----------------------------------------------
+  // `dragging` flips true once the pointer has been held for 150ms (the
+  // hold-to-drag threshold from the spec) — at which point the card lifts,
+  // follows the pointer with `position: fixed`, and the eventual click
+  // handler is suppressed so selection state is preserved.
+  const [dragging, setDragging] = useState(false);
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const dragStateRef = useRef<{
+    pointerId: number;
+    startClientX: number;
+    startClientY: number;
+    pointerOffsetX: number; // pointer offset inside the card on grab
+    pointerOffsetY: number;
+    fromX: number; // card's pre-drag table coords
+    fromY: number;
+    holdTimer: number | null;
+    didDrag: boolean;
+  } | null>(null);
+
+  const beginDrag = useCallback(() => {
+    setDragging(true);
+    if (dragStateRef.current) {
+      // Fire one immediate move so the card jumps to the pointer location
+      // (it was sitting at its scatter slot during the hold).
+      const s = dragStateRef.current;
+      setDragPos({
+        x: s.startClientX - s.pointerOffsetX,
+        y: s.startClientY - s.pointerOffsetY,
+      });
+      onDragMove(s.startClientX, s.startClientY);
+    }
+  }, [onDragMove]);
+
+  const HOLD_MS = 150;
+
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (card.revealed) return; // never drag a face-up card
     downPosRef.current = { x: e.clientX, y: e.clientY, cancelled: false };
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    // Capture the pointer so we keep receiving move/up events even if the
+    // pointer leaves the button bounds during the drag.
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* setPointerCapture can throw in rare edge cases — safe to ignore */
+    }
+    dragStateRef.current = {
+      pointerId: e.pointerId,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      pointerOffsetX: e.clientX - rect.left,
+      pointerOffsetY: e.clientY - rect.top,
+      fromX: card.x,
+      fromY: card.y,
+      holdTimer: window.setTimeout(beginDrag, HOLD_MS),
+      didDrag: false,
+    };
   };
+
   const handlePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
     const d = downPosRef.current;
-    if (!d || d.cancelled) return;
-    const dx = e.clientX - d.x;
-    const dy = e.clientY - d.y;
-    if (dx * dx + dy * dy > tapMoveThresholdPx * tapMoveThresholdPx) {
-      d.cancelled = true;
+    if (d && !d.cancelled) {
+      const dx = e.clientX - d.x;
+      const dy = e.clientY - d.y;
+      if (dx * dx + dy * dy > tapMoveThresholdPx * tapMoveThresholdPx) {
+        d.cancelled = true;
+      }
     }
+    const s = dragStateRef.current;
+    if (!s) return;
+    if (!dragging) return;
+    s.didDrag = true;
+    setDragPos({
+      x: e.clientX - s.pointerOffsetX,
+      y: e.clientY - s.pointerOffsetY,
+    });
+    onDragMove(e.clientX, e.clientY);
   };
+
+  const finishDrag = (clientX: number, clientY: number) => {
+    const s = dragStateRef.current;
+    if (!s) return false;
+    if (s.holdTimer != null) {
+      window.clearTimeout(s.holdTimer);
+      s.holdTimer = null;
+    }
+    const wasDragging = dragging && s.didDrag;
+    if (wasDragging && containerRect) {
+      // Convert the drop point (top-left of the card under the pointer)
+      // back into container coordinates and clamp it inside the table so
+      // a card never lands fully off-screen.
+      const targetLeft = clientX - s.pointerOffsetX - containerRect.left;
+      const targetTop = clientY - s.pointerOffsetY - containerRect.top;
+      const clampedX = Math.max(
+        TABLETOP_CONFIG.SCATTER_PADDING,
+        Math.min(
+          containerRect.width - cardW - TABLETOP_CONFIG.SCATTER_PADDING,
+          targetLeft,
+        ),
+      );
+      const clampedY = Math.max(
+        TABLETOP_CONFIG.SCATTER_PADDING,
+        Math.min(
+          containerRect.height - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+          targetTop,
+        ),
+      );
+      onDragEnd(card.id, clientX, clientY, clampedX, clampedY, s.fromX, s.fromY);
+    }
+    dragStateRef.current = null;
+    setDragging(false);
+    setDragPos(null);
+    return wasDragging;
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    finishDrag(e.clientX, e.clientY);
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (downPosRef.current) downPosRef.current.cancelled = true;
+    finishDrag(e.clientX, e.clientY);
+  };
+
   const handleClick = () => {
     const d = downPosRef.current;
     downPosRef.current = null;
     if (d?.cancelled) return; // swipe — never selects
+    // Suppress the click that fires after a drag release — selection
+    // state must be preserved across drags per spec.
+    if (dragStateRef.current?.didDrag || dragging) return;
     setTapTick((t) => t + 1);
     onSelect();
   };
+
+  // Suppress isCoarsePointer-only lint complaint — we accept the prop for
+  // future tuning even though the hold delay is currently unified.
+  void isCoarsePointer;
 
   return (
     <button
