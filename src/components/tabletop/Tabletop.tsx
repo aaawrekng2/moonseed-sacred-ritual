@@ -1667,6 +1667,22 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
         return controlsRow;
       })()}
+      <AlertDialog open={exitConfirmOpen} onOpenChange={setExitConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("leaveReadingTitle", isOracle)}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("leaveReadingBody", isOracle)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel", isOracle)}</AlertDialogCancel>
+            <AlertDialogAction onClick={performExit}>
+              {t("leaveReadingConfirm", isOracle)}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
