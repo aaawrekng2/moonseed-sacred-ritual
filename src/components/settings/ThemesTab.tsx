@@ -732,11 +732,11 @@ function HeadingFontSection() {
 
   return (
     <SettingsSection
-      title="Heading Font"
-      description="The display font + size used across headings."
+      title="The Voice"
+      description="How the cards speak in text."
     >
       <div className="space-y-4">
-        <div className="flex flex-wrap gap-2.5">
+        <div className="flex flex-wrap gap-x-5 gap-y-2.5">
           {THEME_FONTS.map((f) => {
             const selected = f === font;
             return (
@@ -745,10 +745,10 @@ function HeadingFontSection() {
                 type="button"
                 onClick={() => void pickFont(f)}
                 className={cn(
-                  "rounded-full border px-4 py-2 text-sm transition",
+                  "px-1 py-1 text-sm transition border-b-2",
                   selected
-                    ? "border-gold bg-gold/15 text-gold"
-                    : "border-border/60 text-muted-foreground hover:border-gold/40",
+                    ? "border-gold text-gold"
+                    : "border-transparent text-muted-foreground hover:text-gold/80",
                 )}
                 style={{ fontFamily: `"${f}", ui-serif, Georgia, serif` }}
               >
@@ -783,7 +783,7 @@ function HeadingFontSection() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              Font Size
+              The Weight
             </Label>
             <span className="font-mono text-sm tabular-nums text-foreground">
               {size}px
