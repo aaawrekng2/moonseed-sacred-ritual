@@ -15,6 +15,11 @@ import { Route as JournalRouteImport } from './routes/journal'
 import { Route as DrawRouteImport } from './routes/draw'
 import { Route as CardsRouteImport } from './routes/cards'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsThemesRouteImport } from './routes/settings.themes'
+import { Route as SettingsProfileRouteImport } from './routes/settings.profile'
+import { Route as SettingsPreferencesRouteImport } from './routes/settings.preferences'
+import { Route as SettingsDataRouteImport } from './routes/settings.data'
+import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -46,6 +51,31 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsThemesRoute = SettingsThemesRouteImport.update({
+  id: '/themes',
+  path: '/themes',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsProfileRoute = SettingsProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsPreferencesRoute = SettingsPreferencesRouteImport.update({
+  id: '/preferences',
+  path: '/preferences',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsDataRoute = SettingsDataRouteImport.update({
+  id: '/data',
+  path: '/data',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsBlueprintRoute = SettingsBlueprintRouteImport.update({
+  id: '/blueprint',
+  path: '/blueprint',
+  getParentRoute: () => SettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -53,7 +83,12 @@ export interface FileRoutesByFullPath {
   '/draw': typeof DrawRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/settings/blueprint': typeof SettingsBlueprintRoute
+  '/settings/data': typeof SettingsDataRoute
+  '/settings/preferences': typeof SettingsPreferencesRoute
+  '/settings/profile': typeof SettingsProfileRoute
+  '/settings/themes': typeof SettingsThemesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -61,7 +96,12 @@ export interface FileRoutesByTo {
   '/draw': typeof DrawRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/settings/blueprint': typeof SettingsBlueprintRoute
+  '/settings/data': typeof SettingsDataRoute
+  '/settings/preferences': typeof SettingsPreferencesRoute
+  '/settings/profile': typeof SettingsProfileRoute
+  '/settings/themes': typeof SettingsThemesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -70,7 +110,12 @@ export interface FileRoutesById {
   '/draw': typeof DrawRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
-  '/settings': typeof SettingsRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/settings/blueprint': typeof SettingsBlueprintRoute
+  '/settings/data': typeof SettingsDataRoute
+  '/settings/preferences': typeof SettingsPreferencesRoute
+  '/settings/profile': typeof SettingsProfileRoute
+  '/settings/themes': typeof SettingsThemesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,8 +126,24 @@ export interface FileRouteTypes {
     | '/journal'
     | '/scatter-test'
     | '/settings'
+    | '/settings/blueprint'
+    | '/settings/data'
+    | '/settings/preferences'
+    | '/settings/profile'
+    | '/settings/themes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cards' | '/draw' | '/journal' | '/scatter-test' | '/settings'
+  to:
+    | '/'
+    | '/cards'
+    | '/draw'
+    | '/journal'
+    | '/scatter-test'
+    | '/settings'
+    | '/settings/blueprint'
+    | '/settings/data'
+    | '/settings/preferences'
+    | '/settings/profile'
+    | '/settings/themes'
   id:
     | '__root__'
     | '/'
@@ -91,6 +152,11 @@ export interface FileRouteTypes {
     | '/journal'
     | '/scatter-test'
     | '/settings'
+    | '/settings/blueprint'
+    | '/settings/data'
+    | '/settings/preferences'
+    | '/settings/profile'
+    | '/settings/themes'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -99,7 +165,7 @@ export interface RootRouteChildren {
   DrawRoute: typeof DrawRoute
   JournalRoute: typeof JournalRoute
   ScatterTestRoute: typeof ScatterTestRoute
-  SettingsRoute: typeof SettingsRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -146,8 +212,63 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/themes': {
+      id: '/settings/themes'
+      path: '/themes'
+      fullPath: '/settings/themes'
+      preLoaderRoute: typeof SettingsThemesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/profile': {
+      id: '/settings/profile'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof SettingsProfileRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/preferences': {
+      id: '/settings/preferences'
+      path: '/preferences'
+      fullPath: '/settings/preferences'
+      preLoaderRoute: typeof SettingsPreferencesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/data': {
+      id: '/settings/data'
+      path: '/data'
+      fullPath: '/settings/data'
+      preLoaderRoute: typeof SettingsDataRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/blueprint': {
+      id: '/settings/blueprint'
+      path: '/blueprint'
+      fullPath: '/settings/blueprint'
+      preLoaderRoute: typeof SettingsBlueprintRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
+
+interface SettingsRouteChildren {
+  SettingsBlueprintRoute: typeof SettingsBlueprintRoute
+  SettingsDataRoute: typeof SettingsDataRoute
+  SettingsPreferencesRoute: typeof SettingsPreferencesRoute
+  SettingsProfileRoute: typeof SettingsProfileRoute
+  SettingsThemesRoute: typeof SettingsThemesRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsBlueprintRoute: SettingsBlueprintRoute,
+  SettingsDataRoute: SettingsDataRoute,
+  SettingsPreferencesRoute: SettingsPreferencesRoute,
+  SettingsProfileRoute: SettingsProfileRoute,
+  SettingsThemesRoute: SettingsThemesRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -155,7 +276,7 @@ const rootRouteChildren: RootRouteChildren = {
   DrawRoute: DrawRoute,
   JournalRoute: JournalRoute,
   ScatterTestRoute: ScatterTestRoute,
-  SettingsRoute: SettingsRoute,
+  SettingsRoute: SettingsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
