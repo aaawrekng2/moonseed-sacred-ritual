@@ -1397,9 +1397,9 @@ function SavedThemesSection() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Overwrite{" "}
+              Overwrite this sanctuary{" "}
               {overwriteSlot != null
-                ? slots.find((s) => s.slot === overwriteSlot)?.theme?.name
+                ? `— ${slots.find((s) => s.slot === overwriteSlot)?.theme?.name}`
                 : ""}
               ?
             </AlertDialogTitle>
