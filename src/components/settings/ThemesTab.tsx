@@ -831,14 +831,14 @@ function InterfaceFadeSection() {
 
   return (
     <SettingsSection
-      title="Interface Fade"
-      description="How subtle the top bar icons appear at rest."
+      title="The Veil Opacity"
+      description="How quietly the interface rests when not needed."
     >
       <div className="space-y-3">
         <FadePreviewBar opacity={draft} />
         <div className="flex items-center justify-between">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-            Resting opacity
+            At rest
           </Label>
           <span className="font-mono text-sm tabular-nums text-foreground">
             {draft}%
@@ -859,8 +859,8 @@ function InterfaceFadeSection() {
           }}
         />
         <div className="flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground/70">
-          <span>Subtle</span>
-          <span>Bold</span>
+          <span>Whisper</span>
+          <span>Speak</span>
         </div>
       </div>
     </SettingsSection>
