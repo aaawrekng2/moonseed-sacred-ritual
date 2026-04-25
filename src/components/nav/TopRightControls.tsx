@@ -1,25 +1,57 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Wand2 } from "lucide-react";
-import { BG_PRESETS, useBgGradient, type BgPresetName } from "@/lib/use-bg-gradient";
+import { ScrollText, Wand2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { useOracleMode } from "@/lib/use-oracle-mode";
+import {
+  applyHeadingFont,
+  applyHeadingFontSize,
+  useSavedThemes,
+  type SavedTheme,
+} from "@/lib/use-saved-themes";
+import { setStoredCardBack } from "@/lib/card-backs";
+import { useRestingOpacity } from "@/lib/use-resting-opacity";
 
-const ORDER: BgPresetName[] = [
-  "midnight",
-  "obsidian",
-  "deep-ocean",
-  "twilight",
-  "ember",
-  "forest",
-];
+/**
+ * Apply every facet of a saved sanctuary to the live document so a
+ * single tap on the wand restores the full atmosphere — gradient,
+ * accent, font, size, card back, resting opacity.
+ */
+function applySanctuary(
+  theme: SavedTheme,
+  setOpacity: (n: number) => void,
+) {
+  if (typeof document === "undefined") return;
+  if (theme.bg_left && theme.bg_right) {
+    document.documentElement.style.setProperty(
+      "--bg-gradient-left",
+      theme.bg_left,
+    );
+    document.documentElement.style.setProperty(
+      "--bg-gradient-right",
+      theme.bg_right,
+    );
+  }
+  if (theme.accent) {
+    document.documentElement.style.setProperty("--gold", theme.accent);
+    document.documentElement.style.setProperty("--primary", theme.accent);
+    document.documentElement.style.setProperty("--ring", `${theme.accent}99`);
+  }
+  if (theme.font) applyHeadingFont(theme.font);
+  if (theme.font_size) applyHeadingFontSize(theme.font_size);
+  if (theme.card_back) setStoredCardBack(theme.card_back);
+  if (typeof theme.resting_opacity === "number") setOpacity(theme.resting_opacity);
+}
 
 interface Props {
   initial?: string;
 }
 
 export function TopRightControls({ initial }: Props) {
-  const { preset, setPreset } = useBgGradient();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isOracle, toggle: toggleOracle } = useOracleMode();
+  const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
+  const { setOpacity } = useRestingOpacity();
 
   const derivedInitial =
     initial ??
@@ -34,14 +66,23 @@ export function TopRightControls({ initial }: Props) {
       return name.trim().charAt(0) || "M";
     })();
 
-  const cycleTheme = () => {
-    const idx = ORDER.indexOf(preset);
-    const next = ORDER[(idx + 1) % ORDER.length];
-    setPreset(next);
+  // Wand cycles occupied saved-theme slots only. If none are saved we
+  // hide the wand entirely.
+  const cycleSanctuary = () => {
+    if (occupied.length === 0) return;
+    const currentIdx = occupied.findIndex((t) => t.slot === activeSlot);
+    const nextIdx =
+      currentIdx === -1 ? 0 : (currentIdx + 1) % occupied.length;
+    const next = occupied[nextIdx];
+    if (!next) return;
+    applySanctuary(next, setOpacity);
+    void setActiveSlot(next.slot);
   };
 
   const currentLabel =
-    BG_PRESETS.find((p) => p.value === preset)?.label ?? "Theme";
+    occupied.find((t) => t.slot === activeSlot)?.name ??
+    occupied[0]?.name ??
+    "Sanctuary";
 
   return (
     <div
@@ -50,16 +91,27 @@ export function TopRightControls({ initial }: Props) {
     >
       <button
         type="button"
-        aria-label={`Cycle background theme (current: ${currentLabel})`}
-        title={`Theme: ${currentLabel}`}
-        onClick={cycleTheme}
-        // Top bar icons sit at the global resting opacity at rest and
-        // pop to full on hover/focus.
-        style={{ opacity: "var(--ro-plus-0)" }}
+        aria-label={`Toggle Oracle voice (currently ${isOracle ? "Oracle" : "Plain"})`}
+        title={isOracle ? "Oracle voice on" : "Plain voice"}
+        onClick={toggleOracle}
+        style={{ opacity: isOracle ? 1 : "var(--ro-plus-0)" }}
         className="flex h-7 w-7 items-center justify-center text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none"
       >
-        <Wand2 size={18} strokeWidth={1.5} />
+        <ScrollText size={18} strokeWidth={1.5} />
       </button>
+
+      {occupied.length > 0 && (
+        <button
+          type="button"
+          aria-label={`Cycle saved sanctuaries (current: ${currentLabel})`}
+          title={`Sanctuary: ${currentLabel}`}
+          onClick={cycleSanctuary}
+          style={{ opacity: "var(--ro-plus-0)" }}
+          className="flex h-7 w-7 items-center justify-center text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none"
+        >
+          <Wand2 size={18} strokeWidth={1.5} />
+        </button>
+      )}
 
       <button
         type="button"
