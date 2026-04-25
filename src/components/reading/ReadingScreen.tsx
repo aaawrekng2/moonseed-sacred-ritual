@@ -122,7 +122,11 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
           </span>
         </header>
 
-        <CardStrip picks={picks} positionLabels={positionLabels} />
+        <CardStrip
+          picks={picks}
+          positionLabels={positionLabels}
+          spread={spread}
+        />
 
         <section
           className="w-full"
@@ -169,16 +173,49 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
 function CardStrip({
   picks,
   positionLabels,
+  spread,
 }: {
   picks: Pick[];
   positionLabels: string[];
+  spread: SpreadMode;
 }) {
+  // Track viewport so the 3-card spread can render larger on desktop per
+  // spec (twice the mobile size). Other spreads keep their existing tuning.
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== "undefined" ? window.innerWidth >= 768 : false,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onResize = () => setIsDesktop(window.innerWidth >= 768);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   // Tighter cards for Celtic (10 cards) so the strip stays one or two rows.
-  const w = picks.length >= 8 ? 44 : picks.length >= 4 ? 56 : 80;
+  // 3-card spread doubles on desktop only — mobile sizing unchanged.
+  let w: number;
+  if (picks.length >= 8) {
+    w = 44;
+  } else if (spread === "three") {
+    w = isDesktop ? 160 : 80;
+  } else if (picks.length >= 4) {
+    w = 56;
+  } else {
+    w = 80;
+  }
   const h = Math.round(w * 1.75);
+
+  // Celtic Cross gets larger, more prominent position labels below each card
+  // so the (now full-length) names like "Hopes & Fears" read clearly.
+  const isCeltic = spread === "celtic";
+  const labelFontSize = isCeltic ? (isDesktop ? 12 : 10) : 9;
+  const labelOpacity = isCeltic ? 0.7 : 0.65;
+  // Cap the label width to the card so long names truncate cleanly.
+  const labelMaxWidth = isCeltic ? Math.max(w + 16, 70) : w + 12;
+
   return (
     <div
-      className="flex flex-wrap items-end justify-center gap-x-2 gap-y-3"
+      className="flex flex-wrap items-end justify-center gap-x-3 gap-y-4"
       role="list"
     >
       {picks.map((pick, i) => (
@@ -201,10 +238,15 @@ function CardStrip({
           <span
             className="font-display italic"
             style={{
-              fontSize: 9,
+              fontSize: labelFontSize,
               color: "var(--gold)",
-              opacity: 0.65,
+              opacity: labelOpacity,
               letterSpacing: "0.05em",
+              maxWidth: labelMaxWidth,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              textAlign: "center",
             }}
           >
             {positionLabels[i] ?? `Card ${i + 1}`}
