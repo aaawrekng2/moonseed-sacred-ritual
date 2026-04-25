@@ -365,14 +365,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const [containerOrigin, setContainerOrigin] = useState<{ left: number; top: number } | null>(null);
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [seed] = useState(() => (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0);
-  // Bumped each time the user "stirs" the table. Used to derive a fresh
-  // scatter seed for unselected cards while preserving selected ones.
-  const [stirNonce, setStirNonce] = useState(0);
-  // True for the duration of the stir animation. Drives the tabletop tilt
-  // overlay and toggles a position-transition class on unselected cards so
-  // they drift to their new slots instead of snapping.
-  const [stirring, setStirring] = useState(false);
-  const stirTimerRef = useRef<number | null>(null);
   // Refs to each slot DOM element. Used to compute flight target rects in
   // viewport coordinates so a selected card can animate from its current
   // scatter position to its slot.
