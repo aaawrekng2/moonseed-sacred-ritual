@@ -930,9 +930,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                     visibility: "hidden",
                     pointerEvents: "none",
                     overflow: "visible",
-                    paddingTop: 12,
+                    paddingTop: 4,
                   }
-                : { overflow: "visible", paddingTop: 12 }
+                : { overflow: "visible", paddingTop: 4 }
             }
             aria-hidden={!showSlotRail}
           >
