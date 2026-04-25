@@ -1392,6 +1392,10 @@ function CardSlot({
   slotRect,
   flightMs,
   containerOrigin,
+  onDragEnd,
+  onDragMove,
+  isCoarsePointer,
+  containerRect,
 }: {
   card: CardState;
   cardW: number;
@@ -1418,6 +1422,27 @@ function CardSlot({
    * viewport coords for the return-flight animation.
    */
   containerOrigin: { left: number; top: number } | null;
+  /**
+   * Drag pipeline. Pointer is held for ≥150ms (touch) or moved past
+   * the tap threshold (mouse) → CardSlot enters drag mode, follows the
+   * pointer, and on release calls `onDragEnd` so the parent can decide
+   * slot-drop vs. table-move. `containerRect` and `containerOrigin` let
+   * us convert between viewport and container coordinates.
+   */
+  onDragEnd: (
+    cardId: number,
+    clientX: number,
+    clientY: number,
+    tableX: number,
+    tableY: number,
+    fromX: number,
+    fromY: number,
+  ) => void;
+  onDragMove: (clientX: number, clientY: number) => void;
+  isCoarsePointer: boolean;
+  containerRect:
+    | { left: number; top: number; width: number; height: number }
+    | null;
 }) {
   const isSelected = card.selectionOrder !== null;
   const flying = isSelected && slotRect !== null;
