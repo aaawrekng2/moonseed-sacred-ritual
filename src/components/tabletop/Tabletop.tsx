@@ -214,25 +214,53 @@ type CardState = ScatterCard & {
  * card. The Tabletop applies these forward (do/redo) and inversely
  * (undo). Cleared when the tabletop unmounts (the user exits the draw).
  *
- *  - "move"     — card dragged from (fromX,fromY) → (toX,toY) on the table
- *  - "place"    — card dragged into a slot (slotIndex 0-based). May
- *                 displace another card whose previous slot is recorded.
- *  - "displace" — card dragged off a slot back to the table at (toX,toY).
+ * Three kinds, all fully reversible:
+ *
+ *  - "move"    — an unslotted card moved on the table from (fromX,fromY)
+ *                → (toX,toY).
+ *  - "place"   — a card landed in `toSlot`. The dragged card may have
+ *                come from another slot (`fromSlot`) or from the table
+ *                (`fromX,fromY`, `fromSlot === null`). If `toSlot` was
+ *                occupied, the displaced occupant is moved either back
+ *                to the dragged card's previous slot (a clean swap) or
+ *                onto the table at its own previous coordinates.
+ *  - "unplace" — a card was dragged off `fromSlot` onto the table at
+ *                (toX,toY). Undo restores its slot.
+ *
+ * Every action stores enough state to perfectly reverse itself —
+ * including the displaced card's slot/coords — so undo + redo always
+ * return the board to the exact prior configuration regardless of drag
+ * type or slot occupancy.
  */
 type DragAction =
   | { kind: "move"; cardId: number; fromX: number; fromY: number; toX: number; toY: number }
   | {
       kind: "place";
       cardId: number;
-      slotIndex: number;
+      toSlot: number;
+      /** Slot the dragged card came from, or null if it was on the table. */
+      fromSlot: number | null;
+      /** Pre-drag table coords (used when fromSlot === null). */
       fromX: number;
       fromY: number;
-      // If the slot already held a card, that card is bumped to its
-      // previous on-table coordinates. Both endpoints are stored so we
-      // can undo/redo without losing the displaced card's whereabouts.
       displacedCardId: number | null;
+      /**
+       * Where the displaced occupant ended up after this action:
+       *  - if dragged came from a slot → swap into that slot
+       *    (`displacedToSlot` set, coords ignored)
+       *  - if dragged came from the table → onto the table at the
+       *    dragged card's pre-drag coords
+       */
+      displacedToSlot: number | null;
       displacedFromX: number;
       displacedFromY: number;
+    }
+  | {
+      kind: "unplace";
+      cardId: number;
+      fromSlot: number;
+      toX: number;
+      toY: number;
     };
 
 export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
@@ -426,7 +454,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           );
         }
         if (action.kind === "place") {
-          const targetOrder = action.slotIndex + 1;
+          const targetOrder = action.toSlot + 1;
+          const dragOrigCoords = action.fromSlot === null
+            ? { x: action.fromX, y: action.fromY }
+            : null;
           return prev.map((c) => {
             if (c.id === action.cardId) {
               return { ...c, selectionOrder: targetOrder };
@@ -435,6 +466,14 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               action.displacedCardId !== null &&
               c.id === action.displacedCardId
             ) {
+              if (action.displacedToSlot !== null) {
+                // Swap: occupant takes the dragged card's previous slot.
+                return {
+                  ...c,
+                  selectionOrder: action.displacedToSlot + 1,
+                };
+              }
+              // Bumped onto the table at its own pre-drag coords.
               return {
                 ...c,
                 selectionOrder: null,
@@ -444,6 +483,15 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             }
             return c;
           });
+          // (dragOrigCoords is only consulted by undo, kept here for clarity)
+          void dragOrigCoords;
+        }
+        if (action.kind === "unplace") {
+          return prev.map((c) =>
+            c.id === action.cardId
+              ? { ...c, selectionOrder: null, x: action.toX, y: action.toY }
+              : c,
+          );
         }
         return prev;
       });
@@ -464,26 +512,37 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               : c,
           );
         }
-        // place: send dragged card back to its pre-drag table coords;
-        // restore any displaced card to the slot it was bumped from.
-        const targetOrder = action.slotIndex + 1;
-        return prev.map((c) => {
-          if (c.id === action.cardId) {
-            return {
-              ...c,
-              selectionOrder: null,
-              x: action.fromX,
-              y: action.fromY,
-            };
-          }
-          if (
-            action.displacedCardId !== null &&
-            c.id === action.displacedCardId
-          ) {
-            return { ...c, selectionOrder: targetOrder };
-          }
-          return c;
-        });
+        if (action.kind === "place") {
+          const targetOrder = action.toSlot + 1;
+          return prev.map((c) => {
+            if (c.id === action.cardId) {
+              // Send dragged card back to wherever it came from.
+              if (action.fromSlot !== null) {
+                return { ...c, selectionOrder: action.fromSlot + 1 };
+              }
+              return {
+                ...c,
+                selectionOrder: null,
+                x: action.fromX,
+                y: action.fromY,
+              };
+            }
+            if (
+              action.displacedCardId !== null &&
+              c.id === action.displacedCardId
+            ) {
+              // Displaced card returns to the slot we just vacated.
+              return { ...c, selectionOrder: targetOrder };
+            }
+            return c;
+          });
+        }
+        // unplace: card returns to its slot.
+        return prev.map((c) =>
+          c.id === action.cardId
+            ? { ...c, selectionOrder: action.fromSlot + 1 }
+            : c,
+        );
       });
       setRedoStack((r) => [...r, action]);
       return stack.slice(0, -1);
