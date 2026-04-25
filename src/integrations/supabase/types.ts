@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           id: string
           interpretation: string | null
+          mode: string
           spread_type: string
           user_id: string
         }
@@ -28,6 +29,7 @@ export type Database = {
           created_at?: string
           id?: string
           interpretation?: string | null
+          mode?: string
           spread_type: string
           user_id: string
         }
@@ -36,6 +38,7 @@ export type Database = {
           created_at?: string
           id?: string
           interpretation?: string | null
+          mode?: string
           spread_type?: string
           user_id?: string
         }
@@ -44,25 +47,115 @@ export type Database = {
       user_preferences: {
         Row: {
           accent: string
+          accent_color: string | null
+          active_theme_slot: number | null
+          bg_gradient_from: string | null
+          bg_gradient_to: string | null
+          birth_date: string | null
+          birth_place: string | null
+          birth_time: string | null
           card_back: string
+          default_life_area: string
+          default_spread: string
+          display_name: string | null
+          heading_font: string | null
+          heading_font_size: number | null
+          initial_intention: string | null
+          is_premium: boolean
+          moon_ai_phase: boolean
+          moon_ai_sign: boolean
+          moon_features_enabled: boolean
+          moon_show_carousel: boolean
+          moon_void_warning: boolean
+          outcome_reminder_days: number
+          outcome_reminders_enabled: boolean
+          premium_expires_at: string | null
+          premium_months_used: number
+          premium_since: string | null
+          premium_tier: string | null
+          premium_warning_sent_at: string | null
           resting_opacity: number
+          rising_sign: string | null
+          saved_themes: Json
           show_labels: boolean
+          show_reversals: boolean
+          sun_sign: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           accent?: string
+          accent_color?: string | null
+          active_theme_slot?: number | null
+          bg_gradient_from?: string | null
+          bg_gradient_to?: string | null
+          birth_date?: string | null
+          birth_place?: string | null
+          birth_time?: string | null
           card_back?: string
+          default_life_area?: string
+          default_spread?: string
+          display_name?: string | null
+          heading_font?: string | null
+          heading_font_size?: number | null
+          initial_intention?: string | null
+          is_premium?: boolean
+          moon_ai_phase?: boolean
+          moon_ai_sign?: boolean
+          moon_features_enabled?: boolean
+          moon_show_carousel?: boolean
+          moon_void_warning?: boolean
+          outcome_reminder_days?: number
+          outcome_reminders_enabled?: boolean
+          premium_expires_at?: string | null
+          premium_months_used?: number
+          premium_since?: string | null
+          premium_tier?: string | null
+          premium_warning_sent_at?: string | null
           resting_opacity?: number
+          rising_sign?: string | null
+          saved_themes?: Json
           show_labels?: boolean
+          show_reversals?: boolean
+          sun_sign?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           accent?: string
+          accent_color?: string | null
+          active_theme_slot?: number | null
+          bg_gradient_from?: string | null
+          bg_gradient_to?: string | null
+          birth_date?: string | null
+          birth_place?: string | null
+          birth_time?: string | null
           card_back?: string
+          default_life_area?: string
+          default_spread?: string
+          display_name?: string | null
+          heading_font?: string | null
+          heading_font_size?: number | null
+          initial_intention?: string | null
+          is_premium?: boolean
+          moon_ai_phase?: boolean
+          moon_ai_sign?: boolean
+          moon_features_enabled?: boolean
+          moon_show_carousel?: boolean
+          moon_void_warning?: boolean
+          outcome_reminder_days?: number
+          outcome_reminders_enabled?: boolean
+          premium_expires_at?: string | null
+          premium_months_used?: number
+          premium_since?: string | null
+          premium_tier?: string | null
+          premium_warning_sent_at?: string | null
           resting_opacity?: number
+          rising_sign?: string | null
+          saved_themes?: Json
           show_labels?: boolean
+          show_reversals?: boolean
+          sun_sign?: string | null
           updated_at?: string
           user_id?: string
         }
