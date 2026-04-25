@@ -1502,8 +1502,7 @@ function CardSlot({
       <div
         key={`${tapTick}-${consecrateTick}-${revealTick}`}
         className={cn(
-          "relative rounded-[10px] flip-3d",
-          card.revealed && "is-flipped",
+          "relative rounded-[10px]",
           tapTick > 0 && !card.revealed && "animate-card-tap",
           stirring && !card.revealed && "animate-card-stir-glide",
           consecrating && !card.revealed && "animate-card-consecrate animate-card-consecrate-halo",
@@ -1519,27 +1518,18 @@ function CardSlot({
           // animating from cardW → slotRect.width.
           width: cardW,
           height: cardH,
-          transform: (() => {
-            // Inline transform overrides the .flip-3d.is-flipped CSS rule
-            // (rotateY(180deg)), so when the card is revealed we must compose
-            // the rotation into the same transform — otherwise the face stays
-            // hidden behind the back after the flip lands in a slot.
-            const scalePart =
-              flightPhase === "launching"
-                ? "scale(1)"
-                : flightPhase === "arrived" && slotRect
-                  ? `scale(${slotRect.width / cardW})`
-                  : flightPhase === "returning"
-                    ? returnAnimating
-                      ? "scale(1)"
-                      : returnFromRect && cardW > 0
-                        ? `scale(${returnFromRect.width / cardW})`
-                        : "scale(1)"
-                    : null;
-            const rotatePart = card.revealed ? "rotateY(180deg)" : null;
-            if (!scalePart && !rotatePart) return undefined;
-            return [scalePart, rotatePart].filter(Boolean).join(" ");
-          })(),
+          transform:
+            flightPhase === "launching"
+              ? "scale(1)"
+              : flightPhase === "arrived" && slotRect
+                ? `scale(${slotRect.width / cardW})`
+                : flightPhase === "returning"
+                  ? returnAnimating
+                    ? "scale(1)"
+                    : returnFromRect && cardW > 0
+                      ? `scale(${returnFromRect.width / cardW})`
+                      : "scale(1)"
+                  : undefined,
           transformOrigin: "top left",
           transition:
             flightPhase === "arrived" || flightPhase === "returning"
@@ -1554,34 +1544,44 @@ function CardSlot({
         {flipping && (
           <span aria-hidden="true" className="sacred-reveal-halo" />
         )}
-        <div className="flip-face back">
-          <CardBack id={cardBack} width={cardW} className="h-full w-full" />
-        </div>
-        <div className="flip-face front overflow-hidden rounded-[10px] border border-gold/40 bg-card">
-          {card.revealed ? (
-            <img
-              src={getCardImagePath(faceIndex)}
-              alt={getCardName(faceIndex)}
-              className="h-full w-full object-cover"
-              loading="lazy"
-              onError={(e) => {
-                // Fallback: show the card name on a dark surface if face image is missing.
-                (e.currentTarget as HTMLImageElement).style.display = "none";
-              }}
-            />
-          ) : null}
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-1 text-center">
-            <span className="font-display text-[8px] leading-tight text-foreground/70">
-              {getCardName(faceIndex)}
-            </span>
-          </div>
-          {faceGlowing && (
-            <span
-              key={`face-glow-${faceGlowTick}`}
-              aria-hidden="true"
-              className="face-reveal-glow"
-            />
+        {/* Flip 3D container nested inside the scale wrapper so the inline
+            scale transform on the parent doesn't override the rotateY(180deg)
+            applied by .flip-3d.is-flipped when the card reveals. */}
+        <div
+          className={cn(
+            "absolute inset-0 rounded-[10px] flip-3d",
+            card.revealed && "is-flipped",
           )}
+        >
+          <div className="flip-face back">
+            <CardBack id={cardBack} width={cardW} className="h-full w-full" />
+          </div>
+          <div className="flip-face front overflow-hidden rounded-[10px] border border-gold/40 bg-card">
+            {card.revealed ? (
+              <img
+                src={getCardImagePath(faceIndex)}
+                alt={getCardName(faceIndex)}
+                className="h-full w-full object-cover"
+                loading="lazy"
+                onError={(e) => {
+                  // Fallback: show the card name on a dark surface if face image is missing.
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+            ) : null}
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-1 text-center">
+              <span className="font-display text-[8px] leading-tight text-foreground/70">
+                {getCardName(faceIndex)}
+              </span>
+            </div>
+            {faceGlowing && (
+              <span
+                key={`face-glow-${faceGlowTick}`}
+                aria-hidden="true"
+                className="face-reveal-glow"
+              />
+            )}
+          </div>
         </div>
         {consecrating && !card.revealed && (
           <span aria-hidden="true" className="card-consecrate-shimmer" />
