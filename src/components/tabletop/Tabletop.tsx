@@ -606,6 +606,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       fromY: number,
     ) => {
       setDragHoverSlot(null);
+      setTableGhost(null);
       const selectedCount = cards.filter((c) => c.selectionOrder !== null).length;
       const isReady = selectedCount === required;
       const slotIdx =
