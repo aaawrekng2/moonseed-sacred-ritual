@@ -9,12 +9,19 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScatterTestRouteImport } from './routes/scatter-test'
 import { Route as JournalRouteImport } from './routes/journal'
 import { Route as DrawRouteImport } from './routes/draw'
 import { Route as CardsRouteImport } from './routes/cards'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SettingsProfileRouteImport } from './routes/settings.profile'
 
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ScatterTestRoute = ScatterTestRouteImport.update({
   id: '/scatter-test',
   path: '/scatter-test',
@@ -40,6 +47,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsProfileRoute = SettingsProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => SettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +59,8 @@ export interface FileRoutesByFullPath {
   '/draw': typeof DrawRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/settings/profile': typeof SettingsProfileRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +68,8 @@ export interface FileRoutesByTo {
   '/draw': typeof DrawRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/settings/profile': typeof SettingsProfileRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +78,37 @@ export interface FileRoutesById {
   '/draw': typeof DrawRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
+  '/settings': typeof SettingsRouteWithChildren
+  '/settings/profile': typeof SettingsProfileRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/cards' | '/draw' | '/journal' | '/scatter-test'
+  fullPaths:
+    | '/'
+    | '/cards'
+    | '/draw'
+    | '/journal'
+    | '/scatter-test'
+    | '/settings'
+    | '/settings/profile'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/cards' | '/draw' | '/journal' | '/scatter-test'
-  id: '__root__' | '/' | '/cards' | '/draw' | '/journal' | '/scatter-test'
+  to:
+    | '/'
+    | '/cards'
+    | '/draw'
+    | '/journal'
+    | '/scatter-test'
+    | '/settings'
+    | '/settings/profile'
+  id:
+    | '__root__'
+    | '/'
+    | '/cards'
+    | '/draw'
+    | '/journal'
+    | '/scatter-test'
+    | '/settings'
+    | '/settings/profile'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,10 +117,18 @@ export interface RootRouteChildren {
   DrawRoute: typeof DrawRoute
   JournalRoute: typeof JournalRoute
   ScatterTestRoute: typeof ScatterTestRoute
+  SettingsRoute: typeof SettingsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/scatter-test': {
       id: '/scatter-test'
       path: '/scatter-test'
@@ -116,8 +164,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings/profile': {
+      id: '/settings/profile'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof SettingsProfileRouteImport
+      parentRoute: typeof SettingsRoute
+    }
   }
 }
+
+interface SettingsRouteChildren {
+  SettingsProfileRoute: typeof SettingsProfileRoute
+}
+
+const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsProfileRoute: SettingsProfileRoute,
+}
+
+const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
+  SettingsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -125,6 +192,7 @@ const rootRouteChildren: RootRouteChildren = {
   DrawRoute: DrawRoute,
   JournalRoute: JournalRoute,
   ScatterTestRoute: ScatterTestRoute,
+  SettingsRoute: SettingsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
