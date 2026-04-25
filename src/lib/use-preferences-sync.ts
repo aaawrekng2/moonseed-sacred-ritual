@@ -153,6 +153,8 @@ export function usePreferencesSync(): void {
 
     window.addEventListener("storage", onStorage);
     window.addEventListener(OPACITY_EVENT, onOpacity);
+    window.addEventListener("moonseed:show-labels-changed", onOpacity);
+    window.addEventListener("moonseed:card-back-changed", onOpacity);
 
     // Also poll on visibility change — covers same-tab writes from
     // useShowLabels which only notifies in-process subscribers.
