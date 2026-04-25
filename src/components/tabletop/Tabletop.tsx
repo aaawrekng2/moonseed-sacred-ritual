@@ -659,8 +659,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-cosmos">
-      <span aria-hidden="true" className="tabletop-gutter-left" />
-      <span aria-hidden="true" className="tabletop-gutter-right" />
       {/* Temporary resting-opacity test slider — fixed upper-left, top
           layer so cards never sit above its controls. Desktop-only:
           hidden on mobile per design (it is a dev-only tool). */}
