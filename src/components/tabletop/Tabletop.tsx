@@ -507,9 +507,21 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     if (anySelected) {
       const ok = window.confirm("Begin again? Your picks will return to the table.");
       if (!ok) return;
+      // Send every slotted card back to its original scatter position,
+      // rotation and z. Stir is "begin again" — the table should look
+      // exactly as it did before the user started picking.
       setCards((prev) =>
         prev.map((c) =>
-          c.selectionOrder !== null ? { ...c, selectionOrder: null } : c,
+          c.selectionOrder !== null
+            ? {
+                ...c,
+                selectionOrder: null,
+                x: c.originalX,
+                y: c.originalY,
+                rotation: c.originalRotation,
+                z: c.originalZ,
+              }
+            : c,
         ),
       );
     }
