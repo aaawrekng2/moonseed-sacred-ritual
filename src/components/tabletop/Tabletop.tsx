@@ -1841,7 +1841,12 @@ function CardSlot({
     | null;
 }) {
   const isSelected = card.selectionOrder !== null;
-  const flying = isSelected && slotRect !== null;
+  // When the card landed in the slot via a physical drag-drop we skip
+  // the FLIP-style flight animation entirely — the user just placed it
+  // there, animating it from the scatter coords (where it would re-mount
+  // for one frame) creates a jarring disappear/reappear flicker.
+  const skipFlight = isSelected && card.isDragDrop === true;
+  const flying = isSelected && slotRect !== null && !skipFlight;
   const glow = `0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD}px var(--gold)`;
 
   // Ref to the root button so we can measure its viewport rect before the
