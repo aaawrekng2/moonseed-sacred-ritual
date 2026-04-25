@@ -29,6 +29,13 @@ export type Prefs = {
   moon_ai_phase: boolean;
   moon_ai_sign: boolean;
   moon_void_warning: boolean;
+  // Theme-related columns surfaced for the Themes tab.
+  accent_color: string | null;
+  bg_gradient_from: string | null;
+  bg_gradient_to: string | null;
+  heading_font: string | null;
+  heading_font_size: number | null;
+  resting_opacity: number;
 };
 
 const DEFAULT_PREFS: Prefs = {
@@ -45,6 +52,12 @@ const DEFAULT_PREFS: Prefs = {
   moon_ai_phase: false,
   moon_ai_sign: false,
   moon_void_warning: true,
+  accent_color: null,
+  bg_gradient_from: null,
+  bg_gradient_to: null,
+  heading_font: null,
+  heading_font_size: null,
+  resting_opacity: 50,
 };
 
 type SettingsCtx = {
@@ -76,7 +89,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("user_preferences")
         .select(
-          "display_name, birth_date, birth_time, birth_place, sun_sign, rising_sign, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_ai_phase, moon_ai_sign, moon_void_warning",
+          "display_name, birth_date, birth_time, birth_place, sun_sign, rising_sign, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_ai_phase, moon_ai_sign, moon_void_warning, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -92,6 +105,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         typeof d[k] === "string" ? (d[k] as string) : fallback;
       const n = (k: string): string | null =>
         typeof d[k] === "string" ? (d[k] as string) : null;
+      const num = (k: string, fallback: number | null): number | null => {
+        const v = d[k];
+        return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+      };
       setPrefs({
         display_name: n("display_name"),
         birth_date: n("birth_date"),
@@ -106,6 +123,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         moon_ai_phase: b("moon_ai_phase", false),
         moon_ai_sign: b("moon_ai_sign", false),
         moon_void_warning: b("moon_void_warning", true),
+        accent_color: n("accent_color"),
+        bg_gradient_from: n("bg_gradient_from"),
+        bg_gradient_to: n("bg_gradient_to"),
+        heading_font: n("heading_font"),
+        heading_font_size: num("heading_font_size", null),
+        resting_opacity: (num("resting_opacity", 50) as number) ?? 50,
       });
     })();
     return () => {
