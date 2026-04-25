@@ -1492,7 +1492,7 @@ function CardSlot({
       <div
         key={`${tapTick}-${consecrateTick}-${revealTick}`}
         className={cn(
-          "relative h-full w-full rounded-[10px] flip-3d",
+          "relative rounded-[10px] flip-3d",
           card.revealed && "is-flipped",
           tapTick > 0 && !card.revealed && "animate-card-tap",
           stirring && !card.revealed && "animate-card-stir-glide",
@@ -1502,6 +1502,27 @@ function CardSlot({
         style={{
           // @ts-expect-error custom prop
           "--flip-ms": `${TABLETOP_CONFIG.REVEAL_ANIMATION_MS}ms`,
+          // Inner content is always rendered at the table card dimensions
+          // for crisp ornament scaling. While flying to a smaller slot we
+          // apply a CSS scale transform so the visible content shrinks
+          // smoothly to slot size, in lock-step with the button width
+          // animating from cardW → slotRect.width.
+          width: cardW,
+          height: cardH,
+          transform:
+            flightPhase === "launching"
+              ? "scale(1)"
+              : (flightPhase === "arrived" || flightPhase === "returning") &&
+                  slotRect
+                ? `scale(${slotRect.width / cardW})`
+                : flightPhase === "returning"
+                  ? "scale(1)"
+                  : undefined,
+          transformOrigin: "top left",
+          transition:
+            flightPhase === "arrived" || flightPhase === "returning"
+              ? `transform ${flightMs}ms cubic-bezier(0.22,1,0.36,1)`
+              : undefined,
           boxShadow: isSelected
             ? `${glow}, 0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD * 2}px var(--gold)`
             : "0 4px 12px rgba(0,0,0,0.4)",
