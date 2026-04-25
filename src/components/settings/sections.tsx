@@ -71,7 +71,15 @@ export function SettingsSection({
   );
 }
 
-const goldButton = "bg-gold-gradient text-gold-foreground shadow-glow hover:opacity-95";
+/**
+ * Shared className for primary "save" buttons in the Settings sections.
+ * Pair with `variant="ghost"` so the default Button base styles
+ * (`bg-primary` / `hover:bg-primary/90`) don't bleed through and tint
+ * the gold gradient orange. The ghost base is transparent — we paint the
+ * full gold gradient + glow ourselves.
+ */
+const goldButton =
+  "bg-gold-gradient text-gold-foreground shadow-glow hover:opacity-95 hover:bg-gold-gradient";
 
 /* ------------------------- Profile ------------------------- */
 
