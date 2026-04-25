@@ -206,6 +206,39 @@ type CardState = ScatterCard & {
 };
 
 /* ------------------------------------------------------------------ */
+/*  Session store — keep undo/redo + cards across route transitions    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * In-memory snapshot of an in-flight tabletop session. Survives
+ * unmount/remount of <Tabletop /> (e.g. the user navigates to /journal
+ * and then back to /draw) but is intentionally NOT persisted to
+ * localStorage — the scatter geometry is viewport-specific and stale
+ * across reloads. Clearing happens on:
+ *   1. handleExit() — explicit "Leave this reading"
+ *   2. onComplete   — the spread fills and we move to cast/reading
+ *   3. spread mode change — different spread = fresh stack
+ *
+ * Keyed by spread mode so each spread has an independent session.
+ */
+type TabletopSession = {
+  cards: CardState[];
+  undoStack: DragAction[];
+  redoStack: DragAction[];
+};
+const tabletopSessions = new Map<string, TabletopSession>();
+
+function readTabletopSession(spread: string): TabletopSession | null {
+  return tabletopSessions.get(spread) ?? null;
+}
+function writeTabletopSession(spread: string, snapshot: TabletopSession) {
+  tabletopSessions.set(spread, snapshot);
+}
+function clearTabletopSession(spread: string) {
+  tabletopSessions.delete(spread);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Drag + undo/redo                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -406,11 +439,22 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     [seed],
   );
 
-  const [cards, setCards] = useState<CardState[]>([]);
+  // Hydrate cards + undo/redo from the cross-route session store on
+  // first mount. If the user navigated away from /draw and came back,
+  // their entire in-flight session (scatter, picks, history) is
+  // restored rather than starting over.
+  const restored = readTabletopSession(spread);
+  const [cards, setCards] = useState<CardState[]>(
+    () => restored?.cards ?? [],
+  );
 
-  // ---- Drag + undo/redo (session-only) ----------------------------------
-  const [undoStack, setUndoStack] = useState<DragAction[]>([]);
-  const [redoStack, setRedoStack] = useState<DragAction[]>([]);
+  // ---- Drag + undo/redo (cross-route session) ---------------------------
+  const [undoStack, setUndoStack] = useState<DragAction[]>(
+    () => restored?.undoStack ?? [],
+  );
+  const [redoStack, setRedoStack] = useState<DragAction[]>(
+    () => restored?.redoStack ?? [],
+  );
   // Highlighted slot index while a card is being dragged over the rail.
   const [dragHoverSlot, setDragHoverSlot] = useState<number | null>(null);
   // Ghost preview of where the card would land if dropped on the table
@@ -728,7 +772,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // Subsequent geometry changes (e.g. the bottom bar growing/shrinking
   // when the slot rail collapses on Reveal) reflow the unselected cards
   // in place but preserve every selectionOrder and revealed flag.
-  const initializedRef = useRef(false);
+  // If we restored a session, treat ourselves as already initialized so
+  // the next initialScatter effect doesn't wipe the restored cards.
+  const initializedRef = useRef(restored !== null && restored.cards.length > 0);
 
   // First mount: build the initial card array from the scatter. After that,
   // geometry changes only re-place unselected cards — never reset selections.
@@ -1005,8 +1051,21 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       const ok = window.confirm("Leave this reading? Your selections will be lost.");
       if (!ok) return;
     }
+    // Explicit exit ends the session — drop the saved snapshot so the
+    // next visit starts with a fresh scatter and empty undo stack.
+    clearTabletopSession(spread);
     onExit();
   };
+
+  // Mirror current cards + undo/redo stacks into the cross-route
+  // session store on every change. This is what makes the session
+  // survive accidental navigation away from /draw — when <Tabletop>
+  // remounts, its initial state hydrates from the same snapshot.
+  // Only writes once cards exist (skip the empty pre-init render).
+  useEffect(() => {
+    if (cards.length === 0) return;
+    writeTabletopSession(spread, { cards, undoStack, redoStack });
+  }, [spread, cards, undoStack, redoStack]);
 
   // Auto-transition: when the user fills the final slot, pause briefly
   // (the "sacred pause" — long enough to feel intentional, short enough
@@ -1019,6 +1078,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       .filter((c) => c.selectionOrder !== null)
       .sort((a, b) => (a.selectionOrder ?? 0) - (b.selectionOrder ?? 0));
     const timer = window.setTimeout(() => {
+      // Reading complete — the in-flight session is done. Clear the
+      // snapshot so navigating back to /draw produces a fresh draw.
+      clearTabletopSession(spread);
       onComplete(
         picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
         "cast",
