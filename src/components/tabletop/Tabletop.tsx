@@ -1058,18 +1058,20 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       // "shuffled" rather than the card returning to its origin.
       if (target.selectionOrder !== null) {
         if (usesSlots) {
-          // Return the card to its exact original scatter position.
-          // No randomization — the table must read as the same scatter
-          // the user has been navigating, not a fresh shuffle.
+          // Return the card to its LAST KNOWN table position — the
+          // spot it was at when the user lifted it into the slot. If
+          // the card was tap-selected (never dragged), lastTableX/Y
+          // were initialised to the original scatter coords so this
+          // still reads as the same scatter.
           return prev.map((c) =>
             c.id === id
               ? {
                   ...c,
                   selectionOrder: null,
-                  x: c.originalX,
-                  y: c.originalY,
-                  rotation: c.originalRotation,
-                  z: c.originalZ,
+                  x: c.lastTableX,
+                  y: c.lastTableY,
+                  rotation: c.lastTableRotation,
+                  isDragDrop: false,
                 }
               : c,
           );
@@ -1101,7 +1103,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       }
       if (nextSlot === null) return prev;
       return prev.map((c) =>
-        c.id === id ? { ...c, selectionOrder: nextSlot } : c,
+        c.id === id ? { ...c, selectionOrder: nextSlot, isDragDrop: false } : c,
       );
     });
   };
