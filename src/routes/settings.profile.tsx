@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ProfilePanel } from "@/components/settings/legacy-panels";
+import { ProfileSection } from "@/components/settings/sections";
 
 export const Route = createFileRoute("/settings/profile")({
   head: () => ({
     meta: [{ title: "Profile — Settings — Moonseed" }],
   }),
-  component: ProfilePanel,
+  component: ProfileSection,
 });
