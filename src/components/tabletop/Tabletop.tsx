@@ -413,6 +413,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const [redoStack, setRedoStack] = useState<DragAction[]>([]);
   // Highlighted slot index while a card is being dragged over the rail.
   const [dragHoverSlot, setDragHoverSlot] = useState<number | null>(null);
+  // Ghost preview of where the card would land if dropped on the table
+  // right now — a subtle dashed outline at the clamped, container-local
+  // coordinates. Null whenever the pointer is over a slot (the slot's
+  // own highlight serves as the destination preview in that case) or
+  // when no drag is in flight.
+  const [tableGhost, setTableGhost] = useState<{ x: number; y: number } | null>(null);
 
   // ---- Onboarding hint --------------------------------------------------
   // Show a small hint on the tabletop that explains the hold-to-drag
