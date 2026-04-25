@@ -71,7 +71,15 @@ export function SettingsSection({
   );
 }
 
-const goldButton = "bg-gold-gradient text-gold-foreground shadow-glow hover:opacity-95";
+/**
+ * Shared className for primary "save" buttons in the Settings sections.
+ * Pair with `variant="ghost"` so the default Button base styles
+ * (`bg-primary` / `hover:bg-primary/90`) don't bleed through and tint
+ * the gold gradient orange. The ghost base is transparent — we paint the
+ * full gold gradient + glow ourselves.
+ */
+const goldButton =
+  "bg-gold-gradient text-gold-foreground shadow-glow hover:opacity-95 hover:bg-gold-gradient";
 
 /* ------------------------- Profile ------------------------- */
 
@@ -142,7 +150,7 @@ function ProfileSectionInner({
         <IntentionField user={user} prefs={prefs} setPrefs={setPrefs} />
 
         <div>
-          <Button onClick={save} disabled={saving} className={goldButton}>
+          <Button variant="ghost" onClick={save} disabled={saving} className={goldButton}>
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Save Profile
           </Button>
@@ -350,7 +358,7 @@ function BlueprintSectionInner({
         )}
 
         <div>
-          <Button onClick={save} disabled={saving} className={goldButton}>
+          <Button variant="ghost" onClick={save} disabled={saving} className={goldButton}>
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Save Blueprint
           </Button>
@@ -415,7 +423,7 @@ function ReadingPreferencesSection({
           </Select>
         </div>
 
-        <Button onClick={save} disabled={saving} className={goldButton}>
+        <Button variant="ghost" onClick={save} disabled={saving} className={goldButton}>
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
           Save Preferences
         </Button>

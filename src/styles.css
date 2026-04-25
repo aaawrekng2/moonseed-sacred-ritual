@@ -65,6 +65,26 @@
     color 300ms ease, background-color 300ms ease,
     border-color 300ms ease, fill 300ms ease,
     stroke 300ms ease, box-shadow 300ms ease;
+
+  /* ---------------------------------------------------------------- */
+  /*  Global resting opacity design tokens                              */
+  /*                                                                    */
+  /*  --resting-opacity is written by useRestingOpacity() whenever the  */
+  /*  user changes their Interface Fade. Default 0.50 (50%). Range      */
+  /*  0.25–1.00. All offsets are clamp()ed at 1.0 so values never       */
+  /*  exceed full opacity. Use either inline style="opacity: var(--ro-  */
+  /*  plus-20)" or arbitrary Tailwind opacity-[var(--ro-plus-20)].       */
+  /* ---------------------------------------------------------------- */
+  --resting-opacity: 0.50;
+  --ro-plus-0:  clamp(0, var(--resting-opacity), 1);
+  --ro-plus-10: clamp(0, calc(var(--resting-opacity) + 0.10), 1);
+  --ro-plus-20: clamp(0, calc(var(--resting-opacity) + 0.20), 1);
+  --ro-plus-30: clamp(0, calc(var(--resting-opacity) + 0.30), 1);
+  --ro-plus-40: clamp(0, calc(var(--resting-opacity) + 0.40), 1);
+  --ro-plus-50: clamp(0, calc(var(--resting-opacity) + 0.50), 1);
+  --ro-plus-60: clamp(0, calc(var(--resting-opacity) + 0.60), 1);
+  --ro-plus-70: clamp(0, calc(var(--resting-opacity) + 0.70), 1);
+  --ro-plus-80: clamp(0, calc(var(--resting-opacity) + 0.80), 1);
 }
 
 html { transition: var(--accent-transition); }
@@ -142,7 +162,11 @@ html, body {
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .panel {
   border-radius: 1rem;
-  border: 1px solid oklch(0.30 0.04 285 / 60%);
+  /* Panel borders use the resting opacity (+40%) design token so they
+     fade in lockstep with the rest of the chrome when the user lowers
+     Interface Fade. Multiplied by 0.6 to keep the absolute alpha within
+     the original "60% of the border color" envelope. */
+  border: 1px solid color-mix(in oklab, oklch(0.30 0.04 285) calc(var(--ro-plus-40) * 60%), transparent);
   background: oklch(0.20 0.045 282 / 40%);
   padding: 1.25rem;
   backdrop-filter: blur(12px);

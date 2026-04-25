@@ -17,7 +17,7 @@
  * DOM, and `usePreferencesSync` mirrors them to the Supabase row.
  */
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Play, Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { Loader2, Play, Plus, RotateCcw, Save, Trash2, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { HexColorPicker } from "react-colorful";
 import { Button } from "@/components/ui/button";
@@ -862,6 +862,7 @@ function InterfaceFadeSection() {
       description="How subtle the top bar icons appear at rest."
     >
       <div className="space-y-3">
+        <FadePreviewBar opacity={draft} />
         <div className="flex items-center justify-between">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">
             Resting opacity
@@ -890,6 +891,55 @@ function InterfaceFadeSection() {
         </div>
       </div>
     </SettingsSection>
+  );
+}
+
+/**
+ * Inline preview that mirrors the top-bar wand icon + user initial at the
+ * current draft opacity, so the user can see exactly how the global
+ * resting-opacity system will render the chrome before they commit. Reads
+ * the user's display-name initial from the auth metadata, with safe
+ * fallbacks identical to TopRightControls.
+ */
+function FadePreviewBar({ opacity }: { opacity: number }) {
+  const { user } = useSettings();
+  const meta = ((user as { user_metadata?: Record<string, unknown> })
+    .user_metadata ?? {}) as Record<string, unknown>;
+  const name =
+    (typeof meta.display_name === "string" && meta.display_name) ||
+    (typeof meta.full_name === "string" && meta.full_name) ||
+    (typeof meta.name === "string" && meta.name) ||
+    (user as { email?: string }).email ||
+    "M";
+  const initial = (name as string).trim().charAt(0).toUpperCase() || "M";
+  const alpha = Math.max(0.25, Math.min(1, opacity / 100));
+  return (
+    <div
+      aria-hidden
+      className="flex items-center justify-end gap-2 rounded-lg border border-border/50 bg-background/40 px-4 py-3"
+    >
+      <span
+        className="flex h-7 w-7 items-center justify-center text-gold"
+        style={{ opacity: alpha }}
+      >
+        <Wand2 size={18} strokeWidth={1.5} />
+      </span>
+      <span
+        className="flex h-7 w-7 items-center justify-center rounded-full font-display text-[13px] leading-none text-gold"
+        style={{ opacity: alpha }}
+      >
+        <span
+          className="flex h-7 w-7 items-center justify-center rounded-full"
+          style={{
+            background: "color-mix(in oklch, var(--gold) 15%, transparent)",
+            border:
+              "1px solid color-mix(in oklch, var(--gold) 40%, transparent)",
+          }}
+        >
+          {initial}
+        </span>
+      </span>
+    </div>
   );
 }
 
