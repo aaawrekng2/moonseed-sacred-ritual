@@ -179,7 +179,6 @@ function ThemesTabInner() {
         </header>
 
         <CardBackSection />
-        <AccentColorSection />
         <CustomAccentSection />
         <BackgroundGradientSection />
         <HeadingFontSection />
