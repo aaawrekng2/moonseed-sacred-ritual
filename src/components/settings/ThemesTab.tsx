@@ -85,7 +85,6 @@ import { updateUserPreferences } from "@/lib/user-preferences-write";
 import {
   ThemeDirtyProvider,
   useThemeDirty,
-  type ThemeBaseline,
 } from "@/components/settings/ThemeDirtyContext";
 import { SettingsSection } from "@/components/settings/sections";
 import { useSettings } from "@/components/settings/SettingsContext";
