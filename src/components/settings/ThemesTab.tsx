@@ -168,6 +168,7 @@ function ThemesTabInner() {
             <p className="text-sm text-muted-foreground">
               Shape the space where your readings live.
             </p>
+            <CurrentThemeBadge />
           </div>
           <ResetToDefaultsButton />
         </header>
