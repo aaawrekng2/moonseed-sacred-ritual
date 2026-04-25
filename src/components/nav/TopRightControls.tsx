@@ -11,6 +11,7 @@ import {
 } from "@/lib/use-saved-themes";
 import { setStoredCardBack } from "@/lib/card-backs";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
+import { cn } from "@/lib/utils";
 
 /**
  * Apply every facet of a saved sanctuary to the live document so a
