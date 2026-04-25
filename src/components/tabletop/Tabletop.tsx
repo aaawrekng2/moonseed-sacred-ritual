@@ -634,10 +634,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         650;
       window.setTimeout(() => {
         setRevealedAll(true);
-        onComplete(
-          picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
-          "reveal",
-        );
+        // Per design: after Reveal we STAY on the draw table. No
+        // navigation, no "reading would appear here" handoff. The bottom
+        // bar simply quiets down — Stir and X remain, Reveal/Cast/Draw
+        // disappear. The user sits with the revealed cards.
+        // (Cast still navigates via handleCast → onComplete("cast").)
       }, total);
     }, 320);
   };
