@@ -1060,7 +1060,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               textShadow: "0 0 14px rgba(212,175,55,0.55)",
             }}
           >
-            Draw
+            {usesSlots && slotLabels[selectedCount]
+              ? `Draw: ${slotLabels[selectedCount]}`
+              : "Draw"}
           </span>
         );
 
