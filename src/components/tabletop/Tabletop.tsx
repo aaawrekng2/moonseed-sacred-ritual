@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Loader2, Sparkles, Tag, TagOff, X } from "lucide-react";
+import { Eye, EyeOff, Loader2, Sparkles, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
