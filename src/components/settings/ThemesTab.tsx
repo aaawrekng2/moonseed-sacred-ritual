@@ -85,9 +85,12 @@ import { updateUserPreferences } from "@/lib/user-preferences-write";
 import {
   ThemeDirtyProvider,
   useThemeDirty,
+  type ThemeBaseline,
 } from "@/components/settings/ThemeDirtyContext";
 import { SettingsSection } from "@/components/settings/sections";
 import { useSettings } from "@/components/settings/SettingsContext";
+import { useOracleMode } from "@/lib/use-oracle-mode";
+import { useBlocker } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 
 const ACCENT_PRESETS: ReadonlyArray<{
