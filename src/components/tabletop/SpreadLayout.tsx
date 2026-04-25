@@ -54,6 +54,8 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
   // The lowest unrevealed index — that's the card the user must tap next.
   const nextIndex = revealedFlags.findIndex((r) => !r);
   const allRevealed = nextIndex === -1;
+  const revealedCount = revealedFlags.filter(Boolean).length;
+  const totalCount = picks.length;
 
   // Once every card is face-up, give the user a beat to take it in,
   // then push them into the reading.
@@ -148,34 +150,83 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
         }}
       >
         {allRevealed ? (
-          <span
-            className="font-display italic leading-none"
-            style={{
-              fontSize: 14,
-              color: "var(--gold)",
-              opacity: 0.7,
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-            }}
-          >
-            Opening reading…
-          </span>
+          <div className="flex flex-col items-center gap-2">
+            <ProgressDots total={totalCount} revealed={revealedCount} />
+            <span
+              className="font-display italic leading-none"
+              style={{
+                fontSize: 14,
+                color: "var(--gold)",
+                opacity: 0.7,
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+              }}
+            >
+              Opening reading…
+            </span>
+          </div>
         ) : (
-          <span
-            className="font-display italic leading-none"
-            style={{
-              fontSize: 13,
-              color: "var(--gold)",
-              opacity: 0.7,
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-            }}
+          <div
+            className="flex flex-col items-center gap-2"
+            aria-live="polite"
           >
-            Tap card {nextIndex + 1} of {picks.length}
-          </span>
+            <ProgressDots total={totalCount} revealed={revealedCount} />
+            <span
+              className="font-display italic leading-none tabular-nums"
+              style={{
+                fontSize: 13,
+                color: "var(--gold)",
+                opacity: 0.75,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+              }}
+            >
+              {revealedCount}/{totalCount} revealed
+            </span>
+          </div>
         )}
       </div>
     </main>
+  );
+}
+
+/**
+ * Slim row of dots that fill in as cards are revealed. Dot count matches
+ * the spread size so it scales naturally from 1 (single) to 10 (celtic).
+ */
+function ProgressDots({ total, revealed }: { total: number; revealed: number }) {
+  return (
+    <div
+      className="flex items-center gap-1.5"
+      role="progressbar"
+      aria-valuenow={revealed}
+      aria-valuemin={0}
+      aria-valuemax={total}
+      aria-label={`${revealed} of ${total} cards revealed`}
+    >
+      {Array.from({ length: total }).map((_, i) => {
+        const filled = i < revealed;
+        return (
+          <span
+            key={i}
+            aria-hidden="true"
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: filled
+                ? "var(--gold)"
+                : "color-mix(in oklab, var(--gold) 25%, transparent)",
+              boxShadow: filled
+                ? "0 0 6px color-mix(in oklab, var(--gold) 60%, transparent)"
+                : "none",
+              transition:
+                "background 300ms ease, box-shadow 300ms ease",
+            }}
+          />
+        );
+      })}
+    </div>
   );
 }
 
