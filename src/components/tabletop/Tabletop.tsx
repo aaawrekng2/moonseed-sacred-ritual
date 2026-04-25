@@ -229,6 +229,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     useRestingOpacity();
   const restingAlpha = restingOpacityPct / 100;
   const exitAlpha = Math.min(1, restingAlpha + 0.1);
+  // Persisted preference for showing spread position labels under each
+  // slot. Defaults to ON (annotated). Mirrored on the SpreadLayout
+  // screen so the choice carries through the entire draw flow.
+  const { showLabels, toggleShowLabels } = useShowLabels();
 
   // Dev-only overlap debug overlay. Visualises each card's visible-area
   // ratio so the 30% minimum visibility rule can be eyeballed at a glance.
