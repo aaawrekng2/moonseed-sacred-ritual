@@ -597,7 +597,17 @@ function CelticCross({
             className="relative flex items-center justify-center"
             style={{ width: sizing.w, height: sizing.h }}
           >
-            <div className="absolute inset-0 flex items-center justify-center">
+            {/* Present (slot 1) and Obstacle (slot 2) share this cell.
+                Both wrappers are absolutely positioned and overlap, so
+                stacking order is determined by their parent stacking
+                contexts — NOT by the inner button's z-index (the rotated
+                Obstacle creates its own stacking context via `transform`).
+                Lift whichever card is currently the next-required tap so
+                its tap target sits on top of its sibling. */}
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              style={{ zIndex: nextIndex === 0 ? 20 : 10 }}
+            >
               <CardFace
                 pick={present.pick!}
                 cardBack={cardBack}
@@ -610,7 +620,10 @@ function CelticCross({
               />
             </div>
             {obstacle.pick ? (
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="absolute inset-0 flex items-center justify-center"
+                style={{ zIndex: nextIndex === 1 ? 20 : 10 }}
+              >
                 <CardFace
                   pick={obstacle.pick}
                   cardBack={cardBack}
