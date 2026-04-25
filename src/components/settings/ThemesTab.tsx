@@ -231,7 +231,8 @@ function BaselineCapture() {
 function ResetToDefaultsButton() {
   const { user } = useSettings();
   const { setOpacity } = useRestingOpacity();
-  const { markClean } = useThemeDirty();
+  const { markClean, setBaseline } = useThemeDirty();
+  const { isOracle } = useOracleMode();
   const [open, setOpen] = useState(false);
 
   const reset = async () => {
@@ -259,6 +260,17 @@ function ResetToDefaultsButton() {
       heading_font_size: DEFAULT_FONT_SIZE,
       resting_opacity: DEFAULT_RESTING_OPACITY,
       active_theme_slot: null,
+    });
+    setBaseline({
+      accent: "default",
+      accent_color: null,
+      bg_left: DEFAULT_BG_LEFT,
+      bg_right: DEFAULT_BG_RIGHT,
+      font: DEFAULT_THEME_FONT,
+      font_size: DEFAULT_FONT_SIZE,
+      card_back: DEFAULT_CARD_BACK,
+      resting_opacity: DEFAULT_RESTING_OPACITY,
+      oracle_mode: isOracle,
     });
     markClean();
     setOpen(false);
