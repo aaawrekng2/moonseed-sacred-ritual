@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ScrollText, Wand2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
@@ -52,6 +53,37 @@ export function TopRightControls({ initial }: Props) {
   const { isOracle, toggle: toggleOracle } = useOracleMode();
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
+  const [oraclePopup, setOraclePopup] = useState<"in" | "out" | null>(null);
+  const popupTimers = useRef<{ out?: number; clear?: number }>({});
+
+  useEffect(() => {
+    return () => {
+      if (popupTimers.current.out) window.clearTimeout(popupTimers.current.out);
+      if (popupTimers.current.clear)
+        window.clearTimeout(popupTimers.current.clear);
+    };
+  }, []);
+
+  const showOraclePopup = () => {
+    if (popupTimers.current.out) window.clearTimeout(popupTimers.current.out);
+    if (popupTimers.current.clear)
+      window.clearTimeout(popupTimers.current.clear);
+    setOraclePopup("in");
+    popupTimers.current.out = window.setTimeout(
+      () => setOraclePopup("out"),
+      1500,
+    );
+    popupTimers.current.clear = window.setTimeout(
+      () => setOraclePopup(null),
+      1500 + 300,
+    );
+  };
+
+  const handleOracleClick = () => {
+    toggleOracle();
+    // Show the popup with the *new* mode label.
+    showOraclePopup();
+  };
 
   const derivedInitial =
     initial ??
@@ -97,11 +129,33 @@ export function TopRightControls({ initial }: Props) {
         type="button"
         aria-label={`Toggle Oracle voice (currently ${isOracle ? "Oracle" : "Plain"})`}
         title={isOracle ? "Oracle voice on" : "Plain voice"}
-        onClick={toggleOracle}
+        onClick={handleOracleClick}
         style={{ opacity: isOracle ? 1 : "var(--ro-plus-0)" }}
-        className="flex h-7 w-7 items-center justify-center text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none"
+        className="relative flex h-7 w-7 items-center justify-center text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none"
       >
         <ScrollText size={18} strokeWidth={1.5} />
+        {oraclePopup && (
+          <span
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap text-xs",
+              // Note: `isOracle` is the *new* mode after toggle.
+              isOracle
+                ? "italic text-gold"
+                : "text-muted-foreground",
+              oraclePopup === "in"
+                ? "animate-in fade-in duration-150"
+                : "animate-out fade-out duration-300",
+            )}
+            style={{
+              fontFamily: isOracle
+                ? "var(--font-serif)"
+                : "var(--font-sans)",
+            }}
+          >
+            {isOracle ? "Oracle" : "Plain"}
+          </span>
+        )}
       </button>
 
       {occupied.length > 0 && (
