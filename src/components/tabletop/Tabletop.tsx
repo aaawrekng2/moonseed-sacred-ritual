@@ -747,19 +747,17 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         >
           <X className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
         </button>
-        {!revealedAll && (
-          <button
+        <button
             type="button"
             onClick={triggerStir}
-            disabled={revealing || stirring}
+            disabled={stirring}
             aria-label="Stir — rearrange unselected cards"
             style={{ opacity: restingAlpha }}
             className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed"
           >
             <Sparkles className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
           </button>
-        )}
-        {!revealedAll && usesSlots && (
+        {usesSlots && (
           <button
             type="button"
             onClick={toggleShowLabels}
@@ -812,7 +810,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             cardH={cardH}
             cardBack={cardBack}
             faceIndex={deckMapping[c.id]}
-            disabled={revealing || revealedAll}
+            disabled={ready}
             hitInset={hitInset}
             stirring={stirring && c.selectionOrder === null}
             tapMoveThresholdPx={TAP_MOVE_THRESHOLD_PX}
