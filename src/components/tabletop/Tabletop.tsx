@@ -2009,6 +2009,12 @@ function CardSlot({
   // handler is suppressed so selection state is preserved.
   const [dragging, setDragging] = useState(false);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  // After a drag completes, the card re-renders into the absolute "idle"
+  // style branch which carries `animation: settle-in 320ms` — that
+  // animation starts at `opacity: 0` and is the source of the visible
+  // disappear/reappear flicker on release. We track the most recent drag
+  // so we can suppress `settle-in` for one render cycle after dropping.
+  const wasDraggedRef = useRef(false);
   const dragStateRef = useRef<{
     pointerId: number;
     startClientX: number;
