@@ -604,22 +604,36 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       const isReady = selectedCount === required;
       const slotIdx =
         usesSlots && !isReady ? slotIndexAtPoint(clientX, clientY) : null;
+      const dragged = cards.find((c) => c.id === cardId) ?? null;
+      const fromSlot =
+        dragged && dragged.selectionOrder !== null
+          ? dragged.selectionOrder - 1
+          : null;
       if (slotIdx !== null) {
-        // Dropping into a slot. If the slot is already occupied, the
-        // current occupant gets displaced back to the dragged card's
-        // pre-drag table position so neither card is lost.
+        // Dropping into a slot. Three sub-cases handled below:
+        //  - same slot the card already occupies → no-op
+        //  - empty target → simple place
+        //  - occupied target → swap (if dragged came from a slot) or
+        //    bump occupant onto the table at dragged card's coords.
+        if (fromSlot === slotIdx) return; // dropped on its own slot
         const targetOrder = slotIdx + 1;
         const occupant = cards.find((c) => c.selectionOrder === targetOrder);
+        const willDisplace = occupant && occupant.id !== cardId ? occupant : null;
         const action: DragAction = {
           kind: "place",
           cardId,
-          slotIndex: slotIdx,
+          toSlot: slotIdx,
+          fromSlot,
           fromX,
           fromY,
-          displacedCardId:
-            occupant && occupant.id !== cardId ? occupant.id : null,
-          displacedFromX: fromX,
-          displacedFromY: fromY,
+          displacedCardId: willDisplace ? willDisplace.id : null,
+          // Swap into vacated slot when dragged came from one; otherwise
+          // bump occupant to the table at *its* current coords (which
+          // are its pre-drag coords since occupant didn't move).
+          displacedToSlot:
+            willDisplace && fromSlot !== null ? fromSlot : null,
+          displacedFromX: willDisplace ? willDisplace.x : 0,
+          displacedFromY: willDisplace ? willDisplace.y : 0,
         };
         applyAction(action);
         setUndoStack((s) => [...s, action]);
@@ -628,16 +642,31 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         dismissDragHint();
         return;
       }
-      // Dropping on the table — pure move.
-      if (tableX === fromX && tableY === fromY) return; // no-op
-      const action: DragAction = {
-        kind: "move",
-        cardId,
-        fromX,
-        fromY,
-        toX: tableX,
-        toY: tableY,
-      };
+      // Dropping on the table.
+      let action: DragAction;
+      if (fromSlot !== null) {
+        // Card was in a slot — this is an "unplace" that snaps it back
+        // to scatter coordinates. Always recorded (even if coords match)
+        // because the slot→table transition is itself a state change.
+        action = {
+          kind: "unplace",
+          cardId,
+          fromSlot,
+          toX: tableX,
+          toY: tableY,
+        };
+      } else {
+        // Pure table-to-table move.
+        if (tableX === fromX && tableY === fromY) return; // no-op
+        action = {
+          kind: "move",
+          cardId,
+          fromX,
+          fromY,
+          toX: tableX,
+          toY: tableY,
+        };
+      }
       applyAction(action);
       setUndoStack((s) => [...s, action]);
       setRedoStack([]);
