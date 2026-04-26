@@ -140,10 +140,14 @@ export function findNearestPhaseOccurrence(
  * first — guaranteeing the user can endlessly walk the year of full
  * moons (or any other phase) without it cycling between just two.
  *
- * Implementation: scan day-by-day, recording the FIRST day of each
- * matching streak. After a match we jump forward by ~24 days (~80% of a
- * lunar cycle) to skip the rest of the multi-day window before resuming
- * the per-day search.
+ * Implementation: for the four quarter phases (New / First Quarter /
+ * Full / Last Quarter) we use astronomy-engine's `SearchMoonPhase`,
+ * which returns the precise UTC moment the moon's ecliptic longitude
+ * crosses the target angle (0°, 90°, 180°, 270°). For the multi-day
+ * intermediate phases (Waxing Crescent / Waxing Gibbous / Waning
+ * Gibbous / Waning Crescent) we still scan day-by-day and record the
+ * first day of each matching streak — those phases cover a multi-day
+ * window, so an exact moment isn't meaningful.
  */
 export function getPhaseOccurrences(
   targetPhase: MoonPhaseName,
@@ -156,6 +160,30 @@ export function getPhaseOccurrences(
   const end = new Date(start);
   end.setMonth(end.getMonth() + monthsAhead);
 
+  // Quarter-phase fast path using SearchMoonPhase.
+  const QUARTER_LON: Partial<Record<MoonPhaseName, number>> = {
+    "New Moon": 0,
+    "First Quarter": 90,
+    "Full Moon": 180,
+    "Last Quarter": 270,
+  };
+  const targetLon = QUARTER_LON[targetPhase];
+  if (targetLon !== undefined) {
+    let searchStart: Date = start;
+    // 13 cycles = ~13 lunar months — guaranteed enough to cover monthsAhead.
+    for (let i = 0; i < 24; i++) {
+      const result = Astronomy.SearchMoonPhase(targetLon, searchStart, 40);
+      if (!result) break;
+      const occ = result.date;
+      if (occ > end) break;
+      out.push(occ);
+      // Resume search 1 day after the found moment.
+      searchStart = new Date(occ.getTime() + 24 * 60 * 60 * 1000);
+    }
+    return out;
+  }
+
+  // Intermediate-phase day-scan fallback.
   let cursor = new Date(start);
   while (cursor <= end) {
     const phase = getCurrentMoonPhase(cursor).phase;
