@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { usePreferencesSync } from "@/lib/use-preferences-sync";
 import { OracleModeProvider } from "@/lib/use-oracle-mode";
 import { useTapToPeek } from "@/lib/use-tap-to-peek";
+import { usePWA } from "@/lib/use-pwa";
 
 function NotFoundComponent() {
   return (
@@ -40,6 +41,11 @@ export const Route = createRootRoute({
         content: "A daily tarot ritual. Sacred, luminous, and calm.",
       },
       { name: "author", content: "Moonseed" },
+      { name: "theme-color", content: "#0f0c29" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "Moonseed" },
       { property: "og:title", content: "Moonseed — Tarot that remembers you" },
       {
         property: "og:description",
@@ -69,6 +75,10 @@ export const Route = createRootRoute({
         rel: "stylesheet",
         href: appCss,
       },
+      { rel: "manifest", href: "/manifest.json" },
+      { rel: "apple-touch-icon", href: "/icons/icon-192.png" },
+      { rel: "icon", type: "image/png", sizes: "192x192", href: "/icons/icon-192.png" },
+      { rel: "icon", type: "image/png", sizes: "512x512", href: "/icons/icon-512.png" },
     ],
   }),
   shellComponent: RootShell,
@@ -102,6 +112,8 @@ function RootComponent() {
   // Global "tap empty space to briefly reveal hidden UI" affordance.
   // Active in any Clarity level — costless when the user is already at Seen.
   useTapToPeek();
+  // Register the PWA service worker so Moonseed installs to home screen.
+  usePWA();
   // Hide global chrome (bottom nav) on the immersive draw screen — it owns its
   // own minimal header and exit affordance.
   const hideChrome = location.pathname.startsWith("/draw");
