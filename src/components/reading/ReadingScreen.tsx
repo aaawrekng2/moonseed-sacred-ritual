@@ -8,6 +8,8 @@ import {
 } from "@/lib/interpret.functions";
 import { supabase } from "@/lib/supabase";
 import { useActiveGuide } from "@/lib/use-active-guide";
+import { GuideSelector } from "@/components/guides/GuideSelector";
+import { useOracleMode } from "@/lib/use-oracle-mode";
 
 type Pick = { id: number; cardIndex: number };
 
@@ -18,6 +20,7 @@ type Props = {
 };
 
 type LoadState =
+  | { kind: "guide" }
   | { kind: "loading" }
   | { kind: "loaded"; interpretation: InterpretationPayload }
   | { kind: "limit" }
@@ -30,9 +33,12 @@ type LoadState =
  */
 export function ReadingScreen({ spread, picks, onExit }: Props) {
   const meta = SPREAD_META[spread];
-  const [state, setState] = useState<LoadState>({ kind: "loading" });
+  // Start in `guide` — the user picks their reader/lens/facets first,
+  // then taps "Read for me" to fire the interpretation request.
+  const [state, setState] = useState<LoadState>({ kind: "guide" });
   const [retryNonce, setRetryNonce] = useState(0);
   const { guideId, lensId, facetIds } = useActiveGuide();
+  const { isOracle } = useOracleMode();
   // useServerFn is the typical hook, but interpretReading needs the user's
   // bearer token in the Authorization header for requireSupabaseAuth, and
   // the default fetch on server functions doesn't add it. We call the RPC
@@ -52,6 +58,8 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   }, []);
 
   useEffect(() => {
+    // Wait for the user to confirm the guide before sending the request.
+    if (state.kind === "guide") return;
     // Effect runs twice in StrictMode dev — guard so we don't spend two
     // of the user's three daily readings on the same draw. Do not cancel in
     // cleanup: StrictMode immediately runs cleanup after the first pass, and
@@ -94,7 +102,9 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
         console.error("ReadingScreen interpret error:", e);
         setState({
           kind: "error",
-          message: "The reading could not be completed. Please try again.",
+          message: isOracle
+            ? "The cards could not be heard. Please try again."
+            : "The reading could not be completed. Please try again.",
         });
       }
     })();
@@ -104,6 +114,17 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
 
   const positionLabels =
     meta.positions ?? picks.map((_, i) => `Card ${i + 1}`);
+
+  // Render the Guide Selector overlay before the reading begins.
+  if (state.kind === "guide") {
+    return (
+      <GuideSelector
+        ctaLabel={isOracle ? "Read for me" : "Read for me"}
+        onContinue={() => setState({ kind: "loading" })}
+        onSkip={() => setState({ kind: "loading" })}
+      />
+    );
+  }
 
   return (
     <main
