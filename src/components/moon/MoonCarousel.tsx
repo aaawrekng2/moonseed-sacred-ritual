@@ -535,8 +535,16 @@ function CenterCard({
   );
 }
 
-function AdjacentCard({ info, sign, expanded, selected, onToggle, size = "medium" }: {
-  info: MoonInfo; sign: string; expanded: boolean; selected: boolean; onToggle: () => void; size?: "medium" | "small";
+function AdjacentCard({ info, sign, expanded, selected, enterDir, onToggle, size = "medium" }: {
+  info: MoonInfo;
+  sign: string;
+  expanded: boolean;
+  selected: boolean;
+  /** Same swipe direction var used by the center card so all cells
+      cross-fade + slide in concert across all breakpoints. */
+  enterDir: "left" | "right";
+  onToggle: () => void;
+  size?: "medium" | "small";
 }) {
   const iconSize = expanded ? 52 : size === "medium" ? 44 : 32;
   return (
@@ -556,15 +564,27 @@ function AdjacentCard({ info, sign, expanded, selected, onToggle, size = "medium
           : "border border-transparent hover:border-gold/15 hover:bg-card/30 hover:opacity-100 active:scale-95",
       )}
     >
-      <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{formatShortDate(info.date)}</p>
-      <p className="text-[11px] text-muted-foreground">{info.phase}</p>
-      <p className="text-[10px] text-gold/80">{info.illumination}% illuminated</p>
-      {expanded && (
-        <div className="mt-1 flex flex-col items-center gap-0.5 animate-in fade-in slide-in-from-top-1 duration-200 sm:hidden">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Moon in {sign}</p>
-        </div>
-      )}
+      {/* Keyed wrapper so React remounts the inner block whenever the day
+          changes (swipe / chevron / phase jump) — same pattern as the
+          center card. This makes the cross-fade + 12px slide play on
+          every cell at every breakpoint, not just on mobile center. */}
+      <div
+        key={info.date.toDateString()}
+        className="flex flex-col items-center gap-1 moon-day-fade"
+        style={{
+          ["--moon-enter-dir" as string]: enterDir === "right" ? "1" : "-1",
+        }}
+      >
+        <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{formatShortDate(info.date)}</p>
+        <p className="text-[11px] text-muted-foreground">{info.phase}</p>
+        <p className="text-[10px] text-gold/80">{info.illumination}% illuminated</p>
+        {expanded && (
+          <div className="mt-1 flex flex-col items-center gap-0.5 animate-in fade-in slide-in-from-top-1 duration-200 sm:hidden">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Moon in {sign}</p>
+          </div>
+        )}
+      </div>
     </button>
   );
 }
