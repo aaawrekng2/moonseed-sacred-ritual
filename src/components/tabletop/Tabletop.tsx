@@ -1322,11 +1322,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         ref={containerRef}
         className="tabletop-stage relative flex-1 overflow-hidden select-none"
         style={{
-          // Reserve room for the upper-right icon cluster (44px tap
-          // targets on mobile) so cards never scatter behind it.
-          paddingTop: isMobile
-            ? "calc(env(safe-area-inset-top, 0px) + 60px)"
-            : "calc(env(safe-area-inset-top, 0px) + 48px)",
+          // Reserve a vertical strip for the upper-right icon cluster
+          // (44px tap targets + safe-area) so cards never spawn or get
+          // dragged behind it. Same reserve on mobile and desktop —
+          // a too-small reserve made cards on phones sit under the
+          // close button. The matching deduction from the usable scatter
+          // height happens in `buildScatter` and the drag clamps below.
+          paddingTop: `calc(env(safe-area-inset-top, 0px) + ${TABLETOP_CONFIG.TOP_RESERVE}px)`,
         }}
       >
         {cards.map((c, idx) => (
