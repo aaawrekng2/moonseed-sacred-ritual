@@ -1805,8 +1805,9 @@ function CardSlot({
   useLayoutEffect(() => {
     if (!flying) {
       // Was on a flight (arrived/launching) and lost the slotRect → start
-      // a return flight from the last known slot position. Skip the
-      // transition only if we never had a meaningful flight to begin with.
+      // a return flight from the last known slot position. If we don't
+      // have a slotRect cached we still need to leave the flight cleanly
+      // — fall back to idle without a fly so the card doesn't blink.
       if (
         (flightPhase === "arrived" || flightPhase === "launching") &&
         lastSlotRectRef.current
