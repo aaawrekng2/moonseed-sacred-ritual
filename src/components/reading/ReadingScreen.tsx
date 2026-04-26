@@ -553,10 +553,14 @@ function ReadingBody({
   interpretation,
   picks,
   positionLabels,
+  isOracle,
+  copyText,
 }: {
   interpretation: InterpretationPayload;
   picks: Pick[];
   positionLabels: string[];
+  isOracle: boolean;
+  copyText: string;
 }) {
   const { size, setSize } = useReadingFontSize();
   const [showSlider, setShowSlider] = useState(false);
@@ -688,6 +692,9 @@ function ReadingBody({
           onClose={() => setShowSlider(false)}
         />
       )}
+
+      {/* Bottom copy link — flowing text, not a pill. */}
+      <CopyTextLink text={copyText} isOracle={isOracle} />
     </div>
   );
 }
