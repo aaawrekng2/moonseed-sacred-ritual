@@ -81,6 +81,11 @@ function SettingsLayout() {
   const activeTab = tabFromPath(location.pathname);
   const tabBarRef = useRef<HTMLDivElement | null>(null);
 
+  // Register the X close affordance with the global FloatingMenu so
+  // settings still gets a one-tap exit without owning a per-screen
+  // top-bar cluster.
+  useRegisterCloseHandler(() => void navigate({ to: "/" }));
+
   // First-visit horizontal scroll hint (mobile tab bar) — mirrors the source.
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -133,10 +138,6 @@ function SettingsLayout() {
         className="h-dvh overflow-y-auto bg-cosmos pb-28 text-foreground"
         style={{ paddingTop: "var(--topbar-pad)" }}
       >
-        <TopRightControls
-          onClose={() => void navigate({ to: "/" })}
-          closeLabel="Close settings"
-        />
         <div className="mx-auto w-full max-w-5xl px-4">
           {/* Mobile tab bar: horizontally scrollable underline. */}
           <div className="-mx-4 mb-6 border-b border-gold/10 md:hidden">
