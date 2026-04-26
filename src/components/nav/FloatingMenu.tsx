@@ -42,6 +42,7 @@ export function FloatingMenu() {
   const { setOpacity } = useRestingOpacity();
   const { level, cycleLevel } = useUIDensity();
   const { closeHandler, copyText, showRefresh } = useFloatingMenu();
+  const { helpHandler } = useFloatingMenu();
 
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<"closed" | "open-bright" | "open-dim">(
@@ -49,8 +50,10 @@ export function FloatingMenu() {
   );
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [tapLabel, setTapLabel] = useState<string | null>(null);
   const holdTimer = useRef<number | null>(null);
   const fadeTimer = useRef<number | null>(null);
+  const labelTimer = useRef<number | null>(null);
   const mountedRef = useRef(false);
 
   useEffect(() => {
@@ -83,6 +86,30 @@ export function FloatingMenu() {
     }, 2500);
   };
 
+  // Reset the auto-close timer whenever the user interacts with an icon
+  // inside the open pill. Keeps the menu visible for another full hold so
+  // the user can chain multiple toggles without it disappearing mid-action.
+  const resetTimer = () => {
+    if (holdTimer.current) window.clearTimeout(holdTimer.current);
+    if (fadeTimer.current) window.clearTimeout(fadeTimer.current);
+    setPhase("open-bright");
+    holdTimer.current = window.setTimeout(() => {
+      setPhase("open-dim");
+      fadeTimer.current = window.setTimeout(() => {
+        setOpen(false);
+        setPhase("closed");
+      }, 2500);
+    }, 2500);
+  };
+
+  // Briefly show a small italic label below the pill describing the
+  // change the user just made (e.g. "Oracle", "Veiled", a sanctuary name).
+  const showLabel = (text: string) => {
+    if (labelTimer.current) window.clearTimeout(labelTimer.current);
+    setTapLabel(text);
+    labelTimer.current = window.setTimeout(() => setTapLabel(null), 1500);
+  };
+
   // Listen for global peek events so the menu opens when the user taps
   // empty space anywhere on the page.
   useEffect(() => {
@@ -99,6 +126,7 @@ export function FloatingMenu() {
     return () => {
       if (holdTimer.current) window.clearTimeout(holdTimer.current);
       if (fadeTimer.current) window.clearTimeout(fadeTimer.current);
+      if (labelTimer.current) window.clearTimeout(labelTimer.current);
     };
   }, []);
 
@@ -109,11 +137,14 @@ export function FloatingMenu() {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     });
+    showLabel("Copied");
+    resetTimer();
   };
 
   const handleRefresh = () => {
     if (refreshing) return;
     setRefreshing(true);
+    showLabel("Refreshing");
     window.setTimeout(() => {
       if (typeof window !== "undefined") window.location.reload();
     }, 500);
@@ -136,6 +167,8 @@ export function FloatingMenu() {
       sanctuarySlot: next.slot,
       communityKey: null,
     });
+    showLabel(next.name);
+    resetTimer();
   };
 
   const derivedInitial = (() => {
@@ -153,8 +186,8 @@ export function FloatingMenu() {
     <div
       className="fixed z-[60]"
       style={{
-        top: "calc(env(safe-area-inset-top, 0px) + 8px)",
-        right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+        top: "calc(env(safe-area-inset-top, 0px) + 4px)",
+        right: "calc(env(safe-area-inset-right, 0px) + 10px)",
       }}
     >
       <button
@@ -234,7 +267,11 @@ export function FloatingMenu() {
           )}
 
           <MenuButton
-            onClick={toggleOracle}
+            onClick={() => {
+              toggleOracle();
+              showLabel(isOracle ? "Plain" : "Oracle");
+              resetTimer();
+            }}
             ariaLabel={`Voice: ${isOracle ? "Oracle" : "Plain"}`}
           >
             <ScrollText size={17} strokeWidth={1.5} />
@@ -247,7 +284,13 @@ export function FloatingMenu() {
           )}
 
           <MenuButton
-            onClick={cycleLevel}
+            onClick={() => {
+              cycleLevel();
+              const nextLabel =
+                level === 1 ? "Glimpse" : level === 2 ? "Veiled" : "Seen";
+              showLabel(nextLabel);
+              resetTimer();
+            }}
             ariaLabel={`Clarity: ${
               level === 1 ? "Seen" : level === 2 ? "Glimpse" : "Veiled"
             }`}
@@ -255,8 +298,34 @@ export function FloatingMenu() {
             {clarityIcon}
           </MenuButton>
 
+          {helpHandler && (
+            <MenuButton
+              onClick={() => {
+                helpHandler();
+                showLabel("Help");
+                resetTimer();
+              }}
+              ariaLabel="Help"
+            >
+              <span
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 18,
+                  color: "var(--gold)",
+                  lineHeight: 1,
+                }}
+              >
+                ?
+              </span>
+            </MenuButton>
+          )}
+
           <MenuButton
-            onClick={() => navigate({ to: "/settings" })}
+            onClick={() => {
+              resetTimer();
+              navigate({ to: "/settings" });
+            }}
             ariaLabel="Settings"
           >
             <span
@@ -274,11 +343,38 @@ export function FloatingMenu() {
           </MenuButton>
 
           {closeHandler && (
-            <MenuButton onClick={closeHandler} ariaLabel="Close">
+            <MenuButton
+              onClick={() => {
+                resetTimer();
+                closeHandler();
+              }}
+              ariaLabel="Close"
+            >
               <X size={17} strokeWidth={1.5} />
             </MenuButton>
           )}
       </div>
+
+      {tapLabel && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            right: 8,
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 12,
+            color: "var(--gold)",
+            opacity: "var(--ro-plus-20)",
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+            animation: "reading-fade-in 200ms ease both",
+            letterSpacing: "0.04em",
+          }}
+        >
+          {tapLabel}
+        </div>
+      )}
     </div>
   );
 }
