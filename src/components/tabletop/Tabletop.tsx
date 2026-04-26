@@ -42,7 +42,7 @@ const TABLETOP_CONFIG = {
    * (44px tap targets + safe-area). Used both as `padding-top` on the
    * container and as a deduction from the usable scatter height.
    */
-  TOP_RESERVE: 64,
+  TOP_RESERVE: 56,
   SELECTION_GLOW_SPREAD: 6,
   SELECTION_GLOW_OPACITY: 0.8,
   // Slow, ceremonial flip — long enough to feel reverent without
@@ -62,11 +62,11 @@ const TABLETOP_CONFIG = {
   MOBILE_BREAKPOINT: 768,
 };
 
-// Responsive card width: 42px mobile, 52px tablet, 64px desktop.
+// Responsive card width: 38px mobile, 47px tablet, 58px desktop (-10%).
 function responsiveCardWidth(viewportW: number): number {
-  if (viewportW < 768) return 42;
-  if (viewportW < 1024) return 52;
-  return 64;
+  if (viewportW < 768) return 38;
+  if (viewportW < 1024) return 47;
+  return 58;
 }
 
 /**
@@ -442,7 +442,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   }, []);
 
   const isMobile = viewportW === null || viewportW < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
-  const cardW = isMobile ? responsiveCardWidth(size?.w ?? 0) : 52;
+  const cardW = isMobile ? responsiveCardWidth(size?.w ?? 0) : 47;
   const cardH = Math.round(cardW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
   // Slot rail uses its own width (smaller on mobile / for many-slot
   // spreads) so all slots fit in one row without scrolling.
