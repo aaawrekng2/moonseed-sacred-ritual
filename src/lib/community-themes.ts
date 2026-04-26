@@ -28,7 +28,7 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     name: "Midnight Oracle",
     tagline: "For readings done in the small hours.",
     bgLeft: "#0a0a0f",
-    bgRight: "#1a0533",
+    bgRight: "#5706ba",
     accent: "#a78bfa",
   },
   {
@@ -36,7 +36,7 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     name: "Blood Moon",
     tagline: "Transformation. The reading that changes everything.",
     bgLeft: "#1a0000",
-    bgRight: "#2d0a0a",
+    bgRight: "#7c0303",
     accent: "#fb7185",
   },
   {
