@@ -386,6 +386,7 @@ export function MoonCarousel() {
                     moonSign={d.isToday ? todayMoonSign : d.sign}
                     isToday={d.isToday}
                     selected={isSelected}
+                    enterDir={enterDir}
                     onToggle={() => {
                       if (swipedRef.current) {
                         swipedRef.current = false;
