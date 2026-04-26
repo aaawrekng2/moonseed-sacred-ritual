@@ -2,6 +2,7 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts, useLocation } from
 
 import appCss from "../styles.css?url";
 import { BottomNav } from "@/components/nav/BottomNav";
+import { RestingOpacityReadout } from "@/components/nav/RestingOpacityReadout";
 import { useAuth } from "@/lib/auth";
 import { usePreferencesSync } from "@/lib/use-preferences-sync";
 import { OracleModeProvider } from "@/lib/use-oracle-mode";
@@ -120,6 +121,7 @@ function RootComponent() {
   return (
     <OracleModeProvider>
       <div className="relative flex min-h-screen flex-col">
+        <RestingOpacityReadout />
         <Outlet />
         {!hideChrome && <BottomNav />}
       </div>
