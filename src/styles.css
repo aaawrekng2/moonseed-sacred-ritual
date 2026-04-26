@@ -94,6 +94,13 @@
      gradient to keep the existing depth without freezing the colors. */
   --bg-gradient-left:  #0f0c29;
   --bg-gradient-right: #1e1b4b;
+
+  /* Standard top-bar reservation. The TopRightControls cluster uses
+     44px tap targets with a 6px top inset, leaving a comfortable
+     ~12px breathing margin. Every screen reserves this space at the
+     top of its content area so chrome never overlaps body content. */
+  --topbar-height: 56px;
+  --topbar-pad: calc(env(safe-area-inset-top, 0px) + var(--topbar-height));
 }
 
 html { transition: var(--accent-transition); }
