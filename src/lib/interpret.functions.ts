@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { SPREAD_META, isValidSpreadMode } from "@/lib/spreads";
 import { getCardName } from "@/lib/tarot";
+import { buildGuideSystemPrompt } from "@/lib/guides";
 
 /** Maximum readings any single user may create in a UTC day. */
 const DAILY_LIMIT = 3;
@@ -18,6 +19,14 @@ const InterpretInput = z.object({
     )
     .min(1)
     .max(10),
+  /**
+   * Phase 5 Guides — optional so older clients (and any cached fetch
+   * already in flight when this lands) keep working. The prompt builder
+   * falls back to The Moon Oracle / Deeper Threads when missing.
+   */
+  guideId: z.string().optional(),
+  lensId: z.string().optional(),
+  facetIds: z.array(z.string()).max(5).optional(),
 });
 
 export type InterpretedPosition = {
@@ -44,17 +53,6 @@ export type InterpretError = {
   error: "daily_limit_reached" | "ai_unavailable" | "invalid_response" | "internal";
   message: string;
 };
-
-const SYSTEM_PROMPT = `You are Moonseed, a wise and atmospheric tarot guide. You speak in a warm, poetic but grounded voice — never vague or evasive. You give honest, specific interpretations that feel personally meaningful, not generic horoscope filler. You treat tarot as a tool for reflection, not prediction.
-
-Always respond in this exact JSON format and nothing else:
-{
-  "overview": "2-3 sentence reading of the spread as a whole",
-  "positions": [
-    { "position": "Position name", "card": "Card name", "interpretation": "2-3 sentences specific to this card in this position" }
-  ],
-  "closing": "One final sentence — a gentle invitation to reflect"
-}`;
 
 const ANTHROPIC_MODELS = [
   "claude-sonnet-4-6",
@@ -111,6 +109,14 @@ export const interpretReading = createServerFn({ method: "POST" })
       );
       const userPrompt = `Spread: ${meta.label}\nCards drawn:\n${lines.join("\n")}\n\nPlease interpret this reading.`;
 
+      // Build the per-request system prompt from the active Guide / Lens /
+      // Facets. Falls back to defaults when the client did not send them.
+      const systemPrompt = buildGuideSystemPrompt({
+        guideId: data.guideId,
+        lensId: data.lensId,
+        facetIds: data.facetIds ?? [],
+      });
+
       // 3. Call the Anthropic Messages API.
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
@@ -132,7 +138,7 @@ export const interpretReading = createServerFn({ method: "POST" })
             body: JSON.stringify({
               model,
               max_tokens: 1024,
-              system: SYSTEM_PROMPT,
+              system: systemPrompt,
               messages: [{ role: "user", content: userPrompt }],
             }),
           });
