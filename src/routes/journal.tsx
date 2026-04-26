@@ -814,55 +814,29 @@ function ReadingDetail({
           </article>
         )}
 
-        {/* Note */}
-        {(reading.note ?? "").trim().length > 0 && (
-          <>
-            <div
-              className="mx-auto my-6 h-px max-w-prose"
-              style={{
-                background:
-                  "linear-gradient(to right, transparent, color-mix(in oklab, var(--gold) 18%, transparent), transparent)",
-              }}
-            />
-            <p
-              className="mx-auto max-w-prose font-display text-[15px] italic text-foreground"
-              style={{ opacity: "var(--ro-plus-30)", whiteSpace: "pre-wrap" }}
-            >
-              {reading.note}
-            </p>
-          </>
-        )}
-
-        {/* Tags */}
-        {(reading.tags ?? []).length > 0 && (
-          <div className="mx-auto mt-6 flex max-w-prose flex-wrap gap-x-4 gap-y-1">
-            {(reading.tags ?? []).map((t) => (
-              <span
-                key={t}
-                className="font-display text-[12px] italic text-gold"
-                style={{ opacity: "var(--ro-plus-30)" }}
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Favorite indicator */}
-        <div className="mx-auto mt-8 flex max-w-prose justify-center">
-          <Heart
-            size={20}
-            strokeWidth={1.5}
-            className={cn(reading.is_favorite ? "text-gold" : "text-muted-foreground")}
-            fill={reading.is_favorite ? "currentColor" : "none"}
-            style={{
-              opacity: reading.is_favorite
-                ? "var(--ro-plus-50)"
-                : "var(--ro-plus-10)",
-            }}
-            aria-label={reading.is_favorite ? "Favorited" : "Not favorited"}
-          />
-        </div>
+        {/* Enrichment panel: note, tags, photos, favorite — with debounced
+            auto-save. Lives below the interpretation per the spec. */}
+        <EnrichmentPanel
+          reading={{
+            id: reading.id,
+            user_id: reading.user_id,
+            note: reading.note,
+            is_favorite: reading.is_favorite,
+            tags: reading.tags,
+          }}
+          tagLibrary={tagLibrary}
+          isOracle={isOracle}
+          onReadingChange={(next) =>
+            onReadingChange({
+              id: next.id,
+              note: next.note,
+              is_favorite: next.is_favorite,
+              tags: next.tags,
+            })
+          }
+          onTagLibraryChange={onTagLibraryChange}
+          onPhotoCountChange={onPhotoCountChange}
+        />
       </div>
     </div>
   );
