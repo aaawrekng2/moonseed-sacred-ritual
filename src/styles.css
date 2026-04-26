@@ -738,23 +738,3 @@ button:focus-visible .moon-rung-glow {
   .slot-next-label { animation: none; opacity: 1 !important; }
 }
 
-/* MoonCarousel — cross-fade + slide for day transitions.
-   Keyed remount on date change drives the animation. The icon and labels
-   fade in over 250ms; the date label slides 12px from the swipe direction
-   (var(--moon-enter-dir) = +1 for "from right", -1 for "from left"). */
-@keyframes moon-day-fade-in {
-  from {
-    opacity: 0;
-    transform: translateX(calc(var(--moon-enter-dir, 1) * 12px));
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-.moon-day-fade {
-  animation: moon-day-fade-in 250ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-@media (prefers-reduced-motion: reduce) {
-  .moon-day-fade { animation: none; }
-}
