@@ -647,7 +647,10 @@ function CelticCross({
       <div className="flex flex-col" style={{ gap: rowGap * 0.6 }}>
         {staff.map((cell, i) =>
           cell.pick ? (
-            <div key={cell.pick.id} className="flex items-center gap-2">
+            <div
+              key={cell.pick.id}
+              className="flex flex-col items-center gap-1.5"
+            >
               <CardFace
                 pick={cell.pick}
                 cardBack={cardBack}
