@@ -128,17 +128,33 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   const positionLabels =
     meta.positions ?? picks.map((_, i) => `Card ${i + 1}`);
 
+  // Build the plain-text version of the reading for clipboard copy.
+  // Only available once the interpretation has loaded.
+  const copyText =
+    state.kind === "loaded"
+      ? buildCopyText({
+          spreadLabel: meta.label,
+          interpretation: state.interpretation,
+          picks,
+          positionLabels,
+        })
+      : null;
+
   return (
     <main
       className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_50%_25%,rgba(60,40,90,0.35),transparent_70%)]"
       aria-label={`${meta.label} reading`}
     >
-      <TopRightControls onClose={onExit} closeLabel="Close reading" />
+      <TopRightControls
+        onClose={onExit}
+        closeLabel="Close reading"
+        extraStart={copyText ? <CopyIconButton text={copyText} /> : undefined}
+      />
 
       <div
         className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5 pb-12"
         style={{
-          paddingTop: "calc(env(safe-area-inset-top, 0px) + 64px)",
+          paddingTop: "var(--topbar-pad)",
         }}
       >
         <header className="flex flex-col items-center gap-1.5 text-center">
@@ -173,6 +189,8 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
               interpretation={state.interpretation}
               picks={picks}
               positionLabels={positionLabels}
+              isOracle={isOracle}
+              copyText={copyText ?? ""}
             />
           )}
           {state.kind === "limit" && (
