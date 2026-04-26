@@ -18,27 +18,34 @@ import {
  */
 type FloatingMenuExtras = {
   closeHandler: (() => void) | null;
+  helpHandler: (() => void) | null;
   copyText: string | null;
   showRefresh: boolean;
 };
 
 type FloatingMenuContextValue = FloatingMenuExtras & {
   setCloseHandler: (fn: (() => void) | null) => void;
+  setHelpHandler: (fn: (() => void) | null) => void;
   setCopyText: (text: string | null) => void;
   setShowRefresh: (v: boolean) => void;
 };
 
 const FloatingMenuContext = createContext<FloatingMenuContextValue>({
   closeHandler: null,
+  helpHandler: null,
   copyText: null,
   showRefresh: false,
   setCloseHandler: () => {},
+  setHelpHandler: () => {},
   setCopyText: () => {},
   setShowRefresh: () => {},
 });
 
 export function FloatingMenuProvider({ children }: { children: ReactNode }) {
   const [closeHandler, setCloseHandlerState] = useState<(() => void) | null>(
+    null,
+  );
+  const [helpHandler, setHelpHandlerState] = useState<(() => void) | null>(
     null,
   );
   const [copyText, setCopyText] = useState<string | null>(null);
@@ -50,13 +57,19 @@ export function FloatingMenuProvider({ children }: { children: ReactNode }) {
     setCloseHandlerState(() => fn);
   }, []);
 
+  const setHelpHandler = useCallback((fn: (() => void) | null) => {
+    setHelpHandlerState(() => fn);
+  }, []);
+
   return (
     <FloatingMenuContext.Provider
       value={{
         closeHandler,
+        helpHandler,
         copyText,
         showRefresh,
         setCloseHandler,
+        setHelpHandler,
         setCopyText,
         setShowRefresh,
       }}
@@ -86,6 +99,22 @@ export function useRegisterCloseHandler(fn: (() => void) | null) {
     // Only re-run on mount/unmount — fn changes are picked up via ref.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setCloseHandler]);
+}
+
+/** Register a help handler that becomes the ? icon in the floating menu. */
+export function useRegisterHelpHandler(fn: (() => void) | null) {
+  const { setHelpHandler } = useFloatingMenu();
+  const ref = useRef(fn);
+  ref.current = fn;
+  useEffect(() => {
+    if (!ref.current) {
+      setHelpHandler(null);
+      return;
+    }
+    setHelpHandler(() => ref.current?.());
+    return () => setHelpHandler(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setHelpHandler]);
 }
 
 /** Register copy text — when set, the Copy icon appears in the menu. */

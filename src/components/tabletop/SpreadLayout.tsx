@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
@@ -36,7 +35,7 @@ type Props = {
 export function SpreadLayout({ spread, picks, onExit }: Props) {
   const meta = SPREAD_META[spread];
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
-  const { showLabels, toggleShowLabels } = useShowLabels();
+  const { showLabels } = useShowLabels();
   // Once every card is face-up the inline reading flow takes over.
   // `copyText` is hoisted from <InlineReading> so the global
   // FloatingMenu can surface a Copy icon while the reading is open.
@@ -117,31 +116,6 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
         overflowY: allRevealed ? "auto" : "hidden",
       }}
     >
-      {/* Labels visibility toggle — mirrors the tabletop preference. */}
-      <button
-        type="button"
-        onClick={toggleShowLabels}
-        aria-pressed={showLabels}
-        aria-label={
-          showLabels
-            ? "Hide spread position labels"
-            : "Show spread position labels"
-        }
-        title={showLabels ? "Hide labels" : "Show labels"}
-        className="absolute left-3 top-3 z-50 inline-flex h-10 w-10 items-center justify-center rounded-full text-gold/80 transition-opacity hover:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-        style={{
-          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          left: "calc(env(safe-area-inset-left, 0px) + 12px)",
-          opacity: showLabels ? 0.95 : 0.55,
-        }}
-      >
-        {showLabels ? (
-          <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-        ) : (
-          <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-        )}
-      </button>
-
       {/* Cards block — wrapped so we can gently lift the 3-card spread
           once revealed to make room for the inline reading below. The
           Celtic Cross stays put (per spec) because it's already dense
