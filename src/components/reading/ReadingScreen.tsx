@@ -387,9 +387,9 @@ function CardStrip({
   let h: number;
 
   if (cardCount === 3) {
-    // Lock to SpreadLayout sizing to prevent jump on transition
-    w = isDesktop ? 112 : 92;
-    h = isDesktop ? 196 : 161;
+    // Matches SpreadLayout's spreadSizing exactly — no resize on transition
+    w = isDesktop ? 112 : 100;
+    h = isDesktop ? 196 : 175;
   } else if (cardCount === 1) {
     // Single card: fill generously but cap so it doesn't dominate
     const availableW = Math.max(0, vp.w - 2 * sidePadding);
