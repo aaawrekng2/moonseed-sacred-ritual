@@ -188,7 +188,7 @@ export function GuideSelector({
                           e.stopPropagation();
                           setDeleteTarget(g.raw!);
                         }}
-                        className="absolute left-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition hover:text-gold hover:bg-gold/10"
+                        className="absolute left-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
                         style={{ opacity: "var(--ro-plus-10)" }}
                       >
                         <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -200,7 +200,7 @@ export function GuideSelector({
                           e.stopPropagation();
                           setEditingGuide(g.raw!);
                         }}
-                        className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition hover:text-gold hover:bg-gold/10"
+                        className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
                         style={{ opacity: "var(--ro-plus-10)" }}
                       >
                         <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
