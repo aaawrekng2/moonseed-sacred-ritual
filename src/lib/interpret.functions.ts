@@ -126,6 +126,10 @@ export const interpretReading = createServerFn({ method: "POST" })
 
       let rawText = "";
       let lastProviderError = "";
+      // Scale max_tokens with spread size so large spreads (Celtic Cross
+      // = 10 cards) don't get cut off mid-JSON. Base 600 tokens overhead
+      // + 150 per position. Celtic = 600 + 1500 = 2100. Cap at 4096.
+      const maxTokens = Math.min(4096, 600 + data.picks.length * 150);
       try {
         for (const model of ANTHROPIC_MODELS) {
           const resp = await fetch("https://api.anthropic.com/v1/messages", {
@@ -137,7 +141,7 @@ export const interpretReading = createServerFn({ method: "POST" })
             },
             body: JSON.stringify({
               model,
-              max_tokens: 1024,
+              max_tokens: maxTokens,
               system: systemPrompt,
               messages: [{ role: "user", content: userPrompt }],
             }),

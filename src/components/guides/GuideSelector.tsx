@@ -33,11 +33,14 @@ const FREE_CUSTOM_SLOTS = 1;
 export function GuideSelector({
   onContinue,
   onSkip,
+  ctaLabel,
 }: {
   /** Called when the user taps Begin Reading. */
   onContinue: () => void;
   /** X in the header — close without changing anything. */
   onSkip: () => void;
+  /** Override the default CTA label (e.g. "Read for me"). */
+  ctaLabel?: string;
 }) {
   const { user } = useAuth();
   const { isOracle } = useOracleMode();
@@ -185,7 +188,7 @@ export function GuideSelector({
                           e.stopPropagation();
                           setDeleteTarget(g.raw!);
                         }}
-                        className="absolute left-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition hover:text-gold hover:bg-gold/10"
+                        className="absolute left-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
                         style={{ opacity: "var(--ro-plus-10)" }}
                       >
                         <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -197,7 +200,7 @@ export function GuideSelector({
                           e.stopPropagation();
                           setEditingGuide(g.raw!);
                         }}
-                        className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition hover:text-gold hover:bg-gold/10"
+                        className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
                         style={{ opacity: "var(--ro-plus-10)" }}
                       >
                         <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -350,7 +353,7 @@ export function GuideSelector({
           onClick={onContinue}
           className="w-full bg-gold text-cosmos hover:bg-gold/90"
         >
-          {isOracle ? "Begin the Reading" : "Begin Reading"}
+          {ctaLabel ?? (isOracle ? "Begin the Reading" : "Begin Reading")}
         </Button>
       </footer>
 
