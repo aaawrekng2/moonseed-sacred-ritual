@@ -235,9 +235,9 @@ export function TopRightControls({
     <div
       className="fixed z-50 flex items-center"
       style={{
-        top: "calc(env(safe-area-inset-top, 0px) + 8px)",
-        right: "calc(env(safe-area-inset-right, 0px) + 16px)",
-        gap: "4px",
+        top: "calc(env(safe-area-inset-top, 0px) + 6px)",
+        right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+        gap: "2px",
       }}
     >
       <ExpandingIconButton
