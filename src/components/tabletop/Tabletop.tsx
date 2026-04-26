@@ -36,6 +36,13 @@ const TABLETOP_CONFIG = {
   // calm, axis-aligned spread so the eye isn't pulled around.
   CARD_MAX_ROTATION: 0,
   SCATTER_PADDING: 10,
+  /**
+   * Reserved vertical strip at the top of the scatter container so cards
+   * never spawn or get dragged behind the fixed top-bar icon cluster
+   * (44px tap targets + safe-area). Used both as `padding-top` on the
+   * container and as a deduction from the usable scatter height.
+   */
+  TOP_RESERVE: 64,
   SELECTION_GLOW_SPREAD: 6,
   SELECTION_GLOW_OPACITY: 0.8,
   // Slow, ceremonial flip — long enough to feel reverent without
