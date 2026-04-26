@@ -2173,23 +2173,25 @@ function CardSlot({
       s.holdTimer = null;
     }
     const wasDragging = dragging && s.didDrag;
-    if (wasDragging && containerRect) {
+    const freshRect = containerElRef.current?.getBoundingClientRect();
+    const liveRect = freshRect ?? containerRect;
+    if (wasDragging && liveRect) {
       // Convert the drop point (top-left of the card under the pointer)
       // back into container coordinates and clamp it inside the table so
       // a card never lands fully off-screen.
-      const targetLeft = clientX - s.pointerOffsetX - containerRect.left;
-      const targetTop = clientY - s.pointerOffsetY - containerRect.top;
+      const targetLeft = clientX - s.pointerOffsetX - liveRect.left;
+      const targetTop = clientY - s.pointerOffsetY - liveRect.top;
       const clampedX = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
-          containerRect.width - cardW - TABLETOP_CONFIG.SCATTER_PADDING,
+          liveRect.width - cardW - TABLETOP_CONFIG.SCATTER_PADDING,
           targetLeft,
         ),
       );
       const clampedY = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
-          containerRect.height - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+          liveRect.height - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
           targetTop,
         ),
       );
