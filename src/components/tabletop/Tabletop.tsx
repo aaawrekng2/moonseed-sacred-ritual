@@ -1525,21 +1525,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             {usesSlots && nextFullLabel ? (
               <>
                 <span
-                  className="font-display italic leading-none"
-                  style={{
-                    fontSize: 11,
-                    color: "var(--gold)",
-                    opacity: showWhisper ? Math.min(1, restingAlpha + 0.05) : 0,
-                    letterSpacing: "0.18em",
-                    textTransform: "uppercase",
-                    pointerEvents: "none",
-                    transition: "opacity 200ms ease-out",
-                  }}
-                  aria-hidden={!showWhisper}
-                >
-                  Draw:
-                </span>
-                <span
                   className="font-display italic leading-none animate-breathe-glow"
                   style={{
                     fontSize: 22,
@@ -1557,7 +1542,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                   }}
                   aria-hidden={!showWhisper}
                 >
-                  {nextFullLabel}
+                  {`Draw: ${nextFullLabel}`}
                 </span>
                 {nextDescription && (
                   <span
