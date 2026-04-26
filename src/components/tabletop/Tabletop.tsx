@@ -1563,15 +1563,18 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                   <span
                     className="font-display italic leading-snug"
                     style={{
-                      fontSize: 13,
-                      color: "color-mix(in oklab, var(--gold) 70%, transparent)",
-                      opacity: showWhisper ? 0.75 : 0,
+                      // Larger so the description reads at a glance —
+                      // 14px on mobile, 16px on desktop. Closer to the
+                      // slot rail (no top margin) per design.
+                      fontSize: isMobile ? 14 : 16,
+                      color: "color-mix(in oklab, var(--gold) 55%, transparent)",
+                      opacity: showWhisper ? 1 : 0,
                       letterSpacing: "0.03em",
                       textAlign: "center",
                       maxWidth: "100%",
                       pointerEvents: "none",
                       transition: "opacity 200ms ease-out",
-                      marginTop: 2,
+                      marginTop: 0,
                     }}
                     aria-hidden={!showWhisper}
                   >
