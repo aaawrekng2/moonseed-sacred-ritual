@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Heart, Search, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -8,6 +8,10 @@ import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import { getGuideById } from "@/lib/guides";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { cn } from "@/lib/utils";
+import {
+  EnrichmentPanel,
+  type EnrichmentTag,
+} from "@/components/journal/EnrichmentPanel";
 
 export const Route = createFileRoute("/journal")({
   head: () => ({
@@ -189,6 +193,49 @@ function JournalPage() {
     ? readings.find((r) => r.id === openId) ?? null
     : null;
 
+  // Stable callbacks for the EnrichmentPanel — keep the Journal list and
+  // tag library in sync with edits made inside the Reading Detail overlay
+  // without re-fetching from the server.
+  const handleReadingChange = useCallback(
+    (next: {
+      id: string;
+      note: string | null;
+      is_favorite: boolean;
+      tags: string[] | null;
+    }) => {
+      setReadings((prev) =>
+        prev.map((r) =>
+          r.id === next.id
+            ? {
+                ...r,
+                note: next.note,
+                is_favorite: next.is_favorite,
+                tags: next.tags,
+              }
+            : r,
+        ),
+      );
+    },
+    [],
+  );
+  const handleTagLibraryChange = useCallback((next: EnrichmentTag[]) => {
+    setTags(
+      [...next].sort((a, b) => b.usage_count - a.usage_count).slice(0, 100),
+    );
+  }, []);
+  const handlePhotoCountChange = useCallback(
+    (readingId: string, count: number) => {
+      setPhotoCounts((prev) => {
+        if ((prev[readingId] ?? 0) === count) return prev;
+        const next = { ...prev };
+        if (count <= 0) delete next[readingId];
+        else next[readingId] = count;
+        return next;
+      });
+    },
+    [],
+  );
+
   return (
     <main className="bg-cosmos relative min-h-screen px-5 pb-28 pt-[calc(env(safe-area-inset-top,0px)+72px)]">
       {/* Title */}
@@ -327,6 +374,10 @@ function JournalPage() {
           reading={openReading}
           onClose={() => setOpenId(null)}
           isOracle={isOracle}
+          tagLibrary={tags}
+          onReadingChange={handleReadingChange}
+          onTagLibraryChange={handleTagLibraryChange}
+          onPhotoCountChange={handlePhotoCountChange}
         />
       )}
     </main>
@@ -640,11 +691,24 @@ function Empty({
 function ReadingDetail({
   reading,
   onClose,
-  isOracle: _isOracle,
+  isOracle,
+  tagLibrary,
+  onReadingChange,
+  onTagLibraryChange,
+  onPhotoCountChange,
 }: {
   reading: ReadingRow;
   onClose: () => void;
   isOracle: boolean;
+  tagLibrary: EnrichmentTag[];
+  onReadingChange: (next: {
+    id: string;
+    note: string | null;
+    is_favorite: boolean;
+    tags: string[] | null;
+  }) => void;
+  onTagLibraryChange: (next: EnrichmentTag[]) => void;
+  onPhotoCountChange: (readingId: string, count: number) => void;
 }) {
   const guide = getGuideById(reading.guide_id);
   const positions = isValidSpreadMode(reading.spread_type)
@@ -750,55 +814,29 @@ function ReadingDetail({
           </article>
         )}
 
-        {/* Note */}
-        {(reading.note ?? "").trim().length > 0 && (
-          <>
-            <div
-              className="mx-auto my-6 h-px max-w-prose"
-              style={{
-                background:
-                  "linear-gradient(to right, transparent, color-mix(in oklab, var(--gold) 18%, transparent), transparent)",
-              }}
-            />
-            <p
-              className="mx-auto max-w-prose font-display text-[15px] italic text-foreground"
-              style={{ opacity: "var(--ro-plus-30)", whiteSpace: "pre-wrap" }}
-            >
-              {reading.note}
-            </p>
-          </>
-        )}
-
-        {/* Tags */}
-        {(reading.tags ?? []).length > 0 && (
-          <div className="mx-auto mt-6 flex max-w-prose flex-wrap gap-x-4 gap-y-1">
-            {(reading.tags ?? []).map((t) => (
-              <span
-                key={t}
-                className="font-display text-[12px] italic text-gold"
-                style={{ opacity: "var(--ro-plus-30)" }}
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Favorite indicator */}
-        <div className="mx-auto mt-8 flex max-w-prose justify-center">
-          <Heart
-            size={20}
-            strokeWidth={1.5}
-            className={cn(reading.is_favorite ? "text-gold" : "text-muted-foreground")}
-            fill={reading.is_favorite ? "currentColor" : "none"}
-            style={{
-              opacity: reading.is_favorite
-                ? "var(--ro-plus-50)"
-                : "var(--ro-plus-10)",
-            }}
-            aria-label={reading.is_favorite ? "Favorited" : "Not favorited"}
-          />
-        </div>
+        {/* Enrichment panel: note, tags, photos, favorite — with debounced
+            auto-save. Lives below the interpretation per the spec. */}
+        <EnrichmentPanel
+          reading={{
+            id: reading.id,
+            user_id: reading.user_id,
+            note: reading.note,
+            is_favorite: reading.is_favorite,
+            tags: reading.tags,
+          }}
+          tagLibrary={tagLibrary}
+          isOracle={isOracle}
+          onReadingChange={(next) =>
+            onReadingChange({
+              id: next.id,
+              note: next.note,
+              is_favorite: next.is_favorite,
+              tags: next.tags,
+            })
+          }
+          onTagLibraryChange={onTagLibraryChange}
+          onPhotoCountChange={onPhotoCountChange}
+        />
       </div>
     </div>
   );
