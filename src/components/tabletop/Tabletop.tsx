@@ -1336,6 +1336,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             onDragEnd={handleDragEnd}
             onDragMove={handleDragMove}
             isCoarsePointer={isCoarsePointer}
+            containerElRef={containerRef}
             containerRect={
               containerOrigin && size
                 ? {
