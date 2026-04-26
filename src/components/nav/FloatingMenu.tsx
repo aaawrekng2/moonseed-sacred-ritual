@@ -51,6 +51,14 @@ export function FloatingMenu() {
   const [refreshing, setRefreshing] = useState(false);
   const holdTimer = useRef<number | null>(null);
   const fadeTimer = useRef<number | null>(null);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      mountedRef.current = true;
+    }, 500);
+    return () => window.clearTimeout(t);
+  }, []);
 
   const clarityIcon =
     level === 1 ? (
@@ -79,6 +87,7 @@ export function FloatingMenu() {
   // empty space anywhere on the page.
   useEffect(() => {
     const handler = () => {
+      if (!mountedRef.current) return;
       if (!open) openMenu();
     };
     window.addEventListener("moonseed:peek", handler);
