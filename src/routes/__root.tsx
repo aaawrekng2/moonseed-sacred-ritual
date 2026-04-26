@@ -1,4 +1,5 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts, useLocation } from "@tanstack/react-router";
+import { useLayoutEffect } from "react";
 
 import appCss from "../styles.css?url";
 import { BottomNav } from "@/components/nav/BottomNav";
@@ -8,6 +9,30 @@ import { usePreferencesSync } from "@/lib/use-preferences-sync";
 import { OracleModeProvider } from "@/lib/use-oracle-mode";
 import { useTapToPeek } from "@/lib/use-tap-to-peek";
 import { usePWA } from "@/lib/use-pwa";
+
+/**
+ * Read the persisted resting opacity from localStorage and apply it to
+ * the document root BEFORE first paint. Without this, the cascade still
+ * holds the stylesheet default (0.50) until useRestingOpacity() runs in
+ * an effect — long enough for top-bar icons to flash at the wrong fade
+ * on every route change. Re-runs on every route change so a Settings →
+ * Home navigation always opens with the freshest local value.
+ */
+function useApplyRestingOpacityEarly() {
+  const location = useLocation();
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem("moonseed:resting-opacity");
+    if (raw == null) return;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return;
+    const pct = Math.max(25, Math.min(100, Math.round(n)));
+    document.documentElement.style.setProperty(
+      "--resting-opacity",
+      String(pct / 100),
+    );
+  }, [location.pathname]);
+}
 
 function NotFoundComponent() {
   return (
@@ -103,6 +128,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const location = useLocation();
+  // Apply persisted resting opacity to --resting-opacity BEFORE first
+  // paint of every route. All --ro-plus-N tokens recompute automatically
+  // because they are calc()'d from --resting-opacity in styles.css.
+  useApplyRestingOpacityEarly();
   // Anonymous-first auth: ensure every visitor has a Supabase session
   // before any feature reads/writes user-scoped data.
   useAuth();
