@@ -1943,6 +1943,22 @@ function UnsavedChangesGuard() {
 
         {!nameMode ? (
           <div className="flex flex-col">
+            {/*
+              First option (most common): dismiss the dialog and stay on
+              the Themes page so the user can keep editing or save
+              properly. Does NOT proceed with the pending navigation.
+            */}
+            <button
+              type="button"
+              onClick={cancel}
+              className="flex w-full items-center justify-between gap-3 border-b border-border/40 px-1 py-3 text-left text-sm text-foreground transition hover:text-gold"
+            >
+              <span>
+                {isOracle ? "Return to the altar" : "Return to Settings"}
+              </span>
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+
             {activeTheme && (
               <button
                 type="button"
