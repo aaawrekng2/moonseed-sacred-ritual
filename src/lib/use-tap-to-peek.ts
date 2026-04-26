@@ -55,6 +55,11 @@ export function triggerPeek(holdMs: number = PEEK_HOLD_MS) {
     restoreOpacityFn = peekRestingOpacity(100);
     restoreLabelsFn = peekShowLabels();
   }
+  // Notify the global FloatingMenu (and any other listeners) that a
+  // peek just fired so they can drop down in sync.
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("moonseed:peek"));
+  }
   holdTimer = setTimeout(() => {
     holdTimer = null;
     restoreOpacityFn?.(PEEK_FADE_MS);
