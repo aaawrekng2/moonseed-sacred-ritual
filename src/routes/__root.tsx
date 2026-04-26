@@ -116,6 +116,18 @@ function RootShell({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head>
+        {/*
+          Synchronously apply persisted resting opacity BEFORE any CSS
+          paints. Sets --resting-opacity on <html> so all --ro-plus-N
+          tokens (computed via clamp() in styles.css) resolve to the
+          user's value on first paint — zero flash, zero jump.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var v=localStorage.getItem('moonseed:resting-opacity');var n=v?Math.max(25,Math.min(100,Math.round(Number(v)))):50;document.documentElement.style.setProperty('--resting-opacity',String(n/100));}catch(e){}",
+          }}
+        />
         <HeadContent />
       </head>
       <body>
