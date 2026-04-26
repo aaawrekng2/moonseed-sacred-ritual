@@ -33,11 +33,14 @@ const FREE_CUSTOM_SLOTS = 1;
 export function GuideSelector({
   onContinue,
   onSkip,
+  ctaLabel,
 }: {
   /** Called when the user taps Begin Reading. */
   onContinue: () => void;
   /** X in the header — close without changing anything. */
   onSkip: () => void;
+  /** Override the default CTA label (e.g. "Read for me"). */
+  ctaLabel?: string;
 }) {
   const { user } = useAuth();
   const { isOracle } = useOracleMode();
@@ -350,7 +353,7 @@ export function GuideSelector({
           onClick={onContinue}
           className="w-full bg-gold text-cosmos hover:bg-gold/90"
         >
-          {isOracle ? "Begin the Reading" : "Begin Reading"}
+          {ctaLabel ?? (isOracle ? "Begin the Reading" : "Begin Reading")}
         </Button>
       </footer>
 
