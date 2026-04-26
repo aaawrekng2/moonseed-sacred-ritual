@@ -86,6 +86,33 @@
   --ro-plus-70: clamp(0, calc(var(--resting-opacity) + 0.70), 1);
   --ro-plus-80: clamp(0, calc(var(--resting-opacity) + 0.80), 1);
 
+  /* ---------------------------------------------------------------- */
+  /*  Top bar icon opacity — controlled exclusively by CSS variables.  */
+  /*  React state never touches opacity on these elements; they read   */
+  /*  --topbar-icon-resting (set per-icon) and use data-expanding to    */
+  /*  hold full opacity during the expand/contract animation.           */
+  /* ---------------------------------------------------------------- */
+}
+
+.topbar-icon {
+  opacity: var(--topbar-icon-resting, var(--ro-plus-0));
+  transition: opacity 400ms ease;
+}
+.topbar-icon:hover,
+.topbar-icon:focus-visible {
+  opacity: 1 !important;
+}
+.topbar-icon[data-expanding="true"] {
+  opacity: 1;
+  transition: opacity 0ms;
+}
+.topbar-icon[data-expanding="false"] {
+  opacity: var(--topbar-icon-resting, var(--ro-plus-0));
+  transition: opacity 400ms ease;
+}
+
+:root {
+
   /* App-shell background gradient.
      Themes (Celestial Palettes, Background custom hex pickers, Saved
      Sanctuaries) write into these vars on <html>. The shell consumes

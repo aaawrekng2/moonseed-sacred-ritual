@@ -1294,7 +1294,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               }
               labelFont={isOracle ? "var(--font-serif)" : "var(--font-sans)"}
               labelStyle={isOracle ? "italic-gold" : "muted"}
-              isActive={densityLevel === 0}
               onClick={cycleDensity}
               ariaLabel={
                 densityLevel === 0
