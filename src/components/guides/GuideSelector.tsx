@@ -196,7 +196,11 @@ export function GuideSelector({
                       ? "border-gold bg-gold/10 shadow-[0_0_24px_-8px_rgba(212,175,55,0.6)]"
                       : "border-border/50 bg-card/40 hover:border-gold/40",
                   )}
-                  style={{ position: "relative", zIndex: 0 }}
+                  style={{
+                    position: "relative",
+                    zIndex: 0,
+                    isolation: "isolate",
+                  }}
                 >
                   <button
                     type="button"
@@ -249,7 +253,7 @@ export function GuideSelector({
                           position: "absolute",
                           top: 8,
                           left: 8,
-                          zIndex: 20,
+                          zIndex: 30,
                           opacity: "var(--ro-plus-10)",
                         }}
                       >
@@ -267,7 +271,7 @@ export function GuideSelector({
                           position: "absolute",
                           top: 8,
                           right: 8,
-                          zIndex: 20,
+                          zIndex: 30,
                           opacity: "var(--ro-plus-10)",
                         }}
                       >
