@@ -54,6 +54,7 @@ export function GuideSelector({
   const [customGuides, setCustomGuides] = useState<CustomGuide[]>([]);
   const [creating, setCreating] = useState(false);
   const [editingGuide, setEditingGuide] = useState<CustomGuide | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CustomGuide | null>(null);
 
   // Load custom guides for the carousel.
   useEffect(() => {
