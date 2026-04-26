@@ -21,7 +21,11 @@ function readInitial(): UIDensityLevel {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     const n = raw === null ? 1 : Number(raw);
-    return n === 1 || n === 2 || n === 3 ? (n as UIDensityLevel) : 1;
+    const v = (n === 1 || n === 2 || n === 3 ? n : 1) as UIDensityLevel;
+    // Mirror to <html data-clarity="N"> so any CSS rule keyed off the
+    // global Clarity level resolves correctly on first paint.
+    document.documentElement.setAttribute("data-clarity", String(v));
+    return v;
   } catch {
     return 1;
   }
@@ -35,6 +39,10 @@ function broadcast(v: UIDensityLevel) {
   current = v;
   try {
     window.localStorage.setItem(STORAGE_KEY, String(v));
+    // Apply globally so CSS-driven Clarity (`.clarity-label`,
+    // `.clarity-hint`, `[data-clarity="N"] ...`) responds without
+    // any per-component wiring.
+    document.documentElement.setAttribute("data-clarity", String(v));
   } catch {
     /* ignore */
   }
