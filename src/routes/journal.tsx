@@ -96,6 +96,8 @@ function JournalPage() {
   const [readings, setReadings] = useState<ReadingRow[]>([]);
   const [tags, setTags] = useState<TagRow[]>([]);
   const [photoCounts, setPhotoCounts] = useState<Record<string, number>>({});
+  // Cover photo per reading: signed URL for the earliest photo.
+  const [photoCovers, setPhotoCovers] = useState<Record<string, string>>({});
   const [loaded, setLoaded] = useState(false);
 
   const [search, setSearch] = useState("");
@@ -130,18 +132,42 @@ function JournalPage() {
             .limit(100),
           supabase
             .from("reading_photos")
-            .select("reading_id")
-            .eq("user_id", user.id),
+            .select("reading_id,storage_path,created_at")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: true }),
         ]);
       if (cancelled) return;
       setReadings((rows ?? []) as ReadingRow[]);
       setTags((tagRows ?? []) as TagRow[]);
       const counts: Record<string, number> = {};
-      for (const p of (photoRows ?? []) as Array<{ reading_id: string }>) {
+      // Pick earliest photo per reading as the cover.
+      const coverPaths: Record<string, string> = {};
+      for (const p of (photoRows ?? []) as Array<{
+        reading_id: string;
+        storage_path: string;
+      }>) {
         counts[p.reading_id] = (counts[p.reading_id] ?? 0) + 1;
+        if (!coverPaths[p.reading_id]) coverPaths[p.reading_id] = p.storage_path;
       }
       setPhotoCounts(counts);
       setLoaded(true);
+
+      // Sign URLs for the cover photos in parallel.
+      const entries = Object.entries(coverPaths);
+      if (entries.length > 0) {
+        const signed = await Promise.all(
+          entries.map(async ([rid, path]) => {
+            const { data } = await supabase.storage
+              .from("reading-photos")
+              .createSignedUrl(path, 60 * 60);
+            return [rid, data?.signedUrl ?? ""] as const;
+          }),
+        );
+        if (cancelled) return;
+        const map: Record<string, string> = {};
+        for (const [rid, url] of signed) if (url) map[rid] = url;
+        setPhotoCovers(map);
+      }
     })();
     return () => {
       cancelled = true;
@@ -232,6 +258,33 @@ function JournalPage() {
         else next[readingId] = count;
         return next;
       });
+      // Refresh the cover photo for this reading so the Gallery view stays
+      // in sync after uploads/removals from the Detail enrichment panel.
+      void (async () => {
+        if (count <= 0) {
+          setPhotoCovers((prev) => {
+            if (!(readingId in prev)) return prev;
+            const next = { ...prev };
+            delete next[readingId];
+            return next;
+          });
+          return;
+        }
+        const { data: row } = await supabase
+          .from("reading_photos")
+          .select("storage_path")
+          .eq("reading_id", readingId)
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (!row?.storage_path) return;
+        const { data: signed } = await supabase.storage
+          .from("reading-photos")
+          .createSignedUrl(row.storage_path, 60 * 60);
+        if (signed?.signedUrl) {
+          setPhotoCovers((prev) => ({ ...prev, [readingId]: signed.signedUrl }));
+        }
+      })();
     },
     [],
   );
@@ -354,7 +407,12 @@ function JournalPage() {
             onOpen={setOpenId}
           />
         ) : view === "gallery" ? (
-          <GalleryView items={galleryItems} isOracle={isOracle} onOpen={setOpenId} />
+          <GalleryView
+            items={galleryItems}
+            covers={photoCovers}
+            isOracle={isOracle}
+            onOpen={setOpenId}
+          />
         ) : view === "notes" ? (
           <NotesView items={noteItems} isOracle={isOracle} onOpen={setOpenId} />
         ) : (
