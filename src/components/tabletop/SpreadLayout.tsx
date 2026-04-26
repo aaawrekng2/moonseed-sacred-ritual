@@ -67,11 +67,13 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
       : null;
 
   // Once every card is face-up, give the user a beat to take it in,
-  // then push them into the reading.
+  // then transition into the reading. Kept very short (300ms) so the
+  // cards appear to stay in place — the reading screen mounts with the
+  // cards at translateY(0) and only nudges up after a 600ms hold.
   useEffect(() => {
     if (!allRevealed || continuedRef.current) return;
     continuedRef.current = true;
-    const t = window.setTimeout(() => onContinue(), 1600);
+    const t = window.setTimeout(() => onContinue(), 300);
     return () => window.clearTimeout(t);
   }, [allRevealed, onContinue]);
 
@@ -161,18 +163,6 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
         {allRevealed ? (
           <div className="flex flex-col items-center gap-2">
             <ProgressDots total={totalCount} revealed={revealedCount} />
-            <span
-              className="font-display italic leading-none"
-              style={{
-                fontSize: 14,
-                color: "var(--gold)",
-                opacity: 0.7,
-                letterSpacing: "0.2em",
-                textTransform: "uppercase",
-              }}
-            >
-              Opening reading…
-            </span>
           </div>
         ) : (
           <div
