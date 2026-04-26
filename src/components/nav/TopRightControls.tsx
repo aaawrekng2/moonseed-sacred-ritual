@@ -264,6 +264,7 @@ export function TopRightControls({
         onClick={toggleOracle}
         ariaLabel={`Toggle Oracle voice (currently ${isOracle ? "Oracle" : "Plain"})`}
         title={isOracle ? "Oracle voice on" : "Plain voice"}
+        restingOpacity="var(--ro-plus-0)"
       />
 
       {occupied.length > 0 && (
@@ -296,6 +297,7 @@ export function TopRightControls({
           onClick={cycleLevel}
           ariaLabel={`The Clarity: ${clarityLabel} — tap to cycle (Seen → Glimpse → Veiled)`}
           title={`The Clarity: ${clarityLabel}`}
+          restingOpacity="var(--ro-plus-20)"
         />
       )}
 
