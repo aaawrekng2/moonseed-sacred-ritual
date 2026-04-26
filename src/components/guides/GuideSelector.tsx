@@ -303,7 +303,10 @@ export function GuideSelector({
         </section>
 
         {/* Lens selector */}
-        <section className="mb-6 px-6">
+        <section
+          className="mb-6 px-6"
+          style={{ opacity: peekOpacity, transition: "opacity 400ms ease" }}
+        >
           <h2 className="mb-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
             {isOracle ? "Lens" : "Depth"}
           </h2>
@@ -338,7 +341,10 @@ export function GuideSelector({
         </section>
 
         {/* Facets */}
-        <section className="mb-6 px-6">
+        <section
+          className="mb-6 px-6"
+          style={{ opacity: peekOpacity, transition: "opacity 400ms ease" }}
+        >
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
               Add emphasis
