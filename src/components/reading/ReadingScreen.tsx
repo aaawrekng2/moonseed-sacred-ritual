@@ -258,25 +258,36 @@ function CardStrip({
   const isDesktop = vp.w >= 768;
   const isLandscape = vp.w > vp.h && vp.h <= 500;
 
-  let w: number;
-  if (isLandscape) {
-    const targetH = Math.min(vp.h * 0.55, 320);
-    const targetW = Math.round(targetH / 1.75);
-    const usableW = vp.w * 0.92;
-    const gap = 12;
-    const fitW = Math.floor(
-      (usableW - gap * (picks.length - 1)) / picks.length,
-    );
-    w = Math.max(36, Math.min(targetW, fitW));
-  } else if (picks.length >= 8) {
-    w = 44;
-  } else if (spread === "three") {
-    w = isDesktop ? 140 : 78;
-  } else if (picks.length >= 4) {
-    w = 56;
-  } else {
-    w = 78;
-  }
+  // Cards scale to fill available height once the reading screen
+  // settles. We compute the largest size that respects:
+  //   - tarot aspect ratio (1 : 1.75)
+  //   - viewport width (with margin) divided across picks per row
+  //   - viewport height between top bar and footer/CTA reservation
+  //
+  // For dense spreads (8+) we wrap onto two rows so cards stay tall
+  // rather than shrinking into thin slivers.
+  const cardCount = picks.length;
+  const rows = cardCount >= 8 ? 2 : 1;
+  const perRow = Math.ceil(cardCount / rows);
+  const horizGap = isLandscape || cardCount >= 4 ? 10 : 16;
+  const vertGap = 18;
+  const usableW = Math.max(280, vp.w * 0.94);
+  // Reserve roughly: top bar + header + bottom CTA/spacing.
+  const reservedV = isLandscape ? 160 : 280;
+  const usableH = Math.max(220, vp.h - reservedV);
+
+  const widthByW = Math.floor(
+    (usableW - horizGap * (perRow - 1)) / perRow,
+  );
+  const heightByH = Math.floor(
+    (usableH - vertGap * (rows - 1)) / rows,
+  );
+  // Width derived from each constraint (height constraint via aspect).
+  const widthFromH = Math.floor(heightByH / 1.75);
+  // On larger viewports cap so a single big card doesn't dominate.
+  const maxSingle = isDesktop ? 220 : 200;
+  let w = Math.max(36, Math.min(widthByW, widthFromH));
+  if (cardCount === 1 && w > maxSingle) w = maxSingle;
   const h = Math.round(w * 1.75);
 
   const labelFontSize = w < 60 ? 9 : 10.5;
@@ -284,14 +295,19 @@ function CardStrip({
 
   return (
     <div
-      className="reading-cards-shift flex flex-wrap items-end justify-center gap-x-3 gap-y-4"
+      className="reading-cards-shift flex flex-wrap items-end justify-center"
+      style={{
+        columnGap: `${horizGap}px`,
+        rowGap: `${vertGap}px`,
+      }}
       role="list"
     >
       {picks.map((pick, i) => (
         <div
           key={pick.id}
           role="listitem"
-          className="flex flex-col items-center gap-1"
+          className="reading-card-rise flex flex-col items-center gap-1"
+          style={{ ["--rise-delay" as string]: `${i * 60}ms` }}
         >
           <div
             className="overflow-hidden rounded-[6px] border border-gold/40 bg-card"
