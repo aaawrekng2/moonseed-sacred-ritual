@@ -14,6 +14,7 @@ import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useUIDensity } from "@/lib/use-ui-density";
 import { dispatchActiveThemeChanged } from "@/lib/theme-events";
 import { setStoredCommunityTheme } from "@/lib/community-themes";
+import { triggerPeek } from "@/lib/use-tap-to-peek";
 
 /**
  * Apply every facet of a saved sanctuary to the live document so a
@@ -62,7 +63,6 @@ export function ExpandingIconButton({
   onClick,
   ariaLabel,
   title,
-  restingLevel = "--ro-plus-0",
 }: {
   icon: ReactNode;
   label: string;
@@ -73,12 +73,6 @@ export function ExpandingIconButton({
   onClick: () => void;
   ariaLabel: string;
   title?: string;
-  /**
-   * Which CSS variable to use for resting opacity.
-   * Pass the variable name as a string: "--ro-plus-0", "--ro-plus-20", etc.
-   * Default: "--ro-plus-0".
-   */
-  restingLevel?: string;
 }) {
   const [expanding, setExpanding] = useState(false);
   const collapseTimer = useRef<number | null>(null);
@@ -91,6 +85,10 @@ export function ExpandingIconButton({
 
   const handleClick = () => {
     onClick();
+    // Trigger global peek — brightens everything to 100% for 1500ms
+    // then fades back to resting opacity via the same system as
+    // tap-to-peek. No per-icon opacity management needed.
+    triggerPeek(1500);
     if (collapseTimer.current) window.clearTimeout(collapseTimer.current);
     setExpanding(true);
     collapseTimer.current = window.setTimeout(() => setExpanding(false), 1500);
@@ -102,12 +100,11 @@ export function ExpandingIconButton({
       aria-label={ariaLabel}
       title={title}
       onClick={handleClick}
-      data-expanding={expanding ? "true" : "false"}
-      className="topbar-icon relative flex h-11 min-w-[44px] items-center justify-center overflow-hidden rounded-full text-gold focus:outline-none"
+      className="relative flex h-11 min-w-[44px] items-center justify-center overflow-hidden rounded-full text-gold focus:outline-none"
       style={{
-        // Per-icon resting level. The .topbar-icon CSS rule reads this
-        // custom property — opacity is NEVER set inline or via React state.
-        ["--topbar-icon-resting" as string]: `var(${restingLevel})`,
+        // Opacity is NOT set here — it is controlled globally by
+        // --resting-opacity via peekRestingOpacity(). The entire
+        // top bar inherits from the document root CSS variable.
         width: expanding ? "auto" : "44px",
         minWidth: "44px",
         paddingLeft: expanding ? "0.5rem" : "0",
@@ -120,7 +117,6 @@ export function ExpandingIconButton({
           : "1px solid transparent",
         transition:
           "width 300ms cubic-bezier(0.22, 1, 0.36, 1), padding 300ms cubic-bezier(0.22, 1, 0.36, 1), background 200ms ease, border-color 200ms ease",
-        // NOTE: opacity transition handled entirely by .topbar-icon CSS class.
       }}
     >
       {icon}
@@ -255,6 +251,8 @@ export function TopRightControls({
         top: "calc(env(safe-area-inset-top, 0px) + 6px)",
         right: "calc(env(safe-area-inset-right, 0px) + 12px)",
         gap: "2px",
+        opacity: "var(--ro-plus-0)",
+        transition: "opacity 600ms ease",
       }}
     >
       {extraFirst}
@@ -269,7 +267,6 @@ export function TopRightControls({
         onClick={toggleOracle}
         ariaLabel={`Toggle Oracle voice (currently ${isOracle ? "Oracle" : "Plain"})`}
         title={isOracle ? "Oracle voice on" : "Plain voice"}
-        restingLevel="--ro-plus-0"
       />
 
       {occupied.length > 0 && (
@@ -281,7 +278,6 @@ export function TopRightControls({
           onClick={cycleSanctuary}
           ariaLabel={`Cycle saved sanctuaries (current: ${currentLabel})`}
           title={`Sanctuary: ${currentLabel}`}
-          restingLevel="--ro-plus-0"
         />
       )}
 
@@ -302,7 +298,6 @@ export function TopRightControls({
           onClick={cycleLevel}
           ariaLabel={`The Clarity: ${clarityLabel} — tap to cycle (Seen → Glimpse → Veiled)`}
           title={`The Clarity: ${clarityLabel}`}
-          restingLevel="--ro-plus-20"
         />
       )}
 
@@ -310,8 +305,7 @@ export function TopRightControls({
         type="button"
         aria-label="Open settings"
         onClick={() => navigate({ to: "/settings" })}
-        style={{ ["--topbar-icon-resting" as string]: "var(--ro-plus-0)" }}
-        className="topbar-icon flex h-11 w-11 items-center justify-center rounded-full font-display text-[13px] leading-none text-gold focus:outline-none"
+        className="flex h-11 w-11 items-center justify-center rounded-full font-display text-[13px] leading-none text-gold transition-opacity hover:opacity-100 focus:outline-none"
         css-hint="gold-circle"
       >
         <span
@@ -331,8 +325,7 @@ export function TopRightControls({
           type="button"
           aria-label={closeLabel}
           onClick={onClose}
-          style={{ ["--topbar-icon-resting" as string]: "var(--ro-plus-10)" }}
-          className="topbar-icon flex h-11 w-11 items-center justify-center rounded-full text-gold touch-manipulation [-webkit-tap-highlight-color:transparent] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          className="flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
         >
           <svg
             width="18"
