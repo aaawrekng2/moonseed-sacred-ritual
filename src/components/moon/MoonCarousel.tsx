@@ -46,6 +46,13 @@ export function MoonCarousel() {
   const prevOffsetRef = useRef(0);
   const tweenRafRef = useRef<number | null>(null);
 
+  // Tracks the last phase the user explicitly jumped to via the ladder.
+  // While the carousel is still showing that same phase at center, repeated
+  // taps on the same rung become no-ops (they don't keep walking forward to
+  // the next distinct occurrence). Reset whenever the user navigates by
+  // any other means (chevron, swipe, "Today" button, tap-to-center).
+  const lastJumpedPhaseRef = useRef<MoonPhaseName | null>(null);
+
   // Trigger a brief luminous shimmer whenever offset shifts by more than one
   // day (i.e. a phase-ladder jump or a "Today" return). Single-day steps and
   // swipes feel calm enough already and don't need the flourish. Skipped
@@ -150,19 +157,23 @@ export function MoonCarousel() {
     setOffset((o) => o + dir);
     setExpandedRel(null);
     setSelectedRel(null);
+    lastJumpedPhaseRef.current = null;
   };
   const goToToday = () => {
     setOffset(0);
     setExpandedRel(null);
     setSelectedRel(null);
+    lastJumpedPhaseRef.current = null;
   };
   const toggleExpand = (rel: number) => {
     setExpandedRel((cur) => (cur === rel ? null : rel));
     // Tapping a card also selects it (toggles off if already selected).
     setSelectedRel((cur) => (cur === rel ? null : rel));
+    lastJumpedPhaseRef.current = null;
   };
   const selectCenter = (rel: number) => {
     setSelectedRel((cur) => (cur === rel ? null : rel));
+    lastJumpedPhaseRef.current = null;
   };
 
   // Smoothly tween the offset from its current value to `target` so the
@@ -214,8 +225,19 @@ export function MoonCarousel() {
   // Tap a ladder rung → jump to the *nearest* occurrence of that phase in
   // either direction. Side-specific arrows (chevrons) still step ±1 day.
   const jumpToPhase = (phase: MoonPhaseName) => {
+    // Subsequent taps on the same rung are a no-op — we already landed
+    // on (or near) that phase. Only a different rung or another
+    // navigation gesture re-arms the jump.
+    if (lastJumpedPhaseRef.current === phase) {
+      const currentCenterPhase = getCurrentMoonPhase(viewedDate).phase;
+      if (currentCenterPhase === phase) return;
+    }
     const delta = findNearestPhaseOccurrence(phase, viewedDate);
-    if (delta === 0) return;
+    if (delta === 0) {
+      lastJumpedPhaseRef.current = phase;
+      return;
+    }
+    lastJumpedPhaseRef.current = phase;
     tweenOffsetTo(offset + delta);
   };
 
@@ -410,23 +432,23 @@ export function MoonCarousel() {
         />
       </div>
 
-      <p
-        className="-mt-2 text-center text-[9px] uppercase tracking-[0.25em] text-muted-foreground sm:hidden"
-        style={{ opacity: restingAlpha * 0.6 }}
-      >
-        Swipe to browse · Tap a day for details
-      </p>
-
-      {offset !== 0 && (
-        <div className="mt-1 flex w-full justify-center animate-in fade-in duration-300">
+      <div className="-mt-2 flex h-5 w-full items-center justify-center sm:hidden">
+        {offset === 0 ? (
+          <p
+            className="text-center text-[9px] uppercase tracking-[0.25em] text-muted-foreground"
+            style={{ opacity: restingAlpha * 0.6 }}
+          >
+            Swipe to browse · Tap a day for details
+          </p>
+        ) : (
           <button
             type="button"
             onClick={goToToday}
             aria-label="Return to today"
             className={cn(
               "inline-flex items-center gap-1 cursor-pointer border-0 m-0",
-              "px-2 py-1 rounded-full bg-transparent text-xs",
-              "transition-opacity duration-150",
+              "px-3 py-1 rounded-full bg-transparent text-[10px] uppercase tracking-[0.2em]",
+              "transition-opacity duration-150 animate-in fade-in",
               "hover:opacity-100 focus-visible:opacity-100",
               "outline-none focus-visible:outline-none",
               "focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
@@ -436,8 +458,8 @@ export function MoonCarousel() {
             <span aria-hidden="true">↩</span>
             <span>Today</span>
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
     </section>
   );
@@ -718,7 +740,7 @@ function MobilePhaseLadder({
           onClick={() => onJump(r.phase)}
           aria-label={`Jump to ${isLeft ? "previous" : "next"} ${r.label}`}
           style={{
-            opacity: restingAlpha,
+            opacity: `var(--ro-plus-20)`,
             [isLeft ? "marginLeft" : "marginRight"]: MOBILE_RUNG_INSETS[i],
           }}
           className="group cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -779,7 +801,7 @@ function PhaseLadder({
           title={`${jumpVerb} ${r.label}`}
           aria-current={i === activeIdx ? "true" : undefined}
           style={{
-            opacity: i === activeIdx ? 1 : restingAlpha,
+            opacity: i === activeIdx ? 1 : ("var(--ro-plus-20)" as unknown as number),
             [isLeft ? "marginLeft" : "marginRight"]: r.inset,
           }}
           className={cn(
@@ -818,7 +840,7 @@ function PhaseLadder({
       type="button"
       onClick={onStep}
       aria-label={stepLabel}
-      style={{ opacity: restingAlpha }}
+      style={{ opacity: "var(--ro-plus-20)" }}
       className={cn(
         "inline-flex shrink-0 items-center justify-center rounded-full bg-transparent border-0 p-0 cursor-pointer",
         "text-muted-foreground transition-all duration-200",

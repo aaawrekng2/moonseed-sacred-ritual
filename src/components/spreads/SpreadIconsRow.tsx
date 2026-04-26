@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { cn } from "@/lib/utils";
 import type { SpreadMode } from "@/lib/spreads";
 
@@ -61,13 +60,15 @@ export function SpreadIconsRow({
 }: {
   onSelect?: (spread: SpreadMode) => void;
 }) {
-  const { opacity } = useRestingOpacity();
-  const restingAlpha = opacity / 100;
-
   return (
     <div
       className="grid grid-cols-4 px-6 pb-4"
-      style={{ opacity: restingAlpha, maxWidth: 380, width: "100%", margin: "0 auto" }}
+      style={{
+        opacity: "var(--ro-plus-20)",
+        maxWidth: 380,
+        width: "100%",
+        margin: "0 auto",
+      }}
     >
       {SPREADS.map(({ id, label, Glyph }) => (
         <button

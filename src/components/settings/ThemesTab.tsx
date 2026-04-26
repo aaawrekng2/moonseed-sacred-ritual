@@ -434,7 +434,7 @@ function CardBackSection() {
       title="The Veil"
       description="What the cards show before they speak."
     >
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+      <div className="grid grid-cols-5 gap-1.5 sm:gap-3">
         {CARD_BACKS.map((back) => {
           const active = cardBack === back.id;
           return (
@@ -443,15 +443,15 @@ function CardBackSection() {
               type="button"
               onClick={() => void choose(back.id)}
               className={cn(
-                "flex flex-col items-center gap-2 rounded-2xl p-3 transition focus:outline-none",
+                "flex flex-col items-center gap-1.5 rounded-2xl p-1.5 transition focus:outline-none sm:gap-2 sm:p-3",
               )}
               aria-pressed={active}
               aria-label={`Use ${back.label} card back`}
             >
-              <CardBack id={back.id} width={48} />
+              <CardBack id={back.id} width={40} />
               <span
                 className={cn(
-                  "text-xs pb-0.5 border-b-2 transition-colors",
+                  "text-[10px] sm:text-xs pb-0.5 border-b-2 transition-colors",
                   active
                     ? "border-gold text-gold"
                     : "border-transparent text-muted-foreground-strong",
@@ -537,32 +537,38 @@ function CustomAccentSection() {
       title="Your Signature"
       description="Cast your own color into the space."
     >
-      <div className="flex items-start gap-4">
-        <button
-          type="button"
-          onClick={() => {
-            setDraft(display);
-            setHexInput(display);
-            setOpen((v) => !v);
-          }}
-          aria-expanded={open}
-          aria-label={`Custom accent — current ${display}, tap to change`}
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(display);
+          setHexInput(display);
+          setOpen((v) => !v);
+        }}
+        aria-expanded={open}
+        aria-label={`Custom accent — current ${display}, tap to change`}
+        className={cn(
+          "group flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors",
+          "hover:bg-muted/30 focus-visible:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60",
+        )}
+      >
+        <span
+          aria-hidden
           className={cn(
-            "relative inline-flex aspect-square w-12 shrink-0 items-center justify-center rounded-full transition-all",
+            "relative inline-flex aspect-square w-9 shrink-0 items-center justify-center rounded-full transition-all",
             "ring-offset-2 ring-offset-background",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold",
             prefs.accent_color
               ? "ring-2 ring-gold shadow-glow"
-              : "ring-1 ring-border/60 hover:ring-gold/50",
+              : "ring-1 ring-border/60 group-hover:ring-gold/50",
           )}
           style={{ backgroundColor: display }}
         />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm text-foreground">
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="text-sm text-foreground">Your Signature</span>
+          <span className="text-xs text-muted-foreground">
             {prefs.accent_color ? "Custom" : "Using preset"}
-          </p>
-        </div>
-      </div>
+          </span>
+        </span>
+      </button>
 
       {open && (
         <div className="mt-4 rounded-xl border border-border/60 bg-card/80 p-4 backdrop-blur-xl">
@@ -756,8 +762,18 @@ function BgHexPicker({
           onClick={onToggle}
           aria-expanded={open}
           aria-label={`${label} — current ${value}`}
-          className="relative inline-flex aspect-square w-12 shrink-0 rounded-full ring-1 ring-border/60 transition-all hover:ring-gold/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold ring-offset-2 ring-offset-background"
-          style={{ backgroundColor: value }}
+          className="relative inline-flex aspect-square w-12 shrink-0 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold ring-offset-2 ring-offset-background"
+          style={{
+            backgroundColor: value,
+            border: "1px solid oklch(0.82 0.14 82 / 0.40)",
+            transition: "border-color 200ms ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "oklch(0.82 0.14 82 / 0.70)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "oklch(0.82 0.14 82 / 0.40)";
+          }}
         />
         <Label className="text-xs text-muted-foreground">{label}</Label>
       </div>

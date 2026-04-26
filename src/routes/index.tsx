@@ -33,7 +33,8 @@ function Index() {
 
   // Pull-to-refresh: track a vertical drag that starts at the very top of
   // the screen and reload once the user pulls past the threshold.
-  const PULL_THRESHOLD = 80;
+  // 60px is the canonical iOS / Android threshold.
+  const PULL_THRESHOLD = 60;
   const pullStartY = useRef<number | null>(null);
   const [pullDistance, setPullDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,7 +54,8 @@ function Index() {
     if (refreshing || refreshLatchedRef.current) return;
     const t = e.touches[0];
     // Only arm a pull if the touch starts near the very top edge.
-    if (t.clientY <= 40) {
+    // 80px is the standard Android/iOS pull-to-refresh activation zone.
+    if (t.clientY <= 80) {
       pullStartY.current = t.clientY;
     } else {
       pullStartY.current = null;
@@ -160,12 +162,15 @@ function Index() {
             title="Your practice streak"
             aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`}
           >
-            <Flame size={16} style={{ color: "var(--gold)", opacity: restingAlpha }} />
+            <Flame
+              size={16}
+              style={{ color: "var(--gold)", opacity: "var(--ro-plus-20)" }}
+            />
             <span
               style={{
                 fontSize: "13px",
                 color: "var(--gold)",
-                opacity: restingAlpha,
+                opacity: "var(--ro-plus-20)",
                 fontFamily: "var(--font-serif)",
               }}
             >

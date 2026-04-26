@@ -1,0 +1,72 @@
+/**
+ * Global tap-to-peek behavior. When a user is in Glimpse (labels off whisper)
+ * or Veiled (labels off + low opacity) and taps an *empty* area of any
+ * screen, briefly reveal everything: labels on, resting opacity at 100%.
+ * After 2000ms, fade both back to the user's saved values over 600ms.
+ *
+ * "Empty space" = a tap whose target is not an interactive element
+ * (button, link, input, textarea, select, [role=button|link], [data-no-peek]).
+ *
+ * Implementation notes:
+ *  - Mounted once at the root; listens at document level with capture=true
+ *    so it sees the tap before any per-component handler.
+ *  - Override is *transient* — neither localStorage nor user_preferences is
+ *    written. Restore re-broadcasts the saved values to all subscribers.
+ *  - Only re-arms a peek if a previous peek has fully restored, to avoid
+ *    flickering during rapid taps.
+ */
+import { useEffect } from "react";
+import { peekRestingOpacity } from "@/lib/use-resting-opacity";
+import { peekShowLabels } from "@/lib/use-show-labels";
+
+const PEEK_HOLD_MS = 2000;
+const PEEK_FADE_MS = 600;
+
+const INTERACTIVE_SELECTOR =
+  'button, a, input, textarea, select, [role="button"], [role="link"], ' +
+  '[role="menuitem"], [role="checkbox"], [role="switch"], [role="tab"], ' +
+  '[contenteditable="true"], [data-no-peek], label';
+
+let active = false;
+let holdTimer: ReturnType<typeof setTimeout> | null = null;
+
+function isInteractive(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return target.closest(INTERACTIVE_SELECTOR) !== null;
+}
+
+function triggerPeek() {
+  if (active) return;
+  active = true;
+  const restoreOpacity = peekRestingOpacity(100);
+  const restoreLabels = peekShowLabels();
+
+  if (holdTimer) clearTimeout(holdTimer);
+  holdTimer = setTimeout(() => {
+    holdTimer = null;
+    restoreOpacity(PEEK_FADE_MS);
+    restoreLabels();
+    setTimeout(() => {
+      active = false;
+    }, PEEK_FADE_MS + 40);
+  }, PEEK_HOLD_MS);
+}
+
+export function useTapToPeek() {
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const handler = (e: PointerEvent) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      if (isInteractive(e.target)) return;
+      triggerPeek();
+    };
+    document.addEventListener("pointerdown", handler, { capture: true });
+    return () => {
+      document.removeEventListener("pointerdown", handler, { capture: true });
+      if (holdTimer) {
+        clearTimeout(holdTimer);
+        holdTimer = null;
+      }
+    };
+  }, []);
+}

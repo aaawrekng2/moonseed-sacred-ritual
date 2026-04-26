@@ -59,3 +59,35 @@ export function useShowLabels(): {
     toggleShowLabels: () => setShowLabels(!current),
   };
 }
+
+/**
+ * Briefly force labels ON without writing to localStorage. Used by the
+ * global tap-to-peek behavior so a tap on empty space momentarily reveals
+ * spread labels regardless of the saved preference. Returns a restore
+ * function that re-broadcasts the persisted value to all subscribers.
+ */
+export function peekShowLabels(): () => void {
+  if (typeof window === "undefined") return () => {};
+  // Push true to all subscribers without touching `current` so the
+  // saved preference is untouched.
+  listeners.forEach((l) => l(true));
+  try {
+    window.dispatchEvent(
+      new CustomEvent<boolean>("moonseed:show-labels-changed", { detail: true }),
+    );
+  } catch {
+    /* ignore */
+  }
+  return () => {
+    listeners.forEach((l) => l(current));
+    try {
+      window.dispatchEvent(
+        new CustomEvent<boolean>("moonseed:show-labels-changed", {
+          detail: current,
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  };
+}

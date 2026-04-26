@@ -72,3 +72,34 @@ export function useRestingOpacity() {
 
   return { opacity: value, loaded, setOpacity };
 }
+
+/**
+ * Briefly override the resting opacity value without persisting it. Used by
+ * the global "tap-to-peek" behavior so the user can momentarily see hidden
+ * UI without flipping their saved preference. Returns a restore function
+ * that resets the value to whatever is in localStorage.
+ */
+export function peekRestingOpacity(targetPct: number) {
+  if (typeof window === "undefined") return () => {};
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  const restore = stored != null ? clamp(Number(stored)) : DEFAULT_RESTING_OPACITY;
+  emit(clamp(targetPct));
+  return (transitionMs = 0) => {
+    if (transitionMs > 0 && typeof document !== "undefined") {
+      // Best-effort smooth fade: animate the React-state-driven values via a
+      // short rAF loop. CSS-var consumers will re-flow each tick.
+      const startTs = performance.now();
+      const startVal = clamp(targetPct);
+      const endVal = restore;
+      const tick = (now: number) => {
+        const t = Math.min(1, (now - startTs) / transitionMs);
+        const v = startVal + (endVal - startVal) * t;
+        emit(clamp(v));
+        if (t < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    } else {
+      emit(restore);
+    }
+  };
+}

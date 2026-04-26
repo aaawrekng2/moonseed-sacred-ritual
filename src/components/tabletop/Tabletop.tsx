@@ -16,7 +16,7 @@ import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { t } from "@/lib/oracle-language";
-import { TopRightControls } from "@/components/nav/TopRightControls";
+import { TopRightControls, ExpandingIconButton } from "@/components/nav/TopRightControls";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1247,38 +1247,38 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             </button>
           </>
         )}
-        <button
-          type="button"
+        <ExpandingIconButton
+          icon={
+            densityLevel === 0 ? (
+              <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            ) : densityLevel === 1 ? (
+              <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            ) : (
+              <EyeClosed className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            )
+          }
+          label={
+            densityLevel === 0
+              ? t("claritySeen", isOracle)
+              : densityLevel === 1
+                ? t("clarityGlimpse", isOracle)
+                : t("clarityVeiled", isOracle)
+          }
+          labelFont={isOracle ? "var(--font-serif)" : "var(--font-sans)"}
+          labelStyle={isOracle ? "italic-gold" : "muted"}
+          isActive={densityLevel === 0}
           onClick={cycleDensity}
-          aria-label={
+          ariaLabel={
             densityLevel === 0
-              ? "Hide draw whisper"
+              ? "Clarity: Seen — tap to enter Glimpse"
               : densityLevel === 1
-                ? "Hide spread position labels"
-                : "Show spread position labels and draw whisper"
+                ? "Clarity: Glimpse — tap to enter Veiled"
+                : "Clarity: Veiled — tap to return to Seen"
           }
-          title={
-            densityLevel === 0
-              ? "Whisper + labels"
-              : densityLevel === 1
-                ? "Labels only"
-                : "Minimal"
-          }
-          style={{
-            opacity: densityLevel === 0
-              ? Math.min(1, restingAlpha + 0.15)
-              : restingAlpha,
-          }}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 md:h-7 md:w-7"
-        >
-          {densityLevel === 0 ? (
-            <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-          ) : densityLevel === 1 ? (
-            <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-          ) : (
-            <EyeClosed className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-          )}
-        </button>
+          title={`The Clarity: ${
+            densityLevel === 0 ? "Seen" : densityLevel === 1 ? "Glimpse" : "Veiled"
+          }`}
+        />
         <button
           type="button"
           onClick={handleExit}

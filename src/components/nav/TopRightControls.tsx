@@ -53,7 +53,7 @@ function applySanctuary(
  * toggle and the Sanctuary cycler — anywhere we need a brief, in-place
  * confirmation of *what* the tap just did without a separate popover.
  */
-function ExpandingIconButton({
+export function ExpandingIconButton({
   icon,
   label,
   labelFont,
@@ -106,7 +106,7 @@ function ExpandingIconButton({
         minWidth: "1.75rem",
         paddingLeft: expanded ? "0.5rem" : "0",
         paddingRight: expanded ? "0.5rem" : "0",
-        opacity: isActive ? 1 : "var(--ro-plus-0)",
+        opacity: isActive ? 1 : "var(--ro-plus-20)",
         background: expanded
           ? "color-mix(in oklch, var(--gold) 12%, transparent)"
           : "transparent",
