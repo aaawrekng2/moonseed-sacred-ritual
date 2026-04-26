@@ -81,6 +81,7 @@ export type Database = {
           show_labels: boolean
           show_reversals: boolean
           sun_sign: string | null
+          ui_density: number
           updated_at: string
           user_id: string
         }
@@ -120,6 +121,7 @@ export type Database = {
           show_labels?: boolean
           show_reversals?: boolean
           sun_sign?: string | null
+          ui_density?: number
           updated_at?: string
           user_id: string
         }
@@ -159,6 +161,7 @@ export type Database = {
           show_labels?: boolean
           show_reversals?: boolean
           sun_sign?: string | null
+          ui_density?: number
           updated_at?: string
           user_id?: string
         }
