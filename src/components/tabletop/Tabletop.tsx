@@ -1140,6 +1140,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     performExit();
   };
 
+  // The X icon on the global FloatingMenu mirrors handleExit so the
+  // tabletop keeps its single-tap close affordance without owning a
+  // top-bar cluster.
+  useRegisterCloseHandler(handleExit);
+
   // Mirror current cards + undo/redo stacks into the cross-route
   // session store on every change. This is what makes the session
   // survive accidental navigation away from /draw — when <Tabletop>
