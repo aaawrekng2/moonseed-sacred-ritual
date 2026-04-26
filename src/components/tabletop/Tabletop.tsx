@@ -1972,7 +1972,9 @@ function CardSlot({
     }
   }, [onDragMove]);
 
-  const HOLD_MS = 150;
+  // Touch / coarse pointer activates drag faster (80ms) so a quick
+  // press-and-move doesn't get treated as a tap. Mouse keeps 150ms.
+  const HOLD_MS = isCoarsePointer ? 80 : 150;
 
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (card.revealed) return; // never drag a face-up card
