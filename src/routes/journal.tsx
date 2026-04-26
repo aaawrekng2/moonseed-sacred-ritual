@@ -607,10 +607,12 @@ function ReadingCard({
 
 function GalleryView({
   items,
+  covers,
   isOracle,
   onOpen,
 }: {
   items: ReadingRow[];
+  covers: Record<string, string>;
   isOracle: boolean;
   onOpen: (id: string) => void;
 }) {
@@ -623,13 +625,12 @@ function GalleryView({
       />
     );
   }
-  // V1: photo previews come in pass 2 (signed URLs from storage).
-  // For now, show the first card image from each reading as a stand-in
-  // so the grid layout and navigation are validated against real data.
   return (
     <div className="grid grid-cols-2 gap-1.5 md:grid-cols-3">
       {items.map((r) => {
-        const cover = r.card_ids[0] ?? 0;
+        const photoUrl = covers[r.id];
+        // Fall back to the first card image while the signed URL is in flight.
+        const fallback = getCardImagePath(r.card_ids[0] ?? 0);
         return (
           <button
             key={r.id}
@@ -642,11 +643,11 @@ function GalleryView({
             }}
           >
             <img
-              src={getCardImagePath(cover)}
+              src={photoUrl ?? fallback}
               alt=""
               loading="lazy"
               className="h-full w-full object-cover"
-              style={{ opacity: "var(--ro-plus-30)" }}
+              style={photoUrl ? undefined : { opacity: "var(--ro-plus-30)" }}
             />
             <div
               className="absolute inset-x-0 bottom-0 flex items-center justify-between px-2 py-1.5 text-[10px] uppercase tracking-[0.14em]"
