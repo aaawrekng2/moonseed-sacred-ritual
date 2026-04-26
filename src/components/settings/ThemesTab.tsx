@@ -537,32 +537,38 @@ function CustomAccentSection() {
       title="Your Signature"
       description="Cast your own color into the space."
     >
-      <div className="flex items-start gap-4">
-        <button
-          type="button"
-          onClick={() => {
-            setDraft(display);
-            setHexInput(display);
-            setOpen((v) => !v);
-          }}
-          aria-expanded={open}
-          aria-label={`Custom accent — current ${display}, tap to change`}
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(display);
+          setHexInput(display);
+          setOpen((v) => !v);
+        }}
+        aria-expanded={open}
+        aria-label={`Custom accent — current ${display}, tap to change`}
+        className={cn(
+          "group flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors",
+          "hover:bg-muted/30 focus-visible:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60",
+        )}
+      >
+        <span
+          aria-hidden
           className={cn(
-            "relative inline-flex aspect-square w-12 shrink-0 items-center justify-center rounded-full transition-all",
+            "relative inline-flex aspect-square w-9 shrink-0 items-center justify-center rounded-full transition-all",
             "ring-offset-2 ring-offset-background",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold",
             prefs.accent_color
               ? "ring-2 ring-gold shadow-glow"
-              : "ring-1 ring-border/60 hover:ring-gold/50",
+              : "ring-1 ring-border/60 group-hover:ring-gold/50",
           )}
           style={{ backgroundColor: display }}
         />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm text-foreground">
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="text-sm text-foreground">Your Signature</span>
+          <span className="text-xs text-muted-foreground">
             {prefs.accent_color ? "Custom" : "Using preset"}
-          </p>
-        </div>
-      </div>
+          </span>
+        </span>
+      </button>
 
       {open && (
         <div className="mt-4 rounded-xl border border-border/60 bg-card/80 p-4 backdrop-blur-xl">
