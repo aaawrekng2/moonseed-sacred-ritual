@@ -36,6 +36,13 @@ const TABLETOP_CONFIG = {
   // calm, axis-aligned spread so the eye isn't pulled around.
   CARD_MAX_ROTATION: 0,
   SCATTER_PADDING: 10,
+  /**
+   * Reserved vertical strip at the top of the scatter container so cards
+   * never spawn or get dragged behind the fixed top-bar icon cluster
+   * (44px tap targets + safe-area). Used both as `padding-top` on the
+   * container and as a deduction from the usable scatter height.
+   */
+  TOP_RESERVE: 64,
   SELECTION_GLOW_SPREAD: 6,
   SELECTION_GLOW_OPACITY: 0.8,
   // Slow, ceremonial flip — long enough to feel reverent without
@@ -486,9 +493,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // so resizing or first-mount doesn't wipe the user's selections.
   const initialScatter = useMemo(() => {
     if (!size) return [] as ScatterCard[];
+    // Subtract the top reserve so cards never spawn behind the top bar.
+    // (Matches the container's padding-top.) Floor at 1 to keep
+    // buildScatter sane on extremely short viewports.
+    const usableH = Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE);
     return buildScatter({
       width: size.w,
-      height: size.h,
+      height: usableH,
       count: TABLETOP_CONFIG.DECK_SIZE,
       cardWidth: cardW,
       cardHeight: cardH,
@@ -889,8 +900,17 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         setTableGhost(null);
         return;
       }
+      // Convert viewport coords to container/scatter coords. Cards are
+      // absolutely positioned so `top` is measured from the padding edge —
+      // subtract the reserved top strip so the ghost lands where the
+      // card will actually snap.
       const targetLeft = projectedLeft - containerOrigin.left;
-      const targetTop = projectedTop - containerOrigin.top;
+      const targetTop =
+        projectedTop - containerOrigin.top - TABLETOP_CONFIG.TOP_RESERVE;
+      const usableH = Math.max(
+        1,
+        size.h - TABLETOP_CONFIG.TOP_RESERVE,
+      );
       const clampedX = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
@@ -901,7 +921,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       const clampedY = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
-          size.h - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+          usableH - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
           targetTop,
         ),
       );
@@ -1315,11 +1335,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         ref={containerRef}
         className="tabletop-stage relative flex-1 overflow-hidden select-none"
         style={{
-          // Reserve room for the upper-right icon cluster (44px tap
-          // targets on mobile) so cards never scatter behind it.
-          paddingTop: isMobile
-            ? "calc(env(safe-area-inset-top, 0px) + 60px)"
-            : "calc(env(safe-area-inset-top, 0px) + 48px)",
+          // Reserve a vertical strip for the upper-right icon cluster
+          // (44px tap targets + safe-area) so cards never spawn or get
+          // dragged behind it. Same reserve on mobile and desktop —
+          // a too-small reserve made cards on phones sit under the
+          // close button. The matching deduction from the usable scatter
+          // height happens in `buildScatter` and the drag clamps below.
+          paddingTop: `calc(env(safe-area-inset-top, 0px) + ${TABLETOP_CONFIG.TOP_RESERVE}px)`,
         }}
       >
         {cards.map((c, idx) => (
@@ -1559,9 +1581,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                     className="font-display italic leading-snug"
                     style={{
                       // Larger so the description reads at a glance —
-                      // 14px on mobile, 16px on desktop. Closer to the
+                      // 16px on mobile, 18px on desktop. Closer to the
                       // slot rail (no top margin) per design.
-                      fontSize: isMobile ? 14 : 16,
+                      fontSize: isMobile ? 16 : 18,
                       color: "color-mix(in oklab, var(--gold) 55%, transparent)",
                       opacity: showWhisper ? 1 : 0,
                       letterSpacing: "0.03em",
@@ -2081,7 +2103,17 @@ function CardSlot({
       // a last resort.
       const freshRect = containerElRef.current?.getBoundingClientRect();
       const cLeft = freshRect?.left ?? containerRect?.left ?? 0;
-      const cTop = freshRect?.top ?? containerRect?.top ?? 0;
+      // Cards are absolutely positioned, so their `top` coords are relative
+      // to the container's *padding edge*, not its border edge. Add the
+      // computed padding-top so the conversion lands the card under the
+      // pointer instead of jumping down by ~64px on first grab.
+      const cTopBorder = freshRect?.top ?? containerRect?.top ?? 0;
+      const padTop = containerElRef.current
+        ? parseFloat(
+            getComputedStyle(containerElRef.current).paddingTop || "0",
+          ) || 0
+        : 0;
+      const cTop = cTopBorder + padTop;
       setDragPos({
         x: s.startClientX - s.pointerOffsetX - cLeft,
         y: s.startClientY - s.pointerOffsetY - cTop,
@@ -2153,7 +2185,13 @@ function CardSlot({
     // collapse mid-gesture) so we re-measure every move.
     const freshRect = containerElRef.current?.getBoundingClientRect();
     const cLeft = freshRect?.left ?? containerRect?.left ?? 0;
-    const cTop = freshRect?.top ?? containerRect?.top ?? 0;
+    const cTopBorder = freshRect?.top ?? containerRect?.top ?? 0;
+    const padTop = containerElRef.current
+      ? parseFloat(
+          getComputedStyle(containerElRef.current).paddingTop || "0",
+        ) || 0
+      : 0;
+    const cTop = cTopBorder + padTop;
     if (el) {
       el.style.left = `${e.clientX - s.pointerOffsetX - cLeft}px`;
       el.style.top = `${e.clientY - s.pointerOffsetY - cTop}px`;
@@ -2179,9 +2217,18 @@ function CardSlot({
     if (wasDragging && liveRect) {
       // Convert the drop point (top-left of the card under the pointer)
       // back into container coordinates and clamp it inside the table so
-      // a card never lands fully off-screen.
+      // a card never lands fully off-screen. Subtract the container's
+      // padding-top because absolute children measure `top` from the
+      // padding edge.
+      const padTop = containerElRef.current
+        ? parseFloat(
+            getComputedStyle(containerElRef.current).paddingTop || "0",
+          ) || 0
+        : 0;
       const targetLeft = clientX - s.pointerOffsetX - liveRect.left;
-      const targetTop = clientY - s.pointerOffsetY - liveRect.top;
+      const targetTop = clientY - s.pointerOffsetY - liveRect.top - padTop;
+      // Usable scatter height = container border-box minus padding-top.
+      const usableH = Math.max(1, liveRect.height - padTop);
       const clampedX = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
@@ -2192,7 +2239,7 @@ function CardSlot({
       const clampedY = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
-          liveRect.height - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+          usableH - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
           targetTop,
         ),
       );

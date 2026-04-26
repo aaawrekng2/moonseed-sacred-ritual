@@ -12,12 +12,12 @@ import {
   Sliders,
   Star,
   User as UserIcon,
-  X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
 import { TopRightControls } from "@/components/nav/TopRightControls";
+import { useNavigate } from "@tanstack/react-router";
 
 /**
  * /settings — layout route. The route itself redirects to
@@ -77,6 +77,7 @@ function tabFromPath(pathname: string): TabKey | null {
 function SettingsLayout() {
   const { user, loading: authLoading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const activeTab = tabFromPath(location.pathname);
   const tabBarRef = useRef<HTMLDivElement | null>(null);
 
@@ -129,19 +130,10 @@ function SettingsLayout() {
         (do NOT render another BottomNav here — that would duplicate it).
       */}
       <main className="h-dvh overflow-y-auto bg-cosmos pb-28 pt-[calc(env(safe-area-inset-top)+24px)] text-foreground">
-        <TopRightControls />
-        <Link
-          to="/"
-          aria-label="Close settings"
-          className="fixed z-[60] inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity hover:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          style={{
-            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-            left: "calc(env(safe-area-inset-left, 0px) + 12px)",
-            opacity: "var(--ro-plus-0)",
-          }}
-        >
-          <X className="h-5 w-5" strokeWidth={1.5} />
-        </Link>
+        <TopRightControls
+          onClose={() => void navigate({ to: "/" })}
+          closeLabel="Close settings"
+        />
         <div className="mx-auto w-full max-w-5xl px-4">
           {/* Mobile tab bar: horizontally scrollable underline. */}
           <div className="-mx-4 mb-6 border-b border-gold/10 md:hidden">

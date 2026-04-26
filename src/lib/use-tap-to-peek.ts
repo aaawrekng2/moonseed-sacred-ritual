@@ -29,6 +29,8 @@ const INTERACTIVE_SELECTOR =
 
 let active = false;
 let holdTimer: ReturnType<typeof setTimeout> | null = null;
+let restoreOpacityFn: ((fadeMs: number) => void) | null = null;
+let restoreLabelsFn: (() => void) | null = null;
 
 function isInteractive(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
@@ -36,16 +38,25 @@ function isInteractive(target: EventTarget | null): boolean {
 }
 
 function triggerPeek() {
-  if (active) return;
-  active = true;
-  const restoreOpacity = peekRestingOpacity(100);
-  const restoreLabels = peekShowLabels();
-
-  if (holdTimer) clearTimeout(holdTimer);
+  // Clear any pending hold so a repeat tap resets the 2000ms timer
+  // instead of being ignored. Only acquire fresh peek subscriptions on
+  // the *first* tap of a peek session — re-acquiring on every tap would
+  // double-broadcast and leak restore handlers.
+  if (holdTimer) {
+    clearTimeout(holdTimer);
+    holdTimer = null;
+  }
+  if (!active) {
+    active = true;
+    restoreOpacityFn = peekRestingOpacity(100);
+    restoreLabelsFn = peekShowLabels();
+  }
   holdTimer = setTimeout(() => {
     holdTimer = null;
-    restoreOpacity(PEEK_FADE_MS);
-    restoreLabels();
+    restoreOpacityFn?.(PEEK_FADE_MS);
+    restoreLabelsFn?.();
+    restoreOpacityFn = null;
+    restoreLabelsFn = null;
     setTimeout(() => {
       active = false;
     }, PEEK_FADE_MS + 40);

@@ -27,6 +27,7 @@ import {
   Save,
   Trash2,
   Wand2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { HexColorPicker } from "react-colorful";
@@ -977,23 +978,34 @@ function InterfaceFadeSection() {
             {draft}%
           </span>
         </div>
-        <Slider
-          min={MIN_RESTING_OPACITY}
-          max={MAX_RESTING_OPACITY}
-          step={1}
-          value={[draft]}
-          onValueChange={(v) => {
-            const n = v[0];
-            if (typeof n === "number") setDraft(n);
-          }}
-          onValueCommit={(v) => {
-            const n = v[0];
-            if (typeof n === "number") void commit(n);
-          }}
-        />
-        <div className="flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground/70">
-          <span>Whisper</span>
-          <span>Speak</span>
+        {/*
+          Narrower on mobile so horizontal swipes near the screen edge
+          don't grab the slider thumb (which would block the back-edge
+          gesture). `touch-action: pan-y` lets vertical scrolls pass
+          through the slider on touch devices.
+        */}
+        <div
+          className="mx-auto w-4/5 sm:w-full"
+          style={{ touchAction: "pan-y" }}
+        >
+          <Slider
+            min={MIN_RESTING_OPACITY}
+            max={MAX_RESTING_OPACITY}
+            step={1}
+            value={[draft]}
+            onValueChange={(v) => {
+              const n = v[0];
+              if (typeof n === "number") setDraft(n);
+            }}
+            onValueCommit={(v) => {
+              const n = v[0];
+              if (typeof n === "number") void commit(n);
+            }}
+          />
+          <div className="mt-2 flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground/70">
+            <span>Whisper</span>
+            <span>Speak</span>
+          </div>
         </div>
       </div>
     </SettingsSection>
@@ -1931,6 +1943,22 @@ function UnsavedChangesGuard() {
 
         {!nameMode ? (
           <div className="flex flex-col">
+            {/*
+              First option (most common): dismiss the dialog and stay on
+              the Themes page so the user can keep editing or save
+              properly. Does NOT proceed with the pending navigation.
+            */}
+            <button
+              type="button"
+              onClick={cancel}
+              className="flex w-full items-center justify-between gap-3 border-b border-border/40 px-1 py-3 text-left text-sm text-foreground transition hover:text-gold"
+            >
+              <span>
+                {isOracle ? "Return to the altar" : "Return to Settings"}
+              </span>
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+
             {activeTheme && (
               <button
                 type="button"
