@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw } from "lucide-react";
 import {
-  findNearestPhaseOccurrence,
   getCurrentMoonPhase,
+  getPhaseOccurrences,
   getMoonSign,
   type MoonInfo,
   type MoonPhaseName,
@@ -47,11 +47,13 @@ export function MoonCarousel() {
   const tweenRafRef = useRef<number | null>(null);
 
   // Tracks the last phase the user explicitly jumped to via the ladder.
-  // While the carousel is still showing that same phase at center, repeated
-  // taps on the same rung become no-ops (they don't keep walking forward to
-  // the next distinct occurrence). Reset whenever the user navigates by
-  // any other means (chevron, swipe, "Today" button, tap-to-center).
-  const lastJumpedPhaseRef = useRef<MoonPhaseName | null>(null);
+  // Pre-computed list of every occurrence of each navigable phase in the
+  // next 13 months, plus a per-phase cursor that advances on each tap of
+  // that rung. After the last occurrence we wrap back to the first so the
+  // user can endlessly walk the year of full moons (etc.) without the
+  // ladder cycling between just two dates.
+  const phaseOccurrencesRef = useRef<Map<MoonPhaseName, Date[]>>(new Map());
+  const phaseCursorRef = useRef<Map<MoonPhaseName, number>>(new Map());
 
   // Trigger a brief luminous shimmer whenever offset shifts by more than one
   // day (i.e. a phase-ladder jump or a "Today" return). Single-day steps and
@@ -79,6 +81,28 @@ export function MoonCarousel() {
     d.setHours(12, 0, 0, 0);
     return d;
   }, []);
+
+  // Pre-compute the phase ladder once at mount. Recomputed if the user
+  // hits the recompute/retry path (retryNonce changes).
+  useEffect(() => {
+    const phases: MoonPhaseName[] = [
+      "New Moon",
+      "Waxing Crescent",
+      "First Quarter",
+      "Waxing Gibbous",
+      "Full Moon",
+      "Waning Gibbous",
+      "Last Quarter",
+      "Waning Crescent",
+    ];
+    const map = new Map<MoonPhaseName, Date[]>();
+    for (const p of phases) {
+      map.set(p, getPhaseOccurrences(p, today, 13));
+    }
+    phaseOccurrencesRef.current = map;
+    phaseCursorRef.current = new Map();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [today, retryNonce]);
 
   // Currently-viewed center date — used so phase jumps anchor on what the
   // user is looking at, not on real-world today.
@@ -163,23 +187,19 @@ export function MoonCarousel() {
     setOffset((o) => o + dir);
     setExpandedRel(null);
     setSelectedRel(null);
-    lastJumpedPhaseRef.current = null;
   };
   const goToToday = () => {
     setOffset(0);
     setExpandedRel(null);
     setSelectedRel(null);
-    lastJumpedPhaseRef.current = null;
   };
   const toggleExpand = (rel: number) => {
     setExpandedRel((cur) => (cur === rel ? null : rel));
     // Tapping a card also selects it (toggles off if already selected).
     setSelectedRel((cur) => (cur === rel ? null : rel));
-    lastJumpedPhaseRef.current = null;
   };
   const selectCenter = (rel: number) => {
     setSelectedRel((cur) => (cur === rel ? null : rel));
-    lastJumpedPhaseRef.current = null;
   };
 
   // Smoothly tween the offset from its current value to `target` so the
@@ -228,23 +248,39 @@ export function MoonCarousel() {
     });
   };
 
-  // Tap a ladder rung → jump to the *nearest* occurrence of that phase in
-  // either direction. Side-specific arrows (chevrons) still step ±1 day.
+  // Tap a ladder rung → advance to the NEXT occurrence of that phase in
+  // the pre-computed list. Each tap walks forward by one occurrence;
+  // after the last we wrap to the first. Side-specific arrows still
+  // step ±1 day.
   const jumpToPhase = (phase: MoonPhaseName) => {
-    // Subsequent taps on the same rung are a no-op — we already landed
-    // on (or near) that phase. Only a different rung or another
-    // navigation gesture re-arms the jump.
-    if (lastJumpedPhaseRef.current === phase) {
-      const currentCenterPhase = getCurrentMoonPhase(viewedDate).phase;
-      if (currentCenterPhase === phase) return;
+    const list = phaseOccurrencesRef.current.get(phase);
+    if (!list || list.length === 0) return;
+
+    // Find the cursor's next position. If we have no cursor yet, start
+    // by finding the first occurrence at or after the currently viewed
+    // day so the very first tap lands on something the user can see is
+    // a step forward (not back to last week).
+    const stored = phaseCursorRef.current.get(phase);
+    let nextIdx: number;
+    if (stored === undefined) {
+      const firstFromHere = list.findIndex(
+        (d) => d.getTime() > viewedDate.getTime(),
+      );
+      nextIdx = firstFromHere === -1 ? 0 : firstFromHere;
+    } else {
+      nextIdx = (stored + 1) % list.length;
     }
-    const delta = findNearestPhaseOccurrence(phase, viewedDate);
-    if (delta === 0) {
-      lastJumpedPhaseRef.current = phase;
-      return;
-    }
-    lastJumpedPhaseRef.current = phase;
-    tweenOffsetTo(offset + delta);
+    phaseCursorRef.current.set(phase, nextIdx);
+
+    const targetDate = list[nextIdx];
+    if (!targetDate) return;
+    // Convert target absolute date back into an offset relative to today.
+    const dayMs = 24 * 60 * 60 * 1000;
+    const deltaFromToday = Math.round(
+      (targetDate.getTime() - today.getTime()) / dayMs,
+    );
+    setEnterDir(deltaFromToday >= offset ? "right" : "left");
+    tweenOffsetTo(deltaFromToday);
   };
 
   useEffect(() => {
