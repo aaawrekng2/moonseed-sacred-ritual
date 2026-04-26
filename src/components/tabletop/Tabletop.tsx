@@ -1295,7 +1295,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         ref={containerRef}
         className="tabletop-stage relative flex-1 overflow-hidden select-none"
         style={{
-          paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)",
+          // Reserve room for the upper-right icon cluster (44px tap
+          // targets on mobile) so cards never scatter behind it.
+          paddingTop: isMobile
+            ? "calc(env(safe-area-inset-top, 0px) + 60px)"
+            : "calc(env(safe-area-inset-top, 0px) + 48px)",
         }}
       >
         {cards.map((c, idx) => (
