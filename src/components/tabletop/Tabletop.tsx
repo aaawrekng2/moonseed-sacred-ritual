@@ -1813,6 +1813,7 @@ function CardSlot({
   onDragMove,
   isCoarsePointer,
   containerRect,
+  containerElRef,
 }: {
   card: CardState;
   cardW: number;
@@ -1865,6 +1866,15 @@ function CardSlot({
   containerRect:
     | { left: number; top: number; width: number; height: number }
     | null;
+  /**
+   * Live ref to the scatter container element. We always re-measure
+   * with `getBoundingClientRect()` at drag start and during
+   * `handlePointerMove` because the cached `containerRect` prop can
+   * be stale on mobile (e.g. after browser chrome show/hide, address
+   * bar collapse, or virtual keyboard) — the root cause of the
+   * "card flies to upper-left" bug.
+   */
+  containerElRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const isSelected = card.selectionOrder !== null;
   // When the card landed in the slot via a physical drag-drop we skip
