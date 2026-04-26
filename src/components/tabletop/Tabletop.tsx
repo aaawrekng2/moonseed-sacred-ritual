@@ -15,6 +15,7 @@ import { SPREAD_META, spreadUsesSlots, type SpreadMode } from "@/lib/spreads";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { useOracleMode } from "@/lib/use-oracle-mode";
+import { t } from "@/lib/oracle-language";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import {
   AlertDialog,
