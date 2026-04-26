@@ -818,7 +818,7 @@ function PhaseLadder({
       type="button"
       onClick={onStep}
       aria-label={stepLabel}
-      style={{ opacity: restingAlpha }}
+      style={{ opacity: "var(--ro-plus-20)" }}
       className={cn(
         "inline-flex shrink-0 items-center justify-center rounded-full bg-transparent border-0 p-0 cursor-pointer",
         "text-muted-foreground transition-all duration-200",
