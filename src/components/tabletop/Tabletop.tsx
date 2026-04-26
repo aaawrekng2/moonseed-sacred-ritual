@@ -2331,7 +2331,7 @@ function CardSlot({
           ? null
           : "card-idle-transition",
         // Remove default tap highlight on iOS / Android.
-        "[-webkit-tap-highlight-color:transparent] touch-manipulation",
+        "[-webkit-tap-highlight-color:transparent] [touch-action:none]",
         // Block the system drag-ghost on WebKit + suppress text selection
         // and the focus outline that becomes a "dashed ring" artifact.
         "select-none [-webkit-user-drag:none] [user-drag:none]",
