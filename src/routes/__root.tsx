@@ -9,6 +9,8 @@ import { usePreferencesSync } from "@/lib/use-preferences-sync";
 import { OracleModeProvider } from "@/lib/use-oracle-mode";
 import { useTapToPeek } from "@/lib/use-tap-to-peek";
 import { usePWA } from "@/lib/use-pwa";
+import { FloatingMenu } from "@/components/nav/FloatingMenu";
+import { FloatingMenuProvider } from "@/lib/floating-menu-context";
 
 /**
  * Read the persisted resting opacity from localStorage and apply it to
@@ -161,11 +163,14 @@ function RootComponent() {
   const hideChrome = location.pathname.startsWith("/draw");
   return (
     <OracleModeProvider>
-      <div className="relative flex min-h-screen flex-col">
-        <RestingOpacityReadout />
-        <Outlet />
-        {!hideChrome && <BottomNav />}
-      </div>
+      <FloatingMenuProvider>
+        <FloatingMenu />
+        <div className="relative flex min-h-screen flex-col">
+          <RestingOpacityReadout />
+          <Outlet />
+          {!hideChrome && <BottomNav />}
+        </div>
+      </FloatingMenuProvider>
     </OracleModeProvider>
   );
 }

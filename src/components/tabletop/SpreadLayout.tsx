@@ -6,8 +6,11 @@ import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { cn } from "@/lib/utils";
-import { TopRightControls } from "@/components/nav/TopRightControls";
-import { CopyIconButton, InlineReading } from "@/components/reading/ReadingParts";
+import { InlineReading } from "@/components/reading/ReadingParts";
+import {
+  useRegisterCloseHandler,
+  useRegisterCopyText,
+} from "@/lib/floating-menu-context";
 
 type Pick = { id: number; cardIndex: number };
 
@@ -35,9 +38,13 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const { showLabels, toggleShowLabels } = useShowLabels();
   // Once every card is face-up the inline reading flow takes over.
-  // `copyText` is hoisted from <InlineReading> so we can render the
-  // top-bar copy icon in TopRightControls' `extraFirst` slot.
+  // `copyText` is hoisted from <InlineReading> so the global
+  // FloatingMenu can surface a Copy icon while the reading is open.
   const [copyText, setCopyText] = useState<string | null>(null);
+
+  // Register screen-specific actions with the global floating menu.
+  useRegisterCloseHandler(onExit);
+  useRegisterCopyText(copyText);
 
   // Per-card revealed state. Cards must be flipped in slot order.
   const [revealedFlags, setRevealedFlags] = useState<boolean[]>(
@@ -110,12 +117,6 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
         overflowY: allRevealed ? "auto" : "hidden",
       }}
     >
-      <TopRightControls
-        onClose={onExit}
-        closeLabel="Close spread"
-        extraFirst={copyText ? <CopyIconButton text={copyText} /> : undefined}
-      />
-
       {/* Labels visibility toggle — mirrors the tabletop preference. */}
       <button
         type="button"

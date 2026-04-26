@@ -18,7 +18,10 @@ import { useActiveGuide } from "@/lib/use-active-guide";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useUIDensity } from "@/lib/use-ui-density";
 import { useAuth } from "@/lib/auth";
-import { TopRightControls } from "@/components/nav/TopRightControls";
+import {
+  useRegisterCloseHandler,
+  useRegisterCopyText,
+} from "@/lib/floating-menu-context";
 import {
   BUILT_IN_GUIDES,
   getGuideById,
@@ -65,6 +68,9 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   const { guideId, lensId, facetIds } = useActiveGuide();
   const startedRef = useRef(false);
   const requestSeqRef = useRef(0);
+
+  // Register screen-specific affordances with the global floating menu.
+  useRegisterCloseHandler(onExit);
 
   // Allow landscape on the Reading screen ONLY (matches prior behaviour).
   useEffect(() => {
@@ -154,27 +160,15 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
         })
       : null;
 
+  // Surface the copy text to the global FloatingMenu — it conditionally
+  // renders the Copy icon only while a reading is loaded.
+  useRegisterCopyText(copyText);
+
   return (
     <main
       className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_50%_25%,rgba(60,40,90,0.35),transparent_70%)]"
       aria-label={`${meta.label} reading`}
     >
-      <TopRightControls
-        onClose={onExit}
-        closeLabel="Close reading"
-      />
-      {copyText && (
-        <div
-          className="fixed z-50"
-          style={{
-            top: "calc(env(safe-area-inset-top, 0px) + 6px)",
-            left: "calc(env(safe-area-inset-left, 0px) + 12px)",
-          }}
-        >
-          <CopyIconButton text={copyText} />
-        </div>
-      )}
-
       <div
         className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5 pb-12"
         style={{

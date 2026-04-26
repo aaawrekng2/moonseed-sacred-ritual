@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Eye, EyeOff, EyeClosed, HelpCircle, Undo2, Redo2, X } from "lucide-react";
+import { HelpCircle, Undo2, Redo2, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -16,7 +16,7 @@ import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { t } from "@/lib/oracle-language";
-import { TopRightControls, ExpandingIconButton } from "@/components/nav/TopRightControls";
+import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1140,6 +1140,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     performExit();
   };
 
+  // The X icon on the global FloatingMenu mirrors handleExit so the
+  // tabletop keeps its single-tap close affordance without owning a
+  // top-bar cluster.
+  useRegisterCloseHandler(handleExit);
+
   // Mirror current cards + undo/redo stacks into the cross-route
   // session store on every change. This is what makes the session
   // survive accidental navigation away from /draw — when <Tabletop>
@@ -1269,46 +1274,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </button>
         </div>
       )}
-      <TopRightControls
-        onClose={handleExit}
-        closeLabel="Close tabletop"
-        includeClarity={false}
-        extraStart={
-          <>
-            <ExpandingIconButton
-              icon={
-                densityLevel === 0 ? (
-                  <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-                ) : densityLevel === 1 ? (
-                  <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-                ) : (
-                  <EyeClosed className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-                )
-              }
-              label={
-                densityLevel === 0
-                  ? t("claritySeen", isOracle)
-                  : densityLevel === 1
-                    ? t("clarityGlimpse", isOracle)
-                    : t("clarityVeiled", isOracle)
-              }
-              labelFont={isOracle ? "var(--font-serif)" : "var(--font-sans)"}
-              labelStyle={isOracle ? "italic-gold" : "muted"}
-              onClick={cycleDensity}
-              ariaLabel={
-                densityLevel === 0
-                  ? "Clarity: Seen — tap to enter Glimpse"
-                  : densityLevel === 1
-                    ? "Clarity: Glimpse — tap to enter Veiled"
-                    : "Clarity: Veiled — tap to return to Seen"
-              }
-              title={`The Clarity: ${
-                densityLevel === 0 ? "Seen" : densityLevel === 1 ? "Glimpse" : "Veiled"
-              }`}
-            />
-          </>
-        }
-      />
 
       {/* Celtic Cross help — top-LEFT, always-accessible (no localStorage gate). */}
       {spread === "celtic" && (

@@ -912,3 +912,35 @@ button:focus-visible .moon-rung-glow {
     transition: none;
   }
 }
+
+/* Floating menu drop-in animation. The frosted pill drops 8px from
+   the ··· trigger position with a tiny scale-up so it feels like it
+   unfolds from the dot icon rather than appearing whole-cloth. */
+@keyframes menu-drop-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Spin animation reused by the Refresh icon. */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Clarity system — labels and decorative text respond to The Clarity
+   level globally via [data-clarity] on <html>.
+   - .clarity-label hides at Glimpse (whisper) and Veiled
+   - .clarity-hint stays visible-but-soft at Glimpse, hidden at Veiled */
+.clarity-label {
+  transition: opacity 400ms ease;
+}
+[data-clarity="1"] .clarity-label { opacity: 1; }
+[data-clarity="2"] .clarity-label { opacity: var(--ro-plus-0); }
+[data-clarity="3"] .clarity-label { opacity: 0; pointer-events: none; }
+
+.clarity-hint {
+  transition: opacity 400ms ease;
+}
+[data-clarity="1"] .clarity-hint { opacity: 1; }
+[data-clarity="2"] .clarity-hint { opacity: var(--ro-plus-10); }
+[data-clarity="3"] .clarity-hint { opacity: 0; pointer-events: none; }
