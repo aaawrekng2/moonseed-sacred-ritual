@@ -237,7 +237,7 @@ export function TopRightControls({
       style={{
         top: "calc(env(safe-area-inset-top, 0px) + 8px)",
         right: "calc(env(safe-area-inset-right, 0px) + 16px)",
-        gap: "6px",
+        gap: "4px",
       }}
     >
       <ExpandingIconButton
