@@ -16,8 +16,8 @@ import {
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
-import { TopRightControls } from "@/components/nav/TopRightControls";
 import { useNavigate } from "@tanstack/react-router";
+import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 
 /**
  * /settings — layout route. The route itself redirects to
