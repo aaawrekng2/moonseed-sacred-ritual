@@ -2208,9 +2208,18 @@ function CardSlot({
     if (wasDragging && liveRect) {
       // Convert the drop point (top-left of the card under the pointer)
       // back into container coordinates and clamp it inside the table so
-      // a card never lands fully off-screen.
+      // a card never lands fully off-screen. Subtract the container's
+      // padding-top because absolute children measure `top` from the
+      // padding edge.
+      const padTop = containerElRef.current
+        ? parseFloat(
+            getComputedStyle(containerElRef.current).paddingTop || "0",
+          ) || 0
+        : 0;
       const targetLeft = clientX - s.pointerOffsetX - liveRect.left;
-      const targetTop = clientY - s.pointerOffsetY - liveRect.top;
+      const targetTop = clientY - s.pointerOffsetY - liveRect.top - padTop;
+      // Usable scatter height = container border-box minus padding-top.
+      const usableH = Math.max(1, liveRect.height - padTop);
       const clampedX = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
@@ -2221,7 +2230,7 @@ function CardSlot({
       const clampedY = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
-          liveRect.height - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+          usableH - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
           targetTop,
         ),
       );
