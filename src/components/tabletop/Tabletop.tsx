@@ -1202,93 +1202,100 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           old left-side opacity slider has been removed — opacity is
           configured in Settings → Themes. */}
 
-      {/* Standard top-bar (profile / sanctuary cycler / Oracle voice).
-          Self-positions fixed at the top-right of the viewport. */}
-      <TopRightControls />
-      {/* Draw-screen-specific top bar: three-level eye (whisper + labels
-          density) and the X close button. Positioned to the LEFT of the
-          standard TopRightControls cluster. */}
-      <div
-        style={{
-          position: "fixed",
-          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          // TopRightControls sits at right-4 (1rem) and is roughly
-          // 7rem wide when the wand pill is collapsed. Offset us past
-          // it so we never overlap the profile chip.
-          right: "calc(env(safe-area-inset-right, 0px) + 9rem)",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          zIndex: 60,
-          pointerEvents: "auto",
-        }}
-      >
-        {(undoStack.length > 0 || redoStack.length > 0) && (
-          <>
-            <button
-              type="button"
-              onClick={undo}
-              disabled={undoStack.length === 0}
-              aria-label="Undo last drag"
-              style={{ opacity: restingAlpha }}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30 md:h-7 md:w-7"
-            >
-              <Undo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={redo}
-              disabled={redoStack.length === 0}
-              aria-label="Redo last drag"
-              style={{ opacity: restingAlpha }}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30 md:h-7 md:w-7"
-            >
-              <Redo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-            </button>
-          </>
-        )}
-        <ExpandingIconButton
-          icon={
-            densityLevel === 0 ? (
-              <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-            ) : densityLevel === 1 ? (
-              <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-            ) : (
-              <EyeClosed className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-            )
-          }
-          label={
-            densityLevel === 0
-              ? t("claritySeen", isOracle)
-              : densityLevel === 1
-                ? t("clarityGlimpse", isOracle)
-                : t("clarityVeiled", isOracle)
-          }
-          labelFont={isOracle ? "var(--font-serif)" : "var(--font-sans)"}
-          labelStyle={isOracle ? "italic-gold" : "muted"}
-          isActive={densityLevel === 0}
-          onClick={cycleDensity}
-          ariaLabel={
-            densityLevel === 0
-              ? "Clarity: Seen — tap to enter Glimpse"
-              : densityLevel === 1
-                ? "Clarity: Glimpse — tap to enter Veiled"
-                : "Clarity: Veiled — tap to return to Seen"
-          }
-          title={`The Clarity: ${
-            densityLevel === 0 ? "Seen" : densityLevel === 1 ? "Glimpse" : "Veiled"
-          }`}
-        />
-        <button
-          type="button"
-          onClick={handleExit}
-          aria-label="Close tabletop"
-          style={{ opacity: exitAlpha }}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 md:h-7 md:w-7"
+      {/* Unified top-bar cluster: ScrollText (Oracle) → Wand (sanctuary) →
+          Eye (Clarity) → user initial → X. Equal 12px gaps, 44px tap
+          targets, X always rightmost. The Undo/Redo buttons sit just to
+          the LEFT of the cluster as a separate group (they're transient
+          and only appear when the user has done something to undo). */}
+      {(undoStack.length > 0 || redoStack.length > 0) && (
+        <div
+          style={{
+            position: "fixed",
+            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+            // Sit to the left of TopRightControls. The cluster is roughly
+            // 5×44px + 4×12px gap ≈ 268px; offset past it so we never
+            // overlap. On smaller viewports the cluster wraps naturally.
+            right: "calc(env(safe-area-inset-right, 0px) + 280px)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            zIndex: 60,
+            pointerEvents: "auto",
+          }}
         >
-          <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={undo}
+            disabled={undoStack.length === 0}
+            aria-label="Undo last drag"
+            style={{ opacity: restingAlpha }}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <Undo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={redo}
+            disabled={redoStack.length === 0}
+            aria-label="Redo last drag"
+            style={{ opacity: restingAlpha }}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <Redo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+      <TopRightControls
+        onClose={handleExit}
+        closeLabel="Close tabletop"
+        extraStart={
+          <>
+            {spread === "celtic" && (
+              <button
+                type="button"
+                onClick={() => setCelticHelpOpen(true)}
+                aria-label="Celtic Cross — what each position means"
+                style={{ opacity: "var(--ro-plus-10)" }}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+              >
+                <HelpCircle className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+              </button>
+            )}
+            <ExpandingIconButton
+              icon={
+                densityLevel === 0 ? (
+                  <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                ) : densityLevel === 1 ? (
+                  <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                ) : (
+                  <EyeClosed className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                )
+              }
+              label={
+                densityLevel === 0
+                  ? t("claritySeen", isOracle)
+                  : densityLevel === 1
+                    ? t("clarityGlimpse", isOracle)
+                    : t("clarityVeiled", isOracle)
+              }
+              labelFont={isOracle ? "var(--font-serif)" : "var(--font-sans)"}
+              labelStyle={isOracle ? "italic-gold" : "muted"}
+              isActive={densityLevel === 0}
+              onClick={cycleDensity}
+              ariaLabel={
+                densityLevel === 0
+                  ? "Clarity: Seen — tap to enter Glimpse"
+                  : densityLevel === 1
+                    ? "Clarity: Glimpse — tap to enter Veiled"
+                    : "Clarity: Veiled — tap to return to Seen"
+              }
+              title={`The Clarity: ${
+                densityLevel === 0 ? "Seen" : densityLevel === 1 ? "Glimpse" : "Veiled"
+              }`}
+            />
+          </>
+        }
+      />
 
       {/* Tabletop scatter area */}
       <div
