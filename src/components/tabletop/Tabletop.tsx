@@ -2128,7 +2128,6 @@ function CardSlot({
       className={cn(
         (flying && launchRect && slotRect) ||
         (flightPhase === "returning" && returnFromRect && containerOrigin) ||
-        dragging ||
         (skipFlight && slotRect)
           ? "fixed outline-none focus:outline-none focus-visible:outline-none"
           : "absolute outline-none focus:outline-none focus-visible:outline-none",
