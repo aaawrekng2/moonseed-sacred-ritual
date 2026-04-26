@@ -439,7 +439,10 @@ export function MoonCarousel() {
         />
       </div>
 
-      <div className="-mt-2 flex h-5 w-full items-center justify-center sm:hidden">
+      {/* Return / Swipe-to-browse footer — visible on ALL screen sizes
+          (mobile, tablet, desktop). The previous `sm:hidden` gate was
+          hiding both affordances above 640px viewports. */}
+      <div className="-mt-2 flex h-5 w-full items-center justify-center">
         {offset === 0 ? (
           <p
             className="text-center text-[9px] uppercase tracking-[0.25em] text-muted-foreground"
