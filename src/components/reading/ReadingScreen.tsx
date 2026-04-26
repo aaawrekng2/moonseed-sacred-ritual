@@ -18,7 +18,10 @@ import { useActiveGuide } from "@/lib/use-active-guide";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useUIDensity } from "@/lib/use-ui-density";
 import { useAuth } from "@/lib/auth";
-import { TopRightControls } from "@/components/nav/TopRightControls";
+import {
+  useRegisterCloseHandler,
+  useRegisterCopyText,
+} from "@/lib/floating-menu-context";
 import {
   BUILT_IN_GUIDES,
   getGuideById,
@@ -65,6 +68,9 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   const { guideId, lensId, facetIds } = useActiveGuide();
   const startedRef = useRef(false);
   const requestSeqRef = useRef(0);
+
+  // Register screen-specific affordances with the global floating menu.
+  useRegisterCloseHandler(onExit);
 
   // Allow landscape on the Reading screen ONLY (matches prior behaviour).
   useEffect(() => {
