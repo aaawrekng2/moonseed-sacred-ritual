@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      custom_guides: {
+        Row: {
+          base_guide_id: string
+          created_at: string
+          facets: string[] | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+          voice_overrides: Json | null
+        }
+        Insert: {
+          base_guide_id: string
+          created_at?: string
+          facets?: string[] | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+          voice_overrides?: Json | null
+        }
+        Update: {
+          base_guide_id?: string
+          created_at?: string
+          facets?: string[] | null
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+          voice_overrides?: Json | null
+        }
+        Relationships: []
+      }
       readings: {
         Row: {
           card_ids: number[]
@@ -48,6 +81,7 @@ export type Database = {
         Row: {
           accent: string
           accent_color: string | null
+          active_guide_id: string | null
           active_theme_slot: number | null
           bg_gradient_from: string | null
           bg_gradient_to: string | null
@@ -58,6 +92,8 @@ export type Database = {
           default_life_area: string
           default_spread: string
           display_name: string | null
+          guide_facets: string[] | null
+          guide_lens: string | null
           heading_font: string | null
           heading_font_size: number | null
           initial_intention: string | null
@@ -88,6 +124,7 @@ export type Database = {
         Insert: {
           accent?: string
           accent_color?: string | null
+          active_guide_id?: string | null
           active_theme_slot?: number | null
           bg_gradient_from?: string | null
           bg_gradient_to?: string | null
@@ -98,6 +135,8 @@ export type Database = {
           default_life_area?: string
           default_spread?: string
           display_name?: string | null
+          guide_facets?: string[] | null
+          guide_lens?: string | null
           heading_font?: string | null
           heading_font_size?: number | null
           initial_intention?: string | null
@@ -128,6 +167,7 @@ export type Database = {
         Update: {
           accent?: string
           accent_color?: string | null
+          active_guide_id?: string | null
           active_theme_slot?: number | null
           bg_gradient_from?: string | null
           bg_gradient_to?: string | null
@@ -138,6 +178,8 @@ export type Database = {
           default_life_area?: string
           default_spread?: string
           display_name?: string | null
+          guide_facets?: string[] | null
+          guide_lens?: string | null
           heading_font?: string | null
           heading_font_size?: number | null
           initial_intention?: string | null
