@@ -784,27 +784,38 @@ button:focus-visible .moon-rung-glow {
 }
 
 /* ---------------------------------------------------------------------- */
-/* Reading screen — the entire card row floats upward as ONE unit when   */
-/* the reading screen mounts. Animating a single container (not each     */
-/* card individually) keeps the group cohesive and avoids the staggered  */
-/* jitter the previous per-card animation produced.                       */
+/* Reading screen — the entire card row STAYS IN PLACE on mount, then    */
+/* gently nudges upward by 100px after a 600ms beat so the actions and   */
+/* interpretation can breathe in below. No fade — the cards are already  */
+/* face-up from the cast layer; only their vertical anchor changes.      */
 /* ---------------------------------------------------------------------- */
-@keyframes reading-cards-rise {
-  from {
-    opacity: 0;
-    transform: translateY(40px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes reading-cards-nudge {
+  0%   { transform: translateY(0); }
+  46%  { transform: translateY(0); }   /* hold for ~600ms of 1300ms */
+  100% { transform: translateY(-100px); }
 }
-.reading-cards-rise {
-  animation: reading-cards-rise 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+.reading-cards-nudge {
+  animation: reading-cards-nudge 1300ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reading-cards-nudge { animation: none; transform: translateY(-100px); }
+}
+
+/* Reading actions + interpretation fade in AFTER the nudge completes
+   (1300ms) so the reader doesn't see the controls jump around while the
+   cards are still moving. */
+@keyframes reading-actions-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.reading-actions-fade-in {
+  animation: reading-actions-fade-in 500ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  animation-delay: 1300ms;
   will-change: transform, opacity;
 }
 @media (prefers-reduced-motion: reduce) {
-  .reading-cards-rise { animation: none; }
+  .reading-actions-fade-in { animation: none; opacity: 1; transform: none; }
 }
 
 /* "Let Them Speak" / "Get Reading" — flowing-text invocation, NOT a
