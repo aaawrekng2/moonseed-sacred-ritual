@@ -1,19 +1,19 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Moon, Layers, SlidersHorizontal } from "lucide-react";
+import { Moon, BookOpen, SlidersHorizontal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Tab = {
-  to: "/" | "/cards" | "/settings";
+  to: "/" | "/journal" | "/settings";
   label: string;
   Icon: LucideIcon;
   primary?: boolean;
 };
 
-// Order: Cards (left), Home (center, primary), Settings (right).
+// Order: Journal (left), Home (center, primary), Settings (right).
 // Home is the moon-phase landing — the primary destination of the app.
 const TABS: readonly Tab[] = [
-  { to: "/cards", label: "Cards", Icon: Layers },
+  { to: "/journal", label: "Journal", Icon: BookOpen },
   { to: "/", label: "Home", Icon: Moon, primary: true },
   { to: "/settings", label: "Settings", Icon: SlidersHorizontal },
 ] as const;

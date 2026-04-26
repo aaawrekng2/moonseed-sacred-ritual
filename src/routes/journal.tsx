@@ -1,22 +1,805 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { Heart, Search, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { useOracleMode } from "@/lib/use-oracle-mode";
+import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
+import { getGuideById } from "@/lib/guides";
+import { getCardImagePath, getCardName } from "@/lib/tarot";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/journal")({
   head: () => ({
     meta: [
       { title: "Journal — Moonseed" },
-      { name: "description", content: "Your tarot journal." },
+      {
+        name: "description",
+        content:
+          "Your archive of tarot readings — search, filter, and revisit.",
+      },
+      { property: "og:title", content: "Journal — Moonseed" },
+      {
+        property: "og:description",
+        content: "Your archive of tarot readings.",
+      },
     ],
   }),
   component: JournalPage,
 });
 
+/* ---------- Types ---------- */
+
+type ReadingRow = {
+  id: string;
+  user_id: string;
+  spread_type: string;
+  card_ids: number[];
+  interpretation: string | null;
+  created_at: string;
+  guide_id: string | null;
+  lens_id: string | null;
+  moon_phase: string | null;
+  note: string | null;
+  is_favorite: boolean;
+  tags: string[] | null;
+};
+
+type TagRow = { id: string; name: string; usage_count: number };
+
+type ViewMode = "readings" | "gallery" | "notes" | "favorites";
+
+/* ---------- Helpers ---------- */
+
+function relativeTime(iso: string): string {
+  const d = new Date(iso).getTime();
+  const now = Date.now();
+  const diff = Math.max(0, now - d);
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const days = Math.floor(h / 24);
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
+}
+
+function spreadLabel(spread: string): string {
+  if (isValidSpreadMode(spread)) return SPREAD_META[spread as SpreadMode].label;
+  return spread;
+}
+
+const PHASE_GLYPHS: Record<string, string> = {
+  "New Moon": "🌑",
+  "Waxing Crescent": "🌒",
+  "First Quarter": "🌓",
+  "Waxing Gibbous": "🌔",
+  "Full Moon": "🌕",
+  "Waning Gibbous": "🌖",
+  "Last Quarter": "🌗",
+  "Waning Crescent": "🌘",
+};
+
+/* ---------- Page ---------- */
+
 function JournalPage() {
+  const { user, loading: authLoading } = useAuth();
+  const { isOracle } = useOracleMode();
+
+  const [readings, setReadings] = useState<ReadingRow[]>([]);
+  const [tags, setTags] = useState<TagRow[]>([]);
+  const [photoCounts, setPhotoCounts] = useState<Record<string, number>>({});
+  const [loaded, setLoaded] = useState(false);
+
+  const [search, setSearch] = useState("");
+  const [activeTags, setActiveTags] = useState<string[]>([]);
+  const [view, setView] = useState<ViewMode>("readings");
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  // Fetch readings + tags + photo counts whenever the user resolves.
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      setLoaded(true);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const [{ data: rows }, { data: tagRows }, { data: photoRows }] =
+        await Promise.all([
+          supabase
+            .from("readings")
+            .select(
+              "id,user_id,spread_type,card_ids,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags",
+            )
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .limit(500),
+          supabase
+            .from("user_tags")
+            .select("id,name,usage_count")
+            .eq("user_id", user.id)
+            .order("usage_count", { ascending: false })
+            .limit(100),
+          supabase
+            .from("reading_photos")
+            .select("reading_id")
+            .eq("user_id", user.id),
+        ]);
+      if (cancelled) return;
+      setReadings((rows ?? []) as ReadingRow[]);
+      setTags((tagRows ?? []) as TagRow[]);
+      const counts: Record<string, number> = {};
+      for (const p of (photoRows ?? []) as Array<{ reading_id: string }>) {
+        counts[p.reading_id] = (counts[p.reading_id] ?? 0) + 1;
+      }
+      setPhotoCounts(counts);
+      setLoaded(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, authLoading]);
+
+  // Apply search + tag filters once, share across all four views.
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return readings.filter((r) => {
+      if (activeTags.length > 0) {
+        const rt = r.tags ?? [];
+        if (!activeTags.every((t) => rt.includes(t))) return false;
+      }
+      if (q.length > 0) {
+        const interp = (r.interpretation ?? "").toLowerCase();
+        const note = (r.note ?? "").toLowerCase();
+        const spread = spreadLabel(r.spread_type).toLowerCase();
+        const guide = getGuideById(r.guide_id).name.toLowerCase();
+        const tagBlob = (r.tags ?? []).join(" ").toLowerCase();
+        if (
+          !interp.includes(q) &&
+          !note.includes(q) &&
+          !spread.includes(q) &&
+          !guide.includes(q) &&
+          !tagBlob.includes(q)
+        )
+          return false;
+      }
+      return true;
+    });
+  }, [readings, search, activeTags]);
+
+  const galleryItems = useMemo(
+    () => filtered.filter((r) => (photoCounts[r.id] ?? 0) > 0),
+    [filtered, photoCounts],
+  );
+  const noteItems = useMemo(
+    () => filtered.filter((r) => (r.note ?? "").trim().length > 0),
+    [filtered],
+  );
+  const favItems = useMemo(
+    () => filtered.filter((r) => r.is_favorite),
+    [filtered],
+  );
+
+  const topTags = tags.slice(0, 8);
+  const openReading = openId
+    ? readings.find((r) => r.id === openId) ?? null
+    : null;
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-6 pb-24">
-      <h1 className="font-display text-3xl text-foreground">Journal</h1>
-      <p className="mt-3 max-w-xs text-center text-sm italic text-muted-foreground">
-        Your readings will gather here.
-      </p>
+    <main className="bg-cosmos relative min-h-screen px-5 pb-28 pt-[calc(env(safe-area-inset-top,0px)+72px)]">
+      {/* Title */}
+      <h1
+        className="font-display text-2xl italic text-gold"
+        style={{ opacity: "var(--ro-plus-20)" }}
+      >
+        Journal
+      </h1>
+
+      {/* Search */}
+      <div className="mt-4 flex items-center gap-2">
+        <Search
+          size={14}
+          strokeWidth={1.5}
+          className="text-gold"
+          style={{ opacity: "var(--ro-plus-10)" }}
+          aria-hidden
+        />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={
+            isOracle ? "Search your practice…" : "Search readings…"
+          }
+          className="w-full bg-transparent py-1 font-display text-[15px] italic text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
+          style={{
+            borderBottom:
+              "1px solid color-mix(in oklab, var(--gold) 20%, transparent)",
+          }}
+        />
+      </div>
+
+      {/* Tag strip */}
+      {topTags.length > 0 && (
+        <div
+          className="mt-4 -mx-5 flex gap-3 overflow-x-auto px-5 pb-1"
+          style={{ scrollbarWidth: "none" }}
+        >
+          {topTags.map((t) => {
+            const active = activeTags.includes(t.name);
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() =>
+                  setActiveTags((prev) =>
+                    prev.includes(t.name)
+                      ? prev.filter((x) => x !== t.name)
+                      : [...prev, t.name],
+                  )
+                }
+                className="shrink-0 whitespace-nowrap font-display text-[13px] italic text-gold transition-opacity"
+                style={{
+                  opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
+                  borderBottom: active
+                    ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                    : "1px solid transparent",
+                  paddingBottom: 2,
+                }}
+              >
+                {t.name}
+                {active && <span className="ml-1 text-[10px]">×</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* View tabs */}
+      <div className="mt-5 flex items-center gap-5">
+        {(
+          [
+            ["readings", "Readings"],
+            ["gallery", "Gallery"],
+            ["notes", "Notes"],
+            ["favorites", "Favorites"],
+          ] as const
+        ).map(([key, label]) => {
+          const active = view === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setView(key)}
+              className="font-display text-[13px] italic text-gold transition-opacity"
+              style={{
+                opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-10)",
+                borderBottom: active
+                  ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                  : "1px solid transparent",
+                paddingBottom: 2,
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Body */}
+      <div className="mt-6">
+        {!loaded ? (
+          <p
+            className="mt-12 text-center font-display text-sm italic text-muted-foreground"
+            style={{ opacity: "var(--ro-plus-10)" }}
+          >
+            …
+          </p>
+        ) : view === "readings" ? (
+          <ReadingsList
+            items={filtered}
+            isOracle={isOracle}
+            photoCounts={photoCounts}
+            onOpen={setOpenId}
+          />
+        ) : view === "gallery" ? (
+          <GalleryView items={galleryItems} isOracle={isOracle} onOpen={setOpenId} />
+        ) : view === "notes" ? (
+          <NotesView items={noteItems} isOracle={isOracle} onOpen={setOpenId} />
+        ) : (
+          <ReadingsList
+            items={favItems}
+            emptyOracle="Nothing yet held close to the heart…"
+            emptyPlain="Favorite a reading to see it here."
+            isOracle={isOracle}
+            photoCounts={photoCounts}
+            onOpen={setOpenId}
+          />
+        )}
+      </div>
+
+      {openReading && (
+        <ReadingDetail
+          reading={openReading}
+          onClose={() => setOpenId(null)}
+          isOracle={isOracle}
+        />
+      )}
     </main>
+  );
+}
+
+/* ---------- Readings list (also Favorites view) ---------- */
+
+function ReadingsList({
+  items,
+  isOracle,
+  photoCounts: _photoCounts,
+  onOpen,
+  emptyOracle,
+  emptyPlain,
+}: {
+  items: ReadingRow[];
+  isOracle: boolean;
+  photoCounts: Record<string, number>;
+  onOpen: (id: string) => void;
+  emptyOracle?: string;
+  emptyPlain?: string;
+}) {
+  if (items.length === 0) {
+    return (
+      <Empty
+        oracle={emptyOracle ?? "Your practice awaits its first telling…"}
+        plain={emptyPlain ?? "No readings yet. Complete a reading to begin."}
+        isOracle={isOracle}
+      />
+    );
+  }
+  return (
+    <ul className="flex flex-col gap-5">
+      {items.map((r) => (
+        <li key={r.id}>
+          <ReadingCard reading={r} onOpen={onOpen} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ReadingCard({
+  reading,
+  onOpen,
+}: {
+  reading: ReadingRow;
+  onOpen: (id: string) => void;
+}) {
+  const guide = getGuideById(reading.guide_id);
+  const visible = reading.card_ids.slice(0, 5);
+  const overflow = reading.card_ids.length - visible.length;
+  const interpFirst = (reading.interpretation ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(reading.id)}
+      className="block w-full rounded-2xl px-4 py-4 text-left transition-colors hover:bg-white/[0.02]"
+      style={{
+        border: "1px solid color-mix(in oklab, var(--gold) 8%, transparent)",
+        background: "color-mix(in oklab, oklch(0.10 0.03 280) 30%, transparent)",
+      }}
+    >
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            <span style={{ opacity: "var(--ro-plus-30)" }}>
+              {spreadLabel(reading.spread_type)}
+            </span>
+            <span style={{ opacity: "var(--ro-plus-20)" }}>
+              {relativeTime(reading.created_at)}
+            </span>
+          </div>
+          <div
+            className="mt-1 flex items-center gap-2 font-display text-[12px] italic"
+            style={{ opacity: "var(--ro-plus-10)" }}
+          >
+            {reading.moon_phase && (
+              <span>
+                {PHASE_GLYPHS[reading.moon_phase] ?? "🌙"} {reading.moon_phase}
+              </span>
+            )}
+            {reading.moon_phase && <span aria-hidden>·</span>}
+            <span>{guide.name}</span>
+          </div>
+        </div>
+        <Heart
+          size={16}
+          strokeWidth={1.5}
+          className={cn(
+            "shrink-0 transition-opacity",
+            reading.is_favorite ? "text-gold" : "text-muted-foreground",
+          )}
+          fill={reading.is_favorite ? "currentColor" : "none"}
+          style={{
+            opacity: reading.is_favorite
+              ? "var(--ro-plus-50)"
+              : "var(--ro-plus-10)",
+          }}
+          aria-hidden
+        />
+      </div>
+
+      {/* Card thumbnails */}
+      <div className="mt-3 flex items-center gap-1.5">
+        {visible.map((id) => (
+          <img
+            key={id}
+            src={getCardImagePath(id)}
+            alt={getCardName(id)}
+            loading="lazy"
+            className="h-12 w-8 rounded-[3px] object-cover"
+            style={{
+              border: "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
+              opacity: "var(--ro-plus-30)",
+            }}
+          />
+        ))}
+        {overflow > 0 && (
+          <span
+            className="ml-1 font-display text-[11px] italic text-muted-foreground"
+            style={{ opacity: "var(--ro-plus-20)" }}
+          >
+            +{overflow} more
+          </span>
+        )}
+      </div>
+
+      {/* Interpretation excerpt */}
+      {interpFirst && (
+        <p
+          className="mt-3 font-display text-[14px] italic leading-snug text-foreground"
+          style={{
+            opacity: "var(--ro-plus-20)",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {interpFirst}
+        </p>
+      )}
+
+      {/* Tags */}
+      {(reading.tags ?? []).length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+          {(reading.tags ?? []).map((t) => (
+            <span
+              key={t}
+              className="font-display text-[11px] italic text-gold"
+              style={{ opacity: "var(--ro-plus-20)" }}
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+    </button>
+  );
+}
+
+/* ---------- Gallery view ---------- */
+
+function GalleryView({
+  items,
+  isOracle,
+  onOpen,
+}: {
+  items: ReadingRow[];
+  isOracle: boolean;
+  onOpen: (id: string) => void;
+}) {
+  if (items.length === 0) {
+    return (
+      <Empty
+        oracle="No images have been woven into your practice yet…"
+        plain="Add photos to your readings to see them here."
+        isOracle={isOracle}
+      />
+    );
+  }
+  // V1: photo previews come in pass 2 (signed URLs from storage).
+  // For now, show the first card image from each reading as a stand-in
+  // so the grid layout and navigation are validated against real data.
+  return (
+    <div className="grid grid-cols-2 gap-1.5 md:grid-cols-3">
+      {items.map((r) => {
+        const cover = r.card_ids[0] ?? 0;
+        return (
+          <button
+            key={r.id}
+            type="button"
+            onClick={() => onOpen(r.id)}
+            className="relative aspect-square overflow-hidden rounded-md"
+            style={{
+              border:
+                "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
+            }}
+          >
+            <img
+              src={getCardImagePath(cover)}
+              alt=""
+              loading="lazy"
+              className="h-full w-full object-cover"
+              style={{ opacity: "var(--ro-plus-30)" }}
+            />
+            <div
+              className="absolute inset-x-0 bottom-0 flex items-center justify-between px-2 py-1.5 text-[10px] uppercase tracking-[0.14em]"
+              style={{
+                background:
+                  "linear-gradient(to top, oklch(0 0 0 / 60%), transparent)",
+                color: "var(--gold)",
+                opacity: "var(--ro-plus-20)",
+              }}
+            >
+              <span>{spreadLabel(r.spread_type)}</span>
+              <span>{relativeTime(r.created_at)}</span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------- Notes view ---------- */
+
+function NotesView({
+  items,
+  isOracle,
+  onOpen,
+}: {
+  items: ReadingRow[];
+  isOracle: boolean;
+  onOpen: (id: string) => void;
+}) {
+  if (items.length === 0) {
+    return (
+      <Empty
+        oracle="Your inner voice has not yet spoken here…"
+        plain="Add notes to your readings to see them here."
+        isOracle={isOracle}
+      />
+    );
+  }
+  return (
+    <ul className="flex flex-col gap-5">
+      {items.map((r) => (
+        <li key={r.id}>
+          <button
+            type="button"
+            onClick={() => onOpen(r.id)}
+            className="block w-full rounded-xl px-4 py-3 text-left transition-colors hover:bg-white/[0.02]"
+          >
+            <div className="flex items-baseline gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              <span style={{ opacity: "var(--ro-plus-20)" }}>
+                {relativeTime(r.created_at)}
+              </span>
+              <span style={{ opacity: "var(--ro-plus-30)" }}>
+                {spreadLabel(r.spread_type)}
+              </span>
+            </div>
+            <p
+              className="mt-2 font-display text-[15px] italic leading-snug text-foreground"
+              style={{
+                opacity: "var(--ro-plus-30)",
+                display: "-webkit-box",
+                WebkitLineClamp: 4,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
+            >
+              {r.note}
+            </p>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/* ---------- Empty state ---------- */
+
+function Empty({
+  oracle,
+  plain,
+  isOracle,
+}: {
+  oracle: string;
+  plain: string;
+  isOracle: boolean;
+}) {
+  return (
+    <p
+      className="mx-auto mt-16 max-w-xs text-center font-display text-[14px] italic text-muted-foreground"
+      style={{ opacity: "var(--ro-plus-10)" }}
+    >
+      {isOracle ? oracle : plain}
+    </p>
+  );
+}
+
+/* ---------- Reading detail overlay ---------- */
+
+function ReadingDetail({
+  reading,
+  onClose,
+  isOracle: _isOracle,
+}: {
+  reading: ReadingRow;
+  onClose: () => void;
+  isOracle: boolean;
+}) {
+  const guide = getGuideById(reading.guide_id);
+  const positions = isValidSpreadMode(reading.spread_type)
+    ? SPREAD_META[reading.spread_type as SpreadMode].positions
+    : undefined;
+
+  // Lock body scroll while the overlay is open.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  // Close on Escape.
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Reading detail"
+      className="bg-cosmos fixed inset-0 z-50 overflow-y-auto"
+    >
+      <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+56px)]">
+        {/* Manual close button — also wired into the floating menu in pass 2. */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close reading"
+          className="absolute right-4 top-[calc(env(safe-area-inset-top,0px)+12px)] flex h-10 w-10 items-center justify-center rounded-full text-gold transition-colors hover:bg-gold/10"
+          style={{ opacity: "var(--ro-plus-30)" }}
+        >
+          <X size={18} strokeWidth={1.5} />
+        </button>
+
+        <header>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            <span style={{ opacity: "var(--ro-plus-30)" }}>
+              {spreadLabel(reading.spread_type)}
+            </span>
+            <span className="mx-2" aria-hidden>
+              ·
+            </span>
+            <span style={{ opacity: "var(--ro-plus-20)" }}>
+              {new Date(reading.created_at).toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </span>
+          </div>
+          <div
+            className="mt-2 font-display text-sm italic text-gold"
+            style={{ opacity: "var(--ro-plus-20)" }}
+          >
+            {reading.moon_phase &&
+              `${PHASE_GLYPHS[reading.moon_phase] ?? "🌙"} ${reading.moon_phase} · `}
+            {guide.name}
+          </div>
+        </header>
+
+        {/* Cards */}
+        <div className="mt-6 flex flex-wrap items-end justify-center gap-3">
+          {reading.card_ids.map((id, idx) => (
+            <div key={`${id}-${idx}`} className="flex flex-col items-center">
+              <img
+                src={getCardImagePath(id)}
+                alt={getCardName(id)}
+                className="h-32 w-20 rounded-md object-cover"
+                style={{
+                  border:
+                    "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+                  opacity: "var(--ro-plus-40)",
+                }}
+              />
+              <span
+                className="mt-1 max-w-[90px] text-center font-display text-[10px] italic text-muted-foreground"
+                style={{ opacity: "var(--ro-plus-20)" }}
+              >
+                {positions?.[idx] ?? getCardName(id)}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Interpretation */}
+        {reading.interpretation && (
+          <article
+            className="mx-auto mt-8 max-w-prose font-display text-[16px] italic leading-relaxed text-foreground"
+            style={{
+              opacity: "var(--ro-plus-30)",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {reading.interpretation}
+          </article>
+        )}
+
+        {/* Note */}
+        {(reading.note ?? "").trim().length > 0 && (
+          <>
+            <div
+              className="mx-auto my-6 h-px max-w-prose"
+              style={{
+                background:
+                  "linear-gradient(to right, transparent, color-mix(in oklab, var(--gold) 18%, transparent), transparent)",
+              }}
+            />
+            <p
+              className="mx-auto max-w-prose font-display text-[15px] italic text-foreground"
+              style={{ opacity: "var(--ro-plus-30)", whiteSpace: "pre-wrap" }}
+            >
+              {reading.note}
+            </p>
+          </>
+        )}
+
+        {/* Tags */}
+        {(reading.tags ?? []).length > 0 && (
+          <div className="mx-auto mt-6 flex max-w-prose flex-wrap gap-x-4 gap-y-1">
+            {(reading.tags ?? []).map((t) => (
+              <span
+                key={t}
+                className="font-display text-[12px] italic text-gold"
+                style={{ opacity: "var(--ro-plus-30)" }}
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Favorite indicator */}
+        <div className="mx-auto mt-8 flex max-w-prose justify-center">
+          <Heart
+            size={20}
+            strokeWidth={1.5}
+            className={cn(reading.is_favorite ? "text-gold" : "text-muted-foreground")}
+            fill={reading.is_favorite ? "currentColor" : "none"}
+            style={{
+              opacity: reading.is_favorite
+                ? "var(--ro-plus-50)"
+                : "var(--ro-plus-10)",
+            }}
+            aria-label={reading.is_favorite ? "Favorited" : "Not favorited"}
+          />
+        </div>
+      </div>
+    </div>
   );
 }

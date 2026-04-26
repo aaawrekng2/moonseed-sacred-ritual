@@ -47,32 +47,85 @@ export type Database = {
         }
         Relationships: []
       }
+      reading_photos: {
+        Row: {
+          caption: string | null
+          created_at: string
+          id: string
+          reading_id: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          reading_id: string
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          reading_id?: string
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_photos_reading_id_fkey"
+            columns: ["reading_id"]
+            isOneToOne: false
+            referencedRelation: "readings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       readings: {
         Row: {
           card_ids: number[]
           created_at: string
+          guide_id: string | null
           id: string
           interpretation: string | null
+          is_favorite: boolean
+          lens_id: string | null
           mode: string
+          moon_phase: string | null
+          note: string | null
           spread_type: string
+          tags: string[]
           user_id: string
         }
         Insert: {
           card_ids: number[]
           created_at?: string
+          guide_id?: string | null
           id?: string
           interpretation?: string | null
+          is_favorite?: boolean
+          lens_id?: string | null
           mode?: string
+          moon_phase?: string | null
+          note?: string | null
           spread_type: string
+          tags?: string[]
           user_id: string
         }
         Update: {
           card_ids?: number[]
           created_at?: string
+          guide_id?: string | null
           id?: string
           interpretation?: string | null
+          is_favorite?: boolean
+          lens_id?: string | null
           mode?: string
+          moon_phase?: string | null
+          note?: string | null
           spread_type?: string
+          tags?: string[]
           user_id?: string
         }
         Relationships: []
@@ -232,6 +285,30 @@ export type Database = {
           last_draw_date?: string | null
           longest_streak?: number
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_tags: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          usage_count: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          usage_count?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          usage_count?: number
           user_id?: string
         }
         Relationships: []
