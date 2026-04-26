@@ -2126,7 +2126,10 @@ function CardSlot({
             : "Face-down card"
       }
       className={cn(
-        flying || flightPhase === "returning" || dragging || (skipFlight && slotRect)
+        (flying && launchRect && slotRect) ||
+        (flightPhase === "returning" && returnFromRect && containerOrigin) ||
+        dragging ||
+        (skipFlight && slotRect)
           ? "fixed outline-none focus:outline-none focus-visible:outline-none"
           : "absolute outline-none focus:outline-none focus-visible:outline-none",
         flying || flightPhase === "returning" || dragging
