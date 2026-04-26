@@ -503,9 +503,11 @@ function LiveThemePreview() {
     if (typeof window === "undefined") return;
     const sync = () => setCardBack(getStoredCardBack());
     window.addEventListener("storage", sync);
+    window.addEventListener("moonseed:card-back-changed", sync);
     const unsub = subscribeActiveThemeChanged(sync);
     return () => {
       window.removeEventListener("storage", sync);
+      window.removeEventListener("moonseed:card-back-changed", sync);
       unsub();
     };
   }, []);
