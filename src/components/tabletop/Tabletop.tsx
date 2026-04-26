@@ -428,28 +428,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       setContainerOrigin({ left: r.left, top: r.top });
     };
     update();
-    // [DIAG] One-shot logging on mount to verify how padding-top
-    // interacts with absolutely positioned card children. Remove after
-    // we confirm whether `top: 0` lands at border or padding edge.
-    if (typeof window !== "undefined") {
-      const cs = getComputedStyle(el);
-      const r = el.getBoundingClientRect();
-      // eslint-disable-next-line no-console
-      console.log("[Tabletop diag]", {
-        "size.h (== rect.height)": r.height,
-        "rect.width": r.width,
-        "rect.top": r.top,
-        "rect.bottom": r.bottom,
-        "computed paddingTop": cs.paddingTop,
-        "computed position": cs.position,
-        "clientHeight (incl padding, excl border)": el.clientHeight,
-        "scrollHeight": el.scrollHeight,
-        note:
-          "absolute children with top:0 land at BORDER edge of this " +
-          "container (since position:relative). padding-top does NOT " +
-          "offset absolutely positioned children.",
-      });
-    }
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
