@@ -900,8 +900,17 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         setTableGhost(null);
         return;
       }
+      // Convert viewport coords to container/scatter coords. Cards are
+      // absolutely positioned so `top` is measured from the padding edge —
+      // subtract the reserved top strip so the ghost lands where the
+      // card will actually snap.
       const targetLeft = projectedLeft - containerOrigin.left;
-      const targetTop = projectedTop - containerOrigin.top;
+      const targetTop =
+        projectedTop - containerOrigin.top - TABLETOP_CONFIG.TOP_RESERVE;
+      const usableH = Math.max(
+        1,
+        size.h - TABLETOP_CONFIG.TOP_RESERVE,
+      );
       const clampedX = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
@@ -912,7 +921,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       const clampedY = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
-          size.h - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+          usableH - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
           targetTop,
         ),
       );
