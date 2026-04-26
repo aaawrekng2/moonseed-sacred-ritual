@@ -1242,7 +1242,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             // Sit to the left of TopRightControls. The cluster is roughly
             // 5×44px + 4×12px gap ≈ 268px; offset past it so we never
             // overlap. On smaller viewports the cluster wraps naturally.
-            right: "calc(env(safe-area-inset-right, 0px) + 280px)",
+            right: "calc(env(safe-area-inset-right, 0px) + 240px)",
             display: "flex",
             alignItems: "center",
             gap: 6,
