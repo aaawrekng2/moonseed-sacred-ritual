@@ -56,6 +56,11 @@ export const LANG = {
   profile:             { plain: "Profile",          oracle: "The Seeker" },
   preferences:         { plain: "Preferences",      oracle: "The Way" },
   data:                { plain: "Data",             oracle: "The Archive" },
+  // Tabletop "Clarity" UI density levels
+  clarity:             { plain: "Clarity",          oracle: "The Clarity" },
+  claritySeen:         { plain: "Seen",             oracle: "Seen" },
+  clarityGlimpse:      { plain: "Glimpse",          oracle: "Glimpse" },
+  clarityVeiled:       { plain: "Veiled",           oracle: "Veiled" },
 } as const;
 
 export type LangKey = keyof typeof LANG;
