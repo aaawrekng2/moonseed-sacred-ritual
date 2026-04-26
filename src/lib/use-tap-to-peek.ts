@@ -37,11 +37,15 @@ function isInteractive(target: EventTarget | null): boolean {
   return target.closest(INTERACTIVE_SELECTOR) !== null;
 }
 
-function triggerPeek() {
-  // Clear any pending hold so a repeat tap resets the 2000ms timer
-  // instead of being ignored. Only acquire fresh peek subscriptions on
-  // the *first* tap of a peek session — re-acquiring on every tap would
-  // double-broadcast and leak restore handlers.
+/**
+ * Trigger a transient peek — brightens everything to 100% opacity,
+ * holds for `holdMs`, then fades back to the user's saved resting value.
+ *
+ * Used by both the global tap-to-peek handler (2000ms hold) and
+ * top-bar icon taps (1500ms hold) so both share the exact same
+ * fade-back animation and never conflict.
+ */
+export function triggerPeek(holdMs: number = PEEK_HOLD_MS) {
   if (holdTimer) {
     clearTimeout(holdTimer);
     holdTimer = null;
@@ -60,7 +64,7 @@ function triggerPeek() {
     setTimeout(() => {
       active = false;
     }, PEEK_FADE_MS + 40);
-  }, PEEK_HOLD_MS);
+  }, holdMs);
 }
 
 export function useTapToPeek() {
@@ -69,7 +73,7 @@ export function useTapToPeek() {
     const handler = (e: PointerEvent) => {
       if (e.button !== undefined && e.button !== 0) return;
       if (isInteractive(e.target)) return;
-      triggerPeek();
+      triggerPeek(PEEK_HOLD_MS);
     };
     document.addEventListener("pointerdown", handler, { capture: true });
     return () => {
