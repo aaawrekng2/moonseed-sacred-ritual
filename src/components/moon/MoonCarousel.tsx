@@ -477,12 +477,14 @@ function CenterCard({
   moonSign,
   isToday,
   selected,
+  enterDir,
   onToggle,
 }: {
   info: MoonInfo;
   moonSign: string;
   isToday: boolean;
   selected: boolean;
+  enterDir: "left" | "right";
   onToggle: () => void;
 }) {
   return (
@@ -505,7 +507,18 @@ function CenterCard({
             : "border border-gold/30 shadow-[0_8px_30px_-12px_rgba(212,175,55,0.4)]",
         )}
       >
-        <div className="flex flex-col items-center gap-2 text-center">
+        {/* Keyed by date so React remounts on day change, triggering the
+            cross-fade + slide-in animation. The phase icon cross-fades
+            via opacity; the date/label slide in from the swipe direction. */}
+        <div
+          key={info.date.toDateString()}
+          className="flex flex-col items-center gap-2 text-center moon-day-fade"
+          style={{
+            // CSS var consumed by .moon-day-fade keyframes — drives the
+            // horizontal slide direction. +1 = enter from right; -1 = left.
+            ["--moon-enter-dir" as string]: enterDir === "right" ? "1" : "-1",
+          }}
+        >
           <MoonPhaseIcon phase={info.phase} size={72} illumination={info.illumination} />
           <p className="whitespace-nowrap text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {formatShortDate(info.date)}
