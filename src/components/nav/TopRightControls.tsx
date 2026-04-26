@@ -276,6 +276,7 @@ export function TopRightControls({
           onClick={cycleSanctuary}
           ariaLabel={`Cycle saved sanctuaries (current: ${currentLabel})`}
           title={`Sanctuary: ${currentLabel}`}
+          restingOpacity="var(--ro-plus-0)"
         />
       )}
 
