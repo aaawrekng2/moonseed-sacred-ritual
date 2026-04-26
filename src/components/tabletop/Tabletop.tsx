@@ -2161,6 +2161,8 @@ function CardSlot({
       pointerId: e.pointerId,
       startClientX: e.clientX,
       startClientY: e.clientY,
+      currentClientX: e.clientX,
+      currentClientY: e.clientY,
       // Pointer offset inside the card is computed in `beginDrag` against
       // a fresh card rect, not here — the card may move between pointerdown
       // and the hold timer firing. Initialised to 0 as a safe default.
@@ -2187,7 +2189,7 @@ function CardSlot({
         // Fine pointers (mouse) keep the hold-timer behaviour so a quick
         // mouse drag still feels intentional.
         const s = dragStateRef.current;
-        if (isCoarsePointer && s && !dragging) {
+        if (isCoarsePointer && s && !draggingRef.current) {
           if (s.holdTimer != null) {
             window.clearTimeout(s.holdTimer);
             s.holdTimer = null;
@@ -2198,7 +2200,9 @@ function CardSlot({
     }
     const s = dragStateRef.current;
     if (!s) return;
-    if (!dragging) return;
+    s.currentClientX = e.clientX;
+    s.currentClientY = e.clientY;
+    if (!draggingRef.current) return;
     s.didDrag = true;
     // Move the card via direct DOM mutation rather than React state so
     // every pointermove doesn't trigger a render. The `dragging` style
