@@ -1252,6 +1252,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       <TopRightControls
         onClose={handleExit}
         closeLabel="Close tabletop"
+        includeClarity={false}
         extraStart={
           <>
             <ExpandingIconButton
