@@ -2110,6 +2110,8 @@ function CardSlot({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
+      onMouseDown={(e) => e.preventDefault()}
+      onFocus={(e) => e.currentTarget.blur()}
       // Disable native HTML5 drag — we handle drag with pointer events.
       // `draggable={false}` blocks the browser from initialising a drag
       // image (which is the source of the dashed-outline ghost left
@@ -2126,8 +2128,8 @@ function CardSlot({
       }
       className={cn(
         flying || flightPhase === "returning" || dragging || (skipFlight && slotRect)
-          ? "fixed outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
-          : "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
+          ? "fixed outline-none focus:outline-none focus-visible:outline-none"
+          : "absolute outline-none focus:outline-none focus-visible:outline-none",
         flying || flightPhase === "returning" || dragging
           ? null
           : "card-idle-transition",
