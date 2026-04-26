@@ -2176,7 +2176,13 @@ function CardSlot({
     // collapse mid-gesture) so we re-measure every move.
     const freshRect = containerElRef.current?.getBoundingClientRect();
     const cLeft = freshRect?.left ?? containerRect?.left ?? 0;
-    const cTop = freshRect?.top ?? containerRect?.top ?? 0;
+    const cTopBorder = freshRect?.top ?? containerRect?.top ?? 0;
+    const padTop = containerElRef.current
+      ? parseFloat(
+          getComputedStyle(containerElRef.current).paddingTop || "0",
+        ) || 0
+      : 0;
+    const cTop = cTopBorder + padTop;
     if (el) {
       el.style.left = `${e.clientX - s.pointerOffsetX - cLeft}px`;
       el.style.top = `${e.clientY - s.pointerOffsetY - cTop}px`;
