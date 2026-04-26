@@ -1254,17 +1254,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         closeLabel="Close tabletop"
         extraStart={
           <>
-            {spread === "celtic" && (
-              <button
-                type="button"
-                onClick={() => setCelticHelpOpen(true)}
-                aria-label="Celtic Cross — what each position means"
-                style={{ opacity: "var(--ro-plus-10)" }}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-              >
-                <HelpCircle className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
-              </button>
-            )}
             <ExpandingIconButton
               icon={
                 densityLevel === 0 ? (
@@ -1300,6 +1289,25 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </>
         }
       />
+
+      {/* Celtic Cross help — top-LEFT, always-accessible (no localStorage gate). */}
+      {spread === "celtic" && (
+        <button
+          type="button"
+          onClick={() => setCelticHelpOpen(true)}
+          aria-label="Celtic Cross — what each position means"
+          style={{
+            position: "fixed",
+            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+            left: "calc(env(safe-area-inset-left, 0px) + 16px)",
+            zIndex: 50,
+            opacity: "var(--ro-plus-10)" as unknown as number,
+          }}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        >
+          <HelpCircle size={18} strokeWidth={1.5} aria-hidden="true" />
+        </button>
+      )}
 
       {/* Tabletop scatter area */}
       <div
