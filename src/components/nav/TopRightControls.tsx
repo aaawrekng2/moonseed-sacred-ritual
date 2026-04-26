@@ -53,7 +53,7 @@ function applySanctuary(
  * toggle and the Sanctuary cycler — anywhere we need a brief, in-place
  * confirmation of *what* the tap just did without a separate popover.
  */
-function ExpandingIconButton({
+export function ExpandingIconButton({
   icon,
   label,
   labelFont,
