@@ -2072,16 +2072,15 @@ function CardSlot({
       // Fire one immediate move so the card jumps to the pointer location
       // (it was sitting at its scatter slot during the hold).
       const s = dragStateRef.current;
-      // Convert pointer position to container coords. The card uses
-      // `position: absolute` while dragging — relative to the scatter
-      // container, NOT the viewport. Using viewport coords here was the
-      // root cause of the mobile "fly to upper-left" bug: a parent with
-      // `transform` traps `position: fixed` so it behaves like absolute,
-      // and the viewport-coord values then resolved against the wrong
-      // origin. Container coords work for both `absolute` and the
-      // (transform-trapped) `fixed` case.
-      const cLeft = containerRect?.left ?? 0;
-      const cTop = containerRect?.top ?? 0;
+      // Convert pointer position to container coords. ALWAYS re-measure
+      // the container at drag start — the cached `containerRect` prop
+      // can be stale on mobile (browser chrome show/hide, address-bar
+      // collapse, layout shifts) which manifested as the "card flies
+      // to upper-left" bug. Falling back to the prop, then 0, only as
+      // a last resort.
+      const freshRect = containerElRef.current?.getBoundingClientRect();
+      const cLeft = freshRect?.left ?? containerRect?.left ?? 0;
+      const cTop = freshRect?.top ?? containerRect?.top ?? 0;
       setDragPos({
         x: s.startClientX - s.pointerOffsetX - cLeft,
         y: s.startClientY - s.pointerOffsetY - cTop,
@@ -2093,7 +2092,7 @@ function CardSlot({
         s.startClientY - s.pointerOffsetY,
       );
     }
-  }, [onDragMove, containerRect]);
+  }, [onDragMove, containerRect, containerElRef]);
 
   // Touch / coarse pointer activates drag faster (80ms) so a quick
   // press-and-move doesn't get treated as a tap. Mouse keeps 150ms.
@@ -2148,13 +2147,12 @@ function CardSlot({
     // here is enough — and crucially avoids any React reconciliation
     // that could momentarily detach the inline styles.
     const el = btnRef.current;
-    // Convert viewport coords → container coords. Critical: the dragging
-    // branch uses `position: absolute` (container-relative). On mobile,
-    // a parent transform was trapping `position: fixed` and the bare
-    // viewport-coord values resolved against the container origin,
-    // producing the "card flies to upper-left" bug.
-    const cLeft = containerRect?.left ?? 0;
-    const cTop = containerRect?.top ?? 0;
+    // Convert viewport coords → container coords using a FRESH measurement.
+    // The cached prop can be stale on mobile during a drag (toolbar
+    // collapse mid-gesture) so we re-measure every move.
+    const freshRect = containerElRef.current?.getBoundingClientRect();
+    const cLeft = freshRect?.left ?? containerRect?.left ?? 0;
+    const cTop = freshRect?.top ?? containerRect?.top ?? 0;
     if (el) {
       el.style.left = `${e.clientX - s.pointerOffsetX - cLeft}px`;
       el.style.top = `${e.clientY - s.pointerOffsetY - cTop}px`;
