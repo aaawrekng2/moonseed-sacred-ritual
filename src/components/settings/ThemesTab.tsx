@@ -490,17 +490,20 @@ function LiveThemePreview() {
   const [cardBack, setCardBack] = useState<CardBackId>(DEFAULT_CARD_BACK);
 
   // Keep the preview's card back in sync with the chosen one. The Card
-  // Back picker writes via setStoredCardBack(); we listen for the event
-  // it dispatches indirectly by polling on every prefs change PLUS a
-  // storage tick, which catches the rare case where another tab edits.
+  // Back picker calls setStoredCardBack() which writes localStorage; we
+  // listen for the storage event (covers other tabs) and also subscribe
+  // to the global theme-changed bus (covers same-tab updates).
   useEffect(() => {
     setCardBack(getStoredCardBack());
-    const onStorage = () => setCardBack(getStoredCardBack());
-    if (typeof window !== "undefined") {
-      window.addEventListener("storage", onStorage);
-      return () => window.removeEventListener("storage", onStorage);
-    }
-  }, [prefs.card_back]);
+    if (typeof window === "undefined") return;
+    const sync = () => setCardBack(getStoredCardBack());
+    window.addEventListener("storage", sync);
+    const unsub = subscribeActiveThemeChanged(sync);
+    return () => {
+      window.removeEventListener("storage", sync);
+      unsub();
+    };
+  }, []);
 
   const left = prefs.bg_gradient_from ?? DEFAULT_BG_LEFT;
   const right = prefs.bg_gradient_to ?? DEFAULT_BG_RIGHT;
