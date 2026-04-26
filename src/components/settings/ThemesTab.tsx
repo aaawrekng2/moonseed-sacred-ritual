@@ -434,7 +434,7 @@ function CardBackSection() {
       title="The Veil"
       description="What the cards show before they speak."
     >
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+      <div className="grid grid-cols-5 gap-1.5 sm:gap-3">
         {CARD_BACKS.map((back) => {
           const active = cardBack === back.id;
           return (
@@ -443,15 +443,15 @@ function CardBackSection() {
               type="button"
               onClick={() => void choose(back.id)}
               className={cn(
-                "flex flex-col items-center gap-2 rounded-2xl p-3 transition focus:outline-none",
+                "flex flex-col items-center gap-1.5 rounded-2xl p-1.5 transition focus:outline-none sm:gap-2 sm:p-3",
               )}
               aria-pressed={active}
               aria-label={`Use ${back.label} card back`}
             >
-              <CardBack id={back.id} width={48} />
+              <CardBack id={back.id} width={36} className="sm:!w-12" />
               <span
                 className={cn(
-                  "text-xs pb-0.5 border-b-2 transition-colors",
+                  "text-[10px] sm:text-xs pb-0.5 border-b-2 transition-colors",
                   active
                     ? "border-gold text-gold"
                     : "border-transparent text-muted-foreground-strong",
