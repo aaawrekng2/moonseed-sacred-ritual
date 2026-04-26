@@ -1148,6 +1148,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // top-bar cluster.
   useRegisterCloseHandler(handleExit);
 
+  // Celtic Cross gets a contextual ? icon in the global FloatingMenu
+  // that re-opens the position explainer. Other spreads register null.
+  useRegisterHelpHandler(
+    spread === "celtic" ? () => setCelticHelpOpen(true) : null,
+  );
+
   // Mirror current cards + undo/redo stacks into the cross-route
   // session store on every change. This is what makes the session
   // survive accidental navigation away from /draw — when <Tabletop>
@@ -1276,25 +1282,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             <Redo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
           </button>
         </div>
-      )}
-
-      {/* Celtic Cross help — top-LEFT, always-accessible (no localStorage gate). */}
-      {spread === "celtic" && (
-        <button
-          type="button"
-          onClick={() => setCelticHelpOpen(true)}
-          aria-label="Celtic Cross — what each position means"
-          style={{
-            position: "fixed",
-            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-            left: "calc(env(safe-area-inset-left, 0px) + 16px)",
-            zIndex: 50,
-            opacity: "var(--ro-plus-10)" as unknown as number,
-          }}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-        >
-          <HelpCircle size={18} strokeWidth={1.5} aria-hidden="true" />
-        </button>
       )}
 
       {/* Tabletop scatter area */}
