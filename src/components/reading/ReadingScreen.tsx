@@ -175,7 +175,9 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
               positionLabels={positionLabels}
             />
           )}
-          {state.kind === "limit" && <LimitMessage onExit={onExit} />}
+          {state.kind === "limit" && (
+            <LimitMessage onExit={onExit} isOracle={isOracle} />
+          )}
           {state.kind === "error" && (
             <ErrorMessage
               message={state.message}
@@ -423,6 +425,13 @@ function ReadingBody({
 }
 
 function LimitMessage({ onExit }: { onExit: () => void }) {
+function LimitMessage({
+  onExit,
+  isOracle,
+}: {
+  onExit: () => void;
+  isOracle: boolean;
+}) {
   return (
     <div className="flex flex-col items-center gap-5 py-6 text-center">
       <p
@@ -435,8 +444,9 @@ function LimitMessage({ onExit }: { onExit: () => void }) {
           maxWidth: 320,
         }}
       >
-        You&rsquo;ve drawn three times today. Return tomorrow for more
-        guidance.
+        {isOracle
+          ? "You have drawn three times today. The cards rest until tomorrow."
+          : "You\u2019ve completed 3 readings today. Return tomorrow for more guidance."}
       </p>
       <button
         type="button"
