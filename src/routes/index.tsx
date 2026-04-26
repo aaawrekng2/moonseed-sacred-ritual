@@ -160,12 +160,15 @@ function Index() {
             title="Your practice streak"
             aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`}
           >
-            <Flame size={16} style={{ color: "var(--gold)", opacity: restingAlpha }} />
+            <Flame
+              size={16}
+              style={{ color: "var(--gold)", opacity: "var(--ro-plus-20)" }}
+            />
             <span
               style={{
                 fontSize: "13px",
                 color: "var(--gold)",
-                opacity: restingAlpha,
+                opacity: "var(--ro-plus-20)",
                 fontFamily: "var(--font-serif)",
               }}
             >
