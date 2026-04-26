@@ -58,8 +58,22 @@ export function GuideSelector({
     if (!user) return;
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from("custom_guides" as never)
+      const { data, error } = await (supabase as unknown as {
+        from: (t: string) => {
+          select: (q: string) => {
+            eq: (
+              col: string,
+              val: string,
+            ) => {
+              order: (
+                col: string,
+                opts: { ascending: boolean },
+              ) => Promise<{ data: CustomGuide[] | null; error: unknown }>;
+            };
+          };
+        };
+      })
+        .from("custom_guides")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: true });
@@ -68,7 +82,7 @@ export function GuideSelector({
         console.error("[GuideSelector] load custom guides failed", error);
         return;
       }
-      setCustomGuides(((data as unknown) as CustomGuide[]) ?? []);
+      setCustomGuides((data as CustomGuide[]) ?? []);
     })();
     return () => {
       cancelled = true;
@@ -349,8 +363,16 @@ function CreateCustomGuideDialog({
       return;
     }
     setSaving(true);
-    const { data, error } = await supabase
-      .from("custom_guides" as never)
+    const { data, error } = await (supabase as unknown as {
+      from: (t: string) => {
+        insert: (row: Record<string, unknown>) => {
+          select: (q: string) => {
+            single: () => Promise<{ data: CustomGuide | null; error: unknown }>;
+          };
+        };
+      };
+    })
+      .from("custom_guides")
       .insert({
         user_id: user.id,
         name: name.trim().slice(0, 40),
@@ -368,7 +390,7 @@ function CreateCustomGuideDialog({
       toast.error("Couldn't save your guide");
       return;
     }
-    onCreated((data as unknown) as CustomGuide);
+    onCreated(data as CustomGuide);
   };
 
   return (
