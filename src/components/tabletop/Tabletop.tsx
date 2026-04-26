@@ -1218,11 +1218,35 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           right: "calc(env(safe-area-inset-right, 0px) + 9rem)",
           display: "flex",
           alignItems: "center",
-          gap: 8,
+          gap: 6,
           zIndex: 60,
           pointerEvents: "auto",
         }}
       >
+        {(undoStack.length > 0 || redoStack.length > 0) && (
+          <>
+            <button
+              type="button"
+              onClick={undo}
+              disabled={undoStack.length === 0}
+              aria-label="Undo last drag"
+              style={{ opacity: restingAlpha }}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30 md:h-7 md:w-7"
+            >
+              <Undo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={redo}
+              disabled={redoStack.length === 0}
+              aria-label="Redo last drag"
+              style={{ opacity: restingAlpha }}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30 md:h-7 md:w-7"
+            >
+              <Redo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            </button>
+          </>
+        )}
         <button
           type="button"
           onClick={cycleDensity}
@@ -1245,7 +1269,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               ? Math.min(1, restingAlpha + 0.15)
               : restingAlpha,
           }}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 md:h-7 md:w-7"
         >
           {densityLevel === 0 ? (
             <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
@@ -1260,7 +1284,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           onClick={handleExit}
           aria-label="Close tabletop"
           style={{ opacity: exitAlpha }}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 md:h-7 md:w-7"
         >
           <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         </button>
