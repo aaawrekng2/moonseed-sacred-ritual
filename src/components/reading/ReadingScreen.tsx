@@ -832,3 +832,166 @@ function ErrorMessage({
     </div>
   );
 }
+
+/* ---------------------------------------------------------------------- */
+/*  Clipboard helpers                                                     */
+/* ---------------------------------------------------------------------- */
+
+function buildCopyText({
+  spreadLabel,
+  interpretation,
+  picks,
+  positionLabels,
+}: {
+  spreadLabel: string;
+  interpretation: InterpretationPayload;
+  picks: Pick[];
+  positionLabels: string[];
+}): string {
+  const lines: string[] = [];
+  lines.push(`${spreadLabel} — Moonseed reading`);
+  lines.push("");
+  lines.push(interpretation.overview.trim());
+  lines.push("");
+  const positions = interpretation.positions.length
+    ? interpretation.positions
+    : picks.map((p, i) => ({
+        position: positionLabels[i] ?? `Card ${i + 1}`,
+        card: getCardName(p.cardIndex),
+        interpretation: "",
+      }));
+  positions.forEach((p) => {
+    lines.push(`${p.position} — ${p.card}`);
+    if (p.interpretation) lines.push(p.interpretation.trim());
+    lines.push("");
+  });
+  if (interpretation.closing) {
+    lines.push(interpretation.closing.trim());
+  }
+  return lines.join("\n").trim() + "\n";
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  if (typeof navigator === "undefined") return false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fall through to legacy path
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Top-bar copy icon — sits inside TopRightControls' extraStart slot.
+ * Briefly flips to a checkmark for 1.5s after a successful copy.
+ */
+function CopyIconButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) window.clearTimeout(timer.current);
+    },
+    [],
+  );
+  const handle = async () => {
+    const ok = await copyToClipboard(text);
+    if (!ok) return;
+    setCopied(true);
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <button
+      type="button"
+      aria-label={copied ? "Reading copied" : "Copy reading to clipboard"}
+      onClick={() => void handle()}
+      style={{ opacity: "var(--ro-plus-0)" }}
+      className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+    >
+      {copied ? (
+        <CheckCheck size={18} strokeWidth={1.5} />
+      ) : (
+        <Copy size={18} strokeWidth={1.5} />
+      )}
+    </button>
+  );
+}
+
+/**
+ * Bottom copy link — visible flowing-text invitation rendered after the
+ * interpretation body. Same copy + checkmark behaviour as the top icon.
+ */
+function CopyTextLink({
+  text,
+  isOracle,
+}: {
+  text: string;
+  isOracle: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) window.clearTimeout(timer.current);
+    },
+    [],
+  );
+  const handle = async () => {
+    const ok = await copyToClipboard(text);
+    if (!ok) return;
+    setCopied(true);
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setCopied(false), 1500);
+  };
+  const idleLabel = isOracle ? "Carry These Words" : "Copy Reading";
+  const doneLabel = isOracle ? "Held in your hand" : "Copied";
+  return (
+    <div className="flex justify-center pt-2">
+      <button
+        type="button"
+        onClick={() => void handle()}
+        aria-label={copied ? doneLabel : idleLabel}
+        className="group inline-flex items-center gap-2 bg-transparent px-2 py-1 text-gold transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/60"
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: 14,
+          letterSpacing: "0.04em",
+          opacity: "var(--ro-plus-20)",
+          textShadow:
+            "0 0 12px color-mix(in oklab, var(--gold) 25%, transparent)",
+        }}
+      >
+        {copied ? (
+          <CheckCheck size={14} strokeWidth={1.5} aria-hidden />
+        ) : (
+          <Copy size={14} strokeWidth={1.5} aria-hidden />
+        )}
+        <span
+          style={{
+            borderBottom: "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
+            paddingBottom: 1,
+          }}
+        >
+          {copied ? doneLabel : idleLabel}
+        </span>
+      </button>
+    </div>
+  );
+}
