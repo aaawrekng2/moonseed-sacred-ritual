@@ -2070,6 +2070,7 @@ function CardSlot({
   // follows the pointer with `position: fixed`, and the eventual click
   // handler is suppressed so selection state is preserved.
   const [dragging, setDragging] = useState(false);
+  const draggingRef = useRef(false);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   // After a drag completes, the card re-renders into the absolute "idle"
   // style branch which carries `animation: settle-in 320ms` — that
@@ -2081,6 +2082,8 @@ function CardSlot({
     pointerId: number;
     startClientX: number;
     startClientY: number;
+    currentClientX: number;
+    currentClientY: number;
     pointerOffsetX: number; // pointer offset inside the card on grab
     pointerOffsetY: number;
     fromX: number; // card's pre-drag table coords
@@ -2090,6 +2093,7 @@ function CardSlot({
   } | null>(null);
 
   const beginDrag = useCallback(() => {
+    draggingRef.current = true;
     setDragging(true);
     if (dragStateRef.current) {
       // Fire one immediate move so the card jumps to the pointer location
@@ -2102,9 +2106,11 @@ function CardSlot({
       // toolbar collapse, settle-in animation completing). Computing the
       // offset against a stale rect produced the "card jumps on grab" bug.
       const cardRect = btnRef.current?.getBoundingClientRect();
+      const activeClientX = s.currentClientX;
+      const activeClientY = s.currentClientY;
       if (cardRect) {
-        s.pointerOffsetX = s.startClientX - cardRect.left;
-        s.pointerOffsetY = s.startClientY - cardRect.top;
+        s.pointerOffsetX = activeClientX - cardRect.left;
+        s.pointerOffsetY = activeClientY - cardRect.top;
       }
       // Convert pointer position to container coords. ALWAYS re-measure
       // the container at drag start — the cached `containerRect` prop
@@ -2121,14 +2127,14 @@ function CardSlot({
       // buildScatter's `topOffset`, so no per-frame adjustment here.
       const cTop = freshRect?.top ?? containerRect?.top ?? 0;
       setDragPos({
-        x: s.startClientX - s.pointerOffsetX - cLeft,
-        y: s.startClientY - s.pointerOffsetY - cTop,
+        x: activeClientX - s.pointerOffsetX - cLeft,
+        y: activeClientY - s.pointerOffsetY - cTop,
       });
       onDragMove(
-        s.startClientX,
-        s.startClientY,
-        s.startClientX - s.pointerOffsetX,
-        s.startClientY - s.pointerOffsetY,
+        activeClientX,
+        activeClientY,
+        activeClientX - s.pointerOffsetX,
+        activeClientY - s.pointerOffsetY,
       );
     }
   }, [onDragMove, containerRect, containerElRef]);
@@ -2155,6 +2161,8 @@ function CardSlot({
       pointerId: e.pointerId,
       startClientX: e.clientX,
       startClientY: e.clientY,
+      currentClientX: e.clientX,
+      currentClientY: e.clientY,
       // Pointer offset inside the card is computed in `beginDrag` against
       // a fresh card rect, not here — the card may move between pointerdown
       // and the hold timer firing. Initialised to 0 as a safe default.
@@ -2181,7 +2189,7 @@ function CardSlot({
         // Fine pointers (mouse) keep the hold-timer behaviour so a quick
         // mouse drag still feels intentional.
         const s = dragStateRef.current;
-        if (isCoarsePointer && s && !dragging) {
+        if (isCoarsePointer && s && !draggingRef.current) {
           if (s.holdTimer != null) {
             window.clearTimeout(s.holdTimer);
             s.holdTimer = null;
@@ -2192,7 +2200,9 @@ function CardSlot({
     }
     const s = dragStateRef.current;
     if (!s) return;
-    if (!dragging) return;
+    s.currentClientX = e.clientX;
+    s.currentClientY = e.clientY;
+    if (!draggingRef.current) return;
     s.didDrag = true;
     // Move the card via direct DOM mutation rather than React state so
     // every pointermove doesn't trigger a render. The `dragging` style
@@ -2260,6 +2270,7 @@ function CardSlot({
       wasDraggedRef.current = true;
     }
     dragStateRef.current = null;
+    draggingRef.current = false;
     setDragging(false);
     setDragPos(null);
     return wasDragging;
@@ -2320,7 +2331,7 @@ function CardSlot({
           ? null
           : "card-idle-transition",
         // Remove default tap highlight on iOS / Android.
-        "[-webkit-tap-highlight-color:transparent] touch-manipulation",
+        "[-webkit-tap-highlight-color:transparent] [touch-action:none]",
         // Block the system drag-ghost on WebKit + suppress text selection
         // and the focus outline that becomes a "dashed ring" artifact.
         "select-none [-webkit-user-drag:none] [user-drag:none]",
