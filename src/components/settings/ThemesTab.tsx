@@ -977,23 +977,34 @@ function InterfaceFadeSection() {
             {draft}%
           </span>
         </div>
-        <Slider
-          min={MIN_RESTING_OPACITY}
-          max={MAX_RESTING_OPACITY}
-          step={1}
-          value={[draft]}
-          onValueChange={(v) => {
-            const n = v[0];
-            if (typeof n === "number") setDraft(n);
-          }}
-          onValueCommit={(v) => {
-            const n = v[0];
-            if (typeof n === "number") void commit(n);
-          }}
-        />
-        <div className="flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground/70">
-          <span>Whisper</span>
-          <span>Speak</span>
+        {/*
+          Narrower on mobile so horizontal swipes near the screen edge
+          don't grab the slider thumb (which would block the back-edge
+          gesture). `touch-action: pan-y` lets vertical scrolls pass
+          through the slider on touch devices.
+        */}
+        <div
+          className="mx-auto w-4/5 sm:w-full"
+          style={{ touchAction: "pan-y" }}
+        >
+          <Slider
+            min={MIN_RESTING_OPACITY}
+            max={MAX_RESTING_OPACITY}
+            step={1}
+            value={[draft]}
+            onValueChange={(v) => {
+              const n = v[0];
+              if (typeof n === "number") setDraft(n);
+            }}
+            onValueCommit={(v) => {
+              const n = v[0];
+              if (typeof n === "number") void commit(n);
+            }}
+          />
+          <div className="mt-2 flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground/70">
+            <span>Whisper</span>
+            <span>Speak</span>
+          </div>
         </div>
       </div>
     </SettingsSection>
