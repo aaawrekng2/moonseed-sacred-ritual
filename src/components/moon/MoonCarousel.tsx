@@ -779,7 +779,7 @@ function PhaseLadder({
           title={`${jumpVerb} ${r.label}`}
           aria-current={i === activeIdx ? "true" : undefined}
           style={{
-            opacity: i === activeIdx ? 1 : restingAlpha,
+            opacity: i === activeIdx ? 1 : ("var(--ro-plus-20)" as unknown as number),
             [isLeft ? "marginLeft" : "marginRight"]: r.inset,
           }}
           className={cn(
