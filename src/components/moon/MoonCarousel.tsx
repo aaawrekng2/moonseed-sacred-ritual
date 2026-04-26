@@ -46,6 +46,13 @@ export function MoonCarousel() {
   const prevOffsetRef = useRef(0);
   const tweenRafRef = useRef<number | null>(null);
 
+  // Tracks the last phase the user explicitly jumped to via the ladder.
+  // While the carousel is still showing that same phase at center, repeated
+  // taps on the same rung become no-ops (they don't keep walking forward to
+  // the next distinct occurrence). Reset whenever the user navigates by
+  // any other means (chevron, swipe, "Today" button, tap-to-center).
+  const lastJumpedPhaseRef = useRef<MoonPhaseName | null>(null);
+
   // Trigger a brief luminous shimmer whenever offset shifts by more than one
   // day (i.e. a phase-ladder jump or a "Today" return). Single-day steps and
   // swipes feel calm enough already and don't need the flourish. Skipped
@@ -150,19 +157,23 @@ export function MoonCarousel() {
     setOffset((o) => o + dir);
     setExpandedRel(null);
     setSelectedRel(null);
+    lastJumpedPhaseRef.current = null;
   };
   const goToToday = () => {
     setOffset(0);
     setExpandedRel(null);
     setSelectedRel(null);
+    lastJumpedPhaseRef.current = null;
   };
   const toggleExpand = (rel: number) => {
     setExpandedRel((cur) => (cur === rel ? null : rel));
     // Tapping a card also selects it (toggles off if already selected).
     setSelectedRel((cur) => (cur === rel ? null : rel));
+    lastJumpedPhaseRef.current = null;
   };
   const selectCenter = (rel: number) => {
     setSelectedRel((cur) => (cur === rel ? null : rel));
+    lastJumpedPhaseRef.current = null;
   };
 
   // Smoothly tween the offset from its current value to `target` so the
@@ -214,8 +225,19 @@ export function MoonCarousel() {
   // Tap a ladder rung → jump to the *nearest* occurrence of that phase in
   // either direction. Side-specific arrows (chevrons) still step ±1 day.
   const jumpToPhase = (phase: MoonPhaseName) => {
+    // Subsequent taps on the same rung are a no-op — we already landed
+    // on (or near) that phase. Only a different rung or another
+    // navigation gesture re-arms the jump.
+    if (lastJumpedPhaseRef.current === phase) {
+      const currentCenterPhase = getCurrentMoonPhase(viewedDate).phase;
+      if (currentCenterPhase === phase) return;
+    }
     const delta = findNearestPhaseOccurrence(phase, viewedDate);
-    if (delta === 0) return;
+    if (delta === 0) {
+      lastJumpedPhaseRef.current = phase;
+      return;
+    }
+    lastJumpedPhaseRef.current = phase;
     tweenOffsetTo(offset + delta);
   };
 
