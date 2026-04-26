@@ -738,3 +738,46 @@ button:focus-visible .moon-rung-glow {
   .slot-next-label { animation: none; opacity: 1 !important; }
 }
 
+
+/* ---------------------------------------------------------------------- */
+/* Reading screen — "Let Them Speak" mist/smoke breathing animation.      */
+/* Subtle radial pulse at rest; intensifies on hover/press.               */
+/* ---------------------------------------------------------------------- */
+@keyframes reading-mist-breathe {
+  0%, 100% { opacity: 0.30; transform: scale(1); }
+  50%      { opacity: 0.60; transform: scale(1.04); }
+}
+@keyframes reading-mist-breathe-strong {
+  0%, 100% { opacity: 0.20; transform: scale(1); }
+  50%      { opacity: 0.90; transform: scale(1.08); }
+}
+.reading-mist {
+  position: absolute;
+  inset: -20%;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at center,
+    color-mix(in oklab, var(--gold) 55%, transparent) 0%,
+    color-mix(in oklab, var(--gold) 25%, transparent) 35%,
+    transparent 70%
+  );
+  filter: blur(14px);
+  animation: reading-mist-breathe 3000ms ease-in-out infinite;
+}
+.reading-mist-button:hover .reading-mist,
+.reading-mist-button:active .reading-mist,
+.reading-mist-button:focus-visible .reading-mist {
+  animation: reading-mist-breathe-strong 1500ms ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reading-mist { animation: none; opacity: 0.45; }
+  .reading-mist-button:hover .reading-mist,
+  .reading-mist-button:active .reading-mist { opacity: 0.65; animation: none; }
+}
+
+/* Cards slide up smoothly when reading begins. */
+.reading-cards-shift {
+  transition: transform 400ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}

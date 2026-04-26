@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/auth";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useActiveGuide } from "@/lib/use-active-guide";
 import { usePremium } from "@/lib/premium";
+import { useUIDensity } from "@/lib/use-ui-density";
 import {
   BUILT_IN_GUIDES,
   DEFAULT_GUIDE_ID,
@@ -45,6 +46,20 @@ export function GuideSelector({
   const { user } = useAuth();
   const { isOracle } = useOracleMode();
   const premium = usePremium(user?.id);
+  // The Clarity (Seen/Glimpse/Veiled) dims non-essential surface chrome
+  // on this screen so the global tap-to-peek affordance has something
+  // visible to flash back to full opacity. We bind opacity to the
+  // CSS var that tap-to-peek writes (`--resting-opacity` via
+  // `--ro-plus-N`) so a tap on empty space momentarily lifts the
+  // dimmed surfaces back toward full visibility, exactly as on the
+  // tabletop.
+  const { level } = useUIDensity();
+  const peekOpacity: string | number =
+    level === 3
+      ? "var(--ro-plus-10)"
+      : level === 2
+        ? "var(--ro-plus-40)"
+        : 1;
   const {
     guideId,
     lensId,
@@ -135,7 +150,10 @@ export function GuideSelector({
         paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
       }}
     >
-      <header className="flex items-start justify-between px-6 pb-4">
+      <header
+        className="flex items-start justify-between px-6 pb-4"
+        style={{ opacity: peekOpacity, transition: "opacity 400ms ease" }}
+      >
         <div>
           <h1
             className="text-xl italic text-gold"
@@ -172,41 +190,14 @@ export function GuideSelector({
                 <div
                   key={g.id}
                   className={cn(
-                    "snap-start shrink-0 relative rounded-2xl border p-4 text-left transition",
+                    "snap-start shrink-0 rounded-2xl border p-4 text-left transition",
                     "w-[220px]",
                     active
                       ? "border-gold bg-gold/10 shadow-[0_0_24px_-8px_rgba(212,175,55,0.6)]"
                       : "border-border/50 bg-card/40 hover:border-gold/40",
                   )}
+                  style={{ position: "relative", zIndex: 0 }}
                 >
-                  {g.custom && g.raw && (
-                    <>
-                      <button
-                        type="button"
-                        aria-label="Delete custom guide"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteTarget(g.raw!);
-                        }}
-                        className="absolute left-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
-                        style={{ opacity: "var(--ro-plus-10)" }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Edit custom guide"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingGuide(g.raw!);
-                        }}
-                        className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
-                        style={{ opacity: "var(--ro-plus-10)" }}
-                      >
-                        <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      </button>
-                    </>
-                  )}
                   <button
                     type="button"
                     onClick={() => setGuide(g.id)}
@@ -241,6 +232,49 @@ export function GuideSelector({
                       </span>
                     )}
                   </button>
+                  {/* Edit/delete affordances must sit ABOVE the card-body
+                      button — render after it in DOM order, with explicit
+                      inline z-index so nothing in the cascade hides them. */}
+                  {g.custom && g.raw && (
+                    <>
+                      <button
+                        type="button"
+                        aria-label="Delete custom guide"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(g.raw!);
+                        }}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
+                        style={{
+                          position: "absolute",
+                          top: 8,
+                          left: 8,
+                          zIndex: 10,
+                          opacity: "var(--ro-plus-10)",
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Edit custom guide"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingGuide(g.raw!);
+                        }}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
+                        style={{
+                          position: "absolute",
+                          top: 8,
+                          right: 8,
+                          zIndex: 10,
+                          opacity: "var(--ro-plus-10)",
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      </button>
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -277,7 +311,10 @@ export function GuideSelector({
         </section>
 
         {/* Lens selector */}
-        <section className="mb-6 px-6">
+        <section
+          className="mb-6 px-6"
+          style={{ opacity: peekOpacity, transition: "opacity 400ms ease" }}
+        >
           <h2 className="mb-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
             {isOracle ? "Lens" : "Depth"}
           </h2>
@@ -312,7 +349,10 @@ export function GuideSelector({
         </section>
 
         {/* Facets */}
-        <section className="mb-6 px-6">
+        <section
+          className="mb-6 px-6"
+          style={{ opacity: peekOpacity, transition: "opacity 400ms ease" }}
+        >
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
               Add emphasis
