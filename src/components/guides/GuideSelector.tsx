@@ -172,41 +172,14 @@ export function GuideSelector({
                 <div
                   key={g.id}
                   className={cn(
-                    "snap-start shrink-0 relative rounded-2xl border p-4 text-left transition",
+                    "snap-start shrink-0 rounded-2xl border p-4 text-left transition",
                     "w-[220px]",
                     active
                       ? "border-gold bg-gold/10 shadow-[0_0_24px_-8px_rgba(212,175,55,0.6)]"
                       : "border-border/50 bg-card/40 hover:border-gold/40",
                   )}
+                  style={{ position: "relative", zIndex: 0 }}
                 >
-                  {g.custom && g.raw && (
-                    <>
-                      <button
-                        type="button"
-                        aria-label="Delete custom guide"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteTarget(g.raw!);
-                        }}
-                        className="absolute left-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
-                        style={{ opacity: "var(--ro-plus-10)" }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Edit custom guide"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingGuide(g.raw!);
-                        }}
-                        className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
-                        style={{ opacity: "var(--ro-plus-10)" }}
-                      >
-                        <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      </button>
-                    </>
-                  )}
                   <button
                     type="button"
                     onClick={() => setGuide(g.id)}
@@ -241,6 +214,49 @@ export function GuideSelector({
                       </span>
                     )}
                   </button>
+                  {/* Edit/delete affordances must sit ABOVE the card-body
+                      button — render after it in DOM order, with explicit
+                      inline z-index so nothing in the cascade hides them. */}
+                  {g.custom && g.raw && (
+                    <>
+                      <button
+                        type="button"
+                        aria-label="Delete custom guide"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(g.raw!);
+                        }}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
+                        style={{
+                          position: "absolute",
+                          top: 8,
+                          left: 8,
+                          zIndex: 10,
+                          opacity: "var(--ro-plus-10)",
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Edit custom guide"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingGuide(g.raw!);
+                        }}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
+                        style={{
+                          position: "absolute",
+                          top: 8,
+                          right: 8,
+                          zIndex: 10,
+                          opacity: "var(--ro-plus-10)",
+                        }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      </button>
+                    </>
+                  )}
                 </div>
               );
             })}
