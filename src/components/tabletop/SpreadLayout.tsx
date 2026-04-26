@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, EyeOff, X } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { cn } from "@/lib/utils";
+import { TopRightControls } from "@/components/nav/TopRightControls";
+import { CopyIconButton, InlineReading } from "@/components/reading/ReadingParts";
 
 type Pick = { id: number; cardIndex: number };
 
@@ -13,8 +15,13 @@ type Props = {
   spread: SpreadMode;
   picks: Pick[];
   onExit: () => void;
-  /** Called once the user has revealed every card on the spread layout. */
-  onContinue: () => void;
+  /**
+   * Legacy prop — kept for backwards compatibility with `routes/draw.tsx`
+   * but no longer fired automatically. The reading now happens INLINE on
+   * this same screen once every card has been revealed; we never navigate
+   * away to a separate ReadingScreen.
+   */
+  onContinue?: () => void;
 };
 
 /**
@@ -23,10 +30,14 @@ type Props = {
  * flips them all face-up simultaneously; once revealed the user can
  * continue into the reading.
  */
-export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
+export function SpreadLayout({ spread, picks, onExit }: Props) {
   const meta = SPREAD_META[spread];
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const { showLabels, toggleShowLabels } = useShowLabels();
+  // Once every card is face-up the inline reading flow takes over.
+  // `copyText` is hoisted from <InlineReading> so we can render the
+  // top-bar copy icon in TopRightControls' `extraFirst` slot.
+  const [copyText, setCopyText] = useState<string | null>(null);
 
   // Per-card revealed state. Cards must be flipped in slot order.
   const [revealedFlags, setRevealedFlags] = useState<boolean[]>(
@@ -36,7 +47,6 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
   // Cleared 400ms after it's set.
   const [wrongIndex, setWrongIndex] = useState<number | null>(null);
   const wrongTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const continuedRef = useRef(false);
 
   useEffect(() => {
     setCardBack(getStoredCardBack());
@@ -66,17 +76,6 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
         `Card ${nextIndex + 1}`)
       : null;
 
-  // Once every card is face-up, give the user a beat to take it in,
-  // then transition into the reading. Kept very short (300ms) so the
-  // cards appear to stay in place — the reading screen mounts with the
-  // cards at translateY(0) and only nudges up after a 600ms hold.
-  useEffect(() => {
-    if (!allRevealed || continuedRef.current) return;
-    continuedRef.current = true;
-    const t = window.setTimeout(() => onContinue(), 300);
-    return () => window.clearTimeout(t);
-  }, [allRevealed, onContinue]);
-
   const handleTap = useCallback(
     (i: number) => {
       if (revealedFlags[i]) return;
@@ -100,19 +99,22 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
     <main
       className="cast-screen-enter fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]"
       aria-label={`${meta.label} spread layout`}
+      style={{
+        // Allow native pinch-zoom + pan without the browser snapping the
+        // viewport on tap. `manipulation` would also disable double-tap
+        // zoom but kills pinch on some browsers; the explicit list is
+        // the safest combination across iOS Safari + Chrome Android.
+        touchAction: "pan-x pan-y pinch-zoom",
+        // Once revealed the page becomes scrollable so the inline
+        // reading can grow beyond the viewport without being clipped.
+        overflowY: allRevealed ? "auto" : "hidden",
+      }}
     >
-      <button
-        type="button"
-        onClick={onExit}
-        aria-label="Close spread"
-        className="absolute right-3 top-3 z-50 inline-flex h-11 w-11 items-center justify-center rounded-full text-gold/80 transition-opacity hover:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-        style={{
-          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          right: "calc(env(safe-area-inset-right, 0px) + 12px)",
-        }}
-      >
-        <X className="h-5 w-5" strokeWidth={1.5} />
-      </button>
+      <TopRightControls
+        onClose={onExit}
+        closeLabel="Close spread"
+        extraFirst={copyText ? <CopyIconButton text={copyText} /> : undefined}
+      />
 
       {/* Labels visibility toggle — mirrors the tabletop preference. */}
       <button
@@ -139,7 +141,22 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
         )}
       </button>
 
-      <div className="flex-1 flex items-center justify-center px-4 py-12">
+      {/* Cards block — wrapped so we can gently lift the 3-card spread
+          once revealed to make room for the inline reading below. The
+          Celtic Cross stays put (per spec) because it's already dense
+          and any movement looks jarring. */}
+      <div
+        className="flex-1 flex items-center justify-center px-4 py-12"
+        style={{
+          transform:
+            allRevealed && spread === "three"
+              ? "translateY(-80px)"
+              : "translateY(0)",
+          transition:
+            "transform 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+          flex: allRevealed ? "0 0 auto" : "1 1 0",
+        }}
+      >
         <SpreadContent
           spread={spread}
           picks={picks}
@@ -153,22 +170,31 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
         />
       </div>
 
-      <div
-        className="flex justify-center"
-        style={{
-          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
-          paddingTop: 8,
-        }}
-      >
-        {allRevealed ? (
-          <div className="flex flex-col items-center gap-2">
-            <ProgressDots total={totalCount} revealed={revealedCount} />
-          </div>
-        ) : (
-          <div
-            className="flex flex-col items-center gap-2"
-            aria-live="polite"
-          >
+      {/* Footer: progress dots while revealing, inline reading once done. */}
+      {allRevealed ? (
+        <div
+          className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5"
+          style={{
+            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+            paddingTop: 8,
+          }}
+        >
+          <InlineReading
+            spread={spread}
+            picks={picks}
+            onExit={onExit}
+            onCopyTextChange={setCopyText}
+          />
+        </div>
+      ) : (
+        <div
+          className="flex justify-center"
+          style={{
+            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+            paddingTop: 8,
+          }}
+        >
+          <div className="flex flex-col items-center gap-2" aria-live="polite">
             <ProgressDots total={totalCount} revealed={revealedCount} />
             <span
               className="font-display italic leading-none tabular-nums"
@@ -189,8 +215,8 @@ export function SpreadLayout({ spread, picks, onExit, onContinue }: Props) {
               )}
             </span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -308,13 +334,18 @@ type Sizing = { w: number; h: number };
 
 function spreadSizing(spread: SpreadMode): Sizing {
   // Tuned per layout density. Heights derived from CARD_ASPECT_RATIO 1.75.
+  // 3-card sizing is now responsive and matches ReadingScreen's CardStrip
+  // exactly, so the cards do not resize when the inline reading flow
+  // takes over after the last reveal.
+  const isMobile =
+    typeof window !== "undefined" && window.innerWidth < 768;
   switch (spread) {
     case "celtic":
       return { w: 56, h: 98 };
     case "three":
-      return { w: 92, h: 161 };
+      return isMobile ? { w: 100, h: 175 } : { w: 112, h: 196 };
     default:
-      return { w: 160, h: 280 };
+      return isMobile ? { w: 180, h: 315 } : { w: 160, h: 280 };
   }
 }
 

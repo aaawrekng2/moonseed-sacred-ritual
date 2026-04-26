@@ -152,6 +152,12 @@ export function ExpandingIconButton({
 interface Props {
   initial?: string;
   /**
+   * Optional extra control rendered as the LEFTMOST item in the cluster
+   * — before the ScrollText (Oracle/Plain) icon. Used by the reading
+   * surface to inject the Copy-to-clipboard icon.
+   */
+  extraFirst?: ReactNode;
+  /**
    * Optional extra controls — rendered to the LEFT of the X button and
    * RIGHT of the user-initial chip. Used by the draw screen to inject the
    * Clarity (eye) toggle into the same horizontal row.
@@ -176,6 +182,7 @@ interface Props {
 
 export function TopRightControls({
   initial,
+  extraFirst,
   extraStart,
   onClose,
   closeLabel = "Close",
@@ -252,6 +259,7 @@ export function TopRightControls({
         gap: "2px",
       }}
     >
+      {extraFirst}
       <ExpandingIconButton
         icon={<ScrollText size={18} strokeWidth={1.5} />}
         // After toggleOracle() runs synchronously inside onClick, the
@@ -294,7 +302,6 @@ export function TopRightControls({
           label={clarityLabel}
           labelFont={isOracle ? "var(--font-serif)" : "var(--font-sans)"}
           labelStyle={isOracle ? "italic-gold" : "muted"}
-          isActive={!isVeiled}
           onClick={cycleLevel}
           ariaLabel={`The Clarity: ${clarityLabel} — tap to cycle (Seen → Glimpse → Veiled)`}
           title={`The Clarity: ${clarityLabel}`}

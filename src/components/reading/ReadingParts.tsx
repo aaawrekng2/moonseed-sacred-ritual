@@ -7,7 +7,7 @@ import {
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { CheckCheck, ChevronDown, Copy } from "lucide-react";
-import { getCardImagePath, getCardName } from "@/lib/tarot";
+import { getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import {
   interpretReading,
@@ -16,9 +16,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useActiveGuide } from "@/lib/use-active-guide";
 import { useOracleMode } from "@/lib/use-oracle-mode";
-import { useUIDensity } from "@/lib/use-ui-density";
 import { useAuth } from "@/lib/auth";
-import { TopRightControls } from "@/components/nav/TopRightControls";
 import {
   BUILT_IN_GUIDES,
   getGuideById,
@@ -33,54 +31,49 @@ import {
 
 type Pick = { id: number; cardIndex: number };
 
-type Props = {
-  spread: SpreadMode;
-  picks: Pick[];
-  onExit: () => void;
-};
-
 type LoadState =
-  | { kind: "idle" } // cards revealed, awaiting "Let Them Speak" tap
+  | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "loaded"; interpretation: InterpretationPayload }
   | { kind: "limit" }
   | { kind: "error"; message: string };
 
 /**
- * Unified reading screen. After the cards are revealed elsewhere we
- * land here in the `idle` state with the cards already showing. The
- * user picks (or accepts) their guide via an inline dropdown, then
- * taps "Let Them Speak" to trigger the AI interpretation. Everything
- * stays on a single scrollable surface — no separate Guide Selector.
+ * Headless orchestrator for the reading flow. Drives the interpret
+ * server-fn lifecycle and renders ONLY the textual surfaces
+ * (actions / body / limit / error / copy link). The cards themselves
+ * are owned by the parent (SpreadLayout or ReadingScreen) so this can
+ * be embedded inline below an existing card layout without duplicating
+ * the spread rendering.
+ *
+ * Returns an additional `copyText` via the `onCopyTextChange` callback
+ * so the parent can hoist a top-bar copy icon into its TopRightControls.
  */
-export function ReadingScreen({ spread, picks, onExit }: Props) {
+export function InlineReading({
+  spread,
+  picks,
+  onExit,
+  onCopyTextChange,
+}: {
+  spread: SpreadMode;
+  picks: Pick[];
+  onExit: () => void;
+  onCopyTextChange?: (text: string | null) => void;
+}) {
   const meta = SPREAD_META[spread];
   const { isOracle } = useOracleMode();
   const [state, setState] = useState<LoadState>({ kind: "idle" });
   const [retryNonce, setRetryNonce] = useState(0);
-  // Dev override: when true, the next interpret call sets allowOverride
-  // so the server bypasses the daily-quota check. Reset back to false
-  // after the call so subsequent normal retries still see the cap.
   const overrideRef = useRef(false);
   const { guideId, lensId, facetIds } = useActiveGuide();
   const startedRef = useRef(false);
   const requestSeqRef = useRef(0);
-
-  // Allow landscape on the Reading screen ONLY (matches prior behaviour).
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    document.body.setAttribute("data-allow-landscape", "true");
-    return () => {
-      document.body.removeAttribute("data-allow-landscape");
-    };
-  }, []);
 
   const beginReading = useCallback(() => {
     if (state.kind !== "idle" && state.kind !== "error") return;
     setState({ kind: "loading" });
   }, [state.kind]);
 
-  // Fire the interpretation request once we leave `idle`.
   useEffect(() => {
     if (state.kind !== "loading") return;
     if (startedRef.current) return;
@@ -113,8 +106,6 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
           },
           headers: { Authorization: `Bearer ${token}` },
         });
-        // Reset override after sending so a future retry doesn't
-        // accidentally inherit the bypass.
         overrideRef.current = false;
 
         if (!isCurrentRequest()) return;
@@ -127,7 +118,7 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
         }
       } catch (e) {
         if (!isCurrentRequest()) return;
-        console.error("ReadingScreen interpret error:", e);
+        console.error("InlineReading interpret error:", e);
         setState({
           kind: "error",
           message: isOracle
@@ -142,8 +133,6 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   const positionLabels =
     meta.positions ?? picks.map((_, i) => `Card ${i + 1}`);
 
-  // Build the plain-text version of the reading for clipboard copy.
-  // Only available once the interpretation has loaded.
   const copyText =
     state.kind === "loaded"
       ? buildCopyText({
@@ -154,313 +143,72 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
         })
       : null;
 
+  // Notify parent of copyText changes so it can wire the top-bar copy icon.
+  useEffect(() => {
+    onCopyTextChange?.(copyText);
+  }, [copyText, onCopyTextChange]);
+
   return (
-    <main
-      className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_50%_25%,rgba(60,40,90,0.35),transparent_70%)]"
-      aria-label={`${meta.label} reading`}
-    >
-      <TopRightControls
-        onClose={onExit}
-        closeLabel="Close reading"
-      />
-      {copyText && (
-        <div
-          className="fixed z-50"
-          style={{
-            top: "calc(env(safe-area-inset-top, 0px) + 6px)",
-            left: "calc(env(safe-area-inset-left, 0px) + 12px)",
-          }}
-        >
-          <CopyIconButton text={copyText} />
+    <>
+      {(state.kind === "idle" || state.kind === "loading") && (
+        <div className="reading-actions-fade-in flex w-full justify-center">
+          <ReadingActions
+            isOracle={isOracle}
+            isLoading={state.kind === "loading"}
+            onSpeak={beginReading}
+          />
         </div>
       )}
 
-      <div
-        className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5 pb-12"
-        style={{
-          paddingTop: "var(--topbar-pad)",
-        }}
+      <section
+        className="reading-actions-fade-in w-full"
+        aria-live="polite"
+        aria-busy={state.kind === "loading"}
       >
-        <header className="flex flex-col items-center gap-1.5 text-center">
-          <span className="text-[10px] uppercase tracking-[0.3em] text-gold/70">
-            {meta.label}
-          </span>
-        </header>
-
-        <CardStrip
-          picks={picks}
-          positionLabels={positionLabels}
-          spread={spread}
-        />
-
-        {/* Idle / loading actions. Once interpretation has loaded, these
-            collapse so the prose can breathe. */}
-        {(state.kind === "idle" || state.kind === "loading") && (
-          <div className="reading-actions-fade-in flex w-full justify-center">
-            <ReadingActions
-              isOracle={isOracle}
-              isLoading={state.kind === "loading"}
-              onSpeak={beginReading}
-            />
-          </div>
-        )}
-
-        <section
-          className="reading-actions-fade-in w-full"
-          aria-live="polite"
-          aria-busy={state.kind === "loading"}
-        >
-          {state.kind === "loaded" && (
-            <ReadingBody
-              interpretation={state.interpretation}
-              picks={picks}
-              positionLabels={positionLabels}
-              isOracle={isOracle}
-              copyText={copyText ?? ""}
-            />
-          )}
-          {state.kind === "limit" && (
-            <LimitMessage
-              onExit={onExit}
-              isOracle={isOracle}
-              onSubmitAnyway={() => {
-                overrideRef.current = true;
-                startedRef.current = false;
-                setState({ kind: "loading" });
-                setRetryNonce((n) => n + 1);
-              }}
-            />
-          )}
-          {state.kind === "error" && (
-            <ErrorMessage
-              message={state.message}
-              onRetry={() => {
-                startedRef.current = false;
-                setState({ kind: "loading" });
-                setRetryNonce((n) => n + 1);
-              }}
-              onExit={onExit}
-            />
-          )}
-        </section>
-
         {state.kind === "loaded" && (
-          <button
-            type="button"
-            onClick={onExit}
-            className="reading-actions-fade-in mt-2 rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          >
-            Done
-          </button>
+          <ReadingBody
+            interpretation={state.interpretation}
+            picks={picks}
+            positionLabels={positionLabels}
+            isOracle={isOracle}
+            copyText={copyText ?? ""}
+          />
         )}
-      </div>
-    </main>
-  );
-}
-
-/* ---------------------------------------------------------------------- */
-/*  Card strip — uses Clarity to show/hide position labels under cards.   */
-/* ---------------------------------------------------------------------- */
-
-function CardStrip({
-  picks,
-  positionLabels,
-  spread,
-}: {
-  picks: Pick[];
-  positionLabels: string[];
-  spread: SpreadMode;
-}) {
-  const { level } = useUIDensity();
-  const showLabels = level === 1; // Glimpse + Veiled hide the labels
-  const labelOpacity = level === 1 ? 0.7 : 0;
-  const [vp, setVp] = useState(() =>
-    typeof window !== "undefined"
-      ? { w: window.innerWidth, h: window.innerHeight }
-      : { w: 0, h: 0 },
-  );
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const onResize = () =>
-      setVp({ w: window.innerWidth, h: window.innerHeight });
-    window.addEventListener("resize", onResize);
-    window.addEventListener("orientationchange", onResize);
-    return () => {
-      window.removeEventListener("resize", onResize);
-      window.removeEventListener("orientationchange", onResize);
-    };
-  }, []);
-  const isDesktop = vp.w >= 768;
-
-
-  if (spread === "celtic") {
-    // Celtic Cross: preserve the cross+staff layout. Use fixed sizing
-    // that matches SpreadLayout so there is no visual jump on transition.
-    const cw = isDesktop ? 56 : 48;
-    const ch = Math.round(cw * 1.75);
-    const colGap = Math.round(cw * 0.35);
-    const rowGap = Math.round(ch * 0.18);
-
-    const card = (i: number) => (
-      <div key={picks[i]?.id ?? i} className="flex flex-col items-center gap-1">
-        <div
-          className="overflow-hidden rounded-[6px] border border-gold/40 bg-card"
-          style={{ width: cw, height: ch, boxShadow: "0 4px 14px rgba(0,0,0,0.45)" }}
-        >
-          {picks[i] && (
-            <img
-              src={getCardImagePath(picks[i].cardIndex)}
-              alt={getCardName(picks[i].cardIndex)}
-              className="h-full w-full object-cover"
-              loading="eager"
-            />
-          )}
-        </div>
-        {showLabels && (
-          <span
-            className="font-display italic"
-            style={{
-              fontSize: 9,
-              color: "var(--gold)",
-              opacity: labelOpacity,
-              letterSpacing: "0.05em",
-              whiteSpace: "nowrap",
-              textAlign: "center",
-              transition: "opacity 250ms ease",
+        {state.kind === "limit" && (
+          <LimitMessage
+            onExit={onExit}
+            isOracle={isOracle}
+            onSubmitAnyway={() => {
+              overrideRef.current = true;
+              startedRef.current = false;
+              setState({ kind: "loading" });
+              setRetryNonce((n) => n + 1);
             }}
-          >
-            {positionLabels[i] ?? `Card ${i + 1}`}
-          </span>
+          />
         )}
-      </div>
-    );
+        {state.kind === "error" && (
+          <ErrorMessage
+            message={state.message}
+            onRetry={() => {
+              startedRef.current = false;
+              setState({ kind: "loading" });
+              setRetryNonce((n) => n + 1);
+            }}
+            onExit={onExit}
+          />
+        )}
+      </section>
 
-    const staff = [6, 7, 8, 9];
-
-    return (
-      <div className="reading-cards-nudge flex items-center" style={{ gap: colGap * 1.4 }}>
-        {/* Cross block */}
-        <div className="flex items-center" style={{ gap: colGap }}>
-          {/* Past (index 3) */}
-          {card(3)}
-          {/* Center column */}
-          <div className="flex flex-col items-center" style={{ gap: rowGap }}>
-            {/* Future (index 5) */}
-            {card(5)}
-            {/* Present + Obstacle stacked */}
-            <div className="relative flex items-center justify-center" style={{ width: cw, height: ch }}>
-              <div className="absolute inset-0 flex items-center justify-center">
-                {picks[0] && (
-                  <div className="overflow-hidden rounded-[6px] border border-gold/40 bg-card" style={{ width: cw, height: ch }}>
-                    <img src={getCardImagePath(picks[0].cardIndex)} alt={getCardName(picks[0].cardIndex)} className="h-full w-full object-cover" loading="eager" />
-                  </div>
-                )}
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center" style={{ transform: "rotate(90deg)" }}>
-                {picks[1] && (
-                  <div className="overflow-hidden rounded-[6px] border border-gold/40 bg-card" style={{ width: cw, height: ch }}>
-                    <img src={getCardImagePath(picks[1].cardIndex)} alt={getCardName(picks[1].cardIndex)} className="h-full w-full object-cover" loading="eager" />
-                  </div>
-                )}
-              </div>
-            </div>
-            {/* Root (index 2) */}
-            {card(2)}
-          </div>
-          {/* Potential (index 4) */}
-          {card(4)}
-        </div>
-        {/* Staff column */}
-        <div className="flex flex-col" style={{ gap: rowGap * 0.6 }}>
-          {staff.map((i) => card(i))}
-        </div>
-      </div>
-    );
-  }
-
-  // All other spreads: math-driven sizing, locked for 3-card to match SpreadLayout.
-  const cardCount = picks.length;
-  const sidePadding = isDesktop ? 24 : 12;
-  const horizGap = isDesktop ? 12 : 8;
-
-  let w: number;
-  let h: number;
-
-  if (cardCount === 3) {
-    // Matches SpreadLayout's spreadSizing exactly — no resize on transition
-    w = isDesktop ? 112 : 100;
-    h = isDesktop ? 196 : 175;
-  } else if (cardCount === 1) {
-    // Single card: fill generously but cap so it doesn't dominate
-    const availableW = Math.max(0, vp.w - 2 * sidePadding);
-    w = Math.min(isDesktop ? 264 : 240, availableW);
-    const reservedV = isDesktop ? 260 : 280;
-    const maxByHeight = Math.floor(Math.max(140, vp.h - reservedV) / 1.75);
-    if (w > maxByHeight) w = maxByHeight;
-    h = Math.round(w * 1.75);
-  } else {
-    // Any other spread count: mathematical single-row layout
-    const availableW = Math.max(0, vp.w - 2 * sidePadding - (cardCount - 1) * horizGap);
-    w = Math.max(28, Math.floor(availableW / Math.max(1, cardCount)));
-    const reservedV = isDesktop ? 260 : 280;
-    const maxByHeight = Math.floor(Math.max(140, vp.h - reservedV) / 1.75);
-    if (w > maxByHeight) w = maxByHeight;
-    h = Math.round(w * 1.75);
-  }
-
-  const labelFontSize = w < 60 ? 9 : 10.5;
-  const labelMaxWidth = Math.max(w + 14, 70);
-
-  return (
-    <div
-      className="reading-cards-nudge flex flex-nowrap items-end justify-center"
-      style={{
-        columnGap: `${horizGap}px`,
-      }}
-      role="list"
-    >
-      {picks.map((pick, i) => (
-        <div
-          key={pick.id}
-          role="listitem"
-          className="flex flex-col items-center gap-1"
+      {state.kind === "loaded" && (
+        <button
+          type="button"
+          onClick={onExit}
+          className="reading-actions-fade-in mt-2 rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
         >
-          <div
-            className="overflow-hidden rounded-[6px] border border-gold/40 bg-card"
-            style={{
-              width: w,
-              height: h,
-              boxShadow: "0 4px 14px rgba(0,0,0,0.45)",
-            }}
-          >
-            <img
-              src={getCardImagePath(pick.cardIndex)}
-              alt={getCardName(pick.cardIndex)}
-              className="h-full w-full object-cover"
-              loading="eager"
-            />
-          </div>
-          <span
-            className="font-display italic"
-            style={{
-              fontSize: labelFontSize,
-              color: "var(--gold)",
-              opacity: showLabels ? labelOpacity : 0,
-              letterSpacing: "0.05em",
-              maxWidth: labelMaxWidth,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              textAlign: "center",
-              transition: "opacity 250ms ease",
-              minHeight: 14,
-            }}
-          >
-            {positionLabels[i] ?? `Card ${i + 1}`}
-          </span>
-        </div>
-      ))}
-    </div>
+          Done
+        </button>
+      )}
+    </>
   );
 }
 
@@ -484,7 +232,6 @@ function ReadingActions({
   const [customGuides, setCustomGuides] = useState<CustomGuide[]>([]);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
 
-  // Load the user's custom guides for the dropdown.
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -516,7 +263,6 @@ function ReadingActions({
     };
   }, [user]);
 
-  // Close on outside click.
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
@@ -537,7 +283,6 @@ function ReadingActions({
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
-      {/* Guide dropdown */}
       <div ref={dropdownRef} className="relative">
         <button
           type="button"
@@ -632,9 +377,6 @@ function ReadingActions({
         )}
       </div>
 
-      {/* "Let Them Speak" — flowing-text invocation. No pill, no fill.
-          The mist breathes behind the words so the call still feels
-          alive without becoming a UI button. */}
       <button
         type="button"
         onClick={onSpeak}
@@ -722,7 +464,6 @@ function ReadingBody({
     [],
   );
 
-  // Body text size scales with the slider; headings stay constant for rhythm.
   const bodySize = size ?? READING_FONT_DEFAULT;
 
   return (
@@ -809,7 +550,6 @@ function ReadingBody({
         />
       )}
 
-      {/* Bottom copy link — flowing text, not a pill. */}
       <CopyTextLink text={copyText} isOracle={isOracle} />
     </div>
   );
@@ -904,8 +644,6 @@ function LimitMessage({
       >
         Done
       </button>
-      {/* Dev override — unobtrusive italic link beneath the Done button.
-          Bypasses the daily limit on the next interpret call. */}
       <button
         type="button"
         onClick={onSubmitAnyway}
@@ -975,7 +713,7 @@ function ErrorMessage({
 /*  Clipboard helpers                                                     */
 /* ---------------------------------------------------------------------- */
 
-function buildCopyText({
+export function buildCopyText({
   spreadLabel,
   interpretation,
   picks,
@@ -1035,10 +773,10 @@ async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 /**
- * Top-bar copy icon — sits inside TopRightControls' extraStart slot.
- * Briefly flips to a checkmark for 1.5s after a successful copy.
+ * Top-bar copy icon — exported so SpreadLayout / ReadingScreen can hoist
+ * it into the TopRightControls' `extraFirst` slot once a reading has loaded.
  */
-function CopyIconButton({ text }: { text: string }) {
+export function CopyIconButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<number | null>(null);
   useEffect(
@@ -1071,10 +809,6 @@ function CopyIconButton({ text }: { text: string }) {
   );
 }
 
-/**
- * Bottom copy link — visible flowing-text invitation rendered after the
- * interpretation body. Same copy + checkmark behaviour as the top icon.
- */
 function CopyTextLink({
   text,
   isOracle,
