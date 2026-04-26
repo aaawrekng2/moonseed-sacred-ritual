@@ -128,3 +128,45 @@ export function findNearestPhaseOccurrence(
   if (prev === 0) return next;
   return Math.abs(next) <= Math.abs(prev) ? next : prev;
 }
+
+/**
+ * Pre-compute every occurrence of `targetPhase` in the window
+ * [fromDate, fromDate + monthsAhead months]. Each occurrence is the day
+ * the phase first appears within that lunar cycle.
+ *
+ * This is the source of truth for the moon ladder: the carousel calls
+ * this once at mount per phase, stores the full list, and advances
+ * through it on each tap. After the last occurrence we wrap to the
+ * first — guaranteeing the user can endlessly walk the year of full
+ * moons (or any other phase) without it cycling between just two.
+ *
+ * Implementation: scan day-by-day, recording the FIRST day of each
+ * matching streak. After a match we jump forward by ~24 days (~80% of a
+ * lunar cycle) to skip the rest of the multi-day window before resuming
+ * the per-day search.
+ */
+export function getPhaseOccurrences(
+  targetPhase: MoonPhaseName,
+  fromDate: Date,
+  monthsAhead = 13,
+): Date[] {
+  const out: Date[] = [];
+  const start = new Date(fromDate);
+  start.setHours(12, 0, 0, 0);
+  const end = new Date(start);
+  end.setMonth(end.getMonth() + monthsAhead);
+
+  let cursor = new Date(start);
+  while (cursor <= end) {
+    const phase = getCurrentMoonPhase(cursor).phase;
+    if (phase === targetPhase) {
+      out.push(new Date(cursor));
+      // Skip past the rest of this phase window (~80% of a lunar cycle)
+      // so we don't record the same occurrence multiple days running.
+      cursor.setDate(cursor.getDate() + 24);
+      continue;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return out;
+}

@@ -178,9 +178,8 @@ function ThemesTabInner() {
           <ResetToDefaultsButton />
         </header>
 
-        <CustomAccentSection />
+        <TheFieldSection />
         <CardBackSection />
-        <BackgroundGradientSection />
         <HeadingFontSection />
         <InterfaceFadeSection />
         <CommunityThemesSection />
@@ -467,204 +466,80 @@ function CardBackSection() {
   );
 }
 
+
 /* ------------------------------------------------------------------ */
-/*  Custom Accent Picker                                               */
+/*  The Field — unified accent + horizon                                */
 /* ------------------------------------------------------------------ */
 
-function CustomAccentSection() {
+/**
+ * Single section that combines what used to be "Your Signature" and
+ * "The Horizon". Three swatches in a row drive (1) the accent color
+ * (Your Signature), (2) the gradient left/past, and (3) the gradient
+ * right/future. A preview bar below shows the live gradient. Tapping
+ * a swatch opens an inline picker; only one is open at a time. No hex
+ * codes are visible in resting state — the swatch IS the value.
+ */
+function TheFieldSection() {
   const { user, prefs, setPrefs } = useSettings();
   const { markDirty } = useThemeDirty();
-  const [open, setOpen] = useState(false);
-  const initial = prefs.accent_color ?? "#f59e0b";
-  const [draft, setDraft] = useState(initial);
-  const [hexInput, setHexInput] = useState(initial);
-  const [saving, setSaving] = useState(false);
 
+  // Live values, falling back to defaults so the gradient bar always
+  // renders with a sensible preview even before any user customization.
+  const accentValue = prefs.accent_color ?? "#f59e0b";
+  const leftValue = prefs.bg_gradient_from ?? DEFAULT_BG_LEFT;
+  const rightValue = prefs.bg_gradient_to ?? DEFAULT_BG_RIGHT;
+
+  const [openSwatch, setOpenSwatch] = useState<
+    "signature" | "past" | "future" | null
+  >(null);
+
+  // Push the resolved accent into the live --gold/--primary tokens on
+  // mount + whenever it changes, so other gold-themed UI picks it up
+  // even before the user opens a picker.
   useEffect(() => {
-    if (prefs.accent_color && typeof document !== "undefined") {
-      // Push the custom color into the gold token so all gold-themed UI picks it up.
-      document.documentElement.style.setProperty("--gold", prefs.accent_color);
-      document.documentElement.style.setProperty("--primary", prefs.accent_color);
-      document.documentElement.style.setProperty(
-        "--ring",
-        `${prefs.accent_color}99`,
-      );
-      document.documentElement.style.setProperty(
-        "--sidebar-primary",
-        prefs.accent_color,
-      );
-    }
+    if (!prefs.accent_color || typeof document === "undefined") return;
+    document.documentElement.style.setProperty("--gold", prefs.accent_color);
+    document.documentElement.style.setProperty("--primary", prefs.accent_color);
+    document.documentElement.style.setProperty(
+      "--ring",
+      `${prefs.accent_color}99`,
+    );
+    document.documentElement.style.setProperty(
+      "--sidebar-primary",
+      prefs.accent_color,
+    );
   }, [prefs.accent_color]);
 
-  const apply = async () => {
-    if (!isHex(draft)) return;
-    setSaving(true);
-    document.documentElement.style.setProperty("--gold", draft);
-    document.documentElement.style.setProperty("--primary", draft);
-    document.documentElement.style.setProperty("--ring", `${draft}99`);
-    document.documentElement.style.setProperty("--sidebar-primary", draft);
-    const { error } = await updateUserPreferences(user.id, {
-      accent_color: draft.toLowerCase(),
-    });
-    setSaving(false);
-    if (error) {
-      toast.error("Couldn't save your color.");
-      return;
-    }
-    setPrefs({ ...prefs, accent_color: draft.toLowerCase() });
-    markDirty();
-    setOpen(false);
-    toast.success("Custom accent applied");
-  };
-
-  const clear = async () => {
-    setSaving(true);
-    document.documentElement.style.removeProperty("--gold");
-    document.documentElement.style.removeProperty("--primary");
-    document.documentElement.style.removeProperty("--ring");
-    document.documentElement.style.removeProperty("--sidebar-primary");
-    await updateUserPreferences(user.id, { accent_color: null });
-    setPrefs({ ...prefs, accent_color: null });
-    setSaving(false);
-    setOpen(false);
-    toast.success("Reset to preset accent");
-  };
-
-  const display = prefs.accent_color ?? initial;
-
-  return (
-    <SettingsSection
-      title="Your Signature"
-      description="Cast your own color into the space."
-    >
-      <button
-        type="button"
-        onClick={() => {
-          setDraft(display);
-          setHexInput(display);
-          setOpen((v) => !v);
-        }}
-        aria-expanded={open}
-        aria-label={`Custom accent — current ${display}, tap to change`}
-        className={cn(
-          "group flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors",
-          "hover:bg-muted/30 focus-visible:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/60",
-        )}
-      >
-        <span
-          aria-hidden
-          className={cn(
-            "relative inline-flex aspect-square w-9 shrink-0 items-center justify-center rounded-full transition-all",
-            "ring-offset-2 ring-offset-background",
-            prefs.accent_color
-              ? "ring-2 ring-gold shadow-glow"
-              : "ring-1 ring-border/60 group-hover:ring-gold/50",
-          )}
-          style={{ backgroundColor: display }}
-        />
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="text-sm text-foreground">Your Signature</span>
-          <span className="text-xs text-muted-foreground">
-            {prefs.accent_color ? "Custom" : "Using preset"}
-          </span>
-        </span>
-      </button>
-
-      {open && (
-        <div className="mt-4 rounded-xl border border-border/60 bg-card/80 p-4 backdrop-blur-xl">
-          <div className="flex justify-center">
-            <div className="custom-color-picker w-full max-w-[320px]">
-              <HexColorPicker
-                color={draft}
-                onChange={(v) => {
-                  setDraft(v);
-                  setHexInput(v);
-                }}
-              />
-            </div>
-          </div>
-          <div className="mt-4 space-y-1.5">
-            <Label htmlFor="accent-hex" className="text-xs uppercase tracking-widest text-muted-foreground">
-              Hex
-            </Label>
-            <Input
-              id="accent-hex"
-              value={hexInput}
-              onChange={(e) => {
-                const v = e.target.value.startsWith("#")
-                  ? e.target.value
-                  : `#${e.target.value}`;
-                setHexInput(v);
-                if (isHex(v)) setDraft(v.toLowerCase());
-              }}
-              maxLength={7}
-              className="font-mono uppercase"
-              style={{ fontSize: 16 }}
-              aria-invalid={!isHex(hexInput)}
-            />
-          </div>
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <Button
-              onClick={apply}
-              disabled={saving || !isHex(draft)}
-              className="bg-gold-gradient text-gold-foreground shadow-glow hover:opacity-95 flex-1"
-            >
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              Apply
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={clear}
-              disabled={saving}
-              className="flex-1 text-muted-foreground"
-            >
-              Reset to preset
-            </Button>
-          </div>
-        </div>
-      )}
-    </SettingsSection>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Background Gradient                                                */
-/* ------------------------------------------------------------------ */
-
-function BackgroundGradientSection() {
-  const { user, prefs, setPrefs } = useSettings();
-  const { markDirty } = useThemeDirty();
-
-  const [leftHex, setLeftHex] = useState(
-    prefs.bg_gradient_from ?? DEFAULT_BG_LEFT,
-  );
-  const [rightHex, setRightHex] = useState(
-    prefs.bg_gradient_to ?? DEFAULT_BG_RIGHT,
-  );
-  const [openSide, setOpenSide] = useState<"left" | "right" | null>(null);
-
-  // Apply custom hexes whenever they change in prefs.
+  // Apply the gradient stops live whenever they change in prefs.
   useEffect(() => {
-    if (prefs.bg_gradient_from && prefs.bg_gradient_to) {
-      document.documentElement.style.setProperty(
-        "--bg-gradient-left",
-        prefs.bg_gradient_from,
-      );
-      document.documentElement.style.setProperty(
-        "--bg-gradient-right",
-        prefs.bg_gradient_to,
-      );
-      setLeftHex(prefs.bg_gradient_from);
-      setRightHex(prefs.bg_gradient_to);
-    }
+    if (!prefs.bg_gradient_from || !prefs.bg_gradient_to) return;
+    document.documentElement.style.setProperty(
+      "--bg-gradient-left",
+      prefs.bg_gradient_from,
+    );
+    document.documentElement.style.setProperty(
+      "--bg-gradient-right",
+      prefs.bg_gradient_to,
+    );
   }, [prefs.bg_gradient_from, prefs.bg_gradient_to]);
 
-  const applyCustom = async (left: string, right: string) => {
+  const applyAccent = async (hex: string) => {
+    if (!isHex(hex)) return;
+    const lower = hex.toLowerCase();
+    document.documentElement.style.setProperty("--gold", lower);
+    document.documentElement.style.setProperty("--primary", lower);
+    document.documentElement.style.setProperty("--ring", `${lower}99`);
+    document.documentElement.style.setProperty("--sidebar-primary", lower);
+    markDirty();
+    await updateUserPreferences(user.id, { accent_color: lower });
+    setPrefs({ ...prefs, accent_color: lower });
+    setOpenSwatch(null);
+  };
+
+  const applyGradient = async (left: string, right: string) => {
     if (!isHex(left) || !isHex(right)) return;
     document.documentElement.style.setProperty("--bg-gradient-left", left);
     document.documentElement.style.setProperty("--bg-gradient-right", right);
-    setLeftHex(left);
-    setRightHex(right);
     markDirty();
     await updateUserPreferences(user.id, {
       bg_gradient_from: left.toLowerCase(),
@@ -675,154 +550,177 @@ function BackgroundGradientSection() {
       bg_gradient_from: left.toLowerCase(),
       bg_gradient_to: right.toLowerCase(),
     });
+    setOpenSwatch(null);
   };
-
-  const liveLeft = prefs.bg_gradient_from ?? leftHex;
-  const liveRight = prefs.bg_gradient_to ?? rightHex;
 
   return (
     <SettingsSection
-      title="The Horizon"
-      description="The sky behind every reading — dark on the left where the past recedes, bright on the right where futures open."
+      title="The Field"
+      description="Cast your color into the space — and the horizon it lives within."
     >
       <div className="space-y-5">
+        {/* Three swatches in a row */}
+        <div className="grid grid-cols-3 gap-3">
+          <FieldSwatch
+            label="Your Signature"
+            value={accentValue}
+            isOpen={openSwatch === "signature"}
+            onToggle={() =>
+              setOpenSwatch(openSwatch === "signature" ? null : "signature")
+            }
+          />
+          <FieldSwatch
+            label="The Past"
+            value={leftValue}
+            isOpen={openSwatch === "past"}
+            onToggle={() =>
+              setOpenSwatch(openSwatch === "past" ? null : "past")
+            }
+          />
+          <FieldSwatch
+            label="The Future"
+            value={rightValue}
+            isOpen={openSwatch === "future"}
+            onToggle={() =>
+              setOpenSwatch(openSwatch === "future" ? null : "future")
+            }
+          />
+        </div>
+
+        {/* Live gradient preview bar */}
         <div
           aria-hidden
           className="h-12 w-full rounded-lg border border-gold/30"
           style={{
-            background: `linear-gradient(to right, ${liveLeft}, ${liveRight})`,
+            background: `linear-gradient(to right, ${leftValue}, ${rightValue})`,
           }}
         />
 
-        <div className="grid grid-cols-2 gap-4">
-          <BgHexPicker
-            label="The Past"
-            value={liveLeft}
-            open={openSide === "left"}
-            onToggle={() => setOpenSide(openSide === "left" ? null : "left")}
-            onApply={(hex) => {
-              void applyCustom(hex, liveRight);
-              setOpenSide(null);
-            }}
-            onReset={() => {
-              void applyCustom(DEFAULT_BG_LEFT, liveRight);
-              setOpenSide(null);
-            }}
+        {/* Inline picker — only one open at a time. Hex codes hidden;
+            the picker is fully visual. */}
+        {openSwatch === "signature" && (
+          <FieldPicker
+            initial={accentValue}
+            onApply={applyAccent}
+            onCancel={() => setOpenSwatch(null)}
           />
-          <BgHexPicker
-            label="The Future"
-            value={liveRight}
-            open={openSide === "right"}
-            onToggle={() => setOpenSide(openSide === "right" ? null : "right")}
-            onApply={(hex) => {
-              void applyCustom(liveLeft, hex);
-              setOpenSide(null);
-            }}
-            onReset={() => {
-              void applyCustom(liveLeft, DEFAULT_BG_RIGHT);
-              setOpenSide(null);
-            }}
+        )}
+        {openSwatch === "past" && (
+          <FieldPicker
+            initial={leftValue}
+            onApply={(hex) => applyGradient(hex, rightValue)}
+            onCancel={() => setOpenSwatch(null)}
+            onReset={() => applyGradient(DEFAULT_BG_LEFT, rightValue)}
           />
-        </div>
+        )}
+        {openSwatch === "future" && (
+          <FieldPicker
+            initial={rightValue}
+            onApply={(hex) => applyGradient(leftValue, hex)}
+            onCancel={() => setOpenSwatch(null)}
+            onReset={() => applyGradient(leftValue, DEFAULT_BG_RIGHT)}
+          />
+        )}
       </div>
     </SettingsSection>
   );
 }
 
-function BgHexPicker({
+function FieldSwatch({
   label,
   value,
-  open,
+  isOpen,
   onToggle,
-  onApply,
-  onReset,
 }: {
   label: string;
   value: string;
-  open: boolean;
+  isOpen: boolean;
   onToggle: () => void;
-  onApply: (hex: string) => void;
-  onReset: () => void;
 }) {
-  const [draft, setDraft] = useState(value);
-  const [hexInput, setHexInput] = useState(value);
-
-  useEffect(() => {
-    if (open) {
-      setDraft(value);
-      setHexInput(value);
-    }
-  }, [open, value]);
-
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col items-start gap-2">
-        <button
-          type="button"
-          onClick={onToggle}
-          aria-expanded={open}
-          aria-label={`${label} — current ${value}`}
-          className="relative inline-flex aspect-square w-12 shrink-0 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold ring-offset-2 ring-offset-background"
-          style={{
-            backgroundColor: value,
-            border: "2px solid oklch(0.82 0.14 82 / 0.40)",
-            transition: "border-color 200ms ease",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "oklch(0.82 0.14 82 / 0.80)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = "oklch(0.82 0.14 82 / 0.40)";
-          }}
-        />
-        <Label className="text-xs text-muted-foreground">{label}</Label>
-      </div>
-      {open && (
-        <div className="rounded-xl border border-border/60 bg-card/80 p-4 backdrop-blur-xl">
-          <div className="flex justify-center">
-            <div className="custom-color-picker w-full max-w-[320px]">
-              <HexColorPicker
-                color={draft}
-                onChange={(v) => {
-                  setDraft(v);
-                  setHexInput(v);
-                }}
-              />
-            </div>
-          </div>
-          <div className="mt-4 flex items-center gap-2">
-            <Input
-              value={hexInput}
-              onChange={(e) => {
-                const v = e.target.value.startsWith("#")
-                  ? e.target.value
-                  : `#${e.target.value}`;
-                setHexInput(v);
-                if (isHex(v)) setDraft(v.toLowerCase());
-              }}
-              maxLength={7}
-              className="font-mono uppercase"
-              style={{ fontSize: 16 }}
-            />
-          </div>
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <Button
-              onClick={() => isHex(draft) && onApply(draft)}
-              disabled={!isHex(draft)}
-              className="bg-gold-gradient text-gold-foreground shadow-glow hover:opacity-95 flex-1"
-            >
-              Apply
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={onReset}
-              className="flex-1 text-muted-foreground"
-            >
-              Reset
-            </Button>
-          </div>
+    <div className="flex flex-col items-center gap-2">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-label={`${label} — tap to change`}
+        className={cn(
+          "relative inline-flex aspect-square w-12 shrink-0 rounded-full transition-all",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold ring-offset-2 ring-offset-background",
+        )}
+        style={{
+          backgroundColor: value,
+          border: isOpen
+            ? "2px solid oklch(0.82 0.14 82 / 0.90)"
+            : "2px solid oklch(0.82 0.14 82 / 0.40)",
+          transition: "border-color 200ms ease",
+        }}
+        onMouseEnter={(e) => {
+          if (!isOpen)
+            e.currentTarget.style.borderColor =
+              "oklch(0.82 0.14 82 / 0.80)";
+        }}
+        onMouseLeave={(e) => {
+          if (!isOpen)
+            e.currentTarget.style.borderColor =
+              "oklch(0.82 0.14 82 / 0.40)";
+        }}
+      />
+      <span
+        className="text-center text-[11px] uppercase tracking-wider text-muted-foreground"
+        style={{ fontFamily: "var(--font-serif)" }}
+      >
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function FieldPicker({
+  initial,
+  onApply,
+  onCancel,
+  onReset,
+}: {
+  initial: string;
+  onApply: (hex: string) => void | Promise<void>;
+  onCancel: () => void;
+  onReset?: () => void | Promise<void>;
+}) {
+  const [draft, setDraft] = useState(initial);
+  useEffect(() => setDraft(initial), [initial]);
+  return (
+    <div className="rounded-xl border border-border/60 bg-card/80 p-4 backdrop-blur-xl animate-in fade-in slide-in-from-top-1 duration-200">
+      <div className="flex justify-center">
+        <div className="custom-color-picker w-full max-w-[320px]">
+          <HexColorPicker color={draft} onChange={setDraft} />
         </div>
-      )}
+      </div>
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <Button
+          onClick={() => void onApply(draft)}
+          disabled={!isHex(draft)}
+          className="bg-gold-gradient text-gold-foreground shadow-glow hover:opacity-95 flex-1"
+        >
+          Apply
+        </Button>
+        {onReset && (
+          <Button
+            variant="ghost"
+            onClick={() => void onReset()}
+            className="flex-1 text-muted-foreground"
+          >
+            Reset
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          onClick={onCancel}
+          className="flex-1 text-muted-foreground"
+        >
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 }

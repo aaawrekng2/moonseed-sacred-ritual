@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ScrollText, Wand2 } from "lucide-react";
+import { Eye, EyeOff, ScrollText, Wand2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import {
@@ -11,6 +11,7 @@ import {
 } from "@/lib/use-saved-themes";
 import { setStoredCardBack } from "@/lib/card-backs";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
+import { useShowLabels } from "@/lib/use-show-labels";
 import { dispatchActiveThemeChanged } from "@/lib/theme-events";
 import { setStoredCommunityTheme } from "@/lib/community-themes";
 
@@ -155,6 +156,14 @@ interface Props {
   onClose?: () => void;
   /** Aria-label for the close button. */
   closeLabel?: string;
+  /**
+   * Render the built-in Clarity (Eye / EyeOff) toggle inside the cluster.
+   * Defaults to TRUE on every screen so the home, settings, and reading
+   * screens get the icon for free. Tabletop opts out (passes `false`)
+   * because it injects its own 3-level density cycler via `extraStart`
+   * — keeping both would duplicate the eye icon in the cluster.
+   */
+  includeClarity?: boolean;
 }
 
 export function TopRightControls({
@@ -162,12 +171,18 @@ export function TopRightControls({
   extraStart,
   onClose,
   closeLabel = "Close",
+  includeClarity = true,
 }: Props) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isOracle, toggle: toggleOracle } = useOracleMode();
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
+  // Clarity toggle for non-tabletop screens. Mirrors the persisted
+  // showLabels preference so the choice carries across the app. Two
+  // levels here (Seen / Veiled); the tabletop's own 3-level cycler
+  // adds the middle "Glimpse" tier for that surface only.
+  const { showLabels, toggleShowLabels } = useShowLabels();
   // After cycling the wand we briefly show the just-loaded sanctuary
   // name inside the wand pill so the user knows which atmosphere is now
   // active. Tracked here (rather than inside ExpandingIconButton) so the
@@ -252,6 +267,29 @@ export function TopRightControls({
       )}
 
       {extraStart}
+
+      {includeClarity && (
+        <ExpandingIconButton
+          icon={
+            showLabels ? (
+              <Eye size={18} strokeWidth={1.5} />
+            ) : (
+              <EyeOff size={18} strokeWidth={1.5} />
+            )
+          }
+          label={showLabels ? "Seen" : "Veiled"}
+          labelFont={isOracle ? "var(--font-serif)" : "var(--font-sans)"}
+          labelStyle={isOracle ? "italic-gold" : "muted"}
+          isActive={showLabels}
+          onClick={toggleShowLabels}
+          ariaLabel={
+            showLabels
+              ? "Clarity: Seen — tap to enter Veiled"
+              : "Clarity: Veiled — tap to return to Seen"
+          }
+          title={`The Clarity: ${showLabels ? "Seen" : "Veiled"}`}
+        />
+      )}
 
       <button
         type="button"

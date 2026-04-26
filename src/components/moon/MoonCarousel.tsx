@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, RefreshCw } from "lucide-react";
 import {
-  findNearestPhaseOccurrence,
   getCurrentMoonPhase,
+  getPhaseOccurrences,
   getMoonSign,
   type MoonInfo,
   type MoonPhaseName,
@@ -47,11 +47,13 @@ export function MoonCarousel() {
   const tweenRafRef = useRef<number | null>(null);
 
   // Tracks the last phase the user explicitly jumped to via the ladder.
-  // While the carousel is still showing that same phase at center, repeated
-  // taps on the same rung become no-ops (they don't keep walking forward to
-  // the next distinct occurrence). Reset whenever the user navigates by
-  // any other means (chevron, swipe, "Today" button, tap-to-center).
-  const lastJumpedPhaseRef = useRef<MoonPhaseName | null>(null);
+  // Pre-computed list of every occurrence of each navigable phase in the
+  // next 13 months, plus a per-phase cursor that advances on each tap of
+  // that rung. After the last occurrence we wrap back to the first so the
+  // user can endlessly walk the year of full moons (etc.) without the
+  // ladder cycling between just two dates.
+  const phaseOccurrencesRef = useRef<Map<MoonPhaseName, Date[]>>(new Map());
+  const phaseCursorRef = useRef<Map<MoonPhaseName, number>>(new Map());
 
   // Trigger a brief luminous shimmer whenever offset shifts by more than one
   // day (i.e. a phase-ladder jump or a "Today" return). Single-day steps and
@@ -118,6 +120,29 @@ export function MoonCarousel() {
   const [enterDir, setEnterDir] = useState<"left" | "right">("right");
 
   const [retryNonce, setRetryNonce] = useState(0);
+
+  // Pre-compute the phase ladder once at mount (and again if the user
+  // taps the recompute/retry button). Stored in refs so taps on the
+  // ladder don't trigger re-renders just to read the next occurrence.
+  useEffect(() => {
+    const phases: MoonPhaseName[] = [
+      "New Moon",
+      "Waxing Crescent",
+      "First Quarter",
+      "Waxing Gibbous",
+      "Full Moon",
+      "Waning Gibbous",
+      "Last Quarter",
+      "Waning Crescent",
+    ];
+    const map = new Map<MoonPhaseName, Date[]>();
+    for (const p of phases) {
+      map.set(p, getPhaseOccurrences(p, today, 13));
+    }
+    phaseOccurrencesRef.current = map;
+    phaseCursorRef.current = new Map();
+  }, [today, retryNonce]);
+
   const { days, todayMoonSign, error } = useMemo(() => {
     try {
       const out: DayCell[] = [];
@@ -163,23 +188,19 @@ export function MoonCarousel() {
     setOffset((o) => o + dir);
     setExpandedRel(null);
     setSelectedRel(null);
-    lastJumpedPhaseRef.current = null;
   };
   const goToToday = () => {
     setOffset(0);
     setExpandedRel(null);
     setSelectedRel(null);
-    lastJumpedPhaseRef.current = null;
   };
   const toggleExpand = (rel: number) => {
     setExpandedRel((cur) => (cur === rel ? null : rel));
     // Tapping a card also selects it (toggles off if already selected).
     setSelectedRel((cur) => (cur === rel ? null : rel));
-    lastJumpedPhaseRef.current = null;
   };
   const selectCenter = (rel: number) => {
     setSelectedRel((cur) => (cur === rel ? null : rel));
-    lastJumpedPhaseRef.current = null;
   };
 
   // Smoothly tween the offset from its current value to `target` so the
@@ -228,23 +249,39 @@ export function MoonCarousel() {
     });
   };
 
-  // Tap a ladder rung → jump to the *nearest* occurrence of that phase in
-  // either direction. Side-specific arrows (chevrons) still step ±1 day.
+  // Tap a ladder rung → advance to the NEXT occurrence of that phase in
+  // the pre-computed list. Each tap walks forward by one occurrence;
+  // after the last we wrap to the first. Side-specific arrows still
+  // step ±1 day.
   const jumpToPhase = (phase: MoonPhaseName) => {
-    // Subsequent taps on the same rung are a no-op — we already landed
-    // on (or near) that phase. Only a different rung or another
-    // navigation gesture re-arms the jump.
-    if (lastJumpedPhaseRef.current === phase) {
-      const currentCenterPhase = getCurrentMoonPhase(viewedDate).phase;
-      if (currentCenterPhase === phase) return;
+    const list = phaseOccurrencesRef.current.get(phase);
+    if (!list || list.length === 0) return;
+
+    // Find the cursor's next position. If we have no cursor yet, start
+    // by finding the first occurrence at or after the currently viewed
+    // day so the very first tap lands on something the user can see is
+    // a step forward (not back to last week).
+    const stored = phaseCursorRef.current.get(phase);
+    let nextIdx: number;
+    if (stored === undefined) {
+      const firstFromHere = list.findIndex(
+        (d) => d.getTime() > viewedDate.getTime(),
+      );
+      nextIdx = firstFromHere === -1 ? 0 : firstFromHere;
+    } else {
+      nextIdx = (stored + 1) % list.length;
     }
-    const delta = findNearestPhaseOccurrence(phase, viewedDate);
-    if (delta === 0) {
-      lastJumpedPhaseRef.current = phase;
-      return;
-    }
-    lastJumpedPhaseRef.current = phase;
-    tweenOffsetTo(offset + delta);
+    phaseCursorRef.current.set(phase, nextIdx);
+
+    const targetDate = list[nextIdx];
+    if (!targetDate) return;
+    // Convert target absolute date back into an offset relative to today.
+    const dayMs = 24 * 60 * 60 * 1000;
+    const deltaFromToday = Math.round(
+      (targetDate.getTime() - today.getTime()) / dayMs,
+    );
+    setEnterDir(deltaFromToday >= offset ? "right" : "left");
+    tweenOffsetTo(deltaFromToday);
   };
 
   useEffect(() => {
@@ -401,6 +438,7 @@ export function MoonCarousel() {
                     sign={d.sign}
                     expanded={isExpanded}
                     selected={isSelected}
+                    enterDir={enterDir}
                     onToggle={() => {
                       if (swipedRef.current) {
                         swipedRef.current = false;
@@ -439,7 +477,10 @@ export function MoonCarousel() {
         />
       </div>
 
-      <div className="-mt-2 flex h-5 w-full items-center justify-center sm:hidden">
+      {/* Return / Swipe-to-browse footer — visible on ALL screen sizes
+          (mobile, tablet, desktop). The previous `sm:hidden` gate was
+          hiding both affordances above 640px viewports. */}
+      <div className="-mt-2 flex h-5 w-full items-center justify-center">
         {offset === 0 ? (
           <p
             className="text-center text-[9px] uppercase tracking-[0.25em] text-muted-foreground"
@@ -532,8 +573,16 @@ function CenterCard({
   );
 }
 
-function AdjacentCard({ info, sign, expanded, selected, onToggle, size = "medium" }: {
-  info: MoonInfo; sign: string; expanded: boolean; selected: boolean; onToggle: () => void; size?: "medium" | "small";
+function AdjacentCard({ info, sign, expanded, selected, enterDir, onToggle, size = "medium" }: {
+  info: MoonInfo;
+  sign: string;
+  expanded: boolean;
+  selected: boolean;
+  /** Same swipe direction var used by the center card so all cells
+      cross-fade + slide in concert across all breakpoints. */
+  enterDir: "left" | "right";
+  onToggle: () => void;
+  size?: "medium" | "small";
 }) {
   const iconSize = expanded ? 52 : size === "medium" ? 44 : 32;
   return (
@@ -553,15 +602,27 @@ function AdjacentCard({ info, sign, expanded, selected, onToggle, size = "medium
           : "border border-transparent hover:border-gold/15 hover:bg-card/30 hover:opacity-100 active:scale-95",
       )}
     >
-      <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{formatShortDate(info.date)}</p>
-      <p className="text-[11px] text-muted-foreground">{info.phase}</p>
-      <p className="text-[10px] text-gold/80">{info.illumination}% illuminated</p>
-      {expanded && (
-        <div className="mt-1 flex flex-col items-center gap-0.5 animate-in fade-in slide-in-from-top-1 duration-200 sm:hidden">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Moon in {sign}</p>
-        </div>
-      )}
+      {/* Keyed wrapper so React remounts the inner block whenever the day
+          changes (swipe / chevron / phase jump) — same pattern as the
+          center card. This makes the cross-fade + 12px slide play on
+          every cell at every breakpoint, not just on mobile center. */}
+      <div
+        key={info.date.toDateString()}
+        className="flex flex-col items-center gap-1 moon-day-fade"
+        style={{
+          ["--moon-enter-dir" as string]: enterDir === "right" ? "1" : "-1",
+        }}
+      >
+        <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{formatShortDate(info.date)}</p>
+        <p className="text-[11px] text-muted-foreground">{info.phase}</p>
+        <p className="text-[10px] text-gold/80">{info.illumination}% illuminated</p>
+        {expanded && (
+          <div className="mt-1 flex flex-col items-center gap-0.5 animate-in fade-in slide-in-from-top-1 duration-200 sm:hidden">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Moon in {sign}</p>
+          </div>
+        )}
+      </div>
     </button>
   );
 }
