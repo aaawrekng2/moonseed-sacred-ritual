@@ -11,7 +11,6 @@ import {
   Wand2,
   X,
 } from "lucide-react";
-import { useAuth } from "@/lib/auth";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useSavedThemes } from "@/lib/use-saved-themes";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
@@ -36,7 +35,6 @@ import { dispatchActiveThemeChanged } from "@/lib/theme-events";
  */
 export function FloatingMenu() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { isOracle, toggle: toggleOracle } = useOracleMode();
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
@@ -50,11 +48,14 @@ export function FloatingMenu() {
   );
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [tapLabel, setTapLabel] = useState<string | null>(null);
+  const [tapLabel, setTapLabel] = useState<{ text: string; x: number } | null>(
+    null,
+  );
   const holdTimer = useRef<number | null>(null);
   const fadeTimer = useRef<number | null>(null);
   const labelTimer = useRef<number | null>(null);
   const mountedRef = useRef(false);
+  const pillRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -104,9 +105,18 @@ export function FloatingMenu() {
 
   // Briefly show a small italic label below the pill describing the
   // change the user just made (e.g. "Oracle", "Veiled", a sanctuary name).
-  const showLabel = (text: string) => {
+  const showLabel = (text: string, e?: React.MouseEvent) => {
     if (labelTimer.current) window.clearTimeout(labelTimer.current);
-    setTapLabel(text);
+    let x = 0;
+    if (e) {
+      const btn = e.currentTarget as HTMLElement;
+      const btnRect = btn.getBoundingClientRect();
+      const pillRect = pillRef.current?.getBoundingClientRect();
+      if (pillRect) {
+        x = btnRect.left + btnRect.width / 2 - pillRect.left;
+      }
+    }
+    setTapLabel({ text, x });
     labelTimer.current = window.setTimeout(() => setTapLabel(null), 1500);
   };
 
@@ -137,20 +147,18 @@ export function FloatingMenu() {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
     });
-    showLabel("Copied");
     resetTimer();
   };
 
   const handleRefresh = () => {
     if (refreshing) return;
     setRefreshing(true);
-    showLabel("Refreshing");
     window.setTimeout(() => {
       if (typeof window !== "undefined") window.location.reload();
     }, 500);
   };
 
-  const cycleSanctuary = () => {
+  const cycleSanctuary = (e: React.MouseEvent) => {
     if (occupied.length === 0) return;
     const currentIdx = occupied.findIndex((t) => t.slot === activeSlot);
     const nextIdx =
@@ -167,20 +175,9 @@ export function FloatingMenu() {
       sanctuarySlot: next.slot,
       communityKey: null,
     });
-    showLabel(next.name);
+    showLabel(next.name, e);
     resetTimer();
   };
-
-  const derivedInitial = (() => {
-    const meta = (user?.user_metadata ?? {}) as Record<string, unknown>;
-    const name =
-      (typeof meta.display_name === "string" && meta.display_name) ||
-      (typeof meta.full_name === "string" && meta.full_name) ||
-      (typeof meta.name === "string" && meta.name) ||
-      user?.email ||
-      "M";
-    return name.trim().charAt(0).toUpperCase() || "M";
-  })();
 
   return (
     <div
