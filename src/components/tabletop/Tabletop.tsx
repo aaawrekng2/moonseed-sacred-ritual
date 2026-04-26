@@ -903,18 +903,14 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         setTableGhost(null);
         return;
       }
-      // Convert viewport coords to container/scatter coords. Cards are
-      // absolutely positioned so `top` is measured from the padding edge —
-      // subtract the reserved top strip so the ghost lands where the
-      // card will actually snap.
-      // Cards are absolutely positioned from the container's padding
-      // edge, so containerOrigin.top (which is the border edge) needs
-      // padding-top subtracted to land in card-coords. `size.h` already
-      // includes padding-top — do not subtract TOP_RESERVE again.
+      // Convert viewport coords to container coords. Card Y values are
+      // produced by buildScatter in [TOP_RESERVE, size.h - cardH] space
+      // (we apply `topOffset: TOP_RESERVE` there), so we keep
+      // `targetTop` measured from the container border edge and clamp
+      // its lower bound to TOP_RESERVE — the ghost lands exactly where
+      // a release would snap.
       const targetLeft = projectedLeft - containerOrigin.left;
-      const targetTop =
-        projectedTop - containerOrigin.top - TABLETOP_CONFIG.TOP_RESERVE;
-      const usableH = Math.max(1, size.h);
+      const targetTop = projectedTop - containerOrigin.top;
       const clampedX = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
@@ -923,9 +919,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         ),
       );
       const clampedY = Math.max(
-        TABLETOP_CONFIG.SCATTER_PADDING,
+        TABLETOP_CONFIG.TOP_RESERVE + TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
-          usableH - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+          size.h - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
           targetTop,
         ),
       );
