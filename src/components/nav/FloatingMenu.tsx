@@ -5,6 +5,7 @@ import {
   Eye,
   EyeClosed,
   EyeOff,
+  HelpCircle,
   RotateCw,
   ScrollText,
   Wand2,
@@ -240,6 +241,19 @@ export function FloatingMenu() {
             : "opacity 600ms ease, transform 600ms cubic-bezier(0.22, 1, 0.36, 1)",
         }}
       >
+          {helpHandler && (
+            <MenuButton
+              onClick={(e) => {
+                helpHandler();
+                showLabel("Help", e);
+                resetTimer();
+              }}
+              ariaLabel="Help"
+            >
+              <HelpCircle size={17} strokeWidth={1.5} />
+            </MenuButton>
+          )}
+
           {copyText && (
             <MenuButton
               onClick={(e) => {
@@ -305,29 +319,6 @@ export function FloatingMenu() {
           >
             {clarityIcon}
           </MenuButton>
-
-          {helpHandler && (
-            <MenuButton
-              onClick={(e) => {
-                helpHandler();
-                showLabel("Help", e);
-                resetTimer();
-              }}
-              ariaLabel="Help"
-            >
-              <span
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: 18,
-                  color: "var(--gold)",
-                  lineHeight: 1,
-                }}
-              >
-                ?
-              </span>
-            </MenuButton>
-          )}
 
           {closeHandler && (
             <MenuButton

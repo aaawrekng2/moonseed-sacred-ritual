@@ -31,7 +31,10 @@ function Index() {
   return (
     <main
       className="relative flex h-[100dvh] flex-col overflow-hidden bg-cosmos pb-24"
-      style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 72px)" }}
+      style={{
+        paddingTop:
+          "calc(env(safe-area-inset-top, 0px) + clamp(72px, 10vh, 140px))",
+      }}
     >
       {/* Moon strip */}
       <header className="px-2">
@@ -83,7 +86,7 @@ function Index() {
           className="clarity-label mt-4 font-display text-[13px] italic"
           style={{ color: "rgba(255,255,255,0.5)" }}
         >
-          Tap to begin today's draw
+          Tap to begin
         </p>
       </section>
 
