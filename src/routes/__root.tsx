@@ -5,6 +5,7 @@ import { BottomNav } from "@/components/nav/BottomNav";
 import { useAuth } from "@/lib/auth";
 import { usePreferencesSync } from "@/lib/use-preferences-sync";
 import { OracleModeProvider } from "@/lib/use-oracle-mode";
+import { useTapToPeek } from "@/lib/use-tap-to-peek";
 
 function NotFoundComponent() {
   return (
@@ -98,6 +99,9 @@ function RootComponent() {
   // once auth has settled. Local storage stays the source of truth for
   // initial render; this just keeps the server copy fresh.
   usePreferencesSync();
+  // Global "tap empty space to briefly reveal hidden UI" affordance.
+  // Active in any Clarity level — costless when the user is already at Seen.
+  useTapToPeek();
   // Hide global chrome (bottom nav) on the immersive draw screen — it owns its
   // own minimal header and exit affordance.
   const hideChrome = location.pathname.startsWith("/draw");
