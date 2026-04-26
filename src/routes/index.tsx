@@ -83,7 +83,7 @@ function Index() {
             aria-label="Begin today's draw"
             className="gateway-card-frame animate-breathe-glow overflow-hidden rounded-[12px] transition-transform active:scale-[0.98]"
             onClick={() =>
-              navigate({ to: "/guides", search: { spread: "daily" } })
+              navigate({ to: "/draw", search: { spread: "daily" } })
             }
           >
             <CardBack id={cardBack} width={180} />
@@ -128,7 +128,7 @@ function Index() {
       <section>
         <SpreadIconsRow
           onSelect={(spread) =>
-            navigate({ to: "/guides", search: { spread } })
+            navigate({ to: "/draw", search: { spread } })
           }
         />
       </section>
