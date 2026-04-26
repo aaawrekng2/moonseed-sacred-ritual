@@ -16,7 +16,7 @@ import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { t } from "@/lib/oracle-language";
-import { TopRightControls } from "@/components/nav/TopRightControls";
+import { TopRightControls, ExpandingIconButton } from "@/components/nav/TopRightControls";
 import {
   AlertDialog,
   AlertDialogAction,
