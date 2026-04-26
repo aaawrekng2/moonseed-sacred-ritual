@@ -922,20 +922,29 @@ function HeadingFontSection() {
               {size}px
             </span>
           </div>
-          <Slider
-            min={MIN_FONT_SIZE}
-            max={MAX_FONT_SIZE}
-            step={1}
-            value={[size]}
-            onValueChange={(v) => {
-              const n = v[0];
-              if (typeof n === "number") setSize(n);
-            }}
-            onValueCommit={(v) => {
-              const n = v[0];
-              if (typeof n === "number") void commitSize(n);
-            }}
-          />
+          {/*
+            Narrower on mobile so horizontal swipes near the screen edge
+            don't grab the slider thumb (matches Veil Opacity treatment).
+          */}
+          <div
+            className="mx-auto w-4/5 sm:w-full"
+            style={{ touchAction: "pan-y" }}
+          >
+            <Slider
+              min={MIN_FONT_SIZE}
+              max={MAX_FONT_SIZE}
+              step={1}
+              value={[size]}
+              onValueChange={(v) => {
+                const n = v[0];
+                if (typeof n === "number") setSize(n);
+              }}
+              onValueCommit={(v) => {
+                const n = v[0];
+                if (typeof n === "number") void commitSize(n);
+              }}
+            />
+          </div>
         </div>
       </div>
     </SettingsSection>
