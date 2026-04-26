@@ -913,14 +913,6 @@ button:focus-visible .moon-rung-glow {
   }
 }
 
-/* Floating menu drop-in animation. The frosted pill drops 8px from
-   the ··· trigger position with a tiny scale-up so it feels like it
-   unfolds from the dot icon rather than appearing whole-cloth. */
-@keyframes menu-drop-in {
-  from { opacity: 0; transform: translateY(-8px) scale(0.96); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-
 /* Spin animation reused by the Refresh icon. */
 @keyframes spin {
   from { transform: rotate(0deg); }
