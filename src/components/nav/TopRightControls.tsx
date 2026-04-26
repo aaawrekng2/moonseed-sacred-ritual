@@ -11,7 +11,7 @@ import {
 } from "@/lib/use-saved-themes";
 import { setStoredCardBack } from "@/lib/card-backs";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
-import { useShowLabels } from "@/lib/use-show-labels";
+import { useUIDensity } from "@/lib/use-ui-density";
 import { dispatchActiveThemeChanged } from "@/lib/theme-events";
 import { setStoredCommunityTheme } from "@/lib/community-themes";
 
@@ -178,11 +178,15 @@ export function TopRightControls({
   const { isOracle, toggle: toggleOracle } = useOracleMode();
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
-  // Clarity toggle for non-tabletop screens. Mirrors the persisted
-  // showLabels preference so the choice carries across the app. Two
-  // levels here (Seen / Veiled); the tabletop's own 3-level cycler
-  // adds the middle "Glimpse" tier for that surface only.
-  const { showLabels, toggleShowLabels } = useShowLabels();
+  // The Clarity — 3-level density cycler (Seen → Glimpse → Veiled).
+  // Persisted to localStorage + user_preferences.ui_density so the
+  // choice carries across devices. Other surfaces (e.g. spread labels)
+  // continue to read useShowLabels for now; mapping that boolean from
+  // this 3-level value is a separate follow-up.
+  const { level, cycleLevel } = useUIDensity();
+  const isVeiled = level === 3;
+  const clarityLabel =
+    level === 1 ? "Seen" : level === 2 ? "Glimpse" : "Veiled";
   // After cycling the wand we briefly show the just-loaded sanctuary
   // name inside the wand pill so the user knows which atmosphere is now
   // active. Tracked here (rather than inside ExpandingIconButton) so the
@@ -271,23 +275,19 @@ export function TopRightControls({
       {includeClarity && (
         <ExpandingIconButton
           icon={
-            showLabels ? (
-              <Eye size={18} strokeWidth={1.5} />
-            ) : (
+            isVeiled ? (
               <EyeOff size={18} strokeWidth={1.5} />
+            ) : (
+              <Eye size={18} strokeWidth={1.5} />
             )
           }
-          label={showLabels ? "Seen" : "Veiled"}
+          label={clarityLabel}
           labelFont={isOracle ? "var(--font-serif)" : "var(--font-sans)"}
           labelStyle={isOracle ? "italic-gold" : "muted"}
-          isActive={showLabels}
-          onClick={toggleShowLabels}
-          ariaLabel={
-            showLabels
-              ? "Clarity: Seen — tap to enter Veiled"
-              : "Clarity: Veiled — tap to return to Seen"
-          }
-          title={`The Clarity: ${showLabels ? "Seen" : "Veiled"}`}
+          isActive={!isVeiled}
+          onClick={cycleLevel}
+          ariaLabel={`The Clarity: ${clarityLabel} — tap to cycle (Seen → Glimpse → Veiled)`}
+          title={`The Clarity: ${clarityLabel}`}
         />
       )}
 
