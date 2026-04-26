@@ -21,7 +21,7 @@ import { triggerPeek } from "@/lib/use-tap-to-peek";
  * single tap on the wand restores the full atmosphere — gradient,
  * accent, font, size, card back, resting opacity.
  */
-function applySanctuary(
+export function applySanctuary(
   theme: SavedTheme,
   setOpacity: (n: number) => void,
 ) {
