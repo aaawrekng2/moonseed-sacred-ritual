@@ -756,8 +756,18 @@ function BgHexPicker({
           onClick={onToggle}
           aria-expanded={open}
           aria-label={`${label} — current ${value}`}
-          className="relative inline-flex aspect-square w-12 shrink-0 rounded-full ring-1 ring-border/60 transition-all hover:ring-gold/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold ring-offset-2 ring-offset-background"
-          style={{ backgroundColor: value }}
+          className="relative inline-flex aspect-square w-12 shrink-0 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold ring-offset-2 ring-offset-background"
+          style={{
+            backgroundColor: value,
+            border: "1px solid oklch(0.82 0.14 82 / 0.40)",
+            transition: "border-color 200ms ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "oklch(0.82 0.14 82 / 0.70)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "oklch(0.82 0.14 82 / 0.40)";
+          }}
         />
         <Label className="text-xs text-muted-foreground">{label}</Label>
       </div>
