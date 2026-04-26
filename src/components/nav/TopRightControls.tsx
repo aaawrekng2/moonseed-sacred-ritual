@@ -265,7 +265,6 @@ export function TopRightControls({
         onClick={toggleOracle}
         ariaLabel={`Toggle Oracle voice (currently ${isOracle ? "Oracle" : "Plain"})`}
         title={isOracle ? "Oracle voice on" : "Plain voice"}
-        restingLevel="--ro-plus-0"
       />
 
       {occupied.length > 0 && (
@@ -277,7 +276,6 @@ export function TopRightControls({
           onClick={cycleSanctuary}
           ariaLabel={`Cycle saved sanctuaries (current: ${currentLabel})`}
           title={`Sanctuary: ${currentLabel}`}
-          restingLevel="--ro-plus-0"
         />
       )}
 
@@ -298,7 +296,6 @@ export function TopRightControls({
           onClick={cycleLevel}
           ariaLabel={`The Clarity: ${clarityLabel} — tap to cycle (Seen → Glimpse → Veiled)`}
           title={`The Clarity: ${clarityLabel}`}
-          restingLevel="--ro-plus-20"
         />
       )}
 
@@ -306,8 +303,7 @@ export function TopRightControls({
         type="button"
         aria-label="Open settings"
         onClick={() => navigate({ to: "/settings" })}
-        style={{ ["--topbar-icon-resting" as string]: "var(--ro-plus-0)" }}
-        className="topbar-icon flex h-11 w-11 items-center justify-center rounded-full font-display text-[13px] leading-none text-gold focus:outline-none"
+        className="flex h-11 w-11 items-center justify-center rounded-full font-display text-[13px] leading-none text-gold transition-opacity hover:opacity-100 focus:outline-none"
         css-hint="gold-circle"
       >
         <span
@@ -327,8 +323,7 @@ export function TopRightControls({
           type="button"
           aria-label={closeLabel}
           onClick={onClose}
-          style={{ ["--topbar-icon-resting" as string]: "var(--ro-plus-10)" }}
-          className="topbar-icon flex h-11 w-11 items-center justify-center rounded-full text-gold touch-manipulation [-webkit-tap-highlight-color:transparent] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          className="flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
         >
           <svg
             width="18"
