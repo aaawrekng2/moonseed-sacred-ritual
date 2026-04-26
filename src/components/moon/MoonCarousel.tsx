@@ -120,6 +120,29 @@ export function MoonCarousel() {
   const [enterDir, setEnterDir] = useState<"left" | "right">("right");
 
   const [retryNonce, setRetryNonce] = useState(0);
+
+  // Pre-compute the phase ladder once at mount (and again if the user
+  // taps the recompute/retry button). Stored in refs so taps on the
+  // ladder don't trigger re-renders just to read the next occurrence.
+  useEffect(() => {
+    const phases: MoonPhaseName[] = [
+      "New Moon",
+      "Waxing Crescent",
+      "First Quarter",
+      "Waxing Gibbous",
+      "Full Moon",
+      "Waning Gibbous",
+      "Last Quarter",
+      "Waning Crescent",
+    ];
+    const map = new Map<MoonPhaseName, Date[]>();
+    for (const p of phases) {
+      map.set(p, getPhaseOccurrences(p, today, 13));
+    }
+    phaseOccurrencesRef.current = map;
+    phaseCursorRef.current = new Map();
+  }, [today, retryNonce]);
+
   const { days, todayMoonSign, error } = useMemo(() => {
     try {
       const out: DayCell[] = [];
