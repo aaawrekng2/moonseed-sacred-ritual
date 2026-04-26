@@ -2174,6 +2174,20 @@ function CardSlot({
       const dy = e.clientY - d.y;
       if (dx * dx + dy * dy > tapMoveThresholdPx * tapMoveThresholdPx) {
         d.cancelled = true;
+        // On coarse pointers (touch/mobile), activate drag immediately on
+        // movement past the threshold rather than waiting for the hold
+        // timer. This matches the standard Android drag pattern where a
+        // finger that's moving is clearly trying to drag, not tap.
+        // Fine pointers (mouse) keep the hold-timer behaviour so a quick
+        // mouse drag still feels intentional.
+        const s = dragStateRef.current;
+        if (isCoarsePointer && s && !dragging) {
+          if (s.holdTimer != null) {
+            window.clearTimeout(s.holdTimer);
+            s.holdTimer = null;
+          }
+          beginDrag();
+        }
       }
     }
     const s = dragStateRef.current;
