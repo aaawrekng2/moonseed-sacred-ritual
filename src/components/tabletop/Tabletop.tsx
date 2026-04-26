@@ -1555,45 +1555,86 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             style={{
               padding: "0 10px",
               margin: "2px 0",
-              gap: 2,
+              gap: 1,
               maxWidth: "min(92vw, 420px)",
             }}
           >
-            <span
-              className="font-display italic leading-none animate-breathe-glow"
-              style={{
-                fontSize: 18,
-                color: "var(--gold)",
-                opacity: restingAlpha,
-                lineHeight: 1.2,
-                letterSpacing: "0.08em",
-                textShadow: "0 0 14px rgba(212,175,55,0.55)",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                maxWidth: "100%",
-              }}
-            >
-              {usesSlots && nextFullLabel
-                ? `Draw: ${nextFullLabel}`
-                : "Draw"}
-            </span>
-            {usesSlots && nextDescription && (
+            {/* Line 1: small italic gold "Draw:" word — only when a
+                position name follows it. For single-card spreads we
+                fall back to a single, larger "Draw". */}
+            {usesSlots && nextFullLabel ? (
+              <>
+                <span
+                  className="font-display italic leading-none"
+                  style={{
+                    fontSize: 11,
+                    color: "var(--gold)",
+                    opacity: showWhisper ? Math.min(1, restingAlpha + 0.05) : 0,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    pointerEvents: "none",
+                    transition: "opacity 200ms ease-out",
+                  }}
+                  aria-hidden={!showWhisper}
+                >
+                  Draw:
+                </span>
+                <span
+                  className="font-display italic leading-none animate-breathe-glow"
+                  style={{
+                    fontSize: 22,
+                    color: "var(--gold)",
+                    opacity: showWhisper ? restingAlpha : 0,
+                    lineHeight: 1.15,
+                    letterSpacing: "0.06em",
+                    textShadow: "0 0 14px rgba(212,175,55,0.55)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxWidth: "100%",
+                    pointerEvents: "none",
+                    transition: "opacity 200ms ease-out",
+                  }}
+                  aria-hidden={!showWhisper}
+                >
+                  {nextFullLabel}
+                </span>
+                {nextDescription && (
+                  <span
+                    className="font-display italic leading-snug"
+                    style={{
+                      fontSize: 13,
+                      color: "color-mix(in oklab, var(--gold) 70%, transparent)",
+                      opacity: showWhisper ? 0.75 : 0,
+                      letterSpacing: "0.03em",
+                      textAlign: "center",
+                      maxWidth: "100%",
+                      pointerEvents: "none",
+                      transition: "opacity 200ms ease-out",
+                      marginTop: 2,
+                    }}
+                    aria-hidden={!showWhisper}
+                  >
+                    {nextDescription}
+                  </span>
+                )}
+              </>
+            ) : (
               <span
-                className="font-display italic leading-none"
+                className="font-display italic leading-none animate-breathe-glow"
                 style={{
-                  fontSize: 11,
+                  fontSize: 18,
                   color: "var(--gold)",
-                  opacity: 0.45,
-                  letterSpacing: "0.04em",
-                  textAlign: "center",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  maxWidth: "100%",
+                  opacity: showWhisper ? restingAlpha : 0,
+                  lineHeight: 1.2,
+                  letterSpacing: "0.08em",
+                  textShadow: "0 0 14px rgba(212,175,55,0.55)",
+                  pointerEvents: "none",
+                  transition: "opacity 200ms ease-out",
                 }}
+                aria-hidden={!showWhisper}
               >
-                {nextDescription}
+                Draw
               </span>
             )}
           </div>
