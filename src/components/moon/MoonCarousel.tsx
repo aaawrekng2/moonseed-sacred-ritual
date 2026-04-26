@@ -384,7 +384,7 @@ export function MoonCarousel() {
           role="group"
           aria-label={`Day strip, ${days.length} days`}
         >
-          {days.map((d) => {
+          {days.map((d, i) => {
             const isExpanded = expandedRel === d.relative;
             const rel = d.relative - offset; // -2..+2 within current window
             const absRel = Math.abs(rel);    // window position, NOT distance from today
@@ -395,7 +395,11 @@ export function MoonCarousel() {
             const isSelected = selectedRel === d.relative;
             return (
               <div
-                key={d.info.date.toDateString()}
+                // Stable key by window slot index — prevents React from
+                // unmounting/remounting cards every swipe (which caused a
+                // visible cut on each day change). Data inside the card
+                // updates in place instead.
+                key={i}
                 role="group"
                 aria-roledescription="day"
                 aria-label={`${d.isToday ? "Today" : formatShortDate(d.info.date)}, ${d.info.phase}`}
