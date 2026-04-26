@@ -432,23 +432,23 @@ export function MoonCarousel() {
         />
       </div>
 
-      <p
-        className="-mt-2 text-center text-[9px] uppercase tracking-[0.25em] text-muted-foreground sm:hidden"
-        style={{ opacity: restingAlpha * 0.6 }}
-      >
-        Swipe to browse · Tap a day for details
-      </p>
-
-      {offset !== 0 && (
-        <div className="mt-1 flex w-full justify-center animate-in fade-in duration-300">
+      <div className="-mt-2 flex h-5 w-full items-center justify-center sm:hidden">
+        {offset === 0 ? (
+          <p
+            className="text-center text-[9px] uppercase tracking-[0.25em] text-muted-foreground"
+            style={{ opacity: restingAlpha * 0.6 }}
+          >
+            Swipe to browse · Tap a day for details
+          </p>
+        ) : (
           <button
             type="button"
             onClick={goToToday}
             aria-label="Return to today"
             className={cn(
               "inline-flex items-center gap-1 cursor-pointer border-0 m-0",
-              "px-2 py-1 rounded-full bg-transparent text-xs",
-              "transition-opacity duration-150",
+              "px-3 py-1 rounded-full bg-transparent text-[10px] uppercase tracking-[0.2em]",
+              "transition-opacity duration-150 animate-in fade-in",
               "hover:opacity-100 focus-visible:opacity-100",
               "outline-none focus-visible:outline-none",
               "focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
@@ -458,8 +458,8 @@ export function MoonCarousel() {
             <span aria-hidden="true">↩</span>
             <span>Today</span>
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
     </section>
   );
