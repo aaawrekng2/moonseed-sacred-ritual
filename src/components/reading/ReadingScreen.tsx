@@ -162,8 +162,18 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
       <TopRightControls
         onClose={onExit}
         closeLabel="Close reading"
-        extraStart={copyText ? <CopyIconButton text={copyText} /> : undefined}
       />
+      {copyText && (
+        <div
+          className="fixed z-50"
+          style={{
+            top: "calc(env(safe-area-inset-top, 0px) + 6px)",
+            left: "calc(env(safe-area-inset-left, 0px) + 12px)",
+          }}
+        >
+          <CopyIconButton text={copyText} />
+        </div>
+      )}
 
       <div
         className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5 pb-12"
