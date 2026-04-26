@@ -79,8 +79,8 @@ export function FloatingMenu() {
       fadeTimer.current = window.setTimeout(() => {
         setOpen(false);
         setPhase("closed");
-      }, 2000);
-    }, 2000);
+      }, 2500);
+    }, 2500);
   };
 
   // Listen for global peek events so the menu opens when the user taps
@@ -157,55 +157,60 @@ export function FloatingMenu() {
         right: "calc(env(safe-area-inset-right, 0px) + 12px)",
       }}
     >
-      {!open && (
-        <button
-          type="button"
-          aria-label="Open menu"
-          onClick={openMenu}
-          style={{
-            opacity: "var(--ro-plus-0)",
-            transition: "opacity 600ms ease",
-            background: "transparent",
-            border: "none",
-            color: "var(--gold)",
-            fontSize: 22,
-            letterSpacing: 2,
-            height: 44,
-            minWidth: 44,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            padding: 0,
-            lineHeight: 1,
-          }}
-        >
-          ···
-        </button>
-      )}
+      <button
+        type="button"
+        aria-label="Open menu"
+        onClick={openMenu}
+        style={{
+          opacity: open ? 0 : "var(--ro-plus-0)",
+          pointerEvents: open ? "none" : "auto",
+          transition: "opacity 400ms ease",
+          background: "transparent",
+          border: "none",
+          color: "var(--gold)",
+          fontSize: 22,
+          letterSpacing: 2,
+          height: 44,
+          minWidth: 44,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          padding: 0,
+          lineHeight: 1,
+          position: "absolute",
+          top: 0,
+          right: 0,
+        }}
+      >
+        ···
+      </button>
 
-      {open && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 2,
-            padding: "4px 8px",
-            borderRadius: 999,
-            backdropFilter: "blur(16px)",
-            WebkitBackdropFilter: "blur(16px)",
-            background: "oklch(0.12 0.04 280 / 55%)",
-            border:
-              "1px solid color-mix(in oklch, var(--gold) 20%, transparent)",
-            boxShadow:
-              "0 4px 24px oklch(0 0 0 / 0.4), 0 0 0 0.5px color-mix(in oklch, var(--gold) 15%, transparent)",
-            opacity: phase === "open-bright" ? 1 : "var(--ro-plus-0)",
-            transition:
-              phase === "open-dim" ? "opacity 2000ms ease" : "opacity 0ms",
-            animation:
-              "menu-drop-in 250ms cubic-bezier(0.22, 1, 0.36, 1) both",
-          }}
-        >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          padding: "4px 8px",
+          borderRadius: 999,
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          background: "oklch(0.10 0.03 280 / 35%)",
+          border:
+            "1px solid color-mix(in oklch, var(--gold) 12%, transparent)",
+          boxShadow: "0 2px 16px oklch(0 0 0 / 0.25)",
+          opacity: open
+            ? phase === "open-bright"
+              ? "var(--ro-plus-40)"
+              : "var(--ro-plus-10)"
+            : 0,
+          transform: open ? "translateY(0)" : "translateY(-12px)",
+          pointerEvents: open ? "auto" : "none",
+          transition: open
+            ? "opacity 500ms ease, transform 500ms cubic-bezier(0.22, 1, 0.36, 1)"
+            : "opacity 600ms ease, transform 600ms cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
+      >
           {copyText && (
             <MenuButton onClick={handleCopy} ariaLabel="Copy reading">
               {copied ? (
@@ -273,8 +278,7 @@ export function FloatingMenu() {
               <X size={17} strokeWidth={1.5} />
             </MenuButton>
           )}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
