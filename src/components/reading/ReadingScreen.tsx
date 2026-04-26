@@ -424,7 +424,6 @@ function ReadingBody({
   );
 }
 
-function LimitMessage({ onExit }: { onExit: () => void }) {
 function LimitMessage({
   onExit,
   isOracle,
