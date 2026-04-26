@@ -2070,6 +2070,7 @@ function CardSlot({
   // follows the pointer with `position: fixed`, and the eventual click
   // handler is suppressed so selection state is preserved.
   const [dragging, setDragging] = useState(false);
+  const draggingRef = useRef(false);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   // After a drag completes, the card re-renders into the absolute "idle"
   // style branch which carries `animation: settle-in 320ms` — that
@@ -2081,6 +2082,8 @@ function CardSlot({
     pointerId: number;
     startClientX: number;
     startClientY: number;
+    currentClientX: number;
+    currentClientY: number;
     pointerOffsetX: number; // pointer offset inside the card on grab
     pointerOffsetY: number;
     fromX: number; // card's pre-drag table coords
@@ -2090,6 +2093,7 @@ function CardSlot({
   } | null>(null);
 
   const beginDrag = useCallback(() => {
+    draggingRef.current = true;
     setDragging(true);
     if (dragStateRef.current) {
       // Fire one immediate move so the card jumps to the pointer location
@@ -2102,9 +2106,11 @@ function CardSlot({
       // toolbar collapse, settle-in animation completing). Computing the
       // offset against a stale rect produced the "card jumps on grab" bug.
       const cardRect = btnRef.current?.getBoundingClientRect();
+      const activeClientX = s.currentClientX;
+      const activeClientY = s.currentClientY;
       if (cardRect) {
-        s.pointerOffsetX = s.startClientX - cardRect.left;
-        s.pointerOffsetY = s.startClientY - cardRect.top;
+        s.pointerOffsetX = activeClientX - cardRect.left;
+        s.pointerOffsetY = activeClientY - cardRect.top;
       }
       // Convert pointer position to container coords. ALWAYS re-measure
       // the container at drag start — the cached `containerRect` prop
@@ -2121,14 +2127,14 @@ function CardSlot({
       // buildScatter's `topOffset`, so no per-frame adjustment here.
       const cTop = freshRect?.top ?? containerRect?.top ?? 0;
       setDragPos({
-        x: s.startClientX - s.pointerOffsetX - cLeft,
-        y: s.startClientY - s.pointerOffsetY - cTop,
+        x: activeClientX - s.pointerOffsetX - cLeft,
+        y: activeClientY - s.pointerOffsetY - cTop,
       });
       onDragMove(
-        s.startClientX,
-        s.startClientY,
-        s.startClientX - s.pointerOffsetX,
-        s.startClientY - s.pointerOffsetY,
+        activeClientX,
+        activeClientY,
+        activeClientX - s.pointerOffsetX,
+        activeClientY - s.pointerOffsetY,
       );
     }
   }, [onDragMove, containerRect, containerElRef]);
