@@ -129,7 +129,10 @@ function SettingsLayout() {
         bottom padding clears the global BottomNav rendered in __root.tsx
         (do NOT render another BottomNav here — that would duplicate it).
       */}
-      <main className="h-dvh overflow-y-auto bg-cosmos pb-28 pt-[calc(env(safe-area-inset-top)+24px)] text-foreground">
+      <main
+        className="h-dvh overflow-y-auto bg-cosmos pb-28 text-foreground"
+        style={{ paddingTop: "var(--topbar-pad)" }}
+      >
         <TopRightControls
           onClose={() => void navigate({ to: "/" })}
           closeLabel="Close settings"
@@ -182,7 +185,11 @@ function SettingsLayout() {
               container and grows to roughly the visible viewport height.
             */}
             <aside
-              className="sticky top-0 -my-[calc(env(safe-area-inset-top)+24px)] hidden shrink-0 self-start py-6 md:flex md:w-[240px] md:flex-col"
+              className="sticky top-0 hidden shrink-0 self-start py-6 md:flex md:w-[240px] md:flex-col"
+              style={{
+                marginTop: "calc(var(--topbar-pad) * -1)",
+                marginBottom: "calc(var(--topbar-pad) * -1)",
+              }}
               style={{
                 background: "oklch(0.13 0.04 280)",
                 borderRight: "1px solid oklch(0.30 0.04 285 / 0.25)",
