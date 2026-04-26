@@ -451,7 +451,7 @@ export function MoonCarousel() {
           <button
             type="button"
             onClick={goToToday}
-            aria-label="Return to today"
+            aria-label="Return to today's date"
             className={cn(
               "inline-flex items-center gap-1 cursor-pointer border-0 m-0",
               "px-3 py-1 rounded-full bg-transparent text-[10px] uppercase tracking-[0.2em]",
@@ -463,7 +463,7 @@ export function MoonCarousel() {
             style={{ color: accent, opacity: restingAlpha }}
           >
             <span aria-hidden="true">↩</span>
-            <span>Today</span>
+            <span>Return</span>
           </button>
         )}
       </div>
