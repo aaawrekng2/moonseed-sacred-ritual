@@ -251,6 +251,8 @@ export function TopRightControls({
         top: "calc(env(safe-area-inset-top, 0px) + 6px)",
         right: "calc(env(safe-area-inset-right, 0px) + 12px)",
         gap: "2px",
+        opacity: "var(--ro-plus-0)",
+        transition: "opacity 600ms ease",
       }}
     >
       {extraFirst}
