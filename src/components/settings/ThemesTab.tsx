@@ -21,10 +21,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
+  Eye,
   Loader2,
   Plus,
   RotateCcw,
   Save,
+  ScrollText,
   Trash2,
   Wand2,
   X,
@@ -516,53 +518,150 @@ function LiveThemePreview() {
   const left = prefs.bg_gradient_from ?? DEFAULT_BG_LEFT;
   const right = prefs.bg_gradient_to ?? DEFAULT_BG_RIGHT;
   const accent = prefs.accent_color ?? "var(--gold)";
+  const headingFont = prefs.heading_font
+    ? `'${prefs.heading_font}', var(--font-serif)`
+    : "var(--font-serif)";
+  // Scale the live heading size proportionally — preview is small, so
+  // we render at ~45% of the user's real heading size to stay in
+  // proportion with the 160px-wide phone mock.
+  const headingPx = Math.round(((prefs.heading_font_size ?? 20) as number) * 0.45);
+  const restingAlpha = (prefs.resting_opacity ?? 50) / 100;
 
   return (
     <div className="flex flex-col items-center gap-2">
       <div
         aria-hidden
-        className="relative overflow-hidden"
+        className="relative overflow-hidden flex flex-col"
         style={{
           width: 160,
-          height: 280,
-          borderRadius: 24,
-          border: "1px solid oklch(0.82 0.14 82 / 0.20)",
+          height: 300,
+          borderRadius: 28,
+          border: "1px solid oklch(0.82 0.14 82 / 0.25)",
           background: `linear-gradient(135deg, ${left}, ${right})`,
           boxShadow:
             "0 12px 32px -16px rgba(0,0,0,0.55), inset 0 0 24px rgba(0,0,0,0.25)",
         }}
       >
-        {/* Soft accent glow behind the card */}
+        {/* Top bar — three icons in accent color at resting opacity */}
         <div
+          className="flex items-center justify-end gap-1.5 px-3 pt-3"
+          style={{ color: accent, opacity: restingAlpha }}
+        >
+          <ScrollText size={10} strokeWidth={1.5} />
+          <Wand2 size={10} strokeWidth={1.5} />
+          <Eye size={10} strokeWidth={1.5} />
+        </div>
+
+        {/* Center area: card back + glow + sample heading */}
+        <div className="relative flex flex-1 flex-col items-center justify-center px-3">
+          {/* Soft accent glow behind the card */}
+          <div
+            style={{
+              position: "absolute",
+              top: "42%",
+              left: "50%",
+              width: 110,
+              height: 110,
+              transform: "translate(-50%, -50%)",
+              borderRadius: "50%",
+              background: `radial-gradient(circle, ${accent}55 0%, transparent 70%)`,
+              filter: "blur(10px)",
+              pointerEvents: "none",
+            }}
+          />
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <CardBack id={cardBack} width={56} />
+          </div>
+          <p
+            className="mt-2 italic"
+            style={{
+              fontFamily: headingFont,
+              fontSize: headingPx,
+              lineHeight: 1.1,
+              color: accent,
+              position: "relative",
+              zIndex: 1,
+            }}
+          >
+            The Moon
+          </p>
+
+          {/* Highlight box — represents a reading card */}
+          <div
+            className="mt-2 w-full rounded-md px-2 py-1.5"
+            style={{
+              border: `1px solid ${accent}66`,
+              background: "transparent",
+              position: "relative",
+              zIndex: 1,
+            }}
+          >
+            <div className="space-y-1">
+              <div
+                className="h-[3px] rounded-full"
+                style={{
+                  width: "85%",
+                  background:
+                    "color-mix(in oklch, var(--muted-foreground) 60%, transparent)",
+                }}
+              />
+              <div
+                className="h-[3px] rounded-full"
+                style={{
+                  width: "70%",
+                  background:
+                    "color-mix(in oklch, var(--muted-foreground) 60%, transparent)",
+                }}
+              />
+              <div
+                className="h-[3px] rounded-full"
+                style={{
+                  width: "55%",
+                  background:
+                    "color-mix(in oklch, var(--muted-foreground) 60%, transparent)",
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom — small spread icons row */}
+        <div
+          className="flex items-center justify-center gap-2 pb-3"
+          style={{ color: accent, opacity: restingAlpha }}
+        >
+          {/* Single, three, celtic, yes/no glyphs (simplified) */}
+          <svg width={9} height={9} viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2 L13.6 10.4 L22 12 L13.6 13.6 L12 22 L10.4 13.6 L2 12 L10.4 10.4 Z" />
+          </svg>
+          <svg width={11} height={9} viewBox="0 0 30 12" fill="currentColor">
+            <circle cx="4" cy="6" r="2" />
+            <circle cx="15" cy="6" r="2.5" />
+            <circle cx="26" cy="6" r="2" />
+          </svg>
+          <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
+            <circle cx="12" cy="12" r="9" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="12" y1="3" x2="12" y2="21" />
+          </svg>
+          <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6}>
+            <path d="M12 2 L22 12 L12 22 L2 12 Z" />
+          </svg>
+        </div>
+
+        {/* Hidden div removed — kept for prior layout */}
+        <div
+          aria-hidden
           style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            width: 120,
-            height: 120,
-            transform: "translate(-50%, -50%)",
-            borderRadius: "50%",
-            background: `radial-gradient(circle, ${accent}44 0%, transparent 70%)`,
-            filter: "blur(8px)",
+            display: "none",
           }}
         />
-        {/* Centered card back, gateway-style */}
-        <div
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-          }}
-        >
-          <CardBack id={cardBack} width={70} />
-        </div>
       </div>
       <p
         className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground italic"
         style={{ fontFamily: "var(--font-serif)" }}
       >
-        {isOracle ? "A Glimpse" : "Live Preview"}
+        {isOracle ? "A Glimpse" : "Preview"}
       </p>
     </div>
   );
