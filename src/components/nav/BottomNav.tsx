@@ -68,7 +68,7 @@ export function BottomNav() {
                 <Icon size={iconSize} strokeWidth={primary ? 1.5 : 1.6} aria-hidden="true" />
                 <span
                   className={cn(
-                    "font-display tracking-wide",
+                    "clarity-label font-display tracking-wide",
                     primary ? "text-[13px] font-medium" : "text-[11px]",
                   )}
                 >
