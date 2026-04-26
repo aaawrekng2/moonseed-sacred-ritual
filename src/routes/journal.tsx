@@ -193,6 +193,49 @@ function JournalPage() {
     ? readings.find((r) => r.id === openId) ?? null
     : null;
 
+  // Stable callbacks for the EnrichmentPanel — keep the Journal list and
+  // tag library in sync with edits made inside the Reading Detail overlay
+  // without re-fetching from the server.
+  const handleReadingChange = useCallback(
+    (next: {
+      id: string;
+      note: string | null;
+      is_favorite: boolean;
+      tags: string[] | null;
+    }) => {
+      setReadings((prev) =>
+        prev.map((r) =>
+          r.id === next.id
+            ? {
+                ...r,
+                note: next.note,
+                is_favorite: next.is_favorite,
+                tags: next.tags,
+              }
+            : r,
+        ),
+      );
+    },
+    [],
+  );
+  const handleTagLibraryChange = useCallback((next: EnrichmentTag[]) => {
+    setTags(
+      [...next].sort((a, b) => b.usage_count - a.usage_count).slice(0, 100),
+    );
+  }, []);
+  const handlePhotoCountChange = useCallback(
+    (readingId: string, count: number) => {
+      setPhotoCounts((prev) => {
+        if ((prev[readingId] ?? 0) === count) return prev;
+        const next = { ...prev };
+        if (count <= 0) delete next[readingId];
+        else next[readingId] = count;
+        return next;
+      });
+    },
+    [],
+  );
+
   return (
     <main className="bg-cosmos relative min-h-screen px-5 pb-28 pt-[calc(env(safe-area-inset-top,0px)+72px)]">
       {/* Title */}
@@ -331,6 +374,10 @@ function JournalPage() {
           reading={openReading}
           onClose={() => setOpenId(null)}
           isOracle={isOracle}
+          tagLibrary={tags}
+          onReadingChange={handleReadingChange}
+          onTagLibraryChange={handleTagLibraryChange}
+          onPhotoCountChange={handlePhotoCountChange}
         />
       )}
     </main>
