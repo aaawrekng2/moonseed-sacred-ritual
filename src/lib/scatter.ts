@@ -30,6 +30,13 @@ export type ScatterParams = {
    * threshold get nudged to a free-er position.
    */
   minVisibleRatio?: number;
+  /**
+   * Vertical offset (px) added to every card's `y` so the field starts
+   * below a fixed top strip (e.g. the reserved zone for the top bar).
+   * `height` should still be the *usable* height (i.e. exclude this
+   * strip) — the offset only translates the final positions.
+   */
+  topOffset?: number;
 };
 
 // Mulberry32 — small, fast, deterministic.
@@ -171,6 +178,13 @@ export function buildScatter(p: ScatterParams): ScatterCard[] {
   // covered by higher-z cards gets nudged to a freer spot.
   const minVisible = p.minVisibleRatio ?? 0.3;
   enforceMinVisibility(cards, p, minVisible, rng);
+
+  // Apply the top-strip offset last, after all positioning + nudging is
+  // complete, so layout math stays in 0..height space and only the
+  // final emitted Y values are translated.
+  if (p.topOffset && p.topOffset !== 0) {
+    for (const c of cards) c.y += p.topOffset;
+  }
 
   return cards;
 }
