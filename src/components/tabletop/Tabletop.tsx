@@ -1238,48 +1238,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         </div>
       )}
 
-      {/* Temporary resting-opacity test slider — fixed upper-left, top
-          layer so cards never sit above its controls. Desktop-only:
-          hidden on mobile per design (it is a dev-only tool). */}
-      {!isMobile && (
-      <div
-        style={{
-          position: "fixed",
-          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          left: "calc(env(safe-area-inset-left, 0px) + 12px)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-          width: 130,
-          zIndex: 100,
-          opacity: restingAlpha,
-          pointerEvents: "auto",
-        }}
-        className="transition-opacity hover:!opacity-100 focus-within:!opacity-100"
-      >
-        <label
-          htmlFor="tabletop-resting-opacity"
-          style={{
-            fontSize: 9,
-            color: "var(--gold)",
-            fontFamily: "var(--font-serif)",
-            letterSpacing: "0.2em",
-            textTransform: "uppercase",
-          }}
-        >
-          Opacity {restingOpacityPct}
-        </label>
-        <input
-          id="tabletop-resting-opacity"
-          type="range"
-          min={MIN_RESTING_OPACITY}
-          max={MAX_RESTING_OPACITY}
-          value={restingOpacityPct}
-          onChange={(e) => setRestingOpacity(Number(e.target.value))}
-          style={{ width: "100%", accentColor: "var(--gold)" }}
-        />
-      </div>
-      )}
+      {/* Per design: all chrome lives in the upper-right cluster. The
+          old left-side opacity slider has been removed — opacity is
+          configured in Settings → Themes. */}
 
       {/* Standard top-bar (profile / sanctuary cycler / Oracle voice).
           Self-positions fixed at the top-right of the viewport. */}
