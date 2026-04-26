@@ -2225,7 +2225,11 @@ function CardSlot({
               top: card.y,
               width: cardW,
               height: cardH,
-              transform: `rotate(${card.rotation}deg) translateY(${isSelected ? "-4px" : "0"})`,
+              // No translateY lift here: the "-4px" used to fire BEFORE
+              // getBoundingClientRect() captured the launch position,
+              // causing a one-frame teleport at flight start. The selected
+              // glow + halo is enough to communicate selection.
+              transform: `rotate(${card.rotation}deg)`,
               // Selected cards (and their numbered badges) must always sit above
               // every unselected card. Use a large constant well above any
               // possible scatter z value.
