@@ -5,7 +5,7 @@
  * preselected so a returning user can just tap "Begin Reading".
  */
 import { useEffect, useMemo, useState } from "react";
-import { Check, Plus, X } from "lucide-react";
+import { Check, Pencil, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ import { useActiveGuide } from "@/lib/use-active-guide";
 import { usePremium } from "@/lib/premium";
 import {
   BUILT_IN_GUIDES,
+  DEFAULT_GUIDE_ID,
   FACETS,
   LENSES,
   MAX_ACTIVE_FACETS,
@@ -52,6 +53,7 @@ export function GuideSelector({
 
   const [customGuides, setCustomGuides] = useState<CustomGuide[]>([]);
   const [creating, setCreating] = useState(false);
+  const [editingGuide, setEditingGuide] = useState<CustomGuide | null>(null);
 
   // Load custom guides for the carousel.
   useEffect(() => {
@@ -102,6 +104,7 @@ export function GuideSelector({
         emoji: g.accentEmoji,
         traits: g.voiceTraits,
         custom: false as const,
+        raw: null as CustomGuide | null,
       })),
       ...customGuides.map((cg) => ({
         id: cg.id,
@@ -114,6 +117,7 @@ export function GuideSelector({
           BUILT_IN_GUIDES.find((g) => g.id === cg.base_guide_id)?.voiceTraits ??
           [],
         custom: true as const,
+        raw: cg,
       })),
     ],
     [customGuides],
@@ -161,47 +165,79 @@ export function GuideSelector({
             {allGuideCards.map((g) => {
               const active = g.id === guideId;
               return (
-                <button
+                <div
                   key={g.id}
-                  type="button"
-                  onClick={() => setGuide(g.id)}
                   className={cn(
-                    "snap-start shrink-0 rounded-2xl border p-4 text-left transition",
+                    "snap-start shrink-0 relative rounded-2xl border p-4 text-left transition",
                     "w-[220px]",
                     active
                       ? "border-gold bg-gold/10 shadow-[0_0_24px_-8px_rgba(212,175,55,0.6)]"
                       : "border-border/50 bg-card/40 hover:border-gold/40",
                   )}
                 >
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-2xl">{g.emoji}</span>
-                    {active && <Check className="h-4 w-4 text-gold" />}
-                  </div>
-                  <h3
-                    className="text-base italic text-foreground"
-                    style={{ fontFamily: "var(--font-serif)" }}
-                  >
-                    {g.name}
-                  </h3>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {g.tagline}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-1">
-                    {g.traits.slice(0, 4).map((t) => (
-                      <span
-                        key={t}
-                        className="rounded-full border border-gold/25 px-2 py-0.5 text-[9px] uppercase tracking-wider text-gold/80"
+                  {g.custom && g.raw && (
+                    <>
+                      <button
+                        type="button"
+                        aria-label="Delete custom guide"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteTarget(g.raw!);
+                        }}
+                        className="absolute left-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition hover:text-gold hover:bg-gold/10"
+                        style={{ opacity: "var(--ro-plus-10)" }}
                       >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                  {g.custom && (
-                    <span className="mt-3 inline-block text-[9px] uppercase tracking-wider text-gold/60">
-                      Custom
-                    </span>
+                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Edit custom guide"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingGuide(g.raw!);
+                        }}
+                        className="absolute right-2 top-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition hover:text-gold hover:bg-gold/10"
+                        style={{ opacity: "var(--ro-plus-10)" }}
+                      >
+                        <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      </button>
+                    </>
                   )}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => setGuide(g.id)}
+                    className="block w-full text-left"
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-2xl">{g.emoji}</span>
+                      {active && !g.custom && <Check className="h-4 w-4 text-gold" />}
+                    </div>
+                    <h3
+                      className="text-base italic text-foreground"
+                      style={{ fontFamily: "var(--font-serif)" }}
+                    >
+                      {g.name}
+                    </h3>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {g.tagline}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {g.traits.slice(0, 4).map((t) => (
+                        <span
+                          key={t}
+                          className="rounded-full border border-gold/25 px-2 py-0.5 text-[9px] uppercase tracking-wider text-gold/80"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                    {g.custom && (
+                      <span className="mt-3 inline-block text-[9px] uppercase tracking-wider text-gold/60">
+                        {active ? "Custom · Active" : "Custom"}
+                      </span>
+                    )}
+                  </button>
+                </div>
               );
             })}
 
@@ -324,6 +360,37 @@ export function GuideSelector({
             setCustomGuides((prev) => [...prev, g]);
             setGuide(g.id);
             setCreating(false);
+          }}
+        />
+      )}
+
+      {editingGuide && (
+        <EditCustomGuideDialog
+          guide={editingGuide}
+          onClose={() => setEditingGuide(null)}
+          onSaved={(updated) => {
+            setCustomGuides((prev) =>
+              prev.map((cg) => (cg.id === updated.id ? updated : cg)),
+            );
+            setEditingGuide(null);
+          }}
+          onDeleteRequest={(g) => {
+            setEditingGuide(null);
+            setDeleteTarget(g);
+          }}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteGuideConfirm
+          guide={deleteTarget}
+          isOracle={isOracle}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirmed={(id) => {
+            setCustomGuides((prev) => prev.filter((cg) => cg.id !== id));
+            // If the deleted guide was active, fall back to default.
+            if (guideId === id) setGuide(DEFAULT_GUIDE_ID);
+            setDeleteTarget(null);
           }}
         />
       )}
