@@ -178,6 +178,7 @@ function ThemesTabInner() {
           <ResetToDefaultsButton />
         </header>
 
+        <LiveThemePreview />
         <TheFieldSection />
         <CardBackSection />
         <HeadingFontSection />
