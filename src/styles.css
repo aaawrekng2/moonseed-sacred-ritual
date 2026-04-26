@@ -788,3 +788,64 @@ button:focus-visible .moon-rung-glow {
   transition: transform 400ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
 }
+
+/* ---------------------------------------------------------------------- */
+/* Reading screen — gentle staggered slide-up + scale to fit on mount.    */
+/* Each card animates from its initial position upward with a 60ms       */
+/* stagger so the group reads as a soft wave, not a snap.                */
+/* ---------------------------------------------------------------------- */
+@keyframes reading-card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.reading-card-rise {
+  animation: reading-card-rise 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  animation-delay: var(--rise-delay, 0ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reading-card-rise { animation: none; }
+}
+
+/* "Let Them Speak" / "Get Reading" — flowing-text invocation, NOT a
+   pill. The mist breath continues to live behind it. We retain the
+   .reading-mist-button class so the existing keyframes still drive the
+   behind-text glow. */
+.reading-invocation {
+  position: relative;
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.reading-invocation:disabled { cursor: default; }
+.reading-invocation:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--gold) 50%, transparent);
+  border-radius: 8px;
+}
+
+/* Persistent resting-opacity readout — small mono number in the very
+   top-left of every screen. Stays at a fixed 80% opacity so it's
+   always faintly legible regardless of the user's resting opacity. */
+.resting-opacity-readout {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  left: calc(env(safe-area-inset-left, 0px) + 10px);
+  z-index: 60;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: var(--gold);
+  opacity: 0.8;
+  pointer-events: none;
+  user-select: none;
+}
