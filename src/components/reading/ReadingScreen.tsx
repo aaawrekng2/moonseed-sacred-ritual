@@ -58,6 +58,10 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   const { isOracle } = useOracleMode();
   const [state, setState] = useState<LoadState>({ kind: "idle" });
   const [retryNonce, setRetryNonce] = useState(0);
+  // Dev override: when true, the next interpret call sets allowOverride
+  // so the server bypasses the daily-quota check. Reset back to false
+  // after the call so subsequent normal retries still see the cap.
+  const overrideRef = useRef(false);
   const { guideId, lensId, facetIds } = useActiveGuide();
   const startedRef = useRef(false);
   const requestSeqRef = useRef(0);
@@ -99,9 +103,19 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
         }
 
         const result = await interpretReading({
-          data: { spread, picks, guideId, lensId, facetIds },
+          data: {
+            spread,
+            picks,
+            guideId,
+            lensId,
+            facetIds,
+            allowOverride: overrideRef.current,
+          },
           headers: { Authorization: `Bearer ${token}` },
         });
+        // Reset override after sending so a future retry doesn't
+        // accidentally inherit the bypass.
+        overrideRef.current = false;
 
         if (!isCurrentRequest()) return;
         if (result.ok) {
@@ -172,15 +186,17 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
         {/* Idle / loading actions. Once interpretation has loaded, these
             collapse so the prose can breathe. */}
         {(state.kind === "idle" || state.kind === "loading") && (
-          <ReadingActions
-            isOracle={isOracle}
-            isLoading={state.kind === "loading"}
-            onSpeak={beginReading}
-          />
+          <div className="reading-actions-fade-in flex w-full justify-center">
+            <ReadingActions
+              isOracle={isOracle}
+              isLoading={state.kind === "loading"}
+              onSpeak={beginReading}
+            />
+          </div>
         )}
 
         <section
-          className="w-full"
+          className="reading-actions-fade-in w-full"
           aria-live="polite"
           aria-busy={state.kind === "loading"}
         >
@@ -194,7 +210,16 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
             />
           )}
           {state.kind === "limit" && (
-            <LimitMessage onExit={onExit} isOracle={isOracle} />
+            <LimitMessage
+              onExit={onExit}
+              isOracle={isOracle}
+              onSubmitAnyway={() => {
+                overrideRef.current = true;
+                startedRef.current = false;
+                setState({ kind: "loading" });
+                setRetryNonce((n) => n + 1);
+              }}
+            />
           )}
           {state.kind === "error" && (
             <ErrorMessage
@@ -213,7 +238,7 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
           <button
             type="button"
             onClick={onExit}
-            className="mt-2 rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+            className="reading-actions-fade-in mt-2 rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
           >
             Done
           </button>
@@ -256,43 +281,27 @@ function CardStrip({
     };
   }, []);
   const isDesktop = vp.w >= 768;
-  const isLandscape = vp.w > vp.h && vp.h <= 500;
 
-  // Cards scale to fill available height once the reading screen
-  // settles. We compute the largest size that respects:
-  //   - tarot aspect ratio (1 : 1.75)
-  //   - viewport width (with margin) divided across picks per row
-  //   - viewport height between top bar and footer/CTA reservation
-  //
-  // For dense spreads (8+) we wrap onto two rows so cards stay tall
-  // rather than shrinking into thin slivers.
+  // Single-row mathematical layout per Fix 2:
+  //   availableWidth = vw - 2*sidePadding - (n-1)*gap
+  //   cardWidth      = availableWidth / n
+  //   cardHeight     = cardWidth * 1.75
+  // Cards must NEVER wrap to a second row regardless of spread size.
+  // For very tall viewports we still cap a lone card so a single huge
+  // card doesn't dominate the screen.
   const cardCount = picks.length;
-  const rows = cardCount >= 8 ? 2 : 1;
-  const perRow = Math.ceil(cardCount / rows);
-  const horizGap = isLandscape || cardCount >= 4 ? 10 : 16;
-  const vertGap = 18;
-  // On phones cards should claim nearly the full viewport width.
-  // On desktop (≥768) we cap so a wide screen doesn't blow them up
-  // past comfortable reading proportions but still ~+20% larger than
-  // the previous pass.
-  const usableW = Math.max(280, vp.w * (isDesktop ? 0.78 : 0.96));
-  // Reserve roughly: top bar + header + bottom CTA/spacing.
-  const reservedV = isLandscape ? 160 : 280;
-  const usableH = Math.max(220, vp.h - reservedV);
-
-  const widthByW = Math.floor(
-    (usableW - horizGap * (perRow - 1)) / perRow,
-  );
-  const heightByH = Math.floor(
-    (usableH - vertGap * (rows - 1)) / rows,
-  );
-  // Width derived from each constraint (height constraint via aspect).
-  const widthFromH = Math.floor(heightByH / 1.75);
-  // On larger viewports cap so a single big card doesn't dominate.
-  // ~+20% bump from the prior values per spec.
+  const sidePadding = isDesktop ? 24 : 12;
+  const horizGap = isDesktop ? 12 : 8;
+  const availableW = Math.max(0, vp.w - 2 * sidePadding - (cardCount - 1) * horizGap);
+  let w = Math.max(28, Math.floor(availableW / Math.max(1, cardCount)));
+  // Cap a single card so it doesn't fill the screen.
   const maxSingle = isDesktop ? 264 : 240;
-  let w = Math.max(36, Math.min(widthByW, widthFromH));
   if (cardCount === 1 && w > maxSingle) w = maxSingle;
+  // Also respect viewport height so cards don't push the CTA off-screen.
+  // Reserve ~280px (mobile) / ~260px (desktop) for top bar + invocation.
+  const reservedV = isDesktop ? 260 : 280;
+  const maxByHeight = Math.floor(Math.max(140, vp.h - reservedV) / 1.75);
+  if (w > maxByHeight) w = maxByHeight;
   const h = Math.round(w * 1.75);
 
   const labelFontSize = w < 60 ? 9 : 10.5;
@@ -300,10 +309,9 @@ function CardStrip({
 
   return (
     <div
-      className="reading-cards-rise flex flex-wrap items-end justify-center"
+      className="reading-cards-nudge flex flex-nowrap items-end justify-center"
       style={{
         columnGap: `${horizGap}px`,
-        rowGap: `${vertGap}px`,
       }}
       role="list"
     >
@@ -763,9 +771,11 @@ function TextSizeSlider({
 function LimitMessage({
   onExit,
   isOracle,
+  onSubmitAnyway,
 }: {
   onExit: () => void;
   isOracle: boolean;
+  onSubmitAnyway: () => void;
 }) {
   return (
     <div className="flex flex-col items-center gap-5 py-6 text-center">
@@ -780,8 +790,8 @@ function LimitMessage({
         }}
       >
         {isOracle
-          ? "You have drawn three times today. The cards rest until tomorrow."
-          : "You\u2019ve completed 3 readings today. Return tomorrow for more guidance."}
+          ? "You have drawn once today. The cards rest until tomorrow."
+          : "You\u2019ve completed your reading for today. Return tomorrow for more guidance."}
       </p>
       <button
         type="button"
@@ -789,6 +799,26 @@ function LimitMessage({
         className="rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
       >
         Done
+      </button>
+      {/* Dev override — unobtrusive italic link beneath the Done button.
+          Bypasses the daily limit on the next interpret call. */}
+      <button
+        type="button"
+        onClick={onSubmitAnyway}
+        style={{
+          background: "transparent",
+          border: "none",
+          padding: "4px 8px",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: 12,
+          color: "var(--gold)",
+          opacity: "var(--ro-plus-10)",
+          cursor: "pointer",
+        }}
+        className="hover:!opacity-100 focus:!opacity-100 focus:outline-none"
+      >
+        Submit Anyway
       </button>
     </div>
   );

@@ -5,8 +5,8 @@ import { SPREAD_META, isValidSpreadMode } from "@/lib/spreads";
 import { getCardName } from "@/lib/tarot";
 import { buildGuideSystemPrompt } from "@/lib/guides";
 
-/** Maximum readings any single user may create in a UTC day. */
-const DAILY_LIMIT = 3;
+/** Maximum readings any single non-premium user may create in a UTC day. */
+const DAILY_LIMIT = 1;
 
 const InterpretInput = z.object({
   spread: z.string().refine(isValidSpreadMode, "Unknown spread"),
@@ -27,6 +27,13 @@ const InterpretInput = z.object({
   guideId: z.string().optional(),
   lensId: z.string().optional(),
   facetIds: z.array(z.string()).max(5).optional(),
+  /**
+   * Dev override: bypass the daily-quota check on this request. Used by
+   * the "Submit Anyway" affordance under the limit-reached message so we
+   * can still iterate on readings while testing. Premium gating (Phase
+   * 10) will replace this knob with a proper entitlement check.
+   */
+  allowOverride: z.boolean().optional(),
 });
 
 export type InterpretedPosition = {
@@ -83,22 +90,29 @@ export const interpretReading = createServerFn({ method: "POST" })
       const startOfDay = new Date();
       startOfDay.setUTCHours(0, 0, 0, 0);
 
-      const { count, error: countErr } = await supabase
-        .from("readings")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", startOfDay.toISOString());
+      if (!data.allowOverride) {
+        const { count, error: countErr } = await supabase
+          .from("readings")
+          .select("*", { count: "exact", head: true })
+          .gte("created_at", startOfDay.toISOString());
 
-      if (countErr) {
-        console.error("[interpretReading] daily-count query failed", countErr);
-        return { ok: false, error: "internal", message: "Could not check daily quota." };
-      }
-      if ((count ?? 0) >= DAILY_LIMIT) {
-        console.log("[interpretReading] daily limit reached", { count });
-        return {
-          ok: false,
-          error: "daily_limit_reached",
-          message: "You have drawn your three readings for today.",
-        };
+        if (countErr) {
+          console.error("[interpretReading] daily-count query failed", countErr);
+          return { ok: false, error: "internal", message: "Could not check daily quota." };
+        }
+        if ((count ?? 0) >= DAILY_LIMIT) {
+          console.log("[interpretReading] daily limit reached", { count });
+          return {
+            ok: false,
+            error: "daily_limit_reached",
+            message:
+              DAILY_LIMIT === 1
+                ? "You have drawn your reading for today."
+                : `You have drawn your ${DAILY_LIMIT} readings for today.`,
+          };
+        }
+      } else {
+        console.log("[interpretReading] daily limit override active", { userId });
       }
 
       // 2. Build the user prompt from the picks + spread metadata.

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 
 const EVENT = "arcana:resting-opacity-changed";
 export const DEFAULT_RESTING_OPACITY = 50;
@@ -38,7 +38,12 @@ export function useRestingOpacity() {
   const [value, setValue] = useState<number>(DEFAULT_RESTING_OPACITY);
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
+  // Single source of truth: read localStorage and write the CSS variable
+  // BEFORE first paint via useLayoutEffect. This guarantees every consumer
+  // (TopRightControls icons, settings sliders, the readout) agrees on the
+  // same value on the first render after hydration — no fade-in flicker
+  // when navigating between routes.
+  useLayoutEffect(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem(STORAGE_KEY);
       const initial = stored != null ? clamp(Number(stored)) : DEFAULT_RESTING_OPACITY;
