@@ -417,6 +417,7 @@ function ReadingActions({
   const activeEmoji = activeCustom ? "✦" : activeBuiltIn.accentEmoji;
 
   const speakLabel = isOracle ? "Let Them Speak" : "Get Reading";
+  const loadingLabel = isOracle ? "The cards are speaking…" : "Reading the cards…";
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
@@ -515,12 +516,15 @@ function ReadingActions({
         )}
       </div>
 
-      {/* Let Them Speak button with mist animation */}
+      {/* "Let Them Speak" — flowing-text invocation. No pill, no fill.
+          The mist breathes behind the words so the call still feels
+          alive without becoming a UI button. */}
       <button
         type="button"
         onClick={onSpeak}
         disabled={isLoading}
-        className="reading-mist-button relative w-full max-w-sm overflow-hidden rounded-2xl border border-gold/40 bg-cosmos px-6 py-5 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed"
+        className="reading-mist-button reading-invocation"
+        aria-busy={isLoading}
       >
         <span className="reading-mist" aria-hidden />
         <span
@@ -528,12 +532,13 @@ function ReadingActions({
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
-            fontSize: 22,
+            fontSize: isLoading ? 20 : 26,
             color: "var(--gold)",
             letterSpacing: "0.02em",
+            textShadow: "0 0 18px color-mix(in oklab, var(--gold) 35%, transparent)",
           }}
         >
-          {isLoading ? (isOracle ? "Listening…" : "Reading…") : speakLabel}
+          {isLoading ? loadingLabel : speakLabel}
         </span>
       </button>
     </div>
