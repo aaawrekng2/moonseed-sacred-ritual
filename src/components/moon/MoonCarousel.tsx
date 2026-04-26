@@ -718,7 +718,7 @@ function MobilePhaseLadder({
           onClick={() => onJump(r.phase)}
           aria-label={`Jump to ${isLeft ? "previous" : "next"} ${r.label}`}
           style={{
-            opacity: restingAlpha,
+            opacity: `var(--ro-plus-20)`,
             [isLeft ? "marginLeft" : "marginRight"]: MOBILE_RUNG_INSETS[i],
           }}
           className="group cursor-pointer rounded-full border-0 bg-transparent p-0 transition-all duration-200 hover:opacity-100 hover:scale-110 outline-none focus-visible:!opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
