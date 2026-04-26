@@ -32,7 +32,11 @@ function readInitial(): UIDensityLevel {
 }
 
 const listeners = new Set<(v: UIDensityLevel) => void>();
-let current: UIDensityLevel = readInitial();
+// SSR-safe: start at the default. Real value is read from localStorage
+// inside useEffect (post-mount) to avoid hydration mismatches when the
+// server-rendered HTML is reconciled with the client tree.
+let current: UIDensityLevel = 1;
+let initializedFromLocal = false;
 let hydratedFromServer = false;
 
 function broadcast(v: UIDensityLevel) {
@@ -54,9 +58,19 @@ export function useUIDensity(): {
   setLevel: (v: UIDensityLevel) => void;
   cycleLevel: () => void;
 } {
-  const [level, setLocal] = useState<UIDensityLevel>(current);
+  // Always start from the SSR-default so the first client render exactly
+  // matches the server. Sync from localStorage in the effect below.
+  const [level, setLocal] = useState<UIDensityLevel>(1);
 
   useEffect(() => {
+    if (!initializedFromLocal) {
+      initializedFromLocal = true;
+      const v = readInitial();
+      if (v !== current) {
+        current = v;
+        listeners.forEach((l) => l(v));
+      }
+    }
     const sub = (v: UIDensityLevel) => setLocal(v);
     listeners.add(sub);
     setLocal(current);
