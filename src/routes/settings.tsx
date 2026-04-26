@@ -189,8 +189,6 @@ function SettingsLayout() {
               style={{
                 marginTop: "calc(var(--topbar-pad) * -1)",
                 marginBottom: "calc(var(--topbar-pad) * -1)",
-              }}
-              style={{
                 background: "oklch(0.13 0.04 280)",
                 borderRight: "1px solid oklch(0.30 0.04 285 / 0.25)",
                 minHeight: "100dvh",
