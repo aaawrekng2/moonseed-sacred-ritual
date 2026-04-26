@@ -472,6 +472,95 @@ function CardBackSection() {
 /*  The Field — unified accent + horizon                                */
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/*  Live Theme Preview — small phone-shaped mock                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Tiny phone-shaped preview that mirrors the current theme state in
+ * real time: the live --bg-gradient-left/right stops as the background,
+ * the active card back centered like the home gateway card, and the
+ * accent color glowing softly behind it. Updates instantly on every
+ * picker change since it reads `prefs` straight from SettingsContext
+ * and the live `--gold` CSS var.
+ */
+function LiveThemePreview() {
+  const { prefs } = useSettings();
+  const { isOracle } = useOracleMode();
+  const [cardBack, setCardBack] = useState<CardBackId>(DEFAULT_CARD_BACK);
+
+  // Keep the preview's card back in sync with the chosen one. The Card
+  // Back picker writes via setStoredCardBack(); we listen for the event
+  // it dispatches indirectly by polling on every prefs change PLUS a
+  // storage tick, which catches the rare case where another tab edits.
+  useEffect(() => {
+    setCardBack(getStoredCardBack());
+    const onStorage = () => setCardBack(getStoredCardBack());
+    if (typeof window !== "undefined") {
+      window.addEventListener("storage", onStorage);
+      return () => window.removeEventListener("storage", onStorage);
+    }
+  }, [prefs.card_back]);
+
+  const left = prefs.bg_gradient_from ?? DEFAULT_BG_LEFT;
+  const right = prefs.bg_gradient_to ?? DEFAULT_BG_RIGHT;
+  const accent = prefs.accent_color ?? "var(--gold)";
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div
+        aria-hidden
+        className="relative overflow-hidden"
+        style={{
+          width: 160,
+          height: 280,
+          borderRadius: 24,
+          border: "1px solid oklch(0.82 0.14 82 / 0.20)",
+          background: `linear-gradient(135deg, ${left}, ${right})`,
+          boxShadow:
+            "0 12px 32px -16px rgba(0,0,0,0.55), inset 0 0 24px rgba(0,0,0,0.25)",
+        }}
+      >
+        {/* Soft accent glow behind the card */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            width: 120,
+            height: 120,
+            transform: "translate(-50%, -50%)",
+            borderRadius: "50%",
+            background: `radial-gradient(circle, ${accent}44 0%, transparent 70%)`,
+            filter: "blur(8px)",
+          }}
+        />
+        {/* Centered card back, gateway-style */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
+        >
+          <CardBack id={cardBack} width={70} />
+        </div>
+      </div>
+      <p
+        className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground italic"
+        style={{ fontFamily: "var(--font-serif)" }}
+      >
+        {isOracle ? "A Glimpse" : "Live Preview"}
+      </p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  The Field section body                                              */
+/* ------------------------------------------------------------------ */
+
 /**
  * Single section that combines what used to be "Your Signature" and
  * "The Horizon". Three swatches in a row drive (1) the accent color
