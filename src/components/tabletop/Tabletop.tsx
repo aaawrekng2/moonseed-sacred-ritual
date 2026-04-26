@@ -12,11 +12,7 @@ import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { SPREAD_META, spreadUsesSlots, type SpreadMode } from "@/lib/spreads";
-import {
-  MAX_RESTING_OPACITY,
-  MIN_RESTING_OPACITY,
-  useRestingOpacity,
-} from "@/lib/use-resting-opacity";
+import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { t } from "@/lib/oracle-language";
@@ -372,8 +368,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // Viewport-coordinate rect for each slot (id'd by slot index 0..N-1).
   // Re-measured on resize and when slot row mounts.
   const [slotRects, setSlotRects] = useState<Array<DOMRect | null>>([]);
-  const { opacity: restingOpacityPct, setOpacity: setRestingOpacity } =
-    useRestingOpacity();
+  const { opacity: restingOpacityPct } = useRestingOpacity();
   const restingAlpha = restingOpacityPct / 100;
   const exitAlpha = Math.min(1, restingAlpha + 0.1);
   // Persisted preference for showing spread position labels under each
