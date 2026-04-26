@@ -493,12 +493,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // so resizing or first-mount doesn't wipe the user's selections.
   const initialScatter = useMemo(() => {
     if (!size) return [] as ScatterCard[];
-    // `size.h` comes from getBoundingClientRect() which already includes
-    // the container's padding-top. Cards are absolutely positioned
-    // relative to the padding edge, so we use the full measured height
-    // here — subtracting TOP_RESERVE again would double-reserve and
-    // push cards too far down.
-    const usableH = Math.max(1, size.h);
+    // Absolutely positioned children land at the BORDER edge of the
+    // (position: relative) container — `padding-top` does NOT push them
+    // down. So we must explicitly reserve TOP_RESERVE here: shrink the
+    // usable height and translate every card's Y by TOP_RESERVE via
+    // `topOffset`. This keeps cards out from under the top bar.
+    const usableH = Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE);
     return buildScatter({
       width: size.w,
       height: usableH,
@@ -510,6 +510,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       seed,
       exclusionZones,
       minVisibleRatio: 0.3,
+      topOffset: TABLETOP_CONFIG.TOP_RESERVE,
     });
   }, [size, seed, cardW, cardH, maxRotation, exclusionZones]);
 
