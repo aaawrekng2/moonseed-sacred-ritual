@@ -172,15 +172,17 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
         {/* Idle / loading actions. Once interpretation has loaded, these
             collapse so the prose can breathe. */}
         {(state.kind === "idle" || state.kind === "loading") && (
-          <ReadingActions
-            isOracle={isOracle}
-            isLoading={state.kind === "loading"}
-            onSpeak={beginReading}
-          />
+          <div className="reading-actions-fade-in flex w-full justify-center">
+            <ReadingActions
+              isOracle={isOracle}
+              isLoading={state.kind === "loading"}
+              onSpeak={beginReading}
+            />
+          </div>
         )}
 
         <section
-          className="w-full"
+          className="reading-actions-fade-in w-full"
           aria-live="polite"
           aria-busy={state.kind === "loading"}
         >
@@ -213,7 +215,7 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
           <button
             type="button"
             onClick={onExit}
-            className="mt-2 rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+            className="reading-actions-fade-in mt-2 rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
           >
             Done
           </button>
