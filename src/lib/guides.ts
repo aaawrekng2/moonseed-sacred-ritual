@@ -233,14 +233,11 @@ export function buildGuideSystemPrompt(args: {
     facetLine ? "" : null,
     facetLine || null,
     "",
-    "Always respond in this exact JSON format and nothing else:",
-    "{",
-    '  "overview": "2-3 sentence reading of the spread as a whole",',
-    '  "positions": [',
-    '    { "position": "Position name", "card": "Card name", "interpretation": "2-3 sentences specific to this card in this position" }',
-    "  ],",
-    '  "closing": "One final sentence — a gentle invitation to reflect"',
-    "}",
+    "Always respond in this exact JSON format and nothing else — no markdown fences, no extra text:",
+    "",
+    '{"overview":"...","positions":[{"position":"...","card":"...","interpretation":"..."}],"closing":"..."}',
+    "",
+    "The overview should be 2-3 sentences about the spread as a whole. Each position interpretation should be 2-3 sentences specific to that card in that position. The closing should be one sentence — a gentle invitation to reflect.",
   ]
     .filter((line) => line !== null)
     .join("\n");
