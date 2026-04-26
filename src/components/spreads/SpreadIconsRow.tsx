@@ -83,7 +83,7 @@ export function SpreadIconsRow({
           <span className="flex h-5 items-center justify-center">
             <Glyph />
           </span>
-          <span className="font-display text-[11px] italic tracking-wide">
+          <span className="clarity-label font-display text-[11px] italic tracking-wide">
             {label}
           </span>
         </button>
