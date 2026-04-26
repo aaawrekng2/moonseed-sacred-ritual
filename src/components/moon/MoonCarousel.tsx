@@ -112,6 +112,11 @@ export function MoonCarousel() {
   // layout transitions that would otherwise fight the position tween.
   const [transitioning, setTransitioning] = useState(false);
 
+  // Direction the user last navigated. Used by CenterCard to slide the
+  // date label in from the matching edge: a swipe LEFT (next day) makes
+  // the new day enter from the right, and vice versa.
+  const [enterDir, setEnterDir] = useState<"left" | "right">("right");
+
   const [retryNonce, setRetryNonce] = useState(0);
   const { days, todayMoonSign, error } = useMemo(() => {
     try {
@@ -154,6 +159,7 @@ export function MoonCarousel() {
       cancelAnimationFrame(tweenRafRef.current);
       tweenRafRef.current = null;
     }
+    setEnterDir(dir === 1 ? "right" : "left");
     setOffset((o) => o + dir);
     setExpandedRel(null);
     setSelectedRel(null);
