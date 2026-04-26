@@ -844,3 +844,56 @@ button:focus-visible .moon-rung-glow {
   pointer-events: none;
   user-select: none;
 }
+
+/* ---------------------------------------------------------------------- */
+/* Breathing-text toggles — replacement for pill/capsule chips throughout  */
+/* the app. Inactive: plain dim text. Active: same text with a soft       */
+/* gold underline that fades in. Hover lifts opacity gently. Used by      */
+/* Lens selector, Facets, and any other "tag/pill" the design language    */
+/* used to render with a border + fill.                                   */
+/* ---------------------------------------------------------------------- */
+.breathing-text-toggle {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--gold);
+  cursor: pointer;
+  opacity: var(--ro-plus-0);
+  transition: opacity 200ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.breathing-text-toggle:hover:not(:disabled),
+.breathing-text-toggle:focus-visible {
+  opacity: var(--ro-plus-30);
+  outline: none;
+}
+.breathing-text-toggle.is-active {
+  opacity: 1;
+}
+.breathing-text-toggle .breathing-text-label {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 2px;
+}
+.breathing-text-toggle .breathing-text-label::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 0;
+  height: 1px;
+  background: var(--gold);
+  transform: translateX(-50%);
+  transition: width 200ms ease, opacity 200ms ease;
+  opacity: 0;
+  box-shadow: 0 0 6px color-mix(in oklab, var(--gold) 60%, transparent);
+}
+.breathing-text-toggle.is-active .breathing-text-label::after {
+  width: 100%;
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .breathing-text-toggle .breathing-text-label::after {
+    transition: none;
+  }
+}
