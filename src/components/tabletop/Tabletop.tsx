@@ -2270,6 +2270,7 @@ function CardSlot({
       wasDraggedRef.current = true;
     }
     dragStateRef.current = null;
+    draggingRef.current = false;
     setDragging(false);
     setDragPos(null);
     return wasDragging;
