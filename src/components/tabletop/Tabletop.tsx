@@ -2094,7 +2094,17 @@ function CardSlot({
       // a last resort.
       const freshRect = containerElRef.current?.getBoundingClientRect();
       const cLeft = freshRect?.left ?? containerRect?.left ?? 0;
-      const cTop = freshRect?.top ?? containerRect?.top ?? 0;
+      // Cards are absolutely positioned, so their `top` coords are relative
+      // to the container's *padding edge*, not its border edge. Add the
+      // computed padding-top so the conversion lands the card under the
+      // pointer instead of jumping down by ~64px on first grab.
+      const cTopBorder = freshRect?.top ?? containerRect?.top ?? 0;
+      const padTop = containerElRef.current
+        ? parseFloat(
+            getComputedStyle(containerElRef.current).paddingTop || "0",
+          ) || 0
+        : 0;
+      const cTop = cTopBorder + padTop;
       setDragPos({
         x: s.startClientX - s.pointerOffsetX - cLeft,
         y: s.startClientY - s.pointerOffsetY - cTop,
