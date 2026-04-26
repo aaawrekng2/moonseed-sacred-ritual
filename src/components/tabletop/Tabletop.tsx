@@ -2324,7 +2324,8 @@ function CardSlot({
       className={cn(
         (flying && launchRect && slotRect) ||
         (flightPhase === "returning" && returnFromRect && containerOrigin) ||
-        (skipFlight && slotRect)
+        (skipFlight && slotRect) ||
+        (dragging && dragPos)
           ? "fixed outline-none focus:outline-none focus-visible:outline-none"
           : "absolute outline-none focus:outline-none focus-visible:outline-none",
         flying || flightPhase === "returning" || dragging
@@ -2343,9 +2344,12 @@ function CardSlot({
               // Card is being dragged — follow the pointer with a slight
               // lift (scale 1.05) and a subtle shadow. Selection state is
               // preserved via the existing render path; only positioning
-              // is overridden here. zIndex jumps above every other card.
-              left: dragPos.x,
-              top: dragPos.y,
+              // is overridden here. We render with `position: fixed` and
+              // viewport coords so the lifted card escapes the
+              // tabletop-stage `overflow:hidden` clip and floats above the
+              // bottom whisper / slot rail at zIndex 9999.
+              left: (containerOrigin?.left ?? 0) + dragPos.x,
+              top: (containerOrigin?.top ?? 0) + dragPos.y,
               width: cardW,
               height: cardH,
               transform: "rotate(0deg) scale(1.05)",
