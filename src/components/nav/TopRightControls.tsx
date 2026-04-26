@@ -59,11 +59,10 @@ export function ExpandingIconButton({
   label,
   labelFont,
   labelStyle = "muted",
-  isActive,
   onClick,
   ariaLabel,
   title,
-  restingOpacity,
+  restingLevel = "--ro-plus-0",
 }: {
   icon: ReactNode;
   label: string;
@@ -71,20 +70,17 @@ export function ExpandingIconButton({
   labelFont?: string;
   /** Italic gold (Oracle voice) vs. muted plain. */
   labelStyle?: "italic-gold" | "muted";
-  /** Whether the underlying state is "on" — keeps the icon at full opacity. */
-  isActive?: boolean;
   onClick: () => void;
   ariaLabel: string;
   title?: string;
   /**
-   * Override the at-rest opacity. When provided the icon ALWAYS uses
-   * this value at rest (regardless of isActive), so callers can opt
-   * into the global resting-opacity system instead of being forced
-   * to 100% when their state happens to be "on".
+   * Which CSS variable to use for resting opacity.
+   * Pass the variable name as a string: "--ro-plus-0", "--ro-plus-20", etc.
+   * Default: "--ro-plus-0".
    */
-  restingOpacity?: string;
+  restingLevel?: string;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanding, setExpanding] = useState(false);
   const collapseTimer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -96,8 +92,8 @@ export function ExpandingIconButton({
   const handleClick = () => {
     onClick();
     if (collapseTimer.current) window.clearTimeout(collapseTimer.current);
-    setExpanded(true);
-    collapseTimer.current = window.setTimeout(() => setExpanded(false), 1500);
+    setExpanding(true);
+    collapseTimer.current = window.setTimeout(() => setExpanding(false), 1500);
   };
 
   return (
@@ -106,23 +102,25 @@ export function ExpandingIconButton({
       aria-label={ariaLabel}
       title={title}
       onClick={handleClick}
-      className="relative flex h-11 min-w-[44px] items-center justify-center overflow-hidden rounded-full text-gold focus:outline-none hover:!opacity-100 focus:!opacity-100"
+      data-expanding={expanding ? "true" : "false"}
+      className="topbar-icon relative flex h-11 min-w-[44px] items-center justify-center overflow-hidden rounded-full text-gold focus:outline-none"
       style={{
-        // 44px tap target at rest (Apple HIG minimum). Expands horizontally
-        // to fit the label when tapped, contracts back after 1500ms.
-        width: expanded ? "auto" : "44px",
+        // Per-icon resting level. The .topbar-icon CSS rule reads this
+        // custom property — opacity is NEVER set inline or via React state.
+        ["--topbar-icon-resting" as string]: `var(${restingLevel})`,
+        width: expanding ? "auto" : "44px",
         minWidth: "44px",
-        paddingLeft: expanded ? "0.5rem" : "0",
-        paddingRight: expanded ? "0.5rem" : "0",
-        opacity: restingOpacity ?? (isActive ? 1 : "var(--ro-plus-20)"),
-        background: expanded
+        paddingLeft: expanding ? "0.5rem" : "0",
+        paddingRight: expanding ? "0.5rem" : "0",
+        background: expanding
           ? "color-mix(in oklch, var(--gold) 12%, transparent)"
           : "transparent",
-        border: expanded
+        border: expanding
           ? "1px solid color-mix(in oklch, var(--gold) 30%, transparent)"
           : "1px solid transparent",
         transition:
-          "width 300ms cubic-bezier(0.22, 1, 0.36, 1), padding 300ms cubic-bezier(0.22, 1, 0.36, 1), background 200ms ease, border-color 200ms ease, opacity 200ms ease",
+          "width 300ms cubic-bezier(0.22, 1, 0.36, 1), padding 300ms cubic-bezier(0.22, 1, 0.36, 1), background 200ms ease, border-color 200ms ease",
+        // NOTE: opacity transition handled entirely by .topbar-icon CSS class.
       }}
     >
       {icon}
@@ -130,9 +128,9 @@ export function ExpandingIconButton({
         aria-hidden
         className="overflow-hidden whitespace-nowrap text-xs"
         style={{
-          maxWidth: expanded ? "160px" : "0px",
-          opacity: expanded ? 1 : 0,
-          marginLeft: expanded ? "0.35rem" : "0",
+          maxWidth: expanding ? "160px" : "0px",
+          opacity: expanding ? 1 : 0,
+          marginLeft: expanding ? "0.35rem" : "0",
           fontFamily: labelFont,
           fontStyle: labelStyle === "italic-gold" ? "italic" : "normal",
           color:
