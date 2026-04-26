@@ -224,7 +224,11 @@ export function GuideSelector({
                       {g.traits.slice(0, 4).map((t) => (
                         <span
                           key={t}
-                          className="rounded-full border border-gold/25 px-2 py-0.5 text-[9px] uppercase tracking-wider text-gold/80"
+                          className="text-[9px] uppercase tracking-wider"
+                          style={{
+                            color: "var(--gold)",
+                            opacity: "var(--ro-plus-20)",
+                          }}
                         >
                           {t}
                         </span>
@@ -331,18 +335,17 @@ export function GuideSelector({
                   type="button"
                   onClick={() => setLens(lens.id as LensMode)}
                   className={cn(
-                    "rounded-xl border px-2 py-2.5 text-center text-[11px] transition",
-                    active
-                      ? "border-gold bg-gold/10 text-gold"
-                      : "border-border/40 text-muted-foreground hover:border-gold/40",
+                    "breathing-text-toggle px-2 py-2.5 text-center text-[12px]",
+                    active && "is-active",
                   )}
+                  data-active={active ? "true" : "false"}
                 >
-                  <div
-                    className="italic"
+                  <span
+                    className="italic breathing-text-label"
                     style={{ fontFamily: "var(--font-serif)" }}
                   >
                     {isOracle ? lens.oracleName : lens.name}
-                  </div>
+                  </span>
                 </button>
               );
             })}
@@ -376,15 +379,19 @@ export function GuideSelector({
                   disabled={disabled}
                   onClick={() => toggleFacet(f.id as FacetId)}
                   className={cn(
-                    "rounded-full border px-3 py-1.5 text-[11px] transition",
-                    active
-                      ? "border-gold bg-gold/15 text-gold"
-                      : "border-border/40 text-muted-foreground hover:border-gold/40",
+                    "breathing-text-toggle px-2 py-1.5 text-[12px]",
+                    active && "is-active",
                     disabled && "opacity-40",
                   )}
+                  data-active={active ? "true" : "false"}
                   title={f.description}
                 >
-                  {f.name}
+                  <span
+                    className="breathing-text-label"
+                    style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
+                  >
+                    {f.name}
+                  </span>
                 </button>
               );
             })}
