@@ -401,6 +401,7 @@ export function MoonCarousel() {
                     sign={d.sign}
                     expanded={isExpanded}
                     selected={isSelected}
+                    enterDir={enterDir}
                     onToggle={() => {
                       if (swipedRef.current) {
                         swipedRef.current = false;
