@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Eye, EyeOff, EyeClosed, Undo2, Redo2, X } from "lucide-react";
+import { Eye, EyeOff, EyeClosed, HelpCircle, Undo2, Redo2, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -401,6 +401,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   // On-brand confirmation dialog state (replaces window.confirm calls).
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
+  // Celtic Cross help popup — always-accessible (no localStorage gate).
+  // Shown only on the Celtic Cross spread; the trigger lives in the top
+  // bar so the user can re-open the explainer whenever they want.
+  const [celticHelpOpen, setCelticHelpOpen] = useState(false);
 
   // Read selected card back once on mount.
   useEffect(() => {
