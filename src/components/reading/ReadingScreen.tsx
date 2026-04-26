@@ -292,27 +292,121 @@ function CardStrip({
   }, []);
   const isDesktop = vp.w >= 768;
 
-  // Single-row mathematical layout per Fix 2:
-  //   availableWidth = vw - 2*sidePadding - (n-1)*gap
-  //   cardWidth      = availableWidth / n
-  //   cardHeight     = cardWidth * 1.75
-  // Cards must NEVER wrap to a second row regardless of spread size.
-  // For very tall viewports we still cap a lone card so a single huge
-  // card doesn't dominate the screen.
+
+  if (spread === "celtic") {
+    // Celtic Cross: preserve the cross+staff layout. Use fixed sizing
+    // that matches SpreadLayout so there is no visual jump on transition.
+    const cw = isDesktop ? 56 : 48;
+    const ch = Math.round(cw * 1.75);
+    const colGap = Math.round(cw * 0.35);
+    const rowGap = Math.round(ch * 0.18);
+
+    const card = (i: number) => (
+      <div key={picks[i]?.id ?? i} className="flex flex-col items-center gap-1">
+        <div
+          className="overflow-hidden rounded-[6px] border border-gold/40 bg-card"
+          style={{ width: cw, height: ch, boxShadow: "0 4px 14px rgba(0,0,0,0.45)" }}
+        >
+          {picks[i] && (
+            <img
+              src={getCardImagePath(picks[i].cardIndex)}
+              alt={getCardName(picks[i].cardIndex)}
+              className="h-full w-full object-cover"
+              loading="eager"
+            />
+          )}
+        </div>
+        {showLabels && (
+          <span
+            className="font-display italic"
+            style={{
+              fontSize: 9,
+              color: "var(--gold)",
+              opacity: labelOpacity,
+              letterSpacing: "0.05em",
+              whiteSpace: "nowrap",
+              textAlign: "center",
+              transition: "opacity 250ms ease",
+            }}
+          >
+            {positionLabels[i] ?? `Card ${i + 1}`}
+          </span>
+        )}
+      </div>
+    );
+
+    const staff = [6, 7, 8, 9];
+
+    return (
+      <div className="reading-cards-nudge flex items-center" style={{ gap: colGap * 1.4 }}>
+        {/* Cross block */}
+        <div className="flex items-center" style={{ gap: colGap }}>
+          {/* Past (index 3) */}
+          {card(3)}
+          {/* Center column */}
+          <div className="flex flex-col items-center" style={{ gap: rowGap }}>
+            {/* Future (index 5) */}
+            {card(5)}
+            {/* Present + Obstacle stacked */}
+            <div className="relative flex items-center justify-center" style={{ width: cw, height: ch }}>
+              <div className="absolute inset-0 flex items-center justify-center">
+                {picks[0] && (
+                  <div className="overflow-hidden rounded-[6px] border border-gold/40 bg-card" style={{ width: cw, height: ch }}>
+                    <img src={getCardImagePath(picks[0].cardIndex)} alt={getCardName(picks[0].cardIndex)} className="h-full w-full object-cover" loading="eager" />
+                  </div>
+                )}
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center" style={{ transform: "rotate(90deg)" }}>
+                {picks[1] && (
+                  <div className="overflow-hidden rounded-[6px] border border-gold/40 bg-card" style={{ width: cw, height: ch }}>
+                    <img src={getCardImagePath(picks[1].cardIndex)} alt={getCardName(picks[1].cardIndex)} className="h-full w-full object-cover" loading="eager" />
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Root (index 2) */}
+            {card(2)}
+          </div>
+          {/* Potential (index 4) */}
+          {card(4)}
+        </div>
+        {/* Staff column */}
+        <div className="flex flex-col" style={{ gap: rowGap * 0.6 }}>
+          {staff.map((i) => card(i))}
+        </div>
+      </div>
+    );
+  }
+
+  // All other spreads: math-driven sizing, locked for 3-card to match SpreadLayout.
   const cardCount = picks.length;
   const sidePadding = isDesktop ? 24 : 12;
   const horizGap = isDesktop ? 12 : 8;
-  const availableW = Math.max(0, vp.w - 2 * sidePadding - (cardCount - 1) * horizGap);
-  let w = Math.max(28, Math.floor(availableW / Math.max(1, cardCount)));
-  // Cap a single card so it doesn't fill the screen.
-  const maxSingle = isDesktop ? 264 : 240;
-  if (cardCount === 1 && w > maxSingle) w = maxSingle;
-  // Also respect viewport height so cards don't push the CTA off-screen.
-  // Reserve ~280px (mobile) / ~260px (desktop) for top bar + invocation.
-  const reservedV = isDesktop ? 260 : 280;
-  const maxByHeight = Math.floor(Math.max(140, vp.h - reservedV) / 1.75);
-  if (w > maxByHeight) w = maxByHeight;
-  const h = Math.round(w * 1.75);
+
+  let w: number;
+  let h: number;
+
+  if (cardCount === 3) {
+    // Lock to SpreadLayout sizing to prevent jump on transition
+    w = isDesktop ? 112 : 92;
+    h = isDesktop ? 196 : 161;
+  } else if (cardCount === 1) {
+    // Single card: fill generously but cap so it doesn't dominate
+    const availableW = Math.max(0, vp.w - 2 * sidePadding);
+    w = Math.min(isDesktop ? 264 : 240, availableW);
+    const reservedV = isDesktop ? 260 : 280;
+    const maxByHeight = Math.floor(Math.max(140, vp.h - reservedV) / 1.75);
+    if (w > maxByHeight) w = maxByHeight;
+    h = Math.round(w * 1.75);
+  } else {
+    // Any other spread count: mathematical single-row layout
+    const availableW = Math.max(0, vp.w - 2 * sidePadding - (cardCount - 1) * horizGap);
+    w = Math.max(28, Math.floor(availableW / Math.max(1, cardCount)));
+    const reservedV = isDesktop ? 260 : 280;
+    const maxByHeight = Math.floor(Math.max(140, vp.h - reservedV) / 1.75);
+    if (w > maxByHeight) w = maxByHeight;
+    h = Math.round(w * 1.75);
+  }
 
   const labelFontSize = w < 60 ? 9 : 10.5;
   const labelMaxWidth = Math.max(w + 14, 70);
