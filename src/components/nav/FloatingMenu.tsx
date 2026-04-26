@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
 import {
   CheckCheck,
   Clipboard,
@@ -34,7 +33,6 @@ import { dispatchActiveThemeChanged } from "@/lib/theme-events";
  * know which route is active.
  */
 export function FloatingMenu() {
-  const navigate = useNavigate();
   const { isOracle, toggle: toggleOracle } = useOracleMode();
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
