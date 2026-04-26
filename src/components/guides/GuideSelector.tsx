@@ -48,10 +48,18 @@ export function GuideSelector({
   const premium = usePremium(user?.id);
   // The Clarity (Seen/Glimpse/Veiled) dims non-essential surface chrome
   // on this screen so the global tap-to-peek affordance has something
-  // visible to flash back to full opacity.
+  // visible to flash back to full opacity. We bind opacity to the
+  // CSS var that tap-to-peek writes (`--resting-opacity` via
+  // `--ro-plus-N`) so a tap on empty space momentarily lifts the
+  // dimmed surfaces back toward full visibility, exactly as on the
+  // tabletop.
   const { level } = useUIDensity();
-  const peekOpacity =
-    level === 3 ? "var(--ro-plus-0)" : level === 2 ? "var(--ro-plus-30)" : 1;
+  const peekOpacity: string | number =
+    level === 3
+      ? "var(--ro-plus-10)"
+      : level === 2
+        ? "var(--ro-plus-40)"
+        : 1;
   const {
     guideId,
     lensId,
