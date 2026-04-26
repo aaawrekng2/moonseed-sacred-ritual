@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { HelpCircle, Undo2, Redo2, X } from "lucide-react";
+import { Undo2, Redo2, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -16,7 +16,10 @@ import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { t } from "@/lib/oracle-language";
-import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
+import {
+  useRegisterCloseHandler,
+  useRegisterHelpHandler,
+} from "@/lib/floating-menu-context";
 import {
   AlertDialog,
   AlertDialogAction,
