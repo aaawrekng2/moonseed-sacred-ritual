@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/auth";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useActiveGuide } from "@/lib/use-active-guide";
 import { usePremium } from "@/lib/premium";
+import { useUIDensity } from "@/lib/use-ui-density";
 import {
   BUILT_IN_GUIDES,
   DEFAULT_GUIDE_ID,
@@ -45,6 +46,12 @@ export function GuideSelector({
   const { user } = useAuth();
   const { isOracle } = useOracleMode();
   const premium = usePremium(user?.id);
+  // The Clarity (Seen/Glimpse/Veiled) dims non-essential surface chrome
+  // on this screen so the global tap-to-peek affordance has something
+  // visible to flash back to full opacity.
+  const { level } = useUIDensity();
+  const peekOpacity =
+    level === 3 ? "var(--ro-plus-0)" : level === 2 ? "var(--ro-plus-30)" : 1;
   const {
     guideId,
     lensId,
@@ -135,7 +142,10 @@ export function GuideSelector({
         paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
       }}
     >
-      <header className="flex items-start justify-between px-6 pb-4">
+      <header
+        className="flex items-start justify-between px-6 pb-4"
+        style={{ opacity: peekOpacity, transition: "opacity 400ms ease" }}
+      >
         <div>
           <h1
             className="text-xl italic text-gold"
