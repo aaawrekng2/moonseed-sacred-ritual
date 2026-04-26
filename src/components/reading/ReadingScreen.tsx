@@ -7,6 +7,7 @@ import {
   type InterpretationPayload,
 } from "@/lib/interpret.functions";
 import { supabase } from "@/lib/supabase";
+import { useActiveGuide } from "@/lib/use-active-guide";
 
 type Pick = { id: number; cardIndex: number };
 
@@ -31,6 +32,7 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   const meta = SPREAD_META[spread];
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [retryNonce, setRetryNonce] = useState(0);
+  const { guideId, lensId, facetIds } = useActiveGuide();
   // useServerFn is the typical hook, but interpretReading needs the user's
   // bearer token in the Authorization header for requireSupabaseAuth, and
   // the default fetch on server functions doesn't add it. We call the RPC
@@ -74,7 +76,7 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
         }
 
         const result = await interpretReading({
-          data: { spread, picks },
+          data: { spread, picks, guideId, lensId, facetIds },
           headers: { Authorization: `Bearer ${token}` },
         });
 
