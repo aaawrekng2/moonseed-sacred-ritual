@@ -2103,17 +2103,12 @@ function CardSlot({
       // a last resort.
       const freshRect = containerElRef.current?.getBoundingClientRect();
       const cLeft = freshRect?.left ?? containerRect?.left ?? 0;
-      // Cards are absolutely positioned, so their `top` coords are relative
-      // to the container's *padding edge*, not its border edge. Add the
-      // computed padding-top so the conversion lands the card under the
-      // pointer instead of jumping down by ~64px on first grab.
-      const cTopBorder = freshRect?.top ?? containerRect?.top ?? 0;
-      const padTop = containerElRef.current
-        ? parseFloat(
-            getComputedStyle(containerElRef.current).paddingTop || "0",
-          ) || 0
-        : 0;
-      const cTop = cTopBorder + padTop;
+      // Cards are absolutely positioned, so their `top` coords are
+      // relative to the container's BORDER edge (padding does not
+      // offset absolutely positioned children). Use the border-edge
+      // top directly — TOP_RESERVE is baked into card Y values via
+      // buildScatter's `topOffset`, so no per-frame adjustment here.
+      const cTop = freshRect?.top ?? containerRect?.top ?? 0;
       setDragPos({
         x: s.startClientX - s.pointerOffsetX - cLeft,
         y: s.startClientY - s.pointerOffsetY - cTop,
@@ -2185,13 +2180,8 @@ function CardSlot({
     // collapse mid-gesture) so we re-measure every move.
     const freshRect = containerElRef.current?.getBoundingClientRect();
     const cLeft = freshRect?.left ?? containerRect?.left ?? 0;
-    const cTopBorder = freshRect?.top ?? containerRect?.top ?? 0;
-    const padTop = containerElRef.current
-      ? parseFloat(
-          getComputedStyle(containerElRef.current).paddingTop || "0",
-        ) || 0
-      : 0;
-    const cTop = cTopBorder + padTop;
+    // Border edge — absolute children are NOT offset by padding-top.
+    const cTop = freshRect?.top ?? containerRect?.top ?? 0;
     if (el) {
       el.style.left = `${e.clientX - s.pointerOffsetX - cLeft}px`;
       el.style.top = `${e.clientY - s.pointerOffsetY - cTop}px`;
