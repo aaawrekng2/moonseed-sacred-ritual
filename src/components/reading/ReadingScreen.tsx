@@ -58,6 +58,10 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   const { isOracle } = useOracleMode();
   const [state, setState] = useState<LoadState>({ kind: "idle" });
   const [retryNonce, setRetryNonce] = useState(0);
+  // Dev override: when true, the next interpret call sets allowOverride
+  // so the server bypasses the daily-quota check. Reset back to false
+  // after the call so subsequent normal retries still see the cap.
+  const overrideRef = useRef(false);
   const { guideId, lensId, facetIds } = useActiveGuide();
   const startedRef = useRef(false);
   const requestSeqRef = useRef(0);
@@ -99,9 +103,19 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
         }
 
         const result = await interpretReading({
-          data: { spread, picks, guideId, lensId, facetIds },
+          data: {
+            spread,
+            picks,
+            guideId,
+            lensId,
+            facetIds,
+            allowOverride: overrideRef.current,
+          },
           headers: { Authorization: `Bearer ${token}` },
         });
+        // Reset override after sending so a future retry doesn't
+        // accidentally inherit the bypass.
+        overrideRef.current = false;
 
         if (!isCurrentRequest()) return;
         if (result.ok) {
@@ -196,7 +210,16 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
             />
           )}
           {state.kind === "limit" && (
-            <LimitMessage onExit={onExit} isOracle={isOracle} />
+            <LimitMessage
+              onExit={onExit}
+              isOracle={isOracle}
+              onSubmitAnyway={() => {
+                overrideRef.current = true;
+                startedRef.current = false;
+                setState({ kind: "loading" });
+                setRetryNonce((n) => n + 1);
+              }}
+            />
           )}
           {state.kind === "error" && (
             <ErrorMessage
@@ -748,9 +771,11 @@ function TextSizeSlider({
 function LimitMessage({
   onExit,
   isOracle,
+  onSubmitAnyway,
 }: {
   onExit: () => void;
   isOracle: boolean;
+  onSubmitAnyway: () => void;
 }) {
   return (
     <div className="flex flex-col items-center gap-5 py-6 text-center">
@@ -765,8 +790,8 @@ function LimitMessage({
         }}
       >
         {isOracle
-          ? "You have drawn three times today. The cards rest until tomorrow."
-          : "You\u2019ve completed 3 readings today. Return tomorrow for more guidance."}
+          ? "You have drawn once today. The cards rest until tomorrow."
+          : "You\u2019ve completed your reading for today. Return tomorrow for more guidance."}
       </p>
       <button
         type="button"
@@ -774,6 +799,26 @@ function LimitMessage({
         className="rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
       >
         Done
+      </button>
+      {/* Dev override — unobtrusive italic link beneath the Done button.
+          Bypasses the daily limit on the next interpret call. */}
+      <button
+        type="button"
+        onClick={onSubmitAnyway}
+        style={{
+          background: "transparent",
+          border: "none",
+          padding: "4px 8px",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: 12,
+          color: "var(--gold)",
+          opacity: "var(--ro-plus-10)",
+          cursor: "pointer",
+        }}
+        className="hover:!opacity-100 focus:!opacity-100 focus:outline-none"
+      >
+        Submit Anyway
       </button>
     </div>
   );
