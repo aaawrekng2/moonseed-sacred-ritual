@@ -691,11 +691,24 @@ function Empty({
 function ReadingDetail({
   reading,
   onClose,
-  isOracle: _isOracle,
+  isOracle,
+  tagLibrary,
+  onReadingChange,
+  onTagLibraryChange,
+  onPhotoCountChange,
 }: {
   reading: ReadingRow;
   onClose: () => void;
   isOracle: boolean;
+  tagLibrary: EnrichmentTag[];
+  onReadingChange: (next: {
+    id: string;
+    note: string | null;
+    is_favorite: boolean;
+    tags: string[] | null;
+  }) => void;
+  onTagLibraryChange: (next: EnrichmentTag[]) => void;
+  onPhotoCountChange: (readingId: string, count: number) => void;
 }) {
   const guide = getGuideById(reading.guide_id);
   const positions = isValidSpreadMode(reading.spread_type)
