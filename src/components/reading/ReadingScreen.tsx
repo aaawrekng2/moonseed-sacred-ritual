@@ -271,7 +271,11 @@ function CardStrip({
   const perRow = Math.ceil(cardCount / rows);
   const horizGap = isLandscape || cardCount >= 4 ? 10 : 16;
   const vertGap = 18;
-  const usableW = Math.max(280, vp.w * 0.94);
+  // On phones cards should claim nearly the full viewport width.
+  // On desktop (≥768) we cap so a wide screen doesn't blow them up
+  // past comfortable reading proportions but still ~+20% larger than
+  // the previous pass.
+  const usableW = Math.max(280, vp.w * (isDesktop ? 0.78 : 0.96));
   // Reserve roughly: top bar + header + bottom CTA/spacing.
   const reservedV = isLandscape ? 160 : 280;
   const usableH = Math.max(220, vp.h - reservedV);
@@ -285,7 +289,8 @@ function CardStrip({
   // Width derived from each constraint (height constraint via aspect).
   const widthFromH = Math.floor(heightByH / 1.75);
   // On larger viewports cap so a single big card doesn't dominate.
-  const maxSingle = isDesktop ? 220 : 200;
+  // ~+20% bump from the prior values per spec.
+  const maxSingle = isDesktop ? 264 : 240;
   let w = Math.max(36, Math.min(widthByW, widthFromH));
   if (cardCount === 1 && w > maxSingle) w = maxSingle;
   const h = Math.round(w * 1.75);
@@ -295,7 +300,7 @@ function CardStrip({
 
   return (
     <div
-      className="reading-cards-shift flex flex-wrap items-end justify-center"
+      className="reading-cards-rise flex flex-wrap items-end justify-center"
       style={{
         columnGap: `${horizGap}px`,
         rowGap: `${vertGap}px`,
@@ -306,8 +311,7 @@ function CardStrip({
         <div
           key={pick.id}
           role="listitem"
-          className="reading-card-rise flex flex-col items-center gap-1"
-          style={{ ["--rise-delay" as string]: `${i * 60}ms` }}
+          className="flex flex-col items-center gap-1"
         >
           <div
             className="overflow-hidden rounded-[6px] border border-gold/40 bg-card"
