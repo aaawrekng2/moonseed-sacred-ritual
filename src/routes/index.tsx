@@ -6,11 +6,7 @@ import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
 import { TopRightControls } from "@/components/nav/TopRightControls";
 import { useBgGradient } from "@/lib/use-bg-gradient";
-import {
-  useRestingOpacity,
-  MIN_RESTING_OPACITY,
-  MAX_RESTING_OPACITY,
-} from "@/lib/use-resting-opacity";
+import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { useStreak } from "@/lib/use-streak";
 
@@ -21,7 +17,7 @@ export const Route = createFileRoute("/")({
 function Index() {
   // Initialize gradient + opacity systems on first mount.
   useBgGradient();
-  const { opacity, setOpacity } = useRestingOpacity();
+  const { opacity } = useRestingOpacity();
   const restingAlpha = opacity / 100;
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const navigate = useNavigate();
@@ -128,42 +124,6 @@ function Index() {
 
       {/* Spread icons — sit just above bottom nav */}
       <section>
-        {/* Temporary resting-opacity test slider */}
-        <div
-          style={{
-            position: "absolute",
-            left: 12,
-            bottom: 110,
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-            width: 140,
-            zIndex: 20,
-          }}
-        >
-          <label
-            htmlFor="resting-opacity-slider"
-            style={{
-              fontSize: 10,
-              color: "var(--gold)",
-              opacity: 0.7,
-              fontFamily: "var(--font-serif)",
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-            }}
-          >
-            Opacity {opacity}
-          </label>
-          <input
-            id="resting-opacity-slider"
-            type="range"
-            min={MIN_RESTING_OPACITY}
-            max={MAX_RESTING_OPACITY}
-            value={opacity}
-            onChange={(e) => setOpacity(Number(e.target.value))}
-            style={{ width: "100%", accentColor: "var(--gold)" }}
-          />
-        </div>
         <SpreadIconsRow
           onSelect={(spread) =>
             navigate({ to: "/draw", search: { spread } })
