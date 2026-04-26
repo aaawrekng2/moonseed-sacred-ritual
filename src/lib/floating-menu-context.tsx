@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -70,10 +71,21 @@ export const useFloatingMenu = () => useContext(FloatingMenuContext);
 /** Register a close handler that becomes the X icon in the floating menu. */
 export function useRegisterCloseHandler(fn: (() => void) | null) {
   const { setCloseHandler } = useFloatingMenu();
+  // Keep a ref to the latest fn so screens don't need to memoize the
+  // handler every render. The context only stores a stable forwarder
+  // and is updated/cleared once per mount.
+  const ref = useRef(fn);
+  ref.current = fn;
   useEffect(() => {
-    setCloseHandler(fn);
+    if (!ref.current) {
+      setCloseHandler(null);
+      return;
+    }
+    setCloseHandler(() => ref.current?.());
     return () => setCloseHandler(null);
-  }, [fn, setCloseHandler]);
+    // Only re-run on mount/unmount — fn changes are picked up via ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setCloseHandler]);
 }
 
 /** Register copy text — when set, the Copy icon appears in the menu. */
