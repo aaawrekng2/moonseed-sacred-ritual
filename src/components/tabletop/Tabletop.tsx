@@ -12,11 +12,7 @@ import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { SPREAD_META, spreadUsesSlots, type SpreadMode } from "@/lib/spreads";
-import {
-  MAX_RESTING_OPACITY,
-  MIN_RESTING_OPACITY,
-  useRestingOpacity,
-} from "@/lib/use-resting-opacity";
+import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { t } from "@/lib/oracle-language";
@@ -372,8 +368,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // Viewport-coordinate rect for each slot (id'd by slot index 0..N-1).
   // Re-measured on resize and when slot row mounts.
   const [slotRects, setSlotRects] = useState<Array<DOMRect | null>>([]);
-  const { opacity: restingOpacityPct, setOpacity: setRestingOpacity } =
-    useRestingOpacity();
+  const { opacity: restingOpacityPct } = useRestingOpacity();
   const restingAlpha = restingOpacityPct / 100;
   const exitAlpha = Math.min(1, restingAlpha + 0.1);
   // Persisted preference for showing spread position labels under each
@@ -1160,43 +1155,8 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-cosmos">
-      {/* Undo / Redo — fixed top-center, above the X close button. Only
-          rendered while there's something to undo or redo so the chrome
-          stays minimal during a fresh draw. */}
-      {(undoStack.length > 0 || redoStack.length > 0) && (
-        <div
-          style={{
-            position: "fixed",
-            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 60,
-            display: "flex",
-            gap: 8,
-            opacity: restingAlpha,
-          }}
-          className="transition-opacity hover:!opacity-100 focus-within:!opacity-100"
-        >
-          <button
-            type="button"
-            onClick={undo}
-            disabled={undoStack.length === 0}
-            aria-label="Undo last drag"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            <Undo2 className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={redo}
-            disabled={redoStack.length === 0}
-            aria-label="Redo last drag"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30"
-          >
-            <Redo2 className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
-          </button>
-        </div>
-      )}
+      {/* Undo / Redo moved into the upper-right cluster below so all
+          tabletop chrome sits in one row at the top-right. */}
 
       {/* First-visit onboarding hint. Explains the hold-to-drag gesture
           and dropping onto slots. Auto-fades after the first successful
@@ -1238,48 +1198,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         </div>
       )}
 
-      {/* Temporary resting-opacity test slider — fixed upper-left, top
-          layer so cards never sit above its controls. Desktop-only:
-          hidden on mobile per design (it is a dev-only tool). */}
-      {!isMobile && (
-      <div
-        style={{
-          position: "fixed",
-          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          left: "calc(env(safe-area-inset-left, 0px) + 12px)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-          width: 130,
-          zIndex: 100,
-          opacity: restingAlpha,
-          pointerEvents: "auto",
-        }}
-        className="transition-opacity hover:!opacity-100 focus-within:!opacity-100"
-      >
-        <label
-          htmlFor="tabletop-resting-opacity"
-          style={{
-            fontSize: 9,
-            color: "var(--gold)",
-            fontFamily: "var(--font-serif)",
-            letterSpacing: "0.2em",
-            textTransform: "uppercase",
-          }}
-        >
-          Opacity {restingOpacityPct}
-        </label>
-        <input
-          id="tabletop-resting-opacity"
-          type="range"
-          min={MIN_RESTING_OPACITY}
-          max={MAX_RESTING_OPACITY}
-          value={restingOpacityPct}
-          onChange={(e) => setRestingOpacity(Number(e.target.value))}
-          style={{ width: "100%", accentColor: "var(--gold)" }}
-        />
-      </div>
-      )}
+      {/* Per design: all chrome lives in the upper-right cluster. The
+          old left-side opacity slider has been removed — opacity is
+          configured in Settings → Themes. */}
 
       {/* Standard top-bar (profile / sanctuary cycler / Oracle voice).
           Self-positions fixed at the top-right of the viewport. */}
@@ -1297,11 +1218,35 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           right: "calc(env(safe-area-inset-right, 0px) + 9rem)",
           display: "flex",
           alignItems: "center",
-          gap: 8,
+          gap: 6,
           zIndex: 60,
           pointerEvents: "auto",
         }}
       >
+        {(undoStack.length > 0 || redoStack.length > 0) && (
+          <>
+            <button
+              type="button"
+              onClick={undo}
+              disabled={undoStack.length === 0}
+              aria-label="Undo last drag"
+              style={{ opacity: restingAlpha }}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30 md:h-7 md:w-7"
+            >
+              <Undo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={redo}
+              disabled={redoStack.length === 0}
+              aria-label="Redo last drag"
+              style={{ opacity: restingAlpha }}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30 md:h-7 md:w-7"
+            >
+              <Redo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+            </button>
+          </>
+        )}
         <button
           type="button"
           onClick={cycleDensity}
@@ -1324,7 +1269,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               ? Math.min(1, restingAlpha + 0.15)
               : restingAlpha,
           }}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 md:h-7 md:w-7"
         >
           {densityLevel === 0 ? (
             <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
@@ -1339,7 +1284,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           onClick={handleExit}
           aria-label="Close tabletop"
           style={{ opacity: exitAlpha }}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 md:h-7 md:w-7"
         >
           <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
         </button>
@@ -1350,7 +1295,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         ref={containerRef}
         className="tabletop-stage relative flex-1 overflow-hidden select-none"
         style={{
-          paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)",
+          // Reserve room for the upper-right icon cluster (44px tap
+          // targets on mobile) so cards never scatter behind it.
+          paddingTop: isMobile
+            ? "calc(env(safe-area-inset-top, 0px) + 60px)"
+            : "calc(env(safe-area-inset-top, 0px) + 48px)",
         }}
       >
         {cards.map((c, idx) => (
@@ -1555,45 +1504,86 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             style={{
               padding: "0 10px",
               margin: "2px 0",
-              gap: 2,
+              gap: 1,
               maxWidth: "min(92vw, 420px)",
             }}
           >
-            <span
-              className="font-display italic leading-none animate-breathe-glow"
-              style={{
-                fontSize: 18,
-                color: "var(--gold)",
-                opacity: restingAlpha,
-                lineHeight: 1.2,
-                letterSpacing: "0.08em",
-                textShadow: "0 0 14px rgba(212,175,55,0.55)",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                maxWidth: "100%",
-              }}
-            >
-              {usesSlots && nextFullLabel
-                ? `Draw: ${nextFullLabel}`
-                : "Draw"}
-            </span>
-            {usesSlots && nextDescription && (
+            {/* Line 1: small italic gold "Draw:" word — only when a
+                position name follows it. For single-card spreads we
+                fall back to a single, larger "Draw". */}
+            {usesSlots && nextFullLabel ? (
+              <>
+                <span
+                  className="font-display italic leading-none"
+                  style={{
+                    fontSize: 11,
+                    color: "var(--gold)",
+                    opacity: showWhisper ? Math.min(1, restingAlpha + 0.05) : 0,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    pointerEvents: "none",
+                    transition: "opacity 200ms ease-out",
+                  }}
+                  aria-hidden={!showWhisper}
+                >
+                  Draw:
+                </span>
+                <span
+                  className="font-display italic leading-none animate-breathe-glow"
+                  style={{
+                    fontSize: 22,
+                    color: "var(--gold)",
+                    opacity: showWhisper ? restingAlpha : 0,
+                    lineHeight: 1.15,
+                    letterSpacing: "0.06em",
+                    textShadow: "0 0 14px rgba(212,175,55,0.55)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxWidth: "100%",
+                    pointerEvents: "none",
+                    transition: "opacity 200ms ease-out",
+                  }}
+                  aria-hidden={!showWhisper}
+                >
+                  {nextFullLabel}
+                </span>
+                {nextDescription && (
+                  <span
+                    className="font-display italic leading-snug"
+                    style={{
+                      fontSize: 13,
+                      color: "color-mix(in oklab, var(--gold) 70%, transparent)",
+                      opacity: showWhisper ? 0.75 : 0,
+                      letterSpacing: "0.03em",
+                      textAlign: "center",
+                      maxWidth: "100%",
+                      pointerEvents: "none",
+                      transition: "opacity 200ms ease-out",
+                      marginTop: 2,
+                    }}
+                    aria-hidden={!showWhisper}
+                  >
+                    {nextDescription}
+                  </span>
+                )}
+              </>
+            ) : (
               <span
-                className="font-display italic leading-none"
+                className="font-display italic leading-none animate-breathe-glow"
                 style={{
-                  fontSize: 11,
+                  fontSize: 18,
                   color: "var(--gold)",
-                  opacity: 0.45,
-                  letterSpacing: "0.04em",
-                  textAlign: "center",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  maxWidth: "100%",
+                  opacity: showWhisper ? restingAlpha : 0,
+                  lineHeight: 1.2,
+                  letterSpacing: "0.08em",
+                  textShadow: "0 0 14px rgba(212,175,55,0.55)",
+                  pointerEvents: "none",
+                  transition: "opacity 200ms ease-out",
                 }}
+                aria-hidden={!showWhisper}
               >
-                {nextDescription}
+                Draw
               </span>
             )}
           </div>
@@ -1619,21 +1609,14 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           />
         );
 
-        // While picking: show the breathing "Draw" whisper. Once the user
-        // selects the final card, the whisper goes quiet and the gold dot
-        // pulses through the auto-transition pause.
-        const centerWhisper = ready
-          ? transitionCue
-          : !usesSlots
-            ? drawWord
-            : null;
-
-        // Mobile: when the slot rail is visible the center column shows
-        // the same "Draw" word so the call-to-action language stays
-        // consistent across breakpoints. Once ready, the transition cue
-        // takes over.
-        const mobileSlotCounter =
-          isMobile && showSlotRail && !ready ? drawWord : null;
+        // While picking: show the "Draw: <Position>" whisper above the
+        // slot rail (or the breathing "Draw" word for single-card spreads).
+        // Once the user selects the final card the whisper goes quiet and
+        // the gold dot pulses through the auto-transition pause. The
+        // whisper element is always mounted so toggling the eyeball
+        // (Clarity) density only changes opacity, never layout height.
+        const centerWhisper = ready ? transitionCue : drawWord;
+        const mobileSlotCounter = null;
 
         const controlsRow = (
           <div
@@ -1805,8 +1788,9 @@ function CardSlot({
   useLayoutEffect(() => {
     if (!flying) {
       // Was on a flight (arrived/launching) and lost the slotRect → start
-      // a return flight from the last known slot position. Skip the
-      // transition only if we never had a meaningful flight to begin with.
+      // a return flight from the last known slot position. If we don't
+      // have a slotRect cached we still need to leave the flight cleanly
+      // — fall back to idle without a fly so the card doesn't blink.
       if (
         (flightPhase === "arrived" || flightPhase === "launching") &&
         lastSlotRectRef.current
@@ -1972,7 +1956,9 @@ function CardSlot({
     }
   }, [onDragMove]);
 
-  const HOLD_MS = 150;
+  // Touch / coarse pointer activates drag faster (80ms) so a quick
+  // press-and-move doesn't get treated as a tap. Mouse keeps 150ms.
+  const HOLD_MS = isCoarsePointer ? 80 : 150;
 
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (card.revealed) return; // never drag a face-up card
@@ -2097,10 +2083,6 @@ function CardSlot({
     onSelect();
   };
 
-  // Suppress isCoarsePointer-only lint complaint — we accept the prop for
-  // future tuning even though the hold delay is currently unified.
-  void isCoarsePointer;
-
   return (
     <button
       type="button"
@@ -2110,6 +2092,8 @@ function CardSlot({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerCancel}
+      onMouseDown={(e) => e.preventDefault()}
+      onFocus={(e) => e.currentTarget.blur()}
       // Disable native HTML5 drag — we handle drag with pointer events.
       // `draggable={false}` blocks the browser from initialising a drag
       // image (which is the source of the dashed-outline ghost left
@@ -2125,9 +2109,12 @@ function CardSlot({
             : "Face-down card"
       }
       className={cn(
-        flying || flightPhase === "returning" || dragging || (skipFlight && slotRect)
-          ? "fixed outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
-          : "absolute outline-none focus-visible:ring-2 focus-visible:ring-gold/70",
+        (flying && launchRect && slotRect) ||
+        (flightPhase === "returning" && returnFromRect && containerOrigin) ||
+        dragging ||
+        (skipFlight && slotRect)
+          ? "fixed outline-none focus:outline-none focus-visible:outline-none"
+          : "absolute outline-none focus:outline-none focus-visible:outline-none",
         flying || flightPhase === "returning" || dragging
           ? null
           : "card-idle-transition",
@@ -2225,7 +2212,11 @@ function CardSlot({
               top: card.y,
               width: cardW,
               height: cardH,
-              transform: `rotate(${card.rotation}deg) translateY(${isSelected ? "-4px" : "0"})`,
+              // No translateY lift here: the "-4px" used to fire BEFORE
+              // getBoundingClientRect() captured the launch position,
+              // causing a one-frame teleport at flight start. The selected
+              // glow + halo is enough to communicate selection.
+              transform: `rotate(${card.rotation}deg)`,
               // Selected cards (and their numbered badges) must always sit above
               // every unselected card. Use a large constant well above any
               // possible scatter z value.
