@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronDown } from "lucide-react";
+import { CheckCheck, ChevronDown, Copy } from "lucide-react";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import {
@@ -128,17 +128,33 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   const positionLabels =
     meta.positions ?? picks.map((_, i) => `Card ${i + 1}`);
 
+  // Build the plain-text version of the reading for clipboard copy.
+  // Only available once the interpretation has loaded.
+  const copyText =
+    state.kind === "loaded"
+      ? buildCopyText({
+          spreadLabel: meta.label,
+          interpretation: state.interpretation,
+          picks,
+          positionLabels,
+        })
+      : null;
+
   return (
     <main
       className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_50%_25%,rgba(60,40,90,0.35),transparent_70%)]"
       aria-label={`${meta.label} reading`}
     >
-      <TopRightControls onClose={onExit} closeLabel="Close reading" />
+      <TopRightControls
+        onClose={onExit}
+        closeLabel="Close reading"
+        extraStart={copyText ? <CopyIconButton text={copyText} /> : undefined}
+      />
 
       <div
         className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5 pb-12"
         style={{
-          paddingTop: "calc(env(safe-area-inset-top, 0px) + 64px)",
+          paddingTop: "var(--topbar-pad)",
         }}
       >
         <header className="flex flex-col items-center gap-1.5 text-center">
@@ -173,6 +189,8 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
               interpretation={state.interpretation}
               picks={picks}
               positionLabels={positionLabels}
+              isOracle={isOracle}
+              copyText={copyText ?? ""}
             />
           )}
           {state.kind === "limit" && (
@@ -240,25 +258,36 @@ function CardStrip({
   const isDesktop = vp.w >= 768;
   const isLandscape = vp.w > vp.h && vp.h <= 500;
 
-  let w: number;
-  if (isLandscape) {
-    const targetH = Math.min(vp.h * 0.55, 320);
-    const targetW = Math.round(targetH / 1.75);
-    const usableW = vp.w * 0.92;
-    const gap = 12;
-    const fitW = Math.floor(
-      (usableW - gap * (picks.length - 1)) / picks.length,
-    );
-    w = Math.max(36, Math.min(targetW, fitW));
-  } else if (picks.length >= 8) {
-    w = 44;
-  } else if (spread === "three") {
-    w = isDesktop ? 140 : 78;
-  } else if (picks.length >= 4) {
-    w = 56;
-  } else {
-    w = 78;
-  }
+  // Cards scale to fill available height once the reading screen
+  // settles. We compute the largest size that respects:
+  //   - tarot aspect ratio (1 : 1.75)
+  //   - viewport width (with margin) divided across picks per row
+  //   - viewport height between top bar and footer/CTA reservation
+  //
+  // For dense spreads (8+) we wrap onto two rows so cards stay tall
+  // rather than shrinking into thin slivers.
+  const cardCount = picks.length;
+  const rows = cardCount >= 8 ? 2 : 1;
+  const perRow = Math.ceil(cardCount / rows);
+  const horizGap = isLandscape || cardCount >= 4 ? 10 : 16;
+  const vertGap = 18;
+  const usableW = Math.max(280, vp.w * 0.94);
+  // Reserve roughly: top bar + header + bottom CTA/spacing.
+  const reservedV = isLandscape ? 160 : 280;
+  const usableH = Math.max(220, vp.h - reservedV);
+
+  const widthByW = Math.floor(
+    (usableW - horizGap * (perRow - 1)) / perRow,
+  );
+  const heightByH = Math.floor(
+    (usableH - vertGap * (rows - 1)) / rows,
+  );
+  // Width derived from each constraint (height constraint via aspect).
+  const widthFromH = Math.floor(heightByH / 1.75);
+  // On larger viewports cap so a single big card doesn't dominate.
+  const maxSingle = isDesktop ? 220 : 200;
+  let w = Math.max(36, Math.min(widthByW, widthFromH));
+  if (cardCount === 1 && w > maxSingle) w = maxSingle;
   const h = Math.round(w * 1.75);
 
   const labelFontSize = w < 60 ? 9 : 10.5;
@@ -266,14 +295,19 @@ function CardStrip({
 
   return (
     <div
-      className="reading-cards-shift flex flex-wrap items-end justify-center gap-x-3 gap-y-4"
+      className="reading-cards-shift flex flex-wrap items-end justify-center"
+      style={{
+        columnGap: `${horizGap}px`,
+        rowGap: `${vertGap}px`,
+      }}
       role="list"
     >
       {picks.map((pick, i) => (
         <div
           key={pick.id}
           role="listitem"
-          className="flex flex-col items-center gap-1"
+          className="reading-card-rise flex flex-col items-center gap-1"
+          style={{ ["--rise-delay" as string]: `${i * 60}ms` }}
         >
           <div
             className="overflow-hidden rounded-[6px] border border-gold/40 bg-card"
@@ -383,6 +417,7 @@ function ReadingActions({
   const activeEmoji = activeCustom ? "✦" : activeBuiltIn.accentEmoji;
 
   const speakLabel = isOracle ? "Let Them Speak" : "Get Reading";
+  const loadingLabel = isOracle ? "The cards are speaking…" : "Reading the cards…";
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
@@ -481,12 +516,15 @@ function ReadingActions({
         )}
       </div>
 
-      {/* Let Them Speak button with mist animation */}
+      {/* "Let Them Speak" — flowing-text invocation. No pill, no fill.
+          The mist breathes behind the words so the call still feels
+          alive without becoming a UI button. */}
       <button
         type="button"
         onClick={onSpeak}
         disabled={isLoading}
-        className="reading-mist-button relative w-full max-w-sm overflow-hidden rounded-2xl border border-gold/40 bg-cosmos px-6 py-5 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed"
+        className="reading-mist-button reading-invocation"
+        aria-busy={isLoading}
       >
         <span className="reading-mist" aria-hidden />
         <span
@@ -494,12 +532,13 @@ function ReadingActions({
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
-            fontSize: 22,
+            fontSize: isLoading ? 20 : 26,
             color: "var(--gold)",
             letterSpacing: "0.02em",
+            textShadow: "0 0 18px color-mix(in oklab, var(--gold) 35%, transparent)",
           }}
         >
-          {isLoading ? (isOracle ? "Listening…" : "Reading…") : speakLabel}
+          {isLoading ? loadingLabel : speakLabel}
         </span>
       </button>
     </div>
@@ -514,10 +553,14 @@ function ReadingBody({
   interpretation,
   picks,
   positionLabels,
+  isOracle,
+  copyText,
 }: {
   interpretation: InterpretationPayload;
   picks: Pick[];
   positionLabels: string[];
+  isOracle: boolean;
+  copyText: string;
 }) {
   const { size, setSize } = useReadingFontSize();
   const [showSlider, setShowSlider] = useState(false);
@@ -649,6 +692,9 @@ function ReadingBody({
           onClose={() => setShowSlider(false)}
         />
       )}
+
+      {/* Bottom copy link — flowing text, not a pill. */}
+      <CopyTextLink text={copyText} isOracle={isOracle} />
     </div>
   );
 }
@@ -783,6 +829,169 @@ function ErrorMessage({
           Done
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/*  Clipboard helpers                                                     */
+/* ---------------------------------------------------------------------- */
+
+function buildCopyText({
+  spreadLabel,
+  interpretation,
+  picks,
+  positionLabels,
+}: {
+  spreadLabel: string;
+  interpretation: InterpretationPayload;
+  picks: Pick[];
+  positionLabels: string[];
+}): string {
+  const lines: string[] = [];
+  lines.push(`${spreadLabel} — Moonseed reading`);
+  lines.push("");
+  lines.push(interpretation.overview.trim());
+  lines.push("");
+  const positions = interpretation.positions.length
+    ? interpretation.positions
+    : picks.map((p, i) => ({
+        position: positionLabels[i] ?? `Card ${i + 1}`,
+        card: getCardName(p.cardIndex),
+        interpretation: "",
+      }));
+  positions.forEach((p) => {
+    lines.push(`${p.position} — ${p.card}`);
+    if (p.interpretation) lines.push(p.interpretation.trim());
+    lines.push("");
+  });
+  if (interpretation.closing) {
+    lines.push(interpretation.closing.trim());
+  }
+  return lines.join("\n").trim() + "\n";
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  if (typeof navigator === "undefined") return false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fall through to legacy path
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Top-bar copy icon — sits inside TopRightControls' extraStart slot.
+ * Briefly flips to a checkmark for 1.5s after a successful copy.
+ */
+function CopyIconButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) window.clearTimeout(timer.current);
+    },
+    [],
+  );
+  const handle = async () => {
+    const ok = await copyToClipboard(text);
+    if (!ok) return;
+    setCopied(true);
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <button
+      type="button"
+      aria-label={copied ? "Reading copied" : "Copy reading to clipboard"}
+      onClick={() => void handle()}
+      style={{ opacity: "var(--ro-plus-0)" }}
+      className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+    >
+      {copied ? (
+        <CheckCheck size={18} strokeWidth={1.5} />
+      ) : (
+        <Copy size={18} strokeWidth={1.5} />
+      )}
+    </button>
+  );
+}
+
+/**
+ * Bottom copy link — visible flowing-text invitation rendered after the
+ * interpretation body. Same copy + checkmark behaviour as the top icon.
+ */
+function CopyTextLink({
+  text,
+  isOracle,
+}: {
+  text: string;
+  isOracle: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) window.clearTimeout(timer.current);
+    },
+    [],
+  );
+  const handle = async () => {
+    const ok = await copyToClipboard(text);
+    if (!ok) return;
+    setCopied(true);
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setCopied(false), 1500);
+  };
+  const idleLabel = isOracle ? "Carry These Words" : "Copy Reading";
+  const doneLabel = isOracle ? "Held in your hand" : "Copied";
+  return (
+    <div className="flex justify-center pt-2">
+      <button
+        type="button"
+        onClick={() => void handle()}
+        aria-label={copied ? doneLabel : idleLabel}
+        className="group inline-flex items-center gap-2 bg-transparent px-2 py-1 text-gold transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/60"
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: 14,
+          letterSpacing: "0.04em",
+          opacity: "var(--ro-plus-20)",
+          textShadow:
+            "0 0 12px color-mix(in oklab, var(--gold) 25%, transparent)",
+        }}
+      >
+        {copied ? (
+          <CheckCheck size={14} strokeWidth={1.5} aria-hidden />
+        ) : (
+          <Copy size={14} strokeWidth={1.5} aria-hidden />
+        )}
+        <span
+          style={{
+            borderBottom: "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
+            paddingBottom: 1,
+          }}
+        >
+          {copied ? doneLabel : idleLabel}
+        </span>
+      </button>
     </div>
   );
 }

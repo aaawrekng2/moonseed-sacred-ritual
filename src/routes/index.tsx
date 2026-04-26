@@ -44,7 +44,7 @@ function Index() {
   return (
     <main
       className="relative flex h-[100dvh] flex-col overflow-hidden bg-cosmos pb-24"
-      style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+      style={{ paddingTop: "var(--topbar-pad)" }}
     >
       {/* Top-right controls (fixed overlay). Refresh icon injected as the
           first extraStart slot so it sits in the unified row. */}

@@ -63,6 +63,7 @@ export function ExpandingIconButton({
   onClick,
   ariaLabel,
   title,
+  restingOpacity,
 }: {
   icon: ReactNode;
   label: string;
@@ -75,6 +76,13 @@ export function ExpandingIconButton({
   onClick: () => void;
   ariaLabel: string;
   title?: string;
+  /**
+   * Override the at-rest opacity. When provided the icon ALWAYS uses
+   * this value at rest (regardless of isActive), so callers can opt
+   * into the global resting-opacity system instead of being forced
+   * to 100% when their state happens to be "on".
+   */
+  restingOpacity?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const collapseTimer = useRef<number | null>(null);
@@ -106,7 +114,7 @@ export function ExpandingIconButton({
         minWidth: "44px",
         paddingLeft: expanded ? "0.5rem" : "0",
         paddingRight: expanded ? "0.5rem" : "0",
-        opacity: isActive ? 1 : "var(--ro-plus-20)",
+        opacity: restingOpacity ?? (isActive ? 1 : "var(--ro-plus-20)"),
         background: expanded
           ? "color-mix(in oklch, var(--gold) 12%, transparent)"
           : "transparent",
@@ -256,6 +264,7 @@ export function TopRightControls({
         onClick={toggleOracle}
         ariaLabel={`Toggle Oracle voice (currently ${isOracle ? "Oracle" : "Plain"})`}
         title={isOracle ? "Oracle voice on" : "Plain voice"}
+        restingOpacity="var(--ro-plus-0)"
       />
 
       {occupied.length > 0 && (
@@ -288,6 +297,7 @@ export function TopRightControls({
           onClick={cycleLevel}
           ariaLabel={`The Clarity: ${clarityLabel} — tap to cycle (Seen → Glimpse → Veiled)`}
           title={`The Clarity: ${clarityLabel}`}
+          restingOpacity="var(--ro-plus-20)"
         />
       )}
 
