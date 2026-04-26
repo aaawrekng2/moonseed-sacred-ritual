@@ -1683,6 +1683,117 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {celticHelpOpen && spread === "celtic" && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Celtic Cross — what each position means"
+          onClick={() => setCelticHelpOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            background: "rgba(0,0,0,0.72)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding:
+              "calc(env(safe-area-inset-top, 0px) + 24px) 16px " +
+              "calc(env(safe-area-inset-bottom, 0px) + 24px) 16px",
+            overflowY: "auto",
+          }}
+          className="animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "min(92vw, 480px)",
+              width: "100%",
+              maxHeight: "100%",
+              overflowY: "auto",
+              borderRadius: 16,
+              border: "1px solid color-mix(in oklch, var(--gold) 35%, transparent)",
+              background:
+                "color-mix(in oklch, var(--background) 92%, transparent)",
+              boxShadow:
+                "0 24px 64px -12px rgba(0,0,0,0.7), 0 0 32px -8px rgba(212,175,55,0.25)",
+              padding: "20px 22px",
+              color: "var(--foreground)",
+            }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h2
+                className="font-display text-lg italic"
+                style={{ color: "var(--gold)", letterSpacing: "0.02em" }}
+              >
+                The Celtic Cross
+              </h2>
+              <button
+                type="button"
+                onClick={() => setCelticHelpOpen(false)}
+                aria-label="Close help"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gold/80 transition hover:text-gold hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+              >
+                <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              </button>
+            </div>
+            <p
+              className="mt-1 text-xs"
+              style={{
+                color: "color-mix(in oklab, var(--foreground) 65%, transparent)",
+              }}
+            >
+              Ten positions, each holding a different facet of the question.
+            </p>
+            <ol className="mt-4 space-y-2.5">
+              {fullPositionLabels.map((label, i) => (
+                <li key={i} className="flex gap-3">
+                  <span
+                    className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-display text-[11px]"
+                    style={{
+                      color: "var(--gold)",
+                      border:
+                        "1px solid color-mix(in oklch, var(--gold) 45%, transparent)",
+                      background:
+                        "color-mix(in oklch, var(--gold) 8%, transparent)",
+                    }}
+                  >
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className="font-display text-[13px] italic"
+                      style={{ color: "var(--gold)" }}
+                    >
+                      {label}
+                    </p>
+                    {positionDescriptions[i] && (
+                      <p
+                        className="text-[12px] leading-snug"
+                        style={{
+                          color:
+                            "color-mix(in oklab, var(--foreground) 75%, transparent)",
+                        }}
+                      >
+                        {positionDescriptions[i]}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <p
+              className="mt-4 text-center text-[11px] italic"
+              style={{
+                color: "color-mix(in oklab, var(--foreground) 50%, transparent)",
+              }}
+            >
+              Tap anywhere to close
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
