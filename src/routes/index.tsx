@@ -31,7 +31,7 @@ function Index() {
   return (
     <main
       className="relative flex h-[100dvh] flex-col overflow-hidden bg-cosmos pb-24"
-      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 48px)" }}
     >
       {/* Moon strip */}
       <header className="px-2">
