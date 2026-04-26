@@ -2099,10 +2099,6 @@ function CardSlot({
     onSelect();
   };
 
-  // Suppress isCoarsePointer-only lint complaint — we accept the prop for
-  // future tuning even though the hold delay is currently unified.
-  void isCoarsePointer;
-
   return (
     <button
       type="button"
