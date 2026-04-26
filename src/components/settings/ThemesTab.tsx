@@ -178,9 +178,8 @@ function ThemesTabInner() {
           <ResetToDefaultsButton />
         </header>
 
-        <CustomAccentSection />
+        <TheFieldSection />
         <CardBackSection />
-        <BackgroundGradientSection />
         <HeadingFontSection />
         <InterfaceFadeSection />
         <CommunityThemesSection />
