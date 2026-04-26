@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Eye, EyeOff, EyeClosed, Undo2, Redo2, X } from "lucide-react";
+import { Eye, EyeOff, EyeClosed, HelpCircle, Undo2, Redo2, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -401,6 +401,10 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   // On-brand confirmation dialog state (replaces window.confirm calls).
   const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
+  // Celtic Cross help popup — always-accessible (no localStorage gate).
+  // Shown only on the Celtic Cross spread; the trigger lives in the top
+  // bar so the user can re-open the explainer whenever they want.
+  const [celticHelpOpen, setCelticHelpOpen] = useState(false);
 
   // Read selected card back once on mount.
   useEffect(() => {
@@ -1202,93 +1206,100 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           old left-side opacity slider has been removed — opacity is
           configured in Settings → Themes. */}
 
-      {/* Standard top-bar (profile / sanctuary cycler / Oracle voice).
-          Self-positions fixed at the top-right of the viewport. */}
-      <TopRightControls />
-      {/* Draw-screen-specific top bar: three-level eye (whisper + labels
-          density) and the X close button. Positioned to the LEFT of the
-          standard TopRightControls cluster. */}
-      <div
-        style={{
-          position: "fixed",
-          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          // TopRightControls sits at right-4 (1rem) and is roughly
-          // 7rem wide when the wand pill is collapsed. Offset us past
-          // it so we never overlap the profile chip.
-          right: "calc(env(safe-area-inset-right, 0px) + 9rem)",
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          zIndex: 60,
-          pointerEvents: "auto",
-        }}
-      >
-        {(undoStack.length > 0 || redoStack.length > 0) && (
-          <>
-            <button
-              type="button"
-              onClick={undo}
-              disabled={undoStack.length === 0}
-              aria-label="Undo last drag"
-              style={{ opacity: restingAlpha }}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30 md:h-7 md:w-7"
-            >
-              <Undo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={redo}
-              disabled={redoStack.length === 0}
-              aria-label="Redo last drag"
-              style={{ opacity: restingAlpha }}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30 md:h-7 md:w-7"
-            >
-              <Redo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-            </button>
-          </>
-        )}
-        <ExpandingIconButton
-          icon={
-            densityLevel === 0 ? (
-              <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-            ) : densityLevel === 1 ? (
-              <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-            ) : (
-              <EyeClosed className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-            )
-          }
-          label={
-            densityLevel === 0
-              ? t("claritySeen", isOracle)
-              : densityLevel === 1
-                ? t("clarityGlimpse", isOracle)
-                : t("clarityVeiled", isOracle)
-          }
-          labelFont={isOracle ? "var(--font-serif)" : "var(--font-sans)"}
-          labelStyle={isOracle ? "italic-gold" : "muted"}
-          isActive={densityLevel === 0}
-          onClick={cycleDensity}
-          ariaLabel={
-            densityLevel === 0
-              ? "Clarity: Seen — tap to enter Glimpse"
-              : densityLevel === 1
-                ? "Clarity: Glimpse — tap to enter Veiled"
-                : "Clarity: Veiled — tap to return to Seen"
-          }
-          title={`The Clarity: ${
-            densityLevel === 0 ? "Seen" : densityLevel === 1 ? "Glimpse" : "Veiled"
-          }`}
-        />
-        <button
-          type="button"
-          onClick={handleExit}
-          aria-label="Close tabletop"
-          style={{ opacity: exitAlpha }}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 md:h-7 md:w-7"
+      {/* Unified top-bar cluster: ScrollText (Oracle) → Wand (sanctuary) →
+          Eye (Clarity) → user initial → X. Equal 12px gaps, 44px tap
+          targets, X always rightmost. The Undo/Redo buttons sit just to
+          the LEFT of the cluster as a separate group (they're transient
+          and only appear when the user has done something to undo). */}
+      {(undoStack.length > 0 || redoStack.length > 0) && (
+        <div
+          style={{
+            position: "fixed",
+            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+            // Sit to the left of TopRightControls. The cluster is roughly
+            // 5×44px + 4×12px gap ≈ 268px; offset past it so we never
+            // overlap. On smaller viewports the cluster wraps naturally.
+            right: "calc(env(safe-area-inset-right, 0px) + 280px)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            zIndex: 60,
+            pointerEvents: "auto",
+          }}
         >
-          <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={undo}
+            disabled={undoStack.length === 0}
+            aria-label="Undo last drag"
+            style={{ opacity: restingAlpha }}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <Undo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={redo}
+            disabled={redoStack.length === 0}
+            aria-label="Redo last drag"
+            style={{ opacity: restingAlpha }}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <Redo2 className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+          </button>
+        </div>
+      )}
+      <TopRightControls
+        onClose={handleExit}
+        closeLabel="Close tabletop"
+        extraStart={
+          <>
+            {spread === "celtic" && (
+              <button
+                type="button"
+                onClick={() => setCelticHelpOpen(true)}
+                aria-label="Celtic Cross — what each position means"
+                style={{ opacity: "var(--ro-plus-10)" }}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+              >
+                <HelpCircle className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
+              </button>
+            )}
+            <ExpandingIconButton
+              icon={
+                densityLevel === 0 ? (
+                  <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                ) : densityLevel === 1 ? (
+                  <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                ) : (
+                  <EyeClosed className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+                )
+              }
+              label={
+                densityLevel === 0
+                  ? t("claritySeen", isOracle)
+                  : densityLevel === 1
+                    ? t("clarityGlimpse", isOracle)
+                    : t("clarityVeiled", isOracle)
+              }
+              labelFont={isOracle ? "var(--font-serif)" : "var(--font-sans)"}
+              labelStyle={isOracle ? "italic-gold" : "muted"}
+              isActive={densityLevel === 0}
+              onClick={cycleDensity}
+              ariaLabel={
+                densityLevel === 0
+                  ? "Clarity: Seen — tap to enter Glimpse"
+                  : densityLevel === 1
+                    ? "Clarity: Glimpse — tap to enter Veiled"
+                    : "Clarity: Veiled — tap to return to Seen"
+              }
+              title={`The Clarity: ${
+                densityLevel === 0 ? "Seen" : densityLevel === 1 ? "Glimpse" : "Veiled"
+              }`}
+            />
+          </>
+        }
+      />
 
       {/* Tabletop scatter area */}
       <div
@@ -1552,15 +1563,18 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                   <span
                     className="font-display italic leading-snug"
                     style={{
-                      fontSize: 13,
-                      color: "color-mix(in oklab, var(--gold) 70%, transparent)",
-                      opacity: showWhisper ? 0.75 : 0,
+                      // Larger so the description reads at a glance —
+                      // 14px on mobile, 16px on desktop. Closer to the
+                      // slot rail (no top margin) per design.
+                      fontSize: isMobile ? 14 : 16,
+                      color: "color-mix(in oklab, var(--gold) 55%, transparent)",
+                      opacity: showWhisper ? 1 : 0,
                       letterSpacing: "0.03em",
                       textAlign: "center",
                       maxWidth: "100%",
                       pointerEvents: "none",
                       transition: "opacity 200ms ease-out",
-                      marginTop: 2,
+                      marginTop: 0,
                     }}
                     aria-hidden={!showWhisper}
                   >
@@ -1672,6 +1686,117 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {celticHelpOpen && spread === "celtic" && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Celtic Cross — what each position means"
+          onClick={() => setCelticHelpOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            background: "rgba(0,0,0,0.72)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding:
+              "calc(env(safe-area-inset-top, 0px) + 24px) 16px " +
+              "calc(env(safe-area-inset-bottom, 0px) + 24px) 16px",
+            overflowY: "auto",
+          }}
+          className="animate-in fade-in duration-200"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "min(92vw, 480px)",
+              width: "100%",
+              maxHeight: "100%",
+              overflowY: "auto",
+              borderRadius: 16,
+              border: "1px solid color-mix(in oklch, var(--gold) 35%, transparent)",
+              background:
+                "color-mix(in oklch, var(--background) 92%, transparent)",
+              boxShadow:
+                "0 24px 64px -12px rgba(0,0,0,0.7), 0 0 32px -8px rgba(212,175,55,0.25)",
+              padding: "20px 22px",
+              color: "var(--foreground)",
+            }}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h2
+                className="font-display text-lg italic"
+                style={{ color: "var(--gold)", letterSpacing: "0.02em" }}
+              >
+                The Celtic Cross
+              </h2>
+              <button
+                type="button"
+                onClick={() => setCelticHelpOpen(false)}
+                aria-label="Close help"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gold/80 transition hover:text-gold hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+              >
+                <X className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
+              </button>
+            </div>
+            <p
+              className="mt-1 text-xs"
+              style={{
+                color: "color-mix(in oklab, var(--foreground) 65%, transparent)",
+              }}
+            >
+              Ten positions, each holding a different facet of the question.
+            </p>
+            <ol className="mt-4 space-y-2.5">
+              {fullPositionLabels.map((label, i) => (
+                <li key={i} className="flex gap-3">
+                  <span
+                    className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full font-display text-[11px]"
+                    style={{
+                      color: "var(--gold)",
+                      border:
+                        "1px solid color-mix(in oklch, var(--gold) 45%, transparent)",
+                      background:
+                        "color-mix(in oklch, var(--gold) 8%, transparent)",
+                    }}
+                  >
+                    {i + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className="font-display text-[13px] italic"
+                      style={{ color: "var(--gold)" }}
+                    >
+                      {label}
+                    </p>
+                    {positionDescriptions[i] && (
+                      <p
+                        className="text-[12px] leading-snug"
+                        style={{
+                          color:
+                            "color-mix(in oklab, var(--foreground) 75%, transparent)",
+                        }}
+                      >
+                        {positionDescriptions[i]}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <p
+              className="mt-4 text-center text-[11px] italic"
+              style={{
+                color: "color-mix(in oklab, var(--foreground) 50%, transparent)",
+              }}
+            >
+              Tap anywhere to close
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1943,9 +2068,19 @@ function CardSlot({
       // Fire one immediate move so the card jumps to the pointer location
       // (it was sitting at its scatter slot during the hold).
       const s = dragStateRef.current;
+      // Convert pointer position to container coords. The card uses
+      // `position: absolute` while dragging — relative to the scatter
+      // container, NOT the viewport. Using viewport coords here was the
+      // root cause of the mobile "fly to upper-left" bug: a parent with
+      // `transform` traps `position: fixed` so it behaves like absolute,
+      // and the viewport-coord values then resolved against the wrong
+      // origin. Container coords work for both `absolute` and the
+      // (transform-trapped) `fixed` case.
+      const cLeft = containerRect?.left ?? 0;
+      const cTop = containerRect?.top ?? 0;
       setDragPos({
-        x: s.startClientX - s.pointerOffsetX,
-        y: s.startClientY - s.pointerOffsetY,
+        x: s.startClientX - s.pointerOffsetX - cLeft,
+        y: s.startClientY - s.pointerOffsetY - cTop,
       });
       onDragMove(
         s.startClientX,
@@ -1954,7 +2089,7 @@ function CardSlot({
         s.startClientY - s.pointerOffsetY,
       );
     }
-  }, [onDragMove]);
+  }, [onDragMove, containerRect]);
 
   // Touch / coarse pointer activates drag faster (80ms) so a quick
   // press-and-move doesn't get treated as a tap. Mouse keeps 150ms.
@@ -2009,9 +2144,16 @@ function CardSlot({
     // here is enough — and crucially avoids any React reconciliation
     // that could momentarily detach the inline styles.
     const el = btnRef.current;
+    // Convert viewport coords → container coords. Critical: the dragging
+    // branch uses `position: absolute` (container-relative). On mobile,
+    // a parent transform was trapping `position: fixed` and the bare
+    // viewport-coord values resolved against the container origin,
+    // producing the "card flies to upper-left" bug.
+    const cLeft = containerRect?.left ?? 0;
+    const cTop = containerRect?.top ?? 0;
     if (el) {
-      el.style.left = `${e.clientX - s.pointerOffsetX}px`;
-      el.style.top = `${e.clientY - s.pointerOffsetY}px`;
+      el.style.left = `${e.clientX - s.pointerOffsetX - cLeft}px`;
+      el.style.top = `${e.clientY - s.pointerOffsetY - cTop}px`;
     }
     onDragMove(
       e.clientX,
@@ -2111,7 +2253,6 @@ function CardSlot({
       className={cn(
         (flying && launchRect && slotRect) ||
         (flightPhase === "returning" && returnFromRect && containerOrigin) ||
-        dragging ||
         (skipFlight && slotRect)
           ? "fixed outline-none focus:outline-none focus-visible:outline-none"
           : "absolute outline-none focus:outline-none focus-visible:outline-none",

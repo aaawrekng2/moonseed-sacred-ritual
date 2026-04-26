@@ -112,6 +112,11 @@ export function MoonCarousel() {
   // layout transitions that would otherwise fight the position tween.
   const [transitioning, setTransitioning] = useState(false);
 
+  // Direction the user last navigated. Used by CenterCard to slide the
+  // date label in from the matching edge: a swipe LEFT (next day) makes
+  // the new day enter from the right, and vice versa.
+  const [enterDir, setEnterDir] = useState<"left" | "right">("right");
+
   const [retryNonce, setRetryNonce] = useState(0);
   const { days, todayMoonSign, error } = useMemo(() => {
     try {
@@ -154,6 +159,7 @@ export function MoonCarousel() {
       cancelAnimationFrame(tweenRafRef.current);
       tweenRafRef.current = null;
     }
+    setEnterDir(dir === 1 ? "right" : "left");
     setOffset((o) => o + dir);
     setExpandedRel(null);
     setSelectedRel(null);
@@ -380,6 +386,7 @@ export function MoonCarousel() {
                     moonSign={d.isToday ? todayMoonSign : d.sign}
                     isToday={d.isToday}
                     selected={isSelected}
+                    enterDir={enterDir}
                     onToggle={() => {
                       if (swipedRef.current) {
                         swipedRef.current = false;
@@ -444,7 +451,7 @@ export function MoonCarousel() {
           <button
             type="button"
             onClick={goToToday}
-            aria-label="Return to today"
+            aria-label="Return to today's date"
             className={cn(
               "inline-flex items-center gap-1 cursor-pointer border-0 m-0",
               "px-3 py-1 rounded-full bg-transparent text-[10px] uppercase tracking-[0.2em]",
@@ -456,7 +463,7 @@ export function MoonCarousel() {
             style={{ color: accent, opacity: restingAlpha }}
           >
             <span aria-hidden="true">↩</span>
-            <span>Today</span>
+            <span>Return</span>
           </button>
         )}
       </div>
@@ -470,12 +477,14 @@ function CenterCard({
   moonSign,
   isToday,
   selected,
+  enterDir,
   onToggle,
 }: {
   info: MoonInfo;
   moonSign: string;
   isToday: boolean;
   selected: boolean;
+  enterDir: "left" | "right";
   onToggle: () => void;
 }) {
   return (
@@ -498,7 +507,18 @@ function CenterCard({
             : "border border-gold/30 shadow-[0_8px_30px_-12px_rgba(212,175,55,0.4)]",
         )}
       >
-        <div className="flex flex-col items-center gap-2 text-center">
+        {/* Keyed by date so React remounts on day change, triggering the
+            cross-fade + slide-in animation. The phase icon cross-fades
+            via opacity; the date/label slide in from the swipe direction. */}
+        <div
+          key={info.date.toDateString()}
+          className="flex flex-col items-center gap-2 text-center moon-day-fade"
+          style={{
+            // CSS var consumed by .moon-day-fade keyframes — drives the
+            // horizontal slide direction. +1 = enter from right; -1 = left.
+            ["--moon-enter-dir" as string]: enterDir === "right" ? "1" : "-1",
+          }}
+        >
           <MoonPhaseIcon phase={info.phase} size={72} illumination={info.illumination} />
           <p className="whitespace-nowrap text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {formatShortDate(info.date)}

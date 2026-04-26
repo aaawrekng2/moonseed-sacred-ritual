@@ -765,11 +765,11 @@ function BgHexPicker({
           className="relative inline-flex aspect-square w-12 shrink-0 rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold ring-offset-2 ring-offset-background"
           style={{
             backgroundColor: value,
-            border: "1px solid oklch(0.82 0.14 82 / 0.40)",
+            border: "2px solid oklch(0.82 0.14 82 / 0.40)",
             transition: "border-color 200ms ease",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = "oklch(0.82 0.14 82 / 0.70)";
+            e.currentTarget.style.borderColor = "oklch(0.82 0.14 82 / 0.80)";
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.borderColor = "oklch(0.82 0.14 82 / 0.40)";

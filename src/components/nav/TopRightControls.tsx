@@ -97,13 +97,12 @@ export function ExpandingIconButton({
       aria-label={ariaLabel}
       title={title}
       onClick={handleClick}
-      className="relative flex h-7 items-center justify-center overflow-hidden rounded-full text-gold focus:outline-none hover:!opacity-100 focus:!opacity-100"
+      className="relative flex h-11 min-w-[44px] items-center justify-center overflow-hidden rounded-full text-gold focus:outline-none hover:!opacity-100 focus:!opacity-100"
       style={{
-        // Width transitions from icon-only (1.75rem) to auto when expanded.
-        // Padding shifts in lockstep so the icon stays visually centred at
-        // rest and the label gets breathing room when expanded.
-        width: expanded ? "auto" : "1.75rem",
-        minWidth: "1.75rem",
+        // 44px tap target at rest (Apple HIG minimum). Expands horizontally
+        // to fit the label when tapped, contracts back after 1500ms.
+        width: expanded ? "auto" : "44px",
+        minWidth: "44px",
         paddingLeft: expanded ? "0.5rem" : "0",
         paddingRight: expanded ? "0.5rem" : "0",
         opacity: isActive ? 1 : "var(--ro-plus-20)",
@@ -143,9 +142,27 @@ export function ExpandingIconButton({
 
 interface Props {
   initial?: string;
+  /**
+   * Optional extra controls — rendered to the LEFT of the X button and
+   * RIGHT of the user-initial chip. Used by the draw screen to inject the
+   * Clarity (eye) toggle into the same horizontal row.
+   */
+  extraStart?: ReactNode;
+  /**
+   * Optional close affordance. When provided, rendered as the rightmost
+   * icon (always at far right) with 44px tap target.
+   */
+  onClose?: () => void;
+  /** Aria-label for the close button. */
+  closeLabel?: string;
 }
 
-export function TopRightControls({ initial }: Props) {
+export function TopRightControls({
+  initial,
+  extraStart,
+  onClose,
+  closeLabel = "Close",
+}: Props) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isOracle, toggle: toggleOracle } = useOracleMode();
@@ -201,8 +218,12 @@ export function TopRightControls({ initial }: Props) {
 
   return (
     <div
-      className="fixed right-4 z-50 flex items-center gap-2"
-      style={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+      className="fixed z-50 flex items-center"
+      style={{
+        top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+        right: "calc(env(safe-area-inset-right, 0px) + 16px)",
+        gap: "12px",
+      }}
     >
       <ExpandingIconButton
         icon={<ScrollText size={18} strokeWidth={1.5} />}
@@ -230,12 +251,14 @@ export function TopRightControls({ initial }: Props) {
         />
       )}
 
+      {extraStart}
+
       <button
         type="button"
         aria-label="Open settings"
         onClick={() => navigate({ to: "/settings" })}
         style={{ opacity: "var(--ro-plus-0)" }}
-        className="flex h-7 w-7 items-center justify-center rounded-full font-display text-[13px] leading-none text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none"
+        className="flex h-11 w-11 items-center justify-center rounded-full font-display text-[13px] leading-none text-gold transition-opacity hover:!opacity-100 focus:!opacity-100 focus:outline-none"
         css-hint="gold-circle"
       >
         <span
@@ -249,6 +272,31 @@ export function TopRightControls({ initial }: Props) {
           {derivedInitial.slice(0, 1).toUpperCase()}
         </span>
       </button>
+
+      {onClose && (
+        <button
+          type="button"
+          aria-label={closeLabel}
+          onClick={onClose}
+          style={{ opacity: "var(--ro-plus-10)" }}
+          className="flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        </button>
+      )}
     </div>
   );
 }
