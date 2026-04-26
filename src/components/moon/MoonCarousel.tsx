@@ -82,28 +82,6 @@ export function MoonCarousel() {
     return d;
   }, []);
 
-  // Pre-compute the phase ladder once at mount. Recomputed if the user
-  // hits the recompute/retry path (retryNonce changes).
-  useEffect(() => {
-    const phases: MoonPhaseName[] = [
-      "New Moon",
-      "Waxing Crescent",
-      "First Quarter",
-      "Waxing Gibbous",
-      "Full Moon",
-      "Waning Gibbous",
-      "Last Quarter",
-      "Waning Crescent",
-    ];
-    const map = new Map<MoonPhaseName, Date[]>();
-    for (const p of phases) {
-      map.set(p, getPhaseOccurrences(p, today, 13));
-    }
-    phaseOccurrencesRef.current = map;
-    phaseCursorRef.current = new Map();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [today, retryNonce]);
-
   // Currently-viewed center date — used so phase jumps anchor on what the
   // user is looking at, not on real-world today.
   const viewedDate = useMemo(() => {
