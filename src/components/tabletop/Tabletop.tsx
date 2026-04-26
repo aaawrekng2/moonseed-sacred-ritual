@@ -2095,6 +2095,17 @@ function CardSlot({
       // Fire one immediate move so the card jumps to the pointer location
       // (it was sitting at its scatter slot during the hold).
       const s = dragStateRef.current;
+      // Re-measure the card NOW (not at pointerdown) so the pointer offset
+      // matches the card's actual on-screen position at the moment drag
+      // begins. This is important on mobile where the card may have shifted
+      // between pointerdown and the hold-timer firing (layout shifts,
+      // toolbar collapse, settle-in animation completing). Computing the
+      // offset against a stale rect produced the "card jumps on grab" bug.
+      const cardRect = btnRef.current?.getBoundingClientRect();
+      if (cardRect) {
+        s.pointerOffsetX = s.startClientX - cardRect.left;
+        s.pointerOffsetY = s.startClientY - cardRect.top;
+      }
       // Convert pointer position to container coords. ALWAYS re-measure
       // the container at drag start — the cached `containerRect` prop
       // can be stale on mobile (browser chrome show/hide, address-bar
@@ -2133,8 +2144,6 @@ function CardSlot({
     // the user lifts their finger. Pointer events handle everything.
     e.preventDefault();
     downPosRef.current = { x: e.clientX, y: e.clientY, cancelled: false };
-    const rect = btnRef.current?.getBoundingClientRect();
-    if (!rect) return;
     // Capture the pointer so we keep receiving move/up events even if the
     // pointer leaves the button bounds during the drag.
     try {
@@ -2146,8 +2155,11 @@ function CardSlot({
       pointerId: e.pointerId,
       startClientX: e.clientX,
       startClientY: e.clientY,
-      pointerOffsetX: e.clientX - rect.left,
-      pointerOffsetY: e.clientY - rect.top,
+      // Pointer offset inside the card is computed in `beginDrag` against
+      // a fresh card rect, not here — the card may move between pointerdown
+      // and the hold timer firing. Initialised to 0 as a safe default.
+      pointerOffsetX: 0,
+      pointerOffsetY: 0,
       fromX: card.x,
       fromY: card.y,
       holdTimer: window.setTimeout(beginDrag, HOLD_MS),
