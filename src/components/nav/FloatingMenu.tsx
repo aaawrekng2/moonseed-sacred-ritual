@@ -217,6 +217,7 @@ export function FloatingMenu() {
       </button>
 
       <div
+        ref={pillRef}
         style={{
           display: "flex",
           alignItems: "center",
@@ -242,7 +243,13 @@ export function FloatingMenu() {
         }}
       >
           {copyText && (
-            <MenuButton onClick={handleCopy} ariaLabel="Copy reading">
+            <MenuButton
+              onClick={(e) => {
+                handleCopy();
+                showLabel("Copied", e);
+              }}
+              ariaLabel="Copy reading"
+            >
               {copied ? (
                 <CheckCheck size={17} strokeWidth={1.5} />
               ) : (
@@ -252,7 +259,13 @@ export function FloatingMenu() {
           )}
 
           {showRefresh && (
-            <MenuButton onClick={handleRefresh} ariaLabel="Refresh">
+            <MenuButton
+              onClick={(e) => {
+                handleRefresh();
+                showLabel("Refreshing", e);
+              }}
+              ariaLabel="Refresh"
+            >
               <RotateCw
                 size={17}
                 strokeWidth={1.5}
@@ -264,9 +277,9 @@ export function FloatingMenu() {
           )}
 
           <MenuButton
-            onClick={() => {
+            onClick={(e) => {
               toggleOracle();
-              showLabel(isOracle ? "Plain" : "Oracle");
+              showLabel(isOracle ? "Plain" : "Oracle", e);
               resetTimer();
             }}
             ariaLabel={`Voice: ${isOracle ? "Oracle" : "Plain"}`}
@@ -281,11 +294,11 @@ export function FloatingMenu() {
           )}
 
           <MenuButton
-            onClick={() => {
+            onClick={(e) => {
               cycleLevel();
               const nextLabel =
                 level === 1 ? "Glimpse" : level === 2 ? "Veiled" : "Seen";
-              showLabel(nextLabel);
+              showLabel(nextLabel, e);
               resetTimer();
             }}
             ariaLabel={`Clarity: ${
@@ -297,9 +310,9 @@ export function FloatingMenu() {
 
           {helpHandler && (
             <MenuButton
-              onClick={() => {
+              onClick={(e) => {
                 helpHandler();
-                showLabel("Help");
+                showLabel("Help", e);
                 resetTimer();
               }}
               ariaLabel="Help"
@@ -317,27 +330,6 @@ export function FloatingMenu() {
               </span>
             </MenuButton>
           )}
-
-          <MenuButton
-            onClick={() => {
-              resetTimer();
-              navigate({ to: "/settings" });
-            }}
-            ariaLabel="Settings"
-          >
-            <span
-              className="flex h-7 w-7 items-center justify-center rounded-full font-display text-[13px] leading-none"
-              style={{
-                background:
-                  "color-mix(in oklch, var(--gold) 15%, transparent)",
-                border:
-                  "1px solid color-mix(in oklch, var(--gold) 40%, transparent)",
-                color: "var(--gold)",
-              }}
-            >
-              {derivedInitial}
-            </span>
-          </MenuButton>
 
           {closeHandler && (
             <MenuButton
@@ -357,7 +349,8 @@ export function FloatingMenu() {
           style={{
             position: "absolute",
             top: "calc(100% + 8px)",
-            right: 8,
+            left: tapLabel.x,
+            transform: "translateX(-50%)",
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
             fontSize: 12,
@@ -369,7 +362,7 @@ export function FloatingMenu() {
             letterSpacing: "0.04em",
           }}
         >
-          {tapLabel}
+          {tapLabel.text}
         </div>
       )}
     </div>
@@ -381,7 +374,7 @@ function MenuButton({
   ariaLabel,
   children,
 }: {
-  onClick: () => void;
+  onClick: (e: React.MouseEvent) => void;
   ariaLabel: string;
   children: React.ReactNode;
 }) {
