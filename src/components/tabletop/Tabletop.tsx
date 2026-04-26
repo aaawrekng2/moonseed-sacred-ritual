@@ -1269,46 +1269,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           </button>
         </div>
       )}
-      <TopRightControls
-        onClose={handleExit}
-        closeLabel="Close tabletop"
-        includeClarity={false}
-        extraStart={
-          <>
-            <ExpandingIconButton
-              icon={
-                densityLevel === 0 ? (
-                  <Eye className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-                ) : densityLevel === 1 ? (
-                  <EyeOff className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-                ) : (
-                  <EyeClosed className="h-4 w-4" strokeWidth={1.5} aria-hidden="true" />
-                )
-              }
-              label={
-                densityLevel === 0
-                  ? t("claritySeen", isOracle)
-                  : densityLevel === 1
-                    ? t("clarityGlimpse", isOracle)
-                    : t("clarityVeiled", isOracle)
-              }
-              labelFont={isOracle ? "var(--font-serif)" : "var(--font-sans)"}
-              labelStyle={isOracle ? "italic-gold" : "muted"}
-              onClick={cycleDensity}
-              ariaLabel={
-                densityLevel === 0
-                  ? "Clarity: Seen — tap to enter Glimpse"
-                  : densityLevel === 1
-                    ? "Clarity: Glimpse — tap to enter Veiled"
-                    : "Clarity: Veiled — tap to return to Seen"
-              }
-              title={`The Clarity: ${
-                densityLevel === 0 ? "Seen" : densityLevel === 1 ? "Glimpse" : "Veiled"
-              }`}
-            />
-          </>
-        }
-      />
 
       {/* Celtic Cross help — top-LEFT, always-accessible (no localStorage gate). */}
       {spread === "celtic" && (
