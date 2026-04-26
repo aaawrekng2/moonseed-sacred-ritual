@@ -448,7 +448,7 @@ function CardBackSection() {
               aria-pressed={active}
               aria-label={`Use ${back.label} card back`}
             >
-              <CardBack id={back.id} width={36} className="sm:!w-12" />
+              <CardBack id={back.id} width={40} />
               <span
                 className={cn(
                   "text-[10px] sm:text-xs pb-0.5 border-b-2 transition-colors",
