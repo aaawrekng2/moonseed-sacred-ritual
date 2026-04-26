@@ -9,6 +9,9 @@ import { useBgGradient } from "@/lib/use-bg-gradient";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { useStreak } from "@/lib/use-streak";
+import { useActiveGuide } from "@/lib/use-active-guide";
+import { BUILT_IN_GUIDES, LENSES, getGuideById, getLensById } from "@/lib/guides";
+import { useOracleMode } from "@/lib/use-oracle-mode";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -22,6 +25,10 @@ function Index() {
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const navigate = useNavigate();
   const { currentStreak } = useStreak();
+  const { guideId, lensId } = useActiveGuide();
+  const { isOracle } = useOracleMode();
+  const guide = getGuideById(guideId);
+  const lens = getLensById(lensId);
 
   useEffect(() => {
     setCardBack(getStoredCardBack());
@@ -82,7 +89,9 @@ function Index() {
             type="button"
             aria-label="Begin today's draw"
             className="gateway-card-frame animate-breathe-glow overflow-hidden rounded-[12px] transition-transform active:scale-[0.98]"
-            onClick={() => navigate({ to: "/draw", search: { spread: "daily" } })}
+            onClick={() =>
+              navigate({ to: "/guides", search: { spread: "daily" } })
+            }
           >
             <CardBack id={cardBack} width={180} />
           </button>
@@ -126,9 +135,29 @@ function Index() {
       <section>
         <SpreadIconsRow
           onSelect={(spread) =>
-            navigate({ to: "/draw", search: { spread } })
+            navigate({ to: "/guides", search: { spread } })
           }
         />
+        {/* Active guide pill — tap to re-open the selector */}
+        <button
+          type="button"
+          onClick={() =>
+            navigate({ to: "/guides", search: { spread: "daily" } })
+          }
+          className="mx-auto mb-3 flex items-center gap-1 rounded-full px-3 py-1 text-[11px] text-muted-foreground transition hover:text-gold focus:text-gold focus:outline-none"
+          style={{ opacity: restingAlpha }}
+          aria-label={`Active guide: ${guide.name}, lens: ${lens.name}. Tap to change.`}
+        >
+          <span aria-hidden>{guide.accentEmoji}</span>
+          <span
+            className="italic text-gold"
+            style={{ fontFamily: "var(--font-serif)" }}
+          >
+            {guide.name}
+          </span>
+          <span className="text-muted-foreground">·</span>
+          <span>{isOracle ? lens.oracleName : lens.name}</span>
+        </button>
       </section>
     </main>
   );
