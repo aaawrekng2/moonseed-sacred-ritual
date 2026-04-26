@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
-import { Flame, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Flame, RotateCw } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
@@ -31,108 +31,48 @@ function Index() {
     setCardBack(getStoredCardBack());
   }, []);
 
-  // Pull-to-refresh: track a vertical drag that starts at the very top of
-  // the screen and reload once the user pulls past the threshold.
-  // 60px is the canonical iOS / Android threshold.
-  const PULL_THRESHOLD = 60;
-  const pullStartY = useRef<number | null>(null);
-  const [pullDistance, setPullDistance] = useState(0);
+  // Tap-to-refresh: pull-to-refresh was conflicting with the global
+  // tap-to-peek gesture (peek wins). A small RotateCw button in the top
+  // bar replaces the pull. The icon spins for at least 500ms so the
+  // action feels acknowledged before the reload commits.
   const [refreshing, setRefreshing] = useState(false);
-  // Hard latch — flips true the instant a refresh is committed and never
-  // resets. Guards against re-entrancy from queued touch events, repeated
-  // taps, or React batching the `refreshing` state update one frame late.
-  const refreshLatchedRef = useRef(false);
-  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
-    };
-  }, []);
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (refreshing || refreshLatchedRef.current) return;
-    const t = e.touches[0];
-    // Only arm a pull if the touch starts near the very top edge.
-    // 80px is the standard Android/iOS pull-to-refresh activation zone.
-    if (t.clientY <= 80) {
-      pullStartY.current = t.clientY;
-    } else {
-      pullStartY.current = null;
-    }
-  };
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (pullStartY.current == null || refreshing || refreshLatchedRef.current) return;
-    const dy = e.touches[0].clientY - pullStartY.current;
-    if (dy > 0) {
-      // Resistance curve so it feels rubbery.
-      setPullDistance(Math.min(120, dy * 0.5));
-    }
-  };
-  const onTouchEnd = () => {
-    if (pullStartY.current == null) return;
-    pullStartY.current = null;
-    if (refreshLatchedRef.current) {
-      setPullDistance(0);
-      return;
-    }
-    if (pullDistance >= PULL_THRESHOLD) {
-      // Latch synchronously — any touch event already queued behind this
-      // one will see the latch and bail before re-entering.
-      refreshLatchedRef.current = true;
-      setRefreshing(true);
-      setPullDistance(60);
-      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current);
-      reloadTimerRef.current = setTimeout(() => {
-        if (typeof window !== "undefined") window.location.reload();
-      }, 400);
-    } else {
-      setPullDistance(0);
-    }
+  const triggerRefresh = () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    // Minimum spin time so users get visual confirmation.
+    setTimeout(() => {
+      if (typeof window !== "undefined") window.location.reload();
+    }, 500);
   };
 
   return (
     <main
       className="relative flex h-[100dvh] flex-col overflow-hidden bg-cosmos pb-24"
       style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
     >
-      {/* Pull-to-refresh indicator */}
-      {(pullDistance > 0 || refreshing) && (
-        <div
-          aria-hidden={!refreshing}
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: pullDistance,
-            pointerEvents: "none",
-            zIndex: 30,
-            transition: pullStartY.current == null ? "height 200ms ease" : undefined,
-          }}
-        >
-          <Loader2
-            size={20}
-            style={{
-              color: "var(--gold)",
-              opacity: Math.min(1, pullDistance / PULL_THRESHOLD),
-              animation: refreshing ? "spin 1s linear infinite" : undefined,
-              transform: refreshing
-                ? undefined
-                : `rotate(${(pullDistance / PULL_THRESHOLD) * 360}deg)`,
-            }}
-          />
-        </div>
-      )}
-
-      {/* Top-right controls (fixed overlay) */}
-      <TopRightControls />
+      {/* Top-right controls (fixed overlay). Refresh icon injected as the
+          first extraStart slot so it sits in the unified row. */}
+      <TopRightControls
+        extraStart={
+          <button
+            type="button"
+            onClick={triggerRefresh}
+            aria-label="Refresh moon and streak"
+            disabled={refreshing}
+            style={{ opacity: "var(--ro-plus-10)" }}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-wait"
+          >
+            <RotateCw
+              size={18}
+              strokeWidth={1.5}
+              aria-hidden="true"
+              style={{
+                animation: refreshing ? "spin 1s linear infinite" : undefined,
+              }}
+            />
+          </button>
+        }
+      />
 
       {/* Moon strip */}
       <header className="px-2">
