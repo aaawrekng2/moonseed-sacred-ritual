@@ -428,28 +428,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       setContainerOrigin({ left: r.left, top: r.top });
     };
     update();
-    // [DIAG] One-shot logging on mount to verify how padding-top
-    // interacts with absolutely positioned card children. Remove after
-    // we confirm whether `top: 0` lands at border or padding edge.
-    if (typeof window !== "undefined") {
-      const cs = getComputedStyle(el);
-      const r = el.getBoundingClientRect();
-      // eslint-disable-next-line no-console
-      console.log("[Tabletop diag]", {
-        "size.h (== rect.height)": r.height,
-        "rect.width": r.width,
-        "rect.top": r.top,
-        "rect.bottom": r.bottom,
-        "computed paddingTop": cs.paddingTop,
-        "computed position": cs.position,
-        "clientHeight (incl padding, excl border)": el.clientHeight,
-        "scrollHeight": el.scrollHeight,
-        note:
-          "absolute children with top:0 land at BORDER edge of this " +
-          "container (since position:relative). padding-top does NOT " +
-          "offset absolutely positioned children.",
-      });
-    }
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
@@ -515,12 +493,12 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // so resizing or first-mount doesn't wipe the user's selections.
   const initialScatter = useMemo(() => {
     if (!size) return [] as ScatterCard[];
-    // `size.h` comes from getBoundingClientRect() which already includes
-    // the container's padding-top. Cards are absolutely positioned
-    // relative to the padding edge, so we use the full measured height
-    // here — subtracting TOP_RESERVE again would double-reserve and
-    // push cards too far down.
-    const usableH = Math.max(1, size.h);
+    // Absolutely positioned children land at the BORDER edge of the
+    // (position: relative) container — `padding-top` does NOT push them
+    // down. So we must explicitly reserve TOP_RESERVE here: shrink the
+    // usable height and translate every card's Y by TOP_RESERVE via
+    // `topOffset`. This keeps cards out from under the top bar.
+    const usableH = Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE);
     return buildScatter({
       width: size.w,
       height: usableH,
@@ -532,6 +510,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       seed,
       exclusionZones,
       minVisibleRatio: 0.3,
+      topOffset: TABLETOP_CONFIG.TOP_RESERVE,
     });
   }, [size, seed, cardW, cardH, maxRotation, exclusionZones]);
 
@@ -924,18 +903,14 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         setTableGhost(null);
         return;
       }
-      // Convert viewport coords to container/scatter coords. Cards are
-      // absolutely positioned so `top` is measured from the padding edge —
-      // subtract the reserved top strip so the ghost lands where the
-      // card will actually snap.
-      // Cards are absolutely positioned from the container's padding
-      // edge, so containerOrigin.top (which is the border edge) needs
-      // padding-top subtracted to land in card-coords. `size.h` already
-      // includes padding-top — do not subtract TOP_RESERVE again.
+      // Convert viewport coords to container coords. Card Y values are
+      // produced by buildScatter in [TOP_RESERVE, size.h - cardH] space
+      // (we apply `topOffset: TOP_RESERVE` there), so we keep
+      // `targetTop` measured from the container border edge and clamp
+      // its lower bound to TOP_RESERVE — the ghost lands exactly where
+      // a release would snap.
       const targetLeft = projectedLeft - containerOrigin.left;
-      const targetTop =
-        projectedTop - containerOrigin.top - TABLETOP_CONFIG.TOP_RESERVE;
-      const usableH = Math.max(1, size.h);
+      const targetTop = projectedTop - containerOrigin.top;
       const clampedX = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
@@ -944,9 +919,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         ),
       );
       const clampedY = Math.max(
-        TABLETOP_CONFIG.SCATTER_PADDING,
+        TABLETOP_CONFIG.TOP_RESERVE + TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
-          usableH - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+          size.h - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
           targetTop,
         ),
       );
@@ -2128,17 +2103,12 @@ function CardSlot({
       // a last resort.
       const freshRect = containerElRef.current?.getBoundingClientRect();
       const cLeft = freshRect?.left ?? containerRect?.left ?? 0;
-      // Cards are absolutely positioned, so their `top` coords are relative
-      // to the container's *padding edge*, not its border edge. Add the
-      // computed padding-top so the conversion lands the card under the
-      // pointer instead of jumping down by ~64px on first grab.
-      const cTopBorder = freshRect?.top ?? containerRect?.top ?? 0;
-      const padTop = containerElRef.current
-        ? parseFloat(
-            getComputedStyle(containerElRef.current).paddingTop || "0",
-          ) || 0
-        : 0;
-      const cTop = cTopBorder + padTop;
+      // Cards are absolutely positioned, so their `top` coords are
+      // relative to the container's BORDER edge (padding does not
+      // offset absolutely positioned children). Use the border-edge
+      // top directly — TOP_RESERVE is baked into card Y values via
+      // buildScatter's `topOffset`, so no per-frame adjustment here.
+      const cTop = freshRect?.top ?? containerRect?.top ?? 0;
       setDragPos({
         x: s.startClientX - s.pointerOffsetX - cLeft,
         y: s.startClientY - s.pointerOffsetY - cTop,
@@ -2210,13 +2180,8 @@ function CardSlot({
     // collapse mid-gesture) so we re-measure every move.
     const freshRect = containerElRef.current?.getBoundingClientRect();
     const cLeft = freshRect?.left ?? containerRect?.left ?? 0;
-    const cTopBorder = freshRect?.top ?? containerRect?.top ?? 0;
-    const padTop = containerElRef.current
-      ? parseFloat(
-          getComputedStyle(containerElRef.current).paddingTop || "0",
-        ) || 0
-      : 0;
-    const cTop = cTopBorder + padTop;
+    // Border edge — absolute children are NOT offset by padding-top.
+    const cTop = freshRect?.top ?? containerRect?.top ?? 0;
     if (el) {
       el.style.left = `${e.clientX - s.pointerOffsetX - cLeft}px`;
       el.style.top = `${e.clientY - s.pointerOffsetY - cTop}px`;
@@ -2240,20 +2205,12 @@ function CardSlot({
     const freshRect = containerElRef.current?.getBoundingClientRect();
     const liveRect = freshRect ?? containerRect;
     if (wasDragging && liveRect) {
-      // Convert the drop point (top-left of the card under the pointer)
-      // back into container coordinates and clamp it inside the table so
-      // a card never lands fully off-screen. Subtract the container's
-      // padding-top because absolute children measure `top` from the
-      // padding edge.
-      const padTop = containerElRef.current
-        ? parseFloat(
-            getComputedStyle(containerElRef.current).paddingTop || "0",
-          ) || 0
-        : 0;
+      // Convert the drop point back into container coordinates (border
+      // edge — absolute children ignore padding-top) and clamp inside
+      // the visible scatter zone. The lower Y bound is TOP_RESERVE so a
+      // card cannot be released under the top bar.
       const targetLeft = clientX - s.pointerOffsetX - liveRect.left;
-      const targetTop = clientY - s.pointerOffsetY - liveRect.top - padTop;
-      // Usable scatter height = container border-box minus padding-top.
-      const usableH = Math.max(1, liveRect.height - padTop);
+      const targetTop = clientY - s.pointerOffsetY - liveRect.top;
       const clampedX = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
@@ -2262,9 +2219,9 @@ function CardSlot({
         ),
       );
       const clampedY = Math.max(
-        TABLETOP_CONFIG.SCATTER_PADDING,
+        TABLETOP_CONFIG.TOP_RESERVE + TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
-          usableH - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+          liveRect.height - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
           targetTop,
         ),
       );
