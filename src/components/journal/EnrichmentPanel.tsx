@@ -1,0 +1,742 @@
+/**
+ * Reading enrichment panel.
+ *
+ * Mounted inside the Reading Detail overlay. Lets the user enrich a saved
+ * reading with a note, tags, photos, and a favorite toggle. All edits
+ * persist via a single 800ms debounced auto-save (see {@link useDebouncedSave}).
+ *
+ * Loading states are intentionally subtle — a tiny dot/text indicator near
+ * each section rather than blocking spinners, so the panel still feels like
+ * "a gentle invitation, not a form" (per the Phase 6 spec).
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Camera, Heart, Loader2, Plus, Tag as TagIcon, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
+
+/* ---------- Types ---------- */
+
+export type EnrichmentReading = {
+  id: string;
+  user_id: string;
+  note: string | null;
+  is_favorite: boolean;
+  tags: string[] | null;
+};
+
+export type EnrichmentTag = { id: string; name: string; usage_count: number };
+
+export type EnrichmentPhoto = {
+  id: string;
+  storage_path: string;
+  caption: string | null;
+  created_at: string;
+};
+
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+type Props = {
+  reading: EnrichmentReading;
+  tagLibrary: EnrichmentTag[];
+  isOracle: boolean;
+  /**
+   * Called whenever the local view of the reading changes. The parent uses this
+   * to keep the Journal list in sync without re-fetching.
+   */
+  onReadingChange: (next: EnrichmentReading) => void;
+  /**
+   * Called whenever the tag library changes (a new tag was inserted, or
+   * usage_count was updated). Parent re-syncs its tag strip.
+   */
+  onTagLibraryChange: (next: EnrichmentTag[]) => void;
+  /**
+   * Called when photos are added/removed. Parent uses this to refresh the
+   * gallery view's photo counts.
+   */
+  onPhotoCountChange: (readingId: string, count: number) => void;
+};
+
+const SAVE_DELAY_MS = 800;
+
+/* ---------- Hook: debounced save ---------- */
+
+function useDebouncedSave(delay: number = SAVE_DELAY_MS) {
+  const [state, setState] = useState<SaveState>("idle");
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inflight = useRef(0);
+
+  const schedule = useCallback(
+    (fn: () => Promise<void>) => {
+      if (timer.current) clearTimeout(timer.current);
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+      setState("saving");
+      timer.current = setTimeout(() => {
+        inflight.current += 1;
+        const myTurn = inflight.current;
+        void (async () => {
+          try {
+            await fn();
+            // Only flip to "saved" if no newer save started while we were running.
+            if (inflight.current === myTurn) {
+              setState("saved");
+              savedTimer.current = setTimeout(() => setState("idle"), 1500);
+            }
+          } catch {
+            if (inflight.current === myTurn) setState("error");
+          }
+        })();
+      }, delay);
+    },
+    [delay],
+  );
+
+  // Cleanup on unmount.
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+      if (savedTimer.current) clearTimeout(savedTimer.current);
+    },
+    [],
+  );
+
+  return { state, schedule };
+}
+
+/* ---------- Component ---------- */
+
+export function EnrichmentPanel({
+  reading,
+  tagLibrary,
+  isOracle,
+  onReadingChange,
+  onTagLibraryChange,
+  onPhotoCountChange,
+}: Props) {
+  // Local mirrors of the reading fields so typing is responsive.
+  const [note, setNote] = useState(reading.note ?? "");
+  const [tags, setTags] = useState<string[]>(reading.tags ?? []);
+  const [favorite, setFavorite] = useState(reading.is_favorite);
+
+  // UI toggles for the inline editors.
+  const [openSection, setOpenSection] = useState<
+    "note" | "tags" | null
+  >(null);
+  const [tagInput, setTagInput] = useState("");
+
+  // Photos for this reading.
+  const [photos, setPhotos] = useState<EnrichmentPhoto[]>([]);
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+  const [photosLoading, setPhotosLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Re-sync local state if the parent swaps the reading (different detail row).
+  useEffect(() => {
+    setNote(reading.note ?? "");
+    setTags(reading.tags ?? []);
+    setFavorite(reading.is_favorite);
+    setOpenSection(null);
+    setTagInput("");
+  }, [reading.id, reading.note, reading.is_favorite, reading.tags]);
+
+  // Load photos for this reading.
+  useEffect(() => {
+    let cancelled = false;
+    setPhotosLoading(true);
+    void (async () => {
+      const { data, error } = await supabase
+        .from("reading_photos")
+        .select("id,storage_path,caption,created_at")
+        .eq("reading_id", reading.id)
+        .order("created_at", { ascending: true });
+      if (cancelled) return;
+      if (error) {
+        setPhotos([]);
+        setPhotoUrls({});
+        setPhotosLoading(false);
+        return;
+      }
+      const rows = (data ?? []) as EnrichmentPhoto[];
+      setPhotos(rows);
+      // Sign URLs for each photo (bucket is private).
+      const urls: Record<string, string> = {};
+      await Promise.all(
+        rows.map(async (p) => {
+          const { data: signed } = await supabase.storage
+            .from("reading-photos")
+            .createSignedUrl(p.storage_path, 60 * 60);
+          if (signed?.signedUrl) urls[p.id] = signed.signedUrl;
+        }),
+      );
+      if (cancelled) return;
+      setPhotoUrls(urls);
+      setPhotosLoading(false);
+      onPhotoCountChange(reading.id, rows.length);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // onPhotoCountChange intentionally excluded — parent passes a stable cb.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reading.id]);
+
+  /* ---------- Save engines ---------- */
+
+  const noteSave = useDebouncedSave();
+  const tagsSave = useDebouncedSave();
+  const favSave = useDebouncedSave(0); // immediate
+
+  const persistNote = useCallback(
+    (next: string) => {
+      noteSave.schedule(async () => {
+        const { error } = await supabase
+          .from("readings")
+          .update({ note: next.length > 0 ? next : null })
+          .eq("id", reading.id);
+        if (error) throw error;
+        onReadingChange({ ...reading, note: next.length > 0 ? next : null });
+      });
+    },
+    [noteSave, reading, onReadingChange],
+  );
+
+  const persistTags = useCallback(
+    (next: string[]) => {
+      tagsSave.schedule(async () => {
+        const { error } = await supabase
+          .from("readings")
+          .update({ tags: next })
+          .eq("id", reading.id);
+        if (error) throw error;
+        onReadingChange({ ...reading, tags: next });
+      });
+    },
+    [tagsSave, reading, onReadingChange],
+  );
+
+  const persistFavorite = useCallback(
+    (next: boolean) => {
+      favSave.schedule(async () => {
+        const { error } = await supabase
+          .from("readings")
+          .update({ is_favorite: next })
+          .eq("id", reading.id);
+        if (error) throw error;
+        onReadingChange({ ...reading, is_favorite: next });
+      });
+    },
+    [favSave, reading, onReadingChange],
+  );
+
+  /* ---------- Handlers ---------- */
+
+  const handleNoteChange = (v: string) => {
+    setNote(v);
+    persistNote(v);
+  };
+
+  const toggleTag = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const exists = tags.includes(trimmed);
+    const next = exists ? tags.filter((t) => t !== trimmed) : [...tags, trimmed];
+    setTags(next);
+    persistTags(next);
+
+    // Update the tag library: insert if new, increment/decrement usage_count.
+    void (async () => {
+      if (exists) {
+        // Decrement (or no-op if missing). We keep the row even at 0 so it
+        // stays in the library — the user can re-pick it later.
+        const lib = tagLibrary.find(
+          (t) => t.name.toLowerCase() === trimmed.toLowerCase(),
+        );
+        if (lib) {
+          const nextCount = Math.max(0, lib.usage_count - 1);
+          await supabase
+            .from("user_tags")
+            .update({ usage_count: nextCount })
+            .eq("id", lib.id);
+          onTagLibraryChange(
+            tagLibrary.map((t) =>
+              t.id === lib.id ? { ...t, usage_count: nextCount } : t,
+            ),
+          );
+        }
+      } else {
+        const lib = tagLibrary.find(
+          (t) => t.name.toLowerCase() === trimmed.toLowerCase(),
+        );
+        if (lib) {
+          const nextCount = lib.usage_count + 1;
+          await supabase
+            .from("user_tags")
+            .update({ usage_count: nextCount })
+            .eq("id", lib.id);
+          onTagLibraryChange(
+            tagLibrary.map((t) =>
+              t.id === lib.id ? { ...t, usage_count: nextCount } : t,
+            ),
+          );
+        } else {
+          const { data, error } = await supabase
+            .from("user_tags")
+            .insert({ user_id: reading.user_id, name: trimmed, usage_count: 1 })
+            .select("id,name,usage_count")
+            .single();
+          if (!error && data) {
+            onTagLibraryChange([...(tagLibrary ?? []), data as EnrichmentTag]);
+          }
+        }
+      }
+    })();
+  };
+
+  const handleTagInputSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const v = tagInput.trim();
+    if (!v) return;
+    if (!tags.includes(v)) toggleTag(v);
+    setTagInput("");
+  };
+
+  const toggleFavorite = () => {
+    const next = !favorite;
+    setFavorite(next);
+    persistFavorite(next);
+  };
+
+  const handleFileChosen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Please choose an image file.");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setUploadError("Image must be under 8 MB.");
+      return;
+    }
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase();
+      const path = `${reading.user_id}/${reading.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("reading-photos")
+        .upload(path, file, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: file.type,
+        });
+      if (upErr) throw upErr;
+      const { data: row, error: insErr } = await supabase
+        .from("reading_photos")
+        .insert({
+          reading_id: reading.id,
+          user_id: reading.user_id,
+          storage_path: path,
+        })
+        .select("id,storage_path,caption,created_at")
+        .single();
+      if (insErr) throw insErr;
+      const { data: signed } = await supabase.storage
+        .from("reading-photos")
+        .createSignedUrl(path, 60 * 60);
+      const newRow = row as EnrichmentPhoto;
+      const nextPhotos = [...photos, newRow];
+      setPhotos(nextPhotos);
+      if (signed?.signedUrl) {
+        setPhotoUrls((prev) => ({ ...prev, [newRow.id]: signed.signedUrl }));
+      }
+      onPhotoCountChange(reading.id, nextPhotos.length);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removePhoto = async (photo: EnrichmentPhoto) => {
+    const prevPhotos = photos;
+    const nextPhotos = photos.filter((p) => p.id !== photo.id);
+    setPhotos(nextPhotos);
+    onPhotoCountChange(reading.id, nextPhotos.length);
+    const { error } = await supabase
+      .from("reading_photos")
+      .delete()
+      .eq("id", photo.id);
+    if (error) {
+      // rollback on failure
+      setPhotos(prevPhotos);
+      onPhotoCountChange(reading.id, prevPhotos.length);
+      return;
+    }
+    void supabase.storage.from("reading-photos").remove([photo.storage_path]);
+  };
+
+  /* ---------- Derived ---------- */
+
+  const hasNote = note.trim().length > 0;
+  const hasTags = tags.length > 0;
+  const hasPhotos = photos.length > 0;
+
+  // Suggested tags = library minus tags already on this reading, top 6.
+  const suggestions = useMemo(() => {
+    const set = new Set(tags.map((t) => t.toLowerCase()));
+    return tagLibrary
+      .filter((t) => !set.has(t.name.toLowerCase()))
+      .slice(0, 6);
+  }, [tagLibrary, tags]);
+
+  const anySaving =
+    noteSave.state === "saving" ||
+    tagsSave.state === "saving" ||
+    favSave.state === "saving";
+  const anySaved =
+    noteSave.state === "saved" ||
+    tagsSave.state === "saved" ||
+    favSave.state === "saved";
+  const anyError =
+    noteSave.state === "error" ||
+    tagsSave.state === "error" ||
+    favSave.state === "error";
+
+  /* ---------- Render ---------- */
+
+  return (
+    <section
+      aria-label="Enrich this reading"
+      className="mx-auto mt-10 max-w-prose"
+    >
+      {/* Hairline divider */}
+      <div
+        className="mb-5 h-px"
+        style={{
+          background:
+            "linear-gradient(to right, transparent, color-mix(in oklab, var(--gold) 18%, transparent), transparent)",
+        }}
+      />
+
+      {/* Action row */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-5">
+          <IconAction
+            label={favorite ? "Unfavorite" : "Favorite"}
+            active={favorite}
+            onClick={toggleFavorite}
+          >
+            <Heart
+              size={18}
+              strokeWidth={1.5}
+              fill={favorite ? "currentColor" : "none"}
+            />
+          </IconAction>
+          <TextAction
+            label="Note"
+            active={hasNote}
+            onClick={() =>
+              setOpenSection((p) => (p === "note" ? null : "note"))
+            }
+          />
+          <TextAction
+            label="Tags"
+            active={hasTags}
+            onClick={() =>
+              setOpenSection((p) => (p === "tags" ? null : "tags"))
+            }
+          />
+          <IconAction
+            label="Add photo"
+            active={hasPhotos}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? (
+              <Loader2 size={18} strokeWidth={1.5} className="animate-spin" />
+            ) : (
+              <Camera size={18} strokeWidth={1.5} />
+            )}
+          </IconAction>
+        </div>
+
+        <SaveIndicator
+          saving={anySaving}
+          saved={anySaved}
+          error={anyError}
+        />
+      </div>
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileChosen}
+      />
+      {uploadError && (
+        <p
+          className="mt-2 font-display text-[12px] italic text-red-300"
+          style={{ opacity: "var(--ro-plus-30)" }}
+        >
+          {uploadError}
+        </p>
+      )}
+
+      {/* Note editor */}
+      {openSection === "note" && (
+        <div className="mt-4">
+          <textarea
+            value={note}
+            onChange={(e) => handleNoteChange(e.target.value)}
+            rows={4}
+            placeholder={
+              isOracle ? "What stirs within you…" : "Add a note…"
+            }
+            className="w-full resize-none bg-transparent font-display text-[15px] italic text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+            style={{
+              borderBottom:
+                "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+              opacity: "var(--ro-plus-40)",
+              padding: "8px 2px",
+            }}
+          />
+        </div>
+      )}
+
+      {/* Tag editor */}
+      {openSection === "tags" && (
+        <div className="mt-4 space-y-3">
+          {/* Active tags */}
+          {hasTags && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {tags.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => toggleTag(t)}
+                  className="group inline-flex items-center gap-1 font-display text-[13px] italic text-gold"
+                  style={{
+                    opacity: "var(--ro-plus-40)",
+                    borderBottom:
+                      "1px solid color-mix(in oklab, var(--gold) 60%, transparent)",
+                    paddingBottom: 1,
+                  }}
+                >
+                  {t}
+                  <X
+                    size={11}
+                    strokeWidth={1.5}
+                    className="opacity-60 transition-opacity group-hover:opacity-100"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Suggestions */}
+          {suggestions.length > 0 && (
+            <div>
+              <span
+                className="block font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground"
+                style={{ opacity: "var(--ro-plus-10)" }}
+              >
+                Suggested
+              </span>
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => toggleTag(s.name)}
+                    className="inline-flex items-center gap-1 font-display text-[13px] italic text-gold"
+                    style={{ opacity: "var(--ro-plus-10)" }}
+                  >
+                    <Plus size={10} strokeWidth={1.5} />
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* New tag input */}
+          <form
+            onSubmit={handleTagInputSubmit}
+            className="flex items-center gap-2"
+          >
+            <TagIcon
+              size={12}
+              strokeWidth={1.5}
+              className="text-gold"
+              style={{ opacity: "var(--ro-plus-10)" }}
+              aria-hidden
+            />
+            <input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              placeholder={
+                isOracle ? "Name a thread…" : "Add or search tags…"
+              }
+              className="w-full bg-transparent py-1 font-display text-[13px] italic text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+              style={{
+                borderBottom:
+                  "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+              }}
+            />
+          </form>
+        </div>
+      )}
+
+      {/* Photos gallery */}
+      {(photosLoading || hasPhotos) && (
+        <div className="mt-5">
+          {photosLoading ? (
+            <div
+              className="flex items-center gap-2 font-display text-[12px] italic text-muted-foreground"
+              style={{ opacity: "var(--ro-plus-10)" }}
+            >
+              <Loader2 size={12} strokeWidth={1.5} className="animate-spin" />
+              Loading photos…
+            </div>
+          ) : (
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+              {photos.map((p) => (
+                <div
+                  key={p.id}
+                  className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-md"
+                  style={{
+                    border:
+                      "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
+                  }}
+                >
+                  {photoUrls[p.id] ? (
+                    <img
+                      src={photoUrls[p.id]}
+                      alt={p.caption ?? "Reading photo"}
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                      style={{ opacity: "var(--ro-plus-40)" }}
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <Loader2
+                        size={14}
+                        strokeWidth={1.5}
+                        className="animate-spin text-gold"
+                      />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(p)}
+                    aria-label="Remove photo"
+                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    <X size={11} strokeWidth={1.5} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ---------- Sub-components ---------- */
+
+function IconAction({
+  label,
+  active,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      disabled={disabled}
+      className={cn(
+        "flex h-8 w-8 items-center justify-center rounded-full transition-opacity",
+        "text-gold disabled:cursor-not-allowed",
+      )}
+      style={{
+        opacity: active ? "var(--ro-plus-50)" : "var(--ro-plus-10)",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function TextAction({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="font-display text-[13px] italic text-gold transition-opacity"
+      style={{
+        opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-10)",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function SaveIndicator({
+  saving,
+  saved,
+  error,
+}: {
+  saving: boolean;
+  saved: boolean;
+  error: boolean;
+}) {
+  let text: string | null = null;
+  let cls = "text-muted-foreground";
+  if (error) {
+    text = "Couldn't save";
+    cls = "text-red-300";
+  } else if (saving) {
+    text = "Saving…";
+  } else if (saved) {
+    text = "Saved";
+  }
+  return (
+    <span
+      className={cn(
+        "font-display text-[10px] uppercase tracking-[0.18em] transition-opacity",
+        cls,
+      )}
+      style={{ opacity: text ? "var(--ro-plus-20)" : "0" }}
+      aria-live="polite"
+    >
+      {text ?? "·"}
+    </span>
+  );
+}
