@@ -493,9 +493,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // so resizing or first-mount doesn't wipe the user's selections.
   const initialScatter = useMemo(() => {
     if (!size) return [] as ScatterCard[];
+    // Subtract the top reserve so cards never spawn behind the top bar.
+    // (Matches the container's padding-top.) Floor at 1 to keep
+    // buildScatter sane on extremely short viewports.
+    const usableH = Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE);
     return buildScatter({
       width: size.w,
-      height: size.h,
+      height: usableH,
       count: TABLETOP_CONFIG.DECK_SIZE,
       cardWidth: cardW,
       cardHeight: cardH,
