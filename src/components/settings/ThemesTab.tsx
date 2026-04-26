@@ -427,6 +427,11 @@ function CardBackSection() {
     setStoredCardBack(id);
     markDirty();
     await updateUserPreferences(user.id, { card_back: id });
+    // Notify the live preview (and any other listener) that the card
+    // back changed so they re-read getStoredCardBack().
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("moonseed:card-back-changed"));
+    }
   };
 
   return (
