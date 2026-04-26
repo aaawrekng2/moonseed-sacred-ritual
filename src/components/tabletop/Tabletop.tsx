@@ -1581,9 +1581,9 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                     className="font-display italic leading-snug"
                     style={{
                       // Larger so the description reads at a glance —
-                      // 14px on mobile, 16px on desktop. Closer to the
+                      // 16px on mobile, 18px on desktop. Closer to the
                       // slot rail (no top margin) per design.
-                      fontSize: isMobile ? 14 : 16,
+                      fontSize: isMobile ? 16 : 18,
                       color: "color-mix(in oklab, var(--gold) 55%, transparent)",
                       opacity: showWhisper ? 1 : 0,
                       letterSpacing: "0.03em",
