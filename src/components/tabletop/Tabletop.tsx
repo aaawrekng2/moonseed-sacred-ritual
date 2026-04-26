@@ -45,7 +45,10 @@ const TABLETOP_CONFIG = {
    * (44px tap targets + safe-area). Used both as `padding-top` on the
    * container and as a deduction from the usable scatter height.
    */
-  TOP_RESERVE: 56,
+  // On mobile, the floating ··· menu is much smaller than the old top bar
+  // so cards can start higher. Desktop keeps the original reserve.
+  TOP_RESERVE:
+    typeof window !== "undefined" && window.innerWidth < 768 ? 32 : 56,
   SELECTION_GLOW_SPREAD: 6,
   SELECTION_GLOW_OPACITY: 0.8,
   // Slow, ceremonial flip — long enough to feel reverent without
