@@ -552,18 +552,9 @@ function CenterCard({
             : "border border-gold/30 shadow-[0_8px_30px_-12px_rgba(212,175,55,0.4)]",
         )}
       >
-        {/* Keyed by date so React remounts on day change, triggering the
-            cross-fade + slide-in animation. The phase icon cross-fades
-            via opacity; the date/label slide in from the swipe direction. */}
-        <div
-          key={info.date.toDateString()}
-          className="flex flex-col items-center gap-2 text-center moon-day-fade"
-          style={{
-            // CSS var consumed by .moon-day-fade keyframes — drives the
-            // horizontal slide direction. +1 = enter from right; -1 = left.
-            ["--moon-enter-dir" as string]: enterDir === "right" ? "1" : "-1",
-          }}
-        >
+        {/* No keyed remount here — the wrapper stays mounted across day
+            changes so swipes update content in place without a visual cut. */}
+        <div className="flex flex-col items-center gap-2 text-center">
           <MoonPhaseIcon phase={info.phase} size={72} illumination={info.illumination} />
           <p className="whitespace-nowrap text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {formatShortDate(info.date)}
@@ -606,17 +597,8 @@ function AdjacentCard({ info, sign, expanded, selected, enterDir, onToggle, size
           : "border border-transparent hover:border-gold/15 hover:bg-card/30 hover:opacity-100 active:scale-95",
       )}
     >
-      {/* Keyed wrapper so React remounts the inner block whenever the day
-          changes (swipe / chevron / phase jump) — same pattern as the
-          center card. This makes the cross-fade + 12px slide play on
-          every cell at every breakpoint, not just on mobile center. */}
-      <div
-        key={info.date.toDateString()}
-        className="flex flex-col items-center gap-1 moon-day-fade"
-        style={{
-          ["--moon-enter-dir" as string]: enterDir === "right" ? "1" : "-1",
-        }}
-      >
+      {/* Stable wrapper — content updates in place on swipe, no remount. */}
+      <div className="flex flex-col items-center gap-1">
         <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{formatShortDate(info.date)}</p>
         <p className="text-[11px] text-muted-foreground">{info.phase}</p>
