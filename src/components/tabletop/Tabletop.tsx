@@ -1660,21 +1660,14 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           />
         );
 
-        // While picking: show the breathing "Draw" whisper. Once the user
-        // selects the final card, the whisper goes quiet and the gold dot
-        // pulses through the auto-transition pause.
-        const centerWhisper = ready
-          ? transitionCue
-          : !usesSlots
-            ? drawWord
-            : null;
-
-        // Mobile: when the slot rail is visible the center column shows
-        // the same "Draw" word so the call-to-action language stays
-        // consistent across breakpoints. Once ready, the transition cue
-        // takes over.
-        const mobileSlotCounter =
-          isMobile && showSlotRail && !ready ? drawWord : null;
+        // While picking: show the "Draw: <Position>" whisper above the
+        // slot rail (or the breathing "Draw" word for single-card spreads).
+        // Once the user selects the final card the whisper goes quiet and
+        // the gold dot pulses through the auto-transition pause. The
+        // whisper element is always mounted so toggling the eyeball
+        // (Clarity) density only changes opacity, never layout height.
+        const centerWhisper = ready ? transitionCue : drawWord;
+        const mobileSlotCounter = null;
 
         const controlsRow = (
           <div
