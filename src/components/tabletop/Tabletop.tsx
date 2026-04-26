@@ -1254,17 +1254,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         closeLabel="Close tabletop"
         extraStart={
           <>
-            {spread === "celtic" && (
-              <button
-                type="button"
-                onClick={() => setCelticHelpOpen(true)}
-                aria-label="Celtic Cross — what each position means"
-                style={{ opacity: "var(--ro-plus-10)" }}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-              >
-                <HelpCircle className="h-5 w-5" strokeWidth={1.5} aria-hidden="true" />
-              </button>
-            )}
             <ExpandingIconButton
               icon={
                 densityLevel === 0 ? (
@@ -1301,6 +1290,25 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
         }
       />
 
+      {/* Celtic Cross help — top-LEFT, always-accessible (no localStorage gate). */}
+      {spread === "celtic" && (
+        <button
+          type="button"
+          onClick={() => setCelticHelpOpen(true)}
+          aria-label="Celtic Cross — what each position means"
+          style={{
+            position: "fixed",
+            top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+            left: "calc(env(safe-area-inset-left, 0px) + 16px)",
+            zIndex: 50,
+            opacity: "var(--ro-plus-10)" as unknown as number,
+          }}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation [-webkit-tap-highlight-color:transparent] hover:!opacity-100 focus:!opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        >
+          <HelpCircle size={18} strokeWidth={1.5} aria-hidden="true" />
+        </button>
+      )}
+
       {/* Tabletop scatter area */}
       <div
         ref={containerRef}
@@ -1328,6 +1336,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             onDragEnd={handleDragEnd}
             onDragMove={handleDragMove}
             isCoarsePointer={isCoarsePointer}
+            containerElRef={containerRef}
             containerRect={
               containerOrigin && size
                 ? {
@@ -1525,21 +1534,6 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
             {usesSlots && nextFullLabel ? (
               <>
                 <span
-                  className="font-display italic leading-none"
-                  style={{
-                    fontSize: 11,
-                    color: "var(--gold)",
-                    opacity: showWhisper ? Math.min(1, restingAlpha + 0.05) : 0,
-                    letterSpacing: "0.18em",
-                    textTransform: "uppercase",
-                    pointerEvents: "none",
-                    transition: "opacity 200ms ease-out",
-                  }}
-                  aria-hidden={!showWhisper}
-                >
-                  Draw:
-                </span>
-                <span
                   className="font-display italic leading-none animate-breathe-glow"
                   style={{
                     fontSize: 22,
@@ -1557,7 +1551,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                   }}
                   aria-hidden={!showWhisper}
                 >
-                  {nextFullLabel}
+                  {`Draw: ${nextFullLabel}`}
                 </span>
                 {nextDescription && (
                   <span
@@ -1819,6 +1813,7 @@ function CardSlot({
   onDragMove,
   isCoarsePointer,
   containerRect,
+  containerElRef,
 }: {
   card: CardState;
   cardW: number;
@@ -1871,6 +1866,15 @@ function CardSlot({
   containerRect:
     | { left: number; top: number; width: number; height: number }
     | null;
+  /**
+   * Live ref to the scatter container element. We always re-measure
+   * with `getBoundingClientRect()` at drag start and during
+   * `handlePointerMove` because the cached `containerRect` prop can
+   * be stale on mobile (e.g. after browser chrome show/hide, address
+   * bar collapse, or virtual keyboard) — the root cause of the
+   * "card flies to upper-left" bug.
+   */
+  containerElRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const isSelected = card.selectionOrder !== null;
   // When the card landed in the slot via a physical drag-drop we skip
@@ -2068,16 +2072,15 @@ function CardSlot({
       // Fire one immediate move so the card jumps to the pointer location
       // (it was sitting at its scatter slot during the hold).
       const s = dragStateRef.current;
-      // Convert pointer position to container coords. The card uses
-      // `position: absolute` while dragging — relative to the scatter
-      // container, NOT the viewport. Using viewport coords here was the
-      // root cause of the mobile "fly to upper-left" bug: a parent with
-      // `transform` traps `position: fixed` so it behaves like absolute,
-      // and the viewport-coord values then resolved against the wrong
-      // origin. Container coords work for both `absolute` and the
-      // (transform-trapped) `fixed` case.
-      const cLeft = containerRect?.left ?? 0;
-      const cTop = containerRect?.top ?? 0;
+      // Convert pointer position to container coords. ALWAYS re-measure
+      // the container at drag start — the cached `containerRect` prop
+      // can be stale on mobile (browser chrome show/hide, address-bar
+      // collapse, layout shifts) which manifested as the "card flies
+      // to upper-left" bug. Falling back to the prop, then 0, only as
+      // a last resort.
+      const freshRect = containerElRef.current?.getBoundingClientRect();
+      const cLeft = freshRect?.left ?? containerRect?.left ?? 0;
+      const cTop = freshRect?.top ?? containerRect?.top ?? 0;
       setDragPos({
         x: s.startClientX - s.pointerOffsetX - cLeft,
         y: s.startClientY - s.pointerOffsetY - cTop,
@@ -2089,7 +2092,7 @@ function CardSlot({
         s.startClientY - s.pointerOffsetY,
       );
     }
-  }, [onDragMove, containerRect]);
+  }, [onDragMove, containerRect, containerElRef]);
 
   // Touch / coarse pointer activates drag faster (80ms) so a quick
   // press-and-move doesn't get treated as a tap. Mouse keeps 150ms.
@@ -2144,13 +2147,12 @@ function CardSlot({
     // here is enough — and crucially avoids any React reconciliation
     // that could momentarily detach the inline styles.
     const el = btnRef.current;
-    // Convert viewport coords → container coords. Critical: the dragging
-    // branch uses `position: absolute` (container-relative). On mobile,
-    // a parent transform was trapping `position: fixed` and the bare
-    // viewport-coord values resolved against the container origin,
-    // producing the "card flies to upper-left" bug.
-    const cLeft = containerRect?.left ?? 0;
-    const cTop = containerRect?.top ?? 0;
+    // Convert viewport coords → container coords using a FRESH measurement.
+    // The cached prop can be stale on mobile during a drag (toolbar
+    // collapse mid-gesture) so we re-measure every move.
+    const freshRect = containerElRef.current?.getBoundingClientRect();
+    const cLeft = freshRect?.left ?? containerRect?.left ?? 0;
+    const cTop = freshRect?.top ?? containerRect?.top ?? 0;
     if (el) {
       el.style.left = `${e.clientX - s.pointerOffsetX - cLeft}px`;
       el.style.top = `${e.clientY - s.pointerOffsetY - cTop}px`;
@@ -2171,23 +2173,25 @@ function CardSlot({
       s.holdTimer = null;
     }
     const wasDragging = dragging && s.didDrag;
-    if (wasDragging && containerRect) {
+    const freshRect = containerElRef.current?.getBoundingClientRect();
+    const liveRect = freshRect ?? containerRect;
+    if (wasDragging && liveRect) {
       // Convert the drop point (top-left of the card under the pointer)
       // back into container coordinates and clamp it inside the table so
       // a card never lands fully off-screen.
-      const targetLeft = clientX - s.pointerOffsetX - containerRect.left;
-      const targetTop = clientY - s.pointerOffsetY - containerRect.top;
+      const targetLeft = clientX - s.pointerOffsetX - liveRect.left;
+      const targetTop = clientY - s.pointerOffsetY - liveRect.top;
       const clampedX = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
-          containerRect.width - cardW - TABLETOP_CONFIG.SCATTER_PADDING,
+          liveRect.width - cardW - TABLETOP_CONFIG.SCATTER_PADDING,
           targetLeft,
         ),
       );
       const clampedY = Math.max(
         TABLETOP_CONFIG.SCATTER_PADDING,
         Math.min(
-          containerRect.height - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
+          liveRect.height - cardH - TABLETOP_CONFIG.SCATTER_PADDING,
           targetTop,
         ),
       );
