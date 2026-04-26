@@ -249,7 +249,7 @@ export function GuideSelector({
                           position: "absolute",
                           top: 8,
                           left: 8,
-                          zIndex: 10,
+                          zIndex: 20,
                           opacity: "var(--ro-plus-10)",
                         }}
                       >
@@ -267,7 +267,7 @@ export function GuideSelector({
                           position: "absolute",
                           top: 8,
                           right: 8,
-                          zIndex: 10,
+                          zIndex: 20,
                           opacity: "var(--ro-plus-10)",
                         }}
                       >
