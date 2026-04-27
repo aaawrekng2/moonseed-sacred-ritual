@@ -250,6 +250,18 @@ code, pre, kbd {
   100% { transform: scale(1); opacity: 1; }
 }
 
+/* Question panel open/close — scales from / collapses into the quill
+   icon anchored just above the panel (transform-origin set on host). */
+@keyframes qpanel-open {
+  0%   { transform: scale(0.05); opacity: 0; }
+  60%  { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes qpanel-collapse {
+  0%   { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0); opacity: 0; }
+}
+
 .animate-pulse-gold {
   animation: pulse-gold 3.5s ease-in-out infinite;
 }
@@ -271,8 +283,9 @@ code, pre, kbd {
   border-radius: 10px;
 }
 .gateway-card-frame {
-  border: 1px solid oklch(0.82 0.14 82 / 0.35);
-  box-shadow: 0 0 60px oklch(0.82 0.14 82 / 0.20);
+  /* Neutral, subtle edge — no signature/accent color tint. */
+  border: 1px solid oklch(0.30 0.01 270 / 0.55);
+  box-shadow: 0 6px 30px oklch(0 0 0 / 0.45);
 }
 
 /* Tabletop card flip — 3D transform */

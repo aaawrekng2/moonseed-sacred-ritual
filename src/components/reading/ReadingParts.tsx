@@ -412,6 +412,7 @@ export function SeekerQuestion({
   isOracle,
   sticky,
   stickyTop,
+  onEdit,
 }: {
   text: string;
   isOracle: boolean;
@@ -419,10 +420,28 @@ export function SeekerQuestion({
   sticky?: boolean;
   /** CSS `top` offset used in sticky mode (defaults to the topbar pad). */
   stickyTop?: string;
+  /**
+   * Optional inline edit handler. When provided, the pencil writes the
+   * new value here instead of navigating to the home screen. The host
+   * is responsible for re-running the reading with the new question if
+   * needed; for the reveal screen we currently only update the visible
+   * quote so the seeker can refine the wording in their journal.
+   */
+  onEdit?: (next: string) => void;
 }) {
   const navigate = useNavigate();
   const label = isOracle ? "You whispered" : "Your question";
   const editLabel = isOracle ? "Re-whisper" : "Edit question";
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(text);
+  useEffect(() => {
+    setDraft(text);
+  }, [text]);
+  const commit = () => {
+    const v = draft.trim();
+    if (v && v !== text.trim() && onEdit) onEdit(v);
+    setEditing(false);
+  };
   return (
     <figure
       className="w-full max-w-md text-center"
@@ -459,44 +478,72 @@ export function SeekerQuestion({
       >
         {label}
       </div>
-      <blockquote
-        style={{
-          fontSize: 15,
-          lineHeight: 1.7,
-          color: "var(--foreground)",
-          opacity: "var(--ro-plus-40)",
-          margin: 0,
-          padding: "0 12px",
-        }}
-      >
-        “{text.trim()}”
-      </blockquote>
-      <div className="mt-2 flex justify-center">
-        <button
-          type="button"
-          onClick={() => {
-            void navigate({
-              to: "/",
-              search: { question: text.trim() },
-            });
-          }}
-          aria-label={editLabel}
-          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: 12,
-            color: "var(--gold)",
-            opacity: "var(--ro-plus-20)",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-          }}
-        >
-          <Pencil size={11} strokeWidth={1.75} />
-          {editLabel}
-        </button>
-      </div>
+      {editing ? (
+        <div className="flex items-center justify-center gap-2 px-3">
+          <input
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commit();
+              if (e.key === "Escape") {
+                setDraft(text);
+                setEditing(false);
+              }
+            }}
+            onBlur={commit}
+            className="w-full max-w-sm bg-transparent text-center focus:outline-none"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 15,
+              lineHeight: 1.7,
+              color: "var(--foreground)",
+              borderBottom:
+                "1px solid color-mix(in oklab, var(--gold) 35%, transparent)",
+              padding: "2px 4px",
+            }}
+          />
+        </div>
+      ) : (
+        <div className="relative inline-flex max-w-full items-baseline justify-center gap-1 px-3">
+          <blockquote
+            style={{
+              fontSize: 15,
+              lineHeight: 1.7,
+              color: "var(--foreground)",
+              opacity: "var(--ro-plus-40)",
+              margin: 0,
+              padding: 0,
+            }}
+          >
+            “{text.trim()}”
+          </blockquote>
+          <button
+            type="button"
+            onClick={() => {
+              if (onEdit) {
+                setEditing(true);
+              } else {
+                void navigate({ to: "/", search: { question: text.trim() } });
+              }
+            }}
+            aria-label={editLabel}
+            title={editLabel}
+            className="inline-flex items-center justify-center rounded-full p-1 transition-colors hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+            style={{
+              color: "var(--gold)",
+              opacity: "var(--ro-plus-20)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              transform: "translateY(-1px)",
+            }}
+          >
+            <Pencil size={11} strokeWidth={1.75} />
+          </button>
+        </div>
+      )}
     </figure>
   );
 }

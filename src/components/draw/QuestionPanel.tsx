@@ -31,18 +31,23 @@ export function QuestionPanel({
 }) {
   const [localValue, setLocalValue] = useState(question);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // Tracks whether the panel was previously open so the collapsed
-  // quill icon can animate scale-from-zero (open→close transition)
-  // instead of just popping in.
+  // Three-phase render: when `open` flips from true → false we keep the
+  // panel mounted briefly so it can animate scale-to-zero toward the
+  // quill anchor (top center). Once the animation finishes we unmount
+  // the panel and let the quill icon take over with its own scale-in.
   const [closing, setClosing] = useState(false);
+  const [showQuillScale, setShowQuillScale] = useState(false);
   const prevOpenRef = useRef(open);
 
   useEffect(() => {
     if (prevOpenRef.current && !open) {
-      // Just transitioned from open to closed — play the
-      // scale-to-zero-and-back animation on the quill mount.
       setClosing(true);
-      const t = window.setTimeout(() => setClosing(false), 360);
+      const t = window.setTimeout(() => {
+        setClosing(false);
+        setShowQuillScale(true);
+        const t2 = window.setTimeout(() => setShowQuillScale(false), 360);
+        return () => window.clearTimeout(t2);
+      }, 320);
       return () => window.clearTimeout(t);
     }
     prevOpenRef.current = open;
@@ -72,7 +77,7 @@ export function QuestionPanel({
     onClose();
   };
 
-  if (!open) {
+  if (!open && !closing) {
     return (
       <button
         type="button"
@@ -100,7 +105,7 @@ export function QuestionPanel({
             lineHeight: 1,
             display: "inline-block",
             transformOrigin: "center",
-            animation: closing
+            animation: showQuillScale
               ? "quill-scale-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both"
               : undefined,
           }}
@@ -117,6 +122,11 @@ export function QuestionPanel({
       style={{
         top: "calc(env(safe-area-inset-top, 0px) + 48px)",
         padding: "0 20px",
+        transformOrigin: "50% -40px",
+        animation: closing
+          ? "qpanel-collapse 320ms cubic-bezier(0.4, 0, 0.6, 1) forwards"
+          : "qpanel-open 240ms cubic-bezier(0.34, 1.56, 0.64, 1) both",
+        pointerEvents: closing ? "none" : undefined,
       }}
     >
       <div

@@ -186,9 +186,11 @@ function RootComponent() {
   useTapToPeek();
   // Register the PWA service worker so Moonseed installs to home screen.
   usePWA();
-  // Hide global chrome (bottom nav) on the immersive draw screen — it owns its
-  // own minimal header and exit affordance.
-  const hideChrome = location.pathname.startsWith("/draw");
+  // Bottom nav is now visible everywhere — including during the draw and
+  // reading flow — so the seeker can always reach Home / Journal /
+  // Settings without backing out of a reading.
+  const hideChrome = false;
+  void location;
   return (
     <OracleModeProvider>
       <FloatingMenuProvider>
@@ -202,7 +204,7 @@ function RootComponent() {
         */}
         <div
           className="relative mx-auto flex min-h-screen w-full flex-col"
-          style={{ maxWidth: 430 }}
+          style={{ maxWidth: 1280 }}
         >
           <FloatingMenu />
           <RestingOpacityReadout />
