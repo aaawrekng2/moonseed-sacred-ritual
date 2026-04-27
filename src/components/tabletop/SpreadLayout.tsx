@@ -117,33 +117,21 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
         overflowY: allRevealed ? "auto" : "hidden",
       }}
     >
-      {/* Cards block.
-
-          BEFORE reveal: we want the cards visually centered in the
-          viewport, so we use `flex-1` + `items-center`.
-
-          AFTER reveal: the inline reading mounts below and the page
-          becomes scrollable. If we keep `flex-1` the cards block tries
-          to fill remaining flex space, which causes them to "jump" up
-          as the reading grows. Switching to `flex-shrink-0` +
-          `items-start` + a stable `paddingTop` once `allRevealed` is
-          true pins the cards in place — they stay exactly where they
-          were at the moment of the final flip, and the reading scrolls
-          in below them naturally. */}
+      {/* Cards block — ALWAYS anchored at the top with a stable
+          paddingTop. We do NOT use `flex-1` or `items-center` because
+          that would cause the cards to "jump" the moment the inline
+          reading mounts below them (the flex container would re-center
+          its child once a tall sibling appears). Keeping `flex-shrink-0`
+          + `items-start` from first paint to last means the cards stay
+          in the exact same spot through the entire reveal -> reading
+          transition. */}
       <div
-        className={cn(
-          "flex justify-center px-4",
-          allRevealed
-            ? "flex-shrink-0 items-start"
-            : spread === "celtic"
-              ? "flex-1 items-start"
-              : "flex-1 items-center",
-        )}
+        className="flex flex-shrink-0 items-start justify-center px-4"
         style={{
           paddingTop:
             spread === "celtic"
               ? "calc(var(--topbar-pad) + 16px)"
-              : "calc(var(--topbar-pad) + 24px)",
+              : "calc(var(--topbar-pad) + 48px)",
           paddingBottom: "32px",
         }}
       >
