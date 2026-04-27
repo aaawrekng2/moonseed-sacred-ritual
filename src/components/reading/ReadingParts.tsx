@@ -6,17 +6,20 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { CheckCheck, ChevronDown, Copy } from "lucide-react";
+import { CheckCheck, ChevronDown, ChevronRight, Copy } from "lucide-react";
 import { getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import {
   interpretReading,
   type InterpretationPayload,
 } from "@/lib/interpret.functions";
+import { buildMemorySnapshot, detectThreads } from "@/lib/memory.functions";
 import { supabase } from "@/lib/supabase";
 import { useActiveGuide } from "@/lib/use-active-guide";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useAuth } from "@/lib/auth";
+import { getCurrentMoonPhase } from "@/lib/moon";
+import { FACETS, LENSES } from "@/lib/guides";
 import {
   BUILT_IN_GUIDES,
   getGuideById,
@@ -28,6 +31,10 @@ import {
   READING_FONT_MIN,
   useReadingFontSize,
 } from "@/lib/use-reading-font-size";
+import {
+  EnrichmentPanel,
+  type EnrichmentTag,
+} from "@/components/journal/EnrichmentPanel";
 
 type Pick = { id: number; cardIndex: number };
 
@@ -68,6 +75,16 @@ export function InlineReading({
   const { guideId, lensId, facetIds } = useActiveGuide();
   const startedRef = useRef(false);
   const requestSeqRef = useRef(0);
+  const [savedReading, setSavedReading] = useState<{
+    id: string;
+    user_id: string;
+    note: string | null;
+    is_favorite: boolean;
+    tags: string[] | null;
+  } | null>(null);
+  const [tagLibrary, setTagLibrary] = useState<EnrichmentTag[]>([]);
+  const savedReadingRef = useRef<typeof savedReading>(null);
+  savedReadingRef.current = savedReading;
 
   const beginReading = useCallback(() => {
     if (state.kind !== "idle" && state.kind !== "error") return;
@@ -148,6 +165,101 @@ export function InlineReading({
     onCopyTextChange?.(copyText);
   }, [copyText, onCopyTextChange]);
 
+  useEffect(() => {
+    if (state.kind !== "loaded") return;
+    if (savedReadingRef.current) return;
+    const loadedInterpretation = state.interpretation;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = sessionData.session?.user?.id;
+        if (!uid) return;
+        const interpretationText = buildCopyText({
+          spreadLabel: meta.label,
+          interpretation: loadedInterpretation,
+          picks,
+          positionLabels,
+        });
+        const { data, error } = await supabase
+          .from("readings")
+          .insert({
+            user_id: uid,
+            spread_type: spread,
+            card_ids: picks.map((p) => p.cardIndex),
+            interpretation: interpretationText,
+            guide_id: guideId,
+            lens_id: lensId,
+            mode: "reveal",
+          })
+          .select("id,user_id,note,is_favorite,tags")
+          .single();
+        if (cancelled) return;
+        if (error || !data) {
+          if (error) console.error("InlineReading insert error:", error);
+          return;
+        }
+        setSavedReading({
+          id: data.id,
+          user_id: data.user_id,
+          note: data.note,
+          is_favorite: data.is_favorite,
+          tags: data.tags,
+        });
+        void detectThreads({ data: { user_id: uid } }).catch((e: unknown) =>
+          console.warn("detect-threads failed silently:", e),
+        );
+        const snapshotType =
+          lensId === "recent-echoes"
+            ? "recent_echoes"
+            : lensId === "full-archive"
+              ? "full_archive"
+              : "deeper_threads";
+        void buildMemorySnapshot({
+          data: { user_id: uid, snapshot_type: snapshotType },
+        }).catch((e: unknown) =>
+          console.warn("build-memory-snapshot failed silently:", e),
+        );
+        const { data: tagRows } = await supabase
+          .from("user_tags")
+          .select("id,name,usage_count")
+          .eq("user_id", uid)
+          .order("usage_count", { ascending: false })
+          .limit(20);
+        if (cancelled) return;
+        setTagLibrary((tagRows ?? []) as EnrichmentTag[]);
+      } catch (e) {
+        console.error("InlineReading auto-save failed:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.kind]);
+
+  const handleEnrichReadingChange = useCallback(
+    (next: {
+      id: string;
+      user_id: string;
+      note: string | null;
+      is_favorite: boolean;
+      tags: string[] | null;
+    }) => {
+      setSavedReading(next);
+    },
+    [],
+  );
+  const handleEnrichTagLibraryChange = useCallback((next: EnrichmentTag[]) => {
+    setTagLibrary(next);
+  }, []);
+  const handleEnrichPhotoCountChange = useCallback(
+    (_readingId: string, _count: number) => {
+      // Inline readings do not render a separate gallery counter.
+    },
+    [],
+  );
+
   return (
     <>
       {(state.kind === "idle" || state.kind === "loading") && (
@@ -156,6 +268,11 @@ export function InlineReading({
             isOracle={isOracle}
             isLoading={state.kind === "loading"}
             onSpeak={beginReading}
+            spread={spread}
+            picks={picks}
+            positionLabels={positionLabels}
+            lensId={lensId}
+            facetIds={facetIds}
           />
         </div>
       )}
@@ -200,13 +317,25 @@ export function InlineReading({
       </section>
 
       {state.kind === "loaded" && (
-        <button
-          type="button"
-          onClick={onExit}
-          className="reading-actions-fade-in mt-2 rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-        >
-          Done
-        </button>
+        <>
+          {savedReading && (
+            <EnrichmentPanel
+              reading={savedReading}
+              tagLibrary={tagLibrary}
+              isOracle={isOracle}
+              onReadingChange={handleEnrichReadingChange}
+              onTagLibraryChange={handleEnrichTagLibraryChange}
+              onPhotoCountChange={handleEnrichPhotoCountChange}
+            />
+          )}
+          <button
+            type="button"
+            onClick={onExit}
+            className="reading-actions-fade-in mt-2 rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          >
+            Done
+          </button>
+        </>
       )}
     </>
   );
@@ -220,10 +349,20 @@ function ReadingActions({
   isOracle,
   isLoading,
   onSpeak,
+  spread,
+  picks,
+  positionLabels,
+  lensId,
+  facetIds,
 }: {
   isOracle: boolean;
   isLoading: boolean;
   onSpeak: () => void;
+  spread: SpreadMode;
+  picks: Pick[];
+  positionLabels: string[];
+  lensId: string;
+  facetIds: string[];
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -377,6 +516,15 @@ function ReadingActions({
         )}
       </div>
 
+      <WhatGuideWillSee
+        spread={spread}
+        picks={picks}
+        positionLabels={positionLabels}
+        guideName={activeName}
+        lensId={lensId}
+        facetIds={facetIds}
+        isOracle={isOracle}
+      />
       <button
         type="button"
         onClick={onSpeak}
@@ -399,6 +547,103 @@ function ReadingActions({
           {isLoading ? loadingLabel : speakLabel}
         </span>
       </button>
+    </div>
+  );
+}
+
+function WhatGuideWillSee({
+  spread,
+  picks,
+  positionLabels,
+  guideName,
+  lensId,
+  facetIds,
+  isOracle,
+}: {
+  spread: SpreadMode;
+  picks: Pick[];
+  positionLabels: string[];
+  guideName: string;
+  lensId: string;
+  facetIds: string[];
+  isOracle: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const meta = SPREAD_META[spread];
+  const lensName =
+    LENSES.find((l) => l.id === lensId)?.[isOracle ? "oracleName" : "name"] ??
+    lensId;
+  const facetNames = FACETS.filter((f) => facetIds.includes(f.id)).map(
+    (f) => f.name,
+  );
+  const moonPhase = getCurrentMoonPhase().phase;
+  const label = isOracle
+    ? "What will be whispered to the guide"
+    : "What the guide will see";
+
+  return (
+    <div className="w-full max-w-md">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="mx-auto flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-gold transition-colors hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        style={{ opacity: "var(--ro-plus-10)" }}
+      >
+        <ChevronRight
+          className="h-3 w-3 transition-transform"
+          strokeWidth={1.5}
+          style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)" }}
+        />
+        <span>{label}</span>
+      </button>
+      {open && (
+        <div
+          className="mx-auto mt-2 rounded-lg border border-gold/30 bg-gold/[0.04] px-4 py-3"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 12,
+            lineHeight: 1.7,
+            color: "color-mix(in oklab, var(--foreground) 75%, transparent)",
+          }}
+        >
+          <DisclosureRow label="Spread" value={meta.label} />
+          <DisclosureRow
+            label="Cards"
+            value={picks
+              .map((p, i) => {
+                const pos = positionLabels[i] ?? `Card ${i + 1}`;
+                return `${getCardName(p.cardIndex)} (${pos})`;
+              })
+              .join("; ")}
+          />
+          <DisclosureRow label="Guide" value={guideName} />
+          <DisclosureRow label="Lens" value={lensName} />
+          {facetNames.length > 0 && (
+            <DisclosureRow label="Facets" value={facetNames.join(", ")} />
+          )}
+          <DisclosureRow label="Moon" value={moonPhase} />
+          <DisclosureRow
+            label="Memory"
+            value="Symbolic threads and patterns (if memory is enabled)"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DisclosureRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex gap-2 py-0.5">
+      <span
+        className="shrink-0 uppercase not-italic tracking-[0.18em] text-gold/70"
+        style={{ fontSize: 9, letterSpacing: "0.18em", lineHeight: 1.9 }}
+      >
+        {label}
+      </span>
+      <span className="flex-1">{value}</span>
     </div>
   );
 }
