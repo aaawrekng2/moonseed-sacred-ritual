@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Flame } from "lucide-react";
+import { Flame, X } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
@@ -46,6 +46,31 @@ function Index() {
   const [todayCard, setTodayCard] = useState<number | null>(null);
   const navigate = useNavigate();
   const { currentStreak } = useStreak();
+  const { user } = useAuth();
+  const isAnonymous = !user?.email;
+  const [nudgeDismissed, setNudgeDismissed] = useState(true);
+  // Hydrate dismissed state on the client only to avoid SSR mismatch.
+  useEffect(() => {
+    try {
+      const d = localStorage.getItem("auth-nudge-dismissed-date");
+      const dismissed =
+        d === "permanent" || d === new Date().toDateString();
+      setNudgeDismissed(dismissed);
+    } catch {
+      setNudgeDismissed(false);
+    }
+  }, []);
+  const dismissNudge = () => {
+    try {
+      localStorage.setItem(
+        "auth-nudge-dismissed-date",
+        new Date().toDateString(),
+      );
+    } catch {
+      // ignore
+    }
+    setNudgeDismissed(true);
+  };
   // Daily ritual reset — bumps `dayEpoch` whenever the local calendar
   // day flips so the gateway re-queries today's card and sibling UI
   // (the QuestionBox) can show a quiet "new day" affordance.
