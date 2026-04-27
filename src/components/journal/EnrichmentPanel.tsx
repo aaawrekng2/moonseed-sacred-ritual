@@ -671,7 +671,7 @@ export function EnrichmentPanel({
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               placeholder={
-                isOracle ? "Name a thread…" : "Add or search tags…"
+                isOracle ? "Tag name…" : "Tag name…"
               }
               className="w-full bg-transparent py-1 font-display text-[13px] italic text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
               style={{
