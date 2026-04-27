@@ -40,6 +40,7 @@ import {
   EnrichmentPanel,
   type EnrichmentTag,
 } from "@/components/journal/EnrichmentPanel";
+import { SeekerQuestion } from "@/components/reading/ReadingParts";
 
 type Pick = { id: number; cardIndex: number };
 
@@ -308,6 +309,16 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
           paddingTop: "calc(var(--topbar-pad) + 16px)",
         }}
       >
+        {question && question.trim() && (
+          <div className="mx-auto w-full max-w-md">
+            <SeekerQuestion
+              text={question}
+              isOracle={isOracle}
+              sticky
+              stickyTop="calc(var(--topbar-pad) + 8px)"
+            />
+          </div>
+        )}
         <header className="flex flex-col items-center gap-1.5 text-center">
           <span className="text-[10px] uppercase tracking-[0.3em] text-gold/70">
             {meta.label}
