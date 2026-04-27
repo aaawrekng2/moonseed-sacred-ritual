@@ -287,9 +287,12 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   const handleEnrichTagLibraryChange = useCallback((next: EnrichmentTag[]) => {
     setTagLibrary(next);
   }, []);
-  const handleEnrichPhotoCountChange = useCallback(() => {
-    // No gallery on this screen — nothing to sync.
-  }, []);
+  const handleEnrichPhotoCountChange = useCallback(
+    (_readingId: string, _count: number) => {
+      // No gallery on this screen — nothing to sync.
+    },
+    [],
+  );
 
   return (
     <main

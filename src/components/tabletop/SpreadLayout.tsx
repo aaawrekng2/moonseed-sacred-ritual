@@ -143,7 +143,7 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
       <div
         className="flex-1 flex items-center justify-center px-4"
         style={{
-          paddingTop: "calc(var(--topbar-pad) + 24px)",
+          paddingTop: "calc(var(--topbar-pad) + 64px)",
           paddingBottom: "48px",
           transform:
             cardsReady && spread === "three"
@@ -151,12 +151,6 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
               : "translateY(0)",
           transition:
             "transform 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-          // Celtic Cross is dense — never collapse its flex track on
-          // reveal or the layout reflow shoves the spread offscreen
-          // (Phase 7 bug 4). Other spreads still tighten so the inline
-          // reading can claim the freed vertical space.
-          flex:
-            cardsReady && spread !== "celtic" ? "0 0 auto" : "1 1 0",
         }}
       >
         <SpreadContent
