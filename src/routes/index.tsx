@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useRef } from "react";
 import { Flame } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { CardBack } from "@/components/cards/CardBack";
@@ -171,6 +172,7 @@ function QuestionBox({
   const [remember, setRemember] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [autoRemember] = useAutoRememberQuestion();
+  const initialFocusedRef = useRef(false);
 
   // Hydrate from localStorage on client only (avoid SSR mismatch).
   // An `initialQuestion` (passed via the ?question= search param,
@@ -256,10 +258,10 @@ function QuestionBox({
       <textarea
         id="seeker-question"
         ref={(el) => {
-          // Auto-focus when arriving from "Edit question" so the
+          // Auto-focus once when arriving from "Edit question" so the
           // seeker can immediately revise their wording.
-          if (el && initialQuestion && !focused) {
-            // Defer to avoid scrolling-jank during route transition.
+          if (el && initialQuestion && !initialFocusedRef.current) {
+            initialFocusedRef.current = true;
             queueMicrotask(() => {
               try {
                 el.focus();
