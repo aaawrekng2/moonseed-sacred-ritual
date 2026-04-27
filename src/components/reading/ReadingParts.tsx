@@ -292,8 +292,8 @@ export function InlineReading({
         {state.kind === "loaded" && (
           <>
             {question && question.trim() && (
-              <div className="mb-4 flex w-full justify-center">
-                <SeekerQuestion text={question} isOracle={isOracle} />
+              <div className="mb-4 mx-auto w-full max-w-md">
+                <SeekerQuestion text={question} isOracle={isOracle} sticky />
               </div>
             )}
             <ReadingBody
