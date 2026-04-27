@@ -8,6 +8,25 @@ import { buildGuideSystemPrompt } from "@/lib/guides";
 /** Maximum readings any single non-premium user may create in a UTC day. */
 const DAILY_LIMIT = 1;
 
+/**
+ * Map a Lens id (UI-facing kebab-case) to the snapshot_type column value
+ * (snake_case) used in `memory_snapshots`. Anything unknown falls through
+ * to deeper_threads — the safest middle ground.
+ */
+function snapshotTypeForLens(
+  lensId: string | undefined,
+): "recent_echoes" | "deeper_threads" | "full_archive" {
+  switch (lensId) {
+    case "recent-echoes":
+      return "recent_echoes";
+    case "full-archive":
+      return "full_archive";
+    case "deeper-threads":
+    default:
+      return "deeper_threads";
+  }
+}
+
 const InterpretInput = z.object({
   spread: z.string().refine(isValidSpreadMode, "Unknown spread"),
   picks: z
@@ -131,6 +150,63 @@ export const interpretReading = createServerFn({ method: "POST" })
         facetIds: data.facetIds ?? [],
       });
 
+      // ---- Memory context (Phase 7) -----------------------------------
+      // If the user has memory_ai_permission enabled and a non-expired
+      // snapshot exists for the chosen Lens, prepend it to the user prompt
+      // as symbolic context. Strictly summaries — never raw past
+      // interpretation text. All failures are silent: a missing snapshot
+      // simply means the model gets no memory this turn.
+      let memoryPreamble = "";
+      try {
+        const { data: prefs } = await supabase
+          .from("user_preferences")
+          .select("memory_ai_permission")
+          .eq("user_id", userId)
+          .maybeSingle();
+        const permitted =
+          (prefs as { memory_ai_permission?: boolean } | null)
+            ?.memory_ai_permission !== false;
+        if (permitted) {
+          const snapshotType = snapshotTypeForLens(data.lensId);
+          const { data: snap } = await supabase
+            .from("memory_snapshots")
+            .select("active_patterns_summary, active_threads_summary, expires_at")
+            .eq("snapshot_type", snapshotType)
+            .maybeSingle();
+          const snapshot = snap as
+            | {
+                active_patterns_summary: string | null;
+                active_threads_summary: string | null;
+                expires_at: string;
+              }
+            | null;
+          const isFresh =
+            snapshot && new Date(snapshot.expires_at).getTime() > Date.now();
+          if (isFresh) {
+            const parts: string[] = [];
+            if (snapshot.active_patterns_summary) {
+              parts.push(
+                `Recurring patterns in this seeker's practice:\n${snapshot.active_patterns_summary}`,
+              );
+            }
+            if (snapshot.active_threads_summary) {
+              parts.push(
+                `Active symbolic threads:\n${snapshot.active_threads_summary}`,
+              );
+            }
+            if (parts.length > 0) {
+              memoryPreamble = `Symbolic memory (for context, do not quote literally):\n${parts.join("\n\n")}\n\n`;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[interpretReading] memory lookup failed (non-fatal)", e);
+      }
+
+      const userPromptWithMemory = memoryPreamble
+        ? `${memoryPreamble}${userPrompt}`
+        : userPrompt;
+
       // 3. Call the Anthropic Messages API.
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) {
@@ -157,7 +233,7 @@ export const interpretReading = createServerFn({ method: "POST" })
               model,
               max_tokens: maxTokens,
               system: systemPrompt,
-              messages: [{ role: "user", content: userPrompt }],
+              messages: [{ role: "user", content: userPromptWithMemory }],
             }),
           });
 
