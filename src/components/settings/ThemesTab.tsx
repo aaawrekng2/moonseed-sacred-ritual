@@ -1004,7 +1004,16 @@ function HeadingFontSection() {
             borderColor: "color-mix(in oklab, var(--gold) 35%, transparent)",
           }}
         >
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Live preview
+            </span>
+            <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+              {font} · {size}px
+            </span>
+          </div>
           <div
+            className="mt-2 italic"
             style={{
               fontFamily: `"${font}", ui-serif, Georgia, serif`,
               fontSize: `${size}px`,
@@ -1012,10 +1021,21 @@ function HeadingFontSection() {
               color: "color-mix(in oklab, var(--gold) 75%, white)",
             }}
           >
-            Sample Heading
+            The Atmosphere
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            This is how your headings will appear
+          <div
+            className="mt-1"
+            style={{
+              fontFamily: `"${font}", ui-serif, Georgia, serif`,
+              fontSize: `${Math.max(13, Math.round(size * 0.7))}px`,
+              lineHeight: 1.3,
+              color: "color-mix(in oklab, var(--gold) 55%, white)",
+            }}
+          >
+            What the guide will see
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Updates instantly as you choose. Save a sanctuary to keep it.
           </p>
         </div>
 
