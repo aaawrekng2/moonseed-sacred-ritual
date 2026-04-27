@@ -1001,6 +1001,153 @@ function ThreadsView({ threads }: { threads: ThreadRow[] }) {
 
 /* ---------- Reading detail overlay ---------- */
 
+/* ---------- Calendar view ---------- */
+
+/**
+ * Month grid showing a small reading-count badge on every day that has
+ * one or more readings. Tapping a day filters the journal to that date
+ * and switches back to the Readings tab. Tapping the same day a second
+ * time clears the filter (handled by the parent).
+ */
+function CalendarView({
+  readings,
+  activeDate,
+  onSelectDate,
+}: {
+  readings: ReadingRow[];
+  activeDate: string | null;
+  onSelectDate: (d: string) => void;
+}) {
+  const [cursor, setCursor] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+
+  // YYYY-MM-DD -> count of readings on that local day.
+  const counts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const r of readings) {
+      const d = new Date(r.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      map[key] = (map[key] ?? 0) + 1;
+    }
+    return map;
+  }, [readings]);
+
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const monthLabel = cursor.toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+  const firstWeekday = new Date(year, month, 1).getDay(); // 0..6 Sun..Sat
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells: Array<{ day: number; key: string } | null> = [];
+  for (let i = 0; i < firstWeekday; i += 1) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d += 1) {
+    const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    cells.push({ day: d, key });
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const goPrev = () => setCursor(new Date(year, month - 1, 1));
+  const goNext = () => setCursor(new Date(year, month + 1, 1));
+
+  const todayKey = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+
+  return (
+    <div className="mx-auto max-w-md">
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={goPrev}
+          className="font-display text-[13px] italic text-gold transition-opacity"
+          style={{ opacity: "var(--ro-plus-20)" }}
+        >
+          ← Prev
+        </button>
+        <span
+          className="font-display text-[14px] italic text-gold"
+          style={{ opacity: "var(--ro-plus-30)" }}
+        >
+          {monthLabel}
+        </span>
+        <button
+          type="button"
+          onClick={goNext}
+          className="font-display text-[13px] italic text-gold transition-opacity"
+          style={{ opacity: "var(--ro-plus-20)" }}
+        >
+          Next →
+        </button>
+      </div>
+
+      <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+          <div key={d} style={{ opacity: "var(--ro-plus-10)" }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-2 grid grid-cols-7 gap-1">
+        {cells.map((c, i) => {
+          if (!c) return <div key={`x-${i}`} className="aspect-square" />;
+          const count = counts[c.key] ?? 0;
+          const selected = activeDate === c.key;
+          const isToday = todayKey === c.key;
+          return (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => onSelectDate(c.key)}
+              className={cn(
+                "relative flex aspect-square items-center justify-center rounded-md text-[13px] transition-colors",
+                selected ? "bg-gold/15 text-gold" : "text-foreground",
+              )}
+              style={{
+                border: selected
+                  ? "1px solid color-mix(in oklab, var(--gold) 50%, transparent)"
+                  : isToday
+                    ? "1px solid color-mix(in oklab, var(--gold) 25%, transparent)"
+                    : "1px solid transparent",
+                opacity: count > 0 ? "var(--ro-plus-30)" : "var(--ro-plus-0)",
+              }}
+            >
+              <span style={{ fontFamily: "var(--font-serif)" }}>{c.day}</span>
+              {count > 0 && (
+                <span
+                  className="absolute -bottom-0.5 right-0.5 inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-full px-1 font-mono text-[9px] tabular-nums"
+                  style={{
+                    background: "color-mix(in oklab, var(--gold) 28%, transparent)",
+                    color: "var(--gold)",
+                    border:
+                      "1px solid color-mix(in oklab, var(--gold) 45%, transparent)",
+                  }}
+                  aria-label={`${count} ${count === 1 ? "reading" : "readings"}`}
+                >
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {activeDate && (
+        <p
+          className="mt-4 text-center font-display text-[12px] italic text-muted-foreground"
+          style={{ opacity: "var(--ro-plus-20)" }}
+        >
+          Tap the same day again to clear the filter.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function ReadingDetail({
   reading,
   onClose,
