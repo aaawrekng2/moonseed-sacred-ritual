@@ -993,8 +993,8 @@ function ReadingBody({
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
           fontSize: bodySize + 1,
-          lineHeight: 1.65,
-          color: "color-mix(in oklab, var(--foreground) 92%, transparent)",
+          lineHeight: 1.7,
+          color: "var(--foreground)",
         }}
       >
         {interpretation.overview}
@@ -1031,8 +1031,8 @@ function ReadingBody({
               style={{
                 fontFamily: "var(--font-serif)",
                 fontSize: bodySize,
-                lineHeight: 1.65,
-                color: "color-mix(in oklab, var(--foreground) 85%, transparent)",
+                lineHeight: 1.7,
+                color: "var(--foreground)",
               }}
             >
               {p.interpretation}
@@ -1047,8 +1047,8 @@ function ReadingBody({
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
           fontSize: bodySize,
-          lineHeight: 1.65,
-          color: "color-mix(in oklab, var(--foreground) 80%, transparent)",
+          lineHeight: 1.7,
+          color: "color-mix(in oklab, var(--foreground) 88%, transparent)",
         }}
       >
         {interpretation.closing}
