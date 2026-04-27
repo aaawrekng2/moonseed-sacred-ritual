@@ -267,7 +267,10 @@ export function InlineReading({
   return (
     <>
       {(state.kind === "idle" || state.kind === "loading") && (
-        <div className="reading-actions-fade-in flex w-full justify-center">
+        <div className="reading-actions-fade-in flex w-full flex-col items-center gap-3">
+          {question && question.trim() && (
+            <SeekerQuestion text={question} isOracle={isOracle} />
+          )}
           <ReadingActions
             isOracle={isOracle}
             isLoading={state.kind === "loading"}
@@ -287,13 +290,20 @@ export function InlineReading({
         aria-busy={state.kind === "loading"}
       >
         {state.kind === "loaded" && (
-          <ReadingBody
+          <>
+            {question && question.trim() && (
+              <div className="mb-4 flex w-full justify-center">
+                <SeekerQuestion text={question} isOracle={isOracle} />
+              </div>
+            )}
+            <ReadingBody
             interpretation={state.interpretation}
             picks={picks}
             positionLabels={positionLabels}
             isOracle={isOracle}
             copyText={copyText ?? ""}
-          />
+            />
+          </>
         )}
         {state.kind === "limit" && (
           <LimitMessage
