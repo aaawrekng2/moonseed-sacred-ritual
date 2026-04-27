@@ -52,7 +52,16 @@ type ReadingRow = {
 
 type TagRow = { id: string; name: string; usage_count: number };
 
-type ViewMode = "readings" | "gallery" | "notes" | "favorites";
+type ViewMode = "readings" | "gallery" | "notes" | "favorites" | "threads";
+
+type ThreadRow = {
+  id: string;
+  summary: string;
+  tags: string[] | null;
+  reading_ids: string[] | null;
+  status: "emerging" | "active" | "quieting" | "retired" | "reawakened";
+  detected_at: string;
+};
 
 /* ---------- Helpers ---------- */
 
@@ -96,6 +105,7 @@ function JournalPage() {
 
   const [readings, setReadings] = useState<ReadingRow[]>([]);
   const [tags, setTags] = useState<TagRow[]>([]);
+  const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [photoCounts, setPhotoCounts] = useState<Record<string, number>>({});
   // Cover photo per reading: signed URL for the earliest photo.
   const [photoCovers, setPhotoCovers] = useState<Record<string, string>>({});
@@ -140,6 +150,15 @@ function JournalPage() {
       if (cancelled) return;
       setReadings((rows ?? []) as ReadingRow[]);
       setTags((tagRows ?? []) as TagRow[]);
+      // Threads load is independent — never block the main journal on it.
+      void (async () => {
+        const { data: threadRows } = await supabase
+          .from("symbolic_threads")
+          .select("id,summary,tags,reading_ids,status,detected_at")
+          .eq("user_id", user.id)
+          .order("detected_at", { ascending: false });
+        if (!cancelled) setThreads((threadRows ?? []) as ThreadRow[]);
+      })();
       const counts: Record<string, number> = {};
       // Pick earliest photo per reading as the cover.
       const coverPaths: Record<string, string> = {};
@@ -368,6 +387,7 @@ function JournalPage() {
             ["gallery", "Gallery"],
             ["notes", "Notes"],
             ["favorites", "Favorites"],
+            ["threads", "Threads"],
           ] as const
         ).map(([key, label]) => {
           const active = view === key;
@@ -416,7 +436,7 @@ function JournalPage() {
           />
         ) : view === "notes" ? (
           <NotesView items={noteItems} isOracle={isOracle} onOpen={setOpenId} />
-        ) : (
+        ) : view === "favorites" ? (
           <ReadingsList
             items={favItems}
             emptyOracle="Nothing yet held close to the heart…"
@@ -425,6 +445,8 @@ function JournalPage() {
             photoCounts={photoCounts}
             onOpen={setOpenId}
           />
+        ) : (
+          <ThreadsView threads={threads} />
         )}
       </div>
 
