@@ -6,17 +6,20 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { CheckCheck, ChevronDown, Copy } from "lucide-react";
+import { CheckCheck, ChevronDown, ChevronRight, Copy } from "lucide-react";
 import { getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import {
   interpretReading,
   type InterpretationPayload,
 } from "@/lib/interpret.functions";
+import { buildMemorySnapshot, detectThreads } from "@/lib/memory.functions";
 import { supabase } from "@/lib/supabase";
 import { useActiveGuide } from "@/lib/use-active-guide";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useAuth } from "@/lib/auth";
+import { getCurrentMoonPhase } from "@/lib/moon";
+import { FACETS, LENSES } from "@/lib/guides";
 import {
   BUILT_IN_GUIDES,
   getGuideById,
@@ -28,6 +31,10 @@ import {
   READING_FONT_MIN,
   useReadingFontSize,
 } from "@/lib/use-reading-font-size";
+import {
+  EnrichmentPanel,
+  type EnrichmentTag,
+} from "@/components/journal/EnrichmentPanel";
 
 type Pick = { id: number; cardIndex: number };
 
