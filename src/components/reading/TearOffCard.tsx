@@ -497,6 +497,7 @@ const CardArtwork = ({
   ref,
   question,
   spreadLabel,
+  spread,
   moonPhase,
   today,
   picks,
@@ -511,6 +512,7 @@ const CardArtwork = ({
   ref: React.Ref<HTMLDivElement>;
   question?: string;
   spreadLabel: string;
+  spread: SpreadMode;
   moonPhase: string;
   today: string;
   picks: Pick[];
@@ -524,6 +526,12 @@ const CardArtwork = ({
 }) => {
   const A = accent.color;
   const T = paper.text;
+  // Slightly larger card images for the 3-card spread; default smaller
+  // for single / yes_no / daily so the artwork doesn't feel sparse.
+  const isThree = spread === "three";
+  const isCeltic = spread === "celtic";
+  const cardW = isThree ? 78 : 60;
+  const cardH = Math.round(cardW * 1.75);
   return (
     <div
       ref={ref}
