@@ -259,6 +259,22 @@ export function useSavedThemes() {
     [user],
   );
 
+  /**
+   * Inline rename — preserves all of the slot's other fields (gradient,
+   * accent, font, etc.) and only updates the display name. Trims and
+   * caps to the same 20-char limit used elsewhere.
+   */
+  const renameSlot = useCallback(
+    async (slot: number, name: string) => {
+      const trimmed = name.trim().slice(0, 20) || "My Theme";
+      const next = themes.map((t) =>
+        t.slot === slot ? { ...t, name: trimmed } : t,
+      );
+      await persist(next);
+    },
+    [themes, persist],
+  );
+
   const occupied = useMemo(
     () => themes.slice().sort((a, b) => a.slot - b.slot),
     [themes],
@@ -271,6 +287,7 @@ export function useSavedThemes() {
     loaded,
     saveSlot,
     deleteSlot,
+    renameSlot,
     setActiveSlot: setActiveSlotPersisted,
     refresh: fetchFromServer,
   };

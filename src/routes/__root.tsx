@@ -192,7 +192,18 @@ function RootComponent() {
   return (
     <OracleModeProvider>
       <FloatingMenuProvider>
-        <div className="relative flex min-h-screen flex-col">
+        {/*
+          Desktop max-width frame: on screens wider than the breakpoint
+          the entire app is constrained to ~430px and centered, so the
+          mobile-first layouts don't stretch awkwardly on a laptop. On
+          mobile (<= 430px) this wrapper has no effect — width simply
+          fills the viewport. The frame also clips overflow so fixed
+          children stay within the column.
+        */}
+        <div
+          className="relative mx-auto flex min-h-screen w-full flex-col"
+          style={{ maxWidth: 430 }}
+        >
           <FloatingMenu />
           <RestingOpacityReadout />
           <Outlet />
