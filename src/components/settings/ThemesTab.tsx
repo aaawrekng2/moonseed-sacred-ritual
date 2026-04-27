@@ -1178,10 +1178,7 @@ function ReadingFontSection() {
   }, [size]);
 
   return (
-    <SettingsSection
-      title={isOracle ? "Reading Text" : "Body Text Size"}
-      description="How large the interpretation reads."
-    >
+    <SettingsSection title={isOracle ? "Reading Text" : "Body Text Size"}>
       <div className="space-y-4">
         <div
           className="rounded-lg border px-4 py-3"
