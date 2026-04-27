@@ -128,7 +128,9 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
         touchAction: "pan-x pan-y pinch-zoom",
         // Once revealed the page becomes scrollable so the inline
         // reading can grow beyond the viewport without being clipped.
-        overflowY: allRevealed ? "auto" : "hidden",
+        // Gated on cardsReady (not allRevealed) so the scroll only
+        // unlocks once the lift + reading mount have happened.
+        overflowY: cardsReady ? "auto" : "hidden",
       }}
     >
       {/* Cards block — wrapped so we can gently lift the 3-card spread
