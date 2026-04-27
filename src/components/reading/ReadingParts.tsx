@@ -672,20 +672,6 @@ function WhatGuideWillSee({
   );
 }
 
-function DisclosureRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-2 py-0.5">
-      <span
-        className="shrink-0 uppercase not-italic tracking-[0.18em] text-gold/70"
-        style={{ fontSize: 9, letterSpacing: "0.18em", lineHeight: 1.9 }}
-      >
-        {label}
-      </span>
-      <span className="flex-1">{value}</span>
-    </div>
-  );
-}
-
 /* ---------------------------------------------------------------------- */
 /*  Interpretation body — supports long-press text-size slider            */
 /* ---------------------------------------------------------------------- */
