@@ -8,9 +8,11 @@ import {
   HelpCircle,
   RotateCw,
   ScrollText,
+  UserRound,
   Wand2,
   X,
 } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useSavedThemes } from "@/lib/use-saved-themes";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
@@ -19,6 +21,7 @@ import { useFloatingMenu } from "@/lib/floating-menu-context";
 import { applySanctuary } from "@/components/nav/TopRightControls";
 import { setStoredCommunityTheme } from "@/lib/community-themes";
 import { dispatchActiveThemeChanged } from "@/lib/theme-events";
+import { useAuth } from "@/lib/auth";
 
 /**
  * Global floating ··· menu. Mounted ONCE in __root.tsx, hovers above
@@ -40,6 +43,13 @@ export function FloatingMenu() {
   const { level, cycleLevel } = useUIDensity();
   const { closeHandler, copyText, showRefresh } = useFloatingMenu();
   const { helpHandler } = useFloatingMenu();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const userInitial =
+    (user?.email?.[0] as string | undefined) ??
+    ((user?.user_metadata as { display_name?: string } | undefined)
+      ?.display_name?.[0] as string | undefined) ??
+    null;
 
   const [open, setOpen] = useState(false);
   const [phase, setPhase] = useState<"closed" | "open-bright" | "open-dim">(
