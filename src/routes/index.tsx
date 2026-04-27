@@ -188,6 +188,51 @@ function Index() {
 
       {/* Spread icons — sit just above bottom nav */}
       <section className="pb-24">
+        {isAnonymous && !nudgeDismissed && (
+          <div
+            className="flex items-center justify-between px-5 py-2"
+            style={{
+              borderTop:
+                "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() =>
+                navigate({ to: "/settings/profile" })
+              }
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 12,
+                color: "var(--foreground)",
+                opacity: 0.4,
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              Your readings are not yet bound to an account
+            </button>
+            <button
+              type="button"
+              onClick={dismissNudge}
+              aria-label="Dismiss"
+              style={{
+                color: "var(--foreground)",
+                opacity: 0.25,
+                background: "none",
+                border: "none",
+                padding: "0 0 0 12px",
+                cursor: "pointer",
+              }}
+            >
+              <X size={12} strokeWidth={1.5} />
+            </button>
+          </div>
+        )}
         <SpreadIconsRow
           onSelect={(spread) =>
             navigate({
