@@ -46,10 +46,7 @@ function Index() {
   useBgGradient();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [todayCard, setTodayCard] = useState<number | null>(null);
-  const [question, setQuestion] = useState("");
   const navigate = useNavigate();
-  const search = Route.useSearch();
-  const initialQuestion = search.question;
   const { currentStreak } = useStreak();
   // Daily ritual reset — bumps `dayEpoch` whenever the local calendar
   // day flips so the gateway re-queries today's card and sibling UI
@@ -109,8 +106,9 @@ function Index() {
         <MoonCarousel />
       </header>
 
-      {/* Gateway card — smaller, below moon */}
-      <section className="flex flex-col items-center py-2 px-6">
+      {/* Gateway card — centered in the remaining vertical space now
+          that the question prompt has moved to the draw table. */}
+      <section className="flex flex-1 flex-col items-center justify-center px-6">
         <div style={{ position: "relative", display: "inline-block" }}>
           <button
             type="button"
@@ -119,7 +117,7 @@ function Index() {
             onClick={() =>
               navigate({
                 to: "/draw",
-                search: { spread: "single", question: question || undefined },
+                search: { spread: "single" },
               })
             }
           >
@@ -168,21 +166,13 @@ function Index() {
         </div>
       </section>
 
-      {/* Question text box */}
-      <section className="flex flex-col items-center py-2 px-6">
-        <QuestionBox
-          onQuestionChange={setQuestion}
-          initialQuestion={initialQuestion}
-        />
-      </section>
-
       {/* Spread icons — sit just above bottom nav */}
-      <section className="pb-24 mt-auto">
+      <section className="pb-24">
         <SpreadIconsRow
           onSelect={(spread) =>
             navigate({
               to: "/draw",
-              search: { spread, question: question || undefined },
+              search: { spread },
             })
           }
         />
