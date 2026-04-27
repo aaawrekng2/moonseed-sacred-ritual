@@ -386,6 +386,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
               positionLabels={positionLabels}
               lensId={lensId}
               facetIds={facetIds}
+              question={question}
             />
           </div>
         )}
@@ -676,6 +677,7 @@ function ReadingActions({
   positionLabels,
   lensId,
   facetIds,
+  question,
 }: {
   isOracle: boolean;
   isLoading: boolean;
@@ -685,6 +687,7 @@ function ReadingActions({
   positionLabels: string[];
   lensId: string;
   facetIds: string[];
+  question?: string;
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -892,6 +895,7 @@ function WhatGuideWillSee({
   lensId,
   facetIds,
   isOracle,
+  question,
 }: {
   spread: SpreadMode;
   picks: Pick[];
@@ -900,6 +904,7 @@ function WhatGuideWillSee({
   lensId: string;
   facetIds: string[];
   isOracle: boolean;
+  question?: string;
 }) {
   const [open, setOpen] = useState(false);
   const meta = SPREAD_META[spread];
@@ -941,6 +946,9 @@ function WhatGuideWillSee({
             color: "color-mix(in oklab, var(--foreground) 75%, transparent)",
           }}
         >
+          {question && question.trim() && (
+            <DisclosureRow label="Question" value={question.trim()} />
+          )}
           <DisclosureRow label="Spread" value={meta.label} />
           <DisclosureRow
             label="Cards"
