@@ -60,6 +60,38 @@ type Props = {
 const SAVE_DELAY_MS = 800;
 const NOTE_SAVE_DELAY_MS = 3000;
 
+// Photo upload limits — checked client-side before compression so we can
+// give a friendly message instead of failing deep inside the canvas step.
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024; // 8 MB
+const MAX_PHOTO_DIMENSION = 8000; // px on the longest edge
+
+/**
+ * Read an image's natural width/height without keeping it in memory.
+ * Resolves to null if the file can't be decoded as an image.
+ */
+function readImageDimensions(
+  file: File,
+): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const dims = { width: img.naturalWidth, height: img.naturalHeight };
+      URL.revokeObjectURL(url);
+      resolve(dims);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    img.src = url;
+  });
+}
+
+function formatMb(bytes: number) {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 /* ---------- Hook: debounced save ---------- */
 
 function useDebouncedSave(delay: number = SAVE_DELAY_MS) {
