@@ -27,6 +27,79 @@ import { getCurrentMoonPhase } from "@/lib/moon";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import type { InterpretationPayload } from "@/lib/interpret.functions";
 
+/* ----------------------------------------------------------------- */
+/*  Theme tokens — accent + paper background combinations             */
+/* ----------------------------------------------------------------- */
+
+type AccentKey = "gold" | "mystic" | "moonlight";
+type PaperKey = "midnight" | "parchment" | "vellum";
+
+type AccentTheme = {
+  key: AccentKey;
+  label: string;
+  /** hex used in inline styles + html-to-image */
+  color: string;
+  swatch: string;
+};
+
+type PaperTheme = {
+  key: PaperKey;
+  label: string;
+  /** card body background (gradient) */
+  background: string;
+  /** body text color */
+  text: string;
+  /** color used for the html-to-image canvas backdrop */
+  canvas: string;
+  swatch: string;
+};
+
+const ACCENT_THEMES: Record<AccentKey, AccentTheme> = {
+  gold: { key: "gold", label: "Gold", color: "#d4af37", swatch: "#d4af37" },
+  mystic: {
+    key: "mystic",
+    label: "Mystic",
+    color: "#b497ff",
+    swatch: "#b497ff",
+  },
+  moonlight: {
+    key: "moonlight",
+    label: "Moonlight",
+    color: "#dfe6f5",
+    swatch: "#dfe6f5",
+  },
+};
+
+const PAPER_THEMES: Record<PaperKey, PaperTheme> = {
+  midnight: {
+    key: "midnight",
+    label: "Midnight",
+    background:
+      "linear-gradient(180deg, #14102f 0%, #0f0c29 60%, #14102f 100%)",
+    text: "#f5e9c8",
+    canvas: "#0f0c29",
+    swatch: "#14102f",
+  },
+  parchment: {
+    key: "parchment",
+    label: "Parchment",
+    background:
+      "linear-gradient(180deg, #f3e7c7 0%, #ead6a3 55%, #e2c98a 100%)",
+    text: "#3a2a13",
+    canvas: "#ead6a3",
+    swatch: "#ead6a3",
+  },
+  vellum: {
+    key: "vellum",
+    label: "Vellum",
+    background:
+      "linear-gradient(180deg, #f7f3ea 0%, #ece5d3 55%, #e3dac1 100%)",
+    text: "#2c2618",
+    canvas: "#ece5d3",
+    swatch: "#ece5d3",
+  },
+};
+
 type Pick = { id: number; cardIndex: number };
 
 export function TearOffCard({
@@ -54,6 +127,10 @@ export function TearOffCard({
   const [busy, setBusy] = useState<null | "png" | "pdf" | "share">(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
+  const [accentKey, setAccentKey] = useState<AccentKey>("gold");
+  const [paperKey, setPaperKey] = useState<PaperKey>("midnight");
+  const accent = ACCENT_THEMES[accentKey];
+  const paper = PAPER_THEMES[paperKey];
   useEffect(
     () => () => {
       if (toastTimer.current) window.clearTimeout(toastTimer.current);
@@ -89,7 +166,7 @@ export function TearOffCard({
     const dataUrl = await toPng(cardRef.current, {
       pixelRatio: 2,
       cacheBust: true,
-      backgroundColor: "#0f0c29",
+      backgroundColor: paper.canvas,
     });
     return dataUrl;
   };
@@ -236,10 +313,19 @@ export function TearOffCard({
             closing={interpretation.closing}
             guideName={guideName}
             isOracle={isOracle}
+            accent={accent}
+            paper={paper}
           />
         </div>
 
         <div className="flex flex-col gap-2 border-t border-gold/15 bg-background/40 px-5 py-4">
+          <ThemeControls
+            accentKey={accentKey}
+            paperKey={paperKey}
+            onAccentChange={setAccentKey}
+            onPaperChange={setPaperKey}
+            disabled={busy !== null}
+          />
           <div className="flex flex-wrap items-center justify-center gap-2">
             <ActionButton
               icon={<Share2 size={14} strokeWidth={1.5} />}
