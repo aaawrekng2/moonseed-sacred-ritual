@@ -202,7 +202,7 @@ function RootComponent() {
         */}
         <div
           className="relative mx-auto flex min-h-screen w-full flex-col"
-          style={{ maxWidth: 430 }}
+          style={{ maxWidth: 1280 }}
         >
           <FloatingMenu />
           <RestingOpacityReadout />
