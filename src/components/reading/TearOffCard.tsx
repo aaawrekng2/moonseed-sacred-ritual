@@ -621,87 +621,32 @@ const CardArtwork = ({
       )}
 
       {/* Cards row */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          justifyContent: "center",
-          marginBottom: 14,
-          flexWrap: "wrap",
-        }}
-      >
-        {picks.slice(0, 5).map((p, i) => (
-          <div
-            key={i}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 4,
-              maxWidth: 70,
-            }}
-          >
-            <img
-              src={getCardImagePath(p.cardIndex)}
-              alt={getCardName(p.cardIndex)}
-              crossOrigin="anonymous"
-              style={{
-                width: 60,
-                height: 105,
-                objectFit: "cover",
-                borderRadius: 4,
-                border: `1px solid color-mix(in oklab, ${A} 35%, transparent)`,
-                boxShadow: `0 4px 14px -4px color-mix(in oklab, ${A} 25%, transparent)`,
-              }}
-            />
-            <div
-              style={{
-                fontSize: 8,
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                color: A,
-                opacity: 0.75,
-                textAlign: "center",
-                lineHeight: 1.2,
-              }}
-            >
-              {positions[i]?.position ?? `Card ${i + 1}`}
-            </div>
-            <div
-              style={{
-                fontSize: 10,
-                fontStyle: "italic",
-                color: T,
-                opacity: 0.92,
-                textAlign: "center",
-                lineHeight: 1.25,
-              }}
-            >
-              {getCardName(p.cardIndex)}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {picks.length > 5 && (
+      {isCeltic ? (
+        <CelticCrossLayout
+          picks={picks}
+          positions={positions}
+          accent={A}
+          text={T}
+        />
+      ) : (
         <div
           style={{
             display: "flex",
-            flexWrap: "wrap",
-            gap: 8,
+            gap: 10,
             justifyContent: "center",
-            marginBottom: 14,
+            marginBottom: 16,
+            flexWrap: "wrap",
           }}
         >
-          {picks.slice(5).map((p, i) => (
+          {picks.map((p, i) => (
             <div
-              key={`extra-${i}`}
+              key={i}
               style={{
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: 4,
-                maxWidth: 70,
+                gap: 5,
+                maxWidth: cardW + 12,
               }}
             >
               <img
@@ -709,29 +654,30 @@ const CardArtwork = ({
                 alt={getCardName(p.cardIndex)}
                 crossOrigin="anonymous"
                 style={{
-                  width: 60,
-                  height: 105,
+                  width: cardW,
+                  height: cardH,
                   objectFit: "cover",
-                  borderRadius: 4,
+                  borderRadius: 5,
                   border: `1px solid color-mix(in oklab, ${A} 35%, transparent)`,
+                  boxShadow: `0 4px 14px -4px color-mix(in oklab, ${A} 25%, transparent)`,
                 }}
               />
               <div
                 style={{
-                  fontSize: 8,
+                  fontSize: 9,
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
                   color: A,
-                  opacity: 0.75,
+                  opacity: 0.78,
                   textAlign: "center",
                   lineHeight: 1.2,
                 }}
               >
-                {positions[i + 5]?.position ?? `Card ${i + 6}`}
+                {positions[i]?.position ?? `Card ${i + 1}`}
               </div>
               <div
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   fontStyle: "italic",
                   color: T,
                   opacity: 0.92,
