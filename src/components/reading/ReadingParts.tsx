@@ -267,7 +267,10 @@ export function InlineReading({
   return (
     <>
       {(state.kind === "idle" || state.kind === "loading") && (
-        <div className="reading-actions-fade-in flex w-full justify-center">
+        <div className="reading-actions-fade-in flex w-full flex-col items-center gap-3">
+          {question && question.trim() && (
+            <SeekerQuestion text={question} isOracle={isOracle} />
+          )}
           <ReadingActions
             isOracle={isOracle}
             isLoading={state.kind === "loading"}
@@ -287,13 +290,20 @@ export function InlineReading({
         aria-busy={state.kind === "loading"}
       >
         {state.kind === "loaded" && (
-          <ReadingBody
+          <>
+            {question && question.trim() && (
+              <div className="mb-4 flex w-full justify-center">
+                <SeekerQuestion text={question} isOracle={isOracle} />
+              </div>
+            )}
+            <ReadingBody
             interpretation={state.interpretation}
             picks={picks}
             positionLabels={positionLabels}
             isOracle={isOracle}
             copyText={copyText ?? ""}
-          />
+            />
+          </>
         )}
         {state.kind === "limit" && (
           <LimitMessage
@@ -348,6 +358,51 @@ export function InlineReading({
 /* ---------------------------------------------------------------------- */
 /*  Reading actions — guide dropdown + "Let Them Speak" button            */
 /* ---------------------------------------------------------------------- */
+
+function SeekerQuestion({
+  text,
+  isOracle,
+}: {
+  text: string;
+  isOracle: boolean;
+}) {
+  const label = isOracle ? "You whispered" : "Your question";
+  return (
+    <figure
+      className="w-full max-w-md text-center"
+      style={{
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          letterSpacing: "0.2em",
+          textTransform: "uppercase",
+          color: "var(--gold)",
+          opacity: "var(--ro-plus-20)",
+          marginBottom: 4,
+          fontStyle: "normal",
+        }}
+      >
+        {label}
+      </div>
+      <blockquote
+        style={{
+          fontSize: 15,
+          lineHeight: 1.7,
+          color: "var(--foreground)",
+          opacity: "var(--ro-plus-40)",
+          margin: 0,
+          padding: "0 12px",
+        }}
+      >
+        “{text.trim()}”
+      </blockquote>
+    </figure>
+  );
+}
 
 function ReadingActions({
   isOracle,
