@@ -17,6 +17,7 @@ import {
 } from "@/lib/use-auto-remember-question";
 import { useAuth } from "@/lib/auth";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
+import { DAILY_RESET_EVENT, useDailyReset } from "@/lib/use-daily-reset";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +51,10 @@ function Index() {
   const search = Route.useSearch();
   const initialQuestion = search.question;
   const { currentStreak } = useStreak();
+  // Daily ritual reset — bumps `dayEpoch` whenever the local calendar
+  // day flips so the gateway re-queries today's card and sibling UI
+  // (the QuestionBox) can show a quiet "new day" affordance.
+  const { epoch: dayEpoch } = useDailyReset();
   // Home is the only screen that exposes the Refresh icon in the
   // floating menu. Registered via context so the menu itself stays
   // route-agnostic.
@@ -60,8 +65,15 @@ function Index() {
   }, []);
 
   // If the user already pulled a single-card draw today, surface that
-  // card face on the gateway instead of the card back.
+  // card face on the gateway instead of the card back. Re-runs at
+  // midnight (day-epoch flip) so a tab left open overnight clears the
+  // stale face and falls back to the card back for the new day.
   useEffect(() => {
+    let cancelled = false;
+    // Optimistically clear the previous day's face the moment the
+    // calendar flips — the query below will re-populate it only if
+    // the seeker has already drawn for the new day.
+    setTodayCard(null);
     void (async () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const uid = sessionData.session?.user?.id;
@@ -76,10 +88,14 @@ function Index() {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (cancelled) return;
       const first = (data as { card_ids?: number[] } | null)?.card_ids?.[0];
       if (typeof first === "number") setTodayCard(first);
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [dayEpoch]);
 
   return (
     <main
@@ -205,6 +221,28 @@ function QuestionBox({
   // Confirmation gate for the Clear button so a tap doesn't
   // accidentally wipe a remembered question.
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  // "New moon day" cue: when the calendar day flips while a
+  // remembered question is loaded, surface a brief pill so the seeker
+  // can decide whether to keep, edit, or clear it for the new ritual.
+  const [newDayCue, setNewDayCue] = useState(false);
+  const valueRef = useRef("");
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onReset = () => {
+      // Only show the cue if there's actually a remembered question to
+      // carry over — otherwise the new day starts cleanly and the
+      // affordance would be noise.
+      if (valueRef.current.trim().length > 0) {
+        setNewDayCue(true);
+      }
+    };
+    window.addEventListener(DAILY_RESET_EVENT, onReset);
+    return () => window.removeEventListener(DAILY_RESET_EVENT, onReset);
+  }, []);
 
   // Hydrate the remember flag (always local) and the stored question
   // value from either localStorage (device scope) or the user's
@@ -283,6 +321,7 @@ function QuestionBox({
   const handleRememberToggle = () => {
     const next = !remember;
     setRemember(next);
+    if (newDayCue) setNewDayCue(false);
     // Manual OFF latches the session-scoped suppression so
     // auto-remember can't quietly flip it back on while typing.
     // Manual ON releases the latch, restoring auto behavior.
@@ -301,6 +340,7 @@ function QuestionBox({
   const handleClear = () => {
     setValue("");
     onQuestionChange("");
+    if (newDayCue) setNewDayCue(false);
     try {
       localStorage.removeItem("question-value");
     } catch {
@@ -351,6 +391,9 @@ function QuestionBox({
     const next = e.target.value.slice(0, QUESTION_MAX_LENGTH);
     setValue(next);
     onQuestionChange(next);
+    // Typing on the new day acknowledges the cue — dismiss it so it
+    // doesn't compete with the input.
+    if (newDayCue) setNewDayCue(false);
     // Auto-flip "Remember my question" on as soon as the seeker
     // begins typing, when the corresponding setting is enabled —
     // but never if the seeker has manually turned the toggle off in
@@ -465,6 +508,36 @@ function QuestionBox({
         >
           What question are you bringing to the cards?
         </div>
+      )}
+      {/* New-day ritual cue — appears the moment the calendar flips
+          if there's a remembered question carried over from the
+          previous day. Quiet, dismissible, and self-clearing once
+          the seeker types or interacts with the toggle. */}
+      {newDayCue && value.trim().length > 0 && (
+        <button
+          type="button"
+          onClick={() => setNewDayCue(false)}
+          aria-label="Dismiss new-day notice"
+          style={{
+            display: "block",
+            margin: "8px auto 0",
+            padding: "4px 12px",
+            borderRadius: 999,
+            border: "1px solid color-mix(in oklab, var(--gold) 45%, transparent)",
+            background: "color-mix(in oklab, var(--gold) 12%, transparent)",
+            color: "var(--gold)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 11,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+            opacity: "var(--ro-plus-40)",
+            transition: "opacity 200ms ease, background 200ms ease",
+          }}
+        >
+          ✦ New moon day · question carried over
+        </button>
       )}
       {/* Live character counter — only visible once the field has
           content or focus, so it doesn't add visual noise to an
