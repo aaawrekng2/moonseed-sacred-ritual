@@ -116,7 +116,7 @@ export const Route = createRootRoute({
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         {/*
           Synchronously apply persisted resting opacity BEFORE any CSS
@@ -176,8 +176,8 @@ function RootComponent() {
   return (
     <OracleModeProvider>
       <FloatingMenuProvider>
-        <FloatingMenu />
         <div className="relative flex min-h-screen flex-col">
+          <FloatingMenu />
           <RestingOpacityReadout />
           <Outlet />
           {!hideChrome && <BottomNav />}
