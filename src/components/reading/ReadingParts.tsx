@@ -134,7 +134,11 @@ export function InlineReading({
 
         if (!isCurrentRequest()) return;
         if (result.ok) {
-          setState({ kind: "loaded", interpretation: result.interpretation });
+          setState({
+            kind: "loaded",
+            interpretation: result.interpretation,
+            readingId: result.readingId ?? null,
+          });
         } else if (result.error === "daily_limit_reached") {
           setState({ kind: "limit" });
         } else {
