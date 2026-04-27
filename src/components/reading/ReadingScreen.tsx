@@ -322,6 +322,11 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
               isOracle={isOracle}
               isLoading={state.kind === "loading"}
               onSpeak={beginReading}
+              spread={spread}
+              picks={picks}
+              positionLabels={positionLabels}
+              lensId={lensId}
+              facetIds={facetIds}
             />
           </div>
         )}
@@ -605,10 +610,20 @@ function ReadingActions({
   isOracle,
   isLoading,
   onSpeak,
+  spread,
+  picks,
+  positionLabels,
+  lensId,
+  facetIds,
 }: {
   isOracle: boolean;
   isLoading: boolean;
   onSpeak: () => void;
+  spread: SpreadMode;
+  picks: Pick[];
+  positionLabels: string[];
+  lensId: string;
+  facetIds: string[];
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -768,6 +783,15 @@ function ReadingActions({
       {/* "Let Them Speak" — flowing-text invocation. No pill, no fill.
           The mist breathes behind the words so the call still feels
           alive without becoming a UI button. */}
+      <WhatGuideWillSee
+        spread={spread}
+        picks={picks}
+        positionLabels={positionLabels}
+        guideName={activeName}
+        lensId={lensId}
+        facetIds={facetIds}
+        isOracle={isOracle}
+      />
       <button
         type="button"
         onClick={onSpeak}
