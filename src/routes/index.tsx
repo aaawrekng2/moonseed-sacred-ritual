@@ -10,6 +10,7 @@ import { useStreak } from "@/lib/use-streak";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
+import { useAutoRememberQuestion } from "@/lib/use-auto-remember-question";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -154,6 +155,7 @@ function QuestionBox({
   const [focused, setFocused] = useState(false);
   const [remember, setRemember] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [autoRemember] = useAutoRememberQuestion();
 
   // Hydrate from localStorage on client only (avoid SSR mismatch).
   useEffect(() => {
@@ -210,8 +212,19 @@ function QuestionBox({
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setValue(e.target.value);
-    onQuestionChange(e.target.value);
+    const next = e.target.value;
+    setValue(next);
+    onQuestionChange(next);
+    // Auto-flip "Remember my question" on as soon as the seeker
+    // begins typing, when the corresponding setting is enabled.
+    if (autoRemember && !remember && next.trim().length > 0) {
+      setRemember(true);
+      try {
+        localStorage.setItem("question-remember", "1");
+      } catch {
+        // ignore
+      }
+    }
   };
 
   return (
