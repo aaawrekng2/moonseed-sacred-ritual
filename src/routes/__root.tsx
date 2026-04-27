@@ -130,6 +130,18 @@ function RootShell({ children }: { children: React.ReactNode }) {
               "try{var v=localStorage.getItem('moonseed:resting-opacity');var n=v?Math.max(25,Math.min(100,Math.round(Number(v)))):50;document.documentElement.style.setProperty('--resting-opacity',String(n/100));}catch(e){}",
           }}
         />
+        {/*
+          Synchronously rehydrate the persisted reading font size BEFORE
+          first paint. Mirrors the resting-opacity boot script: any
+          reading body text that reads `var(--reading-font-size, 17px)`
+          will resolve to the seeker's saved value with zero flash.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var v=localStorage.getItem('moonseed:reading-font-size');var n=v?Math.max(12,Math.min(20,Math.round(Number(v)))):17;document.documentElement.style.setProperty('--reading-font-size',n+'px');}catch(e){}",
+          }}
+        />
         <HeadContent />
       </head>
       <body>
