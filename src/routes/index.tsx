@@ -85,7 +85,7 @@ function Index() {
     <main
       className="relative flex h-[100dvh] flex-col overflow-hidden bg-cosmos pb-24"
       style={{
-        paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)",
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 4px)",
       }}
     >
       {/* Moon strip — close to top */}
@@ -94,7 +94,7 @@ function Index() {
       </header>
 
       {/* Gateway card — smaller, below moon */}
-      <section className="flex flex-col items-center pt-4 px-6">
+      <section className="flex flex-col items-center py-2 px-6">
         <div style={{ position: "relative", display: "inline-block" }}>
           <button
             type="button"
@@ -153,7 +153,7 @@ function Index() {
       </section>
 
       {/* Question text box */}
-      <section className="flex-1 flex flex-col items-center justify-center px-6 pt-4 pb-2">
+      <section className="flex flex-col items-center py-2 px-6">
         <QuestionBox
           onQuestionChange={setQuestion}
           initialQuestion={initialQuestion}
@@ -161,7 +161,7 @@ function Index() {
       </section>
 
       {/* Spread icons — sit just above bottom nav */}
-      <section>
+      <section className="pb-24 mt-auto">
         <SpreadIconsRow
           onSelect={(spread) =>
             navigate({
