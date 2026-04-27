@@ -258,7 +258,7 @@ export function GuideSelector({
                           top: 8,
                           left: 8,
                           zIndex: 30,
-                          opacity: "var(--ro-plus-10)",
+                          opacity: "var(--ro-plus-30)",
                         }}
                       >
                         <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -276,7 +276,7 @@ export function GuideSelector({
                           top: 8,
                           right: 8,
                           zIndex: 30,
-                          opacity: "var(--ro-plus-10)",
+                          opacity: "var(--ro-plus-30)",
                         }}
                       >
                         <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
