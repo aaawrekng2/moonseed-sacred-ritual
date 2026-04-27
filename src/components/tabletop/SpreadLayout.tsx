@@ -173,7 +173,7 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
       </div>
 
       {/* Footer: progress dots while revealing, inline reading once done. */}
-      {allRevealed ? (
+      {cardsReady ? (
         <div
           className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5"
           style={{
