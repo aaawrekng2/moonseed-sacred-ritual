@@ -166,6 +166,7 @@ function QuestionBox({
   onQuestionChange: (q: string) => void;
   initialQuestion?: string;
 }) {
+  const QUESTION_MAX_LENGTH = 280;
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
   const [remember, setRemember] = useState(false);
@@ -182,10 +183,13 @@ function QuestionBox({
       const storedRemember = localStorage.getItem("question-remember") === "1";
       setRemember(storedRemember);
       if (initialQuestion && initialQuestion.trim().length > 0) {
-        setValue(initialQuestion);
-        onQuestionChange(initialQuestion);
+        const clamped = initialQuestion.slice(0, QUESTION_MAX_LENGTH);
+        setValue(clamped);
+        onQuestionChange(clamped);
       } else if (storedRemember) {
-        const storedValue = localStorage.getItem("question-value") ?? "";
+        const storedValue = (
+          localStorage.getItem("question-value") ?? ""
+        ).slice(0, QUESTION_MAX_LENGTH);
         if (storedValue) {
           setValue(storedValue);
           onQuestionChange(storedValue);
@@ -234,7 +238,9 @@ function QuestionBox({
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const next = e.target.value;
+    // Hard-cap input at QUESTION_MAX_LENGTH so the question stays
+    // a comfortable reading size in the reading view's pinned panel.
+    const next = e.target.value.slice(0, QUESTION_MAX_LENGTH);
     setValue(next);
     onQuestionChange(next);
     // Auto-flip "Remember my question" on as soon as the seeker
@@ -305,6 +311,7 @@ function QuestionBox({
         onBlur={() => setFocused(false)}
         rows={3}
         aria-label="Your question for the cards"
+        maxLength={QUESTION_MAX_LENGTH}
         placeholder=""
         className="w-full resize-none bg-transparent text-center focus:outline-none"
         style={{
@@ -343,6 +350,36 @@ function QuestionBox({
           }}
         >
           What question are you bringing to the cards?
+        </div>
+      )}
+      {/* Live character counter — only visible once the field has
+          content or focus, so it doesn't add visual noise to an
+          empty home screen. Warms toward gold as the seeker
+          approaches the cap. */}
+      {(focused || value) && (
+        <div
+          aria-live="polite"
+          style={{
+            marginTop: 4,
+            textAlign: "right",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 11,
+            letterSpacing: "0.05em",
+            color:
+              value.length >= QUESTION_MAX_LENGTH
+                ? "var(--gold)"
+                : value.length >= QUESTION_MAX_LENGTH * 0.9
+                  ? "color-mix(in oklab, var(--gold) 75%, var(--foreground))"
+                  : "var(--foreground)",
+            opacity:
+              value.length >= QUESTION_MAX_LENGTH * 0.9
+                ? "var(--ro-plus-40)"
+                : "var(--ro-plus-20)",
+            transition: "color 200ms ease, opacity 200ms ease",
+          }}
+        >
+          {value.length} / {QUESTION_MAX_LENGTH}
         </div>
       )}
       <div
