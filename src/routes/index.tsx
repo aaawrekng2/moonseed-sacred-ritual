@@ -34,9 +34,7 @@ type IndexSearch = { question?: string };
 export const Route = createFileRoute("/")({
   validateSearch: (s: Record<string, unknown>): IndexSearch => ({
     question:
-      typeof s.question === "string" && s.question.trim().length > 0
-        ? s.question
-        : undefined,
+      typeof s.question === "string" && s.question.trim().length > 0 ? s.question : undefined,
   }),
   component: Index,
 });
@@ -46,10 +44,7 @@ function Index() {
   useBgGradient();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [todayCard, setTodayCard] = useState<number | null>(null);
-  const [question, setQuestion] = useState("");
   const navigate = useNavigate();
-  const search = Route.useSearch();
-  const initialQuestion = search.question;
   const { currentStreak } = useStreak();
   // Daily ritual reset — bumps `dayEpoch` whenever the local calendar
   // day flips so the gateway re-queries today's card and sibling UI
@@ -109,8 +104,9 @@ function Index() {
         <MoonCarousel />
       </header>
 
-      {/* Gateway card — smaller, below moon */}
-      <section className="flex flex-col items-center py-2 px-6">
+      {/* Gateway card — centered in the remaining vertical space now
+          that the question prompt has moved to the draw table. */}
+      <section className="flex flex-1 flex-col items-center justify-center px-6">
         <div style={{ position: "relative", display: "inline-block" }}>
           <button
             type="button"
@@ -119,7 +115,7 @@ function Index() {
             onClick={() =>
               navigate({
                 to: "/draw",
-                search: { spread: "single", question: question || undefined },
+                search: { spread: "single" },
               })
             }
           >
@@ -150,10 +146,7 @@ function Index() {
             title="Your practice streak"
             aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`}
           >
-            <Flame
-              size={16}
-              style={{ color: "var(--gold)", opacity: "var(--ro-plus-20)" }}
-            />
+            <Flame size={16} style={{ color: "var(--gold)", opacity: "var(--ro-plus-20)" }} />
             <span
               style={{
                 fontSize: "13px",
@@ -168,21 +161,13 @@ function Index() {
         </div>
       </section>
 
-      {/* Question text box */}
-      <section className="flex flex-col items-center py-2 px-6">
-        <QuestionBox
-          onQuestionChange={setQuestion}
-          initialQuestion={initialQuestion}
-        />
-      </section>
-
       {/* Spread icons — sit just above bottom nav */}
-      <section className="pb-24 mt-auto">
+      <section className="pb-24">
         <SpreadIconsRow
           onSelect={(spread) =>
             navigate({
               to: "/draw",
-              search: { spread, question: question || undefined },
+              search: { spread },
             })
           }
         />
@@ -209,8 +194,7 @@ function QuestionBox({
   const { user } = useAuth();
   const userId = user?.id;
   const [clearingRemembered, setClearingRemembered] = useState(false);
-  const [confirmClearRememberedOpen, setConfirmClearRememberedOpen] =
-    useState(false);
+  const [confirmClearRememberedOpen, setConfirmClearRememberedOpen] = useState(false);
   // Tracks whether the seeker has manually turned "Remember my
   // question" OFF during this session. While true, the auto-remember
   // setting is suppressed so typing never silently re-enables the
@@ -274,14 +258,14 @@ function QuestionBox({
             .eq("user_id", userId)
             .maybeSingle();
           storedValue = (
-            (data as { remembered_question?: string | null } | null)
-              ?.remembered_question ?? ""
+            (data as { remembered_question?: string | null } | null)?.remembered_question ?? ""
           ).slice(0, QUESTION_MAX_LENGTH);
         } else {
           try {
-            storedValue = (
-              localStorage.getItem("question-value") ?? ""
-            ).slice(0, QUESTION_MAX_LENGTH);
+            storedValue = (localStorage.getItem("question-value") ?? "").slice(
+              0,
+              QUESTION_MAX_LENGTH,
+            );
           } catch {
             // ignore
           }
@@ -398,12 +382,7 @@ function QuestionBox({
     // begins typing, when the corresponding setting is enabled —
     // but never if the seeker has manually turned the toggle off in
     // this session.
-    if (
-      autoRemember &&
-      !remember &&
-      !userDisabledRememberRef.current &&
-      next.trim().length > 0
-    ) {
+    if (autoRemember && !remember && !userDisabledRememberRef.current && next.trim().length > 0) {
       setRemember(true);
       try {
         localStorage.setItem("question-remember", "1");
@@ -437,8 +416,7 @@ function QuestionBox({
           color: "var(--gold)",
           opacity: focused || value ? "var(--ro-plus-40)" : 0,
           transform: `translateY(${focused || value ? "0" : "4px"})`,
-          transition:
-            "opacity 250ms ease, transform 250ms ease, color 200ms ease",
+          transition: "opacity 250ms ease, transform 250ms ease, color 200ms ease",
           pointerEvents: "none",
           zIndex: 1,
         }}
@@ -488,8 +466,7 @@ function QuestionBox({
             ? "0 0 0 3px color-mix(in oklab, var(--gold) 18%, transparent), 0 0 18px -6px color-mix(in oklab, var(--gold) 35%, transparent)"
             : "none",
           minHeight: 72,
-          transition:
-            "opacity 250ms ease, border-color 300ms ease, box-shadow 200ms ease",
+          transition: "opacity 250ms ease, border-color 300ms ease, box-shadow 200ms ease",
         }}
       />
       {!value && !focused && (
@@ -560,9 +537,7 @@ function QuestionBox({
                   ? "color-mix(in oklab, var(--gold) 75%, var(--foreground))"
                   : "var(--foreground)",
             opacity:
-              value.length >= QUESTION_MAX_LENGTH * 0.9
-                ? "var(--ro-plus-40)"
-                : "var(--ro-plus-20)",
+              value.length >= QUESTION_MAX_LENGTH * 0.9 ? "var(--ro-plus-40)" : "var(--ro-plus-20)",
             transition: "color 200ms ease, opacity 200ms ease",
           }}
         >
@@ -570,137 +545,133 @@ function QuestionBox({
         </div>
       )}
       {(focused || value.length > 0) && (
-      <div
-        className="flex items-center justify-center gap-3 pt-2"
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontSize: 12,
-          color: "var(--foreground)",
-          opacity: "var(--ro-plus-20)",
-        }}
-      >
-        <span
-          role="status"
-          aria-live="polite"
-          aria-label={
-            remember
-              ? "Your question will be remembered"
-              : "Your question will not be remembered"
-          }
-          title={
-            remember
-              ? "Your question will be saved for next time."
-              : "Your question will be forgotten when you leave."
-          }
+        <div
+          className="flex items-center justify-center gap-3 pt-2"
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "2px 8px",
-            borderRadius: 999,
-            fontStyle: "normal",
-            fontSize: 10,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            border: "1px solid",
-            borderColor: remember
-              ? "color-mix(in oklab, var(--gold) 60%, transparent)"
-              : "color-mix(in oklab, var(--foreground) 25%, transparent)",
-            background: remember
-              ? "color-mix(in oklab, var(--gold) 18%, transparent)"
-              : "transparent",
-            color: remember
-              ? "var(--gold)"
-              : "var(--foreground)",
-            opacity: remember ? "var(--ro-plus-40)" : "var(--ro-plus-20)",
-            transition:
-              "background 200ms ease, border-color 200ms ease, color 200ms ease, opacity 200ms ease",
+            fontFamily: "var(--font-serif)",
+            fontSize: 12,
+            color: "var(--foreground)",
+            opacity: "var(--ro-plus-20)",
           }}
         >
           <span
-            aria-hidden="true"
+            role="status"
+            aria-live="polite"
+            aria-label={
+              remember ? "Your question will be remembered" : "Your question will not be remembered"
+            }
+            title={
+              remember
+                ? "Your question will be saved for next time."
+                : "Your question will be forgotten when you leave."
+            }
             style={{
-              width: 6,
-              height: 6,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "2px 8px",
               borderRadius: 999,
+              fontStyle: "normal",
+              fontSize: 10,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              border: "1px solid",
+              borderColor: remember
+                ? "color-mix(in oklab, var(--gold) 60%, transparent)"
+                : "color-mix(in oklab, var(--foreground) 25%, transparent)",
               background: remember
-                ? "var(--gold)"
-                : "color-mix(in oklab, var(--foreground) 35%, transparent)",
-              boxShadow: remember
-                ? "0 0 6px color-mix(in oklab, var(--gold) 60%, transparent)"
-                : "none",
-              transition: "background 200ms ease, box-shadow 200ms ease",
-            }}
-          />
-          {remember ? "Remembering" : "Not remembering"}
-        </span>
-        <label
-          className="flex items-center gap-1.5 cursor-pointer select-none"
-          style={{ fontStyle: "italic" }}
-        >
-          <input
-            type="checkbox"
-            checked={remember}
-            onChange={handleRememberToggle}
-            style={{
-              accentColor: "var(--gold)",
-              width: 12,
-              height: 12,
-              cursor: "pointer",
-            }}
-          />
-          Remember my question
-        </label>
-        {value && (
-          <button
-            type="button"
-            onClick={() => setConfirmClearOpen(true)}
-            className="cursor-pointer underline-offset-2 hover:underline"
-            style={{
-              fontStyle: "italic",
-              background: "none",
-              border: "none",
-              color: "inherit",
-              padding: 0,
+                ? "color-mix(in oklab, var(--gold) 18%, transparent)"
+                : "transparent",
+              color: remember ? "var(--gold)" : "var(--foreground)",
+              opacity: remember ? "var(--ro-plus-40)" : "var(--ro-plus-20)",
+              transition:
+                "background 200ms ease, border-color 200ms ease, color 200ms ease, opacity 200ms ease",
             }}
           >
-            Clear
-          </button>
-        )}
-        {/* Scope-aware "Clear remembered question" — visible whenever
+            <span
+              aria-hidden="true"
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 999,
+                background: remember
+                  ? "var(--gold)"
+                  : "color-mix(in oklab, var(--foreground) 35%, transparent)",
+                boxShadow: remember
+                  ? "0 0 6px color-mix(in oklab, var(--gold) 60%, transparent)"
+                  : "none",
+                transition: "background 200ms ease, box-shadow 200ms ease",
+              }}
+            />
+            {remember ? "Remembering" : "Not remembering"}
+          </span>
+          <label
+            className="flex items-center gap-1.5 cursor-pointer select-none"
+            style={{ fontStyle: "italic" }}
+          >
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={handleRememberToggle}
+              style={{
+                accentColor: "var(--gold)",
+                width: 12,
+                height: 12,
+                cursor: "pointer",
+              }}
+            />
+            Remember my question
+          </label>
+          {value && (
+            <button
+              type="button"
+              onClick={() => setConfirmClearOpen(true)}
+              className="cursor-pointer underline-offset-2 hover:underline"
+              style={{
+                fontStyle: "italic",
+                background: "none",
+                border: "none",
+                color: "inherit",
+                padding: 0,
+              }}
+            >
+              Clear
+            </button>
+          )}
+          {/* Scope-aware "Clear remembered question" — visible whenever
             there's actually something remembered (the toggle is on).
             Wipes ONLY the storage location matching the seeker's
             current scope choice (device localStorage or the synced
             account row), without erasing the textarea contents. */}
-        {remember && (
-          <button
-            type="button"
-            disabled={clearingRemembered || (scope === "cloud" && !userId)}
-            onClick={() => setConfirmClearRememberedOpen(true)}
-            className="cursor-pointer underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-            title={
-              scope === "cloud" && !userId
-                ? "Sign in to clear your synced question."
+          {remember && (
+            <button
+              type="button"
+              disabled={clearingRemembered || (scope === "cloud" && !userId)}
+              onClick={() => setConfirmClearRememberedOpen(true)}
+              className="cursor-pointer underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+              title={
+                scope === "cloud" && !userId
+                  ? "Sign in to clear your synced question."
+                  : scope === "cloud"
+                    ? "Clear the question synced to your account."
+                    : "Clear the question saved in this browser."
+              }
+              style={{
+                fontStyle: "italic",
+                background: "none",
+                border: "none",
+                color: "inherit",
+                padding: 0,
+              }}
+            >
+              {clearingRemembered
+                ? "Clearing…"
                 : scope === "cloud"
-                  ? "Clear the question synced to your account."
-                  : "Clear the question saved in this browser."
-            }
-            style={{
-              fontStyle: "italic",
-              background: "none",
-              border: "none",
-              color: "inherit",
-              padding: 0,
-            }}
-          >
-            {clearingRemembered
-              ? "Clearing…"
-              : scope === "cloud"
-                ? "Clear synced"
-                : "Clear remembered"}
-          </button>
-        )}
-      </div>
+                  ? "Clear synced"
+                  : "Clear remembered"}
+            </button>
+          )}
+        </div>
       )}
       <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
         <AlertDialogContent>
@@ -725,16 +696,11 @@ function QuestionBox({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <AlertDialog
-        open={confirmClearRememberedOpen}
-        onOpenChange={setConfirmClearRememberedOpen}
-      >
+      <AlertDialog open={confirmClearRememberedOpen} onOpenChange={setConfirmClearRememberedOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {scope === "cloud"
-                ? "Clear synced question?"
-                : "Clear remembered question?"}
+              {scope === "cloud" ? "Clear synced question?" : "Clear remembered question?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {scope === "cloud"
