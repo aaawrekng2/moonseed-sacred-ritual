@@ -166,6 +166,7 @@ function QuestionBox({
   onQuestionChange: (q: string) => void;
   initialQuestion?: string;
 }) {
+  const QUESTION_MAX_LENGTH = 280;
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
   const [remember, setRemember] = useState(false);
@@ -234,7 +235,9 @@ function QuestionBox({
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const next = e.target.value;
+    // Hard-cap input at QUESTION_MAX_LENGTH so the question stays
+    // a comfortable reading size in the reading view's pinned panel.
+    const next = e.target.value.slice(0, QUESTION_MAX_LENGTH);
     setValue(next);
     onQuestionChange(next);
     // Auto-flip "Remember my question" on as soon as the seeker
@@ -305,6 +308,7 @@ function QuestionBox({
         onBlur={() => setFocused(false)}
         rows={3}
         aria-label="Your question for the cards"
+        maxLength={QUESTION_MAX_LENGTH}
         placeholder=""
         className="w-full resize-none bg-transparent text-center focus:outline-none"
         style={{
