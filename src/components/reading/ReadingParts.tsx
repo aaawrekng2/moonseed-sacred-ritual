@@ -43,7 +43,7 @@ type Pick = { id: number; cardIndex: number };
 type LoadState =
   | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "loaded"; interpretation: InterpretationPayload }
+  | { kind: "loaded"; interpretation: InterpretationPayload; readingId: string | null }
   | { kind: "limit" }
   | { kind: "error"; message: string };
 
@@ -134,7 +134,11 @@ export function InlineReading({
 
         if (!isCurrentRequest()) return;
         if (result.ok) {
-          setState({ kind: "loaded", interpretation: result.interpretation });
+          setState({
+            kind: "loaded",
+            interpretation: result.interpretation,
+            readingId: result.readingId ?? null,
+          });
         } else if (result.error === "daily_limit_reached") {
           setState({ kind: "limit" });
         } else {
@@ -176,6 +180,7 @@ export function InlineReading({
     if (state.kind !== "loaded") return;
     if (savedReadingRef.current) return;
     const loadedInterpretation = state.interpretation;
+    const serverReadingId = state.readingId;
     let cancelled = false;
     void (async () => {
       try {
@@ -188,18 +193,34 @@ export function InlineReading({
           picks,
           positionLabels,
         });
-        const { data, error } = await supabase
-          .from("readings")
-          .insert({
-            user_id: uid,
-            spread_type: spread,
-            card_ids: picks.map((p) => p.cardIndex),
-            interpretation: interpretationText,
-            guide_id: guideId,
-            lens_id: lensId,
-            mode: "reveal",
-            question: question || null,
-          })
+        // The server function `interpretReading` already inserted the row
+        // with the AI-generated JSON interpretation. Update that row in
+        // place with the formatted plaintext + client-side metadata
+        // instead of inserting a duplicate.
+        const query = serverReadingId
+          ? supabase
+              .from("readings")
+              .update({
+                interpretation: interpretationText,
+                guide_id: guideId,
+                lens_id: lensId,
+                mode: "reveal",
+              })
+              .eq("id", serverReadingId)
+              .eq("user_id", uid)
+          : supabase
+              .from("readings")
+              .insert({
+                user_id: uid,
+                spread_type: spread,
+                card_ids: picks.map((p) => p.cardIndex),
+                interpretation: interpretationText,
+                guide_id: guideId,
+                lens_id: lensId,
+                mode: "reveal",
+                question: question || null,
+              });
+        const { data, error } = await query
           .select("id,user_id,note,is_favorite,tags")
           .single();
         if (cancelled) return;

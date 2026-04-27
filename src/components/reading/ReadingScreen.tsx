@@ -54,7 +54,7 @@ type Props = {
 type LoadState =
   | { kind: "idle" } // cards revealed, awaiting "Let Them Speak" tap
   | { kind: "loading" }
-  | { kind: "loaded"; interpretation: InterpretationPayload }
+  | { kind: "loaded"; interpretation: InterpretationPayload; readingId: string | null }
   | { kind: "limit" }
   | { kind: "error"; message: string };
 
@@ -148,7 +148,11 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
 
         if (!isCurrentRequest()) return;
         if (result.ok) {
-          setState({ kind: "loaded", interpretation: result.interpretation });
+          setState({
+            kind: "loaded",
+            interpretation: result.interpretation,
+            readingId: result.readingId ?? null,
+          });
         } else if (result.error === "daily_limit_reached") {
           setState({ kind: "limit" });
         } else {
@@ -198,6 +202,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
     // on the derived `copyText` (which can momentarily be null between
     // renders even though state.kind === "loaded").
     const loadedInterpretation = state.interpretation;
+    const serverReadingId = state.readingId;
     let cancelled = false;
     void (async () => {
       try {
@@ -210,18 +215,34 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
           picks,
           positionLabels,
         });
-        const { data, error } = await supabase
-          .from("readings")
-          .insert({
-            user_id: uid,
-            spread_type: spread,
-            card_ids: picks.map((p) => p.cardIndex),
-            interpretation: interpretationText,
-            guide_id: guideId,
-            lens_id: lensId,
-            mode: "reveal",
-            question: question || null,
-          })
+        // The server function `interpretReading` already inserted the row
+        // with the AI-generated JSON interpretation. Update that row in
+        // place with the formatted plaintext + client-side metadata
+        // instead of inserting a duplicate.
+        const query = serverReadingId
+          ? supabase
+              .from("readings")
+              .update({
+                interpretation: interpretationText,
+                guide_id: guideId,
+                lens_id: lensId,
+                mode: "reveal",
+              })
+              .eq("id", serverReadingId)
+              .eq("user_id", uid)
+          : supabase
+              .from("readings")
+              .insert({
+                user_id: uid,
+                spread_type: spread,
+                card_ids: picks.map((p) => p.cardIndex),
+                interpretation: interpretationText,
+                guide_id: guideId,
+                lens_id: lensId,
+                mode: "reveal",
+                question: question || null,
+              });
+        const { data, error } = await query
           .select("id,user_id,note,is_favorite,tags")
           .single();
         if (cancelled) return;
