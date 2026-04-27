@@ -641,10 +641,8 @@ const CardArtwork = ({
                 height: 105,
                 objectFit: "cover",
                 borderRadius: 4,
-                border:
-                  "1px solid color-mix(in oklab, #d4af37 35%, transparent)",
-                boxShadow:
-                  "0 4px 14px -4px color-mix(in oklab, #d4af37 25%, transparent)",
+                border: `1px solid color-mix(in oklab, ${A} 35%, transparent)`,
+                boxShadow: `0 4px 14px -4px color-mix(in oklab, ${A} 25%, transparent)`,
               }}
             />
             <div
@@ -652,7 +650,7 @@ const CardArtwork = ({
                 fontSize: 8,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
-                color: "#d4af37",
+                color: A,
                 opacity: 0.75,
                 textAlign: "center",
                 lineHeight: 1.2,
@@ -664,7 +662,7 @@ const CardArtwork = ({
               style={{
                 fontSize: 10,
                 fontStyle: "italic",
-                color: "#f5e9c8",
+                color: T,
                 opacity: 0.92,
                 textAlign: "center",
                 lineHeight: 1.25,
@@ -706,8 +704,7 @@ const CardArtwork = ({
                   height: 105,
                   objectFit: "cover",
                   borderRadius: 4,
-                  border:
-                    "1px solid color-mix(in oklab, #d4af37 35%, transparent)",
+                  border: `1px solid color-mix(in oklab, ${A} 35%, transparent)`,
                 }}
               />
               <div
@@ -715,7 +712,7 @@ const CardArtwork = ({
                   fontSize: 8,
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
-                  color: "#d4af37",
+                  color: A,
                   opacity: 0.75,
                   textAlign: "center",
                   lineHeight: 1.2,
@@ -727,7 +724,7 @@ const CardArtwork = ({
                 style={{
                   fontSize: 10,
                   fontStyle: "italic",
-                  color: "#f5e9c8",
+                  color: T,
                   opacity: 0.92,
                   textAlign: "center",
                   lineHeight: 1.25,
@@ -744,8 +741,7 @@ const CardArtwork = ({
         aria-hidden
         style={{
           height: 1,
-          background:
-            "linear-gradient(to right, transparent, color-mix(in oklab, #d4af37 40%, transparent), transparent)",
+          background: `linear-gradient(to right, transparent, color-mix(in oklab, ${A} 40%, transparent), transparent)`,
           marginBottom: 12,
         }}
       />
@@ -757,7 +753,7 @@ const CardArtwork = ({
             fontStyle: "italic",
             fontSize: 12.5,
             lineHeight: 1.65,
-            color: "#f5e9c8",
+            color: T,
             opacity: 0.94,
             margin: "0 0 12px",
             textAlign: "center",
@@ -783,7 +779,7 @@ const CardArtwork = ({
               <span
                 style={{
                   fontSize: 11,
-                  color: "#d4af37",
+                  color: A,
                   letterSpacing: "0.04em",
                   fontWeight: 600,
                 }}
@@ -793,7 +789,7 @@ const CardArtwork = ({
               <span
                 style={{
                   fontSize: 8,
-                  color: "#d4af37",
+                  color: A,
                   opacity: 0.7,
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
@@ -808,7 +804,7 @@ const CardArtwork = ({
                 style={{
                   fontSize: 11.5,
                   lineHeight: 1.55,
-                  color: "#f5e9c8",
+                  color: T,
                   opacity: 0.88,
                   margin: 0,
                 }}
@@ -826,7 +822,7 @@ const CardArtwork = ({
             fontStyle: "italic",
             fontSize: 12,
             lineHeight: 1.6,
-            color: "#f5e9c8",
+            color: T,
             opacity: 0.85,
             margin: "8px 0 0",
             textAlign: "center",
@@ -840,8 +836,7 @@ const CardArtwork = ({
         aria-hidden
         style={{
           height: 1,
-          background:
-            "linear-gradient(to right, transparent, color-mix(in oklab, #d4af37 40%, transparent), transparent)",
+          background: `linear-gradient(to right, transparent, color-mix(in oklab, ${A} 40%, transparent), transparent)`,
           margin: "14px 0 10px",
         }}
       />
@@ -855,7 +850,7 @@ const CardArtwork = ({
           fontSize: 9,
           letterSpacing: "0.22em",
           textTransform: "uppercase",
-          color: "#d4af37",
+          color: A,
           opacity: 0.78,
         }}
       >
