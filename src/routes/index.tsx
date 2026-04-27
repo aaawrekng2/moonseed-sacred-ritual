@@ -594,6 +594,39 @@ function QuestionBox({
             Clear
           </button>
         )}
+        {/* Scope-aware "Clear remembered question" — visible whenever
+            there's actually something remembered (the toggle is on).
+            Wipes ONLY the storage location matching the seeker's
+            current scope choice (device localStorage or the synced
+            account row), without erasing the textarea contents. */}
+        {remember && (
+          <button
+            type="button"
+            disabled={clearingRemembered || (scope === "cloud" && !userId)}
+            onClick={() => setConfirmClearRememberedOpen(true)}
+            className="cursor-pointer underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+            title={
+              scope === "cloud" && !userId
+                ? "Sign in to clear your synced question."
+                : scope === "cloud"
+                  ? "Clear the question synced to your account."
+                  : "Clear the question saved in this browser."
+            }
+            style={{
+              fontStyle: "italic",
+              background: "none",
+              border: "none",
+              color: "inherit",
+              padding: 0,
+            }}
+          >
+            {clearingRemembered
+              ? "Clearing…"
+              : scope === "cloud"
+                ? "Clear synced"
+                : "Clear remembered"}
+          </button>
+        )}
       </div>
       <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
         <AlertDialogContent>
@@ -614,6 +647,38 @@ function QuestionBox({
               }}
             >
               Clear question
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={confirmClearRememberedOpen}
+        onOpenChange={setConfirmClearRememberedOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {scope === "cloud"
+                ? "Clear synced question?"
+                : "Clear remembered question?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {scope === "cloud"
+                ? "This will remove the question synced to your account. The text in the textarea right now will not be erased."
+                : "This will remove the question saved in this browser. The text in the textarea right now will not be erased."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                void (async () => {
+                  await handleClearRemembered();
+                  setConfirmClearRememberedOpen(false);
+                })();
+              }}
+            >
+              {scope === "cloud" ? "Clear synced" : "Clear remembered"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
