@@ -83,9 +83,9 @@ function Index() {
 
   return (
     <main
-      className="relative flex h-[100dvh] flex-col overflow-hidden bg-cosmos pb-24"
+      className="relative flex h-[100dvh] flex-col overflow-hidden bg-cosmos"
       style={{
-        paddingTop: "calc(env(safe-area-inset-top, 0px) + 8px)",
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 4px)",
       }}
     >
       {/* Moon strip — close to top */}
@@ -94,7 +94,7 @@ function Index() {
       </header>
 
       {/* Gateway card — smaller, below moon */}
-      <section className="flex flex-col items-center pt-4 px-6">
+      <section className="flex flex-col items-center py-2 px-6">
         <div style={{ position: "relative", display: "inline-block" }}>
           <button
             type="button"
@@ -153,7 +153,7 @@ function Index() {
       </section>
 
       {/* Question text box */}
-      <section className="flex-1 flex flex-col items-center justify-center px-6 pt-4 pb-2">
+      <section className="flex flex-col items-center py-2 px-6">
         <QuestionBox
           onQuestionChange={setQuestion}
           initialQuestion={initialQuestion}
@@ -161,7 +161,7 @@ function Index() {
       </section>
 
       {/* Spread icons — sit just above bottom nav */}
-      <section>
+      <section className="pb-24 mt-auto">
         <SpreadIconsRow
           onSelect={(spread) =>
             navigate({
@@ -392,7 +392,6 @@ function QuestionBox({
           letterSpacing: "0.18em",
           textTransform: "uppercase",
           color: "var(--gold)",
-          background: "var(--background)",
           opacity: focused || value ? "var(--ro-plus-40)" : 0,
           transform: `translateY(${focused || value ? "0" : "4px"})`,
           transition:
@@ -438,8 +437,8 @@ function QuestionBox({
           opacity: focused || value ? "var(--ro-plus-40)" : "var(--ro-plus-20)",
           border: "1px solid",
           borderColor: focused
-            ? "color-mix(in oklab, var(--gold) 60%, transparent)"
-            : "color-mix(in oklab, var(--gold) 18%, transparent)",
+            ? "color-mix(in oklab, var(--gold) 40%, transparent)"
+            : "color-mix(in oklab, var(--gold) 12%, transparent)",
           borderRadius: 12,
           padding: "12px 14px",
           boxShadow: focused
@@ -447,7 +446,7 @@ function QuestionBox({
             : "none",
           minHeight: 72,
           transition:
-            "opacity 250ms ease, border-color 200ms ease, box-shadow 200ms ease",
+            "opacity 250ms ease, border-color 300ms ease, box-shadow 200ms ease",
         }}
       />
       {!value && !focused && (
@@ -497,6 +496,7 @@ function QuestionBox({
           {value.length} / {QUESTION_MAX_LENGTH}
         </div>
       )}
+      {(focused || value.length > 0) && (
       <div
         className="flex items-center justify-center gap-3 pt-2"
         style={{
@@ -628,6 +628,7 @@ function QuestionBox({
           </button>
         )}
       </div>
+      )}
       <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

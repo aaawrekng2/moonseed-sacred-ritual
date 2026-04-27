@@ -280,6 +280,7 @@ export function InlineReading({
             positionLabels={positionLabels}
             lensId={lensId}
             facetIds={facetIds}
+            question={question}
           />
         </div>
       )}
@@ -462,6 +463,7 @@ function ReadingActions({
   positionLabels,
   lensId,
   facetIds,
+  question,
 }: {
   isOracle: boolean;
   isLoading: boolean;
@@ -471,6 +473,7 @@ function ReadingActions({
   positionLabels: string[];
   lensId: string;
   facetIds: string[];
+  question?: string;
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -632,6 +635,7 @@ function ReadingActions({
         lensId={lensId}
         facetIds={facetIds}
         isOracle={isOracle}
+        question={question}
       />
       <button
         type="button"
@@ -667,6 +671,7 @@ function AiPromptPreview({
   lensId,
   facetIds,
   isOracle,
+  question,
 }: {
   spread: SpreadMode;
   picks: Pick[];
@@ -675,6 +680,7 @@ function AiPromptPreview({
   lensId: string;
   facetIds: string[];
   isOracle: boolean;
+  question?: string;
 }) {
   const meta = SPREAD_META[spread];
   const moonPhase = getCurrentMoonPhase().phase;
@@ -706,7 +712,7 @@ function AiPromptPreview({
     ? `${guideName} will whisper the reading,`
     : `${guideName} will speak the reading,`;
 
-  const text = `${voiceLine} ${lensDescription}.${facetLine}
+  const text = `${question && question.trim() ? `"${question.trim()}"\n\n` : ""}${voiceLine} ${lensDescription}.${facetLine}
 
 ${meta.label} spread — moon in ${moonPhase}.
 
@@ -723,6 +729,7 @@ function WhatGuideWillSee({
   lensId,
   facetIds,
   isOracle,
+  question,
 }: {
   spread: SpreadMode;
   picks: Pick[];
@@ -731,6 +738,7 @@ function WhatGuideWillSee({
   lensId: string;
   facetIds: string[];
   isOracle: boolean;
+  question?: string;
 }) {
   const [open, setOpen] = useState(false);
   const label = isOracle
@@ -773,6 +781,7 @@ function WhatGuideWillSee({
             lensId={lensId}
             facetIds={facetIds}
             isOracle={isOracle}
+            question={question}
           />
         </div>
       )}
