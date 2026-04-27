@@ -216,13 +216,19 @@ function QuestionBox({
 
   return (
     <div className="w-full max-w-sm relative">
+      <label htmlFor="seeker-question" className="sr-only">
+        Your question for the cards
+      </label>
       <textarea
+        id="seeker-question"
         value={value}
         onChange={handleChange}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         rows={3}
-        className="w-full resize-none bg-transparent focus:outline-none text-center"
+        aria-label="Your question for the cards"
+        placeholder=""
+        className="w-full resize-none bg-transparent text-center focus:outline-none"
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
@@ -230,10 +236,18 @@ function QuestionBox({
           lineHeight: 1.7,
           color: "var(--foreground)",
           opacity: focused || value ? "var(--ro-plus-40)" : "var(--ro-plus-20)",
-          border: "none",
-          padding: "12px 0",
+          border: "1px solid",
+          borderColor: focused
+            ? "color-mix(in oklab, var(--gold) 60%, transparent)"
+            : "color-mix(in oklab, var(--gold) 18%, transparent)",
+          borderRadius: 12,
+          padding: "12px 14px",
+          boxShadow: focused
+            ? "0 0 0 3px color-mix(in oklab, var(--gold) 18%, transparent), 0 0 18px -6px color-mix(in oklab, var(--gold) 35%, transparent)"
+            : "none",
           minHeight: 72,
-          transition: "opacity 250ms ease",
+          transition:
+            "opacity 250ms ease, border-color 200ms ease, box-shadow 200ms ease",
         }}
       />
       {!value && !focused && (
