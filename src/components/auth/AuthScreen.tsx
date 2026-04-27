@@ -11,7 +11,7 @@ export function AuthScreen({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [mode, setMode] = useState<Mode>("signup");
+  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -97,7 +97,7 @@ export function AuthScreen({
               opacity: 0.8,
             }}
           >
-            {mode === "signup" ? "Create Account" : "Sign In"}
+            {mode === "signin" ? "Sign In" : "Create Account"}
           </span>
           <button
             type="button"
@@ -253,17 +253,13 @@ export function AuthScreen({
               letterSpacing: "0.1em",
             }}
           >
-            {loading
-              ? "…"
-              : mode === "signup"
-                ? "Create Account"
-                : "Sign In"}
+            {loading ? "…" : mode === "signin" ? "Sign In" : "Create Account"}
           </button>
 
           <button
             type="button"
             onClick={() => {
-              setMode(mode === "signup" ? "signin" : "signup");
+              setMode(mode === "signin" ? "signup" : "signin");
               setError(null);
               setSuccess(null);
               setConfirmPassword("");
@@ -275,16 +271,16 @@ export function AuthScreen({
               fontStyle: "italic",
               fontSize: 12,
               color: "var(--foreground)",
-              opacity: 0.45,
+              opacity: 0.35,
               background: "none",
               border: "none",
               padding: 0,
               cursor: "pointer",
             }}
           >
-            {mode === "signup"
-              ? "Already have an account? Sign in"
-              : "No account? Create one"}
+            {mode === "signin"
+              ? "Don't have an account? Create one"
+              : "Already have an account? Sign in"}
           </button>
         </div>
       </div>
