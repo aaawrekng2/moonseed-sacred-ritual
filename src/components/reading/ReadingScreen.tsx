@@ -13,7 +13,7 @@ import {
   interpretReading,
   type InterpretationPayload,
 } from "@/lib/interpret.functions";
-import { detectThreads } from "@/lib/memory.functions";
+import { buildMemorySnapshot, detectThreads } from "@/lib/memory.functions";
 import { supabase } from "@/lib/supabase";
 import { useActiveGuide } from "@/lib/use-active-guide";
 import { useOracleMode } from "@/lib/use-oracle-mode";
@@ -234,6 +234,21 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
         // surface errors to the reading UI.
         void detectThreads({ data: { user_id: uid } }).catch((e: unknown) =>
           console.warn("detect-threads failed silently:", e),
+        );
+        // Phase 7: also refresh the memory snapshot for the lens the
+        // user is currently reading under so the *next* reading has
+        // current symbolic context. Gated server-side by
+        // memory_ai_permission; failures are silent.
+        const snapshotType =
+          lensId === "recent-echoes"
+            ? "recent_echoes"
+            : lensId === "full-archive"
+              ? "full_archive"
+              : "deeper_threads";
+        void buildMemorySnapshot({
+          data: { user_id: uid, snapshot_type: snapshotType },
+        }).catch((e: unknown) =>
+          console.warn("build-memory-snapshot failed silently:", e),
         );
         // Load the user's tag library so the suggestion row works.
         const { data: tagRows } = await supabase
