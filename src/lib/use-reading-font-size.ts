@@ -49,6 +49,17 @@ export function useReadingFontSize() {
 
   const [saveState, setSaveState] = useState<ReadingFontSaveState>("idle");
 
+  // Mirror the current size to a CSS custom property on <html> so any
+  // reading-body text can fall back to `var(--reading-font-size, 17px)`
+  // without needing to consume the hook directly.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.style.setProperty(
+      "--reading-font-size",
+      `${size}px`,
+    );
+  }, [size]);
+
   // Debounced persist — keeps slider drags from spamming the network.
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
