@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Heart, Search } from "lucide-react";
+import { Heart, Search, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useOracleMode } from "@/lib/use-oracle-mode";
@@ -53,7 +53,26 @@ type ReadingRow = {
 
 type TagRow = { id: string; name: string; usage_count: number };
 
-type ViewMode = "readings" | "gallery" | "notes" | "favorites" | "threads";
+type ViewMode =
+  | "readings"
+  | "gallery"
+  | "notes"
+  | "favorites"
+  | "threads"
+  | "calendar";
+
+/** Draw types the seeker can filter by. Maps to `readings.spread_type`. */
+type DrawTypeKey = "single" | "three" | "celtic" | "yes_no";
+const DRAW_TYPE_LABEL: Record<DrawTypeKey, string> = {
+  single: "Single",
+  three: "Three Card",
+  celtic: "Celtic Cross",
+  yes_no: "Yes / No",
+};
+const DRAW_TYPE_KEYS: DrawTypeKey[] = ["single", "three", "celtic", "yes_no"];
+
+/** Tag combinator: any-of (OR) vs all-of (AND). */
+type TagMode = "any" | "all";
 
 type ThreadRow = {
   id: string;
@@ -114,6 +133,10 @@ function JournalPage() {
 
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState<string[]>([]);
+  const [tagMode, setTagMode] = useState<TagMode>("all");
+  const [activeDrawTypes, setActiveDrawTypes] = useState<DrawTypeKey[]>([]);
+  // YYYY-MM-DD selected from the calendar view; null = no date filter.
+  const [activeDate, setActiveDate] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("readings");
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -201,7 +224,20 @@ function JournalPage() {
     return readings.filter((r) => {
       if (activeTags.length > 0) {
         const rt = r.tags ?? [];
-        if (!activeTags.every((t) => rt.includes(t))) return false;
+        if (tagMode === "all") {
+          if (!activeTags.every((t) => rt.includes(t))) return false;
+        } else {
+          if (!activeTags.some((t) => rt.includes(t))) return false;
+        }
+      }
+      if (activeDrawTypes.length > 0) {
+        if (!activeDrawTypes.includes(r.spread_type as DrawTypeKey))
+          return false;
+      }
+      if (activeDate) {
+        const d = new Date(r.created_at);
+        const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        if (local !== activeDate) return false;
       }
       if (q.length > 0) {
         const interp = (r.interpretation ?? "").toLowerCase();
@@ -220,7 +256,7 @@ function JournalPage() {
       }
       return true;
     });
-  }, [readings, search, activeTags]);
+  }, [readings, search, activeTags, tagMode, activeDrawTypes, activeDate]);
 
   const galleryItems = useMemo(
     () => filtered.filter((r) => (photoCounts[r.id] ?? 0) > 0),
@@ -311,14 +347,24 @@ function JournalPage() {
   );
 
   return (
-    <main className="bg-cosmos relative h-dvh overflow-y-auto px-5 pb-28 pt-[calc(env(safe-area-inset-top,0px)+72px)]">
-      {/* Title */}
-      <h1
-        className="font-display text-2xl italic text-gold"
-        style={{ opacity: "var(--ro-plus-20)" }}
+    <main className="bg-cosmos relative h-dvh overflow-y-auto px-5 pb-28">
+      {/* Sticky header — title, search, tags, draw-type, tab row.
+          Stays pinned while the body below scrolls. */}
+      <div
+        className="sticky top-0 z-30 -mx-5 px-5 pt-[calc(env(safe-area-inset-top,0px)+72px)]"
+        style={{
+          background:
+            "linear-gradient(to bottom, oklch(0.10 0.03 280) 92%, transparent)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+        }}
       >
-        Journal
-      </h1>
+        <h1
+          className="font-display text-2xl italic text-gold"
+          style={{ opacity: "var(--ro-plus-20)" }}
+        >
+          Journal
+        </h1>
 
       {/* Search */}
       <div className="mt-4 flex items-center gap-2">
@@ -380,6 +426,79 @@ function JournalPage() {
         </div>
       )}
 
+      {/* Tag combinator — only visible when 2+ tags selected. */}
+      {activeTags.length >= 2 && (
+        <div className="mt-2 flex items-center gap-3">
+          <span className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            Match
+          </span>
+          {(["any", "all"] as const).map((m) => {
+            const active = tagMode === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setTagMode(m)}
+                className="font-display text-[12px] italic text-gold transition-opacity"
+                style={{
+                  opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-10)",
+                  borderBottom: active
+                    ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                    : "1px solid transparent",
+                  paddingBottom: 2,
+                }}
+              >
+                {m === "any" ? "Any tag" : "All tags"}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Draw-type filters — borderless, plain text per spec. */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+        {DRAW_TYPE_KEYS.map((k) => {
+          const active = activeDrawTypes.includes(k);
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() =>
+                setActiveDrawTypes((prev) =>
+                  prev.includes(k)
+                    ? prev.filter((x) => x !== k)
+                    : [...prev, k],
+                )
+              }
+              className="font-display text-[12px] italic text-gold transition-opacity"
+              style={{
+                opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
+                borderBottom: active
+                  ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                  : "1px solid transparent",
+                paddingBottom: 2,
+              }}
+            >
+              {DRAW_TYPE_LABEL[k]}
+            </button>
+          );
+        })}
+        {activeDate && (
+          <button
+            type="button"
+            onClick={() => setActiveDate(null)}
+            className="ml-auto inline-flex items-center gap-1 font-display text-[11px] italic text-muted-foreground"
+            style={{ opacity: "var(--ro-plus-20)" }}
+          >
+            <XIcon size={11} strokeWidth={1.5} />
+            {new Date(activeDate + "T12:00:00").toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+            })}
+          </button>
+        )}
+      </div>
+
       {/* View tabs */}
       <div className="mt-5 flex items-center gap-5">
         {(
@@ -388,6 +507,7 @@ function JournalPage() {
             ["gallery", "Gallery"],
             ["notes", "Notes"],
             ["favorites", "Favorites"],
+            ["calendar", "Calendar"],
             ["threads", "Threads"],
           ] as const
         ).map(([key, label]) => {
@@ -410,6 +530,8 @@ function JournalPage() {
             </button>
           );
         })}
+      </div>
+        <div className="h-3" />
       </div>
 
       {/* Body */}
@@ -445,6 +567,15 @@ function JournalPage() {
             isOracle={isOracle}
             photoCounts={photoCounts}
             onOpen={setOpenId}
+          />
+        ) : view === "calendar" ? (
+          <CalendarView
+            readings={readings}
+            activeDate={activeDate}
+            onSelectDate={(d) => {
+              setActiveDate((cur) => (cur === d ? null : d));
+              setView("readings");
+            }}
           />
         ) : (
           <ThreadsView threads={threads} />
