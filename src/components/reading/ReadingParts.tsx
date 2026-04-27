@@ -268,6 +268,11 @@ export function InlineReading({
             isOracle={isOracle}
             isLoading={state.kind === "loading"}
             onSpeak={beginReading}
+            spread={spread}
+            picks={picks}
+            positionLabels={positionLabels}
+            lensId={lensId}
+            facetIds={facetIds}
           />
         </div>
       )}
