@@ -49,6 +49,11 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
   const [revealedFlags, setRevealedFlags] = useState<boolean[]>(
     () => picks.map(() => false),
   );
+  // Defer the 3-card "lift" transform until after the inline reading
+  // container has been painted below the cards. Without this delay the
+  // cards translate up while there is still nothing beneath them and
+  // visually fly off-screen (Phase 7 bug 3).
+  const [cardsReady, setCardsReady] = useState(false);
   // Index of the card that just received a wrong tap (red border flash).
   // Cleared 400ms after it's set.
   const [wrongIndex, setWrongIndex] = useState<number | null>(null);
@@ -71,6 +76,16 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
   const nextIndex = revealedFlags.findIndex((r) => !r);
   const allRevealed = nextIndex === -1;
   const revealedCount = revealedFlags.filter(Boolean).length;
+
+  useEffect(() => {
+    if (!allRevealed) {
+      setCardsReady(false);
+      return;
+    }
+    const t = setTimeout(() => setCardsReady(true), 50);
+    return () => clearTimeout(t);
+  }, [allRevealed]);
+
   const totalCount = picks.length;
   // Friendly position name for the next required card. Falls back through
   // the short labels and finally a generic "Card N" if the spread doesn't
@@ -124,12 +139,17 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
         className="flex-1 flex items-center justify-center px-4 py-12"
         style={{
           transform:
-            allRevealed && spread === "three"
+            cardsReady && spread === "three"
               ? "translateY(-80px)"
               : "translateY(0)",
           transition:
             "transform 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-          flex: allRevealed ? "0 0 auto" : "1 1 0",
+          // Celtic Cross is dense — never collapse its flex track on
+          // reveal or the layout reflow shoves the spread offscreen
+          // (Phase 7 bug 4). Other spreads still tighten so the inline
+          // reading can claim the freed vertical space.
+          flex:
+            allRevealed && spread !== "celtic" ? "0 0 auto" : "1 1 0",
         }}
       >
         <SpreadContent
