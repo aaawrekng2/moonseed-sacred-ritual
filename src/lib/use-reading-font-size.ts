@@ -34,6 +34,8 @@ function readLocal(): number {
 // coalesces so we don't fire one update per slider tick.
 const PERSIST_DEBOUNCE_MS = 250;
 
+export type ReadingFontSaveState = "idle" | "saving" | "saved";
+
 export function useReadingFontSize() {
   const { user } = useAuth();
   // Hydration-safe but flicker-free: SSR/first paint use the default,
@@ -43,11 +45,15 @@ export function useReadingFontSize() {
     typeof window === "undefined" ? READING_FONT_DEFAULT : readLocal(),
   );
 
+  const [saveState, setSaveState] = useState<ReadingFontSaveState>("idle");
+
   // Debounced persist — keeps slider drags from spamming the network.
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
       if (persistTimer.current) clearTimeout(persistTimer.current);
+      if (savedFlashTimer.current) clearTimeout(savedFlashTimer.current);
     },
     [],
   );
@@ -90,17 +96,30 @@ export function useReadingFontSize() {
       }
       if (user) {
         if (persistTimer.current) clearTimeout(persistTimer.current);
+        if (savedFlashTimer.current) clearTimeout(savedFlashTimer.current);
+        setSaveState("saving");
         persistTimer.current = setTimeout(() => {
           // Cast: reading_font_size column was added in a later migration
           // and may not be in the regenerated types yet.
-          void updateUserPreferences(user.id, {
-            reading_font_size: next,
-          } as never);
+          void (async () => {
+            try {
+              await updateUserPreferences(user.id, {
+                reading_font_size: next,
+              } as never);
+              setSaveState("saved");
+              savedFlashTimer.current = setTimeout(
+                () => setSaveState("idle"),
+                1500,
+              );
+            } catch {
+              setSaveState("idle");
+            }
+          })();
         }, PERSIST_DEBOUNCE_MS);
       }
     },
     [user],
   );
 
-  return { size, setSize: setSizeAndPersist };
+  return { size, setSize: setSizeAndPersist, saveState };
 }
