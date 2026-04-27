@@ -354,8 +354,27 @@ export function EnrichmentPanel({
       setUploadError("Please choose an image file.");
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
-      setUploadError("Image must be under 8 MB.");
+    if (file.size > MAX_PHOTO_BYTES) {
+      setUploadError(
+        `That photo is ${formatMb(file.size)} — please choose one under 8 MB.`,
+      );
+      return;
+    }
+    // Decode just enough to read the natural dimensions. Catches absurdly
+    // large scanner/camera originals before we hand them to the canvas
+    // compressor (which would otherwise allocate a huge bitmap).
+    const dims = await readImageDimensions(file);
+    if (!dims) {
+      setUploadError("That image couldn't be read — try a different photo.");
+      return;
+    }
+    if (
+      dims.width > MAX_PHOTO_DIMENSION ||
+      dims.height > MAX_PHOTO_DIMENSION
+    ) {
+      setUploadError(
+        `That photo is ${dims.width}×${dims.height}px — please choose one under ${MAX_PHOTO_DIMENSION}px on the longest side.`,
+      );
       return;
     }
     setUploadError(null);
