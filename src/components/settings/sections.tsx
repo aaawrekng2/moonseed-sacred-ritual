@@ -315,10 +315,29 @@ function IntentionField({
         maxLength={1000}
       />
       <div>
-        <Button variant="outline" size="sm" onClick={save} disabled={saving}>
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 13,
+            color: "var(--gold)",
+            opacity: saving ? 0.4 : 0.7,
+            background: "none",
+            border: "none",
+            padding: "4px 0",
+            cursor: saving ? "default" : "pointer",
+            textAlign: "left",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          Update Intention
-        </Button>
+          Save intention
+        </button>
       </div>
     </div>
   );
