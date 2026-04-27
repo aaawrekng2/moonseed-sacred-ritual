@@ -10,7 +10,13 @@ import { useStreak } from "@/lib/use-streak";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
-import { useAutoRememberQuestion } from "@/lib/use-auto-remember-question";
+import {
+  useAutoRememberQuestion,
+  useRememberScope,
+  type RememberScope,
+} from "@/lib/use-auto-remember-question";
+import { useAuth } from "@/lib/auth";
+import { updateUserPreferences } from "@/lib/user-preferences-write";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -183,6 +189,12 @@ function QuestionBox({
   const [hydrated, setHydrated] = useState(false);
   const [autoRemember] = useAutoRememberQuestion();
   const initialFocusedRef = useRef(false);
+  const [scope] = useRememberScope();
+  const { user } = useAuth();
+  const userId = user?.id;
+  const [clearingRemembered, setClearingRemembered] = useState(false);
+  const [confirmClearRememberedOpen, setConfirmClearRememberedOpen] =
+    useState(false);
   // Tracks whether the seeker has manually turned "Remember my
   // question" OFF during this session. While true, the auto-remember
   // setting is suppressed so typing never silently re-enables the
@@ -194,39 +206,66 @@ function QuestionBox({
   // accidentally wipe a remembered question.
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
-  // Hydrate from localStorage on client only (avoid SSR mismatch).
-  // An `initialQuestion` (passed via the ?question= search param,
-  // e.g. when the seeker taps "Edit question" from a reading) takes
-  // precedence over any stored value.
+  // Hydrate the remember flag (always local) and the stored question
+  // value from either localStorage (device scope) or the user's
+  // account row (cloud scope). Re-runs when scope or auth changes
+  // so swapping scopes pulls the right value.
   useEffect(() => {
-    try {
-      const storedRemember = localStorage.getItem("question-remember") === "1";
-      setRemember(storedRemember);
+    let cancelled = false;
+    void (async () => {
+      let storedRemember = false;
+      try {
+        storedRemember = localStorage.getItem("question-remember") === "1";
+      } catch {
+        // ignore
+      }
+      if (!cancelled) setRemember(storedRemember);
+
       if (initialQuestion && initialQuestion.trim().length > 0) {
         const clamped = initialQuestion.slice(0, QUESTION_MAX_LENGTH);
-        setValue(clamped);
-        onQuestionChange(clamped);
+        if (!cancelled) {
+          setValue(clamped);
+          onQuestionChange(clamped);
+        }
       } else if (storedRemember) {
-        const storedValue = (
-          localStorage.getItem("question-value") ?? ""
-        ).slice(0, QUESTION_MAX_LENGTH);
-        if (storedValue) {
+        let storedValue = "";
+        if (scope === "cloud" && userId) {
+          const { data } = await supabase
+            .from("user_preferences")
+            .select("remembered_question")
+            .eq("user_id", userId)
+            .maybeSingle();
+          storedValue = (
+            (data as { remembered_question?: string | null } | null)
+              ?.remembered_question ?? ""
+          ).slice(0, QUESTION_MAX_LENGTH);
+        } else {
+          try {
+            storedValue = (
+              localStorage.getItem("question-value") ?? ""
+            ).slice(0, QUESTION_MAX_LENGTH);
+          } catch {
+            // ignore
+          }
+        }
+        if (!cancelled && storedValue) {
           setValue(storedValue);
           onQuestionChange(storedValue);
         }
       }
-    } catch {
-      // ignore storage errors
-    }
-    setHydrated(true);
+      if (!cancelled) setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [scope, userId]);
 
   // Persist whenever value or remember toggles after hydration.
   useEffect(() => {
     if (!hydrated) return;
     try {
-      if (remember) {
+      if (remember && scope === "device") {
         localStorage.setItem("question-value", value);
       } else {
         localStorage.removeItem("question-value");
@@ -234,7 +273,12 @@ function QuestionBox({
     } catch {
       // ignore
     }
-  }, [value, remember, hydrated]);
+    if (scope === "cloud" && userId) {
+      void updateUserPreferences(userId, {
+        remembered_question: remember ? value : null,
+      });
+    }
+  }, [value, remember, hydrated, scope, userId]);
 
   const handleRememberToggle = () => {
     const next = !remember;
@@ -249,6 +293,9 @@ function QuestionBox({
     } catch {
       // ignore
     }
+    if (!next && scope === "cloud" && userId) {
+      void updateUserPreferences(userId, { remembered_question: null });
+    }
   };
 
   const handleClear = () => {
@@ -258,6 +305,43 @@ function QuestionBox({
       localStorage.removeItem("question-value");
     } catch {
       // ignore
+    }
+    if (scope === "cloud" && userId) {
+      void updateUserPreferences(userId, { remembered_question: null });
+    }
+  };
+
+  /**
+   * Wipe ONLY the remembered copy in the active scope, while leaving
+   * the textarea contents alone. Useful when the seeker wants to
+   * stop persisting their question without retyping it for this
+   * session. The "Remember my question" toggle is also flipped off
+   * since there's nothing left to remember.
+   */
+  const handleClearRemembered = async () => {
+    setClearingRemembered(true);
+    try {
+      if (scope === "device") {
+        try {
+          localStorage.removeItem("question-value");
+          localStorage.setItem("question-remember", "0");
+        } catch {
+          // ignore
+        }
+      } else if (scope === "cloud" && userId) {
+        await updateUserPreferences(userId, { remembered_question: null });
+        try {
+          localStorage.setItem("question-remember", "0");
+        } catch {
+          // ignore
+        }
+      }
+      setRemember(false);
+      // Latch the session suppression so auto-remember doesn't
+      // immediately turn it back on while the seeker keeps typing.
+      userDisabledRememberRef.current = true;
+    } finally {
+      setClearingRemembered(false);
     }
   };
 
@@ -510,6 +594,39 @@ function QuestionBox({
             Clear
           </button>
         )}
+        {/* Scope-aware "Clear remembered question" — visible whenever
+            there's actually something remembered (the toggle is on).
+            Wipes ONLY the storage location matching the seeker's
+            current scope choice (device localStorage or the synced
+            account row), without erasing the textarea contents. */}
+        {remember && (
+          <button
+            type="button"
+            disabled={clearingRemembered || (scope === "cloud" && !userId)}
+            onClick={() => setConfirmClearRememberedOpen(true)}
+            className="cursor-pointer underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+            title={
+              scope === "cloud" && !userId
+                ? "Sign in to clear your synced question."
+                : scope === "cloud"
+                  ? "Clear the question synced to your account."
+                  : "Clear the question saved in this browser."
+            }
+            style={{
+              fontStyle: "italic",
+              background: "none",
+              border: "none",
+              color: "inherit",
+              padding: 0,
+            }}
+          >
+            {clearingRemembered
+              ? "Clearing…"
+              : scope === "cloud"
+                ? "Clear synced"
+                : "Clear remembered"}
+          </button>
+        )}
       </div>
       <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
         <AlertDialogContent>
@@ -530,6 +647,38 @@ function QuestionBox({
               }}
             >
               Clear question
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={confirmClearRememberedOpen}
+        onOpenChange={setConfirmClearRememberedOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {scope === "cloud"
+                ? "Clear synced question?"
+                : "Clear remembered question?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {scope === "cloud"
+                ? "This will remove the question synced to your account. The text in the textarea right now will not be erased."
+                : "This will remove the question saved in this browser. The text in the textarea right now will not be erased."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                void (async () => {
+                  await handleClearRemembered();
+                  setConfirmClearRememberedOpen(false);
+                })();
+              }}
+            >
+              {scope === "cloud" ? "Clear synced" : "Clear remembered"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
