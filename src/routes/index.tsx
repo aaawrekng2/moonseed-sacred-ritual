@@ -507,6 +507,36 @@ function QuestionBox({
           What question are you bringing to the cards?
         </div>
       )}
+      {/* New-day ritual cue — appears the moment the calendar flips
+          if there's a remembered question carried over from the
+          previous day. Quiet, dismissible, and self-clearing once
+          the seeker types or interacts with the toggle. */}
+      {newDayCue && value.trim().length > 0 && (
+        <button
+          type="button"
+          onClick={() => setNewDayCue(false)}
+          aria-label="Dismiss new-day notice"
+          style={{
+            display: "block",
+            margin: "8px auto 0",
+            padding: "4px 12px",
+            borderRadius: 999,
+            border: "1px solid color-mix(in oklab, var(--gold) 45%, transparent)",
+            background: "color-mix(in oklab, var(--gold) 12%, transparent)",
+            color: "var(--gold)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 11,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+            opacity: "var(--ro-plus-40)",
+            transition: "opacity 200ms ease, background 200ms ease",
+          }}
+        >
+          ✦ New moon day · question carried over
+        </button>
+      )}
       {/* Live character counter — only visible once the field has
           content or focus, so it doesn't add visual noise to an
           empty home screen. Warms toward gold as the seeker
