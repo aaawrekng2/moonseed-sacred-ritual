@@ -12,6 +12,7 @@ import { usePWA } from "@/lib/use-pwa";
 import { FloatingMenu } from "@/components/nav/FloatingMenu";
 import { FloatingMenuProvider } from "@/lib/floating-menu-context";
 import { useThemeFontSync } from "@/lib/use-theme-font-sync";
+import { Toaster } from "@/components/ui/sonner";
 
 /**
  * Read the persisted resting opacity from localStorage and apply it to
@@ -210,6 +211,7 @@ function RootComponent() {
           <RestingOpacityReadout />
           <Outlet />
           {!hideChrome && <BottomNav />}
+          <Toaster />
         </div>
       </FloatingMenuProvider>
     </OracleModeProvider>

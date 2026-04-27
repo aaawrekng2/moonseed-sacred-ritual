@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Heart, Search } from "lucide-react";
+import { Heart, Search, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useOracleMode } from "@/lib/use-oracle-mode";
@@ -9,6 +9,7 @@ import { getGuideById } from "@/lib/guides";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { cn } from "@/lib/utils";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
+import { stripMarkdown } from "@/lib/strip-markdown";
 import {
   EnrichmentPanel,
   type EnrichmentTag,
@@ -52,7 +53,26 @@ type ReadingRow = {
 
 type TagRow = { id: string; name: string; usage_count: number };
 
-type ViewMode = "readings" | "gallery" | "notes" | "favorites" | "threads";
+type ViewMode =
+  | "readings"
+  | "gallery"
+  | "notes"
+  | "favorites"
+  | "threads"
+  | "calendar";
+
+/** Draw types the seeker can filter by. Maps to `readings.spread_type`. */
+type DrawTypeKey = "single" | "three" | "celtic" | "yes_no";
+const DRAW_TYPE_LABEL: Record<DrawTypeKey, string> = {
+  single: "Single",
+  three: "Three Card",
+  celtic: "Celtic Cross",
+  yes_no: "Yes / No",
+};
+const DRAW_TYPE_KEYS: DrawTypeKey[] = ["single", "three", "celtic", "yes_no"];
+
+/** Tag combinator: any-of (OR) vs all-of (AND). */
+type TagMode = "any" | "all";
 
 type ThreadRow = {
   id: string;
@@ -113,6 +133,10 @@ function JournalPage() {
 
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState<string[]>([]);
+  const [tagMode, setTagMode] = useState<TagMode>("all");
+  const [activeDrawTypes, setActiveDrawTypes] = useState<DrawTypeKey[]>([]);
+  // YYYY-MM-DD selected from the calendar view; null = no date filter.
+  const [activeDate, setActiveDate] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("readings");
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -200,7 +224,20 @@ function JournalPage() {
     return readings.filter((r) => {
       if (activeTags.length > 0) {
         const rt = r.tags ?? [];
-        if (!activeTags.every((t) => rt.includes(t))) return false;
+        if (tagMode === "all") {
+          if (!activeTags.every((t) => rt.includes(t))) return false;
+        } else {
+          if (!activeTags.some((t) => rt.includes(t))) return false;
+        }
+      }
+      if (activeDrawTypes.length > 0) {
+        if (!activeDrawTypes.includes(r.spread_type as DrawTypeKey))
+          return false;
+      }
+      if (activeDate) {
+        const d = new Date(r.created_at);
+        const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        if (local !== activeDate) return false;
       }
       if (q.length > 0) {
         const interp = (r.interpretation ?? "").toLowerCase();
@@ -219,7 +256,7 @@ function JournalPage() {
       }
       return true;
     });
-  }, [readings, search, activeTags]);
+  }, [readings, search, activeTags, tagMode, activeDrawTypes, activeDate]);
 
   const galleryItems = useMemo(
     () => filtered.filter((r) => (photoCounts[r.id] ?? 0) > 0),
@@ -310,14 +347,24 @@ function JournalPage() {
   );
 
   return (
-    <main className="bg-cosmos relative h-dvh overflow-y-auto px-5 pb-28 pt-[calc(env(safe-area-inset-top,0px)+72px)]">
-      {/* Title */}
-      <h1
-        className="font-display text-2xl italic text-gold"
-        style={{ opacity: "var(--ro-plus-20)" }}
+    <main className="bg-cosmos relative h-dvh overflow-y-auto px-5 pb-28">
+      {/* Sticky header — title, search, tags, draw-type, tab row.
+          Stays pinned while the body below scrolls. */}
+      <div
+        className="sticky top-0 z-30 -mx-5 px-5 pt-[calc(env(safe-area-inset-top,0px)+72px)]"
+        style={{
+          background:
+            "linear-gradient(to bottom, oklch(0.10 0.03 280) 92%, transparent)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+        }}
       >
-        Journal
-      </h1>
+        <h1
+          className="font-display text-2xl italic text-gold"
+          style={{ opacity: "var(--ro-plus-20)" }}
+        >
+          Journal
+        </h1>
 
       {/* Search */}
       <div className="mt-4 flex items-center gap-2">
@@ -379,6 +426,79 @@ function JournalPage() {
         </div>
       )}
 
+      {/* Tag combinator — only visible when 2+ tags selected. */}
+      {activeTags.length >= 2 && (
+        <div className="mt-2 flex items-center gap-3">
+          <span className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            Match
+          </span>
+          {(["any", "all"] as const).map((m) => {
+            const active = tagMode === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setTagMode(m)}
+                className="font-display text-[12px] italic text-gold transition-opacity"
+                style={{
+                  opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-10)",
+                  borderBottom: active
+                    ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                    : "1px solid transparent",
+                  paddingBottom: 2,
+                }}
+              >
+                {m === "any" ? "Any tag" : "All tags"}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Draw-type filters — borderless, plain text per spec. */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
+        {DRAW_TYPE_KEYS.map((k) => {
+          const active = activeDrawTypes.includes(k);
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() =>
+                setActiveDrawTypes((prev) =>
+                  prev.includes(k)
+                    ? prev.filter((x) => x !== k)
+                    : [...prev, k],
+                )
+              }
+              className="font-display text-[12px] italic text-gold transition-opacity"
+              style={{
+                opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
+                borderBottom: active
+                  ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                  : "1px solid transparent",
+                paddingBottom: 2,
+              }}
+            >
+              {DRAW_TYPE_LABEL[k]}
+            </button>
+          );
+        })}
+        {activeDate && (
+          <button
+            type="button"
+            onClick={() => setActiveDate(null)}
+            className="ml-auto inline-flex items-center gap-1 font-display text-[11px] italic text-muted-foreground"
+            style={{ opacity: "var(--ro-plus-20)" }}
+          >
+            <XIcon size={11} strokeWidth={1.5} />
+            {new Date(activeDate + "T12:00:00").toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+            })}
+          </button>
+        )}
+      </div>
+
       {/* View tabs */}
       <div className="mt-5 flex items-center gap-5">
         {(
@@ -387,6 +507,7 @@ function JournalPage() {
             ["gallery", "Gallery"],
             ["notes", "Notes"],
             ["favorites", "Favorites"],
+            ["calendar", "Calendar"],
             ["threads", "Threads"],
           ] as const
         ).map(([key, label]) => {
@@ -409,6 +530,8 @@ function JournalPage() {
             </button>
           );
         })}
+      </div>
+        <div className="h-3" />
       </div>
 
       {/* Body */}
@@ -444,6 +567,15 @@ function JournalPage() {
             isOracle={isOracle}
             photoCounts={photoCounts}
             onOpen={setOpenId}
+          />
+        ) : view === "calendar" ? (
+          <CalendarView
+            readings={readings}
+            activeDate={activeDate}
+            onSelectDate={(d) => {
+              setActiveDate((cur) => (cur === d ? null : d));
+              setView("readings");
+            }}
           />
         ) : (
           <ThreadsView threads={threads} />
@@ -515,6 +647,7 @@ function ReadingCard({
   const interpFirst = (reading.interpretation ?? "")
     .replace(/\s+/g, " ")
     .trim();
+  const interpClean = stripMarkdown(interpFirst);
 
   return (
     <button
@@ -593,7 +726,7 @@ function ReadingCard({
       </div>
 
       {/* Interpretation excerpt */}
-      {interpFirst && (
+      {interpClean && (
         <p
           className="mt-3 font-display text-[14px] italic leading-snug text-foreground"
           style={{
@@ -604,7 +737,7 @@ function ReadingCard({
             overflow: "hidden",
           }}
         >
-          {interpFirst}
+          {interpClean}
         </p>
       )}
 
@@ -868,6 +1001,153 @@ function ThreadsView({ threads }: { threads: ThreadRow[] }) {
 
 /* ---------- Reading detail overlay ---------- */
 
+/* ---------- Calendar view ---------- */
+
+/**
+ * Month grid showing a small reading-count badge on every day that has
+ * one or more readings. Tapping a day filters the journal to that date
+ * and switches back to the Readings tab. Tapping the same day a second
+ * time clears the filter (handled by the parent).
+ */
+function CalendarView({
+  readings,
+  activeDate,
+  onSelectDate,
+}: {
+  readings: ReadingRow[];
+  activeDate: string | null;
+  onSelectDate: (d: string) => void;
+}) {
+  const [cursor, setCursor] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+
+  // YYYY-MM-DD -> count of readings on that local day.
+  const counts = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const r of readings) {
+      const d = new Date(r.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      map[key] = (map[key] ?? 0) + 1;
+    }
+    return map;
+  }, [readings]);
+
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const monthLabel = cursor.toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+  const firstWeekday = new Date(year, month, 1).getDay(); // 0..6 Sun..Sat
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells: Array<{ day: number; key: string } | null> = [];
+  for (let i = 0; i < firstWeekday; i += 1) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d += 1) {
+    const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    cells.push({ day: d, key });
+  }
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const goPrev = () => setCursor(new Date(year, month - 1, 1));
+  const goNext = () => setCursor(new Date(year, month + 1, 1));
+
+  const todayKey = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+
+  return (
+    <div className="mx-auto max-w-md">
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={goPrev}
+          className="font-display text-[13px] italic text-gold transition-opacity"
+          style={{ opacity: "var(--ro-plus-20)" }}
+        >
+          ← Prev
+        </button>
+        <span
+          className="font-display text-[14px] italic text-gold"
+          style={{ opacity: "var(--ro-plus-30)" }}
+        >
+          {monthLabel}
+        </span>
+        <button
+          type="button"
+          onClick={goNext}
+          className="font-display text-[13px] italic text-gold transition-opacity"
+          style={{ opacity: "var(--ro-plus-20)" }}
+        >
+          Next →
+        </button>
+      </div>
+
+      <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+          <div key={d} style={{ opacity: "var(--ro-plus-10)" }}>
+            {d}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-2 grid grid-cols-7 gap-1">
+        {cells.map((c, i) => {
+          if (!c) return <div key={`x-${i}`} className="aspect-square" />;
+          const count = counts[c.key] ?? 0;
+          const selected = activeDate === c.key;
+          const isToday = todayKey === c.key;
+          return (
+            <button
+              key={c.key}
+              type="button"
+              onClick={() => onSelectDate(c.key)}
+              className={cn(
+                "relative flex aspect-square items-center justify-center rounded-md text-[13px] transition-colors",
+                selected ? "bg-gold/15 text-gold" : "text-foreground",
+              )}
+              style={{
+                border: selected
+                  ? "1px solid color-mix(in oklab, var(--gold) 50%, transparent)"
+                  : isToday
+                    ? "1px solid color-mix(in oklab, var(--gold) 25%, transparent)"
+                    : "1px solid transparent",
+                opacity: count > 0 ? "var(--ro-plus-30)" : "var(--ro-plus-0)",
+              }}
+            >
+              <span style={{ fontFamily: "var(--font-serif)" }}>{c.day}</span>
+              {count > 0 && (
+                <span
+                  className="absolute -bottom-0.5 right-0.5 inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-full px-1 font-mono text-[9px] tabular-nums"
+                  style={{
+                    background: "color-mix(in oklab, var(--gold) 28%, transparent)",
+                    color: "var(--gold)",
+                    border:
+                      "1px solid color-mix(in oklab, var(--gold) 45%, transparent)",
+                  }}
+                  aria-label={`${count} ${count === 1 ? "reading" : "readings"}`}
+                >
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      {activeDate && (
+        <p
+          className="mt-4 text-center font-display text-[12px] italic text-muted-foreground"
+          style={{ opacity: "var(--ro-plus-20)" }}
+        >
+          Tap the same day again to clear the filter.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function ReadingDetail({
   reading,
   onClose,
@@ -983,7 +1263,7 @@ function ReadingDetail({
               whiteSpace: "pre-wrap",
             }}
           >
-            {reading.interpretation}
+            {stripMarkdown(reading.interpretation)}
           </article>
         )}
 

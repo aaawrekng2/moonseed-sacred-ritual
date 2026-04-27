@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { X, Eye, EyeOff } from "lucide-react";
+import { X, Eye, EyeOff, Download, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 
 type Mode = "signin" | "signup";
 
@@ -20,6 +21,43 @@ export function AuthScreen({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const exportLocalReadings = async () => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUser = sessionData.session?.user;
+      if (!currentUser) {
+        toast.message("No readings to export yet.");
+        return;
+      }
+      const { data: readings } = await supabase
+        .from("readings")
+        .select("*")
+        .eq("user_id", currentUser.id);
+      if (!readings || readings.length === 0) {
+        toast.message("No readings to export yet.");
+        return;
+      }
+      const payload = {
+        app: "Moonseed",
+        exported_at: new Date().toISOString(),
+        user_id: currentUser.id,
+        readings,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `moonseed-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Readings downloaded");
+    } catch {
+      toast.error("Couldn't export your readings");
+    }
+  };
 
   const handleSubmit = async () => {
     setError(null);
@@ -52,9 +90,13 @@ export function AuthScreen({
           if (signUpError) throw signUpError;
         }
 
-        setSuccess(
-          "Account created! Check your email to confirm, then sign in.",
-        );
+        // Close the modal immediately and surface a toast so the seeker
+        // isn't left staring at an empty form. The toast auto-dismisses.
+        toast.success("Check your email to confirm your account.", {
+          duration: 5000,
+        });
+        onClose();
+        return;
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
@@ -231,6 +273,55 @@ export function AuthScreen({
 
         {/* Actions */}
         <div className="flex flex-col items-center gap-3 pt-1">
+          {mode === "signup" && (
+            <div
+              className="w-full rounded-lg px-3 py-2.5 flex items-start gap-2"
+              style={{
+                background: "color-mix(in oklab, var(--gold) 6%, transparent)",
+                border:
+                  "1px solid color-mix(in oklab, var(--gold) 22%, transparent)",
+              }}
+            >
+              <AlertTriangle
+                size={14}
+                strokeWidth={1.5}
+                style={{ color: "var(--gold)", marginTop: 2, flexShrink: 0 }}
+              />
+              <div className="flex-1">
+                <p
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: 12,
+                    color: "var(--foreground)",
+                    opacity: 0.85,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  If you have readings from before signing in, download them
+                  first — they may not transfer to your new account.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void exportLocalReadings()}
+                  className="mt-2 inline-flex items-center gap-1.5 focus:outline-none"
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: 12,
+                    color: "var(--gold)",
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Download size={12} strokeWidth={1.5} />
+                  Download my readings
+                </button>
+              </div>
+            </div>
+          )}
           <button
             type="button"
             onClick={handleSubmit}

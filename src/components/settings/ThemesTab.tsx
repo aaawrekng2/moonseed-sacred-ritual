@@ -946,6 +946,12 @@ function HeadingFontSection() {
   const [size, setSize] = useState<number>(
     prefs.heading_font_size ?? DEFAULT_FONT_SIZE,
   );
+  // While the user is actively dragging the size slider, only the
+  // local preview should resize — the rest of the app must stay
+  // still until they release. We mirror this with a draft state and
+  // only call `applyHeadingFontSize` (which writes the global CSS
+  // var) on font picks and on slider commit.
+  const [draftSize, setDraftSize] = useState<number>(size);
 
   useEffect(() => {
     THEME_FONTS.forEach((f) => ensureFontLoaded(f));
@@ -953,8 +959,11 @@ function HeadingFontSection() {
 
   useEffect(() => {
     applyHeadingFont(font);
-    applyHeadingFontSize(size);
-  }, [font, size]);
+  }, [font]);
+
+  useEffect(() => {
+    setDraftSize(size);
+  }, [size]);
 
   const pickFont = async (next: ThemeFont) => {
     setFont(next);
@@ -965,16 +974,15 @@ function HeadingFontSection() {
 
   const commitSize = async (next: number) => {
     setSize(next);
+    setDraftSize(next);
+    applyHeadingFontSize(next);
     markDirty();
     await updateUserPreferences(user.id, { heading_font_size: next });
     setPrefs({ ...prefs, heading_font_size: next });
   };
 
   return (
-    <SettingsSection
-      title="The Voice"
-      description="How the cards speak in text."
-    >
+    <SettingsSection title="Heading Size">
       <div className="space-y-4">
         <div className="flex flex-wrap gap-x-5 gap-y-2.5">
           {THEME_FONTS.map((f) => {
@@ -1017,7 +1025,7 @@ function HeadingFontSection() {
             className="mt-2 italic"
             style={{
               fontFamily: `"${font}", ui-serif, Georgia, serif`,
-              fontSize: `${size}px`,
+              fontSize: `${draftSize}px`,
               lineHeight: 1.15,
               color: "color-mix(in oklab, var(--gold) 75%, white)",
             }}
@@ -1028,25 +1036,22 @@ function HeadingFontSection() {
             className="mt-1"
             style={{
               fontFamily: `"${font}", ui-serif, Georgia, serif`,
-              fontSize: `${Math.max(13, Math.round(size * 0.7))}px`,
+              fontSize: `${Math.max(13, Math.round(draftSize * 0.7))}px`,
               lineHeight: 1.3,
               color: "color-mix(in oklab, var(--gold) 55%, white)",
             }}
           >
             What the guide will see
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Updates instantly as you choose. Save a sanctuary to keep it.
-          </p>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              The Weight
+              Size
             </Label>
             <span className="font-mono text-sm tabular-nums text-foreground">
-              {size}px
+              {draftSize}px
             </span>
           </div>
           {/*
@@ -1061,10 +1066,10 @@ function HeadingFontSection() {
               min={MIN_FONT_SIZE}
               max={MAX_FONT_SIZE}
               step={1}
-              value={[size]}
+              value={[draftSize]}
               onValueChange={(v) => {
                 const n = v[0];
-                if (typeof n === "number") setSize(n);
+                if (typeof n === "number") setDraftSize(n);
               }}
               onValueCommit={(v) => {
                 const n = v[0];
@@ -1173,10 +1178,7 @@ function ReadingFontSection() {
   }, [size]);
 
   return (
-    <SettingsSection
-      title={isOracle ? "Reading Text" : "Body Text Size"}
-      description="How large the interpretation reads."
-    >
+    <SettingsSection title={isOracle ? "Reading Text" : "Body Text Size"}>
       <div className="space-y-4">
         <div
           className="rounded-lg border px-4 py-3"
