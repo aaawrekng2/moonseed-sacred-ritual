@@ -33,6 +33,10 @@ import {
   READING_FONT_MIN,
   useReadingFontSize,
 } from "@/lib/use-reading-font-size";
+import {
+  EnrichmentPanel,
+  type EnrichmentTag,
+} from "@/components/journal/EnrichmentPanel";
 
 type Pick = { id: number; cardIndex: number };
 
@@ -68,6 +72,19 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   const { guideId, lensId, facetIds } = useActiveGuide();
   const startedRef = useRef(false);
   const requestSeqRef = useRef(0);
+
+  // Auto-saved reading + supporting tag library for the inline
+  // enrichment panel that appears once the interpretation has loaded.
+  const [savedReading, setSavedReading] = useState<{
+    id: string;
+    user_id: string;
+    note: string | null;
+    is_favorite: boolean;
+    tags: string[] | null;
+  } | null>(null);
+  const [tagLibrary, setTagLibrary] = useState<EnrichmentTag[]>([]);
+  const savedReadingRef = useRef<typeof savedReading>(null);
+  savedReadingRef.current = savedReading;
 
   // Register screen-specific affordances with the global floating menu.
   useRegisterCloseHandler(onExit);
@@ -164,6 +181,79 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   // renders the Copy icon only while a reading is loaded.
   useRegisterCopyText(copyText);
 
+  // Once the interpretation loads, persist the reading to Supabase so the
+  // user can favorite / annotate / photograph it directly from this screen.
+  // Stored once per loaded interpretation; subsequent retries replace it.
+  useEffect(() => {
+    if (state.kind !== "loaded") return;
+    if (savedReadingRef.current) return; // already saved for this load
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = sessionData.session?.user?.id;
+        if (!uid) return;
+        const interpretationText = copyText ?? "";
+        const { data, error } = await supabase
+          .from("readings")
+          .insert({
+            user_id: uid,
+            spread_type: spread,
+            card_ids: picks.map((p) => p.cardIndex),
+            interpretation: interpretationText,
+            guide_id: guideId,
+            lens_id: lensId,
+            mode: "reveal",
+          })
+          .select("id,user_id,note,is_favorite,tags")
+          .single();
+        if (cancelled || error || !data) return;
+        setSavedReading({
+          id: data.id,
+          user_id: data.user_id,
+          note: data.note,
+          is_favorite: data.is_favorite,
+          tags: data.tags,
+        });
+        // Load the user's tag library so the suggestion row works.
+        const { data: tagRows } = await supabase
+          .from("user_tags")
+          .select("id,name,usage_count")
+          .eq("user_id", uid)
+          .order("usage_count", { ascending: false })
+          .limit(20);
+        if (cancelled) return;
+        setTagLibrary((tagRows ?? []) as EnrichmentTag[]);
+      } catch (e) {
+        console.error("Reading auto-save failed:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.kind]);
+
+  // Stable callbacks for EnrichmentPanel.
+  const handleEnrichReadingChange = useCallback(
+    (next: {
+      id: string;
+      user_id: string;
+      note: string | null;
+      is_favorite: boolean;
+      tags: string[] | null;
+    }) => {
+      setSavedReading(next);
+    },
+    [],
+  );
+  const handleEnrichTagLibraryChange = useCallback((next: EnrichmentTag[]) => {
+    setTagLibrary(next);
+  }, []);
+  const handleEnrichPhotoCountChange = useCallback(() => {
+    // No gallery on this screen — nothing to sync.
+  }, []);
+
   return (
     <main
       className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_50%_25%,rgba(60,40,90,0.35),transparent_70%)]"
@@ -239,6 +329,17 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
         </section>
 
         {state.kind === "loaded" && (
+          <>
+            {savedReading && (
+              <EnrichmentPanel
+                reading={savedReading}
+                tagLibrary={tagLibrary}
+                isOracle={isOracle}
+                onReadingChange={handleEnrichReadingChange}
+                onTagLibraryChange={handleEnrichTagLibraryChange}
+                onPhotoCountChange={handleEnrichPhotoCountChange}
+              />
+            )}
           <button
             type="button"
             onClick={onExit}
@@ -246,6 +347,7 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
           >
             Done
           </button>
+          </>
         )}
       </div>
     </main>
