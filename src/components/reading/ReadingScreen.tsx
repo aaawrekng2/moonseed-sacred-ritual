@@ -605,7 +605,9 @@ function CardStrip({
     h = Math.round(w * 1.75);
   }
 
-  const labelFontSize = w < 60 ? 9 : 10.5;
+  // Position labels (Past / Present / Future) on the reveal screen
+  // were previously tiny — bump them so they're legible at a glance.
+  const labelFontSize = w < 60 ? 12 : 14;
   const labelMaxWidth = Math.max(w + 14, 70);
 
   return (
@@ -850,6 +852,7 @@ function ReadingActions({
         lensId={lensId}
         facetIds={facetIds}
         isOracle={isOracle}
+        question={question}
       />
       <button
         type="button"
