@@ -305,6 +305,7 @@ export function TearOffCard({
             ref={cardRef}
             question={question}
             spreadLabel={meta.label}
+            spread={spread}
             moonPhase={moonPhase}
             today={today}
             picks={picks}
@@ -492,10 +493,134 @@ function SwatchRow({
 /*  Card Artwork — the actual paper-style keepsake being captured.   */
 /* ----------------------------------------------------------------- */
 
+/**
+ * Celtic Cross spatial layout for the tear-off keepsake.
+ *
+ * The classic 10-card Celtic Cross has a central cross of 6 cards plus
+ * a staff of 4 cards stacked to the right:
+ *
+ *           [5]
+ *      [4] [1/2] [6]
+ *           [3]                 [10]
+ *                               [9]
+ *                               [8]
+ *                               [7]
+ *
+ * Positions in our SPREAD_META:
+ *   0 The Present (center)
+ *   1 The Challenge (crosses the center, rotated 90°)
+ *   2 The Foundation (below center)
+ *   3 The Past (left of center)
+ *   4 The Goal (above center)
+ *   5 Near Future (right of center)
+ *   6-9 The staff (Self → Outcome, bottom-up)
+ */
+function CelticCrossLayout({
+  picks,
+  positions,
+  accent,
+  text,
+}: {
+  picks: Pick[];
+  positions: { position: string; card: string; interpretation: string }[];
+  accent: string;
+  text: string;
+}) {
+  const W = 36; // small cards so the entire layout fits the keepsake card
+  const H = Math.round(W * 1.6);
+  const card = (idx: number, opts?: { rotate?: number }) => {
+    const p = picks[idx];
+    if (!p) return null;
+    return (
+      <img
+        src={getCardImagePath(p.cardIndex)}
+        alt={getCardName(p.cardIndex)}
+        crossOrigin="anonymous"
+        style={{
+          width: W,
+          height: H,
+          objectFit: "cover",
+          borderRadius: 3,
+          border: `1px solid color-mix(in oklab, ${accent} 35%, transparent)`,
+          boxShadow: `0 3px 10px -4px color-mix(in oklab, ${accent} 25%, transparent)`,
+          transform: opts?.rotate ? `rotate(${opts.rotate}deg)` : undefined,
+          transformOrigin: "center",
+          background: "rgba(0,0,0,0.2)",
+        }}
+      />
+    );
+  };
+  // Cross block: 3 columns × 3 rows. Center cell holds card 1 with
+  // card 2 rotated on top of it.
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 18,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: 14,
+      }}
+    >
+      {/* Cross */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `${W}px ${W}px ${W}px`,
+          gridTemplateRows: `${H}px ${H}px ${H}px`,
+          rowGap: 6,
+          columnGap: 6,
+          alignItems: "center",
+          justifyItems: "center",
+        }}
+      >
+        {/* row 1: empty, Goal (5), empty */}
+        <div />
+        <div>{card(4)}</div>
+        <div />
+        {/* row 2: Past (4), Center (1) + Challenge (2 rotated), Future (6) */}
+        <div>{card(3)}</div>
+        <div style={{ position: "relative" }}>
+          {card(0)}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {card(1, { rotate: 90 })}
+          </div>
+        </div>
+        <div>{card(5)}</div>
+        {/* row 3: empty, Foundation (3), empty */}
+        <div />
+        <div>{card(2)}</div>
+        <div />
+      </div>
+      {/* Staff: 7 (bottom) → 10 (top) */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column-reverse",
+          gap: 4,
+        }}
+      >
+        {[6, 7, 8, 9].map((i) => (
+          <div key={i}>{card(i)}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const CardArtwork = ({
   ref,
   question,
   spreadLabel,
+  spread,
   moonPhase,
   today,
   picks,
@@ -510,6 +635,7 @@ const CardArtwork = ({
   ref: React.Ref<HTMLDivElement>;
   question?: string;
   spreadLabel: string;
+  spread: SpreadMode;
   moonPhase: string;
   today: string;
   picks: Pick[];
@@ -523,6 +649,12 @@ const CardArtwork = ({
 }) => {
   const A = accent.color;
   const T = paper.text;
+  // Slightly larger card images for the 3-card spread; default smaller
+  // for single / yes_no / daily so the artwork doesn't feel sparse.
+  const isThree = spread === "three";
+  const isCeltic = spread === "celtic";
+  const cardW = isThree ? 78 : 60;
+  const cardH = Math.round(cardW * 1.75);
   return (
     <div
       ref={ref}
@@ -586,7 +718,7 @@ const CardArtwork = ({
         <div style={{ marginBottom: 14, textAlign: "center" }}>
           <div
             style={{
-              fontSize: 9,
+              fontSize: 10,
               letterSpacing: "0.28em",
               textTransform: "uppercase",
               color: A,
@@ -599,7 +731,7 @@ const CardArtwork = ({
           <div
             style={{
               fontStyle: "italic",
-              fontSize: 14,
+              fontSize: 15,
               lineHeight: 1.55,
               color: T,
               opacity: 0.92,
@@ -612,87 +744,32 @@ const CardArtwork = ({
       )}
 
       {/* Cards row */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          justifyContent: "center",
-          marginBottom: 14,
-          flexWrap: "wrap",
-        }}
-      >
-        {picks.slice(0, 5).map((p, i) => (
-          <div
-            key={i}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 4,
-              maxWidth: 70,
-            }}
-          >
-            <img
-              src={getCardImagePath(p.cardIndex)}
-              alt={getCardName(p.cardIndex)}
-              crossOrigin="anonymous"
-              style={{
-                width: 60,
-                height: 105,
-                objectFit: "cover",
-                borderRadius: 4,
-                border: `1px solid color-mix(in oklab, ${A} 35%, transparent)`,
-                boxShadow: `0 4px 14px -4px color-mix(in oklab, ${A} 25%, transparent)`,
-              }}
-            />
-            <div
-              style={{
-                fontSize: 8,
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                color: A,
-                opacity: 0.75,
-                textAlign: "center",
-                lineHeight: 1.2,
-              }}
-            >
-              {positions[i]?.position ?? `Card ${i + 1}`}
-            </div>
-            <div
-              style={{
-                fontSize: 10,
-                fontStyle: "italic",
-                color: T,
-                opacity: 0.92,
-                textAlign: "center",
-                lineHeight: 1.25,
-              }}
-            >
-              {getCardName(p.cardIndex)}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {picks.length > 5 && (
+      {isCeltic ? (
+        <CelticCrossLayout
+          picks={picks}
+          positions={positions}
+          accent={A}
+          text={T}
+        />
+      ) : (
         <div
           style={{
             display: "flex",
-            flexWrap: "wrap",
-            gap: 8,
+            gap: 10,
             justifyContent: "center",
-            marginBottom: 14,
+            marginBottom: 16,
+            flexWrap: "wrap",
           }}
         >
-          {picks.slice(5).map((p, i) => (
+          {picks.map((p, i) => (
             <div
-              key={`extra-${i}`}
+              key={i}
               style={{
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: 4,
-                maxWidth: 70,
+                gap: 5,
+                maxWidth: cardW + 12,
               }}
             >
               <img
@@ -700,29 +777,30 @@ const CardArtwork = ({
                 alt={getCardName(p.cardIndex)}
                 crossOrigin="anonymous"
                 style={{
-                  width: 60,
-                  height: 105,
+                  width: cardW,
+                  height: cardH,
                   objectFit: "cover",
-                  borderRadius: 4,
+                  borderRadius: 5,
                   border: `1px solid color-mix(in oklab, ${A} 35%, transparent)`,
+                  boxShadow: `0 4px 14px -4px color-mix(in oklab, ${A} 25%, transparent)`,
                 }}
               />
               <div
                 style={{
-                  fontSize: 8,
+                  fontSize: 9,
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
                   color: A,
-                  opacity: 0.75,
+                  opacity: 0.78,
                   textAlign: "center",
                   lineHeight: 1.2,
                 }}
               >
-                {positions[i + 5]?.position ?? `Card ${i + 6}`}
+                {positions[i]?.position ?? `Card ${i + 1}`}
               </div>
               <div
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   fontStyle: "italic",
                   color: T,
                   opacity: 0.92,
