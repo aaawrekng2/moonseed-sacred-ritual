@@ -117,15 +117,21 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
         overflowY: allRevealed ? "auto" : "hidden",
       }}
     >
-      {/* Cards block — stays centered in its flex region. No transform
-          or lift on reveal; the inline reading appears below naturally. */}
+      {/* Cards block — ALWAYS anchored at the top with a stable
+          paddingTop. We do NOT use `flex-1` or `items-center` because
+          that would cause the cards to "jump" the moment the inline
+          reading mounts below them (the flex container would re-center
+          its child once a tall sibling appears). Keeping `flex-shrink-0`
+          + `items-start` from first paint to last means the cards stay
+          in the exact same spot through the entire reveal -> reading
+          transition. */}
       <div
-        className={`flex-1 flex justify-center px-4 ${spread === "celtic" ? "items-start" : "items-center"}`}
+        className="flex flex-shrink-0 items-start justify-center px-4"
         style={{
           paddingTop:
             spread === "celtic"
               ? "calc(var(--topbar-pad) + 16px)"
-              : "calc(var(--topbar-pad) + 24px)",
+              : "calc(var(--topbar-pad) + 48px)",
           paddingBottom: "32px",
         }}
       >
