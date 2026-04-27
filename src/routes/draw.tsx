@@ -13,9 +13,7 @@ export const Route = createFileRoute("/draw")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     spread: typeof s.spread === "string" ? s.spread : undefined,
     question:
-      typeof s.question === "string" && s.question.trim().length > 0
-        ? s.question
-        : undefined,
+      typeof s.question === "string" && s.question.trim().length > 0 ? s.question : undefined,
   }),
   component: DrawPage,
 });
@@ -50,12 +48,7 @@ function DrawPage() {
   // floating QuestionPanel only belongs to the select/cast phases.
   if (picks && phase === "reading") {
     return (
-      <ReadingScreen
-        spread={spread}
-        picks={picks}
-        onExit={exit}
-        question={question || undefined}
-      />
+      <ReadingScreen spread={spread} picks={picks} onExit={exit} question={question || undefined} />
     );
   }
 

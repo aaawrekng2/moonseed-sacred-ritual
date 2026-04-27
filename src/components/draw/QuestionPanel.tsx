@@ -99,10 +99,8 @@ export function QuestionPanel({
       <div
         className="w-full max-w-md rounded-2xl px-5 py-4 flex flex-col gap-3"
         style={{
-          background:
-            "linear-gradient(180deg, rgba(14,10,40,0.97) 0%, rgba(10,7,30,0.97) 100%)",
-          border:
-            "1px solid color-mix(in oklab, var(--gold) 25%, transparent)",
+          background: "linear-gradient(180deg, rgba(14,10,40,0.97) 0%, rgba(10,7,30,0.97) 100%)",
+          border: "1px solid color-mix(in oklab, var(--gold) 25%, transparent)",
           boxShadow:
             "0 8px 32px -8px rgba(0,0,0,0.6), 0 0 0 1px color-mix(in oklab, var(--gold) 10%, transparent)",
         }}
@@ -193,10 +191,8 @@ export function QuestionPanel({
             className="rounded-full px-4 py-1.5 text-[11px] uppercase tracking-[0.2em] transition-colors"
             style={{
               fontFamily: "var(--font-serif)",
-              background:
-                "color-mix(in oklab, var(--gold) 15%, transparent)",
-              border:
-                "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
+              background: "color-mix(in oklab, var(--gold) 15%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
               color: "var(--gold)",
               cursor: "pointer",
             }}

@@ -16,8 +16,7 @@ function useMoonseedAccent(): string {
   const [accent, setAccent] = useState("#f1ba4b");
   useEffect(() => {
     const update = () => {
-      const v = getComputedStyle(document.documentElement)
-        .getPropertyValue("--gold").trim();
+      const v = getComputedStyle(document.documentElement).getPropertyValue("--gold").trim();
       if (v) setAccent(v.startsWith("#") ? v : `oklch(${v})`);
     };
     update();
@@ -155,7 +154,11 @@ export function MoonCarousel() {
       return { days: out, todayMoonSign: getMoonSign(new Date()), error: null as string | null };
     } catch (e) {
       console.error("[MoonCarousel] calculation failed", e);
-      return { days: [] as DayCell[], todayMoonSign: "", error: e instanceof Error ? e.message : "Unknown error" };
+      return {
+        days: [] as DayCell[],
+        todayMoonSign: "",
+        error: e instanceof Error ? e.message : "Unknown error",
+      };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offset, today, retryNonce, dayRange]);
@@ -176,7 +179,9 @@ export function MoonCarousel() {
   };
 
   useEffect(() => {
-    return () => { if (recomputeTimer.current) clearTimeout(recomputeTimer.current); };
+    return () => {
+      if (recomputeTimer.current) clearTimeout(recomputeTimer.current);
+    };
   }, []);
 
   const shift = (dir: -1 | 1) => {
@@ -264,9 +269,7 @@ export function MoonCarousel() {
     const stored = phaseCursorRef.current.get(phase);
     let nextIdx: number;
     if (stored === undefined) {
-      const firstFromHere = list.findIndex(
-        (d) => d.getTime() > viewedDate.getTime(),
-      );
+      const firstFromHere = list.findIndex((d) => d.getTime() > viewedDate.getTime());
       nextIdx = firstFromHere === -1 ? 0 : firstFromHere;
     } else {
       nextIdx = (stored + 1) % list.length;
@@ -277,15 +280,15 @@ export function MoonCarousel() {
     if (!targetDate) return;
     // Convert target absolute date back into an offset relative to today.
     const dayMs = 24 * 60 * 60 * 1000;
-    const deltaFromToday = Math.round(
-      (targetDate.getTime() - today.getTime()) / dayMs,
-    );
+    const deltaFromToday = Math.round((targetDate.getTime() - today.getTime()) / dayMs);
     setEnterDir(deltaFromToday >= offset ? "right" : "left");
     tweenOffsetTo(deltaFromToday);
   };
 
   useEffect(() => {
-    return () => { if (tweenRafRef.current) cancelAnimationFrame(tweenRafRef.current); };
+    return () => {
+      if (tweenRafRef.current) cancelAnimationFrame(tweenRafRef.current);
+    };
   }, []);
 
   const touchStart = useRef<{ x: number; y: number } | null>(null);
@@ -387,7 +390,7 @@ export function MoonCarousel() {
           {days.map((d, i) => {
             const isExpanded = expandedRel === d.relative;
             const rel = d.relative - offset; // -2..+2 within current window
-            const absRel = Math.abs(rel);    // window position, NOT distance from today
+            const absRel = Math.abs(rel); // window position, NOT distance from today
             // Compensate for the CenterCard's "Today/date" header so the moon
             // GRAPHIC tops cascade correctly — not just the cell tops.
             const topOffset = absRel === 0 ? 0 : absRel === 1 ? 52 : 68;
@@ -456,10 +459,7 @@ export function MoonCarousel() {
                       if (stepsToCenter !== 0) {
                         shift(stepsToCenter > 0 ? 1 : -1);
                         if (Math.abs(stepsToCenter) === 2) {
-                          setTimeout(
-                            () => shift(stepsToCenter > 0 ? 1 : -1),
-                            50,
-                          );
+                          setTimeout(() => shift(stepsToCenter > 0 ? 1 : -1), 50);
                         }
                       }
                     }}
@@ -505,7 +505,6 @@ export function MoonCarousel() {
           </button>
         )}
       </div>
-
     </section>
   );
 }
@@ -554,14 +553,24 @@ function CenterCard({
           </p>
           <p className="whitespace-nowrap font-display text-sm text-gold">{info.phase}</p>
           <p className="whitespace-nowrap text-xs text-gold/80">{info.illumination}% illuminated</p>
-          <p className="whitespace-nowrap text-[11px] uppercase tracking-wider text-muted-foreground">Moon in {moonSign}</p>
+          <p className="whitespace-nowrap text-[11px] uppercase tracking-wider text-muted-foreground">
+            Moon in {moonSign}
+          </p>
         </div>
       </div>
     </button>
   );
 }
 
-function AdjacentCard({ info, sign, expanded, selected, enterDir, onToggle, size = "medium" }: {
+function AdjacentCard({
+  info,
+  sign,
+  expanded,
+  selected,
+  enterDir,
+  onToggle,
+  size = "medium",
+}: {
   info: MoonInfo;
   sign: string;
   expanded: boolean;
@@ -586,19 +595,23 @@ function AdjacentCard({ info, sign, expanded, selected, enterDir, onToggle, size
         selected
           ? "border-2 border-gold bg-card/60 shadow-[0_0_18px_-4px_rgba(212,175,55,0.6)] backdrop-blur-sm"
           : expanded
-          ? "border border-gold/25 bg-card/50 shadow-[0_4px_20px_-12px_rgba(212,175,55,0.35)] backdrop-blur-sm"
-          : "border border-transparent hover:border-gold/15 hover:bg-card/30 hover:opacity-100 active:scale-95",
+            ? "border border-gold/25 bg-card/50 shadow-[0_4px_20px_-12px_rgba(212,175,55,0.35)] backdrop-blur-sm"
+            : "border border-transparent hover:border-gold/15 hover:bg-card/30 hover:opacity-100 active:scale-95",
       )}
     >
       {/* Stable wrapper — content updates in place on swipe, no remount. */}
       <div className="flex flex-col items-center gap-1">
         <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{formatShortDate(info.date)}</p>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          {formatShortDate(info.date)}
+        </p>
         <p className="text-[11px] text-muted-foreground">{info.phase}</p>
         <p className="text-[10px] text-gold/80">{info.illumination}% illuminated</p>
         {expanded && (
           <div className="mt-1 flex flex-col items-center gap-0.5 animate-in fade-in slide-in-from-top-1 duration-200 sm:hidden">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Moon in {sign}</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Moon in {sign}
+            </p>
           </div>
         )}
       </div>
@@ -651,10 +664,7 @@ function MoonSkeleton({ label }: { label?: string } = {}) {
               >
                 {isCenter && <div className="h-3 w-12 rounded bg-muted/30" />}
                 <div
-                  className={cn(
-                    "rounded-full bg-muted/30",
-                    isCenter && "border border-gold/20",
-                  )}
+                  className={cn("rounded-full bg-muted/30", isCenter && "border border-gold/20")}
                   style={{ width: iconSize, height: iconSize }}
                 />
                 <div className={cn("rounded bg-muted/30", isCenter ? "h-3 w-20" : "h-2 w-12")} />
@@ -695,10 +705,7 @@ function SkeletonLadder({ side }: { side: "left" | "right" }) {
       aria-hidden="true"
     >
       <div
-        className={cn(
-          "flex flex-col gap-[2px] py-0",
-          isLeft ? "items-start" : "items-end",
-        )}
+        className={cn("flex flex-col gap-[2px] py-0", isLeft ? "items-start" : "items-end")}
         style={{ maxHeight: 100 }}
       >
         {[14, 18, 26, 18, 14].map((size, i) => {
@@ -722,7 +729,11 @@ function SkeletonLadder({ side }: { side: "left" | "right" }) {
 
 function MoonErrorFallback({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <section role="alert" aria-label="Moon phase calendar unavailable" className="mx-auto max-w-md rounded-xl border border-border/40 bg-card/30 px-4 py-3 text-center">
+    <section
+      role="alert"
+      aria-label="Moon phase calendar unavailable"
+      className="mx-auto max-w-md rounded-xl border border-border/40 bg-card/30 px-4 py-3 text-center"
+    >
       <p className="text-xs text-muted-foreground">🌙 Moon phase data is unavailable right now.</p>
       <p className="mt-1 text-[10px] text-muted-foreground/70">{message}</p>
       <button
@@ -743,19 +754,19 @@ function MoonErrorFallback({ message, onRetry }: { message: string; onRetry: () 
 // ---------------------------------------------------------------------------
 
 type LadderRung = {
-  label: string;            // accessible label
-  phase: MoonPhaseName;     // phase to search for
-  size: number;             // icon px
-  inset: number;            // edge inset px (margin-left for "left", margin-right for "right")
+  label: string; // accessible label
+  phase: MoonPhaseName; // phase to search for
+  size: number; // icon px
+  inset: number; // edge inset px (margin-left for "left", margin-right for "right")
 };
 
 const LADDER_RUNGS: LadderRung[] = [
-  { label: "New Moon",        phase: "New Moon",        size: 14, inset: 28 },
+  { label: "New Moon", phase: "New Moon", size: 14, inset: 28 },
   { label: "Waxing Crescent", phase: "Waxing Crescent", size: 18, inset: 14 },
-  { label: "Full Moon",       phase: "Full Moon",       size: 26, inset: 0 },
-  { label: "Waning Gibbous",  phase: "Waning Gibbous",  size: 18, inset: 14 },
+  { label: "Full Moon", phase: "Full Moon", size: 26, inset: 0 },
+  { label: "Waning Gibbous", phase: "Waning Gibbous", size: 18, inset: 14 },
   // "Dark Moon" rung — calculated as New Moon, displayed as the same dark glyph.
-  { label: "Dark Moon",       phase: "New Moon",        size: 14, inset: 28 },
+  { label: "Dark Moon", phase: "New Moon", size: 14, inset: 28 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -840,9 +851,7 @@ function PhaseLadder({
   // Find which rung (if any) is currently "active" — the first rung whose
   // phase matches the viewed day. Note: New Moon appears twice (top + Dark
   // Moon at bottom); we only highlight the first match for visual clarity.
-  const activeIdx = activePhase
-    ? LADDER_RUNGS.findIndex((r) => r.phase === activePhase)
-    : -1;
+  const activeIdx = activePhase ? LADDER_RUNGS.findIndex((r) => r.phase === activePhase) : -1;
 
   const ladderColumn = (
     <div
@@ -910,7 +919,11 @@ function PhaseLadder({
       {/* Match the chevron's visual weight to the Full Moon rung (26px) so
           it reads as a sibling control, not a smaller satellite. Scales
           modestly across breakpoints to keep parity with the rung sizes. */}
-      <Chevron className="h-[22px] w-[22px] md:h-[26px] md:w-[26px]" strokeWidth={1.75} aria-hidden="true" />
+      <Chevron
+        className="h-[22px] w-[22px] md:h-[26px] md:w-[26px]"
+        strokeWidth={1.75}
+        aria-hidden="true"
+      />
     </button>
   );
 
