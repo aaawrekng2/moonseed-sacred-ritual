@@ -207,13 +207,23 @@ export function GuideSelector({
                     onClick={() => setGuide(g.id)}
                     className="block w-full text-left"
                   >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span
-                        className="text-2xl"
-                        style={{ marginTop: g.custom ? 28 : 0 }}
-                      >
-                        {g.emoji}
-                      </span>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="text-2xl">{g.emoji}</span>
+                      {g.custom && g.raw && (
+                        <button
+                          type="button"
+                          aria-label="Delete custom guide"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            setDeleteTarget(g.raw!);
+                          }}
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-colors hover:bg-gold/10 hover:text-gold"
+                          style={{ opacity: "var(--ro-plus-30)" }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                        </button>
+                      )}
                       {active && !g.custom && <Check className="h-4 w-4 text-gold" />}
                     </div>
                     <h3
@@ -248,45 +258,27 @@ export function GuideSelector({
                   {/* Edit/delete affordances must sit ABOVE the card-body
                       button — render after it in DOM order, with explicit
                       inline z-index so nothing in the cascade hides them. */}
+                  {/* Pencil stays absolute top-right; trash moved inline
+                      next to the emoji above to free up vertical space. */}
                   {g.custom && g.raw && (
-                    <>
-                      <button
-                        type="button"
-                        aria-label="Delete custom guide"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteTarget(g.raw!);
-                        }}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
-                        style={{
-                          position: "absolute",
-                          top: 8,
-                          left: 8,
-                          zIndex: 30,
-                          opacity: "var(--ro-plus-30)",
-                        }}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Edit custom guide"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingGuide(g.raw!);
-                        }}
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
-                        style={{
-                          position: "absolute",
-                          top: 8,
-                          right: 8,
-                          zIndex: 30,
-                          opacity: "var(--ro-plus-30)",
-                        }}
-                      >
-                        <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      </button>
-                    </>
+                    <button
+                      type="button"
+                      aria-label="Edit custom guide"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingGuide(g.raw!);
+                      }}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full text-gold/60 transition-opacity hover:text-gold hover:bg-gold/10 hover:!opacity-100"
+                      style={{
+                        position: "absolute",
+                        top: 8,
+                        right: 8,
+                        zIndex: 30,
+                        opacity: "var(--ro-plus-30)",
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    </button>
                   )}
                 </div>
               );
