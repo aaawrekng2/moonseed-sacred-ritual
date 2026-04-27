@@ -263,7 +263,7 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
       <div
         className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5 pb-12"
         style={{
-          paddingTop: "var(--topbar-pad)",
+          paddingTop: "calc(var(--topbar-pad) + 16px)",
         }}
       >
         <header className="flex flex-col items-center gap-1.5 text-center">
