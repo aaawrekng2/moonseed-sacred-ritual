@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Flame } from "lucide-react";
+import { Check, Copy, Flame } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
@@ -164,6 +164,31 @@ function QuestionBox({
   const [scope] = useRememberScope();
   const { user } = useAuth();
   const userId = user?.id;
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    const text = value.trim();
+    if (!text) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        // Fallback for older browsers / non-secure contexts.
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // Silent fail — the icon simply won't switch to the check.
+    }
+  };
 
   // Hydrate the remember flag from localStorage on the client only,
   // and the stored question value from either localStorage (device
@@ -302,7 +327,9 @@ function QuestionBox({
             ? "color-mix(in oklab, var(--gold) 60%, transparent)"
             : "color-mix(in oklab, var(--gold) 18%, transparent)",
           borderRadius: 12,
-          padding: "12px 14px",
+          // Reserve space on the right for the copy button so long
+          // text never slides under it.
+          padding: "12px 40px 12px 14px",
           boxShadow: focused
             ? "0 0 0 3px color-mix(in oklab, var(--gold) 18%, transparent), 0 0 18px -6px color-mix(in oklab, var(--gold) 35%, transparent)"
             : "none",
@@ -311,6 +338,31 @@ function QuestionBox({
             "opacity 250ms ease, border-color 200ms ease, box-shadow 200ms ease",
         }}
       />
+      {value.trim() && (
+        <button
+          type="button"
+          onClick={handleCopy}
+          aria-label={copied ? "Question copied" : "Copy question"}
+          title={copied ? "Copied" : "Copy question"}
+          className="absolute rounded-md transition-opacity focus:outline-none focus-visible:ring-2"
+          style={{
+            top: 8,
+            right: 8,
+            padding: 6,
+            background: "transparent",
+            border: "none",
+            color: "var(--gold)",
+            opacity: copied ? "var(--ro-plus-40)" : "var(--ro-plus-20)",
+            cursor: "pointer",
+          }}
+        >
+          {copied ? (
+            <Check size={14} strokeWidth={1.75} />
+          ) : (
+            <Copy size={14} strokeWidth={1.75} />
+          )}
+        </button>
+      )}
       {!value && !focused && (
         <div
           className="absolute inset-0 flex items-center justify-center pointer-events-none"
