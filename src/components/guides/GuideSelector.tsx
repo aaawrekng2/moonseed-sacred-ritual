@@ -754,6 +754,9 @@ function EditCustomGuideDialog({
         className="w-full max-w-md rounded-2xl border border-gold/30 bg-cosmos p-5 shadow-2xl"
         style={{ maxHeight: "90vh", overflowY: "auto" }}
       >
+        {/* No on-screen X — the Close affordance lives in the global
+            FloatingMenu pill (the `···`). Backdrop tap and ESC also
+            dismiss this dialog (handled by the wrapper). */}
         <div className="mb-4 flex items-start justify-between">
           <h3
             className="text-lg italic text-gold"
@@ -761,14 +764,6 @@ function EditCustomGuideDialog({
           >
             {isOracle ? "Refine this Guide" : "Edit Guide"}
           </h3>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={onClose}
-            className="text-gold/60 hover:text-gold"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
 
         <div className="space-y-4">
