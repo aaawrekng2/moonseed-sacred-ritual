@@ -43,7 +43,7 @@ type Pick = { id: number; cardIndex: number };
 type LoadState =
   | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "loaded"; interpretation: InterpretationPayload }
+  | { kind: "loaded"; interpretation: InterpretationPayload; readingId: string | null }
   | { kind: "limit" }
   | { kind: "error"; message: string };
 
