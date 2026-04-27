@@ -27,6 +27,79 @@ import { getCurrentMoonPhase } from "@/lib/moon";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import type { InterpretationPayload } from "@/lib/interpret.functions";
 
+/* ----------------------------------------------------------------- */
+/*  Theme tokens — accent + paper background combinations             */
+/* ----------------------------------------------------------------- */
+
+type AccentKey = "gold" | "mystic" | "moonlight";
+type PaperKey = "midnight" | "parchment" | "vellum";
+
+type AccentTheme = {
+  key: AccentKey;
+  label: string;
+  /** hex used in inline styles + html-to-image */
+  color: string;
+  swatch: string;
+};
+
+type PaperTheme = {
+  key: PaperKey;
+  label: string;
+  /** card body background (gradient) */
+  background: string;
+  /** body text color */
+  text: string;
+  /** color used for the html-to-image canvas backdrop */
+  canvas: string;
+  swatch: string;
+};
+
+const ACCENT_THEMES: Record<AccentKey, AccentTheme> = {
+  gold: { key: "gold", label: "Gold", color: "#d4af37", swatch: "#d4af37" },
+  mystic: {
+    key: "mystic",
+    label: "Mystic",
+    color: "#b497ff",
+    swatch: "#b497ff",
+  },
+  moonlight: {
+    key: "moonlight",
+    label: "Moonlight",
+    color: "#dfe6f5",
+    swatch: "#dfe6f5",
+  },
+};
+
+const PAPER_THEMES: Record<PaperKey, PaperTheme> = {
+  midnight: {
+    key: "midnight",
+    label: "Midnight",
+    background:
+      "linear-gradient(180deg, #14102f 0%, #0f0c29 60%, #14102f 100%)",
+    text: "#f5e9c8",
+    canvas: "#0f0c29",
+    swatch: "#14102f",
+  },
+  parchment: {
+    key: "parchment",
+    label: "Parchment",
+    background:
+      "linear-gradient(180deg, #f3e7c7 0%, #ead6a3 55%, #e2c98a 100%)",
+    text: "#3a2a13",
+    canvas: "#ead6a3",
+    swatch: "#ead6a3",
+  },
+  vellum: {
+    key: "vellum",
+    label: "Vellum",
+    background:
+      "linear-gradient(180deg, #f7f3ea 0%, #ece5d3 55%, #e3dac1 100%)",
+    text: "#2c2618",
+    canvas: "#ece5d3",
+    swatch: "#ece5d3",
+  },
+};
+
 type Pick = { id: number; cardIndex: number };
 
 export function TearOffCard({
@@ -54,6 +127,10 @@ export function TearOffCard({
   const [busy, setBusy] = useState<null | "png" | "pdf" | "share">(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
+  const [accentKey, setAccentKey] = useState<AccentKey>("gold");
+  const [paperKey, setPaperKey] = useState<PaperKey>("midnight");
+  const accent = ACCENT_THEMES[accentKey];
+  const paper = PAPER_THEMES[paperKey];
   useEffect(
     () => () => {
       if (toastTimer.current) window.clearTimeout(toastTimer.current);
@@ -89,7 +166,7 @@ export function TearOffCard({
     const dataUrl = await toPng(cardRef.current, {
       pixelRatio: 2,
       cacheBust: true,
-      backgroundColor: "#0f0c29",
+      backgroundColor: paper.canvas,
     });
     return dataUrl;
   };
@@ -236,10 +313,19 @@ export function TearOffCard({
             closing={interpretation.closing}
             guideName={guideName}
             isOracle={isOracle}
+            accent={accent}
+            paper={paper}
           />
         </div>
 
         <div className="flex flex-col gap-2 border-t border-gold/15 bg-background/40 px-5 py-4">
+          <ThemeControls
+            accentKey={accentKey}
+            paperKey={paperKey}
+            onAccentChange={setAccentKey}
+            onPaperChange={setPaperKey}
+            disabled={busy !== null}
+          />
           <div className="flex flex-wrap items-center justify-center gap-2">
             <ActionButton
               icon={<Share2 size={14} strokeWidth={1.5} />}
@@ -317,6 +403,91 @@ function ActionButton({
   );
 }
 
+function ThemeControls({
+  accentKey,
+  paperKey,
+  onAccentChange,
+  onPaperChange,
+  disabled,
+}: {
+  accentKey: AccentKey;
+  paperKey: PaperKey;
+  onAccentChange: (k: AccentKey) => void;
+  onPaperChange: (k: PaperKey) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <SwatchRow
+        label="Accent"
+        items={Object.values(ACCENT_THEMES)}
+        activeKey={accentKey}
+        onChange={(k) => onAccentChange(k as AccentKey)}
+        disabled={disabled}
+      />
+      <SwatchRow
+        label="Paper"
+        items={Object.values(PAPER_THEMES)}
+        activeKey={paperKey}
+        onChange={(k) => onPaperChange(k as PaperKey)}
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
+function SwatchRow({
+  label,
+  items,
+  activeKey,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  items: { key: string; label: string; swatch: string }[];
+  activeKey: string;
+  onChange: (k: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span
+        className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground"
+        style={{ fontFamily: "var(--font-display, var(--font-serif))" }}
+      >
+        {label}
+      </span>
+      <div className="flex items-center gap-1.5">
+        {items.map((it) => {
+          const active = it.key === activeKey;
+          return (
+            <button
+              key={it.key}
+              type="button"
+              onClick={() => onChange(it.key)}
+              disabled={disabled}
+              aria-pressed={active}
+              aria-label={`${label} ${it.label}`}
+              title={it.label}
+              className="relative h-6 w-6 rounded-full border transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{
+                background: it.swatch,
+                borderColor: active
+                  ? "var(--gold, #d4af37)"
+                  : "color-mix(in oklab, white 25%, transparent)",
+                boxShadow: active
+                  ? "0 0 0 2px color-mix(in oklab, var(--gold, #d4af37) 35%, transparent)"
+                  : "none",
+                transform: active ? "scale(1.08)" : "scale(1)",
+              }}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ----------------------------------------------------------------- */
 /*  Card Artwork — the actual paper-style keepsake being captured.   */
 /* ----------------------------------------------------------------- */
@@ -333,6 +504,8 @@ const CardArtwork = ({
   closing,
   guideName,
   isOracle,
+  accent,
+  paper,
 }: {
   ref: React.Ref<HTMLDivElement>;
   question?: string;
@@ -345,20 +518,22 @@ const CardArtwork = ({
   closing: string;
   guideName: string;
   isOracle: boolean;
+  accent: AccentTheme;
+  paper: PaperTheme;
 }) => {
+  const A = accent.color;
+  const T = paper.text;
   return (
     <div
       ref={ref}
       style={{
         width: 380,
         margin: "0 auto",
-        background:
-          "linear-gradient(180deg, #14102f 0%, #0f0c29 60%, #14102f 100%)",
-        color: "#f5e9c8",
+        background: paper.background,
+        color: T,
         fontFamily: "var(--font-serif, 'Cormorant Garamond', serif)",
         borderRadius: 14,
-        boxShadow:
-          "0 0 0 1px color-mix(in oklab, #d4af37 28%, transparent), 0 18px 50px -20px color-mix(in oklab, #d4af37 30%, transparent)",
+        boxShadow: `0 0 0 1px color-mix(in oklab, ${A} 28%, transparent), 0 18px 50px -20px color-mix(in oklab, ${A} 30%, transparent)`,
         padding: "22px 22px 26px",
         position: "relative",
         overflow: "hidden",
@@ -370,7 +545,7 @@ const CardArtwork = ({
         style={{
           position: "absolute",
           inset: 8,
-          border: "1px solid color-mix(in oklab, #d4af37 22%, transparent)",
+          border: `1px solid color-mix(in oklab, ${A} 22%, transparent)`,
           borderRadius: 10,
           pointerEvents: "none",
         }}
@@ -385,7 +560,7 @@ const CardArtwork = ({
           fontSize: 10,
           letterSpacing: "0.32em",
           textTransform: "uppercase",
-          color: "#d4af37",
+          color: A,
           opacity: 0.85,
           marginBottom: 14,
         }}
@@ -401,8 +576,7 @@ const CardArtwork = ({
         aria-hidden
         style={{
           height: 1,
-          background:
-            "linear-gradient(to right, transparent, color-mix(in oklab, #d4af37 55%, transparent), transparent)",
+          background: `linear-gradient(to right, transparent, color-mix(in oklab, ${A} 55%, transparent), transparent)`,
           marginBottom: 14,
         }}
       />
@@ -415,7 +589,7 @@ const CardArtwork = ({
               fontSize: 9,
               letterSpacing: "0.28em",
               textTransform: "uppercase",
-              color: "#d4af37",
+              color: A,
               opacity: 0.8,
               marginBottom: 4,
             }}
@@ -427,7 +601,7 @@ const CardArtwork = ({
               fontStyle: "italic",
               fontSize: 14,
               lineHeight: 1.55,
-              color: "#f5e9c8",
+              color: T,
               opacity: 0.92,
               padding: "0 6px",
             }}
@@ -467,10 +641,8 @@ const CardArtwork = ({
                 height: 105,
                 objectFit: "cover",
                 borderRadius: 4,
-                border:
-                  "1px solid color-mix(in oklab, #d4af37 35%, transparent)",
-                boxShadow:
-                  "0 4px 14px -4px color-mix(in oklab, #d4af37 25%, transparent)",
+                border: `1px solid color-mix(in oklab, ${A} 35%, transparent)`,
+                boxShadow: `0 4px 14px -4px color-mix(in oklab, ${A} 25%, transparent)`,
               }}
             />
             <div
@@ -478,7 +650,7 @@ const CardArtwork = ({
                 fontSize: 8,
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
-                color: "#d4af37",
+                color: A,
                 opacity: 0.75,
                 textAlign: "center",
                 lineHeight: 1.2,
@@ -490,7 +662,7 @@ const CardArtwork = ({
               style={{
                 fontSize: 10,
                 fontStyle: "italic",
-                color: "#f5e9c8",
+                color: T,
                 opacity: 0.92,
                 textAlign: "center",
                 lineHeight: 1.25,
@@ -532,8 +704,7 @@ const CardArtwork = ({
                   height: 105,
                   objectFit: "cover",
                   borderRadius: 4,
-                  border:
-                    "1px solid color-mix(in oklab, #d4af37 35%, transparent)",
+                  border: `1px solid color-mix(in oklab, ${A} 35%, transparent)`,
                 }}
               />
               <div
@@ -541,7 +712,7 @@ const CardArtwork = ({
                   fontSize: 8,
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
-                  color: "#d4af37",
+                  color: A,
                   opacity: 0.75,
                   textAlign: "center",
                   lineHeight: 1.2,
@@ -553,7 +724,7 @@ const CardArtwork = ({
                 style={{
                   fontSize: 10,
                   fontStyle: "italic",
-                  color: "#f5e9c8",
+                  color: T,
                   opacity: 0.92,
                   textAlign: "center",
                   lineHeight: 1.25,
@@ -570,8 +741,7 @@ const CardArtwork = ({
         aria-hidden
         style={{
           height: 1,
-          background:
-            "linear-gradient(to right, transparent, color-mix(in oklab, #d4af37 40%, transparent), transparent)",
+          background: `linear-gradient(to right, transparent, color-mix(in oklab, ${A} 40%, transparent), transparent)`,
           marginBottom: 12,
         }}
       />
@@ -583,7 +753,7 @@ const CardArtwork = ({
             fontStyle: "italic",
             fontSize: 12.5,
             lineHeight: 1.65,
-            color: "#f5e9c8",
+            color: T,
             opacity: 0.94,
             margin: "0 0 12px",
             textAlign: "center",
@@ -609,7 +779,7 @@ const CardArtwork = ({
               <span
                 style={{
                   fontSize: 11,
-                  color: "#d4af37",
+                  color: A,
                   letterSpacing: "0.04em",
                   fontWeight: 600,
                 }}
@@ -619,7 +789,7 @@ const CardArtwork = ({
               <span
                 style={{
                   fontSize: 8,
-                  color: "#d4af37",
+                  color: A,
                   opacity: 0.7,
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
@@ -634,7 +804,7 @@ const CardArtwork = ({
                 style={{
                   fontSize: 11.5,
                   lineHeight: 1.55,
-                  color: "#f5e9c8",
+                  color: T,
                   opacity: 0.88,
                   margin: 0,
                 }}
@@ -652,7 +822,7 @@ const CardArtwork = ({
             fontStyle: "italic",
             fontSize: 12,
             lineHeight: 1.6,
-            color: "#f5e9c8",
+            color: T,
             opacity: 0.85,
             margin: "8px 0 0",
             textAlign: "center",
@@ -666,8 +836,7 @@ const CardArtwork = ({
         aria-hidden
         style={{
           height: 1,
-          background:
-            "linear-gradient(to right, transparent, color-mix(in oklab, #d4af37 40%, transparent), transparent)",
+          background: `linear-gradient(to right, transparent, color-mix(in oklab, ${A} 40%, transparent), transparent)`,
           margin: "14px 0 10px",
         }}
       />
@@ -681,7 +850,7 @@ const CardArtwork = ({
           fontSize: 9,
           letterSpacing: "0.22em",
           textTransform: "uppercase",
-          color: "#d4af37",
+          color: A,
           opacity: 0.78,
         }}
       >
