@@ -147,7 +147,7 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
           paddingBottom: "48px",
           transform:
             cardsReady && spread === "three"
-              ? "translateY(-80px)"
+              ? "translateY(-40px)"
               : "translateY(0)",
           transition:
             "transform 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
@@ -156,7 +156,7 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
           // (Phase 7 bug 4). Other spreads still tighten so the inline
           // reading can claim the freed vertical space.
           flex:
-            allRevealed && spread !== "celtic" ? "0 0 auto" : "1 1 0",
+            cardsReady && spread !== "celtic" ? "0 0 auto" : "1 1 0",
         }}
       >
         <SpreadContent
