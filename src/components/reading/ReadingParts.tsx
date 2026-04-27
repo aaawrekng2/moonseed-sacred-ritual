@@ -868,6 +868,7 @@ function ReadingBody({
           fontSize: bodySize + 1,
           lineHeight: 1.65,
           color: "color-mix(in oklab, var(--foreground) 92%, transparent)",
+          transition: "font-size 200ms ease",
         }}
       >
         {interpretation.overview}
@@ -906,6 +907,7 @@ function ReadingBody({
                 fontSize: bodySize,
                 lineHeight: 1.65,
                 color: "color-mix(in oklab, var(--foreground) 85%, transparent)",
+                transition: "font-size 200ms ease",
               }}
             >
               {p.interpretation}
@@ -922,6 +924,7 @@ function ReadingBody({
           fontSize: bodySize,
           lineHeight: 1.65,
           color: "color-mix(in oklab, var(--foreground) 80%, transparent)",
+          transition: "font-size 200ms ease",
         }}
       >
         {interpretation.closing}
