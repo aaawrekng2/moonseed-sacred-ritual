@@ -41,6 +41,7 @@ import {
   type EnrichmentTag,
 } from "@/components/journal/EnrichmentPanel";
 import { SeekerQuestion } from "@/components/reading/ReadingParts";
+import { stripMarkdown } from "@/lib/strip-markdown";
 
 type Pick = { id: number; cardIndex: number };
 
@@ -1086,7 +1087,7 @@ function ReadingBody({
           color: "var(--foreground)",
         }}
       >
-        {interpretation.overview}
+        {stripMarkdown(interpretation.overview)}
       </p>
 
       <ul className="flex flex-col gap-5">
@@ -1124,7 +1125,7 @@ function ReadingBody({
                 color: "var(--foreground)",
               }}
             >
-              {p.interpretation}
+              {stripMarkdown(p.interpretation)}
             </p>
           </li>
         ))}
@@ -1140,7 +1141,7 @@ function ReadingBody({
           color: "color-mix(in oklab, var(--foreground) 88%, transparent)",
         }}
       >
-        {interpretation.closing}
+        {stripMarkdown(interpretation.closing)}
       </p>
 
       {showSlider && (
