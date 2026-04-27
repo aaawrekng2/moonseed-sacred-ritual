@@ -136,8 +136,10 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
           Celtic Cross stays put (per spec) because it's already dense
           and any movement looks jarring. */}
       <div
-        className="flex-1 flex items-center justify-center px-4 py-12"
+        className="flex-1 flex items-center justify-center px-4"
         style={{
+          paddingTop: "calc(var(--topbar-pad) + 24px)",
+          paddingBottom: "48px",
           transform:
             cardsReady && spread === "three"
               ? "translateY(-80px)"

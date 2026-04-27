@@ -208,7 +208,12 @@ export function GuideSelector({
                     className="block w-full text-left"
                   >
                     <div className="mb-2 flex items-center justify-between">
-                      <span className="text-2xl">{g.emoji}</span>
+                      <span
+                        className="text-2xl"
+                        style={{ marginTop: g.custom ? 28 : 0 }}
+                      >
+                        {g.emoji}
+                      </span>
                       {active && !g.custom && <Check className="h-4 w-4 text-gold" />}
                     </div>
                     <h3

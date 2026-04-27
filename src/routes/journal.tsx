@@ -773,12 +773,34 @@ function Empty({
 function ThreadsView({ threads }: { threads: ThreadRow[] }) {
   if (threads.length === 0) {
     return (
-      <p
-        className="mx-auto mt-16 max-w-sm text-center font-display text-[14px] italic text-gold"
-        style={{ opacity: "var(--ro-plus-30)" }}
-      >
-        Your threads will emerge as you draw. Each reading adds to the weave.
-      </p>
+      <div className="mx-auto mt-16 flex max-w-md flex-col items-center gap-4 px-4 text-center">
+        <p
+          className="font-display italic text-gold"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: 18,
+            lineHeight: 1.5,
+            opacity: "var(--ro-plus-30)",
+          }}
+        >
+          The threads are listening.
+        </p>
+        <p
+          className="font-display italic text-muted-foreground"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: 13,
+            lineHeight: 1.7,
+            opacity: "var(--ro-plus-10)",
+          }}
+        >
+          This space fills slowly, and that is by design. Threads are not
+          tags or summaries — they are deeper patterns that emerge only when
+          the same symbolic current has moved through your practice more
+          than once. The cards know. When something is truly recurring, it
+          will surface here on its own.
+        </p>
+      </div>
     );
   }
   return (
