@@ -232,6 +232,15 @@ code, pre, kbd {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.88; transform: scale(1.018); }
 }
+
+/* QuestionPanel close → quill icon: scale-from-zero so the panel
+   collapses smoothly into the floating quill rather than popping. */
+@keyframes quill-scale-in {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.08); opacity: 0.9; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 .animate-pulse-gold {
   animation: pulse-gold 3.5s ease-in-out infinite;
 }
