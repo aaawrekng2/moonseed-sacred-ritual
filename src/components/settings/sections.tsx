@@ -32,6 +32,8 @@ import {
   useRememberScope,
   type RememberScope,
 } from "@/lib/use-auto-remember-question";
+import { AuthScreen } from "@/components/auth/AuthScreen";
+import { supabase } from "@/lib/supabase";
 
 /**
  * Settings page section components, ported from the source bundle and
