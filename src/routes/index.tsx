@@ -152,6 +152,62 @@ function QuestionBox({
 }) {
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
+  const [remember, setRemember] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Hydrate from localStorage on client only (avoid SSR mismatch).
+  useEffect(() => {
+    try {
+      const storedRemember = localStorage.getItem("question-remember") === "1";
+      setRemember(storedRemember);
+      if (storedRemember) {
+        const storedValue = localStorage.getItem("question-value") ?? "";
+        if (storedValue) {
+          setValue(storedValue);
+          onQuestionChange(storedValue);
+        }
+      }
+    } catch {
+      // ignore storage errors
+    }
+    setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist whenever value or remember toggles after hydration.
+  useEffect(() => {
+    if (!hydrated) return;
+    try {
+      if (remember) {
+        localStorage.setItem("question-value", value);
+      } else {
+        localStorage.removeItem("question-value");
+      }
+    } catch {
+      // ignore
+    }
+  }, [value, remember, hydrated]);
+
+  const handleRememberToggle = () => {
+    const next = !remember;
+    setRemember(next);
+    try {
+      localStorage.setItem("question-remember", next ? "1" : "0");
+      if (!next) localStorage.removeItem("question-value");
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleClear = () => {
+    setValue("");
+    onQuestionChange("");
+    try {
+      localStorage.removeItem("question-value");
+    } catch {
+      // ignore
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setValue(e.target.value);
@@ -197,6 +253,49 @@ function QuestionBox({
           What question are you bringing to the cards?
         </div>
       )}
+      <div
+        className="flex items-center justify-center gap-3 pt-2"
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontSize: 12,
+          color: "var(--foreground)",
+          opacity: "var(--ro-plus-20)",
+        }}
+      >
+        <label
+          className="flex items-center gap-1.5 cursor-pointer select-none"
+          style={{ fontStyle: "italic" }}
+        >
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={handleRememberToggle}
+            style={{
+              accentColor: "var(--gold)",
+              width: 12,
+              height: 12,
+              cursor: "pointer",
+            }}
+          />
+          Remember my question
+        </label>
+        {value && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="cursor-pointer underline-offset-2 hover:underline"
+            style={{
+              fontStyle: "italic",
+              background: "none",
+              border: "none",
+              color: "inherit",
+              padding: 0,
+            }}
+          >
+            Clear
+          </button>
+        )}
+      </div>
     </div>
   );
 }
