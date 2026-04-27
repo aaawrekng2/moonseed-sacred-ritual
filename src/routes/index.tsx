@@ -17,7 +17,7 @@ import {
 } from "@/lib/use-auto-remember-question";
 import { useAuth } from "@/lib/auth";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
-import { useDailyReset } from "@/lib/use-daily-reset";
+import { DAILY_RESET_EVENT, useDailyReset } from "@/lib/use-daily-reset";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -221,6 +221,28 @@ function QuestionBox({
   // Confirmation gate for the Clear button so a tap doesn't
   // accidentally wipe a remembered question.
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  // "New moon day" cue: when the calendar day flips while a
+  // remembered question is loaded, surface a brief pill so the seeker
+  // can decide whether to keep, edit, or clear it for the new ritual.
+  const [newDayCue, setNewDayCue] = useState(false);
+  const valueRef = useRef("");
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onReset = () => {
+      // Only show the cue if there's actually a remembered question to
+      // carry over — otherwise the new day starts cleanly and the
+      // affordance would be noise.
+      if (valueRef.current.trim().length > 0) {
+        setNewDayCue(true);
+      }
+    };
+    window.addEventListener(DAILY_RESET_EVENT, onReset);
+    return () => window.removeEventListener(DAILY_RESET_EVENT, onReset);
+  }, []);
 
   // Hydrate the remember flag (always local) and the stored question
   // value from either localStorage (device scope) or the user's
@@ -367,6 +389,9 @@ function QuestionBox({
     const next = e.target.value.slice(0, QUESTION_MAX_LENGTH);
     setValue(next);
     onQuestionChange(next);
+    // Typing on the new day acknowledges the cue — dismiss it so it
+    // doesn't compete with the input.
+    if (newDayCue) setNewDayCue(false);
     // Auto-flip "Remember my question" on as soon as the seeker
     // begins typing, when the corresponding setting is enabled —
     // but never if the seeker has manually turned the toggle off in
