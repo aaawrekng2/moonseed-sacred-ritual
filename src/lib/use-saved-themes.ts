@@ -51,7 +51,7 @@ const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 function isHex(v: unknown): v is string {
   return typeof v === "string" && HEX_RE.test(v);
 }
-function isThemeFont(v: unknown): v is ThemeFont {
+export function isThemeFont(v: unknown): v is ThemeFont {
   return typeof v === "string" && (THEME_FONTS as readonly string[]).includes(v);
 }
 function clampOpacity(v: unknown): number | undefined {
