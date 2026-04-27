@@ -75,18 +75,6 @@ export function SpreadLayout({ spread, picks, onExit, question }: Props) {
   // The lowest unrevealed index — that's the card the user must tap next.
   const nextIndex = revealedFlags.findIndex((r) => !r);
   const allRevealed = nextIndex === -1;
-  const revealedCount = revealedFlags.filter(Boolean).length;
-
-  const totalCount = picks.length;
-  // Friendly position name for the next required card. Falls back through
-  // the short labels and finally a generic "Card N" if the spread doesn't
-  // define position labels (e.g. single / daily / yes_no).
-  const nextLabel =
-    nextIndex >= 0
-      ? (meta.positions?.[nextIndex] ??
-        meta.positionsShort?.[nextIndex] ??
-        `Card ${nextIndex + 1}`)
-      : null;
 
   const handleTap = useCallback(
     (i: number) => {
@@ -201,46 +189,6 @@ export function SpreadLayout({ spread, picks, onExit, question }: Props) {
         </div>
       )}
     </main>
-  );
-}
-
-/**
- * Slim row of dots that fill in as cards are revealed. Dot count matches
- * the spread size so it scales naturally from 1 (single) to 10 (celtic).
- */
-function ProgressDots({ total, revealed }: { total: number; revealed: number }) {
-  return (
-    <div
-      className="flex items-center gap-1.5"
-      role="progressbar"
-      aria-valuenow={revealed}
-      aria-valuemin={0}
-      aria-valuemax={total}
-      aria-label={`${revealed} of ${total} cards revealed`}
-    >
-      {Array.from({ length: total }).map((_, i) => {
-        const filled = i < revealed;
-        return (
-          <span
-            key={i}
-            aria-hidden="true"
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: filled
-                ? "var(--gold)"
-                : "color-mix(in oklab, var(--gold) 25%, transparent)",
-              boxShadow: filled
-                ? "0 0 6px color-mix(in oklab, var(--gold) 60%, transparent)"
-                : "none",
-              transition:
-                "background 300ms ease, box-shadow 300ms ease",
-            }}
-          />
-        );
-      })}
-    </div>
   );
 }
 
