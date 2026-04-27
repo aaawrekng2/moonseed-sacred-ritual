@@ -51,7 +51,7 @@ const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 function isHex(v: unknown): v is string {
   return typeof v === "string" && HEX_RE.test(v);
 }
-function isThemeFont(v: unknown): v is ThemeFont {
+export function isThemeFont(v: unknown): v is ThemeFont {
   return typeof v === "string" && (THEME_FONTS as readonly string[]).includes(v);
 }
 function clampOpacity(v: unknown): number | undefined {
@@ -125,6 +125,13 @@ export function applyHeadingFont(font: ThemeFont) {
     "--font-serif",
     `"${font}", ui-serif, Georgia, serif`,
   );
+  try {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("moonseed:heading-font", font);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function applyHeadingFontSize(sizePx: number) {
@@ -135,6 +142,13 @@ export function applyHeadingFontSize(sizePx: number) {
   );
   const scale = clamped / DEFAULT_FONT_SIZE;
   document.documentElement.style.setProperty("--heading-scale", String(scale));
+  try {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("moonseed:heading-font-size", String(clamped));
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 /* ------------------------------------------------------------------ */
