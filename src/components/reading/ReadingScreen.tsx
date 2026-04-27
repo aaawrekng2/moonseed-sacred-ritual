@@ -137,6 +137,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
             lensId,
             facetIds,
             allowOverride: overrideRef.current,
+            question,
           },
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -218,6 +219,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
             guide_id: guideId,
             lens_id: lensId,
             mode: "reveal",
+            question: question || null,
           })
           .select("id,user_id,note,is_favorite,tags")
           .single();

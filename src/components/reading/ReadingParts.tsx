@@ -122,6 +122,7 @@ export function InlineReading({
             lensId,
             facetIds,
             allowOverride: overrideRef.current,
+            question,
           },
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -193,6 +194,7 @@ export function InlineReading({
             guide_id: guideId,
             lens_id: lensId,
             mode: "reveal",
+            question: question || null,
           })
           .select("id,user_id,note,is_favorite,tags")
           .single();
