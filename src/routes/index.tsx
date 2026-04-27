@@ -321,6 +321,7 @@ function QuestionBox({
   const handleRememberToggle = () => {
     const next = !remember;
     setRemember(next);
+    if (newDayCue) setNewDayCue(false);
     // Manual OFF latches the session-scoped suppression so
     // auto-remember can't quietly flip it back on while typing.
     // Manual ON releases the latch, restoring auto behavior.
@@ -339,6 +340,7 @@ function QuestionBox({
   const handleClear = () => {
     setValue("");
     onQuestionChange("");
+    if (newDayCue) setNewDayCue(false);
     try {
       localStorage.removeItem("question-value");
     } catch {
