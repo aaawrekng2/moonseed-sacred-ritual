@@ -11,6 +11,16 @@ import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
 import { useAutoRememberQuestion } from "@/lib/use-auto-remember-question";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type IndexSearch = { question?: string };
 
