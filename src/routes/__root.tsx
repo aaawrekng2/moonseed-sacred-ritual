@@ -11,6 +11,7 @@ import { useTapToPeek } from "@/lib/use-tap-to-peek";
 import { usePWA } from "@/lib/use-pwa";
 import { FloatingMenu } from "@/components/nav/FloatingMenu";
 import { FloatingMenuProvider } from "@/lib/floating-menu-context";
+import { useThemeFontSync } from "@/lib/use-theme-font-sync";
 
 /**
  * Read the persisted resting opacity from localStorage and apply it to
@@ -142,6 +143,18 @@ function RootShell({ children }: { children: React.ReactNode }) {
               "try{var v=localStorage.getItem('moonseed:reading-font-size');var n=v?Math.max(12,Math.min(20,Math.round(Number(v)))):17;document.documentElement.style.setProperty('--reading-font-size',n+'px');}catch(e){}",
           }}
         />
+        {/*
+          Synchronously rehydrate the seeker's chosen heading font and
+          size BEFORE first paint. Without this, every fresh page load
+          renders in the stylesheet default until they reopen Themes.
+          Mirrors the resting-opacity / reading-font-size boot scripts.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var f=localStorage.getItem('moonseed:heading-font');if(f){document.documentElement.style.setProperty('--font-serif','\"'+f+'\", ui-serif, Georgia, serif');}var s=localStorage.getItem('moonseed:heading-font-size');if(s){var n=Math.max(16,Math.min(32,Math.round(Number(s))));if(Number.isFinite(n))document.documentElement.style.setProperty('--heading-scale',String(n/22));}}catch(e){}",
+          }}
+        />
         <HeadContent />
       </head>
       <body>
@@ -165,6 +178,9 @@ function RootComponent() {
   // once auth has settled. Local storage stays the source of truth for
   // initial render; this just keeps the server copy fresh.
   usePreferencesSync();
+  // Apply the seeker's saved heading font + size globally — both from
+  // localStorage on mount and from the server row once auth resolves.
+  useThemeFontSync();
   // Global "tap empty space to briefly reveal hidden UI" affordance.
   // Active in any Clarity level — costless when the user is already at Seen.
   useTapToPeek();
