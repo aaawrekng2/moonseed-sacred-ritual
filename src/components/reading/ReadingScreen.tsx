@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { CheckCheck, ChevronDown, Copy } from "lucide-react";
+import { CheckCheck, ChevronDown, ChevronRight, Copy } from "lucide-react";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import {
@@ -19,6 +19,9 @@ import { useActiveGuide } from "@/lib/use-active-guide";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useUIDensity } from "@/lib/use-ui-density";
 import { useAuth } from "@/lib/auth";
+import { useSettings } from "@/components/settings/SettingsContext";
+import { getCurrentMoonPhase } from "@/lib/moon";
+import { FACETS, LENSES } from "@/lib/guides";
 import {
   useRegisterCloseHandler,
   useRegisterCopyText,
