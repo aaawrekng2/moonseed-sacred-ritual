@@ -12,6 +12,7 @@ import {
   Sliders,
   Star,
   User as UserIcon,
+  Sparkles,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -43,7 +44,13 @@ export const Route = createFileRoute("/settings")({
   component: SettingsLayout,
 });
 
-type TabKey = "profile" | "blueprint" | "preferences" | "themes" | "data";
+type TabKey =
+  | "profile"
+  | "blueprint"
+  | "preferences"
+  | "themes"
+  | "guides"
+  | "data";
 
 type TabDef = {
   key: TabKey;
@@ -53,6 +60,7 @@ type TabDef = {
     | "/settings/blueprint"
     | "/settings/preferences"
     | "/settings/themes"
+    | "/settings/guides"
     | "/settings/data";
   icon: typeof UserIcon;
 };
@@ -62,6 +70,7 @@ const TABS: TabDef[] = [
   { key: "blueprint", label: "Blueprint", to: "/settings/blueprint", icon: Star },
   { key: "preferences", label: "Preferences", to: "/settings/preferences", icon: Sliders },
   { key: "themes", label: "Themes", to: "/settings/themes", icon: Palette },
+  { key: "guides", label: "Guides", to: "/settings/guides", icon: Sparkles },
   { key: "data", label: "Data", to: "/settings/data", icon: Database },
 ];
 
@@ -70,6 +79,7 @@ function tabFromPath(pathname: string): TabKey | null {
   if (pathname.startsWith("/settings/blueprint")) return "blueprint";
   if (pathname.startsWith("/settings/preferences")) return "preferences";
   if (pathname.startsWith("/settings/themes")) return "themes";
+  if (pathname.startsWith("/settings/guides")) return "guides";
   if (pathname.startsWith("/settings/data")) return "data";
   return null;
 }
