@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { CheckCheck, ChevronDown, ChevronRight, Copy } from "lucide-react";
+import { ArrowLeft, CheckCheck, ChevronDown, ChevronRight, Copy } from "lucide-react";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import {
@@ -324,6 +324,27 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
       className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_50%_25%,rgba(60,40,90,0.35),transparent_70%)]"
       aria-label={`${meta.label} reading`}
     >
+      {/*
+        Subtle back affordance — sits at the very top-left of the
+        reading surface so the seeker can always return to the previous
+        screen. Styled in muted gold to match the cosmic aesthetic.
+      */}
+      <button
+        type="button"
+        onClick={onExit}
+        aria-label="Back"
+        className="fixed z-50 flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        style={{
+          top: "calc(env(safe-area-inset-top, 0px) + 6px)",
+          left: "calc(env(safe-area-inset-left, 0px) + 8px)",
+          color: "var(--gold)",
+          opacity: "var(--ro-plus-10)",
+          background: "transparent",
+          border: "none",
+        }}
+      >
+        <ArrowLeft size={16} strokeWidth={1.5} />
+      </button>
       <div
         className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5 pb-12"
         style={{
