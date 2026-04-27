@@ -354,6 +354,24 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
       >
         {question && question.trim() && (
           <div className="mx-auto w-full max-w-md">
+            {/* Tarot-style invocation that sits above the question on
+                the reveal page — small, italic, gold-tinted, sets a
+                sacred tone before the seeker re-reads what they asked. */}
+            <p
+              className="text-center"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 11,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                color: "var(--gold)",
+                opacity: "var(--ro-plus-10)",
+                marginBottom: 8,
+              }}
+            >
+              ✦ The cards have heard you ✦
+            </p>
             <SeekerQuestion
               text={question}
               isOracle={isOracle}
