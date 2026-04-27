@@ -305,6 +305,7 @@ export function TearOffCard({
             ref={cardRef}
             question={question}
             spreadLabel={meta.label}
+            spread={spread}
             moonPhase={moonPhase}
             today={today}
             picks={picks}
