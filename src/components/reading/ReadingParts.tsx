@@ -35,6 +35,8 @@ import {
   EnrichmentPanel,
   type EnrichmentTag,
 } from "@/components/journal/EnrichmentPanel";
+import { TearOffCard } from "@/components/reading/TearOffCard";
+import { Scissors } from "lucide-react";
 
 type Pick = { id: number; cardIndex: number };
 
@@ -77,6 +79,8 @@ export function InlineReading({
   const { guideId, lensId, facetIds } = useActiveGuide();
   const startedRef = useRef(false);
   const requestSeqRef = useRef(0);
+  // Tear-off keepsake modal — opened from the Done row.
+  const [tearOpen, setTearOpen] = useState(false);
   const [savedReading, setSavedReading] = useState<{
     id: string;
     user_id: string;
@@ -343,13 +347,35 @@ export function InlineReading({
               onPhotoCountChange={handleEnrichPhotoCountChange}
             />
           )}
-          <button
-            type="button"
-            onClick={onExit}
-            className="reading-actions-fade-in mt-2 rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          >
-            Done
-          </button>
+          <div className="reading-actions-fade-in mt-2 flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTearOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-5 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+              aria-label={isOracle ? "Tear off a keepsake" : "Tear off card"}
+            >
+              <Scissors size={13} strokeWidth={1.5} aria-hidden />
+              {isOracle ? "Tear off keepsake" : "Tear off card"}
+            </button>
+            <button
+              type="button"
+              onClick={onExit}
+              className="rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+            >
+              Done
+            </button>
+          </div>
+          <TearOffCard
+            open={tearOpen}
+            onOpenChange={setTearOpen}
+            question={question}
+            spread={spread}
+            picks={picks}
+            positionLabels={positionLabels}
+            interpretation={state.interpretation}
+            guideName={getGuideById(guideId).name}
+            isOracle={isOracle}
+          />
         </>
       )}
     </>
