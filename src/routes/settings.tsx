@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
 import { useNavigate } from "@tanstack/react-router";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
+import { supabase } from "@/lib/supabase";
 
 /**
  * /settings — layout route. The route itself redirects to
@@ -242,6 +243,30 @@ function SettingsLayout() {
               <Outlet />
             </div>
           </div>
+
+          {user.email && (
+            <div className="flex justify-center pt-4 pb-8">
+              <button
+                type="button"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                }}
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 12,
+                  color: "var(--foreground)",
+                  opacity: 0.25,
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
+              >
+                Sign out
+              </button>
+            </div>
+          )}
         </div>
       </main>
     </SettingsProvider>
