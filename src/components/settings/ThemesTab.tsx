@@ -23,6 +23,7 @@ import {
   Check,
   Eye,
   Loader2,
+  Pencil,
   Plus,
   RotateCcw,
   Save,
@@ -1541,6 +1542,7 @@ function SavedThemesSection() {
     loaded,
     saveSlot,
     deleteSlot,
+    renameSlot,
     setActiveSlot,
   } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
@@ -1553,6 +1555,11 @@ function SavedThemesSection() {
   const [discardThenLoad, setDiscardThenLoad] = useState<SavedTheme | null>(
     null,
   );
+  // Inline-rename: which slot is being renamed (null = none) and the
+  // current draft text. The pencil icon on each theme card opens this
+  // editor; pressing Enter or blur commits, Escape cancels.
+  const [renameSlotNum, setRenameSlotNum] = useState<number | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
 
   const slots = useMemo(() => {
     const bySlot = new Map(themes.map((t) => [t.slot, t]));
@@ -1726,21 +1733,73 @@ function SavedThemesSection() {
                         style={{ backgroundColor: theme.accent }}
                       />
                       <div className="min-w-0 flex-1">
-                        <p
-                          className={cn(
-                            "truncate italic text-sm",
-                            active ? "text-gold" : "text-foreground",
-                          )}
-                          style={{ fontFamily: "var(--font-serif)" }}
-                        >
-                          {theme.name}
-                        </p>
+                        {renameSlotNum === slot ? (
+                          <input
+                            autoFocus
+                            value={renameDraft}
+                            maxLength={20}
+                            onChange={(e) => setRenameDraft(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => {
+                              e.stopPropagation();
+                              if (e.key === "Enter") {
+                                void renameSlot(slot, renameDraft);
+                                setRenameSlotNum(null);
+                                setRenameDraft("");
+                              } else if (e.key === "Escape") {
+                                setRenameSlotNum(null);
+                                setRenameDraft("");
+                              }
+                            }}
+                            onBlur={() => {
+                              if (renameDraft.trim() !== theme.name) {
+                                void renameSlot(slot, renameDraft);
+                              }
+                              setRenameSlotNum(null);
+                              setRenameDraft("");
+                            }}
+                            className={cn(
+                              "w-full bg-transparent italic text-sm focus:outline-none",
+                              active ? "text-gold" : "text-foreground",
+                            )}
+                            style={{
+                              fontFamily: "var(--font-serif)",
+                              borderBottom:
+                                "1px solid color-mix(in oklab, var(--gold) 35%, transparent)",
+                            }}
+                          />
+                        ) : (
+                          <p
+                            className={cn(
+                              "truncate italic text-sm",
+                              active ? "text-gold" : "text-foreground",
+                            )}
+                            style={{ fontFamily: "var(--font-serif)" }}
+                          >
+                            {theme.name}
+                          </p>
+                        )}
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                           Slot {slot}
                           {active && " · active"}
                         </p>
                       </div>
                     </div>
+                  </button>
+                  {/* Pencil — subtle gold rename trigger, top-right of
+                      the card. Bumps the load button onClick because it
+                      sits above the inner button (z-10). */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenameSlotNum(slot);
+                      setRenameDraft(theme.name);
+                    }}
+                    aria-label={`Rename ${theme.name}`}
+                    className="absolute right-9 top-2 z-10 rounded-full bg-background/70 p-1 text-gold/70 opacity-0 transition group-hover:opacity-100 hover:text-gold focus:opacity-100"
+                  >
+                    <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
                   </button>
                   <div className="mt-auto grid grid-cols-2 gap-2">
                     <Button
