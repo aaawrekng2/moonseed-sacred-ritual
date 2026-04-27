@@ -53,6 +53,11 @@ const InterpretInput = z.object({
    * 10) will replace this knob with a proper entitlement check.
    */
   allowOverride: z.boolean().optional(),
+  /**
+   * The seeker's question for this draw, surfaced from the home-screen
+   * QuestionBox. Optional — readings may be done without one.
+   */
+  question: z.string().max(500).optional(),
 });
 
 export type InterpretedPosition = {
@@ -141,6 +146,9 @@ export const interpretReading = createServerFn({ method: "POST" })
         (p, i) => `- ${positionLabels[i] ?? `Card ${i + 1}`}: ${getCardName(p.cardIndex)}`,
       );
       const userPrompt = `Spread: ${meta.label}\nCards drawn:\n${lines.join("\n")}\n\nPlease interpret this reading.`;
+      const userPromptWithQuestion = data.question
+        ? `${userPrompt}\n\nThe seeker's question: "${data.question}"`
+        : userPrompt;
 
       // Build the per-request system prompt from the active Guide / Lens /
       // Facets. Falls back to defaults when the client did not send them.
@@ -204,8 +212,8 @@ export const interpretReading = createServerFn({ method: "POST" })
       }
 
       const userPromptWithMemory = memoryPreamble
-        ? `${memoryPreamble}${userPrompt}`
-        : userPrompt;
+        ? `${memoryPreamble}${userPromptWithQuestion}`
+        : userPromptWithQuestion;
 
       // 3. Call the Anthropic Messages API.
       const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -328,6 +336,7 @@ export const interpretReading = createServerFn({ method: "POST" })
             spread_type: spread,
             card_ids: data.picks.map((p) => p.cardIndex),
             interpretation: JSON.stringify(interpretation),
+            question: data.question ?? null,
           })
           .select("id")
           .single();

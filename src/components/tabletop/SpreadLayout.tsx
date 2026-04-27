@@ -24,6 +24,11 @@ type Props = {
    * away to a separate ReadingScreen.
    */
   onContinue?: () => void;
+  /**
+   * Optional question the seeker brought to the cards. Threaded into the
+   * inline reading so it can be saved with the row and sent to the AI.
+   */
+  question?: string;
 };
 
 /**
@@ -32,7 +37,7 @@ type Props = {
  * flips them all face-up simultaneously; once revealed the user can
  * continue into the reading.
  */
-export function SpreadLayout({ spread, picks, onExit }: Props) {
+export function SpreadLayout({ spread, picks, onExit, question }: Props) {
   const meta = SPREAD_META[spread];
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const { showLabels } = useShowLabels();
@@ -162,6 +167,7 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
             picks={picks}
             onExit={onExit}
             onCopyTextChange={setCopyText}
+            question={question}
           />
         </div>
       ) : (

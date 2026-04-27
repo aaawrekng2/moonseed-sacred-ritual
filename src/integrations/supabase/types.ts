@@ -133,6 +133,7 @@ export type Database = {
           mode: string
           moon_phase: string | null
           note: string | null
+          question: string | null
           spread_type: string
           tags: string[]
           user_id: string
@@ -148,6 +149,7 @@ export type Database = {
           mode?: string
           moon_phase?: string | null
           note?: string | null
+          question?: string | null
           spread_type: string
           tags?: string[]
           user_id: string
@@ -163,6 +165,7 @@ export type Database = {
           mode?: string
           moon_phase?: string | null
           note?: string | null
+          question?: string | null
           spread_type?: string
           tags?: string[]
           user_id?: string

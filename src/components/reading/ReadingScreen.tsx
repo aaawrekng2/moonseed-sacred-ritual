@@ -47,6 +47,7 @@ type Props = {
   spread: SpreadMode;
   picks: Pick[];
   onExit: () => void;
+  question?: string;
 };
 
 type LoadState =
@@ -63,7 +64,7 @@ type LoadState =
  * taps "Let Them Speak" to trigger the AI interpretation. Everything
  * stays on a single scrollable surface — no separate Guide Selector.
  */
-export function ReadingScreen({ spread, picks, onExit }: Props) {
+export function ReadingScreen({ spread, picks, onExit, question }: Props) {
   const meta = SPREAD_META[spread];
   const { isOracle } = useOracleMode();
   const [state, setState] = useState<LoadState>({ kind: "idle" });
@@ -136,6 +137,7 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
             lensId,
             facetIds,
             allowOverride: overrideRef.current,
+            question,
           },
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -217,6 +219,7 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
             guide_id: guideId,
             lens_id: lensId,
             mode: "reveal",
+            question: question || null,
           })
           .select("id,user_id,note,is_favorite,tags")
           .single();

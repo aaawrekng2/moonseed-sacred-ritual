@@ -61,11 +61,13 @@ export function InlineReading({
   picks,
   onExit,
   onCopyTextChange,
+  question,
 }: {
   spread: SpreadMode;
   picks: Pick[];
   onExit: () => void;
   onCopyTextChange?: (text: string | null) => void;
+  question?: string;
 }) {
   const meta = SPREAD_META[spread];
   const { isOracle } = useOracleMode();
@@ -120,6 +122,7 @@ export function InlineReading({
             lensId,
             facetIds,
             allowOverride: overrideRef.current,
+            question,
           },
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -191,6 +194,7 @@ export function InlineReading({
             guide_id: guideId,
             lens_id: lensId,
             mode: "reveal",
+            question: question || null,
           })
           .select("id,user_id,note,is_favorite,tags")
           .single();

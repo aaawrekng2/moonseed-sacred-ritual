@@ -6,11 +6,15 @@ import { ReadingScreen } from "@/components/reading/ReadingScreen";
 import { isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import { useStreak } from "@/lib/use-streak";
 
-type Search = { spread?: string };
+type Search = { spread?: string; question?: string };
 
 export const Route = createFileRoute("/draw")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     spread: typeof s.spread === "string" ? s.spread : undefined,
+    question:
+      typeof s.question === "string" && s.question.trim().length > 0
+        ? s.question
+        : undefined,
   }),
   component: DrawPage,
 });
@@ -19,6 +23,7 @@ function DrawPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const spread: SpreadMode = isValidSpreadMode(search.spread) ? search.spread : "daily";
+  const question = search.question;
   const { recordDraw } = useStreak();
 
   const [picks, setPicks] = useState<{ id: number; cardIndex: number }[] | null>(null);
@@ -32,7 +37,14 @@ function DrawPage() {
   };
 
   if (picks && phase === "reading") {
-    return <ReadingScreen spread={spread} picks={picks} onExit={exit} />;
+    return (
+      <ReadingScreen
+        spread={spread}
+        picks={picks}
+        onExit={exit}
+        question={question}
+      />
+    );
   }
 
   if (picks && phase === "cast") {
@@ -42,6 +54,7 @@ function DrawPage() {
         picks={picks}
         onExit={exit}
         onContinue={() => setPhase("reading")}
+        question={question}
       />
     );
   }
