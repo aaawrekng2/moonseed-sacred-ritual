@@ -182,8 +182,9 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   useRegisterCopyText(copyText);
 
   // Once the interpretation loads, persist the reading to Supabase so the
-  // user can favorite / annotate / photograph it directly from this screen.
-  // Stored once per loaded interpretation; subsequent retries replace it.
+  // user can favorite / annotate / photograph it directly from this screen
+  // via the inline EnrichmentPanel rendered below. Stored once per loaded
+  // interpretation; subsequent retries replace it.
   useEffect(() => {
     if (state.kind !== "loaded") return;
     if (savedReadingRef.current) return; // already saved for this load
