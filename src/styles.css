@@ -250,6 +250,18 @@ code, pre, kbd {
   100% { transform: scale(1); opacity: 1; }
 }
 
+/* Question panel open/close — scales from / collapses into the quill
+   icon anchored just above the panel (transform-origin set on host). */
+@keyframes qpanel-open {
+  0%   { transform: scale(0.05); opacity: 0; }
+  60%  { transform: scale(1.02); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes qpanel-collapse {
+  0%   { transform: scale(1); opacity: 1; }
+  100% { transform: scale(0); opacity: 0; }
+}
+
 .animate-pulse-gold {
   animation: pulse-gold 3.5s ease-in-out infinite;
 }
