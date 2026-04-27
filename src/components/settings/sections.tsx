@@ -32,6 +32,8 @@ import {
   useRememberScope,
   type RememberScope,
 } from "@/lib/use-auto-remember-question";
+import { AuthScreen } from "@/components/auth/AuthScreen";
+import { supabase } from "@/lib/supabase";
 
 /**
  * Settings page section components, ported from the source bundle and
@@ -111,6 +113,8 @@ function ProfileSectionInner({
 }) {
   const [name, setName] = useState(prefs.display_name ?? "");
   const [saving, setSaving] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  const isAnonymous = !user.email;
 
   const save = async () => {
     if (!name.trim()) {
@@ -150,6 +154,48 @@ function ProfileSectionInner({
           <p className="text-xs text-muted-foreground">
             To change your email, please contact support.
           </p>
+          {/* Auth actions */}
+          {isAnonymous ? (
+            <button
+              type="button"
+              onClick={() => setAuthOpen(true)}
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+                color: "var(--gold)",
+                opacity: 0.75,
+                background: "none",
+                border: "none",
+                padding: "8px 0 0",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              Create account or sign in →
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={async () => {
+                await supabase.auth.signOut();
+              }}
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+                color: "var(--foreground)",
+                opacity: 0.4,
+                background: "none",
+                border: "none",
+                padding: "8px 0 0",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              Sign out
+            </button>
+          )}
         </div>
 
         <IntentionField user={user} prefs={prefs} setPrefs={setPrefs} />
@@ -160,6 +206,13 @@ function ProfileSectionInner({
             Save Profile
           </Button>
         </div>
+
+        {authOpen && (
+          <AuthScreen
+            onClose={() => setAuthOpen(false)}
+            onSuccess={() => setAuthOpen(false)}
+          />
+        )}
       </div>
     </SettingsSection>
   );
