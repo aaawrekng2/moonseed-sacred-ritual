@@ -85,7 +85,6 @@ import {
   READING_FONT_MIN,
   useReadingFontSize,
 } from "@/lib/use-reading-font-size";
-import { useOracleMode as useOracleModeForReadingSize } from "@/lib/use-oracle-mode";
 import {
   COMMUNITY_THEMES,
   getStoredCommunityTheme,
@@ -1121,6 +1120,89 @@ function InterfaceFadeSection() {
           <div className="mt-2 flex justify-between text-[10px] uppercase tracking-wider text-muted-foreground/70">
             <span>Whisper</span>
             <span>Speak</span>
+          </div>
+        </div>
+      </div>
+    </SettingsSection>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Reading / Body Text Size                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Sister to {@link HeadingFontSection}: lets the user tune the
+ * interpretation body copy size (13–19px range, default 15). The hook
+ * already mirrors to localStorage + `user_preferences.reading_font_size`
+ * and the live `--reading-font-size` CSS variable, so this section is
+ * pure UI.
+ */
+function ReadingFontSection() {
+  const { isOracle } = useOracleMode();
+  const { size, setSize } = useReadingFontSize();
+  const [draft, setDraft] = useState<number>(size ?? READING_FONT_DEFAULT);
+
+  useEffect(() => {
+    setDraft(size ?? READING_FONT_DEFAULT);
+  }, [size]);
+
+  return (
+    <SettingsSection
+      title={isOracle ? "Reading Text" : "Body Text Size"}
+      description="How large the interpretation reads."
+    >
+      <div className="space-y-4">
+        <div
+          className="rounded-lg border px-4 py-3"
+          style={{
+            backgroundColor: "oklch(0.16 0.02 270)",
+            borderColor: "color-mix(in oklab, var(--gold) 35%, transparent)",
+          }}
+        >
+          <p
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: `${draft}px`,
+              lineHeight: 1.65,
+              color: "color-mix(in oklab, var(--foreground) 88%, transparent)",
+            }}
+          >
+            The cards rest where the river stills, waiting for a question only
+            you can speak.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            This is how interpretations will read.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Size
+            </Label>
+            <span className="font-mono text-sm tabular-nums text-foreground">
+              {draft}px
+            </span>
+          </div>
+          <div
+            className="mx-auto w-4/5 sm:w-full"
+            style={{ touchAction: "pan-y" }}
+          >
+            <Slider
+              min={READING_FONT_MIN}
+              max={READING_FONT_MAX}
+              step={1}
+              value={[draft]}
+              onValueChange={(v) => {
+                const n = v[0];
+                if (typeof n === "number") {
+                  setDraft(n);
+                  setSize(n);
+                }
+              }}
+            />
           </div>
         </div>
       </div>
