@@ -273,6 +273,55 @@ export function AuthScreen({
 
         {/* Actions */}
         <div className="flex flex-col items-center gap-3 pt-1">
+          {mode === "signup" && (
+            <div
+              className="w-full rounded-lg px-3 py-2.5 flex items-start gap-2"
+              style={{
+                background: "color-mix(in oklab, var(--gold) 6%, transparent)",
+                border:
+                  "1px solid color-mix(in oklab, var(--gold) 22%, transparent)",
+              }}
+            >
+              <AlertTriangle
+                size={14}
+                strokeWidth={1.5}
+                style={{ color: "var(--gold)", marginTop: 2, flexShrink: 0 }}
+              />
+              <div className="flex-1">
+                <p
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: 12,
+                    color: "var(--foreground)",
+                    opacity: 0.85,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  If you have readings from before signing in, download them
+                  first — they may not transfer to your new account.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void exportLocalReadings()}
+                  className="mt-2 inline-flex items-center gap-1.5 focus:outline-none"
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: 12,
+                    color: "var(--gold)",
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Download size={12} strokeWidth={1.5} />
+                  Download my readings
+                </button>
+              </div>
+            </div>
+          )}
           <button
             type="button"
             onClick={handleSubmit}
