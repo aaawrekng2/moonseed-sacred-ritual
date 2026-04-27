@@ -27,7 +27,11 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useSettings, type Prefs } from "./SettingsContext";
 import { MoonFeaturesSection } from "./MoonFeaturesSection";
-import { useAutoRememberQuestion } from "@/lib/use-auto-remember-question";
+import {
+  useAutoRememberQuestion,
+  useRememberScope,
+  type RememberScope,
+} from "@/lib/use-auto-remember-question";
 
 /**
  * Settings page section components, ported from the source bundle and
@@ -438,28 +442,62 @@ function ReadingPreferencesSection({
 
 function AutoRememberQuestionRow() {
   const [autoRemember, setAutoRemember] = useAutoRememberQuestion();
+  const [scope, setScope] = useRememberScope();
   return (
-    <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
-      <div className="space-y-0.5">
-        <Label htmlFor="auto-remember-question" className="text-sm">
-          Auto-remember my question
+    <div className="space-y-3 rounded-lg border border-border/60 bg-card/40 p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-0.5">
+          <Label htmlFor="auto-remember-question" className="text-sm">
+            Auto-remember my question
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            When on, your question on the home screen is kept across sessions
+            as soon as you start typing — no extra tap needed.
+          </p>
+        </div>
+        <Switch
+          id="auto-remember-question"
+          checked={autoRemember}
+          onCheckedChange={(next) => {
+            setAutoRemember(next);
+            toast.success(
+              next ? "Auto-remember on" : "Auto-remember off",
+              { icon: "✓" },
+            );
+          }}
+        />
+      </div>
+      <div className="space-y-2 border-t border-border/40 pt-3">
+        <Label htmlFor="remember-scope" className="text-sm">
+          Where to remember
         </Label>
+        <Select
+          value={scope}
+          onValueChange={(v) => {
+            const next = v as RememberScope;
+            setScope(next);
+            toast.success(
+              next === "cloud"
+                ? "Syncing across your browsers"
+                : "Kept on this device only",
+              { icon: "✓" },
+            );
+          }}
+        >
+          <SelectTrigger id="remember-scope">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="device">This device only</SelectItem>
+            <SelectItem value="cloud">Across my browsers</SelectItem>
+          </SelectContent>
+        </Select>
         <p className="text-xs text-muted-foreground">
-          When on, your question on the home screen is kept across sessions
-          as soon as you start typing — no extra tap needed.
+          {scope === "cloud"
+            ? "Your remembered question follows you wherever you sign in."
+            : "Your remembered question stays in this browser only."}
         </p>
       </div>
-      <Switch
-        id="auto-remember-question"
-        checked={autoRemember}
-        onCheckedChange={(next) => {
-          setAutoRemember(next);
-          toast.success(
-            next ? "Auto-remember on" : "Auto-remember off",
-            { icon: "✓" },
-          );
-        }}
-      />
     </div>
   );
 }
