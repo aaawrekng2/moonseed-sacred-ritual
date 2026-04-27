@@ -1141,9 +1141,13 @@ function InterfaceFadeSection() {
 function ReadingFontSection() {
   const { isOracle } = useOracleMode();
   const { size, setSize } = useReadingFontSize();
+  // Track active drag so external `size` updates (e.g. server hydrate
+  // landing while the user is sliding) don't yank the thumb back.
+  const draggingRef = useRef(false);
   const [draft, setDraft] = useState<number>(size ?? READING_FONT_DEFAULT);
 
   useEffect(() => {
+    if (draggingRef.current) return;
     setDraft(size ?? READING_FONT_DEFAULT);
   }, [size]);
 
@@ -1201,6 +1205,12 @@ function ReadingFontSection() {
                   setDraft(n);
                   setSize(n);
                 }
+              }}
+              onValueCommit={() => {
+                draggingRef.current = false;
+              }}
+              onPointerDown={() => {
+                draggingRef.current = true;
               }}
             />
           </div>
