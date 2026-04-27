@@ -82,7 +82,10 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
       setCardsReady(false);
       return;
     }
-    const t = setTimeout(() => setCardsReady(true), 50);
+    // The flip animation is 1100ms (see --flip-ms in CardFace). Wait
+    // 1200ms so the lift + InlineReading mount happen AFTER the last
+    // card is fully face-up, instead of clashing with the flip itself.
+    const t = setTimeout(() => setCardsReady(true), 1200);
     return () => clearTimeout(t);
   }, [allRevealed]);
 
@@ -128,7 +131,9 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
         touchAction: "pan-x pan-y pinch-zoom",
         // Once revealed the page becomes scrollable so the inline
         // reading can grow beyond the viewport without being clipped.
-        overflowY: allRevealed ? "auto" : "hidden",
+        // Gated on cardsReady (not allRevealed) so the scroll only
+        // unlocks once the lift + reading mount have happened.
+        overflowY: cardsReady ? "auto" : "hidden",
       }}
     >
       {/* Cards block — wrapped so we can gently lift the 3-card spread
@@ -142,7 +147,7 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
           paddingBottom: "48px",
           transform:
             cardsReady && spread === "three"
-              ? "translateY(-80px)"
+              ? "translateY(-40px)"
               : "translateY(0)",
           transition:
             "transform 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
@@ -151,7 +156,7 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
           // (Phase 7 bug 4). Other spreads still tighten so the inline
           // reading can claim the freed vertical space.
           flex:
-            allRevealed && spread !== "celtic" ? "0 0 auto" : "1 1 0",
+            cardsReady && spread !== "celtic" ? "0 0 auto" : "1 1 0",
         }}
       >
         <SpreadContent
@@ -168,7 +173,7 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
       </div>
 
       {/* Footer: progress dots while revealing, inline reading once done. */}
-      {allRevealed ? (
+      {cardsReady ? (
         <div
           className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5"
           style={{

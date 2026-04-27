@@ -12,7 +12,9 @@ import { useAuth } from "@/lib/auth";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 
 const LS_KEY = "moonseed:reading-font-size";
-export const READING_FONT_DEFAULT = 15;
+// Bumped from 15 → 17 so the reading body matches the readability of
+// the Settings screen body text. The slider still spans 12-20.
+export const READING_FONT_DEFAULT = 17;
 export const READING_FONT_MIN = 12;
 export const READING_FONT_MAX = 20;
 
