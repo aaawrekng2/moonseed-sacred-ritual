@@ -392,7 +392,6 @@ function QuestionBox({
           letterSpacing: "0.18em",
           textTransform: "uppercase",
           color: "var(--gold)",
-          background: "var(--background)",
           opacity: focused || value ? "var(--ro-plus-40)" : 0,
           transform: `translateY(${focused || value ? "0" : "4px"})`,
           transition:
@@ -438,8 +437,8 @@ function QuestionBox({
           opacity: focused || value ? "var(--ro-plus-40)" : "var(--ro-plus-20)",
           border: "1px solid",
           borderColor: focused
-            ? "color-mix(in oklab, var(--gold) 60%, transparent)"
-            : "color-mix(in oklab, var(--gold) 18%, transparent)",
+            ? "color-mix(in oklab, var(--gold) 40%, transparent)"
+            : "color-mix(in oklab, var(--gold) 12%, transparent)",
           borderRadius: 12,
           padding: "12px 14px",
           boxShadow: focused
@@ -447,7 +446,7 @@ function QuestionBox({
             : "none",
           minHeight: 72,
           transition:
-            "opacity 250ms ease, border-color 200ms ease, box-shadow 200ms ease",
+            "opacity 250ms ease, border-color 300ms ease, box-shadow 200ms ease",
         }}
       />
       {!value && !focused && (
