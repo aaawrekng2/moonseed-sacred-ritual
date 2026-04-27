@@ -1140,7 +1140,7 @@ function InterfaceFadeSection() {
  */
 function ReadingFontSection() {
   const { isOracle } = useOracleMode();
-  const { size, setSize } = useReadingFontSize();
+  const { size, setSize, saveState } = useReadingFontSize();
   // Track active drag so external `size` updates (e.g. server hydrate
   // landing while the user is sliding) don't yank the thumb back.
   const draggingRef = useRef(false);
@@ -1186,9 +1186,22 @@ function ReadingFontSection() {
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
               Size
             </Label>
-            <span className="font-mono text-sm tabular-nums text-foreground">
-              {draft}px
-            </span>
+            <div className="flex items-center gap-2">
+              <span
+                aria-live="polite"
+                className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground transition-opacity"
+                style={{ opacity: saveState === "idle" ? 0 : 0.7 }}
+              >
+                {saveState === "saving"
+                  ? "Updating…"
+                  : saveState === "saved"
+                    ? "Saved"
+                    : "·"}
+              </span>
+              <span className="font-mono text-sm tabular-nums text-foreground">
+                {draft}px
+              </span>
+            </div>
           </div>
           <div
             className="mx-auto w-4/5 sm:w-full"
