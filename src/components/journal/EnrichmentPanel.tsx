@@ -60,6 +60,38 @@ type Props = {
 const SAVE_DELAY_MS = 800;
 const NOTE_SAVE_DELAY_MS = 3000;
 
+// Photo upload limits — checked client-side before compression so we can
+// give a friendly message instead of failing deep inside the canvas step.
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024; // 8 MB
+const MAX_PHOTO_DIMENSION = 8000; // px on the longest edge
+
+/**
+ * Read an image's natural width/height without keeping it in memory.
+ * Resolves to null if the file can't be decoded as an image.
+ */
+function readImageDimensions(
+  file: File,
+): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const dims = { width: img.naturalWidth, height: img.naturalHeight };
+      URL.revokeObjectURL(url);
+      resolve(dims);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    img.src = url;
+  });
+}
+
+function formatMb(bytes: number) {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 /* ---------- Hook: debounced save ---------- */
 
 function useDebouncedSave(delay: number = SAVE_DELAY_MS) {
@@ -322,8 +354,27 @@ export function EnrichmentPanel({
       setUploadError("Please choose an image file.");
       return;
     }
-    if (file.size > 8 * 1024 * 1024) {
-      setUploadError("Image must be under 8 MB.");
+    if (file.size > MAX_PHOTO_BYTES) {
+      setUploadError(
+        `That photo is ${formatMb(file.size)} — please choose one under 8 MB.`,
+      );
+      return;
+    }
+    // Decode just enough to read the natural dimensions. Catches absurdly
+    // large scanner/camera originals before we hand them to the canvas
+    // compressor (which would otherwise allocate a huge bitmap).
+    const dims = await readImageDimensions(file);
+    if (!dims) {
+      setUploadError("That image couldn't be read — try a different photo.");
+      return;
+    }
+    if (
+      dims.width > MAX_PHOTO_DIMENSION ||
+      dims.height > MAX_PHOTO_DIMENSION
+    ) {
+      setUploadError(
+        `That photo is ${dims.width}×${dims.height}px — please choose one under ${MAX_PHOTO_DIMENSION}px on the longest side.`,
+      );
       return;
     }
     setUploadError(null);
