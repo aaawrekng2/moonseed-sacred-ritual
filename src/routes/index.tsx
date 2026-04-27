@@ -496,6 +496,7 @@ function QuestionBox({
           {value.length} / {QUESTION_MAX_LENGTH}
         </div>
       )}
+      {(focused || value.length > 0) && (
       <div
         className="flex items-center justify-center gap-3 pt-2"
         style={{
@@ -627,6 +628,7 @@ function QuestionBox({
           </button>
         )}
       </div>
+      )}
       <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
