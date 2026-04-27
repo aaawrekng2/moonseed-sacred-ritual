@@ -36,15 +36,11 @@ export function BottomNav() {
         {TABS.map(({ to, label, Icon, primary }) => {
           const active = location.pathname === to;
           const iconSize = primary ? 32 : 20;
-          // Bottom-nav opacity follows the global resting opacity tokens.
-          // Active tab → resting + 10%. Home (primary, non-active) gets a
-          // gentle +20% bump so it remains the visual centerpiece.
-          // Inactive secondary tabs sit at the base resting level.
+          // Active = signature gold. Inactive (including Home) = neutral
+          // foreground/white tint. Primary keeps a slight size advantage.
           const tabAlpha = active
             ? "var(--ro-plus-10)"
-            : primary
-              ? "var(--ro-plus-20)"
-              : "var(--ro-plus-0)";
+            : "var(--ro-plus-0)";
           return (
             <li key={to}>
               <Link
@@ -59,9 +55,7 @@ export function BottomNav() {
                   "outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   active
                     ? "text-gold"
-                    : primary
-                      ? "text-gold/80"
-                      : "text-muted-foreground",
+                    : "text-foreground",
                 )}
                 aria-current={active ? "page" : undefined}
               >
