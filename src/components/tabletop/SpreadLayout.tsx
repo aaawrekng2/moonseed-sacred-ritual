@@ -172,33 +172,32 @@ export function SpreadLayout({ spread, picks, onExit, question }: Props) {
         </div>
       ) : (
         <div
-          className="flex justify-center"
+          className="flex flex-col items-center justify-center gap-3 px-5"
           style={{
             paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
             paddingTop: 8,
           }}
         >
-          <div className="flex flex-col items-center gap-2" aria-live="polite">
-            <ProgressDots total={totalCount} revealed={revealedCount} />
-            <span
-              className="font-display italic leading-none tabular-nums"
+          {/* Show the seeker's question between the face-down cards
+              and the (now-implicit) flip prompt. Appears immediately on
+              cast, before any flipping begins. */}
+          {question && question.trim() && (
+            <p
+              className="text-center"
               style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
                 fontSize: 13,
-                color: "var(--gold)",
-                opacity: 0.75,
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
+                lineHeight: 1.6,
+                color: "var(--foreground)",
+                opacity: "var(--ro-plus-20)",
+                maxWidth: 360,
+                margin: 0,
               }}
             >
-              {revealedCount}/{totalCount} revealed
-              {nextLabel && (
-                <>
-                  <span style={{ opacity: 0.4, margin: "0 8px" }}>·</span>
-                  <span style={{ opacity: 0.95 }}>Next: {nextLabel}</span>
-                </>
-              )}
-            </span>
-          </div>
+              “{question.trim()}”
+            </p>
+          )}
         </div>
       )}
     </main>
