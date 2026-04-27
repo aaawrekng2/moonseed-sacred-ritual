@@ -190,10 +190,13 @@ function Index() {
       <section className="pb-24">
         {isAnonymous && !nudgeDismissed && (
           <div
-            className="flex items-center justify-between px-5 py-2"
+            className="flex items-center justify-center gap-3 px-5 py-2.5"
             style={{
               borderTop:
                 "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
+              boxShadow:
+                "0 -4px 24px -8px color-mix(in oklab, var(--gold) 12%, transparent)",
+              animation: "breathe-glow 4s ease-in-out infinite",
             }}
           >
             <button
@@ -204,14 +207,15 @@ function Index() {
               style={{
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                fontSize: 12,
+                fontSize: 13,
                 color: "var(--foreground)",
-                opacity: 0.4,
+                opacity: 0.45,
                 background: "none",
                 border: "none",
                 padding: 0,
                 cursor: "pointer",
-                textAlign: "left",
+                textAlign: "center",
+                flex: 1,
               }}
             >
               Your readings are not yet bound to an account
@@ -220,16 +224,17 @@ function Index() {
               type="button"
               onClick={dismissNudge}
               aria-label="Dismiss"
+              className="flex items-center justify-center flex-shrink-0"
               style={{
                 color: "var(--foreground)",
-                opacity: 0.25,
+                opacity: 0.2,
                 background: "none",
                 border: "none",
-                padding: "0 0 0 12px",
+                padding: 0,
                 cursor: "pointer",
               }}
             >
-              <X size={12} strokeWidth={1.5} />
+              <X size={13} strokeWidth={1.5} />
             </button>
           </div>
         )}
