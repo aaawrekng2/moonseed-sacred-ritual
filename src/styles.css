@@ -105,6 +105,12 @@
      top of its content area so chrome never overlaps body content. */
   --topbar-height: 56px;
   --topbar-pad: calc(env(safe-area-inset-top, 0px) + var(--topbar-height));
+
+  /* Global heading scale — written by applyHeadingFontSize(). The body
+     base font-size scales with this so the seeker's chosen Theme font
+     size cascades app-wide (home, draw, reading, journal, settings)
+     instead of only affecting headings on the Themes preview. */
+  --heading-scale: 1;
 }
 
 html { transition: var(--accent-transition); }
@@ -118,6 +124,9 @@ html, body {
   background: oklch(0.14 0.04 280);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+  /* Base font-size that every `em`/inherited size scales from.
+     Default 16px × user-chosen scale (22 → 1, 16 → 0.73, 32 → 1.45). */
+  font-size: calc(16px * var(--heading-scale, 1));
 }
 
 /* Force serif font globally across all elements. Specific overrides
