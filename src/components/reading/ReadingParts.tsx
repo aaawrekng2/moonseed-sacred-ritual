@@ -359,12 +359,18 @@ export function InlineReading({
 /*  Reading actions — guide dropdown + "Let Them Speak" button            */
 /* ---------------------------------------------------------------------- */
 
-function SeekerQuestion({
+export function SeekerQuestion({
   text,
   isOracle,
+  sticky,
+  stickyTop,
 }: {
   text: string;
   isOracle: boolean;
+  /** When true, the panel pins to the top of the nearest scroll container. */
+  sticky?: boolean;
+  /** CSS `top` offset used in sticky mode (defaults to the topbar pad). */
+  stickyTop?: string;
 }) {
   const navigate = useNavigate();
   const label = isOracle ? "You whispered" : "Your question";
@@ -375,6 +381,21 @@ function SeekerQuestion({
       style={{
         fontFamily: "var(--font-serif)",
         fontStyle: "italic",
+        ...(sticky
+          ? {
+              position: "sticky",
+              top: stickyTop ?? "calc(var(--topbar-pad) + 4px)",
+              zIndex: 30,
+              // Soft veil so interpretation prose doesn't ghost behind
+              // the pinned quote when scrolled.
+              background:
+                "linear-gradient(to bottom, color-mix(in oklab, var(--background) 92%, transparent) 0%, color-mix(in oklab, var(--background) 92%, transparent) 75%, transparent 100%)",
+              backdropFilter: "blur(6px)",
+              WebkitBackdropFilter: "blur(6px)",
+              padding: "10px 12px 14px",
+              borderRadius: 12,
+            }
+          : null),
       }}
     >
       <div
