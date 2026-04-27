@@ -10,7 +10,12 @@ import { useStreak } from "@/lib/use-streak";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
-import { useAutoRememberQuestion } from "@/lib/use-auto-remember-question";
+import {
+  useAutoRememberQuestion,
+  useRememberScope,
+} from "@/lib/use-auto-remember-question";
+import { useAuth } from "@/lib/auth";
+import { updateUserPreferences } from "@/lib/user-preferences-write";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -156,31 +161,62 @@ function QuestionBox({
   const [remember, setRemember] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [autoRemember] = useAutoRememberQuestion();
+  const [scope] = useRememberScope();
+  const { user } = useAuth();
+  const userId = user?.id;
 
-  // Hydrate from localStorage on client only (avoid SSR mismatch).
+  // Hydrate the remember flag from localStorage on the client only,
+  // and the stored question value from either localStorage (device
+  // scope) or the user's account row (cloud scope). Re-runs when
+  // scope or auth changes so swapping scopes pulls the right value.
   useEffect(() => {
-    try {
-      const storedRemember = localStorage.getItem("question-remember") === "1";
-      setRemember(storedRemember);
+    let cancelled = false;
+    void (async () => {
+      let storedRemember = false;
+      try {
+        storedRemember = localStorage.getItem("question-remember") === "1";
+      } catch {
+        // ignore
+      }
+      if (!cancelled) setRemember(storedRemember);
+
       if (storedRemember) {
-        const storedValue = localStorage.getItem("question-value") ?? "";
-        if (storedValue) {
+        let storedValue = "";
+        if (scope === "cloud" && userId) {
+          const { data } = await supabase
+            .from("user_preferences")
+            .select("remembered_question")
+            .eq("user_id", userId)
+            .maybeSingle();
+          storedValue =
+            (data as { remembered_question?: string | null } | null)
+              ?.remembered_question ?? "";
+        } else {
+          try {
+            storedValue = localStorage.getItem("question-value") ?? "";
+          } catch {
+            // ignore
+          }
+        }
+        if (!cancelled && storedValue) {
           setValue(storedValue);
           onQuestionChange(storedValue);
         }
       }
-    } catch {
-      // ignore storage errors
-    }
-    setHydrated(true);
+      if (!cancelled) setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [scope, userId]);
 
   // Persist whenever value or remember toggles after hydration.
   useEffect(() => {
     if (!hydrated) return;
+    // Always mirror to localStorage so device scope works offline.
     try {
-      if (remember) {
+      if (remember && scope === "device") {
         localStorage.setItem("question-value", value);
       } else {
         localStorage.removeItem("question-value");
@@ -188,7 +224,13 @@ function QuestionBox({
     } catch {
       // ignore
     }
-  }, [value, remember, hydrated]);
+    // Mirror to the user's account row when cloud scope is active.
+    if (scope === "cloud" && userId) {
+      void updateUserPreferences(userId, {
+        remembered_question: remember ? value : null,
+      });
+    }
+  }, [value, remember, hydrated, scope, userId]);
 
   const handleRememberToggle = () => {
     const next = !remember;
@@ -199,6 +241,9 @@ function QuestionBox({
     } catch {
       // ignore
     }
+    if (!next && scope === "cloud" && userId) {
+      void updateUserPreferences(userId, { remembered_question: null });
+    }
   };
 
   const handleClear = () => {
@@ -208,6 +253,9 @@ function QuestionBox({
       localStorage.removeItem("question-value");
     } catch {
       // ignore
+    }
+    if (scope === "cloud" && userId) {
+      void updateUserPreferences(userId, { remembered_question: null });
     }
   };
 
