@@ -17,6 +17,7 @@ import {
 } from "@/lib/use-auto-remember-question";
 import { useAuth } from "@/lib/auth";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
+import { useDailyReset } from "@/lib/use-daily-reset";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +51,10 @@ function Index() {
   const search = Route.useSearch();
   const initialQuestion = search.question;
   const { currentStreak } = useStreak();
+  // Daily ritual reset — bumps `dayEpoch` whenever the local calendar
+  // day flips so the gateway re-queries today's card and sibling UI
+  // (the QuestionBox) can show a quiet "new day" affordance.
+  const { epoch: dayEpoch } = useDailyReset();
   // Home is the only screen that exposes the Refresh icon in the
   // floating menu. Registered via context so the menu itself stays
   // route-agnostic.
@@ -60,8 +65,15 @@ function Index() {
   }, []);
 
   // If the user already pulled a single-card draw today, surface that
-  // card face on the gateway instead of the card back.
+  // card face on the gateway instead of the card back. Re-runs at
+  // midnight (day-epoch flip) so a tab left open overnight clears the
+  // stale face and falls back to the card back for the new day.
   useEffect(() => {
+    let cancelled = false;
+    // Optimistically clear the previous day's face the moment the
+    // calendar flips — the query below will re-populate it only if
+    // the seeker has already drawn for the new day.
+    setTodayCard(null);
     void (async () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const uid = sessionData.session?.user?.id;
@@ -76,10 +88,14 @@ function Index() {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (cancelled) return;
       const first = (data as { card_ids?: number[] } | null)?.card_ids?.[0];
       if (typeof first === "number") setTodayCard(first);
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [dayEpoch]);
 
   return (
     <main
