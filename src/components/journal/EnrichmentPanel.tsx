@@ -166,14 +166,17 @@ export function EnrichmentPanel({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Re-sync local state if the parent swaps the reading (different detail row).
+  // Re-sync local state ONLY when the parent swaps to a different reading
+  // row. Re-running this effect on every note/tag/favorite change closes
+  // the open section out from under the user mid-edit (Phase 7 bug 7).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     setNote(reading.note ?? "");
     setTags(reading.tags ?? []);
     setFavorite(reading.is_favorite);
     setOpenSection(null);
     setTagInput("");
-  }, [reading.id, reading.note, reading.is_favorite, reading.tags]);
+  }, [reading.id]);
 
   // Load photos for this reading.
   useEffect(() => {

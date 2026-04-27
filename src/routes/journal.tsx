@@ -52,7 +52,16 @@ type ReadingRow = {
 
 type TagRow = { id: string; name: string; usage_count: number };
 
-type ViewMode = "readings" | "gallery" | "notes" | "favorites";
+type ViewMode = "readings" | "gallery" | "notes" | "favorites" | "threads";
+
+type ThreadRow = {
+  id: string;
+  summary: string;
+  tags: string[] | null;
+  reading_ids: string[] | null;
+  status: "emerging" | "active" | "quieting" | "retired" | "reawakened";
+  detected_at: string;
+};
 
 /* ---------- Helpers ---------- */
 
@@ -96,6 +105,7 @@ function JournalPage() {
 
   const [readings, setReadings] = useState<ReadingRow[]>([]);
   const [tags, setTags] = useState<TagRow[]>([]);
+  const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [photoCounts, setPhotoCounts] = useState<Record<string, number>>({});
   // Cover photo per reading: signed URL for the earliest photo.
   const [photoCovers, setPhotoCovers] = useState<Record<string, string>>({});
@@ -140,6 +150,15 @@ function JournalPage() {
       if (cancelled) return;
       setReadings((rows ?? []) as ReadingRow[]);
       setTags((tagRows ?? []) as TagRow[]);
+      // Threads load is independent — never block the main journal on it.
+      void (async () => {
+        const { data: threadRows } = await supabase
+          .from("symbolic_threads")
+          .select("id,summary,tags,reading_ids,status,detected_at")
+          .eq("user_id", user.id)
+          .order("detected_at", { ascending: false });
+        if (!cancelled) setThreads((threadRows ?? []) as ThreadRow[]);
+      })();
       const counts: Record<string, number> = {};
       // Pick earliest photo per reading as the cover.
       const coverPaths: Record<string, string> = {};
@@ -368,6 +387,7 @@ function JournalPage() {
             ["gallery", "Gallery"],
             ["notes", "Notes"],
             ["favorites", "Favorites"],
+            ["threads", "Threads"],
           ] as const
         ).map(([key, label]) => {
           const active = view === key;
@@ -416,7 +436,7 @@ function JournalPage() {
           />
         ) : view === "notes" ? (
           <NotesView items={noteItems} isOracle={isOracle} onOpen={setOpenId} />
-        ) : (
+        ) : view === "favorites" ? (
           <ReadingsList
             items={favItems}
             emptyOracle="Nothing yet held close to the heart…"
@@ -425,6 +445,8 @@ function JournalPage() {
             photoCounts={photoCounts}
             onOpen={setOpenId}
           />
+        ) : (
+          <ThreadsView threads={threads} />
         )}
       </div>
 
@@ -743,6 +765,82 @@ function Empty({
     >
       {isOracle ? oracle : plain}
     </p>
+  );
+}
+
+/* ---------- Threads view (Phase 7) ---------- */
+
+function ThreadsView({ threads }: { threads: ThreadRow[] }) {
+  if (threads.length === 0) {
+    return (
+      <p
+        className="mx-auto mt-16 max-w-sm text-center font-display text-[14px] italic text-gold"
+        style={{ opacity: "var(--ro-plus-30)" }}
+      >
+        Your threads will emerge as you draw. Each reading adds to the weave.
+      </p>
+    );
+  }
+  return (
+    <ul className="flex flex-col gap-5">
+      {threads.map((t) => {
+        const statusOpacity =
+          t.status === "active"
+            ? 1
+            : t.status === "emerging"
+              ? 0.6
+              : 0.3;
+        const statusLabel =
+          t.status === "reawakened"
+            ? "Reawakened"
+            : t.status.charAt(0).toUpperCase() + t.status.slice(1);
+        const readingCount = (t.reading_ids ?? []).length;
+        return (
+          <li
+            key={t.id}
+            className="rounded-lg border border-gold/20 bg-gold/5 px-4 py-3"
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <span
+                className="font-display text-[10px] uppercase tracking-[0.2em] text-gold"
+                style={{ opacity: statusOpacity }}
+              >
+                {statusLabel}
+              </span>
+              {readingCount > 0 && (
+                <span className="font-display text-[11px] italic text-muted-foreground">
+                  across {readingCount}{" "}
+                  {readingCount === 1 ? "reading" : "readings"}
+                </span>
+              )}
+            </div>
+            <p
+              className="font-display italic"
+              style={{
+                fontSize: 15,
+                lineHeight: 1.55,
+                color: "color-mix(in oklab, var(--foreground) 88%, transparent)",
+              }}
+            >
+              {t.summary}
+            </p>
+            {(t.tags?.length ?? 0) > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {t.tags!.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full border border-gold/30 px-2 py-0.5 font-display text-[11px] italic text-gold"
+                    style={{ opacity: "var(--ro-plus-30)" }}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
