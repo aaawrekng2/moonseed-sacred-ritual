@@ -49,11 +49,6 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
   const [revealedFlags, setRevealedFlags] = useState<boolean[]>(
     () => picks.map(() => false),
   );
-  // Defer the 3-card "lift" transform until after the inline reading
-  // container has been painted below the cards. Without this delay the
-  // cards translate up while there is still nothing beneath them and
-  // visually fly off-screen (Phase 7 bug 3).
-  const [cardsReady, setCardsReady] = useState(false);
   // Index of the card that just received a wrong tap (red border flash).
   // Cleared 400ms after it's set.
   const [wrongIndex, setWrongIndex] = useState<number | null>(null);
@@ -76,18 +71,6 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
   const nextIndex = revealedFlags.findIndex((r) => !r);
   const allRevealed = nextIndex === -1;
   const revealedCount = revealedFlags.filter(Boolean).length;
-
-  useEffect(() => {
-    if (!allRevealed) {
-      setCardsReady(false);
-      return;
-    }
-    // The flip animation is 1100ms (see --flip-ms in CardFace). Wait
-    // 1200ms so the lift + InlineReading mount happen AFTER the last
-    // card is fully face-up, instead of clashing with the flip itself.
-    const t = setTimeout(() => setCardsReady(true), 1200);
-    return () => clearTimeout(t);
-  }, [allRevealed]);
 
   const totalCount = picks.length;
   // Friendly position name for the next required card. Falls back through
@@ -131,26 +114,16 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
         touchAction: "pan-x pan-y pinch-zoom",
         // Once revealed the page becomes scrollable so the inline
         // reading can grow beyond the viewport without being clipped.
-        // Gated on cardsReady (not allRevealed) so the scroll only
-        // unlocks once the lift + reading mount have happened.
-        overflowY: cardsReady ? "auto" : "hidden",
+        overflowY: allRevealed ? "auto" : "hidden",
       }}
     >
-      {/* Cards block — wrapped so we can gently lift the 3-card spread
-          once revealed to make room for the inline reading below. The
-          Celtic Cross stays put (per spec) because it's already dense
-          and any movement looks jarring. */}
+      {/* Cards block — stays centered in its flex region. No transform
+          or lift on reveal; the inline reading appears below naturally. */}
       <div
         className="flex-1 flex items-center justify-center px-4"
         style={{
           paddingTop: "calc(var(--topbar-pad) + 64px)",
           paddingBottom: "48px",
-          transform:
-            cardsReady && spread === "three"
-              ? "translateY(-40px)"
-              : "translateY(0)",
-          transition:
-            "transform 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
         }}
       >
         <SpreadContent
@@ -167,7 +140,7 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
       </div>
 
       {/* Footer: progress dots while revealing, inline reading once done. */}
-      {cardsReady ? (
+      {allRevealed ? (
         <div
           className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5"
           style={{
