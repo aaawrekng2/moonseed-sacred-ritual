@@ -24,35 +24,32 @@ export function AuthScreen({
   const handleSubmit = async () => {
     setError(null);
     setSuccess(null);
+    if (mode === "signup" && password !== confirmPassword) {
+      setError("Passwords don't match");
+      return;
+    }
     setLoading(true);
     try {
       if (mode === "signup") {
-        // Get current anonymous session before signing up
-        const { data: anonSession } = await supabase.auth.getSession();
-        const anonUserId = anonSession.session?.user?.id;
+        const { data: sessionData } = await supabase.auth.getSession();
+        const currentUser = sessionData.session?.user;
+        const isAnonymous =
+          (currentUser as { is_anonymous?: boolean } | undefined)
+            ?.is_anonymous === true;
 
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (signUpError) throw signUpError;
-
-        // Migrate anonymous data to new account
-        if (anonUserId) {
-          const { data: newSession } = await supabase.auth.getSession();
-          const newUserId = newSession.session?.user?.id;
-          if (newUserId && newUserId !== anonUserId) {
-            // Move readings from anonymous user to new account
-            await supabase
-              .from("readings")
-              .update({ user_id: newUserId })
-              .eq("user_id", anonUserId);
-            // Move any other user data tables here as needed
-            await supabase
-              .from("user_preferences")
-              .update({ user_id: newUserId })
-              .eq("user_id", anonUserId);
-          }
+        if (currentUser && isAnonymous) {
+          const { error: upgradeError } = await supabase.auth.updateUser(
+            { email, password },
+            { emailRedirectTo: window.location.origin },
+          );
+          if (upgradeError) throw upgradeError;
+        } else {
+          const { error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: window.location.origin },
+          });
+          if (signUpError) throw signUpError;
         }
 
         setSuccess(
