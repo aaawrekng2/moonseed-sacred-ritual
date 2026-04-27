@@ -310,7 +310,7 @@ function JournalPage() {
   );
 
   return (
-    <main className="bg-cosmos relative min-h-screen overflow-y-auto px-5 pb-28 pt-[calc(env(safe-area-inset-top,0px)+72px)]">
+    <main className="bg-cosmos relative h-dvh overflow-y-auto px-5 pb-28 pt-[calc(env(safe-area-inset-top,0px)+72px)]">
       {/* Title */}
       <h1
         className="font-display text-2xl italic text-gold"
