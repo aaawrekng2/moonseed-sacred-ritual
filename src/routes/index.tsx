@@ -11,6 +11,16 @@ import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
 import { useAutoRememberQuestion } from "@/lib/use-auto-remember-question";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type IndexSearch = { question?: string };
 
@@ -173,6 +183,9 @@ function QuestionBox({
   const [hydrated, setHydrated] = useState(false);
   const [autoRemember] = useAutoRememberQuestion();
   const initialFocusedRef = useRef(false);
+  // Confirmation gate for the Clear button so a tap doesn't
+  // accidentally wipe a remembered question.
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
   // Hydrate from localStorage on client only (avoid SSR mismatch).
   // An `initialQuestion` (passed via the ?question= search param,
@@ -411,7 +424,7 @@ function QuestionBox({
         {value && (
           <button
             type="button"
-            onClick={handleClear}
+            onClick={() => setConfirmClearOpen(true)}
             className="cursor-pointer underline-offset-2 hover:underline"
             style={{
               fontStyle: "italic",
@@ -425,6 +438,29 @@ function QuestionBox({
           </button>
         )}
       </div>
+      <AlertDialog open={confirmClearOpen} onOpenChange={setConfirmClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear your question?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {remember
+                ? "This will erase your question and forget the remembered version. You can't undo this."
+                : "This will erase what you've typed. You can't undo this."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                handleClear();
+                setConfirmClearOpen(false);
+              }}
+            >
+              Clear question
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
