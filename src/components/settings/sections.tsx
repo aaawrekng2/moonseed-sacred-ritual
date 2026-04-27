@@ -156,24 +156,54 @@ function ProfileSectionInner({
           </p>
           {/* Auth actions */}
           {isAnonymous ? (
-            <button
-              type="button"
-              onClick={() => setAuthOpen(true)}
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: 13,
-                color: "var(--gold)",
-                opacity: 0.75,
-                background: "none",
-                border: "none",
-                padding: "8px 0 0",
-                cursor: "pointer",
-                textAlign: "left",
-              }}
-            >
-              Create account or sign in →
-            </button>
+            <div className="flex flex-col items-start gap-1">
+              <button
+                type="button"
+                onClick={() => setAuthOpen(true)}
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 13,
+                  color: "var(--gold)",
+                  opacity: 0.75,
+                  background: "none",
+                  border: "none",
+                  padding: "8px 0 0",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                Create account or sign in →
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    localStorage.setItem(
+                      "auth-nudge-dismissed-date",
+                      "permanent",
+                    );
+                    toast.success("We won't remind you again.");
+                  } catch {
+                    // ignore
+                  }
+                }}
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 11,
+                  color: "var(--foreground)",
+                  opacity: 0.25,
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                Don't remind me
+              </button>
+            </div>
           ) : (
             <button
               type="button"
