@@ -61,11 +61,13 @@ export function InlineReading({
   picks,
   onExit,
   onCopyTextChange,
+  question,
 }: {
   spread: SpreadMode;
   picks: Pick[];
   onExit: () => void;
   onCopyTextChange?: (text: string | null) => void;
+  question?: string;
 }) {
   const meta = SPREAD_META[spread];
   const { isOracle } = useOracleMode();
