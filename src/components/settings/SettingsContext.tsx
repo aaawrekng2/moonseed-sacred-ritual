@@ -29,6 +29,7 @@ export type Prefs = {
   moon_ai_phase: boolean;
   moon_ai_sign: boolean;
   moon_void_warning: boolean;
+  memory_ai_permission: boolean;
   // Theme-related columns surfaced for the Themes tab.
   accent_color: string | null;
   bg_gradient_from: string | null;
@@ -52,6 +53,7 @@ const DEFAULT_PREFS: Prefs = {
   moon_ai_phase: false,
   moon_ai_sign: false,
   moon_void_warning: true,
+  memory_ai_permission: true,
   accent_color: null,
   bg_gradient_from: null,
   bg_gradient_to: null,
@@ -89,7 +91,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("user_preferences")
         .select(
-          "display_name, birth_date, birth_time, birth_place, sun_sign, rising_sign, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_ai_phase, moon_ai_sign, moon_void_warning, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
+          "display_name, birth_date, birth_time, birth_place, sun_sign, rising_sign, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_ai_phase, moon_ai_sign, moon_void_warning, memory_ai_permission, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -123,6 +125,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         moon_ai_phase: b("moon_ai_phase", false),
         moon_ai_sign: b("moon_ai_sign", false),
         moon_void_warning: b("moon_void_warning", true),
+        memory_ai_permission: b("memory_ai_permission", true),
         accent_color: n("accent_color"),
         bg_gradient_from: n("bg_gradient_from"),
         bg_gradient_to: n("bg_gradient_to"),

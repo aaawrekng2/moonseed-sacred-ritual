@@ -376,6 +376,7 @@ export function PreferencesTab() {
     <div className="space-y-12" key={loaded ? "loaded" : "empty"}>
       <ReadingPreferencesSection user={user} prefs={prefs} setPrefs={setPrefs} />
       <MoonFeaturesSection />
+      <MemorySection user={user} prefs={prefs} setPrefs={setPrefs} />
     </div>
   );
 }
@@ -435,3 +436,57 @@ function ReadingPreferencesSection({
 /* `LIFE_AREAS` is exported for any future panel that wants the same
  * canonical list (Daily Draw, Today picker, etc.). */
 export { LIFE_AREAS };
+
+/* ------------------------- Memory ------------------------- */
+
+function MemorySection({
+  user,
+  prefs,
+  setPrefs,
+}: {
+  user: { id: string };
+  prefs: Prefs;
+  setPrefs: (p: Prefs) => void;
+}) {
+  const [saving, setSaving] = useState(false);
+
+  const toggle = async (next: boolean) => {
+    setSaving(true);
+    const previous = prefs.memory_ai_permission;
+    setPrefs({ ...prefs, memory_ai_permission: next });
+    const { error } = await updateUserPreferences(user.id, {
+      memory_ai_permission: next,
+    });
+    setSaving(false);
+    if (error) {
+      setPrefs({ ...prefs, memory_ai_permission: previous });
+      toast.error("Couldn't save your preference.");
+      return;
+    }
+    toast.success(next ? "Memory enabled" : "Memory paused", { icon: "✓" });
+  };
+
+  return (
+    <SettingsSection
+      title="Memory & Threads"
+      description="When on, your guide notices recurring symbols across your readings and weaves that memory into future interpretations. Only patterns and tags are remembered — never the raw text of past readings."
+    >
+      <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
+        <div className="space-y-0.5">
+          <Label htmlFor="memory-ai-permission" className="text-sm">
+            Allow symbolic memory
+          </Label>
+          <p className="text-xs text-muted-foreground">
+            Pause this anytime. Existing threads stay visible in your Journal but won't influence new readings.
+          </p>
+        </div>
+        <Switch
+          id="memory-ai-permission"
+          checked={prefs.memory_ai_permission}
+          disabled={saving}
+          onCheckedChange={toggle}
+        />
+      </div>
+    </SettingsSection>
+  );
+}
