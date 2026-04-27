@@ -120,8 +120,9 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
       {/* Cards block — stays centered in its flex region. No transform
           or lift on reveal; the inline reading appears below naturally. */}
       <div
-        className="flex-1 flex items-center justify-center px-4"
+        className="flex shrink-0 items-center justify-center px-4"
         style={{
+          height: "calc(100dvh - env(safe-area-inset-bottom, 0px) - 64px)",
           paddingTop: "calc(var(--topbar-pad) + 64px)",
           paddingBottom: "48px",
         }}
