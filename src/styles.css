@@ -271,8 +271,9 @@ code, pre, kbd {
   border-radius: 10px;
 }
 .gateway-card-frame {
-  border: 1px solid oklch(0.82 0.14 82 / 0.35);
-  box-shadow: 0 0 60px oklch(0.82 0.14 82 / 0.20);
+  /* Neutral, subtle edge — no signature/accent color tint. */
+  border: 1px solid oklch(0.30 0.01 270 / 0.55);
+  box-shadow: 0 6px 30px oklch(0 0 0 / 0.45);
 }
 
 /* Tabletop card flip — 3D transform */
