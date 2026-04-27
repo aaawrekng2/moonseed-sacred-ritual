@@ -75,6 +75,16 @@ export function InlineReading({
   const { guideId, lensId, facetIds } = useActiveGuide();
   const startedRef = useRef(false);
   const requestSeqRef = useRef(0);
+  const [savedReading, setSavedReading] = useState<{
+    id: string;
+    user_id: string;
+    note: string | null;
+    is_favorite: boolean;
+    tags: string[] | null;
+  } | null>(null);
+  const [tagLibrary, setTagLibrary] = useState<EnrichmentTag[]>([]);
+  const savedReadingRef = useRef<typeof savedReading>(null);
+  savedReadingRef.current = savedReading;
 
   const beginReading = useCallback(() => {
     if (state.kind !== "idle" && state.kind !== "error") return;
@@ -155,6 +165,101 @@ export function InlineReading({
     onCopyTextChange?.(copyText);
   }, [copyText, onCopyTextChange]);
 
+  useEffect(() => {
+    if (state.kind !== "loaded") return;
+    if (savedReadingRef.current) return;
+    const loadedInterpretation = state.interpretation;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = sessionData.session?.user?.id;
+        if (!uid) return;
+        const interpretationText = buildCopyText({
+          spreadLabel: meta.label,
+          interpretation: loadedInterpretation,
+          picks,
+          positionLabels,
+        });
+        const { data, error } = await supabase
+          .from("readings")
+          .insert({
+            user_id: uid,
+            spread_type: spread,
+            card_ids: picks.map((p) => p.cardIndex),
+            interpretation: interpretationText,
+            guide_id: guideId,
+            lens_id: lensId,
+            mode: "reveal",
+          })
+          .select("id,user_id,note,is_favorite,tags")
+          .single();
+        if (cancelled) return;
+        if (error || !data) {
+          if (error) console.error("InlineReading insert error:", error);
+          return;
+        }
+        setSavedReading({
+          id: data.id,
+          user_id: data.user_id,
+          note: data.note,
+          is_favorite: data.is_favorite,
+          tags: data.tags,
+        });
+        void detectThreads({ data: { user_id: uid } }).catch((e: unknown) =>
+          console.warn("detect-threads failed silently:", e),
+        );
+        const snapshotType =
+          lensId === "recent-echoes"
+            ? "recent_echoes"
+            : lensId === "full-archive"
+              ? "full_archive"
+              : "deeper_threads";
+        void buildMemorySnapshot({
+          data: { user_id: uid, snapshot_type: snapshotType },
+        }).catch((e: unknown) =>
+          console.warn("build-memory-snapshot failed silently:", e),
+        );
+        const { data: tagRows } = await supabase
+          .from("user_tags")
+          .select("id,name,usage_count")
+          .eq("user_id", uid)
+          .order("usage_count", { ascending: false })
+          .limit(20);
+        if (cancelled) return;
+        setTagLibrary((tagRows ?? []) as EnrichmentTag[]);
+      } catch (e) {
+        console.error("InlineReading auto-save failed:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.kind]);
+
+  const handleEnrichReadingChange = useCallback(
+    (next: {
+      id: string;
+      user_id: string;
+      note: string | null;
+      is_favorite: boolean;
+      tags: string[] | null;
+    }) => {
+      setSavedReading(next);
+    },
+    [],
+  );
+  const handleEnrichTagLibraryChange = useCallback((next: EnrichmentTag[]) => {
+    setTagLibrary(next);
+  }, []);
+  const handleEnrichPhotoCountChange = useCallback(
+    (_readingId: string, _count: number) => {
+      // Inline readings do not render a separate gallery counter.
+    },
+    [],
+  );
+
   return (
     <>
       {(state.kind === "idle" || state.kind === "loading") && (
@@ -207,13 +312,25 @@ export function InlineReading({
       </section>
 
       {state.kind === "loaded" && (
-        <button
-          type="button"
-          onClick={onExit}
-          className="reading-actions-fade-in mt-2 rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-        >
-          Done
-        </button>
+        <>
+          {savedReading && (
+            <EnrichmentPanel
+              reading={savedReading}
+              tagLibrary={tagLibrary}
+              isOracle={isOracle}
+              onReadingChange={handleEnrichReadingChange}
+              onTagLibraryChange={handleEnrichTagLibraryChange}
+              onPhotoCountChange={handleEnrichPhotoCountChange}
+            />
+          )}
+          <button
+            type="button"
+            onClick={onExit}
+            className="reading-actions-fade-in mt-2 rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          >
+            Done
+          </button>
+        </>
       )}
     </>
   );
