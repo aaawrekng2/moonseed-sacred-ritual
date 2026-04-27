@@ -12,7 +12,15 @@ import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
 import { useAutoRememberQuestion } from "@/lib/use-auto-remember-question";
 
+type IndexSearch = { question?: string };
+
 export const Route = createFileRoute("/")({
+  validateSearch: (s: Record<string, unknown>): IndexSearch => ({
+    question:
+      typeof s.question === "string" && s.question.trim().length > 0
+        ? s.question
+        : undefined,
+  }),
   component: Index,
 });
 
@@ -23,6 +31,8 @@ function Index() {
   const [todayCard, setTodayCard] = useState<number | null>(null);
   const [question, setQuestion] = useState("");
   const navigate = useNavigate();
+  const search = Route.useSearch();
+  const initialQuestion = search.question;
   const { currentStreak } = useStreak();
   // Home is the only screen that exposes the Refresh icon in the
   // floating menu. Registered via context so the menu itself stays
@@ -128,7 +138,10 @@ function Index() {
 
       {/* Question text box */}
       <section className="flex-1 flex flex-col items-center justify-center px-6 pt-4 pb-2">
-        <QuestionBox onQuestionChange={setQuestion} />
+        <QuestionBox
+          onQuestionChange={setQuestion}
+          initialQuestion={initialQuestion}
+        />
       </section>
 
       {/* Spread icons — sit just above bottom nav */}
@@ -148,8 +161,10 @@ function Index() {
 
 function QuestionBox({
   onQuestionChange,
+  initialQuestion,
 }: {
   onQuestionChange: (q: string) => void;
+  initialQuestion?: string;
 }) {
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
@@ -158,11 +173,17 @@ function QuestionBox({
   const [autoRemember] = useAutoRememberQuestion();
 
   // Hydrate from localStorage on client only (avoid SSR mismatch).
+  // An `initialQuestion` (passed via the ?question= search param,
+  // e.g. when the seeker taps "Edit question" from a reading) takes
+  // precedence over any stored value.
   useEffect(() => {
     try {
       const storedRemember = localStorage.getItem("question-remember") === "1";
       setRemember(storedRemember);
-      if (storedRemember) {
+      if (initialQuestion && initialQuestion.trim().length > 0) {
+        setValue(initialQuestion);
+        onQuestionChange(initialQuestion);
+      } else if (storedRemember) {
         const storedValue = localStorage.getItem("question-value") ?? "";
         if (storedValue) {
           setValue(storedValue);
@@ -234,6 +255,21 @@ function QuestionBox({
       </label>
       <textarea
         id="seeker-question"
+        ref={(el) => {
+          // Auto-focus when arriving from "Edit question" so the
+          // seeker can immediately revise their wording.
+          if (el && initialQuestion && !focused) {
+            // Defer to avoid scrolling-jank during route transition.
+            queueMicrotask(() => {
+              try {
+                el.focus();
+                el.setSelectionRange(el.value.length, el.value.length);
+              } catch {
+                // ignore
+              }
+            });
+          }
+        }}
         value={value}
         onChange={handleChange}
         onFocus={() => setFocused(true)}
