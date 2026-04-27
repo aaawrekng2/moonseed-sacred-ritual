@@ -330,6 +330,38 @@ export function FloatingMenu() {
             {clarityIcon}
           </MenuButton>
 
+          <button
+            type="button"
+            onClick={() => {
+              resetTimer();
+              void navigate({ to: "/settings/profile" });
+            }}
+            aria-label="Your profile"
+            className="flex items-center justify-center rounded-full transition-opacity focus:outline-none"
+            style={{
+              width: 26,
+              height: 26,
+              marginLeft: 4,
+              marginRight: 4,
+              background:
+                "color-mix(in oklab, var(--gold) 18%, transparent)",
+              border:
+                "1px solid color-mix(in oklab, var(--gold) 35%, transparent)",
+              color: "var(--gold)",
+              fontSize: 11,
+              fontFamily: "var(--font-serif)",
+              fontWeight: 600,
+              letterSpacing: "0.05em",
+              cursor: "pointer",
+            }}
+          >
+            {userInitial ? (
+              userInitial.toUpperCase()
+            ) : (
+              <UserRound size={13} strokeWidth={1.5} />
+            )}
+          </button>
+
           {closeHandler && (
             <MenuButton
               onClick={() => {
