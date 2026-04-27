@@ -82,7 +82,10 @@ export function SpreadLayout({ spread, picks, onExit }: Props) {
       setCardsReady(false);
       return;
     }
-    const t = setTimeout(() => setCardsReady(true), 50);
+    // The flip animation is 1100ms (see --flip-ms in CardFace). Wait
+    // 1200ms so the lift + InlineReading mount happen AFTER the last
+    // card is fully face-up, instead of clashing with the flip itself.
+    const t = setTimeout(() => setCardsReady(true), 1200);
     return () => clearTimeout(t);
   }, [allRevealed]);
 
