@@ -180,7 +180,7 @@ export function AuthScreen({
             type="button"
             onClick={handleSubmit}
             disabled={loading || !email || !password}
-            className="w-full rounded-lg py-2.5 transition-opacity disabled:opacity-40"
+            className="w-full rounded-xl py-3 transition-opacity disabled:opacity-40"
             style={{
               background:
                 "color-mix(in oklab, var(--gold) 18%, transparent)",

@@ -33,7 +33,6 @@ import {
   type RememberScope,
 } from "@/lib/use-auto-remember-question";
 import { AuthScreen } from "@/components/auth/AuthScreen";
-import { supabase } from "@/lib/supabase";
 
 /**
  * Settings page section components, ported from the source bundle and
@@ -136,114 +135,138 @@ function ProfileSectionInner({
 
   return (
     <SettingsSection title="Your Profile">
-      <div className="space-y-5">
-        <div className="space-y-2">
-          <Label htmlFor="display-name">Display name</Label>
-          <Input
-            id="display-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            maxLength={80}
-          />
-        </div>
+      {isAnonymous ? (
+        <div className="flex flex-col items-center gap-6 px-2 py-6 text-center">
+          <div className="flex flex-col gap-3">
+            <h2
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: 26,
+                fontWeight: 400,
+                color: "var(--foreground)",
+                opacity: 0.95,
+                lineHeight: 1.3,
+                margin: 0,
+              }}
+            >
+              Save your sacred work
+            </h2>
+            <p
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 14,
+                color: "var(--foreground)",
+                opacity: 0.55,
+                lineHeight: 1.7,
+                maxWidth: 320,
+                margin: "0 auto",
+              }}
+            >
+              Your readings, guides, and memories live only on this device right now. Without an account, they can be lost forever if you clear your browser or switch devices.
+            </p>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="email">Email address</Label>
-          <Input id="email" value={user.email ?? ""} readOnly disabled />
-          <p className="text-xs text-muted-foreground">
-            To change your email, please contact support.
-          </p>
-          {/* Auth actions */}
-          {isAnonymous ? (
-            <div className="flex flex-col items-start gap-1">
-              <button
-                type="button"
-                onClick={() => setAuthOpen(true)}
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: 13,
-                  color: "var(--gold)",
-                  opacity: 0.75,
-                  background: "none",
-                  border: "none",
-                  padding: "8px 0 0",
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-              >
-                Create account or sign in →
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  try {
-                    localStorage.setItem(
-                      "auth-nudge-dismissed-date",
-                      "permanent",
-                    );
-                    toast.success("We won't remind you again.");
-                  } catch {
-                    // ignore
-                  }
-                }}
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: 11,
-                  color: "var(--foreground)",
-                  opacity: 0.25,
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-              >
-                Don't remind me
-              </button>
-            </div>
-          ) : (
+          <button
+            type="button"
+            onClick={() => setAuthOpen(true)}
+            className="w-full max-w-xs rounded-xl py-4 transition-opacity active:opacity-70"
+            style={{
+              background: "color-mix(in oklab, var(--gold) 15%, transparent)",
+              border: "1px solid color-mix(in oklab, var(--gold) 45%, transparent)",
+              color: "var(--gold)",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 16,
+              letterSpacing: "0.05em",
+              cursor: "pointer",
+            }}
+          >
+            Sign in or Create Account
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                localStorage.setItem("auth-nudge-dismissed-date", "permanent");
+                toast.success("We won't remind you again.");
+              } catch {
+                // ignore
+              }
+            }}
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 11,
+              color: "var(--foreground)",
+              opacity: 0.2,
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+            }}
+          >
+            Don't remind me
+          </button>
+
+          {authOpen && (
+            <AuthScreen
+              onClose={() => setAuthOpen(false)}
+              onSuccess={() => setAuthOpen(false)}
+            />
+          )}
+        </div>
+      ) : (
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <Label htmlFor="display-name">Display name</Label>
+            <Input
+              id="display-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              maxLength={80}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email address</Label>
+            <Input id="email" value={user.email ?? ""} readOnly disabled />
+            <p className="text-xs text-muted-foreground">
+              To change your email, please contact support.
+            </p>
+          </div>
+
+          <IntentionField user={user} prefs={prefs} setPrefs={setPrefs} />
+
+          <div>
             <button
               type="button"
-              onClick={async () => {
-                await supabase.auth.signOut();
-              }}
+              onClick={save}
+              disabled={saving}
               style={{
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
                 fontSize: 13,
-                color: "var(--foreground)",
-                opacity: 0.4,
+                color: "var(--gold)",
+                opacity: saving ? 0.4 : 0.75,
                 background: "none",
                 border: "none",
-                padding: "8px 0 0",
-                cursor: "pointer",
+                padding: "4px 0",
+                cursor: saving ? "default" : "pointer",
                 textAlign: "left",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
               }}
             >
-              Sign out
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              Save changes
             </button>
-          )}
+          </div>
         </div>
-
-        <IntentionField user={user} prefs={prefs} setPrefs={setPrefs} />
-
-        <div>
-          <Button variant="ghost" onClick={save} disabled={saving} className={goldButton}>
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            Save Profile
-          </Button>
-        </div>
-
-        {authOpen && (
-          <AuthScreen
-            onClose={() => setAuthOpen(false)}
-            onSuccess={() => setAuthOpen(false)}
-          />
-        )}
-      </div>
+      )}
     </SettingsSection>
   );
 }
@@ -291,10 +314,29 @@ function IntentionField({
         maxLength={1000}
       />
       <div>
-        <Button variant="outline" size="sm" onClick={save} disabled={saving}>
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 13,
+            color: "var(--gold)",
+            opacity: saving ? 0.4 : 0.7,
+            background: "none",
+            border: "none",
+            padding: "4px 0",
+            cursor: saving ? "default" : "pointer",
+            textAlign: "left",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          Update Intention
-        </Button>
+          Save intention
+        </button>
       </div>
     </div>
   );
