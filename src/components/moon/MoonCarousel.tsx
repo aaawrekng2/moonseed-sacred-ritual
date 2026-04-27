@@ -481,18 +481,11 @@ export function MoonCarousel() {
         />
       </div>
 
-      {/* Return / Swipe-to-browse footer — visible on ALL screen sizes
-          (mobile, tablet, desktop). The previous `sm:hidden` gate was
-          hiding both affordances above 640px viewports. */}
+      {/* Return-to-today affordance. The previous "Swipe to browse"
+          hint that appeared at offset === 0 has been removed —
+          seekers don't need a persistent instructional tagline. */}
       <div className="-mt-2 flex h-5 w-full items-center justify-center">
-        {offset === 0 ? (
-          <p
-            className="text-center text-[9px] uppercase tracking-[0.25em] text-muted-foreground"
-            style={{ opacity: restingAlpha * 0.6 }}
-          >
-            Swipe to browse · Tap a day for details
-          </p>
-        ) : (
+        {offset !== 0 && (
           <button
             type="button"
             onClick={goToToday}
