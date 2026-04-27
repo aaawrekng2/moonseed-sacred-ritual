@@ -793,7 +793,7 @@ function MobilePhaseLadder({
   const MOBILE_RUNG_INSETS = [12, 6, 0, 6, 12];
   return (
     <div
-      className="fixed sm:hidden flex flex-col gap-[2px] z-10"
+      className="fixed sm:hidden flex flex-col gap-[10px] z-10"
       style={{
         top: "90px",
         transform: "none",
