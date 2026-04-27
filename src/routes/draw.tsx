@@ -75,13 +75,19 @@ function DrawPage() {
         />
       )}
 
-      <QuestionPanel
-        open={questionOpen}
-        question={question}
-        onQuestionChange={setQuestion}
-        onClose={() => setQuestionOpen(false)}
-        onOpen={() => setQuestionOpen(true)}
-      />
+      {/* Quill / question panel only belongs to the draw table phase.
+          Once the seeker advances to "cast" (cards face-down on the
+          spread layout) or "reading", the table is gone — and so the
+          quill should be too. */}
+      {phase === "select" && (
+        <QuestionPanel
+          open={questionOpen}
+          question={question}
+          onQuestionChange={setQuestion}
+          onClose={() => setQuestionOpen(false)}
+          onOpen={() => setQuestionOpen(true)}
+        />
+      )}
     </div>
   );
 }
