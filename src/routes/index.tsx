@@ -183,10 +183,13 @@ function QuestionBox({
       const storedRemember = localStorage.getItem("question-remember") === "1";
       setRemember(storedRemember);
       if (initialQuestion && initialQuestion.trim().length > 0) {
-        setValue(initialQuestion);
-        onQuestionChange(initialQuestion);
+        const clamped = initialQuestion.slice(0, QUESTION_MAX_LENGTH);
+        setValue(clamped);
+        onQuestionChange(clamped);
       } else if (storedRemember) {
-        const storedValue = localStorage.getItem("question-value") ?? "";
+        const storedValue = (
+          localStorage.getItem("question-value") ?? ""
+        ).slice(0, QUESTION_MAX_LENGTH);
         if (storedValue) {
           setValue(storedValue);
           onQuestionChange(storedValue);
