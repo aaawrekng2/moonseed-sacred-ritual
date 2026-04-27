@@ -493,6 +493,129 @@ function SwatchRow({
 /*  Card Artwork — the actual paper-style keepsake being captured.   */
 /* ----------------------------------------------------------------- */
 
+/**
+ * Celtic Cross spatial layout for the tear-off keepsake.
+ *
+ * The classic 10-card Celtic Cross has a central cross of 6 cards plus
+ * a staff of 4 cards stacked to the right:
+ *
+ *           [5]
+ *      [4] [1/2] [6]
+ *           [3]                 [10]
+ *                               [9]
+ *                               [8]
+ *                               [7]
+ *
+ * Positions in our SPREAD_META:
+ *   0 The Present (center)
+ *   1 The Challenge (crosses the center, rotated 90°)
+ *   2 The Foundation (below center)
+ *   3 The Past (left of center)
+ *   4 The Goal (above center)
+ *   5 Near Future (right of center)
+ *   6-9 The staff (Self → Outcome, bottom-up)
+ */
+function CelticCrossLayout({
+  picks,
+  positions,
+  accent,
+  text,
+}: {
+  picks: Pick[];
+  positions: { position: string; card: string; interpretation: string }[];
+  accent: string;
+  text: string;
+}) {
+  const W = 36; // small cards so the entire layout fits the keepsake card
+  const H = Math.round(W * 1.6);
+  const card = (idx: number, opts?: { rotate?: number }) => {
+    const p = picks[idx];
+    if (!p) return null;
+    return (
+      <img
+        src={getCardImagePath(p.cardIndex)}
+        alt={getCardName(p.cardIndex)}
+        crossOrigin="anonymous"
+        style={{
+          width: W,
+          height: H,
+          objectFit: "cover",
+          borderRadius: 3,
+          border: `1px solid color-mix(in oklab, ${accent} 35%, transparent)`,
+          boxShadow: `0 3px 10px -4px color-mix(in oklab, ${accent} 25%, transparent)`,
+          transform: opts?.rotate ? `rotate(${opts.rotate}deg)` : undefined,
+          transformOrigin: "center",
+          background: "rgba(0,0,0,0.2)",
+        }}
+      />
+    );
+  };
+  // Cross block: 3 columns × 3 rows. Center cell holds card 1 with
+  // card 2 rotated on top of it.
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 18,
+        justifyContent: "center",
+        alignItems: "center",
+        marginBottom: 14,
+      }}
+    >
+      {/* Cross */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `${W}px ${W}px ${W}px`,
+          gridTemplateRows: `${H}px ${H}px ${H}px`,
+          rowGap: 6,
+          columnGap: 6,
+          alignItems: "center",
+          justifyItems: "center",
+        }}
+      >
+        {/* row 1: empty, Goal (5), empty */}
+        <div />
+        <div>{card(4)}</div>
+        <div />
+        {/* row 2: Past (4), Center (1) + Challenge (2 rotated), Future (6) */}
+        <div>{card(3)}</div>
+        <div style={{ position: "relative" }}>
+          {card(0)}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {card(1, { rotate: 90 })}
+          </div>
+        </div>
+        <div>{card(5)}</div>
+        {/* row 3: empty, Foundation (3), empty */}
+        <div />
+        <div>{card(2)}</div>
+        <div />
+      </div>
+      {/* Staff: 7 (bottom) → 10 (top) */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column-reverse",
+          gap: 4,
+        }}
+      >
+        {[6, 7, 8, 9].map((i) => (
+          <div key={i}>{card(i)}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const CardArtwork = ({
   ref,
   question,
