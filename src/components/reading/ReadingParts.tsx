@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { CheckCheck, ChevronDown, ChevronRight, Copy } from "lucide-react";
+import { CheckCheck, ChevronDown, ChevronRight, Copy, Pencil } from "lucide-react";
 import { getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import {
@@ -366,7 +366,9 @@ function SeekerQuestion({
   text: string;
   isOracle: boolean;
 }) {
+  const navigate = useNavigate();
   const label = isOracle ? "You whispered" : "Your question";
+  const editLabel = isOracle ? "Re-whisper" : "Edit question";
   return (
     <figure
       className="w-full max-w-md text-center"
@@ -400,6 +402,32 @@ function SeekerQuestion({
       >
         “{text.trim()}”
       </blockquote>
+      <div className="mt-2 flex justify-center">
+        <button
+          type="button"
+          onClick={() => {
+            void navigate({
+              to: "/",
+              search: { question: text.trim() },
+            });
+          }}
+          aria-label={editLabel}
+          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 12,
+            color: "var(--gold)",
+            opacity: "var(--ro-plus-20)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          <Pencil size={11} strokeWidth={1.75} />
+          {editLabel}
+        </button>
+      </div>
     </figure>
   );
 }

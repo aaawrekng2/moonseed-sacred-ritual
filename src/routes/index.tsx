@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Check, Copy, Flame } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Flame } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
@@ -10,14 +10,17 @@ import { useStreak } from "@/lib/use-streak";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
-import {
-  useAutoRememberQuestion,
-  useRememberScope,
-} from "@/lib/use-auto-remember-question";
-import { useAuth } from "@/lib/auth";
-import { updateUserPreferences } from "@/lib/user-preferences-write";
+import { useAutoRememberQuestion } from "@/lib/use-auto-remember-question";
+
+type IndexSearch = { question?: string };
 
 export const Route = createFileRoute("/")({
+  validateSearch: (s: Record<string, unknown>): IndexSearch => ({
+    question:
+      typeof s.question === "string" && s.question.trim().length > 0
+        ? s.question
+        : undefined,
+  }),
   component: Index,
 });
 
@@ -28,6 +31,8 @@ function Index() {
   const [todayCard, setTodayCard] = useState<number | null>(null);
   const [question, setQuestion] = useState("");
   const navigate = useNavigate();
+  const search = Route.useSearch();
+  const initialQuestion = search.question;
   const { currentStreak } = useStreak();
   // Home is the only screen that exposes the Refresh icon in the
   // floating menu. Registered via context so the menu itself stays
@@ -133,7 +138,10 @@ function Index() {
 
       {/* Question text box */}
       <section className="flex-1 flex flex-col items-center justify-center px-6 pt-4 pb-2">
-        <QuestionBox onQuestionChange={setQuestion} />
+        <QuestionBox
+          onQuestionChange={setQuestion}
+          initialQuestion={initialQuestion}
+        />
       </section>
 
       {/* Spread icons — sit just above bottom nav */}
@@ -153,95 +161,48 @@ function Index() {
 
 function QuestionBox({
   onQuestionChange,
+  initialQuestion,
 }: {
   onQuestionChange: (q: string) => void;
+  initialQuestion?: string;
 }) {
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
   const [remember, setRemember] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [autoRemember] = useAutoRememberQuestion();
-  const [scope] = useRememberScope();
-  const { user } = useAuth();
-  const userId = user?.id;
-  const [copied, setCopied] = useState(false);
+  const initialFocusedRef = useRef(false);
 
-  const handleCopy = async () => {
-    const text = value.trim();
-    if (!text) return;
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        // Fallback for older browsers / non-secure contexts.
-        const ta = document.createElement("textarea");
-        ta.value = text;
-        ta.style.position = "fixed";
-        ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-      }
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
-    } catch {
-      // Silent fail — the icon simply won't switch to the check.
-    }
-  };
-
-  // Hydrate the remember flag from localStorage on the client only,
-  // and the stored question value from either localStorage (device
-  // scope) or the user's account row (cloud scope). Re-runs when
-  // scope or auth changes so swapping scopes pulls the right value.
+  // Hydrate from localStorage on client only (avoid SSR mismatch).
+  // An `initialQuestion` (passed via the ?question= search param,
+  // e.g. when the seeker taps "Edit question" from a reading) takes
+  // precedence over any stored value.
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      let storedRemember = false;
-      try {
-        storedRemember = localStorage.getItem("question-remember") === "1";
-      } catch {
-        // ignore
-      }
-      if (!cancelled) setRemember(storedRemember);
-
-      if (storedRemember) {
-        let storedValue = "";
-        if (scope === "cloud" && userId) {
-          const { data } = await supabase
-            .from("user_preferences")
-            .select("remembered_question")
-            .eq("user_id", userId)
-            .maybeSingle();
-          storedValue =
-            (data as { remembered_question?: string | null } | null)
-              ?.remembered_question ?? "";
-        } else {
-          try {
-            storedValue = localStorage.getItem("question-value") ?? "";
-          } catch {
-            // ignore
-          }
-        }
-        if (!cancelled && storedValue) {
+    try {
+      const storedRemember = localStorage.getItem("question-remember") === "1";
+      setRemember(storedRemember);
+      if (initialQuestion && initialQuestion.trim().length > 0) {
+        setValue(initialQuestion);
+        onQuestionChange(initialQuestion);
+      } else if (storedRemember) {
+        const storedValue = localStorage.getItem("question-value") ?? "";
+        if (storedValue) {
           setValue(storedValue);
           onQuestionChange(storedValue);
         }
       }
-      if (!cancelled) setHydrated(true);
-    })();
-    return () => {
-      cancelled = true;
-    };
+    } catch {
+      // ignore storage errors
+    }
+    setHydrated(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope, userId]);
+  }, []);
 
   // Persist whenever value or remember toggles after hydration.
   useEffect(() => {
     if (!hydrated) return;
-    // Always mirror to localStorage so device scope works offline.
     try {
-      if (remember && scope === "device") {
+      if (remember) {
         localStorage.setItem("question-value", value);
       } else {
         localStorage.removeItem("question-value");
@@ -249,13 +210,7 @@ function QuestionBox({
     } catch {
       // ignore
     }
-    // Mirror to the user's account row when cloud scope is active.
-    if (scope === "cloud" && userId) {
-      void updateUserPreferences(userId, {
-        remembered_question: remember ? value : null,
-      });
-    }
-  }, [value, remember, hydrated, scope, userId]);
+  }, [value, remember, hydrated]);
 
   const handleRememberToggle = () => {
     const next = !remember;
@@ -266,9 +221,6 @@ function QuestionBox({
     } catch {
       // ignore
     }
-    if (!next && scope === "cloud" && userId) {
-      void updateUserPreferences(userId, { remembered_question: null });
-    }
   };
 
   const handleClear = () => {
@@ -278,9 +230,6 @@ function QuestionBox({
       localStorage.removeItem("question-value");
     } catch {
       // ignore
-    }
-    if (scope === "cloud" && userId) {
-      void updateUserPreferences(userId, { remembered_question: null });
     }
   };
 
@@ -307,6 +256,21 @@ function QuestionBox({
       </label>
       <textarea
         id="seeker-question"
+        ref={(el) => {
+          // Auto-focus once when arriving from "Edit question" so the
+          // seeker can immediately revise their wording.
+          if (el && initialQuestion && !initialFocusedRef.current) {
+            initialFocusedRef.current = true;
+            queueMicrotask(() => {
+              try {
+                el.focus();
+                el.setSelectionRange(el.value.length, el.value.length);
+              } catch {
+                // ignore
+              }
+            });
+          }
+        }}
         value={value}
         onChange={handleChange}
         onFocus={() => setFocused(true)}
@@ -327,9 +291,7 @@ function QuestionBox({
             ? "color-mix(in oklab, var(--gold) 60%, transparent)"
             : "color-mix(in oklab, var(--gold) 18%, transparent)",
           borderRadius: 12,
-          // Reserve space on the right for the copy button so long
-          // text never slides under it.
-          padding: "12px 40px 12px 14px",
+          padding: "12px 14px",
           boxShadow: focused
             ? "0 0 0 3px color-mix(in oklab, var(--gold) 18%, transparent), 0 0 18px -6px color-mix(in oklab, var(--gold) 35%, transparent)"
             : "none",
@@ -338,31 +300,6 @@ function QuestionBox({
             "opacity 250ms ease, border-color 200ms ease, box-shadow 200ms ease",
         }}
       />
-      {value.trim() && (
-        <button
-          type="button"
-          onClick={handleCopy}
-          aria-label={copied ? "Question copied" : "Copy question"}
-          title={copied ? "Copied" : "Copy question"}
-          className="absolute rounded-md transition-opacity focus:outline-none focus-visible:ring-2"
-          style={{
-            top: 8,
-            right: 8,
-            padding: 6,
-            background: "transparent",
-            border: "none",
-            color: "var(--gold)",
-            opacity: copied ? "var(--ro-plus-40)" : "var(--ro-plus-20)",
-            cursor: "pointer",
-          }}
-        >
-          {copied ? (
-            <Check size={14} strokeWidth={1.75} />
-          ) : (
-            <Copy size={14} strokeWidth={1.75} />
-          )}
-        </button>
-      )}
       {!value && !focused && (
         <div
           className="absolute inset-0 flex items-center justify-center pointer-events-none"
