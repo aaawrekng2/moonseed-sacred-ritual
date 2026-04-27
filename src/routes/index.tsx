@@ -10,7 +10,13 @@ import { useStreak } from "@/lib/use-streak";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
-import { useAutoRememberQuestion } from "@/lib/use-auto-remember-question";
+import {
+  useAutoRememberQuestion,
+  useRememberScope,
+  type RememberScope,
+} from "@/lib/use-auto-remember-question";
+import { useAuth } from "@/lib/auth";
+import { updateUserPreferences } from "@/lib/user-preferences-write";
 import {
   AlertDialog,
   AlertDialogAction,
