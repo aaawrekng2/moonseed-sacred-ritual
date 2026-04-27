@@ -7,13 +7,11 @@ import {
   EyeOff,
   HelpCircle,
   RotateCw,
-  ScrollText,
   UserRound,
   Wand2,
   X,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
-import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useSavedThemes } from "@/lib/use-saved-themes";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useUIDensity } from "@/lib/use-ui-density";
@@ -37,7 +35,6 @@ import { useAuth } from "@/lib/auth";
  * know which route is active.
  */
 export function FloatingMenu() {
-  const { isOracle, toggle: toggleOracle } = useOracleMode();
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
   const { level, cycleLevel } = useUIDensity();
@@ -297,17 +294,6 @@ export function FloatingMenu() {
               />
             </MenuButton>
           )}
-
-          <MenuButton
-            onClick={(e) => {
-              toggleOracle();
-              showLabel(isOracle ? "Plain" : "Oracle", e);
-              resetTimer();
-            }}
-            ariaLabel={`Voice: ${isOracle ? "Oracle" : "Plain"}`}
-          >
-            <ScrollText size={17} strokeWidth={1.5} />
-          </MenuButton>
 
           {occupied.length > 0 && (
             <MenuButton onClick={cycleSanctuary} ariaLabel="Cycle sanctuaries">

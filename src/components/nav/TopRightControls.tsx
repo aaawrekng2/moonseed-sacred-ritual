@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Eye, EyeOff, ScrollText, Wand2 } from "lucide-react";
+import { Eye, EyeOff, Wand2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { useOracleMode } from "@/lib/use-oracle-mode";
 import {
   applyHeadingFont,
   applyHeadingFontSize,
@@ -184,7 +183,6 @@ export function TopRightControls({
 }: Props) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isOracle, toggle: toggleOracle } = useOracleMode();
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
   // The Clarity — 3-level density cycler (Seen → Glimpse → Veiled).
@@ -256,19 +254,6 @@ export function TopRightControls({
       }}
     >
       {extraFirst}
-      <ExpandingIconButton
-        icon={<ScrollText size={18} strokeWidth={1.5} />}
-        // After toggleOracle() runs synchronously inside onClick, the
-        // next render's `isOracle` reflects the *new* mode, so the
-        // pill expands with the correct label.
-        label={isOracle ? "Oracle" : "Plain"}
-        labelFont={isOracle ? "var(--font-serif)" : "var(--font-sans)"}
-        labelStyle={isOracle ? "italic-gold" : "muted"}
-        onClick={toggleOracle}
-        ariaLabel={`Toggle Oracle voice (currently ${isOracle ? "Oracle" : "Plain"})`}
-        title={isOracle ? "Oracle voice on" : "Plain voice"}
-      />
-
       {occupied.length > 0 && (
         <ExpandingIconButton
           icon={<Wand2 size={18} strokeWidth={1.5} />}
@@ -293,8 +278,8 @@ export function TopRightControls({
             )
           }
           label={clarityLabel}
-          labelFont={isOracle ? "var(--font-serif)" : "var(--font-sans)"}
-          labelStyle={isOracle ? "italic-gold" : "muted"}
+          labelFont="var(--font-sans)"
+          labelStyle="muted"
           onClick={cycleLevel}
           ariaLabel={`The Clarity: ${clarityLabel} — tap to cycle (Seen → Glimpse → Veiled)`}
           title={`The Clarity: ${clarityLabel}`}
