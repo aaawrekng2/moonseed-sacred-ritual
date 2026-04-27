@@ -232,7 +232,7 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
         });
         // Phase 7: fire-and-forget thread detection. Must NOT block or
         // surface errors to the reading UI.
-        void detectThreads({ data: { user_id: uid } }).catch((e) =>
+        void detectThreads({ data: { user_id: uid } }).catch((e: unknown) =>
           console.warn("detect-threads failed silently:", e),
         );
         // Load the user's tag library so the suggestion row works.
