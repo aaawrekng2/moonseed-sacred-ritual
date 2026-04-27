@@ -54,7 +54,7 @@ type Props = {
 type LoadState =
   | { kind: "idle" } // cards revealed, awaiting "Let Them Speak" tap
   | { kind: "loading" }
-  | { kind: "loaded"; interpretation: InterpretationPayload }
+  | { kind: "loaded"; interpretation: InterpretationPayload; readingId: string | null }
   | { kind: "limit" }
   | { kind: "error"; message: string };
 
@@ -148,7 +148,11 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
 
         if (!isCurrentRequest()) return;
         if (result.ok) {
-          setState({ kind: "loaded", interpretation: result.interpretation });
+          setState({
+            kind: "loaded",
+            interpretation: result.interpretation,
+            readingId: result.readingId ?? null,
+          });
         } else if (result.error === "daily_limit_reached") {
           setState({ kind: "limit" });
         } else {
