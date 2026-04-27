@@ -586,7 +586,7 @@ const CardArtwork = ({
         <div style={{ marginBottom: 14, textAlign: "center" }}>
           <div
             style={{
-              fontSize: 9,
+              fontSize: 10,
               letterSpacing: "0.28em",
               textTransform: "uppercase",
               color: A,
@@ -599,7 +599,7 @@ const CardArtwork = ({
           <div
             style={{
               fontStyle: "italic",
-              fontSize: 14,
+              fontSize: 15,
               lineHeight: 1.55,
               color: T,
               opacity: 0.92,
