@@ -13,6 +13,7 @@ import {
   interpretReading,
   type InterpretationPayload,
 } from "@/lib/interpret.functions";
+import { detectThreads } from "@/lib/memory.functions";
 import { supabase } from "@/lib/supabase";
 import { useActiveGuide } from "@/lib/use-active-guide";
 import { useOracleMode } from "@/lib/use-oracle-mode";
@@ -188,13 +189,22 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
   useEffect(() => {
     if (state.kind !== "loaded") return;
     if (savedReadingRef.current) return; // already saved for this load
+    // Snapshot the loaded interpretation so the closure doesn't depend
+    // on the derived `copyText` (which can momentarily be null between
+    // renders even though state.kind === "loaded").
+    const loadedInterpretation = state.interpretation;
     let cancelled = false;
     void (async () => {
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = sessionData.session?.user?.id;
         if (!uid) return;
-        const interpretationText = copyText ?? "";
+        const interpretationText = buildCopyText({
+          spreadLabel: meta.label,
+          interpretation: loadedInterpretation,
+          picks,
+          positionLabels,
+        });
         const { data, error } = await supabase
           .from("readings")
           .insert({
@@ -208,7 +218,11 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
           })
           .select("id,user_id,note,is_favorite,tags")
           .single();
-        if (cancelled || error || !data) return;
+        if (cancelled) return;
+        if (error || !data) {
+          if (error) console.error("ReadingScreen insert error:", error);
+          return;
+        }
         setSavedReading({
           id: data.id,
           user_id: data.user_id,
@@ -216,6 +230,11 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
           is_favorite: data.is_favorite,
           tags: data.tags,
         });
+        // Phase 7: fire-and-forget thread detection. Must NOT block or
+        // surface errors to the reading UI.
+        void detectThreads({ data: { user_id: uid } }).catch((e) =>
+          console.warn("detect-threads failed silently:", e),
+        );
         // Load the user's tag library so the suggestion row works.
         const { data: tagRows } = await supabase
           .from("user_tags")
@@ -226,7 +245,7 @@ export function ReadingScreen({ spread, picks, onExit }: Props) {
         if (cancelled) return;
         setTagLibrary((tagRows ?? []) as EnrichmentTag[]);
       } catch (e) {
-        console.error("Reading auto-save failed:", e);
+        console.error("ReadingScreen auto-save failed:", e);
       }
     })();
     return () => {
