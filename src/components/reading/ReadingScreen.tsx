@@ -1481,3 +1481,75 @@ function CopyTextLink({
     </div>
   );
 }
+/* ---------------------------------------------------------------------- */
+/*  Share button — uses the Web Share API when available, falls back to   */
+/*  clipboard so the seeker always has a way to send the reading out.     */
+/* ---------------------------------------------------------------------- */
+
+function ShareReadingButton({
+  text,
+  isOracle,
+}: {
+  text: string;
+  isOracle: boolean;
+}) {
+  const [done, setDone] = useState<null | "shared" | "copied" | "error">(null);
+
+  const onShare = async () => {
+    if (!text) return;
+    try {
+      if (
+        typeof navigator !== "undefined" &&
+        typeof navigator.share === "function"
+      ) {
+        await navigator.share({
+          title: isOracle ? "A reading from Moonseed" : "My tarot reading",
+          text,
+        });
+        setDone("shared");
+      } else if (
+        typeof navigator !== "undefined" &&
+        navigator.clipboard?.writeText
+      ) {
+        await navigator.clipboard.writeText(text);
+        setDone("copied");
+      } else {
+        setDone("error");
+      }
+    } catch (e) {
+      // User-cancel on Web Share rejects with AbortError — treat as a no-op.
+      const name = (e as { name?: string })?.name;
+      if (name !== "AbortError") setDone("error");
+    } finally {
+      window.setTimeout(() => setDone(null), 1800);
+    }
+  };
+
+  const label = !done
+    ? isOracle
+      ? "Share this telling"
+      : "Share reading"
+    : done === "shared"
+      ? "Shared"
+      : done === "copied"
+        ? "Copied to clipboard"
+        : "Couldn't share";
+
+  return (
+    <button
+      type="button"
+      onClick={() => void onShare()}
+      className="reading-actions-fade-in mt-3 inline-flex items-center justify-center gap-2 self-center font-display text-[12px] italic text-gold transition-opacity"
+      style={{
+        opacity: "var(--ro-plus-30)",
+        background: "transparent",
+        border: "none",
+        padding: "6px 10px",
+      }}
+      aria-label={label}
+    >
+      <Share2 size={14} strokeWidth={1.5} />
+      <span>{label}</span>
+    </button>
+  );
+}
