@@ -80,6 +80,13 @@ import {
   type ThemeFont,
 } from "@/lib/use-saved-themes";
 import {
+  READING_FONT_DEFAULT,
+  READING_FONT_MAX,
+  READING_FONT_MIN,
+  useReadingFontSize,
+} from "@/lib/use-reading-font-size";
+import { useOracleMode as useOracleModeForReadingSize } from "@/lib/use-oracle-mode";
+import {
   COMMUNITY_THEMES,
   getStoredCommunityTheme,
   setStoredCommunityTheme,
@@ -185,6 +192,7 @@ function ThemesTabInner() {
         <TheFieldSection />
         <CardBackSection />
         <HeadingFontSection />
+        <ReadingFontSection />
         <InterfaceFadeSection />
         <CommunityThemesSection />
         <SavedThemesSection />
