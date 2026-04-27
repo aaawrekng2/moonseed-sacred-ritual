@@ -47,6 +47,45 @@ export type Database = {
         }
         Relationships: []
       }
+      memory_snapshots: {
+        Row: {
+          active_patterns_summary: string | null
+          active_threads_summary: string | null
+          card_frequencies: Json
+          expires_at: string
+          generated_at: string
+          id: string
+          recent_tags: string[]
+          snapshot_type: string
+          token_count: number
+          user_id: string
+        }
+        Insert: {
+          active_patterns_summary?: string | null
+          active_threads_summary?: string | null
+          card_frequencies?: Json
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          recent_tags?: string[]
+          snapshot_type: string
+          token_count?: number
+          user_id: string
+        }
+        Update: {
+          active_patterns_summary?: string | null
+          active_threads_summary?: string | null
+          card_frequencies?: Json
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          recent_tags?: string[]
+          snapshot_type?: string
+          token_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       reading_photos: {
         Row: {
           caption: string | null
@@ -130,6 +169,45 @@ export type Database = {
         }
         Relationships: []
       }
+      symbolic_threads: {
+        Row: {
+          card_ids: number[]
+          detected_at: string
+          id: string
+          name: string | null
+          reading_ids: string[]
+          status: string
+          summary: string
+          tags: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          card_ids?: number[]
+          detected_at?: string
+          id?: string
+          name?: string | null
+          reading_ids?: string[]
+          status?: string
+          summary: string
+          tags?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          card_ids?: number[]
+          detected_at?: string
+          id?: string
+          name?: string | null
+          reading_ids?: string[]
+          status?: string
+          summary?: string
+          tags?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_preferences: {
         Row: {
           accent: string
@@ -151,6 +229,7 @@ export type Database = {
           heading_font_size: number | null
           initial_intention: string | null
           is_premium: boolean
+          memory_ai_permission: boolean
           moon_ai_phase: boolean
           moon_ai_sign: boolean
           moon_features_enabled: boolean
@@ -195,6 +274,7 @@ export type Database = {
           heading_font_size?: number | null
           initial_intention?: string | null
           is_premium?: boolean
+          memory_ai_permission?: boolean
           moon_ai_phase?: boolean
           moon_ai_sign?: boolean
           moon_features_enabled?: boolean
@@ -239,6 +319,7 @@ export type Database = {
           heading_font_size?: number | null
           initial_intention?: string | null
           is_premium?: boolean
+          memory_ai_permission?: boolean
           moon_ai_phase?: boolean
           moon_ai_sign?: boolean
           moon_features_enabled?: boolean
