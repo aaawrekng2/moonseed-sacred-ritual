@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsThemesRouteImport } from './routes/settings.themes'
 import { Route as SettingsProfileRouteImport } from './routes/settings.profile'
 import { Route as SettingsPreferencesRouteImport } from './routes/settings.preferences'
+import { Route as SettingsGuidesRouteImport } from './routes/settings.guides'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
 
@@ -66,6 +67,11 @@ const SettingsPreferencesRoute = SettingsPreferencesRouteImport.update({
   path: '/preferences',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsGuidesRoute = SettingsGuidesRouteImport.update({
+  id: '/guides',
+  path: '/guides',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsDataRoute = SettingsDataRouteImport.update({
   id: '/data',
   path: '/data',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteWithChildren
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
+  '/settings/guides': typeof SettingsGuidesRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRouteWithChildren
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
+  '/settings/guides': typeof SettingsGuidesRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteWithChildren
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
+  '/settings/guides': typeof SettingsGuidesRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/settings/blueprint'
     | '/settings/data'
+    | '/settings/guides'
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/settings/blueprint'
     | '/settings/data'
+    | '/settings/guides'
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/settings/blueprint'
     | '/settings/data'
+    | '/settings/guides'
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
@@ -233,6 +245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsPreferencesRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/guides': {
+      id: '/settings/guides'
+      path: '/guides'
+      fullPath: '/settings/guides'
+      preLoaderRoute: typeof SettingsGuidesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/data': {
       id: '/settings/data'
       path: '/data'
@@ -253,6 +272,7 @@ declare module '@tanstack/react-router' {
 interface SettingsRouteChildren {
   SettingsBlueprintRoute: typeof SettingsBlueprintRoute
   SettingsDataRoute: typeof SettingsDataRoute
+  SettingsGuidesRoute: typeof SettingsGuidesRoute
   SettingsPreferencesRoute: typeof SettingsPreferencesRoute
   SettingsProfileRoute: typeof SettingsProfileRoute
   SettingsThemesRoute: typeof SettingsThemesRoute
@@ -261,6 +281,7 @@ interface SettingsRouteChildren {
 const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsBlueprintRoute: SettingsBlueprintRoute,
   SettingsDataRoute: SettingsDataRoute,
+  SettingsGuidesRoute: SettingsGuidesRoute,
   SettingsPreferencesRoute: SettingsPreferencesRoute,
   SettingsProfileRoute: SettingsProfileRoute,
   SettingsThemesRoute: SettingsThemesRoute,
