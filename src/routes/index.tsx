@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Flame } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { CardBack } from "@/components/cards/CardBack";
