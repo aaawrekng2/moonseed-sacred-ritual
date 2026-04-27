@@ -352,6 +352,36 @@ function QuestionBox({
           What question are you bringing to the cards?
         </div>
       )}
+      {/* Live character counter — only visible once the field has
+          content or focus, so it doesn't add visual noise to an
+          empty home screen. Warms toward gold as the seeker
+          approaches the cap. */}
+      {(focused || value) && (
+        <div
+          aria-live="polite"
+          style={{
+            marginTop: 4,
+            textAlign: "right",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 11,
+            letterSpacing: "0.05em",
+            color:
+              value.length >= QUESTION_MAX_LENGTH
+                ? "var(--gold)"
+                : value.length >= QUESTION_MAX_LENGTH * 0.9
+                  ? "color-mix(in oklab, var(--gold) 75%, var(--foreground))"
+                  : "var(--foreground)",
+            opacity:
+              value.length >= QUESTION_MAX_LENGTH * 0.9
+                ? "var(--ro-plus-40)"
+                : "var(--ro-plus-20)",
+            transition: "color 200ms ease, opacity 200ms ease",
+          }}
+        >
+          {value.length} / {QUESTION_MAX_LENGTH}
+        </div>
+      )}
       <div
         className="flex items-center justify-center gap-3 pt-2"
         style={{
