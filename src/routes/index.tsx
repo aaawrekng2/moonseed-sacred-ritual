@@ -422,6 +422,61 @@ function QuestionBox({
           opacity: "var(--ro-plus-20)",
         }}
       >
+        <span
+          role="status"
+          aria-live="polite"
+          aria-label={
+            remember
+              ? "Your question will be remembered"
+              : "Your question will not be remembered"
+          }
+          title={
+            remember
+              ? "Your question will be saved for next time."
+              : "Your question will be forgotten when you leave."
+          }
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "2px 8px",
+            borderRadius: 999,
+            fontStyle: "normal",
+            fontSize: 10,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            border: "1px solid",
+            borderColor: remember
+              ? "color-mix(in oklab, var(--gold) 60%, transparent)"
+              : "color-mix(in oklab, var(--foreground) 25%, transparent)",
+            background: remember
+              ? "color-mix(in oklab, var(--gold) 18%, transparent)"
+              : "transparent",
+            color: remember
+              ? "var(--gold)"
+              : "var(--foreground)",
+            opacity: remember ? "var(--ro-plus-40)" : "var(--ro-plus-20)",
+            transition:
+              "background 200ms ease, border-color 200ms ease, color 200ms ease, opacity 200ms ease",
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 999,
+              background: remember
+                ? "var(--gold)"
+                : "color-mix(in oklab, var(--foreground) 35%, transparent)",
+              boxShadow: remember
+                ? "0 0 6px color-mix(in oklab, var(--gold) 60%, transparent)"
+                : "none",
+              transition: "background 200ms ease, box-shadow 200ms ease",
+            }}
+          />
+          {remember ? "Remembering" : "Not remembering"}
+        </span>
         <label
           className="flex items-center gap-1.5 cursor-pointer select-none"
           style={{ fontStyle: "italic" }}
