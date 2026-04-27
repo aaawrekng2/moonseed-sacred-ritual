@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useSettings, type Prefs } from "./SettingsContext";
 import { MoonFeaturesSection } from "./MoonFeaturesSection";
+import { useAutoRememberQuestion } from "@/lib/use-auto-remember-question";
 
 /**
  * Settings page section components, ported from the source bundle and
@@ -424,12 +425,42 @@ function ReadingPreferencesSection({
           </Select>
         </div>
 
+        <AutoRememberQuestionRow />
+
         <Button variant="ghost" onClick={save} disabled={saving} className={goldButton}>
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
           Save Preferences
         </Button>
       </div>
     </SettingsSection>
+  );
+}
+
+function AutoRememberQuestionRow() {
+  const [autoRemember, setAutoRemember] = useAutoRememberQuestion();
+  return (
+    <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
+      <div className="space-y-0.5">
+        <Label htmlFor="auto-remember-question" className="text-sm">
+          Auto-remember my question
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          When on, your question on the home screen is kept across sessions
+          as soon as you start typing — no extra tap needed.
+        </p>
+      </div>
+      <Switch
+        id="auto-remember-question"
+        checked={autoRemember}
+        onCheckedChange={(next) => {
+          setAutoRemember(next);
+          toast.success(
+            next ? "Auto-remember on" : "Auto-remember off",
+            { icon: "✓" },
+          );
+        }}
+      />
+    </div>
   );
 }
 
