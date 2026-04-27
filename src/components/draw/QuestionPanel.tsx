@@ -31,6 +31,22 @@ export function QuestionPanel({
 }) {
   const [localValue, setLocalValue] = useState(question);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Tracks whether the panel was previously open so the collapsed
+  // quill icon can animate scale-from-zero (open→close transition)
+  // instead of just popping in.
+  const [closing, setClosing] = useState(false);
+  const prevOpenRef = useRef(open);
+
+  useEffect(() => {
+    if (prevOpenRef.current && !open) {
+      // Just transitioned from open to closed — play the
+      // scale-to-zero-and-back animation on the quill mount.
+      setClosing(true);
+      const t = window.setTimeout(() => setClosing(false), 360);
+      return () => window.clearTimeout(t);
+    }
+    prevOpenRef.current = open;
+  }, [open]);
 
   // Keep the local draft in sync if the parent question changes while
   // the panel is closed (e.g. arriving from the home screen with a
@@ -63,7 +79,8 @@ export function QuestionPanel({
         onClick={onOpen}
         className="absolute left-1/2 -translate-x-1/2 z-50 flex items-center justify-center"
         style={{
-          top: "calc(env(safe-area-inset-top, 0px) + 56px)",
+          // Sits 2px below the top safe-area inset.
+          top: "calc(env(safe-area-inset-top, 0px) + 2px)",
           background: "transparent",
           border: "none",
           padding: 4,
@@ -76,10 +93,16 @@ export function QuestionPanel({
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
-            fontSize: 22,
+            // Reduced 10% from the previous 22px.
+            fontSize: 19.8,
             color: "var(--gold)",
             opacity: 0.7,
             lineHeight: 1,
+            display: "inline-block",
+            transformOrigin: "center",
+            animation: closing
+              ? "quill-scale-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both"
+              : undefined,
           }}
         >
           🪶
@@ -188,13 +211,15 @@ export function QuestionPanel({
           <button
             type="button"
             onClick={commit}
-            className="rounded-full px-4 py-1.5 text-[11px] uppercase tracking-[0.2em] transition-colors"
+            className="text-[11px] uppercase tracking-[0.2em] transition-colors hover:opacity-100"
             style={{
               fontFamily: "var(--font-serif)",
-              background: "color-mix(in oklab, var(--gold) 15%, transparent)",
-              border: "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
+              background: "none",
+              border: "none",
+              padding: 0,
               color: "var(--gold)",
               cursor: "pointer",
+              opacity: 0.85,
             }}
           >
             Continue
