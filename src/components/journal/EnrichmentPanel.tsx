@@ -551,7 +551,7 @@ export function EnrichmentPanel({
 
       {/* Note editor */}
       {openSection === "note" && (
-        <div className="mt-4">
+        <div className="mt-4 flex flex-col gap-2">
           <textarea
             value={note}
             onChange={(e) => handleNoteChange(e.target.value)}
@@ -569,6 +569,29 @@ export function EnrichmentPanel({
               minHeight: 120,
             }}
           />
+          <button
+            type="button"
+            onClick={() => {
+              persistNote(note);
+              setOpenSection(null);
+            }}
+            style={{
+              alignSelf: "flex-end",
+              background: "transparent",
+              border: "none",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 13,
+              color: "var(--gold)",
+              opacity: "var(--ro-plus-30)",
+              cursor: "pointer",
+              padding: "4px 0",
+              borderBottom:
+                "1px solid color-mix(in oklch, var(--gold) 30%, transparent)",
+            }}
+          >
+            {isOracle ? "Inscribe & Close" : "Save & Close"}
+          </button>
         </div>
       )}
 
