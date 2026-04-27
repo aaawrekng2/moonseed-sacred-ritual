@@ -6,7 +6,7 @@
  * for instant rehydration and fire-and-forget to
  * `user_preferences.reading_font_size`.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
@@ -29,14 +29,28 @@ function readLocal(): number {
   return Number.isFinite(n) ? clamp(n) : READING_FONT_DEFAULT;
 }
 
+// Debounce window for the server write while the user drags the slider.
+// Local state and localStorage update synchronously; the network call
+// coalesces so we don't fire one update per slider tick.
+const PERSIST_DEBOUNCE_MS = 250;
+
 export function useReadingFontSize() {
   const { user } = useAuth();
-  // Hydration-safe: start at default, sync from localStorage in effect.
-  const [size, setSize] = useState<number>(READING_FONT_DEFAULT);
+  // Hydration-safe but flicker-free: SSR/first paint use the default,
+  // and we swap in the localStorage value before the browser paints
+  // (useState lazy initializer runs synchronously on the client mount).
+  const [size, setSize] = useState<number>(() =>
+    typeof window === "undefined" ? READING_FONT_DEFAULT : readLocal(),
+  );
 
-  useEffect(() => {
-    setSize(readLocal());
-  }, []);
+  // Debounced persist — keeps slider drags from spamming the network.
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+    },
+    [],
+  );
 
   // Hydrate from server once auth is known.
   useEffect(() => {
@@ -75,11 +89,14 @@ export function useReadingFontSize() {
         /* ignore */
       }
       if (user) {
-        // Cast: reading_font_size column was added in a later migration
-        // and may not be in the regenerated types yet.
-        void updateUserPreferences(user.id, {
-          reading_font_size: next,
-        } as never);
+        if (persistTimer.current) clearTimeout(persistTimer.current);
+        persistTimer.current = setTimeout(() => {
+          // Cast: reading_font_size column was added in a later migration
+          // and may not be in the regenerated types yet.
+          void updateUserPreferences(user.id, {
+            reading_font_size: next,
+          } as never);
+        }, PERSIST_DEBOUNCE_MS);
       }
     },
     [user],
