@@ -19,7 +19,7 @@ import { useActiveGuide } from "@/lib/use-active-guide";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useAuth } from "@/lib/auth";
 import { getCurrentMoonPhase } from "@/lib/moon";
-import { FACETS, LENSES } from "@/lib/guides";
+import { FACETS } from "@/lib/guides";
 import {
   BUILT_IN_GUIDES,
   getGuideById,
@@ -551,6 +551,62 @@ function ReadingActions({
   );
 }
 
+function AiPromptPreview({
+  spread,
+  picks,
+  positionLabels,
+  guideName,
+  lensId,
+  facetIds,
+  isOracle,
+}: {
+  spread: SpreadMode;
+  picks: Pick[];
+  positionLabels: string[];
+  guideName: string;
+  lensId: string;
+  facetIds: string[];
+  isOracle: boolean;
+}) {
+  const meta = SPREAD_META[spread];
+  const moonPhase = getCurrentMoonPhase().phase;
+
+  const cardLines = picks
+    .map((p, i) => {
+      const name = getCardName(p.cardIndex);
+      const pos = positionLabels[i] ?? `Card ${i + 1}`;
+      return `${pos}: ${name}`;
+    })
+    .join("\n");
+
+  const lensDescription =
+    lensId === "recent-echoes"
+      ? "drawing only from the recent echoes of your practice"
+      : lensId === "full-archive"
+        ? "drawing from the full archive of your practice"
+        : "drawing from the deeper threads of your practice";
+
+  const facetNames = FACETS.filter((f) => facetIds.includes(f.id)).map(
+    (f) => f.name,
+  );
+  const facetLine =
+    facetNames.length > 0
+      ? `\nFocusing through: ${facetNames.join(", ")}.`
+      : "";
+
+  const voiceLine = isOracle
+    ? `${guideName} will whisper the reading,`
+    : `${guideName} will speak the reading,`;
+
+  const text = `${voiceLine} ${lensDescription}.${facetLine}
+
+${meta.label} spread — moon in ${moonPhase}.
+
+${cardLines}`;
+
+  return <>{text}</>;
+}
+
 function WhatGuideWillSee({
   spread,
   picks,
@@ -569,14 +625,6 @@ function WhatGuideWillSee({
   isOracle: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const meta = SPREAD_META[spread];
-  const lensName =
-    LENSES.find((l) => l.id === lensId)?.[isOracle ? "oracleName" : "name"] ??
-    lensId;
-  const facetNames = FACETS.filter((f) => facetIds.includes(f.id)).map(
-    (f) => f.name,
-  );
-  const moonPhase = getCurrentMoonPhase().phase;
   const label = isOracle
     ? "What will be whispered to the guide"
     : "What the guide will see";
@@ -604,46 +652,22 @@ function WhatGuideWillSee({
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
             fontSize: 12,
-            lineHeight: 1.7,
-            color: "color-mix(in oklab, var(--foreground) 75%, transparent)",
+            lineHeight: 1.8,
+            color: "color-mix(in oklab, var(--foreground) 78%, transparent)",
+            whiteSpace: "pre-wrap",
           }}
         >
-          <DisclosureRow label="Spread" value={meta.label} />
-          <DisclosureRow
-            label="Cards"
-            value={picks
-              .map((p, i) => {
-                const pos = positionLabels[i] ?? `Card ${i + 1}`;
-                return `${getCardName(p.cardIndex)} (${pos})`;
-              })
-              .join("; ")}
-          />
-          <DisclosureRow label="Guide" value={guideName} />
-          <DisclosureRow label="Lens" value={lensName} />
-          {facetNames.length > 0 && (
-            <DisclosureRow label="Facets" value={facetNames.join(", ")} />
-          )}
-          <DisclosureRow label="Moon" value={moonPhase} />
-          <DisclosureRow
-            label="Memory"
-            value="Symbolic threads and patterns (if memory is enabled)"
+          <AiPromptPreview
+            spread={spread}
+            picks={picks}
+            positionLabels={positionLabels}
+            guideName={guideName}
+            lensId={lensId}
+            facetIds={facetIds}
+            isOracle={isOracle}
           />
         </div>
       )}
-    </div>
-  );
-}
-
-function DisclosureRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-2 py-0.5">
-      <span
-        className="shrink-0 uppercase not-italic tracking-[0.18em] text-gold/70"
-        style={{ fontSize: 9, letterSpacing: "0.18em", lineHeight: 1.9 }}
-      >
-        {label}
-      </span>
-      <span className="flex-1">{value}</span>
     </div>
   );
 }
