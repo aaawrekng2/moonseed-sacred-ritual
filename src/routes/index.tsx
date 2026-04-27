@@ -183,6 +183,13 @@ function QuestionBox({
   const [hydrated, setHydrated] = useState(false);
   const [autoRemember] = useAutoRememberQuestion();
   const initialFocusedRef = useRef(false);
+  // Tracks whether the seeker has manually turned "Remember my
+  // question" OFF during this session. While true, the auto-remember
+  // setting is suppressed so typing never silently re-enables the
+  // toggle. Cleared if the seeker manually turns the toggle back on,
+  // and reset on full page reload (this is intentionally a session-
+  // only signal, not a persisted preference).
+  const userDisabledRememberRef = useRef(false);
   // Confirmation gate for the Clear button so a tap doesn't
   // accidentally wipe a remembered question.
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
@@ -232,6 +239,10 @@ function QuestionBox({
   const handleRememberToggle = () => {
     const next = !remember;
     setRemember(next);
+    // Manual OFF latches the session-scoped suppression so
+    // auto-remember can't quietly flip it back on while typing.
+    // Manual ON releases the latch, restoring auto behavior.
+    userDisabledRememberRef.current = !next;
     try {
       localStorage.setItem("question-remember", next ? "1" : "0");
       if (!next) localStorage.removeItem("question-value");
@@ -257,8 +268,15 @@ function QuestionBox({
     setValue(next);
     onQuestionChange(next);
     // Auto-flip "Remember my question" on as soon as the seeker
-    // begins typing, when the corresponding setting is enabled.
-    if (autoRemember && !remember && next.trim().length > 0) {
+    // begins typing, when the corresponding setting is enabled —
+    // but never if the seeker has manually turned the toggle off in
+    // this session.
+    if (
+      autoRemember &&
+      !remember &&
+      !userDisabledRememberRef.current &&
+      next.trim().length > 0
+    ) {
       setRemember(true);
       try {
         localStorage.setItem("question-remember", "1");
