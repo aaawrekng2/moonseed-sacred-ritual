@@ -9,6 +9,7 @@ import { getGuideById } from "@/lib/guides";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { cn } from "@/lib/utils";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
+import { stripMarkdown } from "@/lib/strip-markdown";
 import {
   EnrichmentPanel,
   type EnrichmentTag,
@@ -515,6 +516,7 @@ function ReadingCard({
   const interpFirst = (reading.interpretation ?? "")
     .replace(/\s+/g, " ")
     .trim();
+  const interpClean = stripMarkdown(interpFirst);
 
   return (
     <button
@@ -593,7 +595,7 @@ function ReadingCard({
       </div>
 
       {/* Interpretation excerpt */}
-      {interpFirst && (
+      {interpClean && (
         <p
           className="mt-3 font-display text-[14px] italic leading-snug text-foreground"
           style={{
@@ -604,7 +606,7 @@ function ReadingCard({
             overflow: "hidden",
           }}
         >
-          {interpFirst}
+          {interpClean}
         </p>
       )}
 
@@ -983,7 +985,7 @@ function ReadingDetail({
               whiteSpace: "pre-wrap",
             }}
           >
-            {reading.interpretation}
+            {stripMarkdown(reading.interpretation)}
           </article>
         )}
 
