@@ -19,7 +19,7 @@ import { useActiveGuide } from "@/lib/use-active-guide";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useAuth } from "@/lib/auth";
 import { getCurrentMoonPhase } from "@/lib/moon";
-import { FACETS, LENSES } from "@/lib/guides";
+import { FACETS } from "@/lib/guides";
 import {
   BUILT_IN_GUIDES,
   getGuideById,
