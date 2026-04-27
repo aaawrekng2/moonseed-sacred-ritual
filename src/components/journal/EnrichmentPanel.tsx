@@ -13,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Camera, Heart, Loader2, Plus, Tag as TagIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { compressImage } from "@/lib/compress-image";
 
 /* ---------- Types ---------- */
 
@@ -57,6 +58,7 @@ type Props = {
 };
 
 const SAVE_DELAY_MS = 800;
+const NOTE_SAVE_DELAY_MS = 3000;
 
 /* ---------- Hook: debounced save ---------- */
 
@@ -185,12 +187,16 @@ export function EnrichmentPanel({
   /* ---------- Save engines ---------- */
 
   const noteSave = useDebouncedSave();
+  // Notes get a longer debounce so the auto-save indicator doesn't
+  // flicker (and the textarea doesn't feel "judged") while the user
+  // is mid-thought, especially on mobile.
+  const noteSaveDebounced = useDebouncedSave(NOTE_SAVE_DELAY_MS);
   const tagsSave = useDebouncedSave();
   const favSave = useDebouncedSave(0); // immediate
 
   const persistNote = useCallback(
     (next: string) => {
-      noteSave.schedule(async () => {
+      noteSaveDebounced.schedule(async () => {
         const { error } = await supabase
           .from("readings")
           .update({ note: next.length > 0 ? next : null })
@@ -199,7 +205,7 @@ export function EnrichmentPanel({
         onReadingChange({ ...reading, note: next.length > 0 ? next : null });
       });
     },
-    [noteSave, reading, onReadingChange],
+    [noteSaveDebounced, reading, onReadingChange],
   );
 
   const persistTags = useCallback(
@@ -323,14 +329,15 @@ export function EnrichmentPanel({
     setUploadError(null);
     setUploading(true);
     try {
-      const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase();
-      const path = `${reading.user_id}/${reading.id}/${crypto.randomUUID()}.${ext}`;
+      // Compress before upload — keeps the bucket lean and uploads fast.
+      const compressed = await compressImage(file, 1200, 0.8);
+      const path = `${reading.user_id}/${reading.id}/${crypto.randomUUID()}.jpg`;
       const { error: upErr } = await supabase.storage
         .from("reading-photos")
-        .upload(path, file, {
+        .upload(path, compressed, {
           cacheControl: "3600",
           upsert: false,
-          contentType: file.type,
+          contentType: "image/jpeg",
         });
       if (upErr) throw upErr;
       const { data: row, error: insErr } = await supabase
@@ -394,14 +401,17 @@ export function EnrichmentPanel({
 
   const anySaving =
     noteSave.state === "saving" ||
+    noteSaveDebounced.state === "saving" ||
     tagsSave.state === "saving" ||
     favSave.state === "saving";
   const anySaved =
     noteSave.state === "saved" ||
+    noteSaveDebounced.state === "saved" ||
     tagsSave.state === "saved" ||
     favSave.state === "saved";
   const anyError =
     noteSave.state === "error" ||
+    noteSaveDebounced.state === "error" ||
     tagsSave.state === "error" ||
     favSave.state === "error";
 
@@ -498,12 +508,14 @@ export function EnrichmentPanel({
             placeholder={
               isOracle ? "What stirs within you…" : "Add a note…"
             }
-            className="w-full resize-none bg-transparent font-display text-[15px] italic text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+            className="w-full resize-none rounded-md font-display text-[15px] italic text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
             style={{
-              borderBottom:
-                "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+              background: "color-mix(in oklch, var(--gold) 5%, transparent)",
+              borderLeft:
+                "2px solid color-mix(in oklch, var(--gold) 30%, transparent)",
               opacity: "var(--ro-plus-40)",
-              padding: "8px 2px",
+              padding: "12px 16px",
+              minHeight: 120,
             }}
           />
         </div>
