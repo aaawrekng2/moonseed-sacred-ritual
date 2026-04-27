@@ -247,6 +247,7 @@ export type Database = {
           premium_tier: string | null
           premium_warning_sent_at: string | null
           reading_font_size: number
+          remembered_question: string | null
           resting_opacity: number
           rising_sign: string | null
           saved_themes: Json
@@ -292,6 +293,7 @@ export type Database = {
           premium_tier?: string | null
           premium_warning_sent_at?: string | null
           reading_font_size?: number
+          remembered_question?: string | null
           resting_opacity?: number
           rising_sign?: string | null
           saved_themes?: Json
@@ -337,6 +339,7 @@ export type Database = {
           premium_tier?: string | null
           premium_warning_sent_at?: string | null
           reading_font_size?: number
+          remembered_question?: string | null
           resting_opacity?: number
           rising_sign?: string | null
           saved_themes?: Json
