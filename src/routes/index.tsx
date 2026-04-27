@@ -83,7 +83,7 @@ function Index() {
 
   return (
     <main
-      className="relative flex h-[100dvh] flex-col overflow-hidden bg-cosmos pb-24"
+      className="relative flex h-[100dvh] flex-col overflow-hidden bg-cosmos"
       style={{
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 4px)",
       }}
