@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Heart, Search, X } from "lucide-react";
+import { Heart, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useOracleMode } from "@/lib/use-oracle-mode";
@@ -8,6 +8,7 @@ import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import { getGuideById } from "@/lib/guides";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { cn } from "@/lib/utils";
+import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import {
   EnrichmentPanel,
   type EnrichmentTag,
@@ -792,6 +793,10 @@ function ReadingDetail({
     return () => window.removeEventListener("keydown", h);
   }, [onClose]);
 
+  // The floating ··· menu's X icon closes the overlay; we no longer
+  // render a standalone close button inside the dialog.
+  useRegisterCloseHandler(onClose);
+
   return (
     <div
       role="dialog"
@@ -800,17 +805,6 @@ function ReadingDetail({
       className="bg-cosmos fixed inset-0 z-50 overflow-y-auto"
     >
       <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+56px)]">
-        {/* Manual close button — also wired into the floating menu in pass 2. */}
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close reading"
-          className="absolute right-4 top-[calc(env(safe-area-inset-top,0px)+12px)] flex h-10 w-10 items-center justify-center rounded-full text-gold transition-colors hover:bg-gold/10"
-          style={{ opacity: "var(--ro-plus-30)" }}
-        >
-          <X size={18} strokeWidth={1.5} />
-        </button>
-
         <header>
           <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
             <span style={{ opacity: "var(--ro-plus-30)" }}>
