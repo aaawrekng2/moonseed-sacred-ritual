@@ -254,6 +254,34 @@ function QuestionBox({
       <label htmlFor="seeker-question" className="sr-only">
         Your question for the cards
       </label>
+      {/* Floating visible label — purely decorative; the sr-only
+          <label> above remains the accessible name for the field.
+          Sits over the top border of the textarea and fades / slides
+          in only when the field is focused or has content. */}
+      <span
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          top: -8,
+          left: 14,
+          padding: "0 6px",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: 11,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: "var(--gold)",
+          background: "var(--background)",
+          opacity: focused || value ? "var(--ro-plus-40)" : 0,
+          transform: `translateY(${focused || value ? "0" : "4px"})`,
+          transition:
+            "opacity 250ms ease, transform 250ms ease, color 200ms ease",
+          pointerEvents: "none",
+          zIndex: 1,
+        }}
+      >
+        Your question
+      </span>
       <textarea
         id="seeker-question"
         ref={(el) => {
