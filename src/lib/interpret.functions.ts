@@ -5,9 +5,6 @@ import { SPREAD_META, isValidSpreadMode } from "@/lib/spreads";
 import { getCardName } from "@/lib/tarot";
 import { buildGuideSystemPrompt } from "@/lib/guides";
 
-/** Maximum readings any single non-premium user may create in a UTC day. */
-const DAILY_LIMIT = 1;
-
 /**
  * Map a Lens id (UI-facing kebab-case) to the snapshot_type column value
  * (snake_case) used in `memory_snapshots`. Anything unknown falls through
@@ -110,34 +107,9 @@ export const interpretReading = createServerFn({ method: "POST" })
       const meta = SPREAD_META[spread];
       console.log("[interpretReading] start", { userId, spread, picks: data.picks.length });
 
-      // 1. Enforce the 3/day UTC limit using the user's own RLS-scoped client.
-      const startOfDay = new Date();
-      startOfDay.setUTCHours(0, 0, 0, 0);
-
-      if (!data.allowOverride) {
-        const { count, error: countErr } = await supabase
-          .from("readings")
-          .select("*", { count: "exact", head: true })
-          .gte("created_at", startOfDay.toISOString());
-
-        if (countErr) {
-          console.error("[interpretReading] daily-count query failed", countErr);
-          return { ok: false, error: "internal", message: "Could not check daily quota." };
-        }
-        if ((count ?? 0) >= DAILY_LIMIT) {
-          console.log("[interpretReading] daily limit reached", { count });
-          return {
-            ok: false,
-            error: "daily_limit_reached",
-            message:
-              DAILY_LIMIT === 1
-                ? "You have drawn your reading for today."
-                : `You have drawn your ${DAILY_LIMIT} readings for today.`,
-          };
-        }
-      } else {
-        console.log("[interpretReading] daily limit override active", { userId });
-      }
+      // Standard readings are unlimited for all users (free + premium).
+      // Only Deep Readings are gated (1 per dawn cycle for free users),
+      // enforced separately in interpret-deep-reading.
 
       // 2. Build the user prompt from the picks + spread metadata.
       const positionLabels: string[] =
