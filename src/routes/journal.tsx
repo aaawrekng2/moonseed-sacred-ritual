@@ -1305,3 +1305,152 @@ function ReadingDetail({
     </div>
   );
 }
+
+/* ---------- Filters panel (shared between mobile sheet + desktop sidebar) ---------- */
+
+function FiltersPanel({
+  topTags,
+  activeTags,
+  setActiveTags,
+  tagMode,
+  setTagMode,
+  activeDrawTypes,
+  setActiveDrawTypes,
+  onClearAll,
+}: {
+  topTags: TagRow[];
+  activeTags: string[];
+  setActiveTags: React.Dispatch<React.SetStateAction<string[]>>;
+  tagMode: TagMode;
+  setTagMode: React.Dispatch<React.SetStateAction<TagMode>>;
+  activeDrawTypes: DrawTypeKey[];
+  setActiveDrawTypes: React.Dispatch<React.SetStateAction<DrawTypeKey[]>>;
+  onClearAll: () => void;
+}) {
+  const hasAny = activeTags.length > 0 || activeDrawTypes.length > 0;
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Tags */}
+      {topTags.length > 0 && (
+        <section>
+          <h3
+            className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2"
+            style={{ opacity: "var(--ro-plus-20)" }}
+          >
+            Tags
+          </h3>
+          <div className="flex flex-wrap gap-x-3 gap-y-2">
+            {topTags.map((t) => {
+              const active = activeTags.includes(t.name);
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() =>
+                    setActiveTags((prev) =>
+                      prev.includes(t.name)
+                        ? prev.filter((x) => x !== t.name)
+                        : [...prev, t.name],
+                    )
+                  }
+                  className="font-display text-[13px] italic text-gold transition-opacity"
+                  style={{
+                    opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
+                    borderBottom: active
+                      ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                      : "1px solid transparent",
+                    paddingBottom: 2,
+                  }}
+                >
+                  {t.name}
+                  {active && <span className="ml-1 text-[10px]">×</span>}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {activeTags.length >= 2 && (
+        <section>
+          <h3
+            className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2"
+            style={{ opacity: "var(--ro-plus-20)" }}
+          >
+            Match
+          </h3>
+          <div className="flex items-center gap-3">
+            {(["any", "all"] as const).map((m) => {
+              const active = tagMode === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setTagMode(m)}
+                  className="font-display text-[12px] italic text-gold transition-opacity"
+                  style={{
+                    opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-10)",
+                    borderBottom: active
+                      ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                      : "1px solid transparent",
+                    paddingBottom: 2,
+                  }}
+                >
+                  {m === "any" ? "Any tag" : "All tags"}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <section>
+        <h3
+          className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2"
+          style={{ opacity: "var(--ro-plus-20)" }}
+        >
+          Draw type
+        </h3>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {DRAW_TYPE_KEYS.map((k) => {
+            const active = activeDrawTypes.includes(k);
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() =>
+                  setActiveDrawTypes((prev) =>
+                    prev.includes(k)
+                      ? prev.filter((x) => x !== k)
+                      : [...prev, k],
+                  )
+                }
+                className="font-display text-[12px] italic text-gold transition-opacity"
+                style={{
+                  opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
+                  borderBottom: active
+                    ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                    : "1px solid transparent",
+                  paddingBottom: 2,
+                }}
+              >
+                {DRAW_TYPE_LABEL[k]}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {hasAny && (
+        <button
+          type="button"
+          onClick={onClearAll}
+          className="self-start font-display text-[11px] italic text-muted-foreground underline-offset-2 hover:underline"
+          style={{ opacity: "var(--ro-plus-30)" }}
+        >
+          Clear all
+        </button>
+      )}
+    </div>
+  );
+}
