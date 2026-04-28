@@ -474,7 +474,7 @@ function JournalPage() {
         <button
           type="button"
           onClick={() => setFiltersOpen(true)}
-          className="lg:hidden inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-[12px] italic text-gold transition-opacity"
+          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-[12px] italic text-gold transition-opacity"
           style={{
             border:
               "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
