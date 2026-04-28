@@ -16,7 +16,9 @@ const LS_KEY = "moonseed:reading-font-size";
 // the Settings screen body text. The slider still spans 12-20.
 export const READING_FONT_DEFAULT = 17;
 export const READING_FONT_MIN = 12;
-export const READING_FONT_MAX = 20;
+// Bumped 20 → 32 so seekers with accessibility needs (or larger desktop
+// displays) can dial body text up to a comfortable reading size.
+export const READING_FONT_MAX = 32;
 
 function clamp(n: number) {
   if (Number.isNaN(n)) return READING_FONT_DEFAULT;

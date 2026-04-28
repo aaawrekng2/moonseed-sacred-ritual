@@ -19,6 +19,7 @@ import { t } from "@/lib/oracle-language";
 import {
   useRegisterCloseHandler,
   useRegisterHelpHandler,
+  useRegisterTabletopActive,
 } from "@/lib/floating-menu-context";
 import {
   AlertDialog,
@@ -1156,6 +1157,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   useRegisterHelpHandler(
     spread === "celtic" ? () => setCelticHelpOpen(true) : null,
   );
+
+  // Hide the global BottomNav (and the floating quill in /draw) while
+  // the seeker is on the table choosing cards. Both reappear once the
+  // table unmounts (cast / reading phases) or the route changes.
+  useRegisterTabletopActive(true);
 
   // Mirror current cards + undo/redo stacks into the cross-route
   // session store on every change. This is what makes the session

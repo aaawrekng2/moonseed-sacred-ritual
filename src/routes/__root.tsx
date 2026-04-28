@@ -1,5 +1,5 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts, useLocation } from "@tanstack/react-router";
-import { useLayoutEffect } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 
 import appCss from "../styles.css?url";
 import { BottomNav } from "@/components/nav/BottomNav";
@@ -13,6 +13,7 @@ import { FloatingMenu } from "@/components/nav/FloatingMenu";
 import { FloatingMenuProvider } from "@/lib/floating-menu-context";
 import { useThemeFontSync } from "@/lib/use-theme-font-sync";
 import { Toaster } from "@/components/ui/sonner";
+import { useFloatingMenu } from "@/lib/floating-menu-context";
 
 /**
  * Read the persisted resting opacity from localStorage and apply it to
@@ -141,7 +142,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var v=localStorage.getItem('moonseed:reading-font-size');var n=v?Math.max(12,Math.min(20,Math.round(Number(v)))):17;document.documentElement.style.setProperty('--reading-font-size',n+'px');}catch(e){}",
+              "try{var v=localStorage.getItem('moonseed:reading-font-size');var n=v?Math.max(12,Math.min(32,Math.round(Number(v)))):17;document.documentElement.style.setProperty('--reading-font-size',n+'px');}catch(e){}",
           }}
         />
         {/*
@@ -187,11 +188,14 @@ function RootComponent() {
   useTapToPeek();
   // Register the PWA service worker so Moonseed installs to home screen.
   usePWA();
-  // Bottom nav is now visible everywhere — including during the draw and
-  // reading flow — so the seeker can always reach Home / Journal /
-  // Settings without backing out of a reading.
-  const hideChrome = false;
   void location;
+  // Render the sonner Toaster only after mount. Sonner injects a DOM
+  // node that is not present in the SSR markup, which caused a hard
+  // hydration mismatch ("server rendered HTML didn't match the client").
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   return (
     <OracleModeProvider>
       <FloatingMenuProvider>
@@ -210,10 +214,23 @@ function RootComponent() {
           <FloatingMenu />
           <RestingOpacityReadout />
           <Outlet />
-          {!hideChrome && <BottomNav />}
-          <Toaster />
+          <BottomNavGate />
+          {mounted && <Toaster />}
         </div>
       </FloatingMenuProvider>
     </OracleModeProvider>
   );
+}
+
+/**
+ * Bottom nav gate — hides the global BottomNav while the seeker is on
+ * the draw table choosing cards. Visibility is driven by a flag the
+ * Tabletop component publishes on the FloatingMenu context. The nav
+ * reappears the moment the table unmounts (cast / reading phases) or
+ * the seeker leaves the /draw flow entirely.
+ */
+function BottomNavGate() {
+  const { tabletopActive } = useFloatingMenu();
+  if (tabletopActive) return null;
+  return <BottomNav />;
 }

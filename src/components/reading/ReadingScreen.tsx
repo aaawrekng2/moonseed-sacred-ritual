@@ -350,7 +350,9 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
         className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5"
         style={{
           paddingTop: "calc(var(--topbar-pad) + 16px)",
-          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 96px)",
+          // Reserve enough room above the 64px BottomNav so the tear-off
+          // card, share button, and Done CTA are never clipped.
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 144px)",
         }}
       >
         {question && question.trim() && (
@@ -630,10 +632,12 @@ function CardStrip({
     h = Math.round(w * 1.75);
   }
 
-  // Position labels (Past / Present / Future) on the reveal screen
-  // were previously tiny — bump them so they're legible at a glance.
-  const labelFontSize = w < 60 ? 12 : 14;
-  const labelMaxWidth = Math.max(w + 14, 70);
+  // Position labels (Past / Present / Future) are the most important
+  // text on the reveal screen — bump them significantly so they read
+  // clearly at a glance. Keep them proportional to the card width on
+  // narrow phones so they don't overflow.
+  const labelFontSize = w < 80 ? 16 : w < 120 ? 18 : 20;
+  const labelMaxWidth = Math.max(w + 32, 110);
 
   return (
     <div
@@ -670,14 +674,16 @@ function CardStrip({
               fontSize: labelFontSize,
               color: "var(--gold)",
               opacity: showLabels ? labelOpacity : 0,
-              letterSpacing: "0.05em",
+              letterSpacing: "0.06em",
               maxWidth: labelMaxWidth,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
               textAlign: "center",
               transition: "opacity 250ms ease",
-              minHeight: 14,
+              minHeight: labelFontSize + 4,
+              marginTop: 6,
+              fontWeight: 500,
             }}
           >
             {positionLabels[i] ?? `Card ${i + 1}`}
