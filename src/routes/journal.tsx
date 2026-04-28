@@ -370,7 +370,7 @@ function JournalPage() {
   );
 
   return (
-    <div className="bg-cosmos relative flex h-dvh overflow-hidden">
+    <div className="bg-cosmos relative flex h-dvh">
       {/* Right-side flyout filter drawer — used on both mobile and
           desktop. The backdrop is pointer-events:none so the journal
           behind keeps scrolling; a small left-edge tap target closes
