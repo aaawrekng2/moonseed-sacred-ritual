@@ -23,6 +23,7 @@ import {
 import { DeepReadingMist } from "./DeepReadingMist";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { ShareButton } from "@/components/share/ShareButton";
+import { publishMistLevel } from "@/components/dev/DevOverlay";
 
 type Props = {
   readingId: string;
@@ -84,11 +85,11 @@ export function DeepReadingPanel({
         .order("created_at", { ascending: false })
         .limit(30);
       if (cancelled) return;
-      setMist(
-        computeMistIntensity(
-          (rows ?? []) as Array<{ card_ids: number[] | null }>,
-        ),
+      const next = computeMistIntensity(
+        (rows ?? []) as Array<{ card_ids: number[] | null }>,
       );
+      setMist(next);
+      publishMistLevel(next.level);
     })();
     return () => {
       cancelled = true;

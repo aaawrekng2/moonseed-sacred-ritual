@@ -527,7 +527,7 @@ function JournalPage() {
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               color: "var(--accent)",
-              opacity: 0.9,
+              opacity: 1,
               whiteSpace: "nowrap",
               background: "none",
               border: "none",
@@ -1649,8 +1649,8 @@ function FiltersPanel({
         <button
           type="button"
           onClick={onClearAll}
-          className="self-start font-display text-[11px] italic text-muted-foreground underline-offset-2 hover:underline"
-          style={{ opacity: "var(--ro-plus-30)" }}
+          className="self-start font-display text-[11px] italic underline-offset-2 hover:underline"
+          style={{ color: "var(--accent)", opacity: 1 }}
         >
           Clear all
         </button>
