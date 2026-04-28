@@ -184,9 +184,18 @@ function UsersTab({
     );
   });
 
+  type PrefPatch = Partial<{
+    is_premium: boolean;
+    subscription_type: SubType;
+    premium_since: string | null;
+    gifted_by: string | null;
+    role: Role;
+    admin_note: string | null;
+  }>;
+
   const updateRow = async (
     user_id: string,
-    patch: Record<string, unknown>,
+    patch: PrefPatch,
   ): Promise<void> => {
     const { error } = await supabase
       .from("user_preferences")
