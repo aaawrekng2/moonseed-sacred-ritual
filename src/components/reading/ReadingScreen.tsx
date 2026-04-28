@@ -381,7 +381,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
               style={{
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                fontSize: 11,
+                fontSize: "var(--text-caption)",
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 color: "var(--gold)",
@@ -999,7 +999,7 @@ function WhatGuideWillSee({
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
-            fontSize: 12,
+            fontSize: "var(--text-body-sm)",
             lineHeight: 1.7,
             color: "color-mix(in oklab, var(--foreground) 75%, transparent)",
           }}
@@ -1038,7 +1038,7 @@ function DisclosureRow({ label, value }: { label: string; value: string }) {
     <div className="flex gap-2 py-0.5">
       <span
         className="shrink-0 uppercase not-italic tracking-[0.18em] text-gold/70"
-        style={{ fontSize: 9, letterSpacing: "0.18em", lineHeight: 1.9 }}
+        style={{ fontSize: "var(--text-caption)", letterSpacing: "0.18em", lineHeight: 1.9 }}
       >
         {label}
       </span>
@@ -1135,7 +1135,7 @@ function ReadingBody({
               <span
                 className="font-display"
                 style={{
-                  fontSize: 14,
+                  fontSize: "var(--text-body)",
                   color: "var(--gold)",
                   letterSpacing: "0.04em",
                 }}
@@ -1145,7 +1145,7 @@ function ReadingBody({
               <span
                 className="font-display italic"
                 style={{
-                  fontSize: 16,
+                  fontSize: "var(--text-body)",
                   color: "var(--gold)",
                   opacity: 0.6,
                   letterSpacing: "0.18em",
@@ -1266,7 +1266,7 @@ function LimitMessage({
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 15.5,
+          fontSize: "var(--text-body)",
           lineHeight: 1.6,
           color: "color-mix(in oklab, var(--foreground) 85%, transparent)",
           maxWidth: 320,
@@ -1294,7 +1294,7 @@ function LimitMessage({
           padding: "4px 8px",
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 14,
+          fontSize: "var(--text-body)",
           color: "var(--gold)",
           opacity: "var(--ro-plus-10)",
           cursor: "pointer",
@@ -1322,7 +1322,7 @@ function ErrorMessage({
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 15.5,
+          fontSize: "var(--text-body)",
           lineHeight: 1.6,
           color: "color-mix(in oklab, var(--foreground) 85%, transparent)",
           maxWidth: 320,
@@ -1488,7 +1488,7 @@ function CopyTextLink({
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 14,
+          fontSize: "var(--text-body)",
           letterSpacing: "0.04em",
           opacity: "var(--ro-plus-20)",
           textShadow:

@@ -66,7 +66,7 @@ export function MoonFeaturesPage() {
         </h1>
         <p
           className="mt-3 text-foreground/60"
-          style={{ ...serif, fontStyle: "italic", fontSize: 15 }}
+          style={{ ...serif, fontStyle: "italic", fontSize: "var(--text-body)" }}
         >
           Deepen your practice. The cards remember.
         </p>
@@ -85,7 +85,7 @@ export function MoonFeaturesPage() {
               className="text-gold transition-opacity hover:opacity-80"
               style={{
                 ...serif,
-                fontSize: 22,
+                fontSize: "var(--text-heading-md)",
                 background: "none",
                 border: "none",
                 padding: 0,
@@ -96,7 +96,7 @@ export function MoonFeaturesPage() {
             </button>
             <p
               className="mt-3 text-foreground/45"
-              style={{ ...serif, fontStyle: "italic", fontSize: 12 }}
+              style={{ ...serif, fontStyle: "italic", fontSize: "var(--text-body-sm)" }}
             >
               No charge until your trial ends. Cancel any time.
             </p>
@@ -124,13 +124,13 @@ export function MoonFeaturesPage() {
                 >
                   <span
                     className="text-foreground/90"
-                    style={{ fontSize: 17 }}
+                    style={{ fontSize: "var(--text-body-lg)" }}
                   >
                     {p.label}
                     {p.note && (
                       <span
                         className="ml-2 text-foreground/50"
-                        style={{ fontStyle: "italic", fontSize: 12 }}
+                        style={{ fontStyle: "italic", fontSize: "var(--text-body-sm)" }}
                       >
                         {p.note}
                       </span>
@@ -138,7 +138,7 @@ export function MoonFeaturesPage() {
                   </span>
                   <span
                     className="text-foreground/65"
-                    style={{ fontSize: 14 }}
+                    style={{ fontSize: "var(--text-body)" }}
                   >
                     {p.price}
                   </span>
@@ -154,7 +154,7 @@ export function MoonFeaturesPage() {
               className="text-gold transition-opacity hover:opacity-80"
               style={{
                 ...serif,
-                fontSize: 19,
+                fontSize: "var(--text-body-lg)",
                 background: "none",
                 border: "none",
                 padding: 0,
@@ -172,7 +172,7 @@ export function MoonFeaturesPage() {
               style={{
                 ...serif,
                 fontStyle: "italic",
-                fontSize: 12,
+                fontSize: "var(--text-body-sm)",
                 color: "var(--foreground)",
                 opacity: 0.4,
                 background: "none",
@@ -202,7 +202,7 @@ export function MoonFeaturesPage() {
                 }}
                 style={{
                   ...serif,
-                  fontSize: 10,
+                  fontSize: "var(--text-caption)",
                   color: "var(--foreground)",
                   opacity: 0.18,
                   background: "none",
@@ -232,7 +232,7 @@ export function MoonFeaturesPage() {
             }}
             style={{
               ...serif,
-              fontSize: 10,
+              fontSize: "var(--text-caption)",
               color: "var(--foreground)",
               opacity: 0.18,
               background: "none",
@@ -263,7 +263,7 @@ function Unlocks() {
         <li
           key={t}
           className="text-foreground/75"
-          style={{ ...serif, fontSize: 16 }}
+          style={{ ...serif, fontSize: "var(--text-body)" }}
         >
           {t}
         </li>
@@ -278,14 +278,14 @@ function ActiveState({ premiumSince }: { premiumSince: string | null }) {
     <div className="mx-auto max-w-md text-center">
       <p
         className="text-foreground/85"
-        style={{ ...serif, fontSize: 18, fontStyle: "italic" }}
+        style={{ ...serif, fontSize: "var(--text-body-lg)", fontStyle: "italic" }}
       >
         Your Moon practice is active. Thank you for being here.
       </p>
       {since && (
         <p
           className="mt-4 text-foreground/50"
-          style={{ ...serif, fontSize: 13 }}
+          style={{ ...serif, fontSize: "var(--text-body-sm)" }}
         >
           Since{" "}
           {since.toLocaleDateString(undefined, {
@@ -302,7 +302,7 @@ function ActiveState({ premiumSince }: { premiumSince: string | null }) {
           className="text-gold transition-opacity hover:opacity-80"
           style={{
             ...serif,
-            fontSize: 14,
+            fontSize: "var(--text-body)",
             background: "none",
             border: "none",
             padding: 0,

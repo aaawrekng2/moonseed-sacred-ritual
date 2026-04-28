@@ -263,7 +263,7 @@ export function TearOffCard({
             style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: 18,
+              fontSize: "var(--text-body-lg)",
               color: "var(--gold)",
               letterSpacing: "0.06em",
             }}
@@ -433,7 +433,7 @@ function PresetGrid({
               <span
                 className="block w-full text-center"
                 style={{
-                  fontSize: 16,
+                  fontSize: "var(--text-body)",
                   letterSpacing: "0.06em",
                   lineHeight: 1.15,
                   color: active ? "var(--gold)" : "var(--muted-foreground)",
@@ -669,7 +669,7 @@ const CardArtwork = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          fontSize: 13,
+          fontSize: "var(--text-body-sm)",
           letterSpacing: "0.32em",
           textTransform: "uppercase",
           color: A,
@@ -698,7 +698,7 @@ const CardArtwork = ({
         <div style={{ marginBottom: 14, textAlign: "center" }}>
           <div
             style={{
-              fontSize: 13,
+              fontSize: "var(--text-body-sm)",
               letterSpacing: "0.28em",
               textTransform: "uppercase",
               color: A,
@@ -711,7 +711,7 @@ const CardArtwork = ({
           <div
             style={{
               fontStyle: "italic",
-              fontSize: 15,
+              fontSize: "var(--text-body)",
               lineHeight: 1.55,
               color: T,
               opacity: 0.92,
@@ -770,7 +770,7 @@ const CardArtwork = ({
               />
               <div
                 style={{
-                  fontSize: 14,
+                  fontSize: "var(--text-body)",
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
                   color: A,
@@ -784,7 +784,7 @@ const CardArtwork = ({
               </div>
               <div
                 style={{
-                  fontSize: 16,
+                  fontSize: "var(--text-body)",
                   fontStyle: "italic",
                   color: T,
                   opacity: 0.92,
@@ -813,7 +813,7 @@ const CardArtwork = ({
         <p
           style={{
             fontStyle: "italic",
-            fontSize: 17,
+            fontSize: "var(--text-body-lg)",
             lineHeight: 1.65,
             color: T,
             opacity: 0.94,
@@ -840,7 +840,7 @@ const CardArtwork = ({
             >
               <span
                 style={{
-                  fontSize: 16,
+                  fontSize: "var(--text-body)",
                   color: A,
                   letterSpacing: "0.04em",
                   fontWeight: 600,
@@ -850,7 +850,7 @@ const CardArtwork = ({
               </span>
               <span
                 style={{
-                  fontSize: 16,
+                  fontSize: "var(--text-body)",
                   color: A,
                   opacity: 0.7,
                   letterSpacing: "0.18em",
@@ -864,7 +864,7 @@ const CardArtwork = ({
             {p.interpretation && (
               <p
                 style={{
-                  fontSize: 16,
+                  fontSize: "var(--text-body)",
                   lineHeight: 1.55,
                   color: T,
                   opacity: 0.88,
@@ -882,7 +882,7 @@ const CardArtwork = ({
         <p
           style={{
             fontStyle: "italic",
-            fontSize: 13.5,
+            fontSize: "var(--text-body)",
             lineHeight: 1.6,
             color: T,
             opacity: 0.85,
@@ -910,7 +910,7 @@ const CardArtwork = ({
           flexDirection: "column",
           alignItems: "center",
           gap: 4,
-          fontSize: 12,
+          fontSize: "var(--text-body-sm)",
           letterSpacing: "0.22em",
           textTransform: "uppercase",
           color: A,

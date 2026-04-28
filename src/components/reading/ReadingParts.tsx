@@ -888,7 +888,7 @@ function WhatGuideWillSee({
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
-            fontSize: 12,
+            fontSize: "var(--text-body-sm)",
             lineHeight: 1.8,
             color: "color-mix(in oklab, var(--foreground) 78%, transparent)",
             whiteSpace: "pre-wrap",
@@ -1002,7 +1002,7 @@ function ReadingBody({
               <span
                 className="font-display"
                 style={{
-                  fontSize: 14,
+                  fontSize: "var(--text-body)",
                   color: "var(--gold)",
                   letterSpacing: "0.04em",
                 }}
@@ -1012,7 +1012,7 @@ function ReadingBody({
               <span
                 className="font-display italic"
                 style={{
-                  fontSize: 16,
+                  fontSize: "var(--text-body)",
                   color: "var(--gold)",
                   opacity: 0.6,
                   letterSpacing: "0.18em",
@@ -1135,7 +1135,7 @@ function LimitMessage({
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 15.5,
+          fontSize: "var(--text-body)",
           lineHeight: 1.6,
           color: "color-mix(in oklab, var(--foreground) 85%, transparent)",
           maxWidth: 320,
@@ -1161,7 +1161,7 @@ function LimitMessage({
           padding: "4px 8px",
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 12,
+          fontSize: "var(--text-body-sm)",
           color: "var(--gold)",
           opacity: "var(--ro-plus-10)",
           cursor: "pointer",
@@ -1189,7 +1189,7 @@ function ErrorMessage({
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 15.5,
+          fontSize: "var(--text-body)",
           lineHeight: 1.6,
           color: "color-mix(in oklab, var(--foreground) 85%, transparent)",
           maxWidth: 320,
@@ -1351,7 +1351,7 @@ function CopyTextLink({
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 14,
+          fontSize: "var(--text-body)",
           letterSpacing: "0.04em",
           opacity: "var(--ro-plus-20)",
           textShadow:

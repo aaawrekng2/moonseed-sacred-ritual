@@ -1877,7 +1877,7 @@ function SavedThemesSection() {
             onChange={(e) => setNameDraft(e.target.value)}
             maxLength={20}
             placeholder="Midnight Garden"
-            style={{ fontSize: 16 }}
+            style={{ fontSize: "var(--text-body)" }}
           />
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setNameDraft("")}>
@@ -2333,7 +2333,7 @@ function UnsavedChangesGuard() {
               onChange={(e) => setNameDraft(e.target.value)}
               maxLength={20}
               placeholder="Midnight Garden"
-              style={{ fontSize: 16 }}
+              style={{ fontSize: "var(--text-body)" }}
             />
             <div className="flex gap-2">
               <Button

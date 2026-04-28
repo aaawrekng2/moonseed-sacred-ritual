@@ -207,7 +207,7 @@ function Index() {
               style={{
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                fontSize: 13,
+                fontSize: "var(--text-body-sm)",
                 color: "var(--foreground)",
                 opacity: 0.45,
                 background: "none",
@@ -485,7 +485,7 @@ function QuestionBox({
           padding: "0 6px",
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 11,
+          fontSize: "var(--text-caption)",
           letterSpacing: "0.18em",
           textTransform: "uppercase",
           color: "var(--gold)",
@@ -527,7 +527,7 @@ function QuestionBox({
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 15,
+          fontSize: "var(--text-body)",
           lineHeight: 1.7,
           color: "var(--foreground)",
           opacity: focused || value ? "var(--ro-plus-40)" : "var(--ro-plus-20)",
@@ -550,7 +550,7 @@ function QuestionBox({
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
-            fontSize: 15,
+            fontSize: "var(--text-body)",
             lineHeight: 1.7,
             color: "var(--foreground)",
             opacity: "var(--ro-plus-20)",
@@ -580,7 +580,7 @@ function QuestionBox({
             color: "var(--gold)",
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
-            fontSize: 11,
+            fontSize: "var(--text-caption)",
             letterSpacing: "0.14em",
             textTransform: "uppercase",
             cursor: "pointer",
@@ -603,7 +603,7 @@ function QuestionBox({
             textAlign: "right",
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
-            fontSize: 11,
+            fontSize: "var(--text-caption)",
             letterSpacing: "0.05em",
             color:
               value.length >= QUESTION_MAX_LENGTH
@@ -624,7 +624,7 @@ function QuestionBox({
           className="flex items-center justify-center gap-3 pt-2"
           style={{
             fontFamily: "var(--font-serif)",
-            fontSize: 12,
+            fontSize: "var(--text-body-sm)",
             color: "var(--foreground)",
             opacity: "var(--ro-plus-20)",
           }}
@@ -647,7 +647,7 @@ function QuestionBox({
               padding: "2px 8px",
               borderRadius: 999,
               fontStyle: "normal",
-              fontSize: 10,
+              fontSize: "var(--text-caption)",
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               border: "1px solid",

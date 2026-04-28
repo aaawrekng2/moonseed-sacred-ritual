@@ -132,7 +132,7 @@ export function AuthScreen({
             style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: 11,
+              fontSize: "var(--text-caption)",
               letterSpacing: "0.2em",
               textTransform: "uppercase",
               color: "var(--gold)",
@@ -166,7 +166,7 @@ export function AuthScreen({
                 "1px solid color-mix(in oklab, var(--gold) 20%, transparent)",
               color: "var(--foreground)",
               fontFamily: "var(--font-serif)",
-              fontSize: 15,
+              fontSize: "var(--text-body)",
             }}
           />
           <div className="relative">
@@ -183,7 +183,7 @@ export function AuthScreen({
                   "1px solid color-mix(in oklab, var(--gold) 20%, transparent)",
                 color: "var(--foreground)",
                 fontFamily: "var(--font-serif)",
-                fontSize: 15,
+                fontSize: "var(--text-body)",
               }}
             />
             <button
@@ -214,7 +214,7 @@ export function AuthScreen({
                   }`,
                   color: "var(--foreground)",
                   fontFamily: "var(--font-serif)",
-                  fontSize: 15,
+                  fontSize: "var(--text-body)",
                 }}
               />
               <button
@@ -230,7 +230,7 @@ export function AuthScreen({
                 <p style={{
                   fontFamily: "var(--font-serif)",
                   fontStyle: "italic",
-                  fontSize: 11,
+                  fontSize: "var(--text-caption)",
                   color: "#f87171",
                   marginTop: 4,
                   paddingLeft: 4,
@@ -248,7 +248,7 @@ export function AuthScreen({
             style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: 13,
+              fontSize: "var(--text-body-sm)",
               color: "#f87171",
               textAlign: "center",
             }}
@@ -261,7 +261,7 @@ export function AuthScreen({
             style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: 13,
+              fontSize: "var(--text-body-sm)",
               color: "var(--gold)",
               textAlign: "center",
               opacity: 0.85,
@@ -292,7 +292,7 @@ export function AuthScreen({
                   style={{
                     fontFamily: "var(--font-serif)",
                     fontStyle: "italic",
-                    fontSize: 12,
+                    fontSize: "var(--text-body-sm)",
                     color: "var(--foreground)",
                     opacity: 0.85,
                     lineHeight: 1.5,
@@ -308,7 +308,7 @@ export function AuthScreen({
                   style={{
                     fontFamily: "var(--font-serif)",
                     fontStyle: "italic",
-                    fontSize: 12,
+                    fontSize: "var(--text-body-sm)",
                     color: "var(--gold)",
                     background: "none",
                     border: "none",
@@ -340,7 +340,7 @@ export function AuthScreen({
               color: "var(--gold)",
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: 14,
+              fontSize: "var(--text-body)",
               letterSpacing: "0.1em",
             }}
           >
@@ -360,7 +360,7 @@ export function AuthScreen({
             style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: 12,
+              fontSize: "var(--text-body-sm)",
               color: "var(--foreground)",
               opacity: 0.35,
               background: "none",

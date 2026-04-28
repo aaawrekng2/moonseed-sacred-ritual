@@ -718,7 +718,7 @@ function ReadingCard({
                 style={{
                   opacity: "var(--ro-plus-50)",
                   letterSpacing: 0,
-                  fontSize: 12,
+                  fontSize: "var(--text-body-sm)",
                 }}
                 aria-label="Deep reading"
               >
@@ -967,7 +967,7 @@ function ThreadsView({ threads }: { threads: ThreadRow[] }) {
           className="font-display italic text-gold"
           style={{
             fontFamily: "var(--font-serif)",
-            fontSize: 18,
+            fontSize: "var(--text-body-lg)",
             lineHeight: 1.5,
             opacity: "var(--ro-plus-30)",
           }}
@@ -978,7 +978,7 @@ function ThreadsView({ threads }: { threads: ThreadRow[] }) {
           className="font-display italic text-muted-foreground"
           style={{
             fontFamily: "var(--font-serif)",
-            fontSize: 13,
+            fontSize: "var(--text-body-sm)",
             lineHeight: 1.7,
             opacity: "var(--ro-plus-10)",
           }}
@@ -1028,7 +1028,7 @@ function ThreadsView({ threads }: { threads: ThreadRow[] }) {
             <p
               className="font-display italic"
               style={{
-                fontSize: 15,
+                fontSize: "var(--text-body)",
                 lineHeight: 1.55,
                 color: "color-mix(in oklab, var(--foreground) 88%, transparent)",
               }}
