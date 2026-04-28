@@ -545,7 +545,7 @@ export function MoonCarousel() {
                   // applied via SVG-friendly CSS filters. Recolors the moon
                   // body without affecting surrounding text.
                   filter: isGoldDay
-                    ? "sepia(0.55) saturate(2.4) hue-rotate(-8deg) brightness(1.05)"
+                    ? "sepia(1) saturate(4) hue-rotate(-12deg) brightness(1.15)"
                     : undefined,
                 }}
                 className={cn(
