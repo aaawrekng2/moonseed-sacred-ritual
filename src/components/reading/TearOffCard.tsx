@@ -593,8 +593,7 @@ const CardArtwork = ({
   closing,
   guideName,
   isOracle,
-  accent,
-  paper,
+  preset,
 }: {
   ref: React.Ref<HTMLDivElement>;
   question?: string;
@@ -608,16 +607,28 @@ const CardArtwork = ({
   closing: string;
   guideName: string;
   isOracle: boolean;
-  accent: AccentTheme;
-  paper: PaperTheme;
+  preset: Preset;
 }) => {
-  const A = accent.color;
-  const T = paper.text;
-  // Slightly larger card images for the 3-card spread; default smaller
-  // for single / yes_no / daily so the artwork doesn't feel sparse.
+  const A = preset.accent;
+  const T = preset.text;
+  const SURFACE = preset.surface;
   const isThree = spread === "three";
   const isCeltic = spread === "celtic";
-  const cardW = isThree ? 78 : 60;
+  // Card dimensions tuned to the keepsake card width (CARD_W = 380, with
+  // ~22px side padding → ~336 inner). For 3-card we now fill the full
+  // width with a small equal buffer so the cards feel substantial.
+  const INNER_W = 336;
+  let cardW: number;
+  if (isThree) {
+    // Three cards across with 10px gaps + 4px breathing buffer per side.
+    const gaps = 2 * 10;
+    const sideBuffer = 2 * 4;
+    cardW = Math.floor((INNER_W - gaps - sideBuffer) / 3); // ≈ 102
+  } else if (isCeltic) {
+    cardW = 0; // unused — celtic uses its own sizing
+  } else {
+    cardW = 96;
+  }
   const cardH = Math.round(cardW * 1.75);
   return (
     <div
