@@ -1156,12 +1156,11 @@ button:focus-visible .moon-rung-glow {
   height: 120px;
   margin-top: 16px;
   border-radius: 18px;
-  border: 1px solid color-mix(in oklab, var(--gold) 8%, transparent);
   background: transparent;
   overflow: hidden;
   cursor: pointer;
   isolation: isolate;
-  transition: opacity 800ms ease, border-color 600ms ease;
+  transition: opacity 800ms ease;
   -webkit-tap-highlight-color: transparent;
 }
 @media (min-width: 1024px) {
@@ -1169,8 +1168,6 @@ button:focus-visible .moon-rung-glow {
 }
 .deep-mist:focus-visible {
   outline: none;
-  border-color: color-mix(in oklab, var(--gold) 35%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--gold) 20%, transparent);
 }
 .deep-mist[data-disabled="true"] {
   cursor: default;
