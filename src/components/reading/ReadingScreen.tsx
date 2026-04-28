@@ -211,6 +211,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = sessionData.session?.user?.id;
         if (!uid) return;
+        const token = sessionData.session?.access_token;
         const interpretationText = buildCopyText({
           spreadLabel: meta.label,
           interpretation: loadedInterpretation,
@@ -261,7 +262,10 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
         });
         // Phase 7: fire-and-forget thread detection. Must NOT block or
         // surface errors to the reading UI.
-        void detectThreads({ data: { user_id: uid } }).catch((e: unknown) =>
+        void detectThreads({
+          data: { user_id: uid },
+          ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+        }).catch((e: unknown) =>
           console.warn("detect-threads failed silently:", e),
         );
         // Phase 7: also refresh the memory snapshot for the lens the
@@ -276,6 +280,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
               : "deeper_threads";
         void buildMemorySnapshot({
           data: { user_id: uid, snapshot_type: snapshotType },
+          ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
         }).catch((e: unknown) =>
           console.warn("build-memory-snapshot failed silently:", e),
         );
@@ -484,7 +489,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
           <button
             type="button"
             onClick={onExit}
-            className="reading-actions-fade-in mt-2 rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+            className="reading-actions-fade-in mt-2 bg-transparent px-2 py-2 font-display text-xs uppercase tracking-[0.3em] text-gold transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
           >
             Done
           </button>
@@ -1279,7 +1284,7 @@ function LimitMessage({
           padding: "4px 8px",
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 12,
+          fontSize: 14,
           color: "var(--gold)",
           opacity: "var(--ro-plus-10)",
           cursor: "pointer",

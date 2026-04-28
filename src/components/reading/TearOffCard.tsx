@@ -15,9 +15,10 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Image as ImageIcon, Loader2, Share2 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
@@ -247,10 +248,16 @@ export function TearOffCard({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-[420px] overflow-hidden border-gold/30 bg-cosmos p-0 sm:max-w-[460px]"
-        style={{ borderRadius: 18 }}
-      >
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay
+          className={cn(
+            "fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          )}
+        />
+        <DialogPrimitive.Content
+          className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-[420px] translate-x-[-50%] translate-y-[-50%] gap-4 overflow-hidden border border-gold/30 bg-cosmos p-0 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:max-w-[460px]"
+          style={{ borderRadius: 18 }}
+        >
         <DialogHeader className="px-5 pt-5">
           <DialogTitle
             style={{
@@ -329,7 +336,8 @@ export function TearOffCard({
             </div>
           )}
         </div>
-      </DialogContent>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
     </Dialog>
   );
 }

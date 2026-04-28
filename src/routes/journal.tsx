@@ -507,7 +507,7 @@ function JournalPage() {
       {/* Compact filter row — Filter button (mobile only — sidebar covers
           desktop) plus the active-date chip. The full filter UI lives in
           either the bottom sheet or the desktop sidebar. */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="mt-1 mb-1 flex flex-wrap items-center gap-x-3 gap-y-1" style={{ paddingTop: 4, paddingBottom: 4 }}>
         {/* Inline summary of active filters — visible on all sizes so the
             seeker always sees what's narrowing their results. */}
         {(activeTags.length > 0 || activeDrawTypes.length > 0) && (
