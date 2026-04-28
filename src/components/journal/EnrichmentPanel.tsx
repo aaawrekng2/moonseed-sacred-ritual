@@ -173,6 +173,27 @@ export function EnrichmentPanel({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Copy-to-clipboard transient state for the inline copy icon.
+  const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (copiedTimer.current) clearTimeout(copiedTimer.current);
+    },
+    [],
+  );
+  const handleCopy = useCallback(async () => {
+    if (!copyText) return;
+    try {
+      await navigator.clipboard.writeText(copyText);
+      setCopied(true);
+      if (copiedTimer.current) clearTimeout(copiedTimer.current);
+      copiedTimer.current = setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* noop — clipboard may be blocked */
+    }
+  }, [copyText]);
+
   // Re-sync local state ONLY when the parent swaps to a different reading
   // row. Re-running this effect on every note/tag/favorite change closes
   // the open section out from under the user mid-edit (Phase 7 bug 7).
