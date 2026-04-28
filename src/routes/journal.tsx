@@ -431,7 +431,7 @@ function JournalPage() {
       {/* Sticky header — title, search, filter button, tab row.
           Stays pinned while the body below scrolls. */}
       <div
-        className="sticky top-0 z-30 -mx-5 px-5 pt-[calc(env(safe-area-inset-top,0px)+72px)]"
+        className="sticky top-0 z-30 -mx-5 px-5 pt-[calc(env(safe-area-inset-top,0px)+12px)]"
         style={{
           background:
             "linear-gradient(to bottom, oklch(0.10 0.03 280) 92%, transparent)",
@@ -447,7 +447,7 @@ function JournalPage() {
         </h1>
 
       {/* Search */}
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-2 flex items-center gap-2">
         <Search
           size={14}
           strokeWidth={1.5}
