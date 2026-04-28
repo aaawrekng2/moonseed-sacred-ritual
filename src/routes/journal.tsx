@@ -603,6 +603,7 @@ function JournalPage() {
         />
       )}
     </main>
+    </div>
   );
 }
 
