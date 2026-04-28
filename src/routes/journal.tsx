@@ -14,6 +14,7 @@ import {
   EnrichmentPanel,
   type EnrichmentTag,
 } from "@/components/journal/EnrichmentPanel";
+import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 
 export const Route = createFileRoute("/journal")({
   head: () => ({
