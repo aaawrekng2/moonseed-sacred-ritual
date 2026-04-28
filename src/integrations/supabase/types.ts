@@ -125,11 +125,15 @@ export type Database = {
         Row: {
           card_ids: number[]
           created_at: string
+          dawn_cycle_date: string | null
+          deep_reading_lenses: Json | null
           guide_id: string | null
           id: string
           interpretation: string | null
+          is_deep_reading: boolean
           is_favorite: boolean
           lens_id: string | null
+          mirror_saved: boolean
           mode: string
           moon_phase: string | null
           note: string | null
@@ -141,11 +145,15 @@ export type Database = {
         Insert: {
           card_ids: number[]
           created_at?: string
+          dawn_cycle_date?: string | null
+          deep_reading_lenses?: Json | null
           guide_id?: string | null
           id?: string
           interpretation?: string | null
+          is_deep_reading?: boolean
           is_favorite?: boolean
           lens_id?: string | null
+          mirror_saved?: boolean
           mode?: string
           moon_phase?: string | null
           note?: string | null
@@ -157,11 +165,15 @@ export type Database = {
         Update: {
           card_ids?: number[]
           created_at?: string
+          dawn_cycle_date?: string | null
+          deep_reading_lenses?: Json | null
           guide_id?: string | null
           id?: string
           interpretation?: string | null
+          is_deep_reading?: boolean
           is_favorite?: boolean
           lens_id?: string | null
+          mirror_saved?: boolean
           mode?: string
           moon_phase?: string | null
           note?: string | null
@@ -217,6 +229,7 @@ export type Database = {
           accent_color: string | null
           active_guide_id: string | null
           active_theme_slot: number | null
+          archive_deepening_unlocked: boolean
           bg_gradient_from: string | null
           bg_gradient_to: string | null
           birth_date: string | null
@@ -263,6 +276,7 @@ export type Database = {
           accent_color?: string | null
           active_guide_id?: string | null
           active_theme_slot?: number | null
+          archive_deepening_unlocked?: boolean
           bg_gradient_from?: string | null
           bg_gradient_to?: string | null
           birth_date?: string | null
@@ -309,6 +323,7 @@ export type Database = {
           accent_color?: string | null
           active_guide_id?: string | null
           active_theme_slot?: number | null
+          archive_deepening_unlocked?: boolean
           bg_gradient_from?: string | null
           bg_gradient_to?: string | null
           birth_date?: string | null

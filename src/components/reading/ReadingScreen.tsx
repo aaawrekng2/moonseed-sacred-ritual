@@ -42,6 +42,7 @@ import {
 } from "@/components/journal/EnrichmentPanel";
 import { SeekerQuestion } from "@/components/reading/ReadingParts";
 import { stripMarkdown } from "@/lib/strip-markdown";
+import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 
 type Pick = { id: number; cardIndex: number };
 
@@ -464,6 +465,14 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
                 onPhotoCountChange={handleEnrichPhotoCountChange}
               />
             )}
+          {savedReading && (
+            <DeepReadingPanel
+              readingId={savedReading.id}
+              guideId={guideId}
+              lensId={lensId}
+              facetIds={facetIds}
+            />
+          )}
           <ShareReadingButton
             text={copyText ?? ""}
             isOracle={isOracle}
