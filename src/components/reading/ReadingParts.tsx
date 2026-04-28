@@ -187,6 +187,7 @@ export function InlineReading({
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = sessionData.session?.user?.id;
         if (!uid) return;
+        const token = sessionData.session?.access_token;
         const interpretationText = buildCopyText({
           spreadLabel: meta.label,
           interpretation: loadedInterpretation,
@@ -235,7 +236,10 @@ export function InlineReading({
           is_favorite: data.is_favorite,
           tags: data.tags,
         });
-        void detectThreads({ data: { user_id: uid } }).catch((e: unknown) =>
+        void detectThreads({
+          data: { user_id: uid },
+          ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+        }).catch((e: unknown) =>
           console.warn("detect-threads failed silently:", e),
         );
         const snapshotType =
@@ -246,6 +250,7 @@ export function InlineReading({
               : "deeper_threads";
         void buildMemorySnapshot({
           data: { user_id: uid, snapshot_type: snapshotType },
+          ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
         }).catch((e: unknown) =>
           console.warn("build-memory-snapshot failed silently:", e),
         );
