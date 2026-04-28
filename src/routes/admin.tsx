@@ -1102,12 +1102,13 @@ function UsersTab({
                           title="Send password reset"
                           onClick={() =>
                             runAction("password_reset", () =>
-                              adminAction({
+                              authHeaders().then((headers) => adminAction({
                                 data: {
                                   type: "password_reset",
                                   targetUserId: u.user_id,
                                 },
-                              }),
+                                headers,
+                              })),
                             )
                           }
                           disabled={busy !== null || !u.email}
@@ -1134,12 +1135,13 @@ function UsersTab({
                           onClick={() => {
                             if (!window.confirm(`Revoke premium for ${u.email ?? u.user_id}?`)) return;
                             void runAction("revoke_premium", () =>
-                              adminAction({
+                              authHeaders().then((headers) => adminAction({
                                 data: {
                                   type: "revoke_premium",
                                   targetUserId: u.user_id,
                                 },
-                              }),
+                                headers,
+                              })),
                             );
                           }}
                         >
@@ -1156,13 +1158,14 @@ function UsersTab({
                           }
                           onClick={() =>
                             runAction("assign_admin", () =>
-                              adminAction({
+                              authHeaders().then((headers) => adminAction({
                                 data: {
                                   type: "assign_admin",
                                   targetUserId: u.user_id,
                                   role: "admin",
                                 },
-                              }),
+                                headers,
+                              })),
                             )
                           }
                         >
@@ -1179,12 +1182,13 @@ function UsersTab({
                           onClick={() => {
                             if (!window.confirm(`Remove admin role from ${u.email ?? u.user_id}?`)) return;
                             void runAction("remove_admin", () =>
-                              adminAction({
+                              authHeaders().then((headers) => adminAction({
                                 data: {
                                   type: "remove_admin",
                                   targetUserId: u.user_id,
                                 },
-                              }),
+                                headers,
+                              })),
                             );
                           }}
                         >
@@ -1196,12 +1200,13 @@ function UsersTab({
                           onClick={() => {
                             if (!window.confirm(`Deactivate ${u.email ?? u.user_id}? This signs them out and prevents sign-in.`)) return;
                             void runAction("deactivate_user", () =>
-                              adminAction({
+                              authHeaders().then((headers) => adminAction({
                                 data: {
                                   type: "deactivate_user",
                                   targetUserId: u.user_id,
                                 },
-                              }),
+                                headers,
+                              })),
                             );
                           }}
                         >
