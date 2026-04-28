@@ -477,28 +477,21 @@ function JournalPage() {
               "1px solid color-mix(in oklab, var(--gold) 20%, transparent)",
           }}
         />
-      </div>
-
-      {/* Tag strip */}
-      {/* Compact filter row — Filter button (mobile only — sidebar covers
-          desktop) plus the active-date chip. The full filter UI lives in
-          either the bottom sheet or the desktop sidebar. */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
         <button
           type="button"
           onClick={() => setFiltersOpen(true)}
-          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-[12px] italic text-gold transition-opacity"
+          aria-label="Filter"
+          className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 font-display text-[12px] italic text-gold transition-opacity"
           style={{
             border:
               "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
             opacity: "var(--ro-plus-30)",
           }}
         >
-          <SlidersHorizontal size={12} strokeWidth={1.5} aria-hidden />
-          Filter
+          <SlidersHorizontal size={14} strokeWidth={1.5} aria-hidden />
           {activeFilterCount > 0 && (
             <span
-              className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[10px] tabular-nums leading-none"
+              className="inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[10px] tabular-nums leading-none"
               style={{
                 background: "var(--gold)",
                 color: "oklch(0.10 0.03 280)",
@@ -508,6 +501,13 @@ function JournalPage() {
             </span>
           )}
         </button>
+      </div>
+
+      {/* Tag strip */}
+      {/* Compact filter row — Filter button (mobile only — sidebar covers
+          desktop) plus the active-date chip. The full filter UI lives in
+          either the bottom sheet or the desktop sidebar. */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
         {/* Inline summary of active filters — visible on all sizes so the
             seeker always sees what's narrowing their results. */}
         {(activeTags.length > 0 || activeDrawTypes.length > 0) && (
