@@ -1032,8 +1032,6 @@ function ReadingBody({
           onClose={() => setShowSlider(false)}
         />
       )}
-
-      <CopyTextLink text={copyText} isOracle={isOracle} />
     </div>
   );
 }

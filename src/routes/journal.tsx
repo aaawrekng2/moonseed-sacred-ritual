@@ -14,6 +14,7 @@ import {
   EnrichmentPanel,
   type EnrichmentTag,
 } from "@/components/journal/EnrichmentPanel";
+import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 
 export const Route = createFileRoute("/journal")({
   head: () => ({
@@ -1403,7 +1404,19 @@ function ReadingDetail({
           }
           onTagLibraryChange={onTagLibraryChange}
           onPhotoCountChange={onPhotoCountChange}
+          copyText={reading.interpretation ?? undefined}
         />
+
+        {/* Phase 8: surface the Deep Reading mist (or completed lenses) so
+            the seeker can revisit/begin a deep reading from the journal
+            detail view, mirroring the live reading screen. */}
+        {!reading.is_deep_reading && (
+          <DeepReadingPanel
+            readingId={reading.id}
+            guideId={reading.guide_id ?? undefined}
+            lensId={reading.lens_id ?? undefined}
+          />
+        )}
       </div>
     </div>
   );

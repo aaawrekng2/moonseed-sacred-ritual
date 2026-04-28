@@ -10,7 +10,7 @@
  * "a gentle invitation, not a form" (per the Phase 6 spec).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Heart, Loader2, Plus, Tag as TagIcon, X } from "lucide-react";
+import { Camera, CheckCheck, Copy, Heart, Loader2, Plus, Tag as TagIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
@@ -55,6 +55,12 @@ type Props = {
    * gallery view's photo counts.
    */
   onPhotoCountChange: (readingId: string, count: number) => void;
+  /**
+   * Optional plaintext rendering of the reading's interpretation. When
+   * provided, a Copy icon renders alongside the other enrichment icons
+   * and writes this text to the clipboard on tap.
+   */
+  copyText?: string;
 };
 
 const SAVE_DELAY_MS = 800;
@@ -146,6 +152,7 @@ export function EnrichmentPanel({
   onReadingChange,
   onTagLibraryChange,
   onPhotoCountChange,
+  copyText,
 }: Props) {
   // Local mirrors of the reading fields so typing is responsive.
   const [note, setNote] = useState(reading.note ?? "");
@@ -165,6 +172,27 @@ export function EnrichmentPanel({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Copy-to-clipboard transient state for the inline copy icon.
+  const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (copiedTimer.current) clearTimeout(copiedTimer.current);
+    },
+    [],
+  );
+  const handleCopy = useCallback(async () => {
+    if (!copyText) return;
+    try {
+      await navigator.clipboard.writeText(copyText);
+      setCopied(true);
+      if (copiedTimer.current) clearTimeout(copiedTimer.current);
+      copiedTimer.current = setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* noop — clipboard may be blocked */
+    }
+  }, [copyText]);
 
   // Re-sync local state ONLY when the parent swaps to a different reading
   // row. Re-running this effect on every note/tag/favorite change closes
@@ -499,6 +527,19 @@ export function EnrichmentPanel({
               fill={favorite ? "currentColor" : "none"}
             />
           </IconAction>
+          {copyText && (
+            <IconAction
+              label={copied ? "Copied" : "Copy reading"}
+              active={copied}
+              onClick={() => void handleCopy()}
+            >
+              {copied ? (
+                <CheckCheck size={18} strokeWidth={1.5} />
+              ) : (
+                <Copy size={18} strokeWidth={1.5} />
+              )}
+            </IconAction>
+          )}
           <TextAction
             label="Note"
             active={hasNote}

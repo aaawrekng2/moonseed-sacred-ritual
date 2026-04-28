@@ -1472,7 +1472,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                         isNext && showLabels && "slot-next-label",
                       )}
                       style={{
-                        fontSize: required >= 10 ? (isMobile ? 8 : 9) : 10,
+                        fontSize: 18,
                         color: "var(--gold)",
                         opacity: showLabels ? (isNext ? undefined : restingAlpha) : 0,
                         letterSpacing: "0.05em",

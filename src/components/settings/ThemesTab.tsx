@@ -579,7 +579,7 @@ function LiveThemePreview() {
             }}
           />
           <div style={{ position: "relative", zIndex: 1 }}>
-            <CardBack id={cardBack} width={56} />
+            <CardBack id={cardBack} width={56} neutralBorder />
           </div>
           <p
             className="mt-2 italic"

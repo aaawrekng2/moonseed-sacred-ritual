@@ -463,6 +463,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
                 onReadingChange={handleEnrichReadingChange}
                 onTagLibraryChange={handleEnrichTagLibraryChange}
                 onPhotoCountChange={handleEnrichPhotoCountChange}
+                copyText={copyText ?? undefined}
               />
             )}
           {savedReading && (
@@ -1171,9 +1172,6 @@ function ReadingBody({
           onClose={() => setShowSlider(false)}
         />
       )}
-
-      {/* Bottom copy link — flowing text, not a pill. */}
-      <CopyTextLink text={copyText} isOracle={isOracle} />
     </div>
   );
 }
