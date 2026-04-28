@@ -157,6 +157,36 @@ export function MoonCarousel() {
     return d;
   }, [fullMoonPeak]);
 
+  // For each visible day, classify whether it should be tinted gold —
+  // the day-before, day-of, and day-after the next full-moon peak. Also
+  // determine which two adjacent visible days the peak moment falls
+  // between (the "seam"), so the marker can sit on that boundary.
+  //   - Peak hour < 6am (local): seam is between (peak-1) and peak.
+  //   - Otherwise: seam is between peak and (peak+1).
+  const seamLeftDate = useMemo<Date | null>(() => {
+    if (!fullMoonPeak || !peakDay) return null;
+    const beforeDawn = fullMoonPeak.getHours() < 6;
+    const seam = new Date(peakDay);
+    if (beforeDawn) seam.setDate(peakDay.getDate() - 1);
+    return seam;
+  }, [fullMoonPeak, peakDay]);
+
+  const goldDates = useMemo<Date[]>(() => {
+    if (!peakDay) return [];
+    const before = new Date(peakDay);
+    before.setDate(peakDay.getDate() - 1);
+    const after = new Date(peakDay);
+    after.setDate(peakDay.getDate() + 1);
+    return [before, peakDay, after];
+  }, [peakDay]);
+
+  // Refs to each rendered day cell so the seam marker can be positioned
+  // exactly on the boundary between two adjacent cards regardless of
+  // viewport / card width.
+  const cellRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const cardsRowRef = useRef<HTMLDivElement | null>(null);
+  const [markerLeft, setMarkerLeft] = useState<number | null>(null);
+
   // Pre-compute the phase ladder once at mount (and again if the user
   // taps the recompute/retry button). Stored in refs so taps on the
   // ladder don't trigger re-renders just to read the next occurrence.
