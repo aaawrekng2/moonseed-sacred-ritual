@@ -733,7 +733,9 @@ const CardArtwork = ({
             gap: 10,
             justifyContent: "center",
             marginBottom: 16,
-            flexWrap: "wrap",
+            flexWrap: "nowrap",
+            paddingLeft: 4,
+            paddingRight: 4,
           }}
         >
           {picks.map((p, i) => (
@@ -743,8 +745,9 @@ const CardArtwork = ({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: 5,
+                gap: 6,
                 maxWidth: cardW + 12,
+                flex: "0 0 auto",
               }}
             >
               <img
@@ -755,32 +758,33 @@ const CardArtwork = ({
                   width: cardW,
                   height: cardH,
                   objectFit: "cover",
-                  borderRadius: 5,
+                  borderRadius: 6,
                   border: `1px solid color-mix(in oklab, ${A} 35%, transparent)`,
                   boxShadow: `0 4px 14px -4px color-mix(in oklab, ${A} 25%, transparent)`,
                 }}
               />
               <div
                 style={{
-                  fontSize: 9,
+                  fontSize: 11,
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
                   color: A,
-                  opacity: 0.78,
+                  opacity: 0.92,
                   textAlign: "center",
-                  lineHeight: 1.2,
+                  lineHeight: 1.25,
+                  fontWeight: 600,
                 }}
               >
                 {positions[i]?.position ?? `Card ${i + 1}`}
               </div>
               <div
                 style={{
-                  fontSize: 11,
+                  fontSize: 13,
                   fontStyle: "italic",
                   color: T,
                   opacity: 0.92,
                   textAlign: "center",
-                  lineHeight: 1.25,
+                  lineHeight: 1.3,
                 }}
               >
                 {getCardName(p.cardIndex)}
@@ -804,7 +808,7 @@ const CardArtwork = ({
         <p
           style={{
             fontStyle: "italic",
-            fontSize: 12.5,
+            fontSize: 14,
             lineHeight: 1.65,
             color: T,
             opacity: 0.94,
@@ -831,7 +835,7 @@ const CardArtwork = ({
             >
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: 13,
                   color: A,
                   letterSpacing: "0.04em",
                   fontWeight: 600,
@@ -841,7 +845,7 @@ const CardArtwork = ({
               </span>
               <span
                 style={{
-                  fontSize: 8,
+                  fontSize: 10,
                   color: A,
                   opacity: 0.7,
                   letterSpacing: "0.18em",
@@ -855,7 +859,7 @@ const CardArtwork = ({
             {p.interpretation && (
               <p
                 style={{
-                  fontSize: 11.5,
+                  fontSize: 13,
                   lineHeight: 1.55,
                   color: T,
                   opacity: 0.88,
@@ -873,7 +877,7 @@ const CardArtwork = ({
         <p
           style={{
             fontStyle: "italic",
-            fontSize: 12,
+            fontSize: 13.5,
             lineHeight: 1.6,
             color: T,
             opacity: 0.85,
