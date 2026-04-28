@@ -37,6 +37,7 @@ import {
 } from "@/components/journal/EnrichmentPanel";
 import { TearOffCard } from "@/components/reading/TearOffCard";
 import { Scissors } from "lucide-react";
+import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 
 type Pick = { id: number; cardIndex: number };
 
@@ -91,6 +92,15 @@ export function InlineReading({
   const [tagLibrary, setTagLibrary] = useState<EnrichmentTag[]>([]);
   const savedReadingRef = useRef<typeof savedReading>(null);
   savedReadingRef.current = savedReading;
+
+  // Reset savedReading whenever a new reading begins. Without this,
+  // savedReadingRef.current stays set from the prior reading, causing
+  // the save effect to skip on the second reading in a session.
+  useEffect(() => {
+    if (state.kind === "idle" || state.kind === "loading") {
+      setSavedReading(null);
+    }
+  }, [state.kind]);
 
   const beginReading = useCallback(() => {
     if (state.kind !== "idle" && state.kind !== "error") return;
@@ -371,13 +381,25 @@ export function InlineReading({
               onReadingChange={handleEnrichReadingChange}
               onTagLibraryChange={handleEnrichTagLibraryChange}
               onPhotoCountChange={handleEnrichPhotoCountChange}
+              copyText={copyText ?? undefined}
+            />
+          )}
+          {(savedReading || (state.kind === "loaded" && state.readingId)) && (
+            <DeepReadingPanel
+              readingId={
+                savedReading?.id ??
+                (state.kind === "loaded" ? state.readingId ?? "" : "")
+              }
+              guideId={guideId}
+              lensId={lensId}
+              facetIds={facetIds}
             />
           )}
           <div className="reading-actions-fade-in mt-2 flex flex-wrap items-center justify-center gap-2">
             <button
               type="button"
               onClick={() => setTearOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-5 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+              className="inline-flex items-center gap-1.5 px-3 py-2 font-display text-xs uppercase tracking-[0.3em] text-gold transition-opacity hover:opacity-80 focus:outline-none focus-visible:underline"
               aria-label={isOracle ? "Tear off a keepsake" : "Tear off card"}
             >
               <Scissors size={13} strokeWidth={1.5} aria-hidden />
@@ -386,7 +408,7 @@ export function InlineReading({
             <button
               type="button"
               onClick={onExit}
-              className="rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+              className="px-3 py-2 font-display text-xs uppercase tracking-[0.3em] text-gold transition-opacity hover:opacity-80 focus:outline-none focus-visible:underline"
             >
               Done
             </button>
