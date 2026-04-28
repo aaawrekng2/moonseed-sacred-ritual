@@ -384,28 +384,53 @@ export function MoonCarousel() {
   // the pre-computed list. Each tap walks forward by one occurrence;
   // after the last we wrap to the first. Side-specific arrows still
   // step ±1 day.
-  const jumpToPhase = (phase: MoonPhaseName) => {
+  const jumpToPhase = (phase: MoonPhaseName, direction: "next" | "previous" = "next") => {
     const list = phaseOccurrencesRef.current.get(phase);
     if (!list || list.length === 0) return;
 
-    // Find the cursor's next position. If we have no cursor yet, start
-    // by finding the first occurrence at or after the currently viewed
-    // day so the very first tap lands on something the user can see is
-    // a step forward (not back to last week).
-    const stored = phaseCursorRef.current.get(phase);
+    // Compute the cursor relative to whichever occurrence the user is
+    // currently viewing (or closest to). This keeps left/right ladder
+    // taps symmetric: pressing right then left should always return to
+    // the previous occurrence, regardless of how the cursor was last set.
+    const dayMs = 24 * 60 * 60 * 1000;
+    const viewedMs = viewedDate.getTime();
+    // Index of the occurrence on (or nearest to) the viewed day.
+    let currentIdx = -1;
+    for (let i = 0; i < list.length; i++) {
+      if (Math.abs(list[i].getTime() - viewedMs) < dayMs / 2) {
+        currentIdx = i;
+        break;
+      }
+    }
+
     let nextIdx: number;
-    if (stored === undefined) {
-      const firstFromHere = list.findIndex((d) => d.getTime() > viewedDate.getTime());
-      nextIdx = firstFromHere === -1 ? 0 : firstFromHere;
+    if (direction === "next") {
+      if (currentIdx >= 0) {
+        nextIdx = (currentIdx + 1) % list.length;
+      } else {
+        const found = list.findIndex((d) => d.getTime() > viewedMs);
+        nextIdx = found === -1 ? 0 : found;
+      }
     } else {
-      nextIdx = (stored + 1) % list.length;
+      if (currentIdx >= 0) {
+        nextIdx = (currentIdx - 1 + list.length) % list.length;
+      } else {
+        // Last occurrence strictly before the viewed day.
+        let found = -1;
+        for (let i = list.length - 1; i >= 0; i--) {
+          if (list[i].getTime() < viewedMs) {
+            found = i;
+            break;
+          }
+        }
+        nextIdx = found === -1 ? list.length - 1 : found;
+      }
     }
     phaseCursorRef.current.set(phase, nextIdx);
 
     const targetDate = list[nextIdx];
     if (!targetDate) return;
     // Convert target absolute date back into an offset relative to today.
-    const dayMs = 24 * 60 * 60 * 1000;
     const deltaFromToday = Math.round((targetDate.getTime() - today.getTime()) / dayMs);
     setEnterDir(deltaFromToday >= offset ? "right" : "left");
     tweenOffsetTo(deltaFromToday);
