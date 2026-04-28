@@ -49,6 +49,9 @@ type ReadingRow = {
   note: string | null;
   is_favorite: boolean;
   tags: string[] | null;
+  is_deep_reading: boolean;
+  deep_reading_lenses: Record<string, string> | null;
+  mirror_saved: boolean;
 };
 
 type TagRow = { id: string; name: string; usage_count: number };
@@ -135,6 +138,7 @@ function JournalPage() {
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [tagMode, setTagMode] = useState<TagMode>("all");
   const [activeDrawTypes, setActiveDrawTypes] = useState<DrawTypeKey[]>([]);
+  const [deepOnly, setDeepOnly] = useState(false);
   // YYYY-MM-DD selected from the calendar view; null = no date filter.
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("readings");
@@ -155,7 +159,7 @@ function JournalPage() {
           supabase
             .from("readings")
             .select(
-              "id,user_id,spread_type,card_ids,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags",
+              "id,user_id,spread_type,card_ids,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved",
             )
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
@@ -235,6 +239,7 @@ function JournalPage() {
         if (!activeDrawTypes.includes(r.spread_type as DrawTypeKey))
           return false;
       }
+      if (deepOnly && !r.is_deep_reading) return false;
       if (activeDate) {
         const d = new Date(r.created_at);
         const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -257,7 +262,7 @@ function JournalPage() {
       }
       return true;
     });
-  }, [readings, search, activeTags, tagMode, activeDrawTypes, activeDate]);
+  }, [readings, search, activeTags, tagMode, activeDrawTypes, deepOnly, activeDate]);
 
   const galleryItems = useMemo(
     () => filtered.filter((r) => (photoCounts[r.id] ?? 0) > 0),
@@ -351,7 +356,7 @@ function JournalPage() {
   // which have their own UI affordances). Drives the badge on the mobile
   // "Filter" button.
   const activeFilterCount =
-    activeTags.length + activeDrawTypes.length;
+    activeTags.length + activeDrawTypes.length + (deepOnly ? 1 : 0);
 
   const filtersNode = (
     <FiltersPanel
@@ -362,9 +367,12 @@ function JournalPage() {
       setTagMode={setTagMode}
       activeDrawTypes={activeDrawTypes}
       setActiveDrawTypes={setActiveDrawTypes}
+      deepOnly={deepOnly}
+      setDeepOnly={setDeepOnly}
       onClearAll={() => {
         setActiveTags([]);
         setActiveDrawTypes([]);
+        setDeepOnly(false);
       }}
     />
   );
@@ -702,6 +710,20 @@ function ReadingCard({
             <span style={{ opacity: "var(--ro-plus-20)" }}>
               {relativeTime(reading.created_at)}
             </span>
+            {reading.is_deep_reading && (
+              <span
+                title="Deep reading"
+                className="text-gold"
+                style={{
+                  opacity: "var(--ro-plus-50)",
+                  letterSpacing: 0,
+                  fontSize: 12,
+                }}
+                aria-label="Deep reading"
+              >
+                ✦
+              </span>
+            )}
           </div>
           <div
             className="mt-1 flex items-center gap-2 font-display text-[12px] italic"
@@ -1319,6 +1341,46 @@ function ReadingDetail({
           </article>
         )}
 
+        {/* Deep reading lenses */}
+        {reading.is_deep_reading && reading.deep_reading_lenses && (
+          <section className="mx-auto mt-10 max-w-prose space-y-6">
+            <div
+              className="flex items-center gap-2 font-display text-[11px] uppercase tracking-[0.22em] text-gold"
+              style={{ opacity: "var(--ro-plus-30)" }}
+            >
+              <span aria-hidden>✦</span>
+              <span>Deep Reading</span>
+              {reading.mirror_saved && (
+                <span
+                  className="ml-2 text-[10px] italic normal-case tracking-normal"
+                  style={{ opacity: "var(--ro-plus-20)" }}
+                >
+                  · mirror saved
+                </span>
+              )}
+            </div>
+            {Object.entries(reading.deep_reading_lenses).map(([key, text]) => (
+              <div key={key}>
+                <h3
+                  className="font-display text-[12px] uppercase tracking-[0.2em] text-gold mb-1"
+                  style={{ opacity: "var(--ro-plus-30)" }}
+                >
+                  {key.replace(/[-_]/g, " ")}
+                </h3>
+                <p
+                  className="font-display text-[15px] italic leading-relaxed text-foreground"
+                  style={{
+                    opacity: "var(--ro-plus-30)",
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {text}
+                </p>
+              </div>
+            ))}
+          </section>
+        )}
+
         {/* Enrichment panel: note, tags, photos, favorite — with debounced
             auto-save. Lives below the interpretation per the spec. */}
         <EnrichmentPanel
@@ -1357,6 +1419,8 @@ function FiltersPanel({
   setTagMode,
   activeDrawTypes,
   setActiveDrawTypes,
+  deepOnly,
+  setDeepOnly,
   onClearAll,
 }: {
   topTags: TagRow[];
@@ -1366,11 +1430,39 @@ function FiltersPanel({
   setTagMode: React.Dispatch<React.SetStateAction<TagMode>>;
   activeDrawTypes: DrawTypeKey[];
   setActiveDrawTypes: React.Dispatch<React.SetStateAction<DrawTypeKey[]>>;
+  deepOnly: boolean;
+  setDeepOnly: React.Dispatch<React.SetStateAction<boolean>>;
   onClearAll: () => void;
 }) {
-  const hasAny = activeTags.length > 0 || activeDrawTypes.length > 0;
+  const hasAny =
+    activeTags.length > 0 || activeDrawTypes.length > 0 || deepOnly;
   return (
     <div className="flex flex-col gap-5">
+      {/* Deep readings toggle */}
+      <section>
+        <h3
+          className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2"
+          style={{ opacity: "var(--ro-plus-20)" }}
+        >
+          Depth
+        </h3>
+        <button
+          type="button"
+          onClick={() => setDeepOnly((v) => !v)}
+          className="font-display text-[13px] italic text-gold transition-opacity"
+          style={{
+            opacity: deepOnly ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
+            borderBottom: deepOnly
+              ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+              : "1px solid transparent",
+            paddingBottom: 2,
+          }}
+        >
+          ✦ Deep readings only
+          {deepOnly && <span className="ml-1 text-[10px]">×</span>}
+        </button>
+      </section>
+
       {/* Tags */}
       {topTags.length > 0 && (
         <section>
