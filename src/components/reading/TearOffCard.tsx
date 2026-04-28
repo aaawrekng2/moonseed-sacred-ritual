@@ -608,6 +608,7 @@ const CardArtwork = ({
   const A = preset.accent;
   const T = preset.text;
   const SURFACE = preset.surface;
+  void spreadLabel;
   const isThree = spread === "three";
   const isCeltic = spread === "celtic";
   // Card dimensions tuned to the keepsake card width (CARD_W = 380, with
