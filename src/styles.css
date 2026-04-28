@@ -997,3 +997,41 @@ button:focus-visible .moon-rung-glow {
 [data-clarity="1"] .clarity-hint { opacity: 1; }
 [data-clarity="2"] .clarity-hint { opacity: var(--ro-plus-10); }
 [data-clarity="3"] .clarity-hint { opacity: 0; pointer-events: none; }
+
+/* Custom scrollbar — thin, gold-tinted */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--gold) 30%, transparent);
+  border-radius: 999px;
+  transition: background 200ms ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--gold) 55%, transparent);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--gold) 30%, transparent) transparent;
+}
+
+/* Journal calendar — force a clean, legible sans-serif regardless of theme */
+.journal-calendar,
+.journal-calendar * {
+  font-family: ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "Inter", system-ui, sans-serif !important;
+}
+.journal-calendar-badge {
+  font-family: ui-rounded, -apple-system, BlinkMacSystemFont, "SF Pro Rounded", "Inter", system-ui, sans-serif !important;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 13px;
+  min-width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
