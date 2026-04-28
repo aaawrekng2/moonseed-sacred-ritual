@@ -1044,7 +1044,7 @@ button:focus-visible .moon-rung-glow {
 
 /* Journal filter drawer width — narrow on mobile, wider on desktop */
 :root {
-  --journal-drawer-w: min(220px, calc(100vw - 48px));
+  --journal-drawer-w: min(154px, calc(100vw - 48px));
 }
 @media (min-width: 1024px) {
   :root {

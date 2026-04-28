@@ -318,14 +318,6 @@ export function TearOffCard({
               disabled={busy !== null}
               onClick={() => void handlePdf()}
             />
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              aria-label="Close"
-              className="ml-1 inline-flex items-center justify-center rounded-full p-2 text-muted-foreground transition-colors hover:bg-gold/10 hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-            >
-              <X size={14} strokeWidth={1.5} />
-            </button>
           </div>
           {toast && (
             <div

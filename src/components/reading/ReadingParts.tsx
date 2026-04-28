@@ -985,7 +985,7 @@ function ReadingBody({
               <span
                 className="font-display italic"
                 style={{
-                  fontSize: 10,
+                  fontSize: 16,
                   color: "var(--gold)",
                   opacity: 0.6,
                   letterSpacing: "0.18em",
