@@ -528,7 +528,7 @@ function CardStrip({
     const card = (i: number) => (
       <div key={picks[i]?.id ?? i} className="flex flex-col items-center gap-1">
         <div
-          className="overflow-hidden rounded-[6px] border border-gold/40 bg-card"
+          className="overflow-hidden rounded-[6px] border border-white/10 bg-card"
           style={{ width: cw, height: ch, boxShadow: "0 4px 14px rgba(0,0,0,0.45)" }}
         >
           {picks[i] && (
@@ -575,14 +575,14 @@ function CardStrip({
             <div className="relative flex items-center justify-center" style={{ width: cw, height: ch }}>
               <div className="absolute inset-0 flex items-center justify-center">
                 {picks[0] && (
-                  <div className="overflow-hidden rounded-[6px] border border-gold/40 bg-card" style={{ width: cw, height: ch }}>
+                  <div className="overflow-hidden rounded-[6px] border border-white/10 bg-card" style={{ width: cw, height: ch }}>
                     <img src={getCardImagePath(picks[0].cardIndex)} alt={getCardName(picks[0].cardIndex)} className="h-full w-full object-cover" loading="eager" />
                   </div>
                 )}
               </div>
               <div className="absolute inset-0 flex items-center justify-center" style={{ transform: "rotate(90deg)" }}>
                 {picks[1] && (
-                  <div className="overflow-hidden rounded-[6px] border border-gold/40 bg-card" style={{ width: cw, height: ch }}>
+                  <div className="overflow-hidden rounded-[6px] border border-white/10 bg-card" style={{ width: cw, height: ch }}>
                     <img src={getCardImagePath(picks[1].cardIndex)} alt={getCardName(picks[1].cardIndex)} className="h-full w-full object-cover" loading="eager" />
                   </div>
                 )}
@@ -654,7 +654,7 @@ function CardStrip({
           className="flex flex-col items-center gap-1"
         >
           <div
-            className="overflow-hidden rounded-[6px] border border-gold/40 bg-card"
+            className="overflow-hidden rounded-[6px] border border-white/10 bg-card"
             style={{
               width: w,
               height: h,
