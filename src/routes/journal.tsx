@@ -11,12 +11,6 @@ import { cn } from "@/lib/utils";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
   EnrichmentPanel,
   type EnrichmentTag,
 } from "@/components/journal/EnrichmentPanel";
@@ -377,35 +371,51 @@ function JournalPage() {
 
   return (
     <div className="bg-cosmos relative flex h-dvh overflow-hidden">
-      {/* Desktop sidebar — filters always visible at lg+. */}
+      {/* Right-side flyout filter drawer — used on both mobile and
+          desktop. No backdrop / overlay; tapping outside closes it. */}
+      {filtersOpen && (
+        <button
+          type="button"
+          aria-label="Close filters"
+          onClick={() => setFiltersOpen(false)}
+          className="fixed inset-0 z-40 cursor-default bg-transparent"
+        />
+      )}
       <aside
-        className="hidden lg:flex h-full w-[280px] shrink-0 flex-col overflow-y-auto border-r px-5 pt-[calc(env(safe-area-inset-top,0px)+72px)] pb-28"
+        aria-hidden={!filtersOpen}
+        className="fixed right-0 top-0 z-50 flex h-dvh flex-col overflow-y-auto border-l shadow-2xl transition-transform duration-300 ease-out"
         style={{
+          width: "min(280px, calc(100vw - 48px))",
           borderColor:
-            "color-mix(in oklab, var(--gold) 10%, transparent)",
-          background: "color-mix(in oklab, oklch(0.08 0.03 280) 50%, transparent)",
+            "color-mix(in oklab, var(--gold) 18%, transparent)",
+          background: "oklch(0.08 0.03 280)",
+          paddingTop:
+            "calc(env(safe-area-inset-top,0px) + 72px)",
+          paddingBottom: "calc(env(safe-area-inset-bottom,0px) + 96px)",
+          paddingLeft: 20,
+          paddingRight: 20,
+          transform: filtersOpen ? "translateX(0)" : "translateX(100%)",
+          pointerEvents: filtersOpen ? "auto" : "none",
         }}
       >
-        <h2
-          className="font-display text-[11px] uppercase tracking-[0.22em] text-gold mb-4"
-          style={{ opacity: "var(--ro-plus-30)" }}
-        >
-          Filters
-        </h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2
+            className="font-display text-[11px] uppercase tracking-[0.22em] text-gold"
+            style={{ opacity: "var(--ro-plus-30)" }}
+          >
+            Filters
+          </h2>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen(false)}
+            aria-label="Close"
+            className="rounded-full p-1 text-muted-foreground hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          >
+            <XIcon size={16} strokeWidth={1.5} />
+          </button>
+        </div>
         {filtersNode}
       </aside>
-
-      {/* Mobile bottom sheet for filters. */}
-      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <SheetContent side="bottom" className="lg:hidden max-h-[80vh] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle className="font-display italic text-gold text-left">
-              Filters
-            </SheetTitle>
-          </SheetHeader>
-          <div className="mt-4">{filtersNode}</div>
-        </SheetContent>
-      </Sheet>
 
     <main className="relative h-dvh flex-1 overflow-y-auto px-5 pb-28">
       {/* Sticky header — title, search, filter button, tab row.
@@ -458,7 +468,7 @@ function JournalPage() {
         <button
           type="button"
           onClick={() => setFiltersOpen(true)}
-          className="lg:hidden inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-[12px] italic text-gold transition-opacity"
+          className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-[12px] italic text-gold transition-opacity"
           style={{
             border:
               "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
