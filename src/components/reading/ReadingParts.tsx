@@ -38,6 +38,7 @@ import {
 import { TearOffCard } from "@/components/reading/TearOffCard";
 import { Scissors } from "lucide-react";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
+import { ShareButton } from "@/components/share/ShareButton";
 
 type Pick = { id: number; cardIndex: number };
 
@@ -405,6 +406,14 @@ export function InlineReading({
               <Scissors size={13} strokeWidth={1.5} aria-hidden />
               {isOracle ? "Tear off keepsake" : "Tear off card"}
             </button>
+            {copyText && (
+              <ShareButton
+                text={copyText}
+                title="A reading from Moonseed"
+                preface="A reading from Moonseed:"
+                ariaLabel="Share reading"
+              />
+            )}
             <button
               type="button"
               onClick={onExit}

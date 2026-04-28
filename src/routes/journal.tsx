@@ -1349,17 +1349,38 @@ function ReadingDetail({
 
         {/* Deep reading lenses */}
         {reading.is_deep_reading && reading.deep_reading_lenses && (
-          <section className="mx-auto mt-10 max-w-prose space-y-6">
+          <section
+            className="mx-auto max-w-prose space-y-6"
+            style={{
+              marginTop: "var(--space-6)",
+              padding: "var(--space-5)",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid var(--border-subtle)",
+              background: "var(--surface-card)",
+            }}
+          >
             <div
-              className="flex items-center gap-2 font-display text-[11px] uppercase tracking-[0.22em] text-gold"
-              style={{ opacity: "var(--ro-plus-30)" }}
+              className="flex items-center gap-2"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-caption)",
+                letterSpacing: "0.22em",
+                textTransform: "uppercase",
+                color: "color-mix(in oklab, var(--color-foreground) 70%, transparent)",
+                opacity: "var(--ro-plus-30)",
+              }}
             >
-              <span aria-hidden>✦</span>
+              <span aria-hidden style={{ color: "var(--accent-color)" }}>
+                ✦
+              </span>
               <span>Deep Reading</span>
               {reading.mirror_saved && (
                 <span
-                  className="ml-2 text-[10px] italic normal-case tracking-normal"
-                  style={{ opacity: "var(--ro-plus-20)" }}
+                  className="ml-2 italic normal-case tracking-normal"
+                  style={{
+                    fontSize: "var(--text-caption)",
+                    opacity: "var(--ro-plus-20)",
+                  }}
                 >
                   · mirror saved
                 </span>
@@ -1368,14 +1389,19 @@ function ReadingDetail({
             {Object.entries(reading.deep_reading_lenses).map(([key, text]) => (
               <div key={key}>
                 <h3
-                  className="font-display text-[12px] uppercase tracking-[0.2em] text-gold mb-1"
-                  style={{ opacity: "var(--ro-plus-30)" }}
+                  className="font-display uppercase text-gold mb-1"
+                  style={{
+                    fontSize: "var(--text-caption)",
+                    letterSpacing: "0.2em",
+                    opacity: "var(--ro-plus-30)",
+                  }}
                 >
                   {key.replace(/[-_]/g, " ")}
                 </h3>
                 <p
-                  className="font-display text-[15px] italic leading-relaxed text-foreground"
+                  className="font-display italic leading-relaxed text-foreground"
                   style={{
+                    fontSize: "var(--text-body)",
                     opacity: "var(--ro-plus-30)",
                     whiteSpace: "pre-wrap",
                   }}

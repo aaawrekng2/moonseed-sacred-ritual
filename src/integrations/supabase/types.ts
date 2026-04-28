@@ -229,6 +229,7 @@ export type Database = {
           accent_color: string | null
           active_guide_id: string | null
           active_theme_slot: number | null
+          admin_note: string | null
           archive_deepening_unlocked: boolean
           bg_gradient_from: string | null
           bg_gradient_to: string | null
@@ -239,6 +240,7 @@ export type Database = {
           default_life_area: string
           default_spread: string
           display_name: string | null
+          gifted_by: string | null
           guide_facets: string[] | null
           guide_lens: string | null
           heading_font: string | null
@@ -263,9 +265,11 @@ export type Database = {
           remembered_question: string | null
           resting_opacity: number
           rising_sign: string | null
+          role: string
           saved_themes: Json
           show_labels: boolean
           show_reversals: boolean
+          subscription_type: string
           sun_sign: string | null
           ui_density: number
           updated_at: string
@@ -276,6 +280,7 @@ export type Database = {
           accent_color?: string | null
           active_guide_id?: string | null
           active_theme_slot?: number | null
+          admin_note?: string | null
           archive_deepening_unlocked?: boolean
           bg_gradient_from?: string | null
           bg_gradient_to?: string | null
@@ -286,6 +291,7 @@ export type Database = {
           default_life_area?: string
           default_spread?: string
           display_name?: string | null
+          gifted_by?: string | null
           guide_facets?: string[] | null
           guide_lens?: string | null
           heading_font?: string | null
@@ -310,9 +316,11 @@ export type Database = {
           remembered_question?: string | null
           resting_opacity?: number
           rising_sign?: string | null
+          role?: string
           saved_themes?: Json
           show_labels?: boolean
           show_reversals?: boolean
+          subscription_type?: string
           sun_sign?: string | null
           ui_density?: number
           updated_at?: string
@@ -323,6 +331,7 @@ export type Database = {
           accent_color?: string | null
           active_guide_id?: string | null
           active_theme_slot?: number | null
+          admin_note?: string | null
           archive_deepening_unlocked?: boolean
           bg_gradient_from?: string | null
           bg_gradient_to?: string | null
@@ -333,6 +342,7 @@ export type Database = {
           default_life_area?: string
           default_spread?: string
           display_name?: string | null
+          gifted_by?: string | null
           guide_facets?: string[] | null
           guide_lens?: string | null
           heading_font?: string | null
@@ -357,9 +367,11 @@ export type Database = {
           remembered_question?: string | null
           resting_opacity?: number
           rising_sign?: string | null
+          role?: string
           saved_themes?: Json
           show_labels?: boolean
           show_reversals?: boolean
+          subscription_type?: string
           sun_sign?: string | null
           ui_density?: number
           updated_at?: string
@@ -420,6 +432,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_admin_role: { Args: { _user_id: string }; Returns: boolean }
       seed_default_user_tags: { Args: { _user_id: string }; Returns: undefined }
     }
     Enums: {
