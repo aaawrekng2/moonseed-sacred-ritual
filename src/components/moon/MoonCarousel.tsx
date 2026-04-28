@@ -165,11 +165,25 @@ export function MoonCarousel() {
   //   - Otherwise: seam is between peak and (peak+1).
   const seamLeftDate = useMemo<Date | null>(() => {
     if (!fullMoonPeak || !peakDay) return null;
-    const beforeDawn = fullMoonPeak.getHours() < 6;
+    const hour = fullMoonPeak.getHours();
+    // Per spec:
+    //   00:00–11:59 → seam is on the LEFT border of the peak day card
+    //                  → between (peak-1) and peak → seamLeft = peak-1
+    //   12:00–23:59 → seam is on the RIGHT border of the peak day card
+    //                  → between peak and (peak+1) → seamLeft = peak
     const seam = new Date(peakDay);
-    if (beforeDawn) seam.setDate(peakDay.getDate() - 1);
+    if (hour < 12) seam.setDate(peakDay.getDate() - 1);
     return seam;
   }, [fullMoonPeak, peakDay]);
+
+  // Only display the marker for nighttime peaks (9 PM – 6 AM local).
+  // Daytime full moons aren't visible to the seeker, so the marker
+  // would be misleading.
+  const showMarker = useMemo<boolean>(() => {
+    if (!fullMoonPeak) return false;
+    const h = fullMoonPeak.getHours();
+    return h >= 21 || h < 6;
+  }, [fullMoonPeak]);
 
   const goldDates = useMemo<Date[]>(() => {
     if (!peakDay) return [];
@@ -589,7 +603,7 @@ export function MoonCarousel() {
               </div>
             );
           })}
-          {markerLeft !== null && fullMoonPeak && (
+          {markerLeft !== null && fullMoonPeak && showMarker && (
             <FullMoonMarker
               left={markerLeft}
               peak={fullMoonPeak}
