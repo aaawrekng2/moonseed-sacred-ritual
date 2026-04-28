@@ -26,6 +26,7 @@ export function MoonFeaturesPage() {
   const { user } = useAuth();
   const [isPremium, setIsPremium] = useState<boolean>(false);
   const [premiumSince, setPremiumSince] = useState<string | null>(null);
+  const [subscriptionType, setSubscriptionType] = useState<string>("none");
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<PlanKey>("12m");
 
@@ -35,12 +36,15 @@ export function MoonFeaturesPage() {
     void (async () => {
       const { data } = await supabase
         .from("user_preferences")
-        .select("is_premium, premium_since")
+        .select("is_premium, premium_since, subscription_type")
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
       setIsPremium(Boolean(data?.is_premium));
       setPremiumSince(data?.premium_since ?? null);
+      const st = (data as { subscription_type?: string } | null)
+        ?.subscription_type;
+      setSubscriptionType(st ?? "none");
       setLoaded(true);
     })();
     return () => {
@@ -73,7 +77,10 @@ export function MoonFeaturesPage() {
       </header>
 
       {isPremium ? (
-        <ActiveState premiumSince={premiumSince} />
+        <ActiveState
+          premiumSince={premiumSince}
+          subscriptionType={subscriptionType}
+        />
       ) : (
         <>
           <Unlocks />
@@ -272,46 +279,192 @@ function Unlocks() {
   );
 }
 
-function ActiveState({ premiumSince }: { premiumSince: string | null }) {
+function planLabel(subscriptionType: string): string {
+  switch (subscriptionType) {
+    case "stripe":
+      return "Stripe Monthly";
+    case "trial":
+      return "Trial";
+    case "gifted":
+      return "Gifted";
+    default:
+      return "Active";
+  }
+}
+
+function formatDate(d: Date): string {
+  return d.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function ActiveState({
+  premiumSince,
+  subscriptionType,
+}: {
+  premiumSince: string | null;
+  subscriptionType: string;
+}) {
   const since = premiumSince ? new Date(premiumSince) : null;
+  const isGifted = subscriptionType === "gifted";
+  const [confirming, setConfirming] = useState(false);
+
+  if (isGifted) {
+    return (
+      <div className="mx-auto max-w-md text-center">
+        <p
+          className="text-foreground/85"
+          style={{
+            ...serif,
+            fontSize: "var(--text-body-lg)",
+            fontStyle: "italic",
+          }}
+        >
+          Your Moon practice was gifted. Thank you for being here.
+        </p>
+        {since && (
+          <p
+            className="mt-4 text-foreground/50"
+            style={{ ...serif, fontSize: "var(--text-body-sm)" }}
+          >
+            Since {formatDate(since)}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // Until Stripe is wired we cannot compute a real next billing date.
+  // The cancel-confirmation copy uses a soft fallback so the message
+  // still makes sense.
+  const nextBillingPlaceholder = "—";
+  const amountPlaceholder = "—";
+
+  const handleCancel = () => {
+    console.log("[Subscriptions] Cancellation requested by user");
+    setConfirming(false);
+    if (typeof window !== "undefined") {
+      window.alert(
+        "Cancellation requested — we will be in touch.",
+      );
+    }
+  };
+
   return (
-    <div className="mx-auto max-w-md text-center">
+    <div className="mx-auto max-w-md">
       <p
-        className="text-foreground/85"
-        style={{ ...serif, fontSize: "var(--text-body-lg)", fontStyle: "italic" }}
+        className="text-center text-foreground/85"
+        style={{
+          ...serif,
+          fontSize: "var(--text-body-lg)",
+          fontStyle: "italic",
+        }}
       >
         Your Moon practice is active. Thank you for being here.
       </p>
-      {since && (
-        <p
-          className="mt-4 text-foreground/50"
-          style={{ ...serif, fontSize: "var(--text-body-sm)" }}
-        >
-          Since{" "}
-          {since.toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
-        </p>
-      )}
-      <div className="mt-10">
-        <button
-          type="button"
-          onClick={() => console.log("manage subscription tapped")}
-          className="text-gold transition-opacity hover:opacity-80"
-          style={{
-            ...serif,
-            fontSize: "var(--text-body)",
-            background: "none",
-            border: "none",
-            padding: 0,
-            cursor: "pointer",
-          }}
-        >
-          Manage subscription
-        </button>
+
+      <dl
+        className="mt-8 space-y-3"
+        style={{ ...serif, fontSize: "var(--text-body)" }}
+      >
+        <Row label="Plan" value={planLabel(subscriptionType)} />
+        <Row label="Started" value={since ? formatDate(since) : "—"} />
+        <Row label="Next billing" value={nextBillingPlaceholder} />
+        <Row label="Amount" value={amountPlaceholder} />
+      </dl>
+
+      <div className="mt-10 flex justify-center">
+        {!confirming ? (
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            className="text-gold transition-opacity hover:opacity-80"
+            style={{
+              ...serif,
+              fontSize: "var(--text-body)",
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+            }}
+          >
+            Cancel subscription
+          </button>
+        ) : (
+          <div className="flex flex-col items-center gap-4">
+            <p
+              className="text-center text-foreground/75"
+              style={{
+                ...serif,
+                fontStyle: "italic",
+                fontSize: "var(--text-body)",
+              }}
+            >
+              You will keep access until {nextBillingPlaceholder}. Continue?
+            </p>
+            <div className="flex items-center gap-6">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="text-gold transition-opacity hover:opacity-80"
+                style={{
+                  ...serif,
+                  fontSize: "var(--text-body)",
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
+              >
+                Yes, cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirming(false)}
+                className="text-foreground/70 transition-opacity hover:opacity-90"
+                style={{
+                  ...serif,
+                  fontSize: "var(--text-body)",
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                }}
+              >
+                Keep my subscription
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div
+      className="flex items-baseline justify-between"
+      style={{ borderBottom: "1px solid var(--border-subtle)", paddingBottom: 8 }}
+    >
+      <dt
+        className="text-foreground/55 uppercase"
+        style={{
+          ...serif,
+          fontSize: "var(--text-caption)",
+          letterSpacing: "0.18em",
+        }}
+      >
+        {label}
+      </dt>
+      <dd
+        className="text-foreground/90"
+        style={{ ...serif, fontSize: "var(--text-body)" }}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
