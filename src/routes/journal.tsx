@@ -417,7 +417,7 @@ function JournalPage() {
             aria-label="Close"
             className="rounded-full p-1 text-muted-foreground hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
           >
-            <X size={16} strokeWidth={1.5} />
+            <XIcon size={16} strokeWidth={1.5} />
           </button>
         </div>
         {filtersNode}
