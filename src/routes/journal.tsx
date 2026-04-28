@@ -1120,12 +1120,13 @@ function CalendarView({
               <span style={{ fontFamily: "var(--font-serif)" }}>{c.day}</span>
               {count > 0 && (
                 <span
-                  className="absolute -bottom-0.5 right-0.5 inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-full px-1 font-mono text-[9px] tabular-nums"
+                  className="absolute -bottom-1 -right-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 font-mono text-[11px] font-medium tabular-nums leading-none"
                   style={{
-                    background: "color-mix(in oklab, var(--gold) 28%, transparent)",
-                    color: "var(--gold)",
+                    background: "var(--gold)",
+                    color: "oklch(0.10 0.03 280)",
                     border:
-                      "1px solid color-mix(in oklab, var(--gold) 45%, transparent)",
+                      "1px solid color-mix(in oklab, var(--gold) 70%, transparent)",
+                    boxShadow: "0 1px 4px oklch(0 0 0 / 0.5)",
                   }}
                   aria-label={`${count} ${count === 1 ? "reading" : "readings"}`}
                 >
