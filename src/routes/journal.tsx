@@ -1403,6 +1403,7 @@ function ReadingDetail({
           }
           onTagLibraryChange={onTagLibraryChange}
           onPhotoCountChange={onPhotoCountChange}
+          copyText={reading.interpretation ?? undefined}
         />
       </div>
     </div>
