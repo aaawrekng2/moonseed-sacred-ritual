@@ -1279,7 +1279,7 @@ function LimitMessage({
       <button
         type="button"
         onClick={onExit}
-        className="rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+        className="px-3 py-2 font-display text-xs uppercase tracking-[0.3em] text-gold transition-opacity hover:opacity-80 focus:outline-none focus-visible:underline"
       >
         Done
       </button>
