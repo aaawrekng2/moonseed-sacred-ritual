@@ -3,7 +3,6 @@ import { useEffect, useLayoutEffect, useState } from "react";
 
 import appCss from "../styles.css?url";
 import { BottomNav } from "@/components/nav/BottomNav";
-import { RestingOpacityReadout } from "@/components/nav/RestingOpacityReadout";
 import { useAuth } from "@/lib/auth";
 import { usePreferencesSync } from "@/lib/use-preferences-sync";
 import { OracleModeProvider } from "@/lib/use-oracle-mode";
@@ -230,7 +229,6 @@ function RootComponent() {
           style={{ maxWidth: 1280 }}
         >
           <FloatingMenu />
-          <RestingOpacityReadout />
           <Outlet />
           <BottomNavGate />
           <DevOverlay />
@@ -255,6 +253,8 @@ function RootComponent() {
  */
 function BottomNavGate() {
   const { tabletopActive } = useFloatingMenu();
+  const location = useLocation();
+  if (location.pathname.startsWith("/admin")) return null;
   if (tabletopActive) return null;
   return <BottomNav />;
 }

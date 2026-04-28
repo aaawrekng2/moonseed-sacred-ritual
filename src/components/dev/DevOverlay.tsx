@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
-export const APP_VERSION_LETTER = "I";
+export const APP_VERSION_LETTER = "O";
 const DEV_MODE_KEY = "moonseed:dev_mode";
 const MIST_KEY = "moonseed:mist-level";
 const OPACITY_KEY = "moonseed:resting-opacity";
@@ -136,15 +136,17 @@ export function DevOverlay() {
         left: 8,
         zIndex: 2147483647,
         pointerEvents: "none",
-        fontFamily:
-          "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-        fontSize: 10,
-        letterSpacing: "0.05em",
-        color: "var(--accent, var(--gold))",
-        background: "rgba(0,0,0,0.75)",
-        padding: "3px 8px",
+        fontFamily: "ui-monospace, Menlo, Monaco, Consolas, monospace",
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: "0.03em",
+        color: "#ffffff",
+        background: "rgba(0, 0, 0, 0.85)",
+        padding: "4px 10px",
         borderRadius: 999,
+        border: "1px solid rgba(255, 255, 255, 0.15)",
         whiteSpace: "nowrap",
+        lineHeight: 1.4,
       }}
     >
       v{APP_VERSION_LETTER} · Fog {mist} · Op {opacity}%

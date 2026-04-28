@@ -523,10 +523,11 @@ function JournalPage() {
             }}
             style={{
               fontFamily: "var(--font-display)",
-              fontSize: "var(--text-caption)",
-              letterSpacing: "0.18em",
+              fontSize: "var(--text-body-sm)",
+              fontWeight: 700,
+              letterSpacing: "0.15em",
               textTransform: "uppercase",
-              color: "var(--accent)",
+              color: "#d4a843",
               opacity: 1,
               whiteSpace: "nowrap",
               background: "none",
@@ -1649,8 +1650,8 @@ function FiltersPanel({
         <button
           type="button"
           onClick={onClearAll}
-          className="self-start font-display text-[11px] italic underline-offset-2 hover:underline"
-          style={{ color: "var(--accent)", opacity: 1 }}
+          className="self-start font-display text-[12px] uppercase tracking-[0.15em] underline-offset-2 hover:underline"
+          style={{ color: "#d4a843", opacity: 1, fontWeight: 700 }}
         >
           Clear all
         </button>

@@ -108,16 +108,46 @@ function AdminPage() {
 
   if (!checked || !myRole) return null;
 
+  // High-contrast admin theme — GitHub-dark inspired. Scoped here so the
+  // app's cosmic theme tokens never bleed in. We override the CSS custom
+  // properties used throughout this file so existing `var(--accent)` /
+  // `var(--background)` / `var(--border-subtle)` references all resolve
+  // to the admin palette without rewriting every style block.
+  const adminThemeVars: React.CSSProperties = {
+    // Override design tokens locally on the admin root.
+    ["--background" as never]: "#0f1117",
+    ["--color-foreground" as never]: "#e6edf3",
+    ["--foreground" as never]: "#e6edf3",
+    ["--border-subtle" as never]: "#30363d",
+    ["--border" as never]: "#30363d",
+    ["--accent" as never]: "#d4a843",
+    ["--gold" as never]: "#d4a843",
+    background: "#0f1117",
+    color: "#e6edf3",
+    fontFamily: "var(--font-serif)",
+    height: "100dvh",
+    width: "100%",
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
+  };
+
   return (
-    <div
-      className="bg-cosmos min-h-dvh text-foreground"
-      style={{ ...serif }}
-    >
-      <div className="mx-auto flex w-full max-w-7xl flex-col md:flex-row">
+    <div style={adminThemeVars}>
+      <div
+        className="mx-auto flex w-full max-w-7xl flex-col md:flex-row"
+        style={{ flex: 1, minHeight: 0 }}
+      >
         <Sidebar tab={tab} setTab={setTab} myRole={myRole} />
         <main
           className="flex-1 px-5 pb-32 md:px-10"
-          style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 32px)" }}
+          style={{
+            paddingTop: "calc(env(safe-area-inset-top, 0px) + 32px)",
+            overflowY: "auto",
+            height: "100dvh",
+            background: "#0f1117",
+            color: "#e6edf3",
+          }}
         >
           <Header tab={tab} myRole={myRole} />
           <div className="mt-8">
@@ -196,8 +226,10 @@ function Sidebar({
     <aside
       className="hidden w-60 shrink-0 flex-col gap-1 border-r px-5 py-10 md:flex"
       style={{
-        borderColor: "var(--border-subtle)",
-        minHeight: "100dvh",
+        borderColor: "#30363d",
+        background: "#161b22",
+        height: "100dvh",
+        overflowY: "auto",
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 40px)",
       }}
     >
@@ -363,8 +395,8 @@ function MobileTabBar({
     <nav
       className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t px-2 py-2 md:hidden"
       style={{
-        borderColor: "var(--border-subtle)",
-        background: "color-mix(in oklab, var(--background) 92%, black)",
+        borderColor: "#30363d",
+        background: "#161b22",
         paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
       }}
     >
