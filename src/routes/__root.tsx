@@ -14,6 +14,7 @@ import { FloatingMenuProvider } from "@/lib/floating-menu-context";
 import { useThemeFontSync } from "@/lib/use-theme-font-sync";
 import { Toaster } from "@/components/ui/sonner";
 import { useFloatingMenu } from "@/lib/floating-menu-context";
+import { PremiumModal } from "@/components/premium/PremiumModal";
 
 /**
  * Read the persisted resting opacity from localStorage and apply it to
@@ -196,6 +197,22 @@ function RootComponent() {
   useEffect(() => {
     setMounted(true);
   }, []);
+  // Global listener for the "moonseed:open-premium" event dispatched
+  // from anywhere in the app (e.g. the Deep Reading limit overlay's
+  // "Or continue without waiting" button). Opens the PremiumModal in
+  // place without requiring a route change.
+  const [premiumOpen, setPremiumOpen] = useState(false);
+  const [premiumFeature, setPremiumFeature] = useState<string>("Deep Readings");
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const feature =
+        (e as CustomEvent).detail?.feature ?? "Deep Readings";
+      setPremiumFeature(feature);
+      setPremiumOpen(true);
+    };
+    window.addEventListener("moonseed:open-premium", handler);
+    return () => window.removeEventListener("moonseed:open-premium", handler);
+  }, []);
   return (
     <OracleModeProvider>
       <FloatingMenuProvider>
@@ -216,6 +233,11 @@ function RootComponent() {
           <Outlet />
           <BottomNavGate />
           {mounted && <Toaster />}
+          <PremiumModal
+            open={premiumOpen}
+            onOpenChange={setPremiumOpen}
+            featureName={premiumFeature}
+          />
         </div>
       </FloatingMenuProvider>
     </OracleModeProvider>

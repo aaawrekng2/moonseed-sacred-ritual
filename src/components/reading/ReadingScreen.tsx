@@ -93,6 +93,16 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
   const savedReadingRef = useRef<typeof savedReading>(null);
   savedReadingRef.current = savedReading;
 
+  // Reset savedReading whenever a new reading begins. Without this,
+  // savedReadingRef.current stays set from the prior reading, causing
+  // the auto-save effect to early-return and the mist to show stale
+  // data (or never appear) on the second reading of a session.
+  useEffect(() => {
+    if (state.kind === "idle" || state.kind === "loading") {
+      setSavedReading(null);
+    }
+  }, [state.kind]);
+
   // Register screen-specific affordances with the global floating menu.
   useRegisterCloseHandler(onExit);
 
