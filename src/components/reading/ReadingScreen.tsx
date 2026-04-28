@@ -928,7 +928,7 @@ function ReadingActions({
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
-            fontSize: isLoading ? 20 : 26,
+            fontSize: isLoading ? "var(--text-body-lg)" : "var(--text-heading-md)",
             color: "var(--gold)",
             letterSpacing: "0.02em",
             textShadow: "0 0 18px color-mix(in oklab, var(--gold) 35%, transparent)",
