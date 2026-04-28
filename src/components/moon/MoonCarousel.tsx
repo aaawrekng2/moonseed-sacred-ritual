@@ -589,6 +589,12 @@ export function MoonCarousel() {
               </div>
             );
           })}
+          {markerLeft !== null && fullMoonPeak && (
+            <FullMoonMarker
+              left={markerLeft}
+              peak={fullMoonPeak}
+            />
+          )}
         </div>
 
         <PhaseLadder
