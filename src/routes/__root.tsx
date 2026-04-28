@@ -253,6 +253,8 @@ function RootComponent() {
  */
 function BottomNavGate() {
   const { tabletopActive } = useFloatingMenu();
+  const location = useLocation();
+  if (location.pathname.startsWith("/admin")) return null;
   if (tabletopActive) return null;
   return <BottomNav />;
 }
