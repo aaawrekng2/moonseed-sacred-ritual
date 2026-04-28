@@ -1258,13 +1258,11 @@ button:focus-visible .moon-rung-glow {
 .deep-mist[data-level="3"] .deep-mist__plate--b { opacity: 0.40; animation-duration: 18s, 25s; }
 .deep-mist[data-level="3"] .deep-mist__threads { opacity: 0.55; }
 .deep-mist[data-level="3"] .deep-mist__text { opacity: 0.9; }
-.deep-mist[data-level="3"] { border-color: color-mix(in oklab, var(--gold) 18%, transparent); }
 
 .deep-mist[data-level="4"] .deep-mist__plate--a,
 .deep-mist[data-level="4"] .deep-mist__plate--b { opacity: 0.55; animation-duration: 14s, 19s; }
 .deep-mist[data-level="4"] .deep-mist__threads { opacity: 0.8; animation-duration: 12s; }
 .deep-mist[data-level="4"] .deep-mist__text { opacity: 1; }
-.deep-mist[data-level="4"] { border-color: color-mix(in oklab, var(--gold) 28%, transparent); }
 
 @keyframes deep-mist-drift-x {
   0%   { transform: translate3d(-6%, 0, 0) scale(1.05); }
