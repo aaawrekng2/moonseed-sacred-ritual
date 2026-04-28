@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as SettingsThemesRouteImport } from './routes/settings.themes'
 import { Route as SettingsProfileRouteImport } from './routes/settings.profile'
 import { Route as SettingsPreferencesRouteImport } from './routes/settings.preferences'
+import { Route as SettingsMoonRouteImport } from './routes/settings.moon'
 import { Route as SettingsGuidesRouteImport } from './routes/settings.guides'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
@@ -67,6 +68,11 @@ const SettingsPreferencesRoute = SettingsPreferencesRouteImport.update({
   path: '/preferences',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsMoonRoute = SettingsMoonRouteImport.update({
+  id: '/moon',
+  path: '/moon',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsGuidesRoute = SettingsGuidesRouteImport.update({
   id: '/guides',
   path: '/guides',
@@ -93,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/guides': typeof SettingsGuidesRoute
+  '/settings/moon': typeof SettingsMoonRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
@@ -107,6 +114,7 @@ export interface FileRoutesByTo {
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/guides': typeof SettingsGuidesRoute
+  '/settings/moon': typeof SettingsMoonRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
@@ -122,6 +130,7 @@ export interface FileRoutesById {
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/guides': typeof SettingsGuidesRoute
+  '/settings/moon': typeof SettingsMoonRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
@@ -138,6 +147,7 @@ export interface FileRouteTypes {
     | '/settings/blueprint'
     | '/settings/data'
     | '/settings/guides'
+    | '/settings/moon'
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
@@ -152,6 +162,7 @@ export interface FileRouteTypes {
     | '/settings/blueprint'
     | '/settings/data'
     | '/settings/guides'
+    | '/settings/moon'
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/settings/blueprint'
     | '/settings/data'
     | '/settings/guides'
+    | '/settings/moon'
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
@@ -245,6 +257,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsPreferencesRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/moon': {
+      id: '/settings/moon'
+      path: '/moon'
+      fullPath: '/settings/moon'
+      preLoaderRoute: typeof SettingsMoonRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/guides': {
       id: '/settings/guides'
       path: '/guides'
@@ -273,6 +292,7 @@ interface SettingsRouteChildren {
   SettingsBlueprintRoute: typeof SettingsBlueprintRoute
   SettingsDataRoute: typeof SettingsDataRoute
   SettingsGuidesRoute: typeof SettingsGuidesRoute
+  SettingsMoonRoute: typeof SettingsMoonRoute
   SettingsPreferencesRoute: typeof SettingsPreferencesRoute
   SettingsProfileRoute: typeof SettingsProfileRoute
   SettingsThemesRoute: typeof SettingsThemesRoute
@@ -282,6 +302,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsBlueprintRoute: SettingsBlueprintRoute,
   SettingsDataRoute: SettingsDataRoute,
   SettingsGuidesRoute: SettingsGuidesRoute,
+  SettingsMoonRoute: SettingsMoonRoute,
   SettingsPreferencesRoute: SettingsPreferencesRoute,
   SettingsProfileRoute: SettingsProfileRoute,
   SettingsThemesRoute: SettingsThemesRoute,
