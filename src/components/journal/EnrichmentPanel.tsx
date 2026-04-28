@@ -10,7 +10,7 @@
  * "a gentle invitation, not a form" (per the Phase 6 spec).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, Heart, Loader2, Plus, Tag as TagIcon, X } from "lucide-react";
+import { Camera, CheckCheck, Copy, Heart, Loader2, Plus, Tag as TagIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
@@ -55,6 +55,12 @@ type Props = {
    * gallery view's photo counts.
    */
   onPhotoCountChange: (readingId: string, count: number) => void;
+  /**
+   * Optional plaintext rendering of the reading's interpretation. When
+   * provided, a Copy icon renders alongside the other enrichment icons
+   * and writes this text to the clipboard on tap.
+   */
+  copyText?: string;
 };
 
 const SAVE_DELAY_MS = 800;
