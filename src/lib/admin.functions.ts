@@ -33,14 +33,14 @@ async function logAction(
   targetEmail: string | null,
   details: Record<string, unknown>,
 ) {
-  await supabaseAdmin.from("admin_audit_log").insert({
+  await supabaseAdmin.from("admin_audit_log" as never).insert({
     admin_user_id: actorId,
     admin_email: actorEmail,
     action,
     target_user_id: targetUserId,
     target_email: targetEmail,
     details,
-  });
+  } as never);
 }
 
 /* ---------- listUsers ---------- */
@@ -255,14 +255,14 @@ export const createAdminBackup = createServerFn({ method: "POST" })
     if (upErr) throw new Error(upErr.message);
 
     const { data: row, error: insErr } = await supabaseAdmin
-      .from("admin_backups")
+      .from("admin_backups" as never)
       .insert({
         created_by: userId,
         kind: "manual",
         status: "ready",
         size_bytes: bytes.byteLength,
         storage_path: path,
-      })
+      } as never)
       .select()
       .single();
     if (insErr) throw new Error(insErr.message);
