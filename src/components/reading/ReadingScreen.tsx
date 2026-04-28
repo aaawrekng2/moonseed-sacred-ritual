@@ -654,7 +654,7 @@ function CardStrip({
           className="flex flex-col items-center gap-1"
         >
           <div
-            className="overflow-hidden rounded-[6px] border border-white/10 bg-card"
+            className="reading-card-frame overflow-hidden rounded-[6px] border border-white/10 bg-card"
             style={{
               width: w,
               height: h,
@@ -671,7 +671,7 @@ function CardStrip({
           <span
             className="font-display italic"
             style={{
-              fontSize: labelFontSize,
+              fontSize: `calc(${labelFontSize}px * var(--heading-scale, 1))`,
               color: "var(--gold)",
               opacity: showLabels ? labelOpacity : 0,
               letterSpacing: "0.06em",
