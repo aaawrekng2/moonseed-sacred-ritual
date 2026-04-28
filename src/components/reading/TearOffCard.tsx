@@ -849,7 +849,7 @@ const CardArtwork = ({
               </span>
               <span
                 style={{
-                  fontSize: 13,
+                  fontSize: 16,
                   color: A,
                   opacity: 0.7,
                   letterSpacing: "0.18em",
