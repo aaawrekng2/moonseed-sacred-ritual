@@ -1234,13 +1234,14 @@ function UsersTab({
           onClose={() => setPremiumPanelFor(null)}
           onConfirm={async (months) => {
             await runAction("grant_premium", () =>
-              adminAction({
+              authHeaders().then((headers) => adminAction({
                 data: {
                   type: "grant_premium",
                   targetUserId: premiumPanelFor.user_id,
                   months,
                 },
-              }),
+                headers,
+              })),
             );
             setPremiumPanelFor(null);
           }}
@@ -1252,13 +1253,14 @@ function UsersTab({
           onClose={() => setNoteFor(null)}
           onSave={async (note) => {
             await runAction("set_note", () =>
-              adminAction({
+              authHeaders().then((headers) => adminAction({
                 data: {
                   type: "set_note",
                   targetUserId: noteFor.user_id,
                   note,
                 },
-              }),
+                headers,
+              })),
             );
             setNoteFor(null);
           }}
