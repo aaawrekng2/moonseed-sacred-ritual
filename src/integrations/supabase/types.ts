@@ -14,6 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action: string
+          admin_email: string | null
+          admin_user_id: string
+          created_at: string
+          details: Json
+          id: string
+          target_email: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          admin_email?: string | null
+          admin_user_id: string
+          created_at?: string
+          details?: Json
+          id?: string
+          target_email?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          admin_email?: string | null
+          admin_user_id?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          target_email?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: []
+      }
+      admin_backups: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          kind: string
+          notes: string | null
+          size_bytes: number
+          status: string
+          storage_path: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          notes?: string | null
+          size_bytes?: number
+          status?: string
+          storage_path?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          kind?: string
+          notes?: string | null
+          size_bytes?: number
+          status?: string
+          storage_path?: string | null
+        }
+        Relationships: []
+      }
       custom_guides: {
         Row: {
           base_guide_id: string
@@ -433,6 +499,15 @@ export type Database = {
     }
     Functions: {
       has_admin_role: { Args: { _user_id: string }; Returns: boolean }
+      log_admin_action: {
+        Args: {
+          _action: string
+          _details: Json
+          _target_email: string
+          _target_user_id: string
+        }
+        Returns: string
+      }
       seed_default_user_tags: { Args: { _user_id: string }; Returns: undefined }
     }
     Enums: {
