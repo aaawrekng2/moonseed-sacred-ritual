@@ -465,6 +465,14 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
                 onPhotoCountChange={handleEnrichPhotoCountChange}
               />
             )}
+          {savedReading && (
+            <DeepReadingPanel
+              readingId={savedReading.id}
+              guideId={guideId}
+              lensId={lensId}
+              facetIds={facetIds}
+            />
+          )}
           <ShareReadingButton
             text={copyText ?? ""}
             isOracle={isOracle}
