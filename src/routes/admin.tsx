@@ -1313,6 +1313,7 @@ function BackupsTab() {
     if (!r.storage_path) return;
     const { url } = await getBackupDownloadUrl({
       data: { storagePath: r.storage_path },
+      headers: await authHeaders(),
     });
     window.open(url, "_blank", "noopener");
   };
@@ -1324,7 +1325,10 @@ function BackupsTab() {
       )
     )
       return;
-    await restoreAdminBackup({ data: { backupId: r.id } });
+    await restoreAdminBackup({
+      data: { backupId: r.id },
+      headers: await authHeaders(),
+    });
     window.alert(
       "Restore request logged. A team member will run the restore manually for safety.",
     );
@@ -1409,7 +1413,7 @@ function BackupsTab() {
           onClick={async () => {
             setBusy(true);
             try {
-              await createAdminBackup();
+              await createAdminBackup({ headers: await authHeaders() });
               await load();
             } catch (e) {
               window.alert(`Backup failed: ${(e as Error).message}`);
