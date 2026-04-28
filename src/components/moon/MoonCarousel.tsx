@@ -749,6 +749,58 @@ function formatShortDate(d: Date) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
+/**
+ * A pure-CSS full moon marker placed on the seam between two adjacent
+ * day cards in the carousel. Decorative — pointer-events disabled so it
+ * never blocks taps on the underlying day cards.
+ */
+function FullMoonMarker({ left, peak }: { left: number; peak: Date }) {
+  const time = peak.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        top: 8,
+        left,
+        transform: "translateX(-50%)",
+        pointerEvents: "none",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4,
+        zIndex: 5,
+      }}
+    >
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle at 50% 45%, rgba(255,250,235,0.95) 0%, rgba(255,225,150,0.65) 55%, rgba(212,175,55,0.35) 100%)",
+          boxShadow:
+            "0 0 12px rgba(255,215,0,0.35), 0 0 4px rgba(255,235,180,0.6) inset",
+        }}
+      />
+      <span
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontSize: "var(--text-caption)",
+          color: "var(--accent, var(--gold))",
+          letterSpacing: "0.05em",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {time}
+      </span>
+    </div>
+  );
+}
+
 function MoonSkeleton({ label }: { label?: string } = {}) {
   return (
     <section
