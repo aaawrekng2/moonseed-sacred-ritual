@@ -1284,7 +1284,7 @@ function LimitMessage({
           padding: "4px 8px",
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 12,
+          fontSize: 14,
           color: "var(--gold)",
           opacity: "var(--ro-plus-10)",
           cursor: "pointer",
