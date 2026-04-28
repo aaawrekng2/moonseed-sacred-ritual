@@ -387,15 +387,15 @@ function JournalPage() {
             aria-label="Close filters"
             onClick={() => setFiltersOpen(false)}
             className="fixed top-0 z-40 h-dvh w-10 cursor-pointer bg-transparent"
-            style={{ right: "min(260px, calc(100vw - 48px))" }}
+            style={{ right: "var(--journal-drawer-w)" }}
           />
         </>
       )}
       <aside
         aria-hidden={!filtersOpen}
-        className="fixed right-0 top-0 z-50 flex h-dvh flex-col overflow-y-auto border-l shadow-2xl transition-transform duration-300 ease-out"
+        className="journal-filter-drawer fixed right-0 top-0 z-50 flex h-dvh flex-col overflow-y-auto border-l shadow-2xl transition-transform duration-300 ease-out"
         style={{
-          width: "min(260px, calc(100vw - 48px))",
+          width: "var(--journal-drawer-w)",
           borderColor:
             "color-mix(in oklab, var(--gold) 18%, transparent)",
           background: "oklch(0.08 0.03 280)",
