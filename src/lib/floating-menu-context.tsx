@@ -21,6 +21,8 @@ type FloatingMenuExtras = {
   helpHandler: (() => void) | null;
   copyText: string | null;
   showRefresh: boolean;
+  /** True while the seeker is on the draw-table card selection view. */
+  tabletopActive: boolean;
 };
 
 type FloatingMenuContextValue = FloatingMenuExtras & {
@@ -28,6 +30,7 @@ type FloatingMenuContextValue = FloatingMenuExtras & {
   setHelpHandler: (fn: (() => void) | null) => void;
   setCopyText: (text: string | null) => void;
   setShowRefresh: (v: boolean) => void;
+  setTabletopActive: (v: boolean) => void;
 };
 
 const FloatingMenuContext = createContext<FloatingMenuContextValue>({
@@ -35,10 +38,12 @@ const FloatingMenuContext = createContext<FloatingMenuContextValue>({
   helpHandler: null,
   copyText: null,
   showRefresh: false,
+  tabletopActive: false,
   setCloseHandler: () => {},
   setHelpHandler: () => {},
   setCopyText: () => {},
   setShowRefresh: () => {},
+  setTabletopActive: () => {},
 });
 
 export function FloatingMenuProvider({ children }: { children: ReactNode }) {
@@ -50,6 +55,7 @@ export function FloatingMenuProvider({ children }: { children: ReactNode }) {
   );
   const [copyText, setCopyText] = useState<string | null>(null);
   const [showRefresh, setShowRefresh] = useState(false);
+  const [tabletopActive, setTabletopActive] = useState(false);
 
   const setCloseHandler = useCallback((fn: (() => void) | null) => {
     // Store the function reference itself, not a deferred call result —
@@ -68,10 +74,12 @@ export function FloatingMenuProvider({ children }: { children: ReactNode }) {
         helpHandler,
         copyText,
         showRefresh,
+        tabletopActive,
         setCloseHandler,
         setHelpHandler,
         setCopyText,
         setShowRefresh,
+        setTabletopActive,
       }}
     >
       {children}
@@ -133,4 +141,17 @@ export function useRegisterRefresh(show: boolean) {
     setShowRefresh(show);
     return () => setShowRefresh(false);
   }, [show, setShowRefresh]);
+}
+
+/**
+ * Mark the seeker as being on the draw-table card-selection view.
+ * Used by the global BottomNav and quill UI to stay out of the way
+ * during card selection and reappear once cards are cast / revealed.
+ */
+export function useRegisterTabletopActive(active: boolean) {
+  const { setTabletopActive } = useFloatingMenu();
+  useEffect(() => {
+    setTabletopActive(active);
+    return () => setTabletopActive(false);
+  }, [active, setTabletopActive]);
 }
