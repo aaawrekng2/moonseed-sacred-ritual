@@ -11,12 +11,6 @@ import { cn } from "@/lib/utils";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
   EnrichmentPanel,
   type EnrichmentTag,
 } from "@/components/journal/EnrichmentPanel";
