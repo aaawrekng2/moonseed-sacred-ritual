@@ -894,12 +894,13 @@ const CardArtwork = ({
         }}
       />
 
-      {/* Footer chip */}
+      {/* Footer chip — three centered rows so they don't collide on mobile */}
       <div
         style={{
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
-          justifyContent: "space-between",
+          gap: 4,
           fontSize: 12,
           letterSpacing: "0.22em",
           textTransform: "uppercase",
@@ -907,11 +908,37 @@ const CardArtwork = ({
           opacity: 0.78,
         }}
       >
-        <span>{spreadLabel}</span>
-        <span style={{ fontStyle: "italic", letterSpacing: "0.1em" }}>
-          {guideName}
-        </span>
-        <span>moon · {moonPhase}</span>
+        {positions.length > 1 && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              textAlign: "center",
+            }}
+          >
+            <span>{positions.map((p) => p.position).join(" · ")}</span>
+          </div>
+        )}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            textAlign: "center",
+          }}
+        >
+          <span style={{ fontStyle: "italic", letterSpacing: "0.1em" }}>
+            {guideName}
+          </span>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            textAlign: "center",
+          }}
+        >
+          <span>moon · {moonPhase}</span>
+        </div>
       </div>
     </div>
   );
