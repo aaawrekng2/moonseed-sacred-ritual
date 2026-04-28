@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Heart, Search, X as XIcon } from "lucide-react";
+import { Heart, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useOracleMode } from "@/lib/use-oracle-mode";
@@ -10,6 +10,12 @@ import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { cn } from "@/lib/utils";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   EnrichmentPanel,
   type EnrichmentTag,
