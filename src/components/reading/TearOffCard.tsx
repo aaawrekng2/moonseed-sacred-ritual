@@ -101,10 +101,8 @@ export function TearOffCard({
   const [busy, setBusy] = useState<null | "png" | "pdf" | "share">(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
-  const [accentKey, setAccentKey] = useState<AccentKey>("gold");
-  const [paperKey, setPaperKey] = useState<PaperKey>("midnight");
-  const accent = ACCENT_THEMES[accentKey];
-  const paper = PAPER_THEMES[paperKey];
+  const [presetKey, setPresetKey] = useState<PresetKey>("midnight-oracle");
+  const preset = PRESET_BY_KEY[presetKey];
   useEffect(
     () => () => {
       if (toastTimer.current) window.clearTimeout(toastTimer.current);
@@ -140,7 +138,7 @@ export function TearOffCard({
     const dataUrl = await toPng(cardRef.current, {
       pixelRatio: 2,
       cacheBust: true,
-      backgroundColor: paper.canvas,
+      backgroundColor: preset.bg,
     });
     return dataUrl;
   };
