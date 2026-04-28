@@ -28,77 +28,51 @@ import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import type { InterpretationPayload } from "@/lib/interpret.functions";
 
 /* ----------------------------------------------------------------- */
-/*  Theme tokens — accent + paper background combinations             */
+/*  Preset color schemes — 10 curated palettes that set bg/surface   */
+/*  /text/accent in one tap. Replaces the accent + paper pickers.    */
 /* ----------------------------------------------------------------- */
 
-type AccentKey = "gold" | "mystic" | "moonlight";
-type PaperKey = "midnight" | "parchment" | "vellum";
+type PresetKey =
+  | "midnight-oracle"
+  | "golden-dawn"
+  | "blood-moon"
+  | "verdant-arcana"
+  | "amethyst-veil"
+  | "deep-tide"
+  | "candlelight-ritual"
+  | "rose-sigil"
+  | "bone-ink"
+  | "cosmic-dust";
 
-type AccentTheme = {
-  key: AccentKey;
+type Preset = {
+  key: PresetKey;
   label: string;
-  /** hex used in inline styles + html-to-image */
-  color: string;
-  swatch: string;
-};
-
-type PaperTheme = {
-  key: PaperKey;
-  label: string;
-  /** card body background (gradient) */
-  background: string;
-  /** body text color */
+  bg: string;
+  surface: string;
   text: string;
-  /** color used for the html-to-image canvas backdrop */
-  canvas: string;
-  swatch: string;
+  accent: string;
 };
 
-const ACCENT_THEMES: Record<AccentKey, AccentTheme> = {
-  gold: { key: "gold", label: "Gold", color: "#d4af37", swatch: "#d4af37" },
-  mystic: {
-    key: "mystic",
-    label: "Mystic",
-    color: "#b497ff",
-    swatch: "#b497ff",
-  },
-  moonlight: {
-    key: "moonlight",
-    label: "Moonlight",
-    color: "#dfe6f5",
-    swatch: "#dfe6f5",
-  },
-};
+const PRESETS: Preset[] = [
+  { key: "midnight-oracle",    label: "Midnight Oracle",    bg: "#0B0B0F", surface: "#16161D", text: "#EAEAF0", accent: "#C8A96A" },
+  { key: "golden-dawn",        label: "Golden Dawn",        bg: "#F6F1E9", surface: "#FFFFFF", text: "#2B2B2B", accent: "#D4AF37" },
+  { key: "blood-moon",         label: "Blood Moon",         bg: "#140A0A", surface: "#1F1212", text: "#F5EAEA", accent: "#B23A3A" },
+  { key: "verdant-arcana",     label: "Verdant Arcana",     bg: "#0E1A14", surface: "#16241C", text: "#E6F2EC", accent: "#5FAF8F" },
+  { key: "amethyst-veil",      label: "Amethyst Veil",      bg: "#120F1A", surface: "#1D1828", text: "#EEE9F7", accent: "#9B7EDC" },
+  { key: "deep-tide",          label: "Deep Tide",          bg: "#0A1620", surface: "#132330", text: "#E4F1F8", accent: "#4DA3C9" },
+  { key: "candlelight-ritual", label: "Candlelight Ritual", bg: "#1A140F", surface: "#241C16", text: "#F3EDE6", accent: "#E0B36A" },
+  { key: "rose-sigil",         label: "Rose Sigil",         bg: "#1A0F14", surface: "#26161D", text: "#F7E8EE", accent: "#D17A92" },
+  { key: "bone-ink",           label: "Bone & Ink",         bg: "#F4F1EC", surface: "#FFFFFF", text: "#1F1F1F", accent: "#3A3A3A" },
+  { key: "cosmic-dust",        label: "Cosmic Dust",        bg: "#0A0C14", surface: "#151927", text: "#E8ECF8", accent: "#7F8CEB" },
+];
 
-const PAPER_THEMES: Record<PaperKey, PaperTheme> = {
-  midnight: {
-    key: "midnight",
-    label: "Midnight",
-    background:
-      "linear-gradient(180deg, #14102f 0%, #0f0c29 60%, #14102f 100%)",
-    text: "#f5e9c8",
-    canvas: "#0f0c29",
-    swatch: "#14102f",
+const PRESET_BY_KEY: Record<PresetKey, Preset> = PRESETS.reduce(
+  (acc, p) => {
+    acc[p.key] = p;
+    return acc;
   },
-  parchment: {
-    key: "parchment",
-    label: "Parchment",
-    background:
-      "linear-gradient(180deg, #f3e7c7 0%, #ead6a3 55%, #e2c98a 100%)",
-    text: "#3a2a13",
-    canvas: "#ead6a3",
-    swatch: "#ead6a3",
-  },
-  vellum: {
-    key: "vellum",
-    label: "Vellum",
-    background:
-      "linear-gradient(180deg, #f7f3ea 0%, #ece5d3 55%, #e3dac1 100%)",
-    text: "#2c2618",
-    canvas: "#ece5d3",
-    swatch: "#ece5d3",
-  },
-};
+  {} as Record<PresetKey, Preset>,
+);
 
 type Pick = { id: number; cardIndex: number };
 
