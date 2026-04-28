@@ -467,7 +467,7 @@ export function SeekerQuestion({
     >
       <div
         style={{
-          fontSize: 11,
+          fontSize: "calc(11px * var(--heading-scale, 1))",
           letterSpacing: "0.2em",
           textTransform: "uppercase",
           color: "var(--gold)",
@@ -496,7 +496,7 @@ export function SeekerQuestion({
             style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: 15,
+              fontSize: "calc(15px * var(--heading-scale, 1))",
               lineHeight: 1.7,
               color: "var(--foreground)",
               borderBottom:
@@ -509,7 +509,7 @@ export function SeekerQuestion({
         <div className="relative inline-flex max-w-full items-baseline justify-center gap-1 px-3">
           <blockquote
             style={{
-              fontSize: 15,
+              fontSize: "calc(15px * var(--heading-scale, 1))",
               lineHeight: 1.7,
               color: "var(--foreground)",
               opacity: "var(--ro-plus-40)",
