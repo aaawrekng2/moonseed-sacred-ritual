@@ -34,7 +34,15 @@ export function BottomNav() {
         style={{ height: 64, maxWidth: 320, gap: 48 }}
       >
         {TABS.map(({ to, label, Icon, primary }) => {
-          const active = location.pathname === to;
+          // Settings nav nests sub-routes (/settings/profile, /settings/themes,
+          // …) so an exact-match active check left the icon perpetually
+          // un-highlighted. Use a prefix match for /settings, exact match for
+          // the others (otherwise "/" would stay active everywhere).
+          const path = location.pathname;
+          const active =
+            to === "/settings"
+              ? path === "/settings" || path.startsWith("/settings/")
+              : path === to;
           const iconSize = primary ? 32 : 20;
           // Active = signature gold. Inactive (including Home) = neutral
           // foreground/white tint. Primary keeps a slight size advantage.
