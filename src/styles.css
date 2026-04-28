@@ -1035,3 +1035,9 @@ button:focus-visible .moon-rung-glow {
   align-items: center;
   justify-content: center;
 }
+
+/* Force neutral card frame in the reading/reveal screen — overrides any
+   gold-tinted border that might leak in via Tailwind class precedence. */
+.reading-card-frame {
+  border-color: oklch(1 0 0 / 0.08) !important;
+}
