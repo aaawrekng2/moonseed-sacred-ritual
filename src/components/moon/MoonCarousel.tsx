@@ -772,13 +772,17 @@ function FullMoonMarker({ left, peak }: { left: number; peak: Date }) {
   const time = peak.toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
+    hour12: true,
   });
   return (
     <div
       aria-hidden="true"
       style={{
         position: "absolute",
-        top: 8,
+        // Sit on the top quarter of the cards rather than the very top
+        // edge so the marker reads as attached to the seam, not floating
+        // above the carousel.
+        top: "25%",
         left,
         transform: "translateX(-50%)",
         pointerEvents: "none",
@@ -786,7 +790,7 @@ function FullMoonMarker({ left, peak }: { left: number; peak: Date }) {
         flexDirection: "column",
         alignItems: "center",
         gap: 4,
-        zIndex: 5,
+        zIndex: 9999,
       }}
     >
       <div
@@ -803,8 +807,9 @@ function FullMoonMarker({ left, peak }: { left: number; peak: Date }) {
       <span
         style={{
           fontFamily: "var(--font-serif)",
-          fontSize: "var(--text-caption)",
-          color: "var(--accent, var(--gold))",
+          fontSize: 10,
+          color: "#d4a843",
+          textAlign: "center",
           letterSpacing: "0.05em",
           whiteSpace: "nowrap",
         }}
