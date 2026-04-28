@@ -489,8 +489,8 @@ export function MoonCarousel() {
       </p>
 
       {/* Mobile phase ladders — fixed to screen edges, visible on mobile only */}
-      <MobilePhaseLadder side="left" restingAlpha={restingAlpha} onJump={jumpToPhase} />
-      <MobilePhaseLadder side="right" restingAlpha={restingAlpha} onJump={jumpToPhase} />
+      <MobilePhaseLadder side="left" restingAlpha={restingAlpha} onJump={(p) => jumpToPhase(p, "previous")} />
+      <MobilePhaseLadder side="right" restingAlpha={restingAlpha} onJump={(p) => jumpToPhase(p, "next")} />
 
       {/* Fixed-height row so cards never reflow as the user swipes between
           days. The today card is the tallest element; sizing here is set so
@@ -529,7 +529,7 @@ export function MoonCarousel() {
           restingAlpha={restingAlpha}
           activePhase={viewedPhase}
           offset={offset}
-          onJump={(p) => jumpToPhase(p)}
+          onJump={(p) => jumpToPhase(p, "previous")}
           onStep={() => shift(-1)}
         />
 
@@ -646,7 +646,7 @@ export function MoonCarousel() {
           restingAlpha={restingAlpha}
           activePhase={viewedPhase}
           offset={offset}
-          onJump={(p) => jumpToPhase(p)}
+          onJump={(p) => jumpToPhase(p, "next")}
           onStep={() => shift(1)}
         />
       </div>
