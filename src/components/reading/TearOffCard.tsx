@@ -433,7 +433,7 @@ function PresetGrid({
               <span
                 className="block w-full text-center"
                 style={{
-                  fontSize: 12,
+                  fontSize: 16,
                   letterSpacing: "0.06em",
                   lineHeight: 1.15,
                   color: active ? "var(--gold)" : "var(--muted-foreground)",
