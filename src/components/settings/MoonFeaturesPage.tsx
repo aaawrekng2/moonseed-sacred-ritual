@@ -57,7 +57,7 @@ export function MoonFeaturesPage() {
           className="text-gold"
           style={{
             ...serif,
-            fontSize: "calc(2.4rem * var(--heading-scale, 1))",
+            fontSize: "var(--text-heading-lg)",
             fontWeight: 500,
             letterSpacing: "0.01em",
           }}
