@@ -353,17 +353,11 @@ export function AuthScreen({
               !password ||
               (mode === "signup" && password !== confirmPassword)
             }
-            className="w-full rounded-xl py-3 transition-opacity disabled:opacity-40"
+            className="w-full py-3 font-display text-sm uppercase tracking-[0.3em] text-gold transition-opacity hover:opacity-80 focus:outline-none disabled:opacity-40"
             style={{
-              background:
-                "color-mix(in oklab, var(--gold) 18%, transparent)",
-              border:
-                "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
-              color: "var(--gold)",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-body)",
-              letterSpacing: "0.1em",
+              background: "none",
+              border: "none",
+              padding: "12px 0",
             }}
           >
             {loading ? "…" : mode === "signin" ? "Sign In" : "Create Account"}
