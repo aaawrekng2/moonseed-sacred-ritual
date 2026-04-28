@@ -512,6 +512,32 @@ function JournalPage() {
           desktop) plus the active-date chip. The full filter UI lives in
           either the bottom sheet or the desktop sidebar. */}
       <div className="mt-1 mb-1 flex flex-wrap items-center gap-x-3 gap-y-1" style={{ paddingTop: 4, paddingBottom: 4 }}>
+        {(activeTags.length > 0 || activeDrawTypes.length > 0 || deepOnly || activeDate) && (
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTags([]);
+              setActiveDrawTypes([]);
+              setDeepOnly(false);
+              setActiveDate(null);
+            }}
+            style={{
+              fontFamily: "var(--font-display)",
+              fontSize: "var(--text-caption)",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "var(--accent)",
+              opacity: 0.9,
+              whiteSpace: "nowrap",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "0 var(--space-2) 0 0",
+            }}
+          >
+            Clear all
+          </button>
+        )}
         {/* Inline summary of active filters — visible on all sizes so the
             seeker always sees what's narrowing their results. */}
         {(activeTags.length > 0 || activeDrawTypes.length > 0 || deepOnly) && (
@@ -1355,7 +1381,8 @@ function ReadingDetail({
               marginTop: "var(--space-6)",
               padding: "var(--space-5)",
               borderRadius: "var(--radius-md)",
-              border: "1px solid var(--border-subtle)",
+              border: "1px solid oklch(1 0 0 / 0.22)",
+              borderLeft: "2px solid var(--accent)",
               background: "var(--surface-card)",
             }}
           >
