@@ -1158,6 +1158,11 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
     spread === "celtic" ? () => setCelticHelpOpen(true) : null,
   );
 
+  // Hide the global BottomNav (and the floating quill in /draw) while
+  // the seeker is on the table choosing cards. Both reappear once the
+  // table unmounts (cast / reading phases) or the route changes.
+  useRegisterTabletopActive(true);
+
   // Mirror current cards + undo/redo stacks into the cross-route
   // session store on every change. This is what makes the session
   // survive accidental navigation away from /draw — when <Tabletop>
