@@ -186,7 +186,7 @@ function UsersTab({
 
   const updateRow = async (
     user_id: string,
-    patch: Partial<UserRow>,
+    patch: Record<string, unknown>,
   ): Promise<void> => {
     const { error } = await supabase
       .from("user_preferences")
@@ -198,7 +198,9 @@ function UsersTab({
       return;
     }
     setRows((prev) =>
-      prev.map((r) => (r.user_id === user_id ? { ...r, ...patch } : r)),
+      prev.map((r) =>
+        r.user_id === user_id ? { ...r, ...(patch as Partial<UserRow>) } : r,
+      ),
     );
   };
 
@@ -207,13 +209,8 @@ function UsersTab({
       is_premium: true,
       subscription_type: "gifted",
       premium_since: new Date().toISOString(),
-      // gifted_by tracked via raw update
-    } as Partial<UserRow>).then(() =>
-      supabase
-        .from("user_preferences")
-        .update({ gifted_by: myUserId })
-        .eq("user_id", row.user_id),
-    );
+      gifted_by: myUserId,
+    });
 
   const revokePremium = (row: UserRow) =>
     updateRow(row.user_id, {
