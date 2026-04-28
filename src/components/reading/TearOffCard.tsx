@@ -12,7 +12,7 @@
  * deckled edges, gold rules, monogram seal, perforated top stub.
  */
 import { useEffect, useRef, useState } from "react";
-import { Download, Image as ImageIcon, Loader2, Share2, X } from "lucide-react";
+import { Download, Image as ImageIcon, Loader2, Share2 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import {
@@ -318,14 +318,6 @@ export function TearOffCard({
               disabled={busy !== null}
               onClick={() => void handlePdf()}
             />
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              aria-label="Close"
-              className="ml-1 inline-flex items-center justify-center rounded-full p-2 text-muted-foreground transition-colors hover:bg-gold/10 hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-            >
-              <X size={14} strokeWidth={1.5} />
-            </button>
           </div>
           {toast && (
             <div
@@ -616,6 +608,7 @@ const CardArtwork = ({
   const A = preset.accent;
   const T = preset.text;
   const SURFACE = preset.surface;
+  void spreadLabel;
   const isThree = spread === "three";
   const isCeltic = spread === "celtic";
   // Card dimensions tuned to the keepsake card width (CARD_W = 380, with
@@ -902,12 +895,13 @@ const CardArtwork = ({
         }}
       />
 
-      {/* Footer chip */}
+      {/* Footer chip — three centered rows so they don't collide on mobile */}
       <div
         style={{
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
-          justifyContent: "space-between",
+          gap: 4,
           fontSize: 12,
           letterSpacing: "0.22em",
           textTransform: "uppercase",
@@ -915,11 +909,37 @@ const CardArtwork = ({
           opacity: 0.78,
         }}
       >
-        <span>{spreadLabel}</span>
-        <span style={{ fontStyle: "italic", letterSpacing: "0.1em" }}>
-          {guideName}
-        </span>
-        <span>moon · {moonPhase}</span>
+        {positions.length > 1 && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              textAlign: "center",
+            }}
+          >
+            <span>{positions.map((p) => p.position).join(" · ")}</span>
+          </div>
+        )}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            textAlign: "center",
+          }}
+        >
+          <span style={{ fontStyle: "italic", letterSpacing: "0.1em" }}>
+            {guideName}
+          </span>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            textAlign: "center",
+          }}
+        >
+          <span>moon · {moonPhase}</span>
+        </div>
       </div>
     </div>
   );

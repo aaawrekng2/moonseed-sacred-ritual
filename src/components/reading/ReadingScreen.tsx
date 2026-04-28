@@ -249,7 +249,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
           .single();
         if (cancelled) return;
         if (error || !data) {
-          if (error) console.error("ReadingScreen insert error:", error);
+          console.error("[ReadingScreen] Supabase save failed — mist will not render:", error, data);
           return;
         }
         setSavedReading({
@@ -466,9 +466,12 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
                 copyText={copyText ?? undefined}
               />
             )}
-          {savedReading && (
+          {(savedReading || (state.kind === "loaded" && state.readingId)) && (
             <DeepReadingPanel
-              readingId={savedReading.id}
+              readingId={
+                savedReading?.id ??
+                (state.kind === "loaded" ? state.readingId ?? "" : "")
+              }
               guideId={guideId}
               lensId={lensId}
               facetIds={facetIds}
@@ -1127,7 +1130,7 @@ function ReadingBody({
               <span
                 className="font-display italic"
                 style={{
-                  fontSize: 10,
+                  fontSize: 16,
                   color: "var(--gold)",
                   opacity: 0.6,
                   letterSpacing: "0.18em",
