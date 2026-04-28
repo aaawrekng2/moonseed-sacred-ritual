@@ -42,6 +42,7 @@ import {
 } from "@/components/journal/EnrichmentPanel";
 import { SeekerQuestion } from "@/components/reading/ReadingParts";
 import { stripMarkdown } from "@/lib/strip-markdown";
+import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 
 type Pick = { id: number; cardIndex: number };
 
