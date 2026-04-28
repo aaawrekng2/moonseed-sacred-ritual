@@ -636,7 +636,7 @@ const CardArtwork = ({
       style={{
         width: 380,
         margin: "0 auto",
-        background: paper.background,
+        background: `linear-gradient(180deg, ${preset.bg} 0%, ${SURFACE} 60%, ${preset.bg} 100%)`,
         color: T,
         fontFamily: "var(--font-serif, 'Cormorant Garamond', serif)",
         borderRadius: 14,
