@@ -133,6 +133,30 @@ export function MoonCarousel() {
 
   const [retryNonce, setRetryNonce] = useState(0);
 
+  // Pre-compute the next full-moon peak (precise UTC moment, rendered
+  // locally) so the carousel can highlight the surrounding 3-day window
+  // in gold and place a marker on the seam between the two cards the
+  // peak falls between.
+  const fullMoonPeak = useMemo<Date | null>(() => {
+    try {
+      const list = getPhaseOccurrences("Full Moon", new Date(), 2);
+      const now = Date.now();
+      const upcoming = list.find(
+        (d) => d.getTime() >= now - 36 * 60 * 60 * 1000,
+      );
+      return upcoming ?? null;
+    } catch {
+      return null;
+    }
+  }, [retryNonce]);
+
+  const peakDay = useMemo<Date | null>(() => {
+    if (!fullMoonPeak) return null;
+    const d = new Date(fullMoonPeak);
+    d.setHours(12, 0, 0, 0);
+    return d;
+  }, [fullMoonPeak]);
+
   // Pre-compute the phase ladder once at mount (and again if the user
   // taps the recompute/retry button). Stored in refs so taps on the
   // ladder don't trigger re-renders just to read the next occurrence.
