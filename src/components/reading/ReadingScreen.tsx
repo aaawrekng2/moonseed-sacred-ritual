@@ -463,6 +463,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
                 onReadingChange={handleEnrichReadingChange}
                 onTagLibraryChange={handleEnrichTagLibraryChange}
                 onPhotoCountChange={handleEnrichPhotoCountChange}
+                copyText={copyText ?? undefined}
               />
             )}
           {savedReading && (
