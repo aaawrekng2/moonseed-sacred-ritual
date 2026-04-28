@@ -66,6 +66,7 @@ import {
   MIN_RESTING_OPACITY,
   useRestingOpacity,
 } from "@/lib/use-resting-opacity";
+import { withPreservedScroll } from "@/lib/preserve-scroll";
 import {
   applyHeadingFont,
   applyHeadingFontSize,
@@ -975,7 +976,12 @@ function HeadingFontSection() {
   const commitSize = async (next: number) => {
     setSize(next);
     setDraftSize(next);
-    applyHeadingFontSize(next);
+    // Preserve the seeker's scroll position across the reflow caused by
+    // the new heading size — without this the page visibly jumps when
+    // the slider releases. Save scrollY + total height BEFORE applying
+    // the change, then restore the same proportional position in the
+    // next animation frame once layout has settled.
+    withPreservedScroll(() => applyHeadingFontSize(next));
     markDirty();
     await updateUserPreferences(user.id, { heading_font_size: next });
     setPrefs({ ...prefs, heading_font_size: next });
@@ -1642,7 +1648,10 @@ function SavedThemesSection() {
       );
     }
     if (theme.font) applyHeadingFont(theme.font);
-    if (theme.font_size) applyHeadingFontSize(theme.font_size);
+    if (theme.font_size) {
+      const next = theme.font_size;
+      withPreservedScroll(() => applyHeadingFontSize(next));
+    }
     if (theme.card_back) setStoredCardBack(theme.card_back);
     if (typeof theme.resting_opacity === "number")
       setOpacity(theme.resting_opacity);
@@ -2186,7 +2195,7 @@ function UnsavedChangesGuard() {
         }
       }
       applyHeadingFont(baseline.font);
-      applyHeadingFontSize(baseline.font_size);
+      withPreservedScroll(() => applyHeadingFontSize(baseline.font_size));
       setOpacity(baseline.resting_opacity);
       if (isOracle !== baseline.oracle_mode) setOracle(baseline.oracle_mode);
       // Persist the reverted state so future loads see the baseline.

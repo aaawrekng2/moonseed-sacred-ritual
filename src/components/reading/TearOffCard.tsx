@@ -28,77 +28,51 @@ import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import type { InterpretationPayload } from "@/lib/interpret.functions";
 
 /* ----------------------------------------------------------------- */
-/*  Theme tokens — accent + paper background combinations             */
+/*  Preset color schemes — 10 curated palettes that set bg/surface   */
+/*  /text/accent in one tap. Replaces the accent + paper pickers.    */
 /* ----------------------------------------------------------------- */
 
-type AccentKey = "gold" | "mystic" | "moonlight";
-type PaperKey = "midnight" | "parchment" | "vellum";
+type PresetKey =
+  | "midnight-oracle"
+  | "golden-dawn"
+  | "blood-moon"
+  | "verdant-arcana"
+  | "amethyst-veil"
+  | "deep-tide"
+  | "candlelight-ritual"
+  | "rose-sigil"
+  | "bone-ink"
+  | "cosmic-dust";
 
-type AccentTheme = {
-  key: AccentKey;
+type Preset = {
+  key: PresetKey;
   label: string;
-  /** hex used in inline styles + html-to-image */
-  color: string;
-  swatch: string;
-};
-
-type PaperTheme = {
-  key: PaperKey;
-  label: string;
-  /** card body background (gradient) */
-  background: string;
-  /** body text color */
+  bg: string;
+  surface: string;
   text: string;
-  /** color used for the html-to-image canvas backdrop */
-  canvas: string;
-  swatch: string;
+  accent: string;
 };
 
-const ACCENT_THEMES: Record<AccentKey, AccentTheme> = {
-  gold: { key: "gold", label: "Gold", color: "#d4af37", swatch: "#d4af37" },
-  mystic: {
-    key: "mystic",
-    label: "Mystic",
-    color: "#b497ff",
-    swatch: "#b497ff",
-  },
-  moonlight: {
-    key: "moonlight",
-    label: "Moonlight",
-    color: "#dfe6f5",
-    swatch: "#dfe6f5",
-  },
-};
+const PRESETS: Preset[] = [
+  { key: "midnight-oracle",    label: "Midnight Oracle",    bg: "#0B0B0F", surface: "#16161D", text: "#EAEAF0", accent: "#C8A96A" },
+  { key: "golden-dawn",        label: "Golden Dawn",        bg: "#F6F1E9", surface: "#FFFFFF", text: "#2B2B2B", accent: "#D4AF37" },
+  { key: "blood-moon",         label: "Blood Moon",         bg: "#140A0A", surface: "#1F1212", text: "#F5EAEA", accent: "#B23A3A" },
+  { key: "verdant-arcana",     label: "Verdant Arcana",     bg: "#0E1A14", surface: "#16241C", text: "#E6F2EC", accent: "#5FAF8F" },
+  { key: "amethyst-veil",      label: "Amethyst Veil",      bg: "#120F1A", surface: "#1D1828", text: "#EEE9F7", accent: "#9B7EDC" },
+  { key: "deep-tide",          label: "Deep Tide",          bg: "#0A1620", surface: "#132330", text: "#E4F1F8", accent: "#4DA3C9" },
+  { key: "candlelight-ritual", label: "Candlelight Ritual", bg: "#1A140F", surface: "#241C16", text: "#F3EDE6", accent: "#E0B36A" },
+  { key: "rose-sigil",         label: "Rose Sigil",         bg: "#1A0F14", surface: "#26161D", text: "#F7E8EE", accent: "#D17A92" },
+  { key: "bone-ink",           label: "Bone & Ink",         bg: "#F4F1EC", surface: "#FFFFFF", text: "#1F1F1F", accent: "#3A3A3A" },
+  { key: "cosmic-dust",        label: "Cosmic Dust",        bg: "#0A0C14", surface: "#151927", text: "#E8ECF8", accent: "#7F8CEB" },
+];
 
-const PAPER_THEMES: Record<PaperKey, PaperTheme> = {
-  midnight: {
-    key: "midnight",
-    label: "Midnight",
-    background:
-      "linear-gradient(180deg, #14102f 0%, #0f0c29 60%, #14102f 100%)",
-    text: "#f5e9c8",
-    canvas: "#0f0c29",
-    swatch: "#14102f",
+const PRESET_BY_KEY: Record<PresetKey, Preset> = PRESETS.reduce(
+  (acc, p) => {
+    acc[p.key] = p;
+    return acc;
   },
-  parchment: {
-    key: "parchment",
-    label: "Parchment",
-    background:
-      "linear-gradient(180deg, #f3e7c7 0%, #ead6a3 55%, #e2c98a 100%)",
-    text: "#3a2a13",
-    canvas: "#ead6a3",
-    swatch: "#ead6a3",
-  },
-  vellum: {
-    key: "vellum",
-    label: "Vellum",
-    background:
-      "linear-gradient(180deg, #f7f3ea 0%, #ece5d3 55%, #e3dac1 100%)",
-    text: "#2c2618",
-    canvas: "#ece5d3",
-    swatch: "#ece5d3",
-  },
-};
+  {} as Record<PresetKey, Preset>,
+);
 
 type Pick = { id: number; cardIndex: number };
 
@@ -127,10 +101,8 @@ export function TearOffCard({
   const [busy, setBusy] = useState<null | "png" | "pdf" | "share">(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<number | null>(null);
-  const [accentKey, setAccentKey] = useState<AccentKey>("gold");
-  const [paperKey, setPaperKey] = useState<PaperKey>("midnight");
-  const accent = ACCENT_THEMES[accentKey];
-  const paper = PAPER_THEMES[paperKey];
+  const [presetKey, setPresetKey] = useState<PresetKey>("midnight-oracle");
+  const preset = PRESET_BY_KEY[presetKey];
   useEffect(
     () => () => {
       if (toastTimer.current) window.clearTimeout(toastTimer.current);
@@ -166,7 +138,7 @@ export function TearOffCard({
     const dataUrl = await toPng(cardRef.current, {
       pixelRatio: 2,
       cacheBust: true,
-      backgroundColor: paper.canvas,
+      backgroundColor: preset.bg,
     });
     return dataUrl;
   };
@@ -314,17 +286,14 @@ export function TearOffCard({
             closing={interpretation.closing}
             guideName={guideName}
             isOracle={isOracle}
-            accent={accent}
-            paper={paper}
+            preset={preset}
           />
         </div>
 
         <div className="flex flex-col gap-2 border-t border-gold/15 bg-background/40 px-5 py-4">
-          <ThemeControls
-            accentKey={accentKey}
-            paperKey={paperKey}
-            onAccentChange={setAccentKey}
-            onPaperChange={setPaperKey}
+          <PresetGrid
+            activeKey={presetKey}
+            onChange={setPresetKey}
             disabled={busy !== null}
           />
           <div className="flex flex-wrap items-center justify-center gap-2">
@@ -404,84 +373,79 @@ function ActionButton({
   );
 }
 
-function ThemeControls({
-  accentKey,
-  paperKey,
-  onAccentChange,
-  onPaperChange,
-  disabled,
-}: {
-  accentKey: AccentKey;
-  paperKey: PaperKey;
-  onAccentChange: (k: AccentKey) => void;
-  onPaperChange: (k: PaperKey) => void;
-  disabled: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <SwatchRow
-        label="Accent"
-        items={Object.values(ACCENT_THEMES)}
-        activeKey={accentKey}
-        onChange={(k) => onAccentChange(k as AccentKey)}
-        disabled={disabled}
-      />
-      <SwatchRow
-        label="Paper"
-        items={Object.values(PAPER_THEMES)}
-        activeKey={paperKey}
-        onChange={(k) => onPaperChange(k as PaperKey)}
-        disabled={disabled}
-      />
-    </div>
-  );
-}
-
-function SwatchRow({
-  label,
-  items,
+/**
+ * Preset palette picker — 10 named swatches the seeker can tap. Each
+ * preset rewrites bg / surface / text / accent in one go (no granular
+ * accent + paper picker any more).
+ */
+function PresetGrid({
   activeKey,
   onChange,
   disabled,
 }: {
-  label: string;
-  items: { key: string; label: string; swatch: string }[];
-  activeKey: string;
-  onChange: (k: string) => void;
+  activeKey: PresetKey;
+  onChange: (k: PresetKey) => void;
   disabled: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-1.5">
       <span
         className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground"
         style={{ fontFamily: "var(--font-display, var(--font-serif))" }}
       >
-        {label}
+        Color scheme
       </span>
-      <div className="flex items-center gap-1.5">
-        {items.map((it) => {
-          const active = it.key === activeKey;
+      <div
+        className="grid gap-1.5"
+        style={{ gridTemplateColumns: "repeat(5, minmax(0, 1fr))" }}
+      >
+        {PRESETS.map((p) => {
+          const active = p.key === activeKey;
           return (
             <button
-              key={it.key}
+              key={p.key}
               type="button"
-              onClick={() => onChange(it.key)}
+              onClick={() => onChange(p.key)}
               disabled={disabled}
               aria-pressed={active}
-              aria-label={`${label} ${it.label}`}
-              title={it.label}
-              className="relative h-6 w-6 rounded-full border transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label={p.label}
+              title={p.label}
+              className="group relative flex flex-col items-center gap-1 rounded-md p-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-50"
               style={{
-                background: it.swatch,
-                borderColor: active
-                  ? "var(--gold, #d4af37)"
-                  : "color-mix(in oklab, white 25%, transparent)",
-                boxShadow: active
-                  ? "0 0 0 2px color-mix(in oklab, var(--gold, #d4af37) 35%, transparent)"
-                  : "none",
-                transform: active ? "scale(1.08)" : "scale(1)",
+                background: active
+                  ? "color-mix(in oklab, var(--gold) 10%, transparent)"
+                  : "transparent",
               }}
-            />
+            >
+              <span
+                aria-hidden
+                className="block h-6 w-full rounded-md border"
+                style={{
+                  background: `linear-gradient(135deg, ${p.bg} 0%, ${p.surface} 60%, ${p.accent} 100%)`,
+                  borderColor: active
+                    ? "var(--gold, #d4af37)"
+                    : "color-mix(in oklab, white 18%, transparent)",
+                  boxShadow: active
+                    ? "0 0 0 1px color-mix(in oklab, var(--gold, #d4af37) 45%, transparent)"
+                    : "none",
+                }}
+              />
+              <span
+                className="block w-full text-center"
+                style={{
+                  fontSize: 9,
+                  letterSpacing: "0.06em",
+                  lineHeight: 1.15,
+                  color: active ? "var(--gold)" : "var(--muted-foreground)",
+                  fontFamily: "var(--font-display, var(--font-serif))",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {p.label}
+              </span>
+            </button>
           );
         })}
       </div>
@@ -526,8 +490,12 @@ function CelticCrossLayout({
   accent: string;
   text: string;
 }) {
-  const W = 36; // small cards so the entire layout fits the keepsake card
+  // Celtic Cross — central cross of 6 cards (positions 0–5) with a
+  // vertical staff of 4 cards (6–9) running up the right side. Slightly
+  // larger than before so the arrangement is legible on the keepsake.
+  const W = 42;
   const H = Math.round(W * 1.6);
+  void text;
   const card = (idx: number, opts?: { rotate?: number }) => {
     const p = picks[idx];
     if (!p) return null;
@@ -629,8 +597,7 @@ const CardArtwork = ({
   closing,
   guideName,
   isOracle,
-  accent,
-  paper,
+  preset,
 }: {
   ref: React.Ref<HTMLDivElement>;
   question?: string;
@@ -644,16 +611,28 @@ const CardArtwork = ({
   closing: string;
   guideName: string;
   isOracle: boolean;
-  accent: AccentTheme;
-  paper: PaperTheme;
+  preset: Preset;
 }) => {
-  const A = accent.color;
-  const T = paper.text;
-  // Slightly larger card images for the 3-card spread; default smaller
-  // for single / yes_no / daily so the artwork doesn't feel sparse.
+  const A = preset.accent;
+  const T = preset.text;
+  const SURFACE = preset.surface;
   const isThree = spread === "three";
   const isCeltic = spread === "celtic";
-  const cardW = isThree ? 78 : 60;
+  // Card dimensions tuned to the keepsake card width (CARD_W = 380, with
+  // ~22px side padding → ~336 inner). For 3-card we now fill the full
+  // width with a small equal buffer so the cards feel substantial.
+  const INNER_W = 336;
+  let cardW: number;
+  if (isThree) {
+    // Three cards across with 10px gaps + 4px breathing buffer per side.
+    const gaps = 2 * 10;
+    const sideBuffer = 2 * 4;
+    cardW = Math.floor((INNER_W - gaps - sideBuffer) / 3); // ≈ 102
+  } else if (isCeltic) {
+    cardW = 0; // unused — celtic uses its own sizing
+  } else {
+    cardW = 96;
+  }
   const cardH = Math.round(cardW * 1.75);
   return (
     <div
@@ -661,7 +640,7 @@ const CardArtwork = ({
       style={{
         width: 380,
         margin: "0 auto",
-        background: paper.background,
+        background: `linear-gradient(180deg, ${preset.bg} 0%, ${SURFACE} 60%, ${preset.bg} 100%)`,
         color: T,
         fontFamily: "var(--font-serif, 'Cormorant Garamond', serif)",
         borderRadius: 14,
@@ -758,7 +737,9 @@ const CardArtwork = ({
             gap: 10,
             justifyContent: "center",
             marginBottom: 16,
-            flexWrap: "wrap",
+            flexWrap: "nowrap",
+            paddingLeft: 4,
+            paddingRight: 4,
           }}
         >
           {picks.map((p, i) => (
@@ -768,8 +749,9 @@ const CardArtwork = ({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: 5,
+                gap: 6,
                 maxWidth: cardW + 12,
+                flex: "0 0 auto",
               }}
             >
               <img
@@ -780,32 +762,33 @@ const CardArtwork = ({
                   width: cardW,
                   height: cardH,
                   objectFit: "cover",
-                  borderRadius: 5,
+                  borderRadius: 6,
                   border: `1px solid color-mix(in oklab, ${A} 35%, transparent)`,
                   boxShadow: `0 4px 14px -4px color-mix(in oklab, ${A} 25%, transparent)`,
                 }}
               />
               <div
                 style={{
-                  fontSize: 9,
+                  fontSize: 11,
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
                   color: A,
-                  opacity: 0.78,
+                  opacity: 0.92,
                   textAlign: "center",
-                  lineHeight: 1.2,
+                  lineHeight: 1.25,
+                  fontWeight: 600,
                 }}
               >
                 {positions[i]?.position ?? `Card ${i + 1}`}
               </div>
               <div
                 style={{
-                  fontSize: 11,
+                  fontSize: 13,
                   fontStyle: "italic",
                   color: T,
                   opacity: 0.92,
                   textAlign: "center",
-                  lineHeight: 1.25,
+                  lineHeight: 1.3,
                 }}
               >
                 {getCardName(p.cardIndex)}
@@ -829,7 +812,7 @@ const CardArtwork = ({
         <p
           style={{
             fontStyle: "italic",
-            fontSize: 12.5,
+            fontSize: 14,
             lineHeight: 1.65,
             color: T,
             opacity: 0.94,
@@ -856,7 +839,7 @@ const CardArtwork = ({
             >
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: 13,
                   color: A,
                   letterSpacing: "0.04em",
                   fontWeight: 600,
@@ -866,7 +849,7 @@ const CardArtwork = ({
               </span>
               <span
                 style={{
-                  fontSize: 8,
+                  fontSize: 10,
                   color: A,
                   opacity: 0.7,
                   letterSpacing: "0.18em",
@@ -880,7 +863,7 @@ const CardArtwork = ({
             {p.interpretation && (
               <p
                 style={{
-                  fontSize: 11.5,
+                  fontSize: 13,
                   lineHeight: 1.55,
                   color: T,
                   opacity: 0.88,
@@ -898,7 +881,7 @@ const CardArtwork = ({
         <p
           style={{
             fontStyle: "italic",
-            fontSize: 12,
+            fontSize: 13.5,
             lineHeight: 1.6,
             color: T,
             opacity: 0.85,
