@@ -433,7 +433,7 @@ function PresetGrid({
               <span
                 className="block w-full text-center"
                 style={{
-                  fontSize: 9,
+                  fontSize: 12,
                   letterSpacing: "0.06em",
                   lineHeight: 1.15,
                   color: active ? "var(--gold)" : "var(--muted-foreground)",
@@ -509,7 +509,7 @@ function CelticCrossLayout({
           height: H,
           objectFit: "cover",
           borderRadius: 3,
-          border: `1px solid color-mix(in oklab, ${accent} 35%, transparent)`,
+          border: `1px solid oklch(1 0 0 / 0.10)`,
           boxShadow: `0 3px 10px -4px color-mix(in oklab, ${accent} 25%, transparent)`,
           transform: opts?.rotate ? `rotate(${opts.rotate}deg)` : undefined,
           transformOrigin: "center",
@@ -656,7 +656,7 @@ const CardArtwork = ({
         style={{
           position: "absolute",
           inset: 8,
-          border: `1px solid color-mix(in oklab, ${A} 22%, transparent)`,
+          border: `1px solid oklch(1 0 0 / 0.08)`,
           borderRadius: 10,
           pointerEvents: "none",
         }}
@@ -668,7 +668,7 @@ const CardArtwork = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          fontSize: 10,
+          fontSize: 13,
           letterSpacing: "0.32em",
           textTransform: "uppercase",
           color: A,
@@ -697,7 +697,7 @@ const CardArtwork = ({
         <div style={{ marginBottom: 14, textAlign: "center" }}>
           <div
             style={{
-              fontSize: 10,
+              fontSize: 13,
               letterSpacing: "0.28em",
               textTransform: "uppercase",
               color: A,
@@ -763,13 +763,13 @@ const CardArtwork = ({
                   height: cardH,
                   objectFit: "cover",
                   borderRadius: 6,
-                  border: `1px solid color-mix(in oklab, ${A} 35%, transparent)`,
+                  border: `1px solid oklch(1 0 0 / 0.10)`,
                   boxShadow: `0 4px 14px -4px color-mix(in oklab, ${A} 25%, transparent)`,
                 }}
               />
               <div
                 style={{
-                  fontSize: 11,
+                  fontSize: 14,
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
                   color: A,
@@ -783,7 +783,7 @@ const CardArtwork = ({
               </div>
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 16,
                   fontStyle: "italic",
                   color: T,
                   opacity: 0.92,
@@ -812,7 +812,7 @@ const CardArtwork = ({
         <p
           style={{
             fontStyle: "italic",
-            fontSize: 14,
+            fontSize: 17,
             lineHeight: 1.65,
             color: T,
             opacity: 0.94,
@@ -839,7 +839,7 @@ const CardArtwork = ({
             >
               <span
                 style={{
-                  fontSize: 13,
+                  fontSize: 16,
                   color: A,
                   letterSpacing: "0.04em",
                   fontWeight: 600,
@@ -849,7 +849,7 @@ const CardArtwork = ({
               </span>
               <span
                 style={{
-                  fontSize: 10,
+                  fontSize: 13,
                   color: A,
                   opacity: 0.7,
                   letterSpacing: "0.18em",
@@ -863,7 +863,7 @@ const CardArtwork = ({
             {p.interpretation && (
               <p
                 style={{
-                  fontSize: 13,
+                  fontSize: 16,
                   lineHeight: 1.55,
                   color: T,
                   opacity: 0.88,
@@ -908,7 +908,7 @@ const CardArtwork = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          fontSize: 9,
+          fontSize: 12,
           letterSpacing: "0.22em",
           textTransform: "uppercase",
           color: A,
