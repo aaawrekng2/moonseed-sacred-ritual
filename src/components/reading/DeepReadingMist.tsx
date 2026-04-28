@@ -14,6 +14,8 @@ type MistProps = {
   onTap: () => void;
   /** Disable the tap target while a deep reading is loading or already open. */
   disabled?: boolean;
+  /** When true, the mist shifts into a more present, faster, pulsing state. */
+  loading?: boolean;
   /** ARIA label for accessibility. */
   ariaLabel?: string;
 };
@@ -23,6 +25,7 @@ export function DeepReadingMist({
   whisper,
   onTap,
   disabled,
+  loading,
   ariaLabel,
 }: MistProps) {
   return (
@@ -31,6 +34,7 @@ export function DeepReadingMist({
       className="deep-mist"
       data-level={level}
       data-disabled={disabled ? "true" : undefined}
+      data-loading={loading ? "true" : undefined}
       onClick={() => {
         if (!disabled) onTap();
       }}
