@@ -75,20 +75,20 @@ export function AuthScreen({
           (currentUser as { is_anonymous?: boolean } | undefined)
             ?.is_anonymous === true;
 
+        // If the visitor is currently in an anonymous session, sign out
+        // first. Calling updateUser({ email }) on an anonymous user
+        // triggers Supabase's email-CHANGE flow (not signup), which does
+        // not deliver a usable confirmation email. signUp() is the only
+        // path that sends the standard "Confirm your signup" template.
         if (currentUser && isAnonymous) {
-          const { error: upgradeError } = await supabase.auth.updateUser(
-            { email, password },
-            { emailRedirectTo: window.location.origin },
-          );
-          if (upgradeError) throw upgradeError;
-        } else {
-          const { error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: { emailRedirectTo: window.location.origin },
-          });
-          if (signUpError) throw signUpError;
+          await supabase.auth.signOut();
         }
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        });
+        if (signUpError) throw signUpError;
 
         // Close the modal immediately and surface a toast so the seeker
         // isn't left staring at an empty form. The toast auto-dismisses.
