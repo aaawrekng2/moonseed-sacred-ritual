@@ -139,16 +139,21 @@ export function MoonCarousel() {
   // peak falls between.
   const fullMoonPeak = useMemo<Date | null>(() => {
     try {
-      const list = getPhaseOccurrences("Full Moon", new Date(), 2);
-      const now = Date.now();
-      const upcoming = list.find(
-        (d) => d.getTime() >= now - 36 * 60 * 60 * 1000,
-      );
+      // Anchor on the currently-viewed day (not real-world today) so that
+      // when the carousel scrolls past one full moon, gold tinting and the
+      // seam marker advance to the NEXT upcoming full moon. Search a couple
+      // days back so the peak day itself stays "upcoming" for the whole
+      // 24-hour window of the peak day.
+      const anchor = new Date(viewedDate);
+      anchor.setDate(anchor.getDate() - 2);
+      const list = getPhaseOccurrences("Full Moon", anchor, 3);
+      const cutoff = viewedDate.getTime() - 36 * 60 * 60 * 1000;
+      const upcoming = list.find((d) => d.getTime() >= cutoff);
       return upcoming ?? null;
     } catch {
       return null;
     }
-  }, [retryNonce]);
+  }, [retryNonce, viewedDate]);
 
   const peakDay = useMemo<Date | null>(() => {
     if (!fullMoonPeak) return null;
@@ -379,28 +384,53 @@ export function MoonCarousel() {
   // the pre-computed list. Each tap walks forward by one occurrence;
   // after the last we wrap to the first. Side-specific arrows still
   // step ±1 day.
-  const jumpToPhase = (phase: MoonPhaseName) => {
+  const jumpToPhase = (phase: MoonPhaseName, direction: "next" | "previous" = "next") => {
     const list = phaseOccurrencesRef.current.get(phase);
     if (!list || list.length === 0) return;
 
-    // Find the cursor's next position. If we have no cursor yet, start
-    // by finding the first occurrence at or after the currently viewed
-    // day so the very first tap lands on something the user can see is
-    // a step forward (not back to last week).
-    const stored = phaseCursorRef.current.get(phase);
+    // Compute the cursor relative to whichever occurrence the user is
+    // currently viewing (or closest to). This keeps left/right ladder
+    // taps symmetric: pressing right then left should always return to
+    // the previous occurrence, regardless of how the cursor was last set.
+    const dayMs = 24 * 60 * 60 * 1000;
+    const viewedMs = viewedDate.getTime();
+    // Index of the occurrence on (or nearest to) the viewed day.
+    let currentIdx = -1;
+    for (let i = 0; i < list.length; i++) {
+      if (Math.abs(list[i].getTime() - viewedMs) < dayMs / 2) {
+        currentIdx = i;
+        break;
+      }
+    }
+
     let nextIdx: number;
-    if (stored === undefined) {
-      const firstFromHere = list.findIndex((d) => d.getTime() > viewedDate.getTime());
-      nextIdx = firstFromHere === -1 ? 0 : firstFromHere;
+    if (direction === "next") {
+      if (currentIdx >= 0) {
+        nextIdx = (currentIdx + 1) % list.length;
+      } else {
+        const found = list.findIndex((d) => d.getTime() > viewedMs);
+        nextIdx = found === -1 ? 0 : found;
+      }
     } else {
-      nextIdx = (stored + 1) % list.length;
+      if (currentIdx >= 0) {
+        nextIdx = (currentIdx - 1 + list.length) % list.length;
+      } else {
+        // Last occurrence strictly before the viewed day.
+        let found = -1;
+        for (let i = list.length - 1; i >= 0; i--) {
+          if (list[i].getTime() < viewedMs) {
+            found = i;
+            break;
+          }
+        }
+        nextIdx = found === -1 ? list.length - 1 : found;
+      }
     }
     phaseCursorRef.current.set(phase, nextIdx);
 
     const targetDate = list[nextIdx];
     if (!targetDate) return;
     // Convert target absolute date back into an offset relative to today.
-    const dayMs = 24 * 60 * 60 * 1000;
     const deltaFromToday = Math.round((targetDate.getTime() - today.getTime()) / dayMs);
     setEnterDir(deltaFromToday >= offset ? "right" : "left");
     tweenOffsetTo(deltaFromToday);
@@ -459,8 +489,8 @@ export function MoonCarousel() {
       </p>
 
       {/* Mobile phase ladders — fixed to screen edges, visible on mobile only */}
-      <MobilePhaseLadder side="left" restingAlpha={restingAlpha} onJump={jumpToPhase} />
-      <MobilePhaseLadder side="right" restingAlpha={restingAlpha} onJump={jumpToPhase} />
+      <MobilePhaseLadder side="left" restingAlpha={restingAlpha} onJump={(p) => jumpToPhase(p, "previous")} />
+      <MobilePhaseLadder side="right" restingAlpha={restingAlpha} onJump={(p) => jumpToPhase(p, "next")} />
 
       {/* Fixed-height row so cards never reflow as the user swipes between
           days. The today card is the tallest element; sizing here is set so
@@ -499,7 +529,7 @@ export function MoonCarousel() {
           restingAlpha={restingAlpha}
           activePhase={viewedPhase}
           offset={offset}
-          onJump={(p) => jumpToPhase(p)}
+          onJump={(p) => jumpToPhase(p, "previous")}
           onStep={() => shift(-1)}
         />
 
@@ -616,7 +646,7 @@ export function MoonCarousel() {
           restingAlpha={restingAlpha}
           activePhase={viewedPhase}
           offset={offset}
-          onJump={(p) => jumpToPhase(p)}
+          onJump={(p) => jumpToPhase(p, "next")}
           onStep={() => shift(1)}
         />
       </div>
