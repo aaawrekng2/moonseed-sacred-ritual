@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import {
   computeMistIntensity,
   dawnCycleDateLocal,
+  getNextDawn,
   type MistState,
 } from "@/lib/deep-reading";
 import {
