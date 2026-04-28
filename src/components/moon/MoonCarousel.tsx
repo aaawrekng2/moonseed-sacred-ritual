@@ -139,16 +139,21 @@ export function MoonCarousel() {
   // peak falls between.
   const fullMoonPeak = useMemo<Date | null>(() => {
     try {
-      const list = getPhaseOccurrences("Full Moon", new Date(), 2);
-      const now = Date.now();
-      const upcoming = list.find(
-        (d) => d.getTime() >= now - 36 * 60 * 60 * 1000,
-      );
+      // Anchor on the currently-viewed day (not real-world today) so that
+      // when the carousel scrolls past one full moon, gold tinting and the
+      // seam marker advance to the NEXT upcoming full moon. Search a couple
+      // days back so the peak day itself stays "upcoming" for the whole
+      // 24-hour window of the peak day.
+      const anchor = new Date(viewedDate);
+      anchor.setDate(anchor.getDate() - 2);
+      const list = getPhaseOccurrences("Full Moon", anchor, 3);
+      const cutoff = viewedDate.getTime() - 36 * 60 * 60 * 1000;
+      const upcoming = list.find((d) => d.getTime() >= cutoff);
       return upcoming ?? null;
     } catch {
       return null;
     }
-  }, [retryNonce]);
+  }, [retryNonce, viewedDate]);
 
   const peakDay = useMemo<Date | null>(() => {
     if (!fullMoonPeak) return null;
