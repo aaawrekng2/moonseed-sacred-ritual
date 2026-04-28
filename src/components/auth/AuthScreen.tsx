@@ -115,7 +115,7 @@ export function AuthScreen({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-5"
-      style={{ background: "rgba(0,0,0,0.7)" }}
+      style={{ background: "var(--surface-scrim)" }}
     >
       <div
         className="w-full max-w-sm rounded-2xl px-6 py-6 flex flex-col gap-4"
