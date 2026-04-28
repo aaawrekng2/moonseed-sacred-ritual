@@ -1156,12 +1156,11 @@ button:focus-visible .moon-rung-glow {
   height: 120px;
   margin-top: 16px;
   border-radius: 18px;
-  border: 1px solid color-mix(in oklab, var(--gold) 8%, transparent);
   background: transparent;
   overflow: hidden;
   cursor: pointer;
   isolation: isolate;
-  transition: opacity 800ms ease, border-color 600ms ease;
+  transition: opacity 800ms ease;
   -webkit-tap-highlight-color: transparent;
 }
 @media (min-width: 1024px) {
@@ -1169,8 +1168,6 @@ button:focus-visible .moon-rung-glow {
 }
 .deep-mist:focus-visible {
   outline: none;
-  border-color: color-mix(in oklab, var(--gold) 35%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--gold) 20%, transparent);
 }
 .deep-mist[data-disabled="true"] {
   cursor: default;
@@ -1261,13 +1258,11 @@ button:focus-visible .moon-rung-glow {
 .deep-mist[data-level="3"] .deep-mist__plate--b { opacity: 0.40; animation-duration: 18s, 25s; }
 .deep-mist[data-level="3"] .deep-mist__threads { opacity: 0.55; }
 .deep-mist[data-level="3"] .deep-mist__text { opacity: 0.9; }
-.deep-mist[data-level="3"] { border-color: color-mix(in oklab, var(--gold) 18%, transparent); }
 
 .deep-mist[data-level="4"] .deep-mist__plate--a,
 .deep-mist[data-level="4"] .deep-mist__plate--b { opacity: 0.55; animation-duration: 14s, 19s; }
 .deep-mist[data-level="4"] .deep-mist__threads { opacity: 0.8; animation-duration: 12s; }
 .deep-mist[data-level="4"] .deep-mist__text { opacity: 1; }
-.deep-mist[data-level="4"] { border-color: color-mix(in oklab, var(--gold) 28%, transparent); }
 
 @keyframes deep-mist-drift-x {
   0%   { transform: translate3d(-6%, 0, 0) scale(1.05); }
@@ -1466,4 +1461,12 @@ button:focus-visible .moon-rung-glow {
 @keyframes deep-lens-breathe {
   0%, 100% { opacity: 0.45; }
   50%      { opacity: 0.85; }
+}
+
+/* Journal filter button — mobile keeps subtle styling, desktop becomes more prominent. */
+.journal-filter-btn { opacity: var(--ro-plus-30); }
+@media (min-width: 1024px) {
+  .journal-filter-btn { opacity: 1; transition: background-color 200ms ease; }
+  .journal-filter-btn:hover { background: var(--accent-faint, oklch(1 0 0 / 0.06)); }
+  .journal-filter-btn__icon { width: 20px; height: 20px; }
 }
