@@ -115,6 +115,15 @@ export function DeepReadingPanel({
   const handleMistTap = async () => {
     setFlow({ kind: "loading" });
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        setFlow({
+          kind: "error",
+          message: "You need to be signed in for a Deep Reading.",
+        });
+        return;
+      }
       const result = (await interpretDeepReading({
         data: {
           reading_id: readingId,
@@ -123,6 +132,7 @@ export function DeepReadingPanel({
           lensId,
           facetIds,
         },
+        headers: { Authorization: `Bearer ${token}` },
       })) as DeepReadingResult;
       if (result.ok) {
         setFlow({ kind: "lenses", lenses: result.lenses, revealed: 1 });
