@@ -572,7 +572,7 @@ function CardStrip({
           <span
             className="font-display italic"
             style={{
-              fontSize: `calc(14px * var(--heading-scale, 1))`,
+              fontSize: "var(--text-body)",
               color: "var(--gold)",
               opacity: labelOpacity,
               letterSpacing: "0.05em",
