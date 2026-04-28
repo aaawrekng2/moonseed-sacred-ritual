@@ -154,7 +154,16 @@ export function DeepReadingPanel({
     const next = !mirrorSaved;
     setMirrorSavedState(next);
     try {
-      await setMirrorSaved({ data: { reading_id: readingId, saved: next } });
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        setMirrorSavedState(!next);
+        return;
+      }
+      await setMirrorSaved({
+        data: { reading_id: readingId, saved: next },
+        headers: { Authorization: `Bearer ${token}` },
+      });
     } catch (e) {
       console.warn("[DeepReadingPanel] save mirror failed", e);
       setMirrorSavedState(!next);
