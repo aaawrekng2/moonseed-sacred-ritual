@@ -230,6 +230,46 @@ export function MoonCarousel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offset, today, retryNonce, dayRange]);
 
+  // Measure the seam pixel position whenever layout might shift. Looks
+  // for the visible cell that matches `seamLeftDate` and the cell
+  // immediately after it; the marker sits centered between the two.
+  useEffect(() => {
+    if (!seamLeftDate) {
+      setMarkerLeft(null);
+      return;
+    }
+    const measure = () => {
+      const row = cardsRowRef.current;
+      if (!row) return;
+      const rowRect = row.getBoundingClientRect();
+      const leftIdx = days.findIndex((d) =>
+        isSameLocalDay(d.info.date, seamLeftDate),
+      );
+      if (leftIdx < 0 || leftIdx >= days.length - 1) {
+        setMarkerLeft(null);
+        return;
+      }
+      const leftEl = cellRefs.current[leftIdx];
+      const rightEl = cellRefs.current[leftIdx + 1];
+      if (!leftEl || !rightEl) {
+        setMarkerLeft(null);
+        return;
+      }
+      const lr = leftEl.getBoundingClientRect();
+      const rr = rightEl.getBoundingClientRect();
+      const center = (lr.right + rr.left) / 2 - rowRect.left;
+      setMarkerLeft(center);
+    };
+    const id = requestAnimationFrame(() =>
+      requestAnimationFrame(measure),
+    );
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener("resize", measure);
+    };
+  }, [seamLeftDate, days, offset, transitioning, isMobile]);
+
   const [recomputing, setRecomputing] = useState(false);
   const recomputeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
