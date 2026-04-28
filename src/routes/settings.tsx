@@ -259,7 +259,7 @@ function SettingsLayout() {
                 style={{
                   fontFamily: "var(--font-serif)",
                   fontStyle: "italic",
-                  fontSize: 12,
+                  fontSize: "var(--text-body-sm)",
                   color: "var(--foreground)",
                   opacity: 0.25,
                   background: "none",

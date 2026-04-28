@@ -141,7 +141,7 @@ function ProfileSectionInner({
             <h2
               style={{
                 fontFamily: "var(--font-serif)",
-                fontSize: 26,
+                fontSize: "var(--text-heading-md)",
                 fontWeight: 400,
                 color: "var(--foreground)",
                 opacity: 0.95,
@@ -155,7 +155,7 @@ function ProfileSectionInner({
               style={{
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                fontSize: 14,
+                fontSize: "var(--text-body)",
                 color: "var(--foreground)",
                 opacity: 0.55,
                 lineHeight: 1.7,
@@ -177,7 +177,7 @@ function ProfileSectionInner({
               color: "var(--gold)",
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: 16,
+              fontSize: "var(--text-body)",
               letterSpacing: "0.05em",
               cursor: "pointer",
             }}
@@ -198,7 +198,7 @@ function ProfileSectionInner({
             style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: 11,
+              fontSize: "var(--text-caption)",
               color: "var(--foreground)",
               opacity: 0.2,
               background: "none",
@@ -248,7 +248,7 @@ function ProfileSectionInner({
               style={{
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                fontSize: 13,
+                fontSize: "var(--text-body-sm)",
                 color: "var(--gold)",
                 opacity: saving ? 0.4 : 0.75,
                 background: "none",
@@ -321,7 +321,7 @@ function IntentionField({
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
-            fontSize: 13,
+            fontSize: "var(--text-body-sm)",
             color: "var(--gold)",
             opacity: saving ? 0.4 : 0.7,
             background: "none",

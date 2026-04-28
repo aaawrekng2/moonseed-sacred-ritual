@@ -1472,7 +1472,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                         isNext && showLabels && "slot-next-label",
                       )}
                       style={{
-                        fontSize: 18,
+                        fontSize: "var(--text-body-lg)",
                         color: "var(--gold)",
                         opacity: showLabels ? (isNext ? undefined : restingAlpha) : 0,
                         letterSpacing: "0.05em",
@@ -1522,7 +1522,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
                 <span
                   className="font-display italic leading-none animate-breathe-glow"
                   style={{
-                    fontSize: 22,
+                    fontSize: "var(--text-heading-md)",
                     color: "var(--gold)",
                     opacity: showWhisper ? restingAlpha : 0,
                     lineHeight: 1.15,
@@ -1566,7 +1566,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
               <span
                 className="font-display italic leading-none animate-breathe-glow"
                 style={{
-                  fontSize: 18,
+                  fontSize: "var(--text-body-lg)",
                   color: "var(--gold)",
                   opacity: showWhisper ? restingAlpha : 0,
                   lineHeight: 1.2,

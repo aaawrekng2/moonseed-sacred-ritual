@@ -151,6 +151,34 @@ export function applyHeadingFontSize(sizePx: number) {
   }
 }
 
+/**
+ * Body-text scale writer. Mirrors applyHeadingFontSize() but for the
+ * --body-scale custom property that semantic --text-body* tokens read.
+ * Default 15px ≡ scale 1.0 (matches --fs-base). Allowed range 12–22px,
+ * persisted in localStorage so the value survives reloads even before
+ * the Supabase row hydrates.
+ */
+export const MIN_BODY_FONT_SIZE = 12;
+export const MAX_BODY_FONT_SIZE = 22;
+export const DEFAULT_BODY_FONT_SIZE = 15;
+
+export function applyBodyFontSize(sizePx: number) {
+  if (typeof document === "undefined") return;
+  const clamped = Math.max(
+    MIN_BODY_FONT_SIZE,
+    Math.min(MAX_BODY_FONT_SIZE, Math.round(sizePx)),
+  );
+  const scale = clamped / DEFAULT_BODY_FONT_SIZE;
+  document.documentElement.style.setProperty("--body-scale", String(scale));
+  try {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("moonseed:body-font-size", String(clamped));
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /*  Hook                                                               */
 /* ------------------------------------------------------------------ */

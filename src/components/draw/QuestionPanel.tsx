@@ -99,7 +99,7 @@ export function QuestionPanel({
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
             // Reduced 10% from the previous 22px.
-            fontSize: 19.8,
+            fontSize: "var(--text-body-lg)",
             color: "var(--gold)",
             lineHeight: 1,
             display: "inline-block",
@@ -142,7 +142,7 @@ export function QuestionPanel({
             style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: 11,
+              fontSize: "var(--text-caption)",
               letterSpacing: "0.2em",
               textTransform: "uppercase",
               color: "var(--gold)",
@@ -172,7 +172,7 @@ export function QuestionPanel({
             style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: 16,
+              fontSize: "var(--text-body)",
               lineHeight: 1.7,
               color: "var(--foreground)",
               border: "none",
@@ -186,7 +186,7 @@ export function QuestionPanel({
               style={{
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                fontSize: 16,
+                fontSize: "var(--text-body)",
                 lineHeight: 1.7,
                 color: "var(--foreground)",
                 opacity: 0.3,
@@ -206,7 +206,7 @@ export function QuestionPanel({
             style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: 12,
+              fontSize: "var(--text-body-sm)",
               color: "var(--foreground)",
               opacity: 0.4,
               background: "none",

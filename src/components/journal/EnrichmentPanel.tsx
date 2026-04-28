@@ -625,7 +625,7 @@ export function EnrichmentPanel({
               border: "none",
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: 13,
+              fontSize: "var(--text-body-sm)",
               color: "var(--gold)",
               opacity: "var(--ro-plus-30)",
               cursor: "pointer",

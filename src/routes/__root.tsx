@@ -155,7 +155,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var f=localStorage.getItem('moonseed:heading-font');if(f){document.documentElement.style.setProperty('--font-serif','\"'+f+'\", ui-serif, Georgia, serif');}var s=localStorage.getItem('moonseed:heading-font-size');if(s){var n=Math.max(16,Math.min(32,Math.round(Number(s))));if(Number.isFinite(n))document.documentElement.style.setProperty('--heading-scale',String(n/22));}}catch(e){}",
+              "try{var f=localStorage.getItem('moonseed:heading-font');if(f){document.documentElement.style.setProperty('--font-serif','\"'+f+'\", ui-serif, Georgia, serif');}var s=localStorage.getItem('moonseed:heading-font-size');if(s){var n=Math.max(16,Math.min(32,Math.round(Number(s))));if(Number.isFinite(n))document.documentElement.style.setProperty('--heading-scale',String(n/22));}var b=localStorage.getItem('moonseed:body-font-size');if(b){var m=Math.max(12,Math.min(22,Math.round(Number(b))));if(Number.isFinite(m))document.documentElement.style.setProperty('--body-scale',String(m/15));}}catch(e){}",
           }}
         />
         <HeadContent />

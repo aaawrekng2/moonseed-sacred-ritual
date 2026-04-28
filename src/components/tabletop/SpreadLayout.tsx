@@ -175,7 +175,7 @@ export function SpreadLayout({ spread, picks, onExit, question }: Props) {
               style={{
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                fontSize: 15,
+                fontSize: "var(--text-body)",
                 lineHeight: 1.6,
                 color: "var(--foreground)",
                 opacity: "var(--ro-plus-20)",
@@ -376,7 +376,7 @@ function PositionLabel({ children }: { children: React.ReactNode }) {
     <span
       className="font-display italic"
       style={{
-        fontSize: 18,
+        fontSize: "var(--text-body-lg)",
         color: "var(--gold)",
         opacity: 0.75,
         letterSpacing: "0.05em",
