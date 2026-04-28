@@ -1081,7 +1081,7 @@ function ReadingBody({
 
   return (
     <div
-      className="reading-fade flex flex-col gap-7"
+      className="reading-fade flex flex-col gap-4"
       onPointerDown={onPointerDown}
       onPointerUp={cancelLongPress}
       onPointerCancel={cancelLongPress}
