@@ -481,14 +481,18 @@ function JournalPage() {
           type="button"
           onClick={() => setFiltersOpen(true)}
           aria-label="Filter"
-          className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 font-display text-[12px] italic text-gold transition-opacity"
+          className="journal-filter-btn ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 font-display text-[12px] italic text-gold transition-opacity"
           style={{
             border:
               "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
-            opacity: "var(--ro-plus-30)",
           }}
         >
-          <SlidersHorizontal size={14} strokeWidth={1.5} aria-hidden />
+          <SlidersHorizontal
+            className="journal-filter-btn__icon"
+            size={14}
+            strokeWidth={1.5}
+            aria-hidden
+          />
           {activeFilterCount > 0 && (
             <span
               className="inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[10px] tabular-nums leading-none"
