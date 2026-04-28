@@ -211,6 +211,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = sessionData.session?.user?.id;
         if (!uid) return;
+        const token = sessionData.session?.access_token;
         const interpretationText = buildCopyText({
           spreadLabel: meta.label,
           interpretation: loadedInterpretation,
@@ -261,7 +262,10 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
         });
         // Phase 7: fire-and-forget thread detection. Must NOT block or
         // surface errors to the reading UI.
-        void detectThreads({ data: { user_id: uid } }).catch((e: unknown) =>
+        void detectThreads({
+          data: { user_id: uid },
+          ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+        }).catch((e: unknown) =>
           console.warn("detect-threads failed silently:", e),
         );
         // Phase 7: also refresh the memory snapshot for the lens the
@@ -276,6 +280,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
               : "deeper_threads";
         void buildMemorySnapshot({
           data: { user_id: uid, snapshot_type: snapshotType },
+          ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
         }).catch((e: unknown) =>
           console.warn("build-memory-snapshot failed silently:", e),
         );
