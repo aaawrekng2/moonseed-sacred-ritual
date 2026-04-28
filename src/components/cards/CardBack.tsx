@@ -400,6 +400,9 @@ export function CardBack({ id = "celestial", width = 160, className, ariaLabel, 
   const outerBorderColor = neutralBorder
     ? "oklch(1 0 0 / 0.10)"
     : style.borderColor;
+  const innerShadow = neutralBorder
+    ? `inset 0 0 0 ${m.innerInset}px oklch(1 0 0 / 0.08), inset 0 0 0 ${Math.round(m.innerInset * 1.7)}px oklch(1 0 0 / 0.05)`
+    : `inset 0 0 0 ${m.innerInset}px ${style.innerOuter}, inset 0 0 0 ${Math.round(m.innerInset * 1.7)}px ${style.innerInner}`;
   return (
     <div
       role="img"
@@ -412,7 +415,9 @@ export function CardBack({ id = "celestial", width = 160, className, ariaLabel, 
         background: style.bg,
         border: `${m.border}px solid ${outerBorderColor}`,
         // Inner double-ring scales with card size for a proportional look.
-        boxShadow: `inset 0 0 0 ${m.innerInset}px ${style.innerOuter}, inset 0 0 0 ${Math.round(m.innerInset * 1.7)}px ${style.innerInner}`,
+        // When `neutralBorder` is set (e.g. theme picker thumbnails), use a
+        // faint white inset so the preview never glows the active accent.
+        boxShadow: innerShadow,
       }}
     >
       {id === "celestial" && <CelestialBack width={width} />}

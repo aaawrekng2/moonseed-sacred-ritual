@@ -97,7 +97,7 @@ export function SpreadLayout({ spread, picks, onExit, question }: Props) {
 
   return (
     <main
-      className="cast-screen-enter fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]"
+      className="cast-screen-enter fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]"
       aria-label={`${meta.label} spread layout`}
       style={{
         // Allow native pinch-zoom + pan without the browser snapping the
@@ -105,9 +105,9 @@ export function SpreadLayout({ spread, picks, onExit, question }: Props) {
         // zoom but kills pinch on some browsers; the explicit list is
         // the safest combination across iOS Safari + Chrome Android.
         touchAction: "pan-x pan-y pinch-zoom",
-        // Once revealed the page becomes scrollable so the inline
-        // reading can grow beyond the viewport without being clipped.
-        overflowY: allRevealed ? "auto" : "hidden",
+        // Always allow vertical scroll so the enrichment panel and any
+        // bottom UI clear the bottom nav on every device.
+        overflowY: "auto",
       }}
     >
       {/* Cards block — ALWAYS anchored at the top with a stable
@@ -146,7 +146,7 @@ export function SpreadLayout({ spread, picks, onExit, question }: Props) {
         <div
           className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5"
           style={{
-            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)",
             paddingTop: 8,
           }}
         >
@@ -162,7 +162,7 @@ export function SpreadLayout({ spread, picks, onExit, question }: Props) {
         <div
           className="flex flex-col items-center justify-center gap-3 px-5"
           style={{
-            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)",
             paddingTop: 8,
           }}
         >
@@ -376,7 +376,7 @@ function PositionLabel({ children }: { children: React.ReactNode }) {
     <span
       className="font-display italic"
       style={{
-        fontSize: 10,
+        fontSize: 18,
         color: "var(--gold)",
         opacity: 0.75,
         letterSpacing: "0.05em",
