@@ -187,48 +187,6 @@ export function MoonCarousel() {
   const cardsRowRef = useRef<HTMLDivElement | null>(null);
   const [markerLeft, setMarkerLeft] = useState<number | null>(null);
 
-  // Measure the seam pixel position whenever layout might shift.
-  // Looks for the visible cell that matches `seamLeftDate` and the cell
-  // immediately after it; the marker is centered between the two.
-  useEffect(() => {
-    if (!seamLeftDate) {
-      setMarkerLeft(null);
-      return;
-    }
-    const measure = () => {
-      const row = cardsRowRef.current;
-      if (!row) return;
-      const rowRect = row.getBoundingClientRect();
-      const visible = days;
-      const leftIdx = visible.findIndex((d) =>
-        isSameLocalDay(d.info.date, seamLeftDate),
-      );
-      if (leftIdx < 0 || leftIdx >= visible.length - 1) {
-        setMarkerLeft(null);
-        return;
-      }
-      const leftEl = cellRefs.current[leftIdx];
-      const rightEl = cellRefs.current[leftIdx + 1];
-      if (!leftEl || !rightEl) {
-        setMarkerLeft(null);
-        return;
-      }
-      const lr = leftEl.getBoundingClientRect();
-      const rr = rightEl.getBoundingClientRect();
-      const center = (lr.right + rr.left) / 2 - rowRect.left;
-      setMarkerLeft(center);
-    };
-    // Two RAFs: layout settles after the cell margins/transitions resolve.
-    const id = requestAnimationFrame(() =>
-      requestAnimationFrame(measure),
-    );
-    window.addEventListener("resize", measure);
-    return () => {
-      cancelAnimationFrame(id);
-      window.removeEventListener("resize", measure);
-    };
-  }, [seamLeftDate, days, offset, transitioning, isMobile]);
-
   // Pre-compute the phase ladder once at mount (and again if the user
   // taps the recompute/retry button). Stored in refs so taps on the
   // ladder don't trigger re-renders just to read the next occurrence.
