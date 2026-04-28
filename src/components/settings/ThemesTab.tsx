@@ -975,7 +975,12 @@ function HeadingFontSection() {
   const commitSize = async (next: number) => {
     setSize(next);
     setDraftSize(next);
-    applyHeadingFontSize(next);
+    // Preserve the seeker's scroll position across the reflow caused by
+    // the new heading size — without this the page visibly jumps when
+    // the slider releases. Save scrollY + total height BEFORE applying
+    // the change, then restore the same proportional position in the
+    // next animation frame once layout has settled.
+    withPreservedScroll(() => applyHeadingFontSize(next));
     markDirty();
     await updateUserPreferences(user.id, { heading_font_size: next });
     setPrefs({ ...prefs, heading_font_size: next });
