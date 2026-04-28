@@ -49,6 +49,9 @@ type ReadingRow = {
   note: string | null;
   is_favorite: boolean;
   tags: string[] | null;
+  is_deep_reading: boolean;
+  deep_reading_lenses: Record<string, string> | null;
+  mirror_saved: boolean;
 };
 
 type TagRow = { id: string; name: string; usage_count: number };
@@ -155,7 +158,7 @@ function JournalPage() {
           supabase
             .from("readings")
             .select(
-              "id,user_id,spread_type,card_ids,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags",
+              "id,user_id,spread_type,card_ids,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved",
             )
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
