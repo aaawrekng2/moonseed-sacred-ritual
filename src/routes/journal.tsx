@@ -1064,7 +1064,6 @@ function CalendarView({
 
   // YYYY-MM-DD -> count of readings on that local day, after applying
   // the same tag / draw-type filters used by the rest of the journal.
-  const filtersActive = activeTags.length > 0 || activeDrawTypes.length > 0;
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
     for (const r of readings) {
