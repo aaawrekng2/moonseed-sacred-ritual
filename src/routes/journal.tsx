@@ -527,7 +527,7 @@ function JournalPage() {
               letterSpacing: "0.18em",
               textTransform: "uppercase",
               color: "var(--accent)",
-              opacity: 0.9,
+              opacity: 1,
               whiteSpace: "nowrap",
               background: "none",
               border: "none",
