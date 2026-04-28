@@ -175,7 +175,7 @@ export function SpreadLayout({ spread, picks, onExit, question }: Props) {
               style={{
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                fontSize: 13,
+                fontSize: 15,
                 lineHeight: 1.6,
                 color: "var(--foreground)",
                 opacity: "var(--ro-plus-20)",
