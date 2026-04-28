@@ -134,6 +134,70 @@
      size cascades app-wide (home, draw, reading, journal, settings)
      instead of only affecting headings on the Themes preview. */
   --heading-scale: 1;
+
+  /* Body-text scale — written by applyBodyFontSize() in
+     src/lib/use-saved-themes.ts. Defaults to 1 (= 15px base). Multiplies
+     into every --text-body* / --text-caption / --text-label semantic
+     token below so the seeker's Body size preference cascades app-wide. */
+  --body-scale: 1;
+
+  /* ----------------------------------------------------------------- */
+  /*  LAYER 1 — Base tokens (fixed; never reference from components)   */
+  /* ----------------------------------------------------------------- */
+  --fs-xs:   11px;
+  --fs-sm:   13px;
+  --fs-base: 15px;
+  --fs-md:   17px;
+  --fs-lg:   20px;
+  --fs-xl:   24px;
+  --fs-2xl:  32px;
+  --fs-3xl:  40px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --radius-token-sm: 4px;
+  --radius-token-md: 8px;
+  --radius-token-lg: 12px;
+  --radius-token-xl: 20px;
+
+  /* ----------------------------------------------------------------- */
+  /*  LAYER 2 — Semantic tokens (components reference ONLY these)      */
+  /* ----------------------------------------------------------------- */
+
+  /* Text — derived from base + user preference scales */
+  --text-display:    calc(var(--fs-3xl)  * var(--heading-scale));
+  --text-heading-lg: calc(var(--fs-2xl)  * var(--heading-scale));
+  --text-heading-md: calc(var(--fs-xl)   * var(--heading-scale));
+  --text-heading-sm: calc(var(--fs-lg)   * var(--heading-scale));
+  --text-body-lg:    calc(var(--fs-md)   * var(--body-scale));
+  --text-body:       calc(var(--fs-base) * var(--body-scale));
+  --text-body-sm:    calc(var(--fs-sm)   * var(--body-scale));
+  --text-caption:    calc(var(--fs-xs)   * var(--body-scale));
+  --text-label:      calc(var(--fs-base) * var(--body-scale));
+
+  /* Surfaces */
+  --surface-card:       color-mix(in oklch, var(--color-foreground) 4%, transparent);
+  --surface-card-hover: color-mix(in oklch, var(--color-foreground) 8%, transparent);
+  --surface-overlay:    oklch(0.10 0.04 285 / 0.85);
+  --surface-scrim:      oklch(0 0 0 / 0.7);
+
+  /* Borders */
+  --border-subtle:  oklch(1 0 0 / 0.08);
+  --border-default: oklch(1 0 0 / 0.12);
+  --border-strong:  oklch(1 0 0 / 0.20);
+
+  /* Accent — signature/gold for accents only (mist, glow, highlight).
+     NEVER use for body text. Body text always uses --color-foreground. */
+  --accent-color: var(--gold);
+  --accent-glow:  color-mix(in oklch, var(--gold) 35%, transparent);
+  --accent-faint: color-mix(in oklch, var(--gold) 10%, transparent);
 }
 
 html { transition: var(--accent-transition); }
