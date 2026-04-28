@@ -19,6 +19,7 @@ import { t } from "@/lib/oracle-language";
 import {
   useRegisterCloseHandler,
   useRegisterHelpHandler,
+  useRegisterTabletopActive,
 } from "@/lib/floating-menu-context";
 import {
   AlertDialog,
