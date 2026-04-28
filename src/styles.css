@@ -1,6 +1,29 @@
 @import "tailwindcss" source(none);
 @source "../src";
 
+/**
+ * MOONSEED DESIGN TOKEN SYSTEM
+ *
+ * Two layers:
+ *   1. Base tokens   — fixed raw values (--fs-*, --space-*, --radius-*).
+ *                      Defined once below; never change at runtime.
+ *   2. Semantic tokens — purpose-based, derived from base tokens AND
+ *                        user preferences (--heading-scale, --body-scale,
+ *                        --color-signature). Defined as
+ *                        --text-*, --surface-*, --border-*, --accent*.
+ *
+ * Rules for components:
+ *   - Reference ONLY semantic tokens (var(--text-body), var(--surface-card)…)
+ *   - Never hardcode font sizes, hex colors, rgba(), or pixel spacing inline
+ *   - Never reference base tokens directly from a component
+ *   - Body text always uses var(--color-foreground); the signature color is
+ *     for accents only (mist, glows, active card highlight) — never text.
+ *
+ * User preferences flow into semantic tokens automatically: changing the
+ * heading or body scale slider, or the signature color, updates the whole
+ * app at once. Future components inherit the system for free.
+ */
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
