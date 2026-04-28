@@ -192,15 +192,13 @@ export function DeepReadingPanel({
 
   if (flow.kind === "loading") {
     return (
-      <>
-        <DeepReadingMist
-          level={mist.level}
-          whisper={mist.whisper}
-          onTap={() => {}}
-          disabled
-        />
-        <div className="deep-lens__loading">Reading…</div>
-      </>
+      <DeepReadingMist
+        level={mist.level}
+        whisper="The deep layer stirs…"
+        onTap={() => {}}
+        disabled
+        loading
+      />
     );
   }
 

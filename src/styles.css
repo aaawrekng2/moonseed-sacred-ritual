@@ -1288,6 +1288,30 @@ button:focus-visible .moon-rung-glow {
   .deep-mist__plate, .deep-mist__threads { animation: none !important; }
 }
 
+/* Loading state — mist becomes more present, drifts faster, whisper pulses. */
+.deep-mist[data-loading="true"] .deep-mist__plate--a,
+.deep-mist[data-loading="true"] .deep-mist__plate--b {
+  opacity: 0.6;
+  animation-duration: 8s, 11s;
+}
+.deep-mist[data-loading="true"] .deep-mist__threads {
+  opacity: 0.9;
+  animation-duration: 9s;
+}
+.deep-mist[data-loading="true"] .deep-mist__text {
+  animation: deep-mist-whisper-pulse 2s ease-in-out infinite;
+}
+.deep-mist[data-loading="true"][data-disabled="true"] {
+  opacity: 1;
+}
+@keyframes deep-mist-whisper-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .deep-mist[data-loading="true"] .deep-mist__text { animation: none !important; }
+}
+
 /* ---------------------------------------------------------------- */
 /*  Deep Reading lens layout                                          */
 /* ---------------------------------------------------------------- */

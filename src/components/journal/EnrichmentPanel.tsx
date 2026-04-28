@@ -10,7 +10,7 @@
  * "a gentle invitation, not a form" (per the Phase 6 spec).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, CheckCheck, Copy, Heart, Loader2, Plus, Tag as TagIcon, X } from "lucide-react";
+import { Camera, CheckCheck, Copy, Heart, Loader2, Pencil, Plus, Tag as TagIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
@@ -540,20 +540,24 @@ export function EnrichmentPanel({
               )}
             </IconAction>
           )}
-          <TextAction
+          <IconAction
             label="Note"
             active={hasNote}
             onClick={() =>
               setOpenSection((p) => (p === "note" ? null : "note"))
             }
-          />
-          <TextAction
+          >
+            <Pencil size={18} strokeWidth={1.5} />
+          </IconAction>
+          <IconAction
             label="Tags"
             active={hasTags}
             onClick={() =>
               setOpenSection((p) => (p === "tags" ? null : "tags"))
             }
-          />
+          >
+            <TagIcon size={18} strokeWidth={1.5} />
+          </IconAction>
           <IconAction
             label="Add photo"
             active={hasPhotos}
