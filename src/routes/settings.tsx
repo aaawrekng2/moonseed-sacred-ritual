@@ -75,7 +75,7 @@ const TABS: TabDef[] = [
   { key: "preferences", label: "Preferences", to: "/settings/preferences", icon: Sliders },
   { key: "themes", label: "Themes", to: "/settings/themes", icon: Palette },
   { key: "guides", label: "Guides", to: "/settings/guides", icon: Sparkles },
-  { key: "moon", label: "Moon", to: "/settings/moon", icon: Moon },
+  { key: "moon", label: "Subscriptions", to: "/settings/moon", icon: Moon },
   { key: "data", label: "Data", to: "/settings/data", icon: Database },
 ];
 
