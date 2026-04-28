@@ -57,6 +57,7 @@ export function BottomNav() {
                 style={{
                   opacity: tabAlpha,
                   transform: primary ? undefined : "translateY(4px)",
+                  color: active ? "var(--gold)" : undefined,
                 }}
                 className={cn(
                   "flex flex-col items-center gap-1 rounded-lg px-2 py-1 transition-all hover:opacity-100",

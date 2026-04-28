@@ -1069,7 +1069,7 @@ function CalendarView({
   })();
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="journal-calendar mx-auto max-w-md">
       <div className="flex items-center justify-between">
         <button
           type="button"
@@ -1130,7 +1130,7 @@ function CalendarView({
               <span style={{ fontFamily: "var(--font-serif)" }}>{c.day}</span>
               {count > 0 && (
                 <span
-                  className="absolute -bottom-1 -right-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 font-mono text-[11px] font-medium tabular-nums leading-none"
+                  className="journal-calendar-badge absolute -bottom-1 -right-1 rounded-full px-1 leading-none"
                   style={{
                     background: "var(--gold)",
                     color: "oklch(0.10 0.03 280)",

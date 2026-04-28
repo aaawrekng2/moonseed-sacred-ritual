@@ -352,7 +352,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
           paddingTop: "calc(var(--topbar-pad) + 16px)",
           // Reserve enough room above the 64px BottomNav so the tear-off
           // card, share button, and Done CTA are never clipped.
-          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 144px)",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
         }}
       >
         {question && question.trim() && (
@@ -528,7 +528,7 @@ function CardStrip({
     const card = (i: number) => (
       <div key={picks[i]?.id ?? i} className="flex flex-col items-center gap-1">
         <div
-          className="overflow-hidden rounded-[6px] border border-gold/40 bg-card"
+          className="overflow-hidden rounded-[6px] border border-white/10 bg-card"
           style={{ width: cw, height: ch, boxShadow: "0 4px 14px rgba(0,0,0,0.45)" }}
         >
           {picks[i] && (
@@ -575,14 +575,14 @@ function CardStrip({
             <div className="relative flex items-center justify-center" style={{ width: cw, height: ch }}>
               <div className="absolute inset-0 flex items-center justify-center">
                 {picks[0] && (
-                  <div className="overflow-hidden rounded-[6px] border border-gold/40 bg-card" style={{ width: cw, height: ch }}>
+                  <div className="overflow-hidden rounded-[6px] border border-white/10 bg-card" style={{ width: cw, height: ch }}>
                     <img src={getCardImagePath(picks[0].cardIndex)} alt={getCardName(picks[0].cardIndex)} className="h-full w-full object-cover" loading="eager" />
                   </div>
                 )}
               </div>
               <div className="absolute inset-0 flex items-center justify-center" style={{ transform: "rotate(90deg)" }}>
                 {picks[1] && (
-                  <div className="overflow-hidden rounded-[6px] border border-gold/40 bg-card" style={{ width: cw, height: ch }}>
+                  <div className="overflow-hidden rounded-[6px] border border-white/10 bg-card" style={{ width: cw, height: ch }}>
                     <img src={getCardImagePath(picks[1].cardIndex)} alt={getCardName(picks[1].cardIndex)} className="h-full w-full object-cover" loading="eager" />
                   </div>
                 )}
@@ -636,7 +636,7 @@ function CardStrip({
   // text on the reveal screen — bump them significantly so they read
   // clearly at a glance. Keep them proportional to the card width on
   // narrow phones so they don't overflow.
-  const labelFontSize = w < 80 ? 16 : w < 120 ? 18 : 20;
+  const labelFontSize = w < 80 ? 22 : w < 120 ? 26 : 30;
   const labelMaxWidth = Math.max(w + 32, 110);
 
   return (
@@ -654,7 +654,7 @@ function CardStrip({
           className="flex flex-col items-center gap-1"
         >
           <div
-            className="overflow-hidden rounded-[6px] border border-gold/40 bg-card"
+            className="overflow-hidden rounded-[6px] border border-white/10 bg-card"
             style={{
               width: w,
               height: h,
@@ -1081,7 +1081,7 @@ function ReadingBody({
 
   return (
     <div
-      className="reading-fade flex flex-col gap-7"
+      className="reading-fade flex flex-col gap-4"
       onPointerDown={onPointerDown}
       onPointerUp={cancelLongPress}
       onPointerCancel={cancelLongPress}
