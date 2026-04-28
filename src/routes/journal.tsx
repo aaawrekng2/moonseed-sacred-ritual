@@ -451,98 +451,47 @@ function JournalPage() {
       </div>
 
       {/* Tag strip */}
-      {topTags.length > 0 && (
-        <div
-          className="mt-4 -mx-5 flex gap-3 overflow-x-auto px-5 pb-1"
-          style={{ scrollbarWidth: "none" }}
+      {/* Compact filter row — Filter button (mobile only — sidebar covers
+          desktop) plus the active-date chip. The full filter UI lives in
+          either the bottom sheet or the desktop sidebar. */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <button
+          type="button"
+          onClick={() => setFiltersOpen(true)}
+          className="lg:hidden inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-[12px] italic text-gold transition-opacity"
+          style={{
+            border:
+              "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
+            opacity: "var(--ro-plus-30)",
+          }}
         >
-          {topTags.map((t) => {
-            const active = activeTags.includes(t.name);
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() =>
-                  setActiveTags((prev) =>
-                    prev.includes(t.name)
-                      ? prev.filter((x) => x !== t.name)
-                      : [...prev, t.name],
-                  )
-                }
-                className="shrink-0 whitespace-nowrap font-display text-[13px] italic text-gold transition-opacity"
-                style={{
-                  opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
-                  borderBottom: active
-                    ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
-                    : "1px solid transparent",
-                  paddingBottom: 2,
-                }}
-              >
-                {t.name}
-                {active && <span className="ml-1 text-[10px]">×</span>}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Tag combinator — only visible when 2+ tags selected. */}
-      {activeTags.length >= 2 && (
-        <div className="mt-2 flex items-center gap-3">
-          <span className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            Match
-          </span>
-          {(["any", "all"] as const).map((m) => {
-            const active = tagMode === m;
-            return (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setTagMode(m)}
-                className="font-display text-[12px] italic text-gold transition-opacity"
-                style={{
-                  opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-10)",
-                  borderBottom: active
-                    ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
-                    : "1px solid transparent",
-                  paddingBottom: 2,
-                }}
-              >
-                {m === "any" ? "Any tag" : "All tags"}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Draw-type filters — borderless, plain text per spec. */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
-        {DRAW_TYPE_KEYS.map((k) => {
-          const active = activeDrawTypes.includes(k);
-          return (
-            <button
-              key={k}
-              type="button"
-              onClick={() =>
-                setActiveDrawTypes((prev) =>
-                  prev.includes(k)
-                    ? prev.filter((x) => x !== k)
-                    : [...prev, k],
-                )
-              }
-              className="font-display text-[12px] italic text-gold transition-opacity"
+          <SlidersHorizontal size={12} strokeWidth={1.5} aria-hidden />
+          Filter
+          {activeFilterCount > 0 && (
+            <span
+              className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[10px] tabular-nums leading-none"
               style={{
-                opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
-                borderBottom: active
-                  ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
-                  : "1px solid transparent",
-                paddingBottom: 2,
+                background: "var(--gold)",
+                color: "oklch(0.10 0.03 280)",
               }}
             >
-              {DRAW_TYPE_LABEL[k]}
-            </button>
-          );
-        })}
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+        {/* Inline summary of active filters — visible on all sizes so the
+            seeker always sees what's narrowing their results. */}
+        {(activeTags.length > 0 || activeDrawTypes.length > 0) && (
+          <span
+            className="font-display text-[11px] italic text-muted-foreground"
+            style={{ opacity: "var(--ro-plus-20)" }}
+          >
+            {[
+              ...activeTags,
+              ...activeDrawTypes.map((k) => DRAW_TYPE_LABEL[k]),
+            ].join(" · ")}
+          </span>
+        )}
         {activeDate && (
           <button
             type="button"
