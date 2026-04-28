@@ -22,6 +22,7 @@ import {
 } from "@/lib/deep-reading.functions";
 import { DeepReadingMist } from "./DeepReadingMist";
 import { stripMarkdown } from "@/lib/strip-markdown";
+import { ShareButton } from "@/components/share/ShareButton";
 
 type Props = {
   readingId: string;
@@ -253,13 +254,22 @@ export function DeepReadingPanel({
   return (
     <div className="w-full">
       {revealed >= 1 && (
-        <Lens label={LENS_LABELS[0]} body={lenses.present_resonance} />
+        <Lens
+          label={LENS_LABELS[0]}
+          body={lenses.present_resonance}
+        />
       )}
       {revealed >= 2 && lenses.thread_awareness && (
-        <Lens label={LENS_LABELS[1]} body={lenses.thread_awareness} />
+        <Lens
+          label={LENS_LABELS[1]}
+          body={lenses.thread_awareness}
+        />
       )}
       {revealed >= 3 && (
-        <Lens label={LENS_LABELS[2]} body={lenses.shadow_layer} />
+        <Lens
+          label={LENS_LABELS[2]}
+          body={lenses.shadow_layer}
+        />
       )}
       {revealed < 4 && (
         <div className="deep-lens__loading">Reading…</div>
@@ -270,13 +280,21 @@ export function DeepReadingPanel({
           <p className="deep-mirror__body">
             {stripMarkdown(lenses.mirror_artifact)}
           </p>
-          <button
-            type="button"
-            className="deep-mirror__action"
-            onClick={handleSaveMirror}
-          >
-            {mirrorSaved ? "Mirror saved" : "Save this mirror"}
-          </button>
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              className="deep-mirror__action"
+              onClick={handleSaveMirror}
+            >
+              {mirrorSaved ? "Mirror saved" : "Save this mirror"}
+            </button>
+            <ShareButton
+              text={stripMarkdown(lenses.mirror_artifact)}
+              title="A mirror from Moonseed"
+              preface="Mirror Artifact —"
+              ariaLabel="Share mirror artifact"
+            />
+          </div>
         </div>
       )}
     </div>
@@ -284,11 +302,20 @@ export function DeepReadingPanel({
 }
 
 function Lens({ label, body }: { label: string; body: string }) {
+  const clean = stripMarkdown(body);
   return (
     <section className="deep-lens">
       <div className="deep-lens__label">{label}</div>
       <div className="deep-lens__divider" aria-hidden />
-      <div className="deep-lens__body">{stripMarkdown(body)}</div>
+      <div className="deep-lens__body">{clean}</div>
+      <div className="mt-2 flex justify-end">
+        <ShareButton
+          text={clean}
+          title={`${label} — Moonseed`}
+          preface={`${label} —`}
+          ariaLabel={`Share ${label}`}
+        />
+      </div>
     </section>
   );
 }
