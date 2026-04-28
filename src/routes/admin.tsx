@@ -46,6 +46,21 @@ import {
 } from "@/lib/admin.functions";
 import { setDevMode } from "@/components/dev/DevOverlay";
 
+/**
+ * Fetch the current Supabase access token and return a headers object
+ * suitable for passing to a `createServerFn` call (e.g.
+ * `listAdminUsers({ headers: await authHeaders() })`).
+ *
+ * The admin server functions are protected by `requireSupabaseAuth`,
+ * which reads the Authorization header off the request. Without this
+ * helper every admin call would be rejected with 401.
+ */
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — Moonseed" }] }),
   component: AdminPage,
