@@ -66,6 +66,7 @@ import {
   MIN_RESTING_OPACITY,
   useRestingOpacity,
 } from "@/lib/use-resting-opacity";
+import { withPreservedScroll } from "@/lib/preserve-scroll";
 import {
   applyHeadingFont,
   applyHeadingFontSize,
