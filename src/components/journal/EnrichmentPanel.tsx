@@ -527,6 +527,19 @@ export function EnrichmentPanel({
               fill={favorite ? "currentColor" : "none"}
             />
           </IconAction>
+          {copyText && (
+            <IconAction
+              label={copied ? "Copied" : "Copy reading"}
+              active={copied}
+              onClick={() => void handleCopy()}
+            >
+              {copied ? (
+                <CheckCheck size={18} strokeWidth={1.5} />
+              ) : (
+                <Copy size={18} strokeWidth={1.5} />
+              )}
+            </IconAction>
+          )}
           <TextAction
             label="Note"
             active={hasNote}
