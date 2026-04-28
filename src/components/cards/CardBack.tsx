@@ -45,6 +45,12 @@ interface Props {
   width?: number;
   className?: string;
   ariaLabel?: string;
+  /**
+   * When true, render the outer card border in a faint neutral white
+   * instead of the accent/signature color. Used by the Themes "Veil"
+   * picker so thumbnails don't glow with the active theme color.
+   */
+  neutralBorder?: boolean;
 }
 
 const RATIO = 1.75;
@@ -387,10 +393,13 @@ const STYLES: Record<
   verdant: SHARED_STYLE,
 };
 
-export function CardBack({ id = "celestial", width = 160, className, ariaLabel }: Props) {
+export function CardBack({ id = "celestial", width = 160, className, ariaLabel, neutralBorder }: Props) {
   const height = Math.round(width * RATIO);
   const style = STYLES[id];
   const m = scaleMetrics(width);
+  const outerBorderColor = neutralBorder
+    ? "oklch(1 0 0 / 0.10)"
+    : style.borderColor;
   return (
     <div
       role="img"
@@ -401,7 +410,7 @@ export function CardBack({ id = "celestial", width = 160, className, ariaLabel }
         height,
         borderRadius: m.radius,
         background: style.bg,
-        border: `${m.border}px solid ${style.borderColor}`,
+        border: `${m.border}px solid ${outerBorderColor}`,
         // Inner double-ring scales with card size for a proportional look.
         boxShadow: `inset 0 0 0 ${m.innerInset}px ${style.innerOuter}, inset 0 0 0 ${Math.round(m.innerInset * 1.7)}px ${style.innerInner}`,
       }}
