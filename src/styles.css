@@ -267,13 +267,15 @@ code, pre, kbd {
 }
 
 @keyframes breathe-glow {
+  /* Neutral, dark halo — no signature/accent tint on the gateway card.
+     The pulsing glow is what gave the impression of a colored border. */
   0%, 100% {
-    box-shadow: 0 0 44px oklch(0.82 0.14 82 / 0.12);
+    box-shadow: 0 0 44px oklch(0.10 0.01 270 / 0.45);
     transform: scale(1);
     opacity: 0.9;
   }
   50% {
-    box-shadow: 0 0 60px oklch(0.82 0.14 82 / 0.28);
+    box-shadow: 0 0 60px oklch(0.10 0.01 270 / 0.65);
     transform: scale(1.025);
     opacity: 1;
   }
