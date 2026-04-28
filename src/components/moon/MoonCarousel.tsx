@@ -33,6 +33,19 @@ type DayCell = {
   sign: string;
 };
 
+/**
+ * Returns true if two Date objects fall on the same calendar day in the
+ * user's local timezone. Used to flag the three days that wrap a full
+ * moon (day before, day of peak, day after) for gold treatment.
+ */
+function isSameLocalDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 export function MoonCarousel() {
   const [offset, setOffset] = useState(0);
   const [expandedRel, setExpandedRel] = useState<number | null>(null);
@@ -120,6 +133,60 @@ export function MoonCarousel() {
 
   const [retryNonce, setRetryNonce] = useState(0);
 
+  // Pre-compute the next full-moon peak (precise UTC moment, rendered
+  // locally) so the carousel can highlight the surrounding 3-day window
+  // in gold and place a marker on the seam between the two cards the
+  // peak falls between.
+  const fullMoonPeak = useMemo<Date | null>(() => {
+    try {
+      const list = getPhaseOccurrences("Full Moon", new Date(), 2);
+      const now = Date.now();
+      const upcoming = list.find(
+        (d) => d.getTime() >= now - 36 * 60 * 60 * 1000,
+      );
+      return upcoming ?? null;
+    } catch {
+      return null;
+    }
+  }, [retryNonce]);
+
+  const peakDay = useMemo<Date | null>(() => {
+    if (!fullMoonPeak) return null;
+    const d = new Date(fullMoonPeak);
+    d.setHours(12, 0, 0, 0);
+    return d;
+  }, [fullMoonPeak]);
+
+  // For each visible day, classify whether it should be tinted gold —
+  // the day-before, day-of, and day-after the next full-moon peak. Also
+  // determine which two adjacent visible days the peak moment falls
+  // between (the "seam"), so the marker can sit on that boundary.
+  //   - Peak hour < 6am (local): seam is between (peak-1) and peak.
+  //   - Otherwise: seam is between peak and (peak+1).
+  const seamLeftDate = useMemo<Date | null>(() => {
+    if (!fullMoonPeak || !peakDay) return null;
+    const beforeDawn = fullMoonPeak.getHours() < 6;
+    const seam = new Date(peakDay);
+    if (beforeDawn) seam.setDate(peakDay.getDate() - 1);
+    return seam;
+  }, [fullMoonPeak, peakDay]);
+
+  const goldDates = useMemo<Date[]>(() => {
+    if (!peakDay) return [];
+    const before = new Date(peakDay);
+    before.setDate(peakDay.getDate() - 1);
+    const after = new Date(peakDay);
+    after.setDate(peakDay.getDate() + 1);
+    return [before, peakDay, after];
+  }, [peakDay]);
+
+  // Refs to each rendered day cell so the seam marker can be positioned
+  // exactly on the boundary between two adjacent cards regardless of
+  // viewport / card width.
+  const cellRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const cardsRowRef = useRef<HTMLDivElement | null>(null);
+  const [markerLeft, setMarkerLeft] = useState<number | null>(null);
+
   // Pre-compute the phase ladder once at mount (and again if the user
   // taps the recompute/retry button). Stored in refs so taps on the
   // ladder don't trigger re-renders just to read the next occurrence.
@@ -162,6 +229,46 @@ export function MoonCarousel() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offset, today, retryNonce, dayRange]);
+
+  // Measure the seam pixel position whenever layout might shift. Looks
+  // for the visible cell that matches `seamLeftDate` and the cell
+  // immediately after it; the marker sits centered between the two.
+  useEffect(() => {
+    if (!seamLeftDate) {
+      setMarkerLeft(null);
+      return;
+    }
+    const measure = () => {
+      const row = cardsRowRef.current;
+      if (!row) return;
+      const rowRect = row.getBoundingClientRect();
+      const leftIdx = days.findIndex((d) =>
+        isSameLocalDay(d.info.date, seamLeftDate),
+      );
+      if (leftIdx < 0 || leftIdx >= days.length - 1) {
+        setMarkerLeft(null);
+        return;
+      }
+      const leftEl = cellRefs.current[leftIdx];
+      const rightEl = cellRefs.current[leftIdx + 1];
+      if (!leftEl || !rightEl) {
+        setMarkerLeft(null);
+        return;
+      }
+      const lr = leftEl.getBoundingClientRect();
+      const rr = rightEl.getBoundingClientRect();
+      const center = (lr.right + rr.left) / 2 - rowRect.left;
+      setMarkerLeft(center);
+    };
+    const id = requestAnimationFrame(() =>
+      requestAnimationFrame(measure),
+    );
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener("resize", measure);
+    };
+  }, [seamLeftDate, days, offset, transitioning, isMobile]);
 
   const [recomputing, setRecomputing] = useState(false);
   const recomputeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -384,6 +491,7 @@ export function MoonCarousel() {
 
         <div
           className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl overflow-visible"
+          ref={cardsRowRef}
           role="group"
           aria-label={`Day strip, ${days.length} days`}
         >
@@ -396,6 +504,9 @@ export function MoonCarousel() {
             const topOffset = absRel === 0 ? 0 : absRel === 1 ? 52 : 68;
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
+            const isGoldDay = goldDates.some((g) =>
+              isSameLocalDay(g, d.info.date),
+            );
             return (
               <div
                 // Stable key by window slot index — prevents React from
@@ -403,6 +514,9 @@ export function MoonCarousel() {
                 // visible cut on each day change). Data inside the card
                 // updates in place instead.
                 key={i}
+                ref={(el) => {
+                  cellRefs.current[i] = el;
+                }}
                 role="group"
                 aria-roledescription="day"
                 aria-label={`${d.isToday ? "Today" : formatShortDate(d.info.date)}, ${d.info.phase}`}
@@ -413,6 +527,12 @@ export function MoonCarousel() {
                   // mobile ladders without clipping at the screen edges.
                   transform: absRel === 2 ? "scale(0.85)" : undefined,
                   transformOrigin: "top center",
+                  // The 3-day full-moon window receives a gentle gold tint
+                  // applied via SVG-friendly CSS filters. Recolors the moon
+                  // body without affecting surrounding text.
+                  filter: isGoldDay
+                    ? "sepia(0.55) saturate(2.4) hue-rotate(-8deg) brightness(1.05)"
+                    : undefined,
                 }}
                 className={cn(
                   "flex flex-col items-center",
@@ -469,6 +589,12 @@ export function MoonCarousel() {
               </div>
             );
           })}
+          {markerLeft !== null && fullMoonPeak && (
+            <FullMoonMarker
+              left={markerLeft}
+              peak={fullMoonPeak}
+            />
+          )}
         </div>
 
         <PhaseLadder
@@ -621,6 +747,58 @@ function AdjacentCard({
 
 function formatShortDate(d: Date) {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+/**
+ * A pure-CSS full moon marker placed on the seam between two adjacent
+ * day cards in the carousel. Decorative — pointer-events disabled so it
+ * never blocks taps on the underlying day cards.
+ */
+function FullMoonMarker({ left, peak }: { left: number; peak: Date }) {
+  const time = peak.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        top: 8,
+        left,
+        transform: "translateX(-50%)",
+        pointerEvents: "none",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4,
+        zIndex: 5,
+      }}
+    >
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle at 50% 45%, rgba(255,250,235,0.95) 0%, rgba(255,225,150,0.65) 55%, rgba(212,175,55,0.35) 100%)",
+          boxShadow:
+            "0 0 12px rgba(255,215,0,0.35), 0 0 4px rgba(255,235,180,0.6) inset",
+        }}
+      />
+      <span
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontSize: "var(--text-caption)",
+          color: "var(--accent, var(--gold))",
+          letterSpacing: "0.05em",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {time}
+      </span>
+    </div>
+  );
 }
 
 function MoonSkeleton({ label }: { label?: string } = {}) {

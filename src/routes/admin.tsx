@@ -46,6 +46,21 @@ import {
 } from "@/lib/admin.functions";
 import { setDevMode } from "@/components/dev/DevOverlay";
 
+/**
+ * Fetch the current Supabase access token and return a headers object
+ * suitable for passing to a `createServerFn` call (e.g.
+ * `listAdminUsers({ headers: await authHeaders() })`).
+ *
+ * The admin server functions are protected by `requireSupabaseAuth`,
+ * which reads the Authorization header off the request. Without this
+ * helper every admin call would be rejected with 401.
+ */
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — Moonseed" }] }),
   component: AdminPage,
@@ -414,7 +429,7 @@ function DashboardTab() {
 
   useEffect(() => {
     void (async () => {
-      const users = await listAdminUsers();
+      const users = await listAdminUsers({ headers: await authHeaders() });
       const since30 = new Date();
       since30.setDate(since30.getDate() - 30);
       const { data: rows } = await supabase
@@ -866,7 +881,7 @@ function UsersTab({
   const load = async () => {
     setLoading(true);
     try {
-      const data = await listAdminUsers();
+      const data = await listAdminUsers({ headers: await authHeaders() });
       setUsers(data);
     } finally {
       setLoading(false);
@@ -1087,12 +1102,13 @@ function UsersTab({
                           title="Send password reset"
                           onClick={() =>
                             runAction("password_reset", () =>
-                              adminAction({
+                              authHeaders().then((headers) => adminAction({
                                 data: {
                                   type: "password_reset",
                                   targetUserId: u.user_id,
                                 },
-                              }),
+                                headers,
+                              })),
                             )
                           }
                           disabled={busy !== null || !u.email}
@@ -1119,12 +1135,13 @@ function UsersTab({
                           onClick={() => {
                             if (!window.confirm(`Revoke premium for ${u.email ?? u.user_id}?`)) return;
                             void runAction("revoke_premium", () =>
-                              adminAction({
+                              authHeaders().then((headers) => adminAction({
                                 data: {
                                   type: "revoke_premium",
                                   targetUserId: u.user_id,
                                 },
-                              }),
+                                headers,
+                              })),
                             );
                           }}
                         >
@@ -1141,13 +1158,14 @@ function UsersTab({
                           }
                           onClick={() =>
                             runAction("assign_admin", () =>
-                              adminAction({
+                              authHeaders().then((headers) => adminAction({
                                 data: {
                                   type: "assign_admin",
                                   targetUserId: u.user_id,
                                   role: "admin",
                                 },
-                              }),
+                                headers,
+                              })),
                             )
                           }
                         >
@@ -1164,12 +1182,13 @@ function UsersTab({
                           onClick={() => {
                             if (!window.confirm(`Remove admin role from ${u.email ?? u.user_id}?`)) return;
                             void runAction("remove_admin", () =>
-                              adminAction({
+                              authHeaders().then((headers) => adminAction({
                                 data: {
                                   type: "remove_admin",
                                   targetUserId: u.user_id,
                                 },
-                              }),
+                                headers,
+                              })),
                             );
                           }}
                         >
@@ -1181,12 +1200,13 @@ function UsersTab({
                           onClick={() => {
                             if (!window.confirm(`Deactivate ${u.email ?? u.user_id}? This signs them out and prevents sign-in.`)) return;
                             void runAction("deactivate_user", () =>
-                              adminAction({
+                              authHeaders().then((headers) => adminAction({
                                 data: {
                                   type: "deactivate_user",
                                   targetUserId: u.user_id,
                                 },
-                              }),
+                                headers,
+                              })),
                             );
                           }}
                         >
@@ -1214,13 +1234,14 @@ function UsersTab({
           onClose={() => setPremiumPanelFor(null)}
           onConfirm={async (months) => {
             await runAction("grant_premium", () =>
-              adminAction({
+              authHeaders().then((headers) => adminAction({
                 data: {
                   type: "grant_premium",
                   targetUserId: premiumPanelFor.user_id,
                   months,
                 },
-              }),
+                headers,
+              })),
             );
             setPremiumPanelFor(null);
           }}
@@ -1232,13 +1253,14 @@ function UsersTab({
           onClose={() => setNoteFor(null)}
           onSave={async (note) => {
             await runAction("set_note", () =>
-              adminAction({
+              authHeaders().then((headers) => adminAction({
                 data: {
                   type: "set_note",
                   targetUserId: noteFor.user_id,
                   note,
                 },
-              }),
+                headers,
+              })),
             );
             setNoteFor(null);
           }}
@@ -1291,6 +1313,7 @@ function BackupsTab() {
     if (!r.storage_path) return;
     const { url } = await getBackupDownloadUrl({
       data: { storagePath: r.storage_path },
+      headers: await authHeaders(),
     });
     window.open(url, "_blank", "noopener");
   };
@@ -1302,7 +1325,10 @@ function BackupsTab() {
       )
     )
       return;
-    await restoreAdminBackup({ data: { backupId: r.id } });
+    await restoreAdminBackup({
+      data: { backupId: r.id },
+      headers: await authHeaders(),
+    });
     window.alert(
       "Restore request logged. A team member will run the restore manually for safety.",
     );
@@ -1387,7 +1413,7 @@ function BackupsTab() {
           onClick={async () => {
             setBusy(true);
             try {
-              await createAdminBackup();
+              await createAdminBackup({ headers: await authHeaders() });
               await load();
             } catch (e) {
               window.alert(`Backup failed: ${(e as Error).message}`);
