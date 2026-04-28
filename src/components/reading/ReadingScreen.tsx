@@ -352,7 +352,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
           paddingTop: "calc(var(--topbar-pad) + 16px)",
           // Reserve enough room above the 64px BottomNav so the tear-off
           // card, share button, and Done CTA are never clipped.
-          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 144px)",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
         }}
       >
         {question && question.trim() && (
