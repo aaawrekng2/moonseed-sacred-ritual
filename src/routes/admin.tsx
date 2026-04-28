@@ -226,8 +226,10 @@ function Sidebar({
     <aside
       className="hidden w-60 shrink-0 flex-col gap-1 border-r px-5 py-10 md:flex"
       style={{
-        borderColor: "var(--border-subtle)",
-        minHeight: "100dvh",
+        borderColor: "#30363d",
+        background: "#161b22",
+        height: "100dvh",
+        overflowY: "auto",
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 40px)",
       }}
     >
@@ -393,8 +395,8 @@ function MobileTabBar({
     <nav
       className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t px-2 py-2 md:hidden"
       style={{
-        borderColor: "var(--border-subtle)",
-        background: "color-mix(in oklab, var(--background) 92%, black)",
+        borderColor: "#30363d",
+        background: "#161b22",
         paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
       }}
     >
