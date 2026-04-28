@@ -114,10 +114,10 @@ export function MoonFeaturesPage() {
                   style={{
                     ...serif,
                     background: active
-                      ? "oklch(0.82 0.14 82 / 0.08)"
+                      ? "var(--accent-faint)"
                       : "transparent",
                     borderLeft: active
-                      ? "2px solid var(--gold, oklch(0.82 0.14 82))"
+                      ? "2px solid var(--accent-color)"
                       : "2px solid transparent",
                     cursor: "pointer",
                   }}
