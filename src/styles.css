@@ -246,8 +246,19 @@ code, pre, kbd {
    collapses smoothly into the floating quill rather than popping. */
 @keyframes quill-scale-in {
   0%   { transform: scale(0); opacity: 0; }
-  60%  { transform: scale(1.08); opacity: 0.9; }
-  100% { transform: scale(1); opacity: 1; }
+  60%  { transform: scale(1.04); opacity: 0.85; }
+  100% { transform: scale(1); opacity: 0.7; }
+}
+
+/* Soft breathing for the resting quill — gentler than animate-pulse,
+   no abrupt opacity steps. */
+@keyframes quill-breathe {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 0.85; transform: scale(1.04); }
+}
+.animate-quill-breathe {
+  animation: quill-breathe 3.2s ease-in-out infinite;
+  transform-origin: center;
 }
 
 /* Question panel open/close — scales from / collapses into the quill

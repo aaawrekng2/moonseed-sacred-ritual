@@ -94,19 +94,18 @@ export function QuestionPanel({
         aria-label="Open question"
       >
         <span
-          className="animate-pulse"
+          className={showQuillScale ? undefined : "animate-quill-breathe"}
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
             // Reduced 10% from the previous 22px.
             fontSize: 19.8,
             color: "var(--gold)",
-            opacity: 0.7,
             lineHeight: 1,
             display: "inline-block",
             transformOrigin: "center",
             animation: showQuillScale
-              ? "quill-scale-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both"
+              ? "quill-scale-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both"
               : undefined,
           }}
         >

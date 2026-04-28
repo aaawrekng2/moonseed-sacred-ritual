@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Heart, Search, X as XIcon } from "lucide-react";
+import { Heart, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useOracleMode } from "@/lib/use-oracle-mode";
@@ -10,6 +10,12 @@ import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { cn } from "@/lib/utils";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   EnrichmentPanel,
   type EnrichmentTag,
@@ -139,6 +145,7 @@ function JournalPage() {
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("readings");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Fetch readings + tags + photo counts whenever the user resolves.
   useEffect(() => {
@@ -346,9 +353,62 @@ function JournalPage() {
     [],
   );
 
+  // Count of currently-active filters (excludes search and active date,
+  // which have their own UI affordances). Drives the badge on the mobile
+  // "Filter" button.
+  const activeFilterCount =
+    activeTags.length + activeDrawTypes.length;
+
+  const filtersNode = (
+    <FiltersPanel
+      topTags={topTags}
+      activeTags={activeTags}
+      setActiveTags={setActiveTags}
+      tagMode={tagMode}
+      setTagMode={setTagMode}
+      activeDrawTypes={activeDrawTypes}
+      setActiveDrawTypes={setActiveDrawTypes}
+      onClearAll={() => {
+        setActiveTags([]);
+        setActiveDrawTypes([]);
+      }}
+    />
+  );
+
   return (
-    <main className="bg-cosmos relative h-dvh overflow-y-auto px-5 pb-28">
-      {/* Sticky header — title, search, tags, draw-type, tab row.
+    <div className="bg-cosmos relative flex h-dvh overflow-hidden">
+      {/* Desktop sidebar — filters always visible at lg+. */}
+      <aside
+        className="hidden lg:flex h-full w-[280px] shrink-0 flex-col overflow-y-auto border-r px-5 pt-[calc(env(safe-area-inset-top,0px)+72px)] pb-28"
+        style={{
+          borderColor:
+            "color-mix(in oklab, var(--gold) 10%, transparent)",
+          background: "color-mix(in oklab, oklch(0.08 0.03 280) 50%, transparent)",
+        }}
+      >
+        <h2
+          className="font-display text-[11px] uppercase tracking-[0.22em] text-gold mb-4"
+          style={{ opacity: "var(--ro-plus-30)" }}
+        >
+          Filters
+        </h2>
+        {filtersNode}
+      </aside>
+
+      {/* Mobile bottom sheet for filters. */}
+      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <SheetContent side="bottom" className="lg:hidden max-h-[80vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="font-display italic text-gold text-left">
+              Filters
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mt-4">{filtersNode}</div>
+        </SheetContent>
+      </Sheet>
+
+    <main className="relative h-dvh flex-1 overflow-y-auto px-5 pb-28">
+      {/* Sticky header — title, search, filter button, tab row.
           Stays pinned while the body below scrolls. */}
       <div
         className="sticky top-0 z-30 -mx-5 px-5 pt-[calc(env(safe-area-inset-top,0px)+72px)]"
@@ -391,98 +451,47 @@ function JournalPage() {
       </div>
 
       {/* Tag strip */}
-      {topTags.length > 0 && (
-        <div
-          className="mt-4 -mx-5 flex gap-3 overflow-x-auto px-5 pb-1"
-          style={{ scrollbarWidth: "none" }}
+      {/* Compact filter row — Filter button (mobile only — sidebar covers
+          desktop) plus the active-date chip. The full filter UI lives in
+          either the bottom sheet or the desktop sidebar. */}
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <button
+          type="button"
+          onClick={() => setFiltersOpen(true)}
+          className="lg:hidden inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-[12px] italic text-gold transition-opacity"
+          style={{
+            border:
+              "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
+            opacity: "var(--ro-plus-30)",
+          }}
         >
-          {topTags.map((t) => {
-            const active = activeTags.includes(t.name);
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() =>
-                  setActiveTags((prev) =>
-                    prev.includes(t.name)
-                      ? prev.filter((x) => x !== t.name)
-                      : [...prev, t.name],
-                  )
-                }
-                className="shrink-0 whitespace-nowrap font-display text-[13px] italic text-gold transition-opacity"
-                style={{
-                  opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
-                  borderBottom: active
-                    ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
-                    : "1px solid transparent",
-                  paddingBottom: 2,
-                }}
-              >
-                {t.name}
-                {active && <span className="ml-1 text-[10px]">×</span>}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Tag combinator — only visible when 2+ tags selected. */}
-      {activeTags.length >= 2 && (
-        <div className="mt-2 flex items-center gap-3">
-          <span className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            Match
-          </span>
-          {(["any", "all"] as const).map((m) => {
-            const active = tagMode === m;
-            return (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setTagMode(m)}
-                className="font-display text-[12px] italic text-gold transition-opacity"
-                style={{
-                  opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-10)",
-                  borderBottom: active
-                    ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
-                    : "1px solid transparent",
-                  paddingBottom: 2,
-                }}
-              >
-                {m === "any" ? "Any tag" : "All tags"}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Draw-type filters — borderless, plain text per spec. */}
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
-        {DRAW_TYPE_KEYS.map((k) => {
-          const active = activeDrawTypes.includes(k);
-          return (
-            <button
-              key={k}
-              type="button"
-              onClick={() =>
-                setActiveDrawTypes((prev) =>
-                  prev.includes(k)
-                    ? prev.filter((x) => x !== k)
-                    : [...prev, k],
-                )
-              }
-              className="font-display text-[12px] italic text-gold transition-opacity"
+          <SlidersHorizontal size={12} strokeWidth={1.5} aria-hidden />
+          Filter
+          {activeFilterCount > 0 && (
+            <span
+              className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[10px] tabular-nums leading-none"
               style={{
-                opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
-                borderBottom: active
-                  ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
-                  : "1px solid transparent",
-                paddingBottom: 2,
+                background: "var(--gold)",
+                color: "oklch(0.10 0.03 280)",
               }}
             >
-              {DRAW_TYPE_LABEL[k]}
-            </button>
-          );
-        })}
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
+        {/* Inline summary of active filters — visible on all sizes so the
+            seeker always sees what's narrowing their results. */}
+        {(activeTags.length > 0 || activeDrawTypes.length > 0) && (
+          <span
+            className="font-display text-[11px] italic text-muted-foreground"
+            style={{ opacity: "var(--ro-plus-20)" }}
+          >
+            {[
+              ...activeTags,
+              ...activeDrawTypes.map((k) => DRAW_TYPE_LABEL[k]),
+            ].join(" · ")}
+          </span>
+        )}
         {activeDate && (
           <button
             type="button"
@@ -594,6 +603,7 @@ function JournalPage() {
         />
       )}
     </main>
+    </div>
   );
 }
 
@@ -1120,12 +1130,13 @@ function CalendarView({
               <span style={{ fontFamily: "var(--font-serif)" }}>{c.day}</span>
               {count > 0 && (
                 <span
-                  className="absolute -bottom-0.5 right-0.5 inline-flex h-3.5 min-w-[14px] items-center justify-center rounded-full px-1 font-mono text-[9px] tabular-nums"
+                  className="absolute -bottom-1 -right-1 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 font-mono text-[11px] font-medium tabular-nums leading-none"
                   style={{
-                    background: "color-mix(in oklab, var(--gold) 28%, transparent)",
-                    color: "var(--gold)",
+                    background: "var(--gold)",
+                    color: "oklch(0.10 0.03 280)",
                     border:
-                      "1px solid color-mix(in oklab, var(--gold) 45%, transparent)",
+                      "1px solid color-mix(in oklab, var(--gold) 70%, transparent)",
+                    boxShadow: "0 1px 4px oklch(0 0 0 / 0.5)",
                   }}
                   aria-label={`${count} ${count === 1 ? "reading" : "readings"}`}
                 >
@@ -1291,6 +1302,155 @@ function ReadingDetail({
           onPhotoCountChange={onPhotoCountChange}
         />
       </div>
+    </div>
+  );
+}
+
+/* ---------- Filters panel (shared between mobile sheet + desktop sidebar) ---------- */
+
+function FiltersPanel({
+  topTags,
+  activeTags,
+  setActiveTags,
+  tagMode,
+  setTagMode,
+  activeDrawTypes,
+  setActiveDrawTypes,
+  onClearAll,
+}: {
+  topTags: TagRow[];
+  activeTags: string[];
+  setActiveTags: React.Dispatch<React.SetStateAction<string[]>>;
+  tagMode: TagMode;
+  setTagMode: React.Dispatch<React.SetStateAction<TagMode>>;
+  activeDrawTypes: DrawTypeKey[];
+  setActiveDrawTypes: React.Dispatch<React.SetStateAction<DrawTypeKey[]>>;
+  onClearAll: () => void;
+}) {
+  const hasAny = activeTags.length > 0 || activeDrawTypes.length > 0;
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Tags */}
+      {topTags.length > 0 && (
+        <section>
+          <h3
+            className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2"
+            style={{ opacity: "var(--ro-plus-20)" }}
+          >
+            Tags
+          </h3>
+          <div className="flex flex-wrap gap-x-3 gap-y-2">
+            {topTags.map((t) => {
+              const active = activeTags.includes(t.name);
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() =>
+                    setActiveTags((prev) =>
+                      prev.includes(t.name)
+                        ? prev.filter((x) => x !== t.name)
+                        : [...prev, t.name],
+                    )
+                  }
+                  className="font-display text-[13px] italic text-gold transition-opacity"
+                  style={{
+                    opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
+                    borderBottom: active
+                      ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                      : "1px solid transparent",
+                    paddingBottom: 2,
+                  }}
+                >
+                  {t.name}
+                  {active && <span className="ml-1 text-[10px]">×</span>}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {activeTags.length >= 2 && (
+        <section>
+          <h3
+            className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2"
+            style={{ opacity: "var(--ro-plus-20)" }}
+          >
+            Match
+          </h3>
+          <div className="flex items-center gap-3">
+            {(["any", "all"] as const).map((m) => {
+              const active = tagMode === m;
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setTagMode(m)}
+                  className="font-display text-[12px] italic text-gold transition-opacity"
+                  style={{
+                    opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-10)",
+                    borderBottom: active
+                      ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                      : "1px solid transparent",
+                    paddingBottom: 2,
+                  }}
+                >
+                  {m === "any" ? "Any tag" : "All tags"}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <section>
+        <h3
+          className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2"
+          style={{ opacity: "var(--ro-plus-20)" }}
+        >
+          Draw type
+        </h3>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {DRAW_TYPE_KEYS.map((k) => {
+            const active = activeDrawTypes.includes(k);
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() =>
+                  setActiveDrawTypes((prev) =>
+                    prev.includes(k)
+                      ? prev.filter((x) => x !== k)
+                      : [...prev, k],
+                  )
+                }
+                className="font-display text-[12px] italic text-gold transition-opacity"
+                style={{
+                  opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
+                  borderBottom: active
+                    ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                    : "1px solid transparent",
+                  paddingBottom: 2,
+                }}
+              >
+                {DRAW_TYPE_LABEL[k]}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {hasAny && (
+        <button
+          type="button"
+          onClick={onClearAll}
+          className="self-start font-display text-[11px] italic text-muted-foreground underline-offset-2 hover:underline"
+          style={{ opacity: "var(--ro-plus-30)" }}
+        >
+          Clear all
+        </button>
+      )}
     </div>
   );
 }
