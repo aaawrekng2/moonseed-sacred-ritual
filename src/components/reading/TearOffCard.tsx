@@ -490,8 +490,12 @@ function CelticCrossLayout({
   accent: string;
   text: string;
 }) {
-  const W = 36; // small cards so the entire layout fits the keepsake card
+  // Celtic Cross — central cross of 6 cards (positions 0–5) with a
+  // vertical staff of 4 cards (6–9) running up the right side. Slightly
+  // larger than before so the arrangement is legible on the keepsake.
+  const W = 42;
   const H = Math.round(W * 1.6);
+  void text;
   const card = (idx: number, opts?: { rotate?: number }) => {
     const p = picks[idx];
     if (!p) return null;
