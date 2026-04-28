@@ -16,6 +16,34 @@ import { Toaster } from "@/components/ui/sonner";
 import { useFloatingMenu } from "@/lib/floating-menu-context";
 import { PremiumModal } from "@/components/premium/PremiumModal";
 
+const APP_VERSION_LETTER = "K";
+const VERSION_OWNER_EMAIL = "mark@spiekerstudios.com";
+
+function DevVersionStamp() {
+  const { user } = useAuth();
+  if (user?.email !== VERSION_OWNER_EMAIL) return null;
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "fixed",
+        top: 8,
+        left: 8,
+        zIndex: 2147483647,
+        pointerEvents: "none",
+        fontFamily:
+          "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        fontSize: 10,
+        opacity: 0.5,
+        color: "var(--gold)",
+        letterSpacing: "0.05em",
+      }}
+    >
+      v{APP_VERSION_LETTER}
+    </div>
+  );
+}
+
 /**
  * Read the persisted resting opacity from localStorage and apply it to
  * the document root BEFORE first paint. Without this, the cascade still
@@ -232,6 +260,7 @@ function RootComponent() {
           <RestingOpacityReadout />
           <Outlet />
           <BottomNavGate />
+          <DevVersionStamp />
           {mounted && <Toaster />}
           <PremiumModal
             open={premiumOpen}

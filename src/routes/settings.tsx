@@ -272,20 +272,6 @@ function SettingsLayout() {
               </button>
             </div>
           )}
-          <div className="flex justify-center pb-6">
-            <span
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-caption)",
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                color: "color-mix(in oklab, var(--color-foreground) 35%, transparent)",
-              }}
-            >
-              Version F
-            </span>
-          </div>
         </div>
       </main>
     </SettingsProvider>
