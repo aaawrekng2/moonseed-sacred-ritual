@@ -138,7 +138,7 @@ export function DeepReadingPanel({
       if (result.ok) {
         setFlow({ kind: "lenses", lenses: result.lenses, revealed: 1 });
       } else if (result.reason === "limit_reached") {
-        setFlow({ kind: "limit", nextDawn: result.next_dawn });
+        setFlow({ kind: "limit", nextDawn: getNextDawn().iso });
       } else {
         setFlow({ kind: "error", message: result.message });
       }
