@@ -286,17 +286,14 @@ export function TearOffCard({
             closing={interpretation.closing}
             guideName={guideName}
             isOracle={isOracle}
-            accent={accent}
-            paper={paper}
+            preset={preset}
           />
         </div>
 
         <div className="flex flex-col gap-2 border-t border-gold/15 bg-background/40 px-5 py-4">
-          <ThemeControls
-            accentKey={accentKey}
-            paperKey={paperKey}
-            onAccentChange={setAccentKey}
-            onPaperChange={setPaperKey}
+          <PresetGrid
+            activeKey={presetKey}
+            onChange={setPresetKey}
             disabled={busy !== null}
           />
           <div className="flex flex-wrap items-center justify-center gap-2">
@@ -376,84 +373,79 @@ function ActionButton({
   );
 }
 
-function ThemeControls({
-  accentKey,
-  paperKey,
-  onAccentChange,
-  onPaperChange,
-  disabled,
-}: {
-  accentKey: AccentKey;
-  paperKey: PaperKey;
-  onAccentChange: (k: AccentKey) => void;
-  onPaperChange: (k: PaperKey) => void;
-  disabled: boolean;
-}) {
-  return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <SwatchRow
-        label="Accent"
-        items={Object.values(ACCENT_THEMES)}
-        activeKey={accentKey}
-        onChange={(k) => onAccentChange(k as AccentKey)}
-        disabled={disabled}
-      />
-      <SwatchRow
-        label="Paper"
-        items={Object.values(PAPER_THEMES)}
-        activeKey={paperKey}
-        onChange={(k) => onPaperChange(k as PaperKey)}
-        disabled={disabled}
-      />
-    </div>
-  );
-}
-
-function SwatchRow({
-  label,
-  items,
+/**
+ * Preset palette picker — 10 named swatches the seeker can tap. Each
+ * preset rewrites bg / surface / text / accent in one go (no granular
+ * accent + paper picker any more).
+ */
+function PresetGrid({
   activeKey,
   onChange,
   disabled,
 }: {
-  label: string;
-  items: { key: string; label: string; swatch: string }[];
-  activeKey: string;
-  onChange: (k: string) => void;
+  activeKey: PresetKey;
+  onChange: (k: PresetKey) => void;
   disabled: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-1.5">
       <span
         className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground"
         style={{ fontFamily: "var(--font-display, var(--font-serif))" }}
       >
-        {label}
+        Color scheme
       </span>
-      <div className="flex items-center gap-1.5">
-        {items.map((it) => {
-          const active = it.key === activeKey;
+      <div
+        className="grid gap-1.5"
+        style={{ gridTemplateColumns: "repeat(5, minmax(0, 1fr))" }}
+      >
+        {PRESETS.map((p) => {
+          const active = p.key === activeKey;
           return (
             <button
-              key={it.key}
+              key={p.key}
               type="button"
-              onClick={() => onChange(it.key)}
+              onClick={() => onChange(p.key)}
               disabled={disabled}
               aria-pressed={active}
-              aria-label={`${label} ${it.label}`}
-              title={it.label}
-              className="relative h-6 w-6 rounded-full border transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label={p.label}
+              title={p.label}
+              className="group relative flex flex-col items-center gap-1 rounded-md p-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60 disabled:cursor-not-allowed disabled:opacity-50"
               style={{
-                background: it.swatch,
-                borderColor: active
-                  ? "var(--gold, #d4af37)"
-                  : "color-mix(in oklab, white 25%, transparent)",
-                boxShadow: active
-                  ? "0 0 0 2px color-mix(in oklab, var(--gold, #d4af37) 35%, transparent)"
-                  : "none",
-                transform: active ? "scale(1.08)" : "scale(1)",
+                background: active
+                  ? "color-mix(in oklab, var(--gold) 10%, transparent)"
+                  : "transparent",
               }}
-            />
+            >
+              <span
+                aria-hidden
+                className="block h-6 w-full rounded-md border"
+                style={{
+                  background: `linear-gradient(135deg, ${p.bg} 0%, ${p.surface} 60%, ${p.accent} 100%)`,
+                  borderColor: active
+                    ? "var(--gold, #d4af37)"
+                    : "color-mix(in oklab, white 18%, transparent)",
+                  boxShadow: active
+                    ? "0 0 0 1px color-mix(in oklab, var(--gold, #d4af37) 45%, transparent)"
+                    : "none",
+                }}
+              />
+              <span
+                className="block w-full text-center"
+                style={{
+                  fontSize: 9,
+                  letterSpacing: "0.06em",
+                  lineHeight: 1.15,
+                  color: active ? "var(--gold)" : "var(--muted-foreground)",
+                  fontFamily: "var(--font-display, var(--font-serif))",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {p.label}
+              </span>
+            </button>
           );
         })}
       </div>
