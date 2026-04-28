@@ -452,7 +452,7 @@ export function MoonCarousel() {
           days. The today card is the tallest element; sizing here is set so
           it never clips and the chevrons never shift vertically. */}
       <div
-        className="relative flex items-start justify-center gap-1 sm:gap-4 touch-pan-y overflow-visible px-8 sm:px-0"
+        className="relative flex items-start justify-center gap-1 sm:gap-2 touch-pan-y overflow-visible px-7 sm:px-0"
         style={{ height: 240 }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
