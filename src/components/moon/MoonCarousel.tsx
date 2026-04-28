@@ -83,33 +83,6 @@ export function MoonCarousel() {
   const { opacity } = useRestingOpacity();
   const restingAlpha = Math.max(0, Math.min(1, opacity / 100));
 
-  // Pre-compute the next full-moon peak (UTC moment, displayed locally) so
-  // the carousel can highlight the surrounding 3-day window in gold and
-  // place a marker on the seam between the two cards the peak falls between.
-  const fullMoonPeak = useMemo<Date | null>(() => {
-    try {
-      const list = getPhaseOccurrences("Full Moon", new Date(), 2);
-      const now = Date.now();
-      // Prefer the next upcoming peak; fall back to the most recent one
-      // if the seeker is currently inside the 3-day window of one that
-      // already passed (so the marker doesn't disappear at midnight).
-      const upcoming = list.find((d) => d.getTime() >= now - 36 * 60 * 60 * 1000);
-      return upcoming ?? null;
-    } catch {
-      return null;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [retryNonce]);
-
-  // The "peak day" for marker/gold purposes follows the seeker's local
-  // calendar date — that's the date label the user sees on the cards.
-  const peakDay = useMemo<Date | null>(() => {
-    if (!fullMoonPeak) return null;
-    const d = new Date(fullMoonPeak);
-    d.setHours(12, 0, 0, 0);
-    return d;
-  }, [fullMoonPeak]);
-
   useEffect(() => {
     const t = requestAnimationFrame(() => setReady(true));
     return () => cancelAnimationFrame(t);
