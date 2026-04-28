@@ -1341,6 +1341,46 @@ function ReadingDetail({
           </article>
         )}
 
+        {/* Deep reading lenses */}
+        {reading.is_deep_reading && reading.deep_reading_lenses && (
+          <section className="mx-auto mt-10 max-w-prose space-y-6">
+            <div
+              className="flex items-center gap-2 font-display text-[11px] uppercase tracking-[0.22em] text-gold"
+              style={{ opacity: "var(--ro-plus-30)" }}
+            >
+              <span aria-hidden>✦</span>
+              <span>Deep Reading</span>
+              {reading.mirror_saved && (
+                <span
+                  className="ml-2 text-[10px] italic normal-case tracking-normal"
+                  style={{ opacity: "var(--ro-plus-20)" }}
+                >
+                  · mirror saved
+                </span>
+              )}
+            </div>
+            {Object.entries(reading.deep_reading_lenses).map(([key, text]) => (
+              <div key={key}>
+                <h3
+                  className="font-display text-[12px] uppercase tracking-[0.2em] text-gold mb-1"
+                  style={{ opacity: "var(--ro-plus-30)" }}
+                >
+                  {key.replace(/[-_]/g, " ")}
+                </h3>
+                <p
+                  className="font-display text-[15px] italic leading-relaxed text-foreground"
+                  style={{
+                    opacity: "var(--ro-plus-30)",
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {text}
+                </p>
+              </div>
+            ))}
+          </section>
+        )}
+
         {/* Enrichment panel: note, tags, photos, favorite — with debounced
             auto-save. Lives below the interpretation per the spec. */}
         <EnrichmentPanel
