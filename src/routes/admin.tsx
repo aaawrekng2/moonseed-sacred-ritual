@@ -429,7 +429,7 @@ function DashboardTab() {
 
   useEffect(() => {
     void (async () => {
-      const users = await listAdminUsers();
+      const users = await listAdminUsers({ headers: await authHeaders() });
       const since30 = new Date();
       since30.setDate(since30.getDate() - 30);
       const { data: rows } = await supabase
@@ -881,7 +881,7 @@ function UsersTab({
   const load = async () => {
     setLoading(true);
     try {
-      const data = await listAdminUsers();
+      const data = await listAdminUsers({ headers: await authHeaders() });
       setUsers(data);
     } finally {
       setLoading(false);
