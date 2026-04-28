@@ -710,6 +710,20 @@ function ReadingCard({
             <span style={{ opacity: "var(--ro-plus-20)" }}>
               {relativeTime(reading.created_at)}
             </span>
+            {reading.is_deep_reading && (
+              <span
+                title="Deep reading"
+                className="text-gold"
+                style={{
+                  opacity: "var(--ro-plus-50)",
+                  letterSpacing: 0,
+                  fontSize: 12,
+                }}
+                aria-label="Deep reading"
+              >
+                ✦
+              </span>
+            )}
           </div>
           <div
             className="mt-1 flex items-center gap-2 font-display text-[12px] italic"
