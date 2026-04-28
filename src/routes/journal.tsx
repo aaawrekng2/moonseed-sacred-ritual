@@ -138,6 +138,7 @@ function JournalPage() {
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [tagMode, setTagMode] = useState<TagMode>("all");
   const [activeDrawTypes, setActiveDrawTypes] = useState<DrawTypeKey[]>([]);
+  const [deepOnly, setDeepOnly] = useState(false);
   // YYYY-MM-DD selected from the calendar view; null = no date filter.
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("readings");
@@ -238,6 +239,7 @@ function JournalPage() {
         if (!activeDrawTypes.includes(r.spread_type as DrawTypeKey))
           return false;
       }
+      if (deepOnly && !r.is_deep_reading) return false;
       if (activeDate) {
         const d = new Date(r.created_at);
         const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -260,7 +262,7 @@ function JournalPage() {
       }
       return true;
     });
-  }, [readings, search, activeTags, tagMode, activeDrawTypes, activeDate]);
+  }, [readings, search, activeTags, tagMode, activeDrawTypes, deepOnly, activeDate]);
 
   const galleryItems = useMemo(
     () => filtered.filter((r) => (photoCounts[r.id] ?? 0) > 0),
@@ -354,7 +356,7 @@ function JournalPage() {
   // which have their own UI affordances). Drives the badge on the mobile
   // "Filter" button.
   const activeFilterCount =
-    activeTags.length + activeDrawTypes.length;
+    activeTags.length + activeDrawTypes.length + (deepOnly ? 1 : 0);
 
   const filtersNode = (
     <FiltersPanel
@@ -365,9 +367,12 @@ function JournalPage() {
       setTagMode={setTagMode}
       activeDrawTypes={activeDrawTypes}
       setActiveDrawTypes={setActiveDrawTypes}
+      deepOnly={deepOnly}
+      setDeepOnly={setDeepOnly}
       onClearAll={() => {
         setActiveTags([]);
         setActiveDrawTypes([]);
+        setDeepOnly(false);
       }}
     />
   );
