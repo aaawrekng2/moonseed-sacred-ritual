@@ -352,7 +352,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
           paddingTop: "calc(var(--topbar-pad) + 16px)",
           // Reserve enough room above the 64px BottomNav so the tear-off
           // card, share button, and Done CTA are never clipped.
-          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 96px)",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 120px)",
         }}
       >
         {question && question.trim() && (
@@ -636,7 +636,7 @@ function CardStrip({
   // text on the reveal screen — bump them significantly so they read
   // clearly at a glance. Keep them proportional to the card width on
   // narrow phones so they don't overflow.
-  const labelFontSize = w < 80 ? 22 : w < 120 ? 26 : 30;
+  const labelFontSize = w < 80 ? 32 : w < 120 ? 40 : 48;
   const labelMaxWidth = Math.max(w + 32, 110);
 
   return (
@@ -681,7 +681,7 @@ function CardStrip({
               whiteSpace: "nowrap",
               textAlign: "center",
               transition: "opacity 250ms ease",
-              minHeight: labelFontSize + 4,
+              minHeight: labelFontSize + 8,
               marginTop: 6,
               fontWeight: 500,
             }}

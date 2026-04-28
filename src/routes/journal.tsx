@@ -387,15 +387,15 @@ function JournalPage() {
             aria-label="Close filters"
             onClick={() => setFiltersOpen(false)}
             className="fixed top-0 z-40 h-dvh w-10 cursor-pointer bg-transparent"
-            style={{ right: "min(260px, calc(100vw - 48px))" }}
+            style={{ right: "var(--journal-drawer-w)" }}
           />
         </>
       )}
       <aside
         aria-hidden={!filtersOpen}
-        className="fixed right-0 top-0 z-50 flex h-dvh flex-col overflow-y-auto border-l shadow-2xl transition-transform duration-300 ease-out"
+        className="journal-filter-drawer fixed right-0 top-0 z-50 flex h-dvh flex-col overflow-y-auto border-l shadow-2xl transition-transform duration-300 ease-out"
         style={{
-          width: "min(260px, calc(100vw - 48px))",
+          width: "var(--journal-drawer-w)",
           borderColor:
             "color-mix(in oklab, var(--gold) 18%, transparent)",
           background: "oklch(0.08 0.03 280)",
@@ -431,7 +431,7 @@ function JournalPage() {
       {/* Sticky header — title, search, filter button, tab row.
           Stays pinned while the body below scrolls. */}
       <div
-        className="sticky top-0 z-30 -mx-5 px-5 pt-[calc(env(safe-area-inset-top,0px)+72px)]"
+        className="sticky top-0 z-30 -mx-5 px-5 pt-[calc(env(safe-area-inset-top,0px)+12px)]"
         style={{
           background:
             "linear-gradient(to bottom, oklch(0.10 0.03 280) 92%, transparent)",
@@ -447,7 +447,7 @@ function JournalPage() {
         </h1>
 
       {/* Search */}
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-2 flex items-center gap-2">
         <Search
           size={14}
           strokeWidth={1.5}
