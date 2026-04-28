@@ -510,7 +510,7 @@ function JournalPage() {
       <div className="mt-1 mb-1 flex flex-wrap items-center gap-x-3 gap-y-1" style={{ paddingTop: 4, paddingBottom: 4 }}>
         {/* Inline summary of active filters — visible on all sizes so the
             seeker always sees what's narrowing their results. */}
-        {(activeTags.length > 0 || activeDrawTypes.length > 0) && (
+        {(activeTags.length > 0 || activeDrawTypes.length > 0 || deepOnly) && (
           <span
             className="font-display text-[11px] italic text-muted-foreground"
             style={{ opacity: "var(--ro-plus-20)" }}
@@ -518,6 +518,7 @@ function JournalPage() {
             {[
               ...activeTags,
               ...activeDrawTypes.map((k) => DRAW_TYPE_LABEL[k]),
+              ...(deepOnly ? ["Deep readings"] : []),
             ].join(" · ")}
           </span>
         )}
