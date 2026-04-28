@@ -1462,3 +1462,11 @@ button:focus-visible .moon-rung-glow {
   0%, 100% { opacity: 0.45; }
   50%      { opacity: 0.85; }
 }
+
+/* Journal filter button — mobile keeps subtle styling, desktop becomes more prominent. */
+.journal-filter-btn { opacity: var(--ro-plus-30); }
+@media (min-width: 1024px) {
+  .journal-filter-btn { opacity: 1; transition: background-color 200ms ease; }
+  .journal-filter-btn:hover { background: var(--accent-faint, oklch(1 0 0 / 0.06)); }
+  .journal-filter-btn__icon { width: 20px; height: 20px; }
+}
