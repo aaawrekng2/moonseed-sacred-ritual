@@ -451,6 +451,7 @@ export function MoonCarousel() {
 
         <div
           className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl overflow-visible"
+          ref={cardsRowRef}
           role="group"
           aria-label={`Day strip, ${days.length} days`}
         >
@@ -463,6 +464,9 @@ export function MoonCarousel() {
             const topOffset = absRel === 0 ? 0 : absRel === 1 ? 52 : 68;
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
+            const isGoldDay = goldDates.some((g) =>
+              isSameLocalDay(g, d.info.date),
+            );
             return (
               <div
                 // Stable key by window slot index — prevents React from
@@ -470,6 +474,9 @@ export function MoonCarousel() {
                 // visible cut on each day change). Data inside the card
                 // updates in place instead.
                 key={i}
+                ref={(el) => {
+                  cellRefs.current[i] = el;
+                }}
                 role="group"
                 aria-roledescription="day"
                 aria-label={`${d.isToday ? "Today" : formatShortDate(d.info.date)}, ${d.info.phase}`}
@@ -480,6 +487,12 @@ export function MoonCarousel() {
                   // mobile ladders without clipping at the screen edges.
                   transform: absRel === 2 ? "scale(0.85)" : undefined,
                   transformOrigin: "top center",
+                  // The 3-day full-moon window receives a gentle gold tint
+                  // applied via SVG-friendly CSS filters. Recolors the moon
+                  // body without affecting surrounding text.
+                  filter: isGoldDay
+                    ? "sepia(0.55) saturate(2.4) hue-rotate(-8deg) brightness(1.05)"
+                    : undefined,
                 }}
                 className={cn(
                   "flex flex-col items-center",
