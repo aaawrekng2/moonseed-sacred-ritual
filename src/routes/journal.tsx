@@ -353,9 +353,62 @@ function JournalPage() {
     [],
   );
 
+  // Count of currently-active filters (excludes search and active date,
+  // which have their own UI affordances). Drives the badge on the mobile
+  // "Filter" button.
+  const activeFilterCount =
+    activeTags.length + activeDrawTypes.length;
+
+  const filtersNode = (
+    <FiltersPanel
+      topTags={topTags}
+      activeTags={activeTags}
+      setActiveTags={setActiveTags}
+      tagMode={tagMode}
+      setTagMode={setTagMode}
+      activeDrawTypes={activeDrawTypes}
+      setActiveDrawTypes={setActiveDrawTypes}
+      onClearAll={() => {
+        setActiveTags([]);
+        setActiveDrawTypes([]);
+      }}
+    />
+  );
+
   return (
-    <main className="bg-cosmos relative h-dvh overflow-y-auto px-5 pb-28">
-      {/* Sticky header — title, search, tags, draw-type, tab row.
+    <div className="bg-cosmos relative flex h-dvh overflow-hidden">
+      {/* Desktop sidebar — filters always visible at lg+. */}
+      <aside
+        className="hidden lg:flex h-full w-[280px] shrink-0 flex-col overflow-y-auto border-r px-5 pt-[calc(env(safe-area-inset-top,0px)+72px)] pb-28"
+        style={{
+          borderColor:
+            "color-mix(in oklab, var(--gold) 10%, transparent)",
+          background: "color-mix(in oklab, oklch(0.08 0.03 280) 50%, transparent)",
+        }}
+      >
+        <h2
+          className="font-display text-[11px] uppercase tracking-[0.22em] text-gold mb-4"
+          style={{ opacity: "var(--ro-plus-30)" }}
+        >
+          Filters
+        </h2>
+        {filtersNode}
+      </aside>
+
+      {/* Mobile bottom sheet for filters. */}
+      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <SheetContent side="bottom" className="lg:hidden max-h-[80vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="font-display italic text-gold text-left">
+              Filters
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mt-4">{filtersNode}</div>
+        </SheetContent>
+      </Sheet>
+
+    <main className="relative h-dvh flex-1 overflow-y-auto px-5 pb-28">
+      {/* Sticky header — title, search, filter button, tab row.
           Stays pinned while the body below scrolls. */}
       <div
         className="sticky top-0 z-30 -mx-5 px-5 pt-[calc(env(safe-area-inset-top,0px)+72px)]"
