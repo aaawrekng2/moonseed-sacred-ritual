@@ -600,6 +600,9 @@ function JournalPage() {
         ) : view === "calendar" ? (
           <CalendarView
             readings={readings}
+            activeTags={activeTags}
+            tagMode={tagMode}
+            activeDrawTypes={activeDrawTypes}
             activeDate={activeDate}
             onSelectDate={(d) => {
               setActiveDate((cur) => (cur === d ? null : d));
@@ -1041,10 +1044,16 @@ function ThreadsView({ threads }: { threads: ThreadRow[] }) {
  */
 function CalendarView({
   readings,
+  activeTags,
+  tagMode,
+  activeDrawTypes,
   activeDate,
   onSelectDate,
 }: {
   readings: ReadingRow[];
+  activeTags: string[];
+  tagMode: TagMode;
+  activeDrawTypes: DrawTypeKey[];
   activeDate: string | null;
   onSelectDate: (d: string) => void;
 }) {
@@ -1053,16 +1062,29 @@ function CalendarView({
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
 
-  // YYYY-MM-DD -> count of readings on that local day.
+  // YYYY-MM-DD -> count of readings on that local day, after applying
+  // the same tag / draw-type filters used by the rest of the journal.
+  const filtersActive = activeTags.length > 0 || activeDrawTypes.length > 0;
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
     for (const r of readings) {
+      if (activeTags.length > 0) {
+        const rt = r.tags ?? [];
+        if (tagMode === "all") {
+          if (!activeTags.every((t) => rt.includes(t))) continue;
+        } else {
+          if (!activeTags.some((t) => rt.includes(t))) continue;
+        }
+      }
+      if (activeDrawTypes.length > 0) {
+        if (!activeDrawTypes.includes(r.spread_type as DrawTypeKey)) continue;
+      }
       const d = new Date(r.created_at);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       map[key] = (map[key] ?? 0) + 1;
     }
     return map;
-  }, [readings]);
+  }, [readings, activeTags, tagMode, activeDrawTypes]);
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
