@@ -102,7 +102,29 @@ export function AuthScreen({
           email,
           password,
         });
-        if (signInError) throw signInError;
+        if (signInError) {
+          const msg = (signInError.message ?? "").toLowerCase();
+          if (
+            msg.includes("email not confirmed") ||
+            msg.includes("confirm")
+          ) {
+            console.warn(
+              "[Auth] Sign-in blocked because email is not confirmed:",
+              email,
+            );
+            throw new Error(
+              "Please check your email and confirm your account before signing in.",
+            );
+          }
+          if (msg.includes("invalid login credentials")) {
+            // Could also be an unconfirmed account (Supabase sometimes
+            // returns this for unconfirmed users). Surface a hint.
+            throw new Error(
+              "Email or password incorrect. If you just signed up, please confirm your email first.",
+            );
+          }
+          throw signInError;
+        }
         onSuccess();
       }
     } catch (e: unknown) {
