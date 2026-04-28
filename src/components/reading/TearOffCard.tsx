@@ -12,7 +12,7 @@
  * deckled edges, gold rules, monogram seal, perforated top stub.
  */
 import { useEffect, useRef, useState } from "react";
-import { Download, Image as ImageIcon, Loader2, Share2, X } from "lucide-react";
+import { Download, Image as ImageIcon, Loader2, Share2 } from "lucide-react";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import {
