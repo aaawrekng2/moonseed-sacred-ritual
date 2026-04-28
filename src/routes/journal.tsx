@@ -1365,6 +1365,8 @@ function FiltersPanel({
   setTagMode,
   activeDrawTypes,
   setActiveDrawTypes,
+  deepOnly,
+  setDeepOnly,
   onClearAll,
 }: {
   topTags: TagRow[];
@@ -1374,11 +1376,39 @@ function FiltersPanel({
   setTagMode: React.Dispatch<React.SetStateAction<TagMode>>;
   activeDrawTypes: DrawTypeKey[];
   setActiveDrawTypes: React.Dispatch<React.SetStateAction<DrawTypeKey[]>>;
+  deepOnly: boolean;
+  setDeepOnly: React.Dispatch<React.SetStateAction<boolean>>;
   onClearAll: () => void;
 }) {
-  const hasAny = activeTags.length > 0 || activeDrawTypes.length > 0;
+  const hasAny =
+    activeTags.length > 0 || activeDrawTypes.length > 0 || deepOnly;
   return (
     <div className="flex flex-col gap-5">
+      {/* Deep readings toggle */}
+      <section>
+        <h3
+          className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2"
+          style={{ opacity: "var(--ro-plus-20)" }}
+        >
+          Depth
+        </h3>
+        <button
+          type="button"
+          onClick={() => setDeepOnly((v) => !v)}
+          className="font-display text-[13px] italic text-gold transition-opacity"
+          style={{
+            opacity: deepOnly ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
+            borderBottom: deepOnly
+              ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+              : "1px solid transparent",
+            paddingBottom: 2,
+          }}
+        >
+          ✦ Deep readings only
+          {deepOnly && <span className="ml-1 text-[10px]">×</span>}
+        </button>
+      </section>
+
       {/* Tags */}
       {topTags.length > 0 && (
         <section>
