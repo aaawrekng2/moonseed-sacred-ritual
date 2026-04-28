@@ -33,6 +33,19 @@ type DayCell = {
   sign: string;
 };
 
+/**
+ * Returns true if two Date objects fall on the same calendar day in the
+ * user's local timezone. Used to flag the three days that wrap a full
+ * moon (day before, day of peak, day after) for gold treatment.
+ */
+function isSameLocalDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 export function MoonCarousel() {
   const [offset, setOffset] = useState(0);
   const [expandedRel, setExpandedRel] = useState<number | null>(null);
