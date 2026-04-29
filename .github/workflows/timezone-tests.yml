@@ -509,7 +509,7 @@ jobs:
       && inputs.update_snapshots == true
       && inputs.confirm == 'UPDATE'
     runs-on: ubuntu-latest
-    # Serialize snapshot refreshes per-repository.
+    # Serialize snapshot refreshes per (repository, scope).
     #
     # WHY:
     #   - Two concurrent refreshes would race on the same target
@@ -517,16 +517,19 @@ jobs:
     #     produce two open PRs with conflicting snapshot diffs, leaving
     #     the reviewer to figure out which one to merge.
     #   - The job pushes a branch and opens a PR — both are repo-scoped
-    #     side effects, so the concurrency group is also repo-scoped
-    #     (`github.repository`) rather than per-branch or per-actor.
+    #     side effects, but two refreshes targeting DIFFERENT scopes
+    #     (e.g. `use-timezone` vs `lib`) touch disjoint snapshot
+    #     directories and create disjoint PR branches, so they're
+    #     safe to run in parallel. We therefore key the group on
+    #     `(repository, snapshot_scope)` — same scope serializes,
+    #     different scopes proceed concurrently.
     #
     # `cancel-in-progress: true` means: if you click "Run workflow"
-    # while an earlier refresh is still running, the older run is
-    # cancelled so the freshest `UPDATE` request wins. This matches
-    # the operator's intent — they typed UPDATE most recently for a
-    # reason — and avoids stacking up queued refreshes.
+    # while an earlier refresh for the SAME scope is still running,
+    # the older run is cancelled so the freshest `UPDATE` request
+    # wins. A simultaneous refresh for a different scope is unaffected.
     concurrency:
-      group: update-snapshots-${{ github.repository }}
+      group: update-snapshots-${{ github.repository }}-${{ inputs.snapshot_scope }}
       cancel-in-progress: true
     permissions:
       contents: write
