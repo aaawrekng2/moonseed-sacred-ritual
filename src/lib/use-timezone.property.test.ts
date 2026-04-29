@@ -86,10 +86,12 @@ type RunOptions = {
  *    counter-example as a JSON object plus a copy-pasteable rerun hint.
  */
 function runProperty(opts: RunOptions): void {
+  // fc.check returns Promise<RunDetails> for async properties and
+  // RunDetails for sync ones. Our predicates are all sync, so narrow.
   const result = fc.check(opts.property, {
     numRuns: opts.numRuns ?? 500,
     verbose: fc.VerbosityLevel.Verbose,
-  });
+  }) as fc.RunDetails<unknown>;
 
   if (!result.failed) return;
 
