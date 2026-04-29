@@ -69,6 +69,8 @@ function PatternChamber() {
   const [draftNote, setDraftNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
   const [retiring, setRetiring] = useState(false);
+  const [retireStep, setRetireStep] = useState<0 | 1 | 2>(0);
+  const [retireConfirmText, setRetireConfirmText] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -128,13 +130,21 @@ function PatternChamber() {
     }
   };
 
-  const retirePattern = async () => {
+  const openRetireFlow = () => {
     if (!pattern) return;
     if (pattern.lifecycle_state === "retired") return;
-    const ok = window.confirm(
-      `Retire "${pattern.name}"? It will quiet down and stop surfacing in active views. You can revisit it any time.`,
-    );
-    if (!ok) return;
+    setRetireConfirmText("");
+    setRetireStep(1);
+  };
+
+  const cancelRetireFlow = () => {
+    setRetireStep(0);
+    setRetireConfirmText("");
+  };
+
+  const confirmRetirePattern = async () => {
+    if (!pattern) return;
+    if (pattern.lifecycle_state === "retired") return;
     setRetiring(true);
     const nowIso = new Date().toISOString();
     const { error } = await supabase
@@ -148,6 +158,8 @@ function PatternChamber() {
         lifecycle_state: "retired",
         retired_at: nowIso,
       });
+      setRetireStep(0);
+      setRetireConfirmText("");
     }
   };
 
@@ -260,12 +272,25 @@ function PatternChamber() {
       <PatternActions
         onRename={() => setEditing(true)}
         onToggleNote={() => setNoteOpen((v) => !v)}
-        onRetire={retirePattern}
+        onRetire={openRetireFlow}
         retiring={retiring}
         retired={pattern.lifecycle_state === "retired"}
         hasNote={!!(pattern.description && pattern.description.trim())}
         noteOpen={noteOpen}
       />
+
+      {retireStep > 0 && pattern && (
+        <RetireConfirmModal
+          step={retireStep as 1 | 2}
+          patternName={pattern.name}
+          confirmText={retireConfirmText}
+          onConfirmTextChange={setRetireConfirmText}
+          onAdvance={() => setRetireStep(2)}
+          onConfirm={confirmRetirePattern}
+          onCancel={cancelRetireFlow}
+          retiring={retiring}
+        />
+      )}
 
       {noteOpen ? (
         <div style={{ marginTop: 12 }}>
@@ -363,6 +388,162 @@ const chamberGhostBtn: React.CSSProperties = {
   border: "none",
   opacity: 0.6,
 };
+
+function RetireConfirmModal({
+  step,
+  patternName,
+  confirmText,
+  onConfirmTextChange,
+  onAdvance,
+  onConfirm,
+  onCancel,
+  retiring,
+}: {
+  step: 1 | 2;
+  patternName: string;
+  confirmText: string;
+  onConfirmTextChange: (s: string) => void;
+  onAdvance: () => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+  retiring: boolean;
+}) {
+  const matches = confirmText.trim().toLowerCase() === "retire";
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="retire-modal-title"
+      onClick={onCancel}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.6)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+        zIndex: 50,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: 420,
+          width: "100%",
+          background: "var(--color-background, #0b0b10)",
+          border: "1px solid rgba(212,175,90,0.4)",
+          borderRadius: 12,
+          padding: 20,
+          fontFamily: "var(--font-serif)",
+          color: "var(--color-foreground)",
+        }}
+      >
+        <h2
+          id="retire-modal-title"
+          style={{
+            margin: 0,
+            fontStyle: "italic",
+            fontSize: "var(--text-heading-sm, 17px)",
+            color: "var(--gold)",
+          }}
+        >
+          {step === 1 ? "Retire this pattern?" : "Are you sure?"}
+        </h2>
+        <p
+          style={{
+            marginTop: 10,
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            opacity: 0.8,
+            lineHeight: 1.6,
+          }}
+        >
+          {step === 1 ? (
+            <>
+              <strong style={{ color: "var(--gold)" }}>
+                "{patternName}"
+              </strong>{" "}
+              will quiet down and stop surfacing in active views. You can
+              revisit it any time.
+            </>
+          ) : (
+            <>
+              This is your final confirmation. To retire{" "}
+              <strong style={{ color: "var(--gold)" }}>
+                "{patternName}"
+              </strong>
+              , type <strong>retire</strong> below.
+            </>
+          )}
+        </p>
+
+        {step === 2 && (
+          <input
+            autoFocus
+            type="text"
+            value={confirmText}
+            onChange={(e) => onConfirmTextChange(e.target.value)}
+            placeholder="Type 'retire' to confirm"
+            style={{
+              width: "100%",
+              marginTop: 12,
+              background: "rgba(212,175,90,0.04)",
+              border: "1px solid rgba(212,175,90,0.25)",
+              borderRadius: 8,
+              padding: 10,
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              outline: "none",
+            }}
+          />
+        )}
+
+        <div
+          style={{
+            display: "flex",
+            gap: 8,
+            marginTop: 16,
+            justifyContent: "flex-end",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={retiring}
+            style={chamberGhostBtn}
+          >
+            Cancel
+          </button>
+          {step === 1 ? (
+            <button
+              type="button"
+              onClick={onAdvance}
+              style={chamberPrimaryBtn}
+            >
+              Continue
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={!matches || retiring}
+              style={{
+                ...chamberPrimaryBtn,
+                opacity: !matches || retiring ? 0.4 : 1,
+                cursor: !matches || retiring ? "not-allowed" : "pointer",
+              }}
+            >
+              {retiring ? "Retiring…" : "Retire pattern"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function PatternActions({
   onRename,
