@@ -734,7 +734,13 @@ function SharePreviewModal({
   busy: ShareBusyState;
   onConfirm: () => void;
   onCancel: () => void;
-  error: { title: string; description: string; retry: () => void } | null;
+  error: {
+    title: string;
+    description: string;
+    nextAction: string;
+    intent: "share" | "save";
+    retry: () => void;
+  } | null;
   onDismissError: () => void;
 }) {
   const open = !!preview;
@@ -856,8 +862,14 @@ function SharePreviewModal({
           >
             {error && (
               <InlineErrorBanner
+                stepLabel={
+                  error.intent === "save"
+                    ? "Download failed"
+                    : "Sharing failed"
+                }
                 title={error.title}
                 description={error.description}
+                nextAction={error.nextAction}
                 busy={busy !== null}
                 onRetry={error.retry}
                 onDismiss={onDismissError}
