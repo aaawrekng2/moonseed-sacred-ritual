@@ -22,12 +22,14 @@ export function QuestionPanel({
   onQuestionChange,
   onClose,
   onOpen,
+  onDontAskAgain,
 }: {
   open: boolean;
   question: string;
   onQuestionChange: (q: string) => void;
   onClose: () => void;
   onOpen: () => void;
+  onDontAskAgain?: () => void;
 }) {
   const [localValue, setLocalValue] = useState(question);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -200,6 +202,29 @@ export function QuestionPanel({
         </div>
 
         <div className="flex items-center justify-end gap-3">
+          {onDontAskAgain && (
+            <button
+              type="button"
+              onClick={() => {
+                onDontAskAgain();
+                commit();
+              }}
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--foreground)",
+                opacity: 0.4,
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                marginRight: "auto",
+              }}
+            >
+              Don't ask again
+            </button>
+          )}
           <button
             type="button"
             onClick={commit}
