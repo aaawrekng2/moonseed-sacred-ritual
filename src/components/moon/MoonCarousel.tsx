@@ -148,7 +148,9 @@ export function MoonCarousel() {
       // days back so the peak day itself stays "upcoming" for the whole
       // 24-hour window of the peak day.
       const anchor = getDayInTz(viewedDate, -2, effectiveTz);
-      const list = getPhaseOccurrences("Full Moon", anchor, 3);
+      // 13 months ahead so the upcoming full-moon highlight always has a
+      // candidate, even when the seeker has scrolled far into the future.
+      const list = getPhaseOccurrences("Full Moon", anchor, 13);
       const cutoff = viewedDate.getTime() - 36 * 60 * 60 * 1000;
       const upcoming = list.find((d) => d.getTime() >= cutoff);
       return upcoming ?? null;
@@ -857,11 +859,24 @@ function AdjacentCard({
 }
 
 function formatShortDate(d: Date, timeZone?: string) {
-  return d.toLocaleDateString(undefined, {
+  // Always include the year when the date is not in the current calendar
+  // year (in the seeker's effective timezone, falling back to device tz).
+  // Avoids confusion when the carousel scrolls into 2027+ from 2026.
+  const opts: Intl.DateTimeFormatOptions = {
     month: "short",
     day: "numeric",
     ...(timeZone ? { timeZone } : {}),
-  });
+  };
+  const yearHere = new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    ...(timeZone ? { timeZone } : {}),
+  }).format(d);
+  const yearNow = new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    ...(timeZone ? { timeZone } : {}),
+  }).format(new Date());
+  if (yearHere !== yearNow) opts.year = "numeric";
+  return d.toLocaleDateString(undefined, opts);
 }
 
 /**
