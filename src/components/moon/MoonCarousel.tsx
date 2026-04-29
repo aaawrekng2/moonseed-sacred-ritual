@@ -808,11 +808,26 @@ function formatShortDate(d: Date, timeZone?: string) {
  * day cards in the carousel. Decorative — pointer-events disabled so it
  * never blocks taps on the underlying day cards.
  */
-function FullMoonMarker({ left, peak, timeZone }: { left: number; peak: Date; timeZone: string }) {
+function FullMoonMarker({
+  left,
+  peak,
+  timeZone,
+  side,
+  ymd,
+}: {
+  left: number;
+  peak: Date;
+  timeZone: string;
+  side: "left" | "right" | null;
+  ymd: string | null;
+}) {
   const time = formatTimeInTz(peak, timeZone);
+  const sideLabel = side === "left" ? "← left edge" : side === "right" ? "right edge →" : "";
+  const tooltip = `Full moon peak ${time} (${timeZone})\nAnchored to ${side ?? "?"} edge of ${ymd ?? "?"}`;
   return (
     <div
-      aria-hidden="true"
+      aria-label={tooltip}
+      title={tooltip}
       style={{
         position: "absolute",
         // Sit on the top quarter of the cards rather than the very top
@@ -852,6 +867,22 @@ function FullMoonMarker({ left, peak, timeZone }: { left: number; peak: Date; ti
       >
         {time}
       </span>
+      {import.meta.env.DEV && side && ymd && (
+        <span
+          style={{
+            fontFamily: "var(--font-mono, monospace)",
+            fontSize: 9,
+            color: "rgba(212,168,67,0.7)",
+            textAlign: "center",
+            whiteSpace: "nowrap",
+            lineHeight: 1.1,
+          }}
+        >
+          {sideLabel}
+          <br />
+          {ymd}
+        </span>
+      )}
     </div>
   );
 }
