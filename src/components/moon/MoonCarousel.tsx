@@ -32,6 +32,8 @@ type DayCell = {
   isToday: boolean;
   relative: number;
   sign: string;
+  /** Calendar key for this card in the seeker's effective timezone. */
+  ymd: string;
 };
 
 function addDaysToYmd(ymd: string, delta: number): string {
@@ -84,18 +86,14 @@ export function MoonCarousel() {
   }, []);
 
   const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(12, 0, 0, 0);
-    return d;
+    const now = new Date();
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0, 0));
   }, []);
 
   // Currently-viewed center date — used so phase jumps anchor on what the
   // user is looking at, not on real-world today.
   const viewedDate = useMemo(() => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + offset);
-    d.setHours(12, 0, 0, 0);
-    return d;
+    return new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + offset, 12, 0, 0, 0));
   }, [today, offset]);
 
   // Mobile shows a 3-day window (-1, 0, +1); desktop shows 5 (-2..+2).
@@ -221,10 +219,15 @@ export function MoonCarousel() {
     try {
       const out: DayCell[] = [];
       for (let i = -dayRange; i <= dayRange; i++) {
-        const d = new Date(today);
-        d.setDate(today.getDate() + offset + i);
+        const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + offset + i, 12, 0, 0, 0));
         const info = getCurrentMoonPhase(d);
-        out.push({ info, isToday: offset + i === 0, relative: offset + i, sign: getMoonSign(d) });
+        out.push({
+          info,
+          isToday: offset + i === 0,
+          relative: offset + i,
+          sign: getMoonSign(d),
+          ymd: getYmdInTz(d, effectiveTz),
+        });
       }
       return { days: out, todayMoonSign: getMoonSign(new Date()), error: null as string | null };
     } catch (e) {
@@ -236,7 +239,7 @@ export function MoonCarousel() {
       };
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [offset, today, retryNonce, dayRange]);
+  }, [offset, today, retryNonce, dayRange, effectiveTz]);
 
   // Measure the seam pixel position whenever layout might shift. Anchor
   // the marker to the actual peak day card's left/right edge rather than
@@ -251,9 +254,7 @@ export function MoonCarousel() {
       const row = cardsRowRef.current;
       if (!row) return;
       const rowRect = row.getBoundingClientRect();
-      const peakIdx = days.findIndex((d) =>
-        getYmdInTz(d.info.date, effectiveTz) === peakYmd,
-      );
+      const peakIdx = days.findIndex((d) => d.ymd === peakYmd);
       const neighborIdx = peakMarkerSide === "left" ? peakIdx - 1 : peakIdx + 1;
       if (peakIdx < 0 || neighborIdx < 0 || neighborIdx >= days.length) {
         setMarkerLeft(null);
@@ -528,7 +529,7 @@ export function MoonCarousel() {
         />
 
         <div
-          className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl overflow-visible"
+          className="relative flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl overflow-visible"
           ref={cardsRowRef}
           role="group"
           aria-label={`Day strip, ${days.length} days`}
@@ -542,7 +543,7 @@ export function MoonCarousel() {
             const topOffset = absRel === 0 ? 0 : absRel === 1 ? 52 : 68;
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
-            const isGoldDay = goldYmds.includes(getYmdInTz(d.info.date, effectiveTz));
+            const isGoldDay = goldYmds.includes(d.ymd);
             return (
               <div
                 // Stable key by window slot index — prevents React from
