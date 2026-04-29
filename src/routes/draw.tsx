@@ -67,7 +67,10 @@ function DrawPage() {
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
-      const enabled = !(data && data.show_question_prompt === false);
+      // Only open if the seeker has explicitly opted in. Default
+      // (missing row, null, or false) keeps the card closed so it
+      // never flashes for users who turned it off.
+      const enabled = data?.show_question_prompt === true;
       setShowQuestionPrompt(enabled);
       setQuestionOpen(enabled);
       setPrefsLoaded(true);
