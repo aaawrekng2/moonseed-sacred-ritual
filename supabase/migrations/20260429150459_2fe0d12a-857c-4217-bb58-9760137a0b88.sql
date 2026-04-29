@@ -1,0 +1,1 @@
+ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS show_question_prompt boolean NOT NULL DEFAULT true;
