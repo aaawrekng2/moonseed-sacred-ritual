@@ -693,6 +693,7 @@ function CenterCard({
   moonSign,
   isToday,
   selected,
+  timeZone,
   enterDir,
   onToggle,
 }: {
@@ -700,6 +701,7 @@ function CenterCard({
   moonSign: string;
   isToday: boolean;
   selected: boolean;
+  timeZone: string;
   enterDir: "left" | "right";
   onToggle: () => void;
 }) {
@@ -708,12 +710,12 @@ function CenterCard({
       type="button"
       onClick={onToggle}
       aria-pressed={selected}
-      aria-label={`${isToday ? "Today" : formatShortDate(info.date)}, ${info.phase}. Tap to ${selected ? "deselect" : "select"}.`}
+      aria-label={`${isToday ? "Today" : formatShortDate(info.date, timeZone)}, ${info.phase}. Tap to ${selected ? "deselect" : "select"}.`}
       className="flex flex-col items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       style={{ minWidth: 120, maxWidth: 160 }}
     >
       <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-gold">
-        {isToday ? "Today" : formatShortDate(info.date)}
+        {isToday ? "Today" : formatShortDate(info.date, timeZone)}
       </span>
       <div
         className={cn(
@@ -728,7 +730,7 @@ function CenterCard({
         <div className="flex flex-col items-center gap-2 text-center">
           <MoonPhaseIcon phase={info.phase} size={72} illumination={info.illumination} />
           <p className="whitespace-nowrap text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {formatShortDate(info.date)}
+            {formatShortDate(info.date, timeZone)}
           </p>
           <p className="whitespace-nowrap font-display text-sm text-gold">{info.phase}</p>
           <p className="whitespace-nowrap text-xs text-gold/80">{info.illumination}% illuminated</p>
@@ -746,6 +748,7 @@ function AdjacentCard({
   sign,
   expanded,
   selected,
+  timeZone,
   enterDir,
   onToggle,
   size = "medium",
@@ -754,6 +757,7 @@ function AdjacentCard({
   sign: string;
   expanded: boolean;
   selected: boolean;
+  timeZone: string;
   /** Same swipe direction var used by the center card so all cells
       cross-fade + slide in concert across all breakpoints. */
   enterDir: "left" | "right";
@@ -767,7 +771,7 @@ function AdjacentCard({
       onClick={onToggle}
       aria-expanded={expanded}
       aria-pressed={selected}
-      aria-label={`${formatShortDate(info.date)}, ${info.phase}, ${info.illumination}% illuminated. Tap for details.`}
+      aria-label={`${formatShortDate(info.date, timeZone)}, ${info.phase}, ${info.illumination}% illuminated. Tap for details.`}
       className={cn(
         "flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-all duration-300 ease-out cursor-pointer",
         "outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
@@ -782,7 +786,7 @@ function AdjacentCard({
       <div className="flex flex-col items-center gap-1">
         <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          {formatShortDate(info.date)}
+          {formatShortDate(info.date, timeZone)}
         </p>
         <p className="text-[11px] text-muted-foreground">{info.phase}</p>
         <p className="text-[10px] text-gold/80">{info.illumination}% illuminated</p>
