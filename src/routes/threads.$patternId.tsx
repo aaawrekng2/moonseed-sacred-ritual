@@ -590,6 +590,9 @@ function ChamberWeaveGraph({
   // Nothing meaningful to draw — bail.
   if (siblingList.length === 0 && readings.length < 2) return null;
 
+  const activeId = hoveredId ?? focusId;
+  const hasActive = activeId !== null;
+
   const CENTER_X = 260;
   const CENTER_Y = 240;
   const SIBLING_RADIUS = 180;
