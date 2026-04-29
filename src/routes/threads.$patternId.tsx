@@ -17,8 +17,42 @@ import {
   Background,
   type Node,
   type Edge,
+  type Viewport,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+
+const VIEWPORT_STORAGE_PREFIX = "weave-viewport:";
+
+function loadViewport(patternId: string): Viewport | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(VIEWPORT_STORAGE_PREFIX + patternId);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      typeof parsed?.x === "number" &&
+      typeof parsed?.y === "number" &&
+      typeof parsed?.zoom === "number"
+    ) {
+      return parsed as Viewport;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function saveViewport(patternId: string, vp: Viewport) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      VIEWPORT_STORAGE_PREFIX + patternId,
+      JSON.stringify({ x: vp.x, y: vp.y, zoom: vp.zoom }),
+    );
+  } catch {
+    // ignore
+  }
+}
 
 export const Route = createFileRoute("/threads/$patternId")({
   component: PatternChamber,
