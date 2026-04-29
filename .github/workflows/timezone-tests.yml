@@ -9,6 +9,21 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  # Manual trigger: run from the Actions tab with `update_snapshots=true`
+  # to regenerate the committed Vitest snapshots and open a PR with the
+  # diff. This is the ONLY supported way to refresh snapshots from CI —
+  # the matrix job intentionally fails on drift, so we never want to
+  # auto-update on a normal push/PR run.
+  workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: "Regenerate timezone snapshots and open a PR with the diff"
+        type: boolean
+        default: false
+      base_branch:
+        description: "Branch to open the snapshot-update PR against"
+        type: string
+        default: "main"
 
 # ---------------------------------------------------------------------------
 # Pinned fast-check seed for the property-based suite.
@@ -231,3 +246,91 @@ jobs:
           echo "To reproduce a failure locally:"
           echo "  FC_SEED=$FC_SEED npm run test:tz:property"
           npm run test:tz:property
+
+  # ---------------------------------------------------------------------------
+  # Manual snapshot refresh.
+  #
+  # Triggered ONLY by `workflow_dispatch` with `update_snapshots=true`.
+  # The job:
+  #   1. Regenerates Vitest snapshots with `vitest run -u`.
+  #   2. If anything changed, pushes a branch and opens a PR against
+  #      `base_branch` (default: main) with the diff.
+  #   3. If nothing changed, exits cleanly with a "no drift" notice.
+  #
+  # Why a PR (not a direct commit to the base branch):
+  #   - Snapshot updates are real semantic changes — they encode what
+  #     getYmdInTz/getDayInTz are expected to return. They MUST be
+  #     reviewed by a human, not auto-merged.
+  #   - Opening a PR lets the standard `pull_request` matrix above
+  #     re-run on the new snapshots, so we can see they're internally
+  #     consistent across all 12 (Node × TZ) cells before merging.
+  # ---------------------------------------------------------------------------
+  update-snapshots:
+    name: Refresh timezone snapshots (manual)
+    if: github.event_name == 'workflow_dispatch' && inputs.update_snapshots == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      TZ: "UTC"
+      CI: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Use the default GITHUB_TOKEN; permissions block above grants
+          # what we need to push a branch and open a PR.
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline
+
+      - name: Regenerate snapshots
+        # `-u` updates obsolete snapshots in place. We scope to the tz
+        # files only — refreshing every snapshot in the repo from a
+        # narrow timezone change would be a footgun.
+        run: npx vitest run -u src/lib/use-timezone
+
+      - name: Detect snapshot diff
+        id: diff
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain src/lib/__snapshots__)" ]; then
+            echo "No snapshot changes — nothing to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Snapshot drift detected:"
+            git --no-pager diff --stat src/lib/__snapshots__
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open pull request with refreshed snapshots
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          base: ${{ inputs.base_branch }}
+          branch: ci/refresh-tz-snapshots-${{ github.run_id }}
+          commit-message: "test(tz): refresh timezone snapshots via workflow_dispatch"
+          title: "Refresh timezone snapshots (run #${{ github.run_number }})"
+          body: |
+            Automated snapshot refresh triggered manually via the
+            **Timezone tests** workflow with `update_snapshots=true`.
+
+            - Triggered by: @${{ github.actor }}
+            - Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            - Base branch: `${{ inputs.base_branch }}`
+
+            ⚠️ **Review carefully.** Snapshot changes encode the expected
+            output of `getYmdInTz` / `getDayInTz` for fixed instants and
+            zones. A diff here means the timezone helpers' behavior has
+            changed — make sure that change is intentional before merging.
+          add-paths: |
+            src/lib/__snapshots__/**
+          delete-branch: true
