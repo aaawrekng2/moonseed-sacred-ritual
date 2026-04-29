@@ -602,6 +602,25 @@ function ReadingPreferencesSection({
 }) {
   const [spread, setSpread] = useState<SpreadType>(prefs.default_spread as SpreadType);
   const [saving, setSaving] = useState(false);
+  const [savingPrompt, setSavingPrompt] = useState(false);
+
+  const togglePrompt = async (next: boolean) => {
+    setSavingPrompt(true);
+    const previous = prefs.show_question_prompt;
+    setPrefs({ ...prefs, show_question_prompt: next });
+    const { error } = await updateUserPreferences(user.id, {
+      show_question_prompt: next,
+    });
+    setSavingPrompt(false);
+    if (error) {
+      setPrefs({ ...prefs, show_question_prompt: previous });
+      toast.error("Couldn't save your preference.");
+      return;
+    }
+    toast.success(next ? "Question prompt on" : "Question prompt off", {
+      icon: "✓",
+    });
+  };
 
   const save = async () => {
     setSaving(true);
@@ -635,6 +654,24 @@ function ReadingPreferencesSection({
         </div>
 
         <AutoRememberQuestionRow />
+
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
+          <div className="space-y-0.5">
+            <Label htmlFor="show-question-prompt" className="text-sm">
+              Show question prompt on the draw table
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              When off, the floating quill stays collapsed until you tap it. Use
+              this if you prefer to draw without a written question.
+            </p>
+          </div>
+          <Switch
+            id="show-question-prompt"
+            checked={prefs.show_question_prompt}
+            disabled={savingPrompt}
+            onCheckedChange={togglePrompt}
+          />
+        </div>
 
         <Button variant="ghost" onClick={save} disabled={saving} className={goldButton}>
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
