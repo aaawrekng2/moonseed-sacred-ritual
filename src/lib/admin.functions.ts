@@ -15,7 +15,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { detectWeavesForUser } from "@/lib/weaves.functions";
+import {
+  detectWeavesForUser,
+  previewWeavesForUser,
+  type WeavePreview,
+} from "@/lib/weaves.functions";
 
 async function assertAdmin(supabase: any, userId: string): Promise<void> {
   const { data, error } = await supabase.rpc("has_admin_role", {
