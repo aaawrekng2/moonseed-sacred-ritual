@@ -492,10 +492,6 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
               facetIds={facetIds}
             />
           )}
-          <ShareReadingButton
-            text={copyText ?? ""}
-            isOracle={isOracle}
-          />
           <button
             type="button"
             onClick={onExit}
