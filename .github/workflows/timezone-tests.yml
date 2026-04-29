@@ -1023,11 +1023,33 @@ jobs:
               REASON="concurrent fast-forward by another writer (baseline still reachable, pushed SHA isn't)"
             fi
 
+            # Emit Actions UI annotations with clearly labeled,
+            # all-caps failure-mode tags so the run page shows e.g.
+            #   ❌ [FORCE_PUSH] update-snapshots: branch '...' rewritten
+            # or
+            #   ❌ [CONCURRENT]  update-snapshots: branch '...' raced
+            # at a glance, without having to open the step log.
+            #
+            # We emit BOTH a high-visibility ::notice:: (renders as a
+            # blue banner pinned to the run summary, easier to spot
+            # when scanning a list of failed runs) AND the actual
+            # ::error:: (which fails the step and is also annotated
+            # in the file/line view). The two carry the same tag so
+            # they're trivially correlated.
             if [ "$FORCE_PUSHED" = "true" ]; then
-              echo "::error title=Refresh branch force-pushed::Branch '$BRANCH' was rewritten: $REASON."
+              MODE_TAG="FORCE_PUSH"
+              MODE_HEADLINE="Branch '$BRANCH' was rewritten (history force-pushed)"
             else
-              echo "::error title=Refresh branch raced::Branch '$BRANCH' was modified concurrently: $REASON."
+              MODE_TAG="CONCURRENT"
+              MODE_HEADLINE="Branch '$BRANCH' raced (concurrent fast-forward)"
             fi
+            echo "::notice title=❌ [$MODE_TAG] update-snapshots failure mode::$MODE_HEADLINE — see step log for full diagnostics and copy-paste re-dispatch command."
+            echo "::error title=❌ [$MODE_TAG] update-snapshots atomicity check failed::[$MODE_TAG] $MODE_HEADLINE. Reason: $REASON. Re-run: $RERUN_CMD"
+            echo ""
+            echo "════════════════════════════════════════════════════════════"
+            echo "  ❌ FAILURE MODE: [$MODE_TAG]"
+            echo "  $MODE_HEADLINE"
+            echo "════════════════════════════════════════════════════════════"
             echo "  Full remote ref        : $REF"
             echo "  Baseline (pre-run) tip : $BASELINE_SHA"
             echo "  Pushed head            : $PUSHED_SHA"
