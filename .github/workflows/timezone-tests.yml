@@ -1304,6 +1304,18 @@ $RERUN_CMD"
               echo "$RERUN_CMD"
               echo "\`\`\`"
             } >> "$GITHUB_STEP_SUMMARY"
+            # Guaranteed one-line tail entry, written AFTER the
+            # mode-specific summary block above. Whatever else got
+            # logged, this single line is always the last thing in
+            # the step summary — no scrolling, no scanning. Format
+            # matches the user's requested shape:
+            #   "Re-run command for [MODE_TAG] is `…`"
+            {
+              echo ""
+              echo "---"
+              echo ""
+              echo "🔁 **Re-run command for \`[$MODE_TAG]\` is:** \`$RERUN_CMD\`"
+            } >> "$GITHUB_STEP_SUMMARY"
             echo "  Result                 : FAIL ($REASON)"
             echo "────────────────────────────────────"
             exit 1
