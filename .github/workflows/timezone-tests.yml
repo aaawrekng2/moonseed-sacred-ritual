@@ -998,6 +998,19 @@ jobs:
             echo "  Current remote tip     : ${CURRENT_TIP:-<none>}"
             echo "  Failure mode           : $REASON"
             echo ""
+            # Build the single-line, copy-pastable re-dispatch command
+            # ONCE so both failure branches (force-push + concurrent
+            # fast-forward) and the GITHUB_STEP_SUMMARY all show the
+            # exact same string. No backslash continuations — the
+            # whole thing fits on one line so it survives copying out
+            # of the Actions log without losing line breaks.
+            RERUN_CMD="gh workflow run timezone-tests.yml -f snapshot_scope=${{ inputs.snapshot_scope }} -f update_snapshots=true -f confirm=UPDATE"
+            echo "════════════════════════════════════════════════════════════"
+            echo "  📋 COPY-PASTE RE-DISPATCH COMMAND"
+            echo "════════════════════════════════════════════════════════════"
+            echo "$RERUN_CMD"
+            echo "════════════════════════════════════════════════════════════"
+            echo ""
             if [ "$FORCE_PUSHED" = "true" ]; then
               # ===========================================================
               # Dedicated FORCE-PUSH remediation section.
@@ -1042,10 +1055,7 @@ jobs:
               echo "      confirm          = UPDATE"
               echo ""
               echo "    From the CLI:"
-              echo "      gh workflow run timezone-tests.yml \\"
-              echo "        -f snapshot_scope=${{ inputs.snapshot_scope }} \\"
-              echo "        -f update_snapshots=true \\"
-              echo "        -f confirm=UPDATE"
+              echo "      $RERUN_CMD"
               echo ""
               echo "════════════════════════════════════════════════════════════"
 
@@ -1077,10 +1087,7 @@ jobs:
                 echo "CLI:"
                 echo ""
                 echo "\`\`\`sh"
-                echo "gh workflow run timezone-tests.yml \\"
-                echo "  -f snapshot_scope=${{ inputs.snapshot_scope }} \\"
-                echo "  -f update_snapshots=true \\"
-                echo "  -f confirm=UPDATE"
+                echo "$RERUN_CMD"
                 echo "\`\`\`"
               } >> "$GITHUB_STEP_SUMMARY"
             else
@@ -1093,10 +1100,7 @@ jobs:
               echo "    update_snapshots = true"
               echo "    confirm = UPDATE"
               echo "Or from the CLI:"
-              echo "    gh workflow run timezone-tests.yml \\"
-              echo "      -f snapshot_scope=${{ inputs.snapshot_scope }} \\"
-              echo "      -f update_snapshots=true \\"
-              echo "      -f confirm=UPDATE"
+              echo "    $RERUN_CMD"
             fi
             {
               echo ""
@@ -1107,6 +1111,12 @@ jobs:
               echo "- **Baseline SHA:** \`$BASELINE_SHA\`"
               echo "- **Pushed SHA:** \`$PUSHED_SHA\`"
               echo "- **Current remote tip:** \`${CURRENT_TIP:-<none>}\`"
+              echo ""
+              echo "**Copy-paste re-dispatch command:**"
+              echo ""
+              echo "\`\`\`sh"
+              echo "$RERUN_CMD"
+              echo "\`\`\`"
             } >> "$GITHUB_STEP_SUMMARY"
             echo "  Result                 : FAIL ($REASON)"
             echo "────────────────────────────────────"
