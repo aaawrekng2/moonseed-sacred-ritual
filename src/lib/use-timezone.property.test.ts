@@ -200,9 +200,136 @@ function runProperty(opts: RunOptions): void {
     "",
     `Total runs before failure: ${result.numRuns}`,
     `Shrink steps: ${result.numShrinks}`,
+    "",
+    buildReproSnippet({
+      invariant: opts.invariant,
+      rendered,
+      seed: result.seed,
+      path: result.counterexamplePath,
+      underlyingError,
+    }),
   ];
 
   throw new Error(lines.join("\n"));
+}
+
+/**
+ * Pull the failing zone + primary instant out of a rendered
+ * counter-example object.
+ *
+ * Per-invariant `format` callbacks use slightly different key shapes
+ * (`iso` vs `aIso`/`bIso`/`cIso`, scalars `n` or `a`/`b`). We don't want
+ * to thread invariant-specific knowledge into the reporter, so this
+ * walks the object and picks:
+ *   - `tz`: the value under the `tz` key (every format includes one),
+ *   - `instantIso`: the FIRST string-valued key whose name ends with
+ *     `iso` (case-insensitive). Shrinking already minimized the
+ *     primary instant, so the first one is the most useful seed.
+ *   - `extras`: everything else (e.g. `n`, `a`, `b`) for context.
+ */
+function extractReproParts(rendered: Record<string, unknown>): {
+  tz: string;
+  instantIso: string | null;
+  extras: Record<string, unknown>;
+} {
+  let tz = "<unknown>";
+  let instantIso: string | null = null;
+  const extras: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(rendered)) {
+    if (key === "tz" && typeof value === "string") {
+      tz = value;
+      continue;
+    }
+    if (
+      instantIso === null &&
+      typeof value === "string" &&
+      key.toLowerCase().endsWith("iso")
+    ) {
+      instantIso = value;
+      continue;
+    }
+    extras[key] = value;
+  }
+
+  return { tz, instantIso, extras };
+}
+
+/**
+ * Build a copy-pasteable failure report:
+ *   - A Markdown block ready to drop into a GitHub issue (invariant
+ *     label, failing zone, instant ISO, error, rerun command).
+ *   - A standalone Vitest test snippet that pins the failing instant
+ *     and zone as a hard-coded regression test, so the developer's
+ *     first action after triaging is "paste this into use-timezone.test.ts".
+ */
+function buildReproSnippet(args: {
+  invariant: string;
+  rendered: Record<string, unknown>;
+  seed: number;
+  path: string;
+  underlyingError: string;
+}): string {
+  const { invariant, rendered, seed, path, underlyingError } = args;
+  const { tz, instantIso, extras } = extractReproParts(rendered);
+  const isoLiteral = instantIso ?? "<NO_ISO_FOUND_IN_COUNTEREXAMPLE>";
+  const extrasJson = Object.keys(extras).length
+    ? `\n// Other shrunk inputs: ${JSON.stringify(extras)}`
+    : "";
+
+  // Short, stable test name derived from the invariant's leading clause
+  // (everything before the first colon). Keeps generated snippets
+  // grep-friendly: `regression: <thing>`.
+  const testName = `regression: ${invariant.split(":")[0].trim().toLowerCase()} (${tz} @ ${isoLiteral})`;
+
+  const vitestSnippet = [
+    "// ─── Paste this into src/lib/use-timezone.test.ts ───",
+    `import { describe, it, expect } from "vitest";`,
+    `import { getDayInTz, getDayOffsetInTz, getTodayInTz, getYmdInTz, getDatePartsInTz } from "./use-timezone";`,
+    "",
+    `describe("regression: ${invariant.replace(/"/g, '\\"')}", () => {`,
+    `  it(${JSON.stringify(testName)}, () => {`,
+    `    const tz = ${JSON.stringify(tz)};`,
+    `    const instant = new Date(${JSON.stringify(isoLiteral)});${extrasJson}`,
+    `    // TODO: assert the specific behavior expected for this instant/tz pair.`,
+    `    // Original failure: ${underlyingError.replace(/\n/g, " ")}`,
+    `    expect(getYmdInTz(getTodayInTz(tz, instant), tz)).toMatchSnapshot();`,
+    `  });`,
+    `});`,
+  ].join("\n");
+
+  const issueBlock = [
+    "─── GitHub-issue-ready report (copy from here ↓) ───",
+    "",
+    "### Timezone property failure",
+    "",
+    `- **Invariant:** ${invariant}`,
+    `- **Failing timezone:** \`${tz}\``,
+    `- **Minimal instant (UTC ISO):** \`${isoLiteral}\``,
+    Object.keys(extras).length
+      ? `- **Other shrunk inputs:** \`${JSON.stringify(extras)}\``
+      : "- **Other shrunk inputs:** _(none)_",
+    `- **Underlying error:** \`${underlyingError.replace(/`/g, "\\`")}\``,
+    "",
+    "**Reproduce locally:**",
+    "```bash",
+    `FC_SEED=${seed} npm run test:tz:property`,
+    "```",
+    "",
+    "**Or rerun the exact shrunk path in fast-check:**",
+    "```ts",
+    `fc.assert(prop, { seed: ${seed}, path: ${JSON.stringify(path)} });`,
+    "```",
+    "",
+    "**Suggested regression test (paste into `src/lib/use-timezone.test.ts`):**",
+    "```ts",
+    vitestSnippet,
+    "```",
+    "",
+    "─── (copy to here ↑) ───",
+  ].join("\n");
+
+  return issueBlock;
 }
 
 function formatCoverageTable(): string {
