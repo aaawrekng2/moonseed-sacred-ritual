@@ -178,6 +178,7 @@ describe("runDetectWeaves throughput limits", () => {
       deps,
       {
         cronSecret: "secret",
+        minIntervalMs: 0,
         maxUsersPerRun: 3, // intentionally below the candidate count
       },
       freshState(),
@@ -205,7 +206,7 @@ describe("runDetectWeaves throughput limits", () => {
 
     const res = await runDetectWeaves(
       deps,
-      { cronSecret: "secret" },
+      { cronSecret: "secret", minIntervalMs: 0 },
       freshState(),
       "secret",
     );
@@ -235,7 +236,7 @@ describe("runDetectWeaves throughput limits", () => {
 
     const res = await runDetectWeaves(
       deps,
-      { cronSecret: "secret" },
+      { cronSecret: "secret", minIntervalMs: 0 },
       freshState(),
       "secret",
     );
