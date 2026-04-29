@@ -20,7 +20,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Eye, Layers, Quote, Sparkles, Star } from "lucide-react";
+import { Eye, Layers, Quote, Sparkles, Star, X } from "lucide-react";
 import {
   Dialog,
   DialogDescription,
@@ -109,7 +109,10 @@ export function ShareBuilder({
     return availableLevels.filter((id) => {
       switch (id) {
         case "position":
-          return typeof extras?.positionIndex === "number" && context.picks.length > 0;
+          // Position is available whenever the spread has >1 position.
+          // The builder maintains its own selection (see localPositionIndex
+          // below), so extras.positionIndex is only an initial hint.
+          return context.positionLabels.length > 1 && context.picks.length > 1;
         case "lens":
           return !!extras?.lens && extras.lens.body.trim().length > 0;
         case "artifact":
@@ -123,7 +126,7 @@ export function ShareBuilder({
     });
     // availableLevels intentionally compared by reference identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableLevels, extras, context.picks.length]);
+  }, [availableLevels, extras, context.picks.length, context.positionLabels.length]);
 
   const preferred: ShareLevel =
     honorLastLevel && lastLevel && enabledLevels.includes(lastLevel)
@@ -147,6 +150,16 @@ export function ShareBuilder({
     setLevel(id);
     remember(id);
   };
+
+  // Builder-owned position selector for Level 3 (Fix 2).
+  const [localPositionIndex, setLocalPositionIndex] = useState<number>(
+    extras?.positionIndex ?? 0,
+  );
+  useEffect(() => {
+    if (typeof extras?.positionIndex === "number") {
+      setLocalPositionIndex(extras.positionIndex);
+    }
+  }, [extras?.positionIndex, open]);
 
   const [includeQuestion, setIncludeQuestion] = useState<boolean>(false);
   const [includeInterpretation, setIncludeInterpretation] = useState<boolean>(true);
@@ -189,7 +202,7 @@ export function ShareBuilder({
           <Level3SpreadPosition
             ctx={context}
             color={color}
-            positionIndex={extras?.positionIndex ?? 0}
+            positionIndex={localPositionIndex}
           />
         );
       case "lens":
@@ -249,27 +262,56 @@ export function ShareBuilder({
             overflow: "hidden",
           }}
         >
-          <DialogHeader style={{ padding: "var(--space-5) var(--space-5) var(--space-3)" }}>
-            <DialogTitle
+          <DialogHeader
+            style={{
+              padding: "var(--space-5) var(--space-5) var(--space-3)",
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: "var(--space-3)",
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <DialogTitle
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-heading-sm)",
+                  color: "var(--accent)",
+                  letterSpacing: "0.05em",
+                  opacity: 1,
+                }}
+              >
+                Share
+              </DialogTitle>
+              <DialogDescription
+                style={{
+                  fontSize: "var(--text-caption)",
+                  color: "var(--color-foreground)",
+                  opacity: 0.85,
+                }}
+              >
+                Pick a style, tune what's included, then share or save.
+              </DialogDescription>
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              aria-label="Close share"
               style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-heading-sm)",
-                color: "var(--accent)",
-                letterSpacing: "0.05em",
-              }}
-            >
-              Share
-            </DialogTitle>
-            <DialogDescription
-              style={{
-                fontSize: "var(--text-caption)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
                 color: "var(--color-foreground)",
-                opacity: 0.6,
+                opacity: 0.7,
+                padding: 4,
+                marginTop: 2,
+                lineHeight: 0,
               }}
             >
-              Pick a style, tune what's included, then share or save.
-            </DialogDescription>
+              <X size={20} strokeWidth={1.5} />
+            </button>
           </DialogHeader>
 
           {/* Live preview */}
@@ -341,11 +383,14 @@ export function ShareBuilder({
                         alignItems: "center",
                         gap: "var(--space-1)",
                         padding: "var(--space-2) var(--space-3)",
-                        background: "transparent",
+                        background: active
+                          ? "color-mix(in oklab, var(--accent) 14%, transparent)"
+                          : "transparent",
+                        borderRadius: 10,
                         border: "none",
                         cursor: "pointer",
                         color: active ? "var(--accent)" : "var(--color-foreground)",
-                        opacity: active ? 1 : 0.55,
+                        opacity: active ? 1 : 0.7,
                         fontFamily: "var(--font-sans)",
                         fontSize: "var(--text-caption)",
                         letterSpacing: "0.18em",
@@ -354,6 +399,47 @@ export function ShareBuilder({
                     >
                       <Icon size={18} strokeWidth={1.5} />
                       <span>{spec.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Position selector (Level 3) */}
+            {level === "position" && context.positionLabels.length > 1 && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  justifyContent: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                {context.positionLabels.map((label, idx) => {
+                  const active = idx === localPositionIndex;
+                  return (
+                    <button
+                      key={`${label}-${idx}`}
+                      type="button"
+                      onClick={() => setLocalPositionIndex(idx)}
+                      aria-pressed={active}
+                      style={{
+                        padding: "6px 12px",
+                        background: active
+                          ? "color-mix(in oklab, var(--accent) 14%, transparent)"
+                          : "transparent",
+                        color: active ? "var(--accent)" : "var(--color-foreground)",
+                        opacity: active ? 1 : 0.6,
+                        border: "none",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        fontFamily: "var(--font-sans)",
+                        fontSize: "var(--text-caption)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.15em",
+                      }}
+                    >
+                      {label}
                     </button>
                   );
                 })}
