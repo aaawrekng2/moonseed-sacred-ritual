@@ -42,9 +42,12 @@ import {
   createAdminBackup,
   getBackupDownloadUrl,
   listAdminUsers,
+  listDetectWeavesAlerts,
   previewDetectWeavesAdmin,
+  resolveDetectWeavesAlert,
   restoreAdminBackup,
   runDetectWeavesAdmin,
+  type DetectWeavesAlert,
 } from "@/lib/admin.functions";
 import { setDevMode } from "@/components/dev/DevOverlay";
 
