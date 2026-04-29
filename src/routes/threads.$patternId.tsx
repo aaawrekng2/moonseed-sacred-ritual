@@ -71,6 +71,11 @@ function PatternChamber() {
   const [retiring, setRetiring] = useState(false);
   const [retireStep, setRetireStep] = useState<0 | 1 | 2>(0);
   const [retireConfirmText, setRetireConfirmText] = useState("");
+  const [undoRetire, setUndoRetire] = useState<{
+    prevLifecycle: string;
+    prevRetiredAt: string | null;
+  } | null>(null);
+  const [undoing, setUndoing] = useState(false);
 
   const noteHasUnsavedChanges = () => {
     const original = (pattern?.description ?? "").trim();
@@ -161,6 +166,8 @@ function PatternChamber() {
   const confirmRetirePattern = async () => {
     if (!pattern) return;
     if (pattern.lifecycle_state === "retired") return;
+    const prevLifecycle = pattern.lifecycle_state;
+    const prevRetiredAt = pattern.retired_at;
     setRetiring(true);
     const nowIso = new Date().toISOString();
     const { error } = await supabase
@@ -176,6 +183,28 @@ function PatternChamber() {
       });
       setRetireStep(0);
       setRetireConfirmText("");
+      setUndoRetire({ prevLifecycle, prevRetiredAt });
+    }
+  };
+
+  const undoRetirePattern = async () => {
+    if (!pattern || !undoRetire) return;
+    setUndoing(true);
+    const { error } = await supabase
+      .from("patterns")
+      .update({
+        lifecycle_state: undoRetire.prevLifecycle,
+        retired_at: undoRetire.prevRetiredAt,
+      })
+      .eq("id", pattern.id);
+    setUndoing(false);
+    if (!error) {
+      setPattern({
+        ...pattern,
+        lifecycle_state: undoRetire.prevLifecycle,
+        retired_at: undoRetire.prevRetiredAt,
+      });
+      setUndoRetire(null);
     }
   };
 
@@ -297,6 +326,51 @@ function PatternChamber() {
         hasNote={!!(pattern.description && pattern.description.trim())}
         noteOpen={noteOpen}
       />
+
+      {undoRetire && pattern.lifecycle_state === "retired" && (
+        <div
+          role="status"
+          style={{
+            marginTop: 12,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            padding: "10px 14px",
+            border: "1px solid rgba(212,175,90,0.35)",
+            background: "rgba(212,175,90,0.08)",
+            borderRadius: 8,
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            color: "var(--color-foreground)",
+          }}
+        >
+          <span style={{ opacity: 0.85 }}>
+            "{pattern.name}" retired.
+          </span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              onClick={undoRetirePattern}
+              disabled={undoing}
+              style={{
+                ...chamberPrimaryBtn,
+                opacity: undoing ? 0.6 : 1,
+              }}
+            >
+              {undoing ? "Restoring…" : "Undo"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setUndoRetire(null)}
+              style={chamberGhostBtn}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {retireStep > 0 && pattern && (
         <RetireConfirmModal
