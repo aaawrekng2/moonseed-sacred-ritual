@@ -764,6 +764,20 @@ function ChamberWeaveGraph({
           ? `Woven with ${siblingList.length} other pattern${siblingList.length === 1 ? "" : "s"}`
           : "This pattern stands alone — for now."}
       </h2>
+      {siblingList.length > 0 && (
+        <p
+          style={{
+            margin: "0 0 var(--space-2, 8px)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-caption)",
+            color: "var(--color-foreground)",
+            opacity: 0.5,
+          }}
+        >
+          Tap a pattern to highlight its weaves · tap again to open its chamber
+        </p>
+      )}
       <div
         style={{
           height: 480,
@@ -772,6 +786,7 @@ function ChamberWeaveGraph({
           background:
             "radial-gradient(circle at 50% 50%, rgba(120,90,200,0.08), transparent 70%)",
           overflow: "hidden",
+          position: "relative",
         }}
       >
         <ReactFlow
@@ -787,15 +802,107 @@ function ChamberWeaveGraph({
           onNodeClick={(_, node) => {
             if (node.id.startsWith("p:") && node.id !== `p:${pattern.id}`) {
               const sid = node.id.slice(2);
-              window.location.assign(`/threads/${sid}`);
+              if (focusId === sid) {
+                void navigate({
+                  to: "/threads/$patternId",
+                  params: { patternId: sid },
+                });
+              } else {
+                setFocusId(sid);
+              }
             } else if (node.id.startsWith("r:")) {
               const rid = node.id.slice(2);
-              window.location.assign(`/journal?readingId=${rid}`);
+              void navigate({
+                to: "/journal",
+                search: { readingId: rid } as never,
+              });
             }
+          }}
+          onNodeDoubleClick={(_, node) => {
+            if (node.id.startsWith("p:") && node.id !== `p:${pattern.id}`) {
+              const sid = node.id.slice(2);
+              void navigate({
+                to: "/threads/$patternId",
+                params: { patternId: sid },
+              });
+            }
+          }}
+          onNodeMouseEnter={(_, node) => {
+            if (node.id.startsWith("p:") && node.id !== `p:${pattern.id}`) {
+              setHoveredId(node.id.slice(2));
+            }
+          }}
+          onNodeMouseLeave={() => setHoveredId(null)}
+          onPaneClick={() => {
+            setFocusId(null);
+            setHoveredId(null);
           }}
         >
           <Background color="rgba(212,175,90,0.08)" gap={32} />
         </ReactFlow>
+        {(() => {
+          const activeSibling = activeId ? siblings[activeId] ?? null : null;
+          if (!activeSibling) return null;
+          const titles = Array.from(
+            new Set(
+              weaves
+                .filter((w) => (w.pattern_ids ?? []).includes(activeId!))
+                .map((w) => w.title)
+                .filter(Boolean),
+            ),
+          );
+          return (
+            <div
+              style={{
+                position: "absolute",
+                left: 12,
+                bottom: 12,
+                right: 12,
+                padding: "10px 12px",
+                background: "rgba(10,8,22,0.85)",
+                border: "1px solid rgba(212,175,90,0.35)",
+                borderRadius: "var(--radius-md, 10px)",
+                backdropFilter: "blur(6px)",
+                color: "var(--color-foreground)",
+                pointerEvents: "none",
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                  color: "rgba(232,200,120,1)",
+                }}
+              >
+                {activeSibling.name}
+              </div>
+              {titles.length > 0 && (
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: "var(--text-caption)",
+                    opacity: 0.75,
+                    fontStyle: "italic",
+                  }}
+                >
+                  {titles.join(" · ")}
+                </div>
+              )}
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: "var(--text-caption)",
+                  opacity: 0.5,
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Tap again to open chamber
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </section>
   );
