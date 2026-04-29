@@ -1,0 +1,50 @@
+name: Timezone tests
+
+# Runs the timezone math regression suite on every push and PR. The moon
+# carousel's correctness depends entirely on these helpers staying honest
+# across DST transitions and the international date line, so we gate
+# every change on them in a clean Node environment (NOT the developer's
+# local machine, which may have a different system tz).
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  timezone-tests:
+    name: Timezone helpers (Node ${{ matrix.node }}, TZ=${{ matrix.tz }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["20", "22"]
+        # Run under a few different system TZ values to guarantee no test
+        # accidentally relies on the runner's local zone. If one of these
+        # fails while UTC passes, a test is leaking host-local date math.
+        tz: ["UTC", "America/Los_Angeles", "Asia/Tokyo"]
+    env:
+      TZ: ${{ matrix.tz }}
+      CI: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run timezone unit + snapshot + property tests
+        run: npx vitest run src/lib/use-timezone
+
+      - name: Verify snapshots are committed (no drift)
+        run: |
+          if [ -n "$(git status --porcelain src/lib/__snapshots__)" ]; then
+            echo "::error::Snapshot drift detected. Run 'npm test -- -u' locally and commit the updated snapshots."
+            git --no-pager diff src/lib/__snapshots__
+            exit 1
+          fi
