@@ -15,6 +15,12 @@
  *   category?:     ShareErrorCategory  // present on every failure event
  *   errorName?:    string          // raw error.name|message, present on failures
  *
+ * TIMING FIELDS (all optional, all in whole milliseconds)
+ *   captureMs?:    number          // html-to-image render duration
+ *   blobMs?:       number          // dataURL → Blob/File duration (share intent)
+ *   shareMs?:      number          // navigator.share() duration
+ *   downloadMs?:   number          // anchor-click download duration
+ *
  * Per-event extras live alongside the envelope keys (see each helper).
  *
  * Events:
@@ -182,6 +188,8 @@ export function trackSharePrepare(props: {
   ok: boolean;
   errorName?: string;
   category?: ShareErrorCategory;
+  /** Wall-clock ms spent in html-to-image (success or failure). */
+  captureMs?: number;
 }) {
   emit("share_prepare", {
     context: props.context,
@@ -190,6 +198,7 @@ export function trackSharePrepare(props: {
     ok: props.ok,
     errorName: props.errorName,
     category: props.category,
+    captureMs: props.captureMs,
   });
 }
 
@@ -204,6 +213,7 @@ export function trackShareCaptureFailed(props: {
   intent: ShareIntent;
   category: ShareErrorCategory;
   errorName: string;
+  captureMs?: number;
 }) {
   emit("share_capture_failed", {
     context: props.context,
@@ -211,6 +221,7 @@ export function trackShareCaptureFailed(props: {
     intent: props.intent,
     category: props.category,
     errorName: props.errorName,
+    captureMs: props.captureMs,
   });
 }
 
@@ -219,10 +230,14 @@ export function trackShareCaptureFailed(props: {
 export function trackShareSuccess(props: {
   context: string;
   level: ShareLevel;
+  blobMs?: number;
+  shareMs?: number;
 }) {
   emit("share_success", {
     context: props.context,
     level: props.level,
+    blobMs: props.blobMs,
+    shareMs: props.shareMs,
   });
 }
 
@@ -230,11 +245,13 @@ export function trackShareDownload(props: {
   context: string;
   level: ShareLevel;
   reason: "user" | "share_unsupported";
+  downloadMs?: number;
 }) {
   emit("share_download", {
     context: props.context,
     level: props.level,
     reason: props.reason,
+    downloadMs: props.downloadMs,
   });
 }
 
@@ -246,6 +263,9 @@ export function trackShareError(props: {
   intent: ShareIntent;
   errorName: string;
   category: ShareErrorCategory;
+  blobMs?: number;
+  shareMs?: number;
+  downloadMs?: number;
 }) {
   emit("share_error", {
     context: props.context,
@@ -253,6 +273,9 @@ export function trackShareError(props: {
     intent: props.intent,
     errorName: props.errorName,
     category: props.category,
+    blobMs: props.blobMs,
+    shareMs: props.shareMs,
+    downloadMs: props.downloadMs,
   });
 }
 
@@ -262,6 +285,8 @@ export function trackShareWebShareFailed(props: {
   level: ShareLevel;
   category: ShareErrorCategory;
   errorName: string;
+  blobMs?: number;
+  shareMs?: number;
 }) {
   emit("share_web_share_failed", {
     context: props.context,
@@ -269,6 +294,8 @@ export function trackShareWebShareFailed(props: {
     intent: "share",
     category: props.category,
     errorName: props.errorName,
+    blobMs: props.blobMs,
+    shareMs: props.shareMs,
   });
 }
 
@@ -278,6 +305,7 @@ export function trackShareSaveFailed(props: {
   level: ShareLevel;
   category: ShareErrorCategory;
   errorName: string;
+  downloadMs?: number;
 }) {
   emit("share_save_failed", {
     context: props.context,
@@ -285,6 +313,7 @@ export function trackShareSaveFailed(props: {
     intent: "save",
     category: props.category,
     errorName: props.errorName,
+    downloadMs: props.downloadMs,
   });
 }
 

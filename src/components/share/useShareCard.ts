@@ -88,16 +88,41 @@ export type ShareError = {
  * the event with its own `context` / `level`.
  */
 export type ShareCardCallbacks = {
-  onPrepared?: (intent: ShareIntent) => void;
+  onPrepared?: (
+    intent: ShareIntent,
+    info: { captureMs: number },
+  ) => void;
   onPrepareError?: (
     intent: ShareIntent,
-    info: { error: unknown; category: ShareErrorCategory; name: string },
+    info: {
+      error: unknown;
+      category: ShareErrorCategory;
+      name: string;
+      /** ms spent in html-to-image before it threw */
+      captureMs: number;
+    },
   ) => void;
-  onShareSuccess?: () => void;
-  onShareDownload?: (reason: "user" | "share_unsupported") => void;
+  onShareSuccess?: (info: {
+    /** time fetching the dataURL into a Blob/File */
+    blobMs: number;
+    /** time spent in navigator.share() */
+    shareMs: number;
+  }) => void;
+  onShareDownload?: (
+    reason: "user" | "share_unsupported",
+    info: { downloadMs: number },
+  ) => void;
   onShareError?: (
     intent: ShareIntent,
-    info: { error: unknown; category: ShareErrorCategory; name: string },
+    info: {
+      error: unknown;
+      category: ShareErrorCategory;
+      name: string;
+      /** Whichever leg of confirm was running when it threw. */
+      blobMs?: number;
+      shareMs?: number;
+      downloadMs?: number;
+    },
   ) => void;
   /**
    * Fired the moment a user taps Retry — *before* the retried
@@ -402,15 +427,17 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
       backgroundColor: string,
       intent: ShareIntent,
     ) => {
+      const captureStart = performance.now();
       try {
         setBusy(intent);
         setLastError(null);
         const dataUrl = await renderToPng(node, backgroundColor);
+        const captureMs = Math.round(performance.now() - captureStart);
         const filename = `moonseed-${new Date()
           .toISOString()
           .slice(0, 10)}.png`;
         setPreview({ intent, dataUrl, filename });
-        callbacks.onPrepared?.(intent);
+        callbacks.onPrepared?.(intent, { captureMs });
         // A prepare-step retry session resolves successfully the
         // moment the PNG renders — the next leg (Web Share / save)
         // gets its own confirm-step session if it fails.
@@ -421,6 +448,7 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
           resolveSession("success");
         }
       } catch (e) {
+        const captureMs = Math.round(performance.now() - captureStart);
         console.error("[useShareCard] prepare failed", e);
         flash(intent === "share" ? "Couldn't share" : "Couldn't save");
         const category = categorizeShareError(e);
@@ -446,6 +474,7 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
           error: e,
           category,
           name,
+          captureMs,
         });
       } finally {
         setBusy(null);
@@ -461,37 +490,54 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
   const confirm = useCallback(async () => {
     if (!preview) return;
     const { intent, dataUrl, filename } = preview;
+    // Per-leg timers so analytics can pinpoint which step is slow.
+    // `blobStart` covers fetch(dataURL)→Blob→File. `shareStart` covers
+    // navigator.share(). `downloadStart` covers anchor-click download.
+    let blobMs: number | undefined;
+    let shareMs: number | undefined;
+    let downloadMs: number | undefined;
+    let downloadStart = 0;
+    let blobStart = 0;
+    let shareStart = 0;
     try {
       setBusy(intent);
       setLastError(null);
       if (intent === "save") {
+        downloadStart = performance.now();
         downloadDataUrl(dataUrl, filename);
+        downloadMs = Math.round(performance.now() - downloadStart);
         flash("PNG downloaded");
-        callbacks.onShareDownload?.("user");
+        callbacks.onShareDownload?.("user", { downloadMs });
         setPreview(null);
         resolveSession("success");
         return;
       }
       // intent === "share"
+      blobStart = performance.now();
       const blob = await (await fetch(dataUrl)).blob();
       const file = new File([blob], filename, { type: "image/png" });
+      blobMs = Math.round(performance.now() - blobStart);
       const nav = navigator as Navigator & {
         canShare?: (data: ShareData) => boolean;
       };
       if (nav.canShare && nav.canShare({ files: [file] })) {
+        shareStart = performance.now();
         await nav.share({ files: [file], title: "Moonseed" });
+        shareMs = Math.round(performance.now() - shareStart);
         flash("Shared");
-        callbacks.onShareSuccess?.();
+        callbacks.onShareSuccess?.({ blobMs, shareMs });
         resolveSession("success");
       } else {
+        downloadStart = performance.now();
         downloadDataUrl(dataUrl, filename);
+        downloadMs = Math.round(performance.now() - downloadStart);
         flash("Saved (sharing not supported)");
         sonner.info("Sharing isn't supported here", {
           description:
             "We saved the image instead so you can share it manually.",
           duration: 5000,
         });
-        callbacks.onShareDownload?.("share_unsupported");
+        callbacks.onShareDownload?.("share_unsupported", { downloadMs });
         resolveSession("success");
       }
       setPreview(null);
@@ -499,6 +545,16 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
       // User dismissing the native share sheet is not an error — keep
       // the preview open so they can try again or save instead.
       if ((e as { name?: string })?.name === "AbortError") return;
+      // Capture timing for whichever leg was in flight when it threw.
+      if (blobStart && blobMs === undefined) {
+        blobMs = Math.round(performance.now() - blobStart);
+      }
+      if (shareStart && shareMs === undefined) {
+        shareMs = Math.round(performance.now() - shareStart);
+      }
+      if (downloadStart && downloadMs === undefined) {
+        downloadMs = Math.round(performance.now() - downloadStart);
+      }
       console.error("[useShareCard] confirm failed", e);
       flash(intent === "share" ? "Couldn't share" : "Couldn't save");
       const category = categorizeShareError(e);
@@ -516,9 +572,11 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         intent === "share"
           ? () => {
               try {
+                const dlStart = performance.now();
                 downloadDataUrl(dataUrl, filename);
+                const dlMs = Math.round(performance.now() - dlStart);
                 flash("PNG downloaded");
-                callbacks.onShareDownload?.("user");
+                callbacks.onShareDownload?.("user", { downloadMs: dlMs });
                 setLastError(null);
                 setPreview(null);
                 // Switching to Download PNG closes the share-step
@@ -554,6 +612,9 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         error: e,
         category,
         name,
+        blobMs,
+        shareMs,
+        downloadMs,
       });
     } finally {
       setBusy(null);
