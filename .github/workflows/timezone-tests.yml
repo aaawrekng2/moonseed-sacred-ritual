@@ -24,6 +24,16 @@ on:
         description: "Branch to open the snapshot-update PR against"
         type: string
         default: "main"
+      confirm:
+        # Required confirmation phrase. Must equal `UPDATE` (case-
+        # sensitive) for the update-snapshots job to actually run.
+        # This is a guardrail against accidentally clicking "Run
+        # workflow" with `update_snapshots=true` checked from the
+        # default form — the operator has to deliberately type the
+        # phrase, which makes a slip impossible.
+        description: "Type UPDATE to confirm. Required when update_snapshots=true."
+        type: string
+        default: ""
 
 # ---------------------------------------------------------------------------
 # Pinned fast-check seed for the property-based suite.
