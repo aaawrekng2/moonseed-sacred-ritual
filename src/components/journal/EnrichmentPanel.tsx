@@ -513,6 +513,7 @@ export function EnrichmentPanel({
       aria-label="Enrich this reading"
       className="mx-auto mt-10 max-w-prose"
     >
+      <PatternSurfacingLine readingId={reading.id} />
       {/* Hairline divider */}
       <div
         className="mb-5 h-px"
