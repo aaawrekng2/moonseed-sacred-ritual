@@ -28,6 +28,8 @@
  *   share_download          — image saved/downloaded
  *   share_error             — share or save failed (after preparation)
  *   share_cancel            — user dismissed preview without confirming
+ *   share_retry_attempt     — user tapped Retry on a failed share step
+ *   share_retry_resolved    — retry session ended (success or abandoned)
  */
 import { track } from "@/lib/analytics";
 import type { ShareLevel } from "./share-types";
@@ -297,5 +299,57 @@ export function trackShareCancel(props: {
     context: props.context,
     level: props.level,
     intent: props.intent,
+  });
+}
+
+// ─── Retry tracking ──────────────────────────────────────────────────
+//
+// A retry "session" begins on the first failure of a given step
+// (prepare or confirm) and ends when the seeker either succeeds or
+// abandons. Each Retry tap emits `share_retry_attempt` with the
+// running count; the terminating state emits `share_retry_resolved`
+// once. Sessions where the seeker never retried are not reported.
+
+export function trackShareRetryAttempt(props: {
+  context: string;
+  level: ShareLevel;
+  intent: ShareIntent;
+  step: "prepare" | "confirm";
+  /** 1-indexed: the first retry is `attempts: 1`. */
+  attempts: number;
+  originalCategory: ShareErrorCategory;
+  originalErrorName: string;
+}) {
+  emit("share_retry_attempt", {
+    context: props.context,
+    level: props.level,
+    intent: props.intent,
+    step: props.step,
+    attempts: props.attempts,
+    category: props.originalCategory,
+    errorName: props.originalErrorName,
+  });
+}
+
+export function trackShareRetryResolved(props: {
+  context: string;
+  level: ShareLevel;
+  intent: ShareIntent;
+  step: "prepare" | "confirm";
+  /** Number of retry taps before the resolution (>= 1). */
+  attempts: number;
+  resolution: "success" | "abandoned";
+  originalCategory: ShareErrorCategory;
+  originalErrorName: string;
+}) {
+  emit("share_retry_resolved", {
+    context: props.context,
+    level: props.level,
+    intent: props.intent,
+    step: props.step,
+    attempts: props.attempts,
+    resolution: props.resolution,
+    category: props.originalCategory,
+    errorName: props.originalErrorName,
   });
 }

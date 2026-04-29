@@ -7,7 +7,7 @@
  * preview scale. The preview itself is a CSS-scaled clone of the same
  * markup so what the user sees IS what gets shared.
  */
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 import { toast as sonner } from "sonner";
 import { SHARE_CARD_H, SHARE_CARD_W } from "./levels/share-card-shared";
@@ -99,6 +99,36 @@ export type ShareCardCallbacks = {
     intent: ShareIntent,
     info: { error: unknown; category: ShareErrorCategory; name: string },
   ) => void;
+  /**
+   * Fired the moment a user taps Retry — *before* the retried
+   * operation runs. `attempts` is 1-indexed (the first retry is 1).
+   * The `original*` fields describe the failure that opened the
+   * current retry session, so dashboards can group retries by the
+   * failure shape that caused them.
+   */
+  onRetryAttempt?: (info: {
+    step: "prepare" | "confirm";
+    intent: ShareIntent;
+    attempts: number;
+    originalCategory: ShareErrorCategory;
+    originalErrorName: string;
+  }) => void;
+  /**
+   * Fired exactly once per retry session, when the seeker either
+   * succeeds or abandons the flow (dismiss banner / cancel preview /
+   * close builder). `attempts` reflects how many retries occurred
+   * before the resolution. Sessions that resolve without any retry
+   * (attempts === 0) are not reported — there's nothing to learn
+   * from a "retry that never happened".
+   */
+  onRetryResolved?: (info: {
+    step: "prepare" | "confirm";
+    intent: ShareIntent;
+    attempts: number;
+    resolution: "success" | "abandoned";
+    originalCategory: ShareErrorCategory;
+    originalErrorName: string;
+  }) => void;
 };
 
 /**
@@ -117,6 +147,78 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
   const [toast, setToast] = useState<string | null>(null);
   const [preview, setPreview] = useState<SharePreview | null>(null);
   const [lastError, setLastError] = useState<ShareError | null>(null);
+
+  /**
+   * A retry "session" spans from the first failure of a given step
+   * until the seeker either succeeds or abandons. Subsequent failures
+   * of the same step keep the session alive and bump `attempts` only
+   * when the seeker explicitly tapped Retry (tracked via the wrapped
+   * `retry` callback below).
+   */
+  type RetrySession = {
+    step: "prepare" | "confirm";
+    intent: ShareIntent;
+    attempts: number;
+    originalCategory: ShareErrorCategory;
+    originalErrorName: string;
+  };
+  const retrySessionRef = useRef<RetrySession | null>(null);
+
+  const startOrKeepSession = (
+    step: "prepare" | "confirm",
+    intent: ShareIntent,
+    category: ShareErrorCategory,
+    name: string,
+  ): RetrySession => {
+    const existing = retrySessionRef.current;
+    if (existing && existing.step === step && existing.intent === intent) {
+      return existing;
+    }
+    const fresh: RetrySession = {
+      step,
+      intent,
+      attempts: 0,
+      originalCategory: category,
+      originalErrorName: name,
+    };
+    retrySessionRef.current = fresh;
+    return fresh;
+  };
+
+  const resolveSession = (resolution: "success" | "abandoned") => {
+    const session = retrySessionRef.current;
+    retrySessionRef.current = null;
+    if (!session || session.attempts === 0) return;
+    callbacks.onRetryResolved?.({
+      step: session.step,
+      intent: session.intent,
+      attempts: session.attempts,
+      resolution,
+      originalCategory: session.originalCategory,
+      originalErrorName: session.originalErrorName,
+    });
+  };
+
+  const wrapRetry = (
+    step: "prepare" | "confirm",
+    intent: ShareIntent,
+    inner: () => void,
+  ) => {
+    return () => {
+      const session = retrySessionRef.current;
+      if (session && session.step === step && session.intent === intent) {
+        session.attempts += 1;
+        callbacks.onRetryAttempt?.({
+          step,
+          intent,
+          attempts: session.attempts,
+          originalCategory: session.originalCategory,
+          originalErrorName: session.originalErrorName,
+        });
+      }
+      inner();
+    };
+  };
 
   const flash = (msg: string, ms = 1800) => {
     setToast(msg);
@@ -309,13 +411,25 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
           .slice(0, 10)}.png`;
         setPreview({ intent, dataUrl, filename });
         callbacks.onPrepared?.(intent);
+        // A prepare-step retry session resolves successfully the
+        // moment the PNG renders — the next leg (Web Share / save)
+        // gets its own confirm-step session if it fails.
+        if (
+          retrySessionRef.current?.step === "prepare" &&
+          retrySessionRef.current.intent === intent
+        ) {
+          resolveSession("success");
+        }
       } catch (e) {
         console.error("[useShareCard] prepare failed", e);
         flash(intent === "share" ? "Couldn't share" : "Couldn't save");
-        const retry = () => {
+        const category = categorizeShareError(e);
+        const name = errorName(e);
+        startOrKeepSession("prepare", intent, category, name);
+        const retry = wrapRetry("prepare", intent, () => {
           setLastError(null);
           void prepare(node, backgroundColor, intent);
-        };
+        });
         const { title, description, nextAction } = describeError(e, "prepare", intent);
         // No PNG yet — Download Now would have nothing to save.
         notifyError(title, description, nextAction, retry);
@@ -325,13 +439,13 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
           title,
           description,
           nextAction,
-          category: categorizeShareError(e),
+          category,
           retry,
         });
         callbacks.onPrepareError?.(intent, {
           error: e,
-          category: categorizeShareError(e),
-          name: errorName(e),
+          category,
+          name,
         });
       } finally {
         setBusy(null);
@@ -355,6 +469,7 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         flash("PNG downloaded");
         callbacks.onShareDownload?.("user");
         setPreview(null);
+        resolveSession("success");
         return;
       }
       // intent === "share"
@@ -367,6 +482,7 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         await nav.share({ files: [file], title: "Moonseed" });
         flash("Shared");
         callbacks.onShareSuccess?.();
+        resolveSession("success");
       } else {
         downloadDataUrl(dataUrl, filename);
         flash("Saved (sharing not supported)");
@@ -376,6 +492,7 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
           duration: 5000,
         });
         callbacks.onShareDownload?.("share_unsupported");
+        resolveSession("success");
       }
       setPreview(null);
     } catch (e) {
@@ -384,10 +501,13 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
       if ((e as { name?: string })?.name === "AbortError") return;
       console.error("[useShareCard] confirm failed", e);
       flash(intent === "share" ? "Couldn't share" : "Couldn't save");
-      const retry = () => {
+      const category = categorizeShareError(e);
+      const name = errorName(e);
+      startOrKeepSession("confirm", intent, category, name);
+      const retry = wrapRetry("confirm", intent, () => {
         setLastError(null);
         void confirm();
-      };
+      });
       // PNG was already rendered (preview exists), so we can offer an
       // immediate switch to the download path. Only meaningful for
       // share failures — for download failures, "Retry" already does
@@ -401,6 +521,10 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
                 callbacks.onShareDownload?.("user");
                 setLastError(null);
                 setPreview(null);
+                // Switching to Download PNG closes the share-step
+                // retry session as a success — the seeker got the
+                // image, just via a different path.
+                resolveSession("success");
               } catch (downloadErr) {
                 console.error(
                   "[useShareCard] downloadNow failed",
@@ -422,14 +546,14 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         title,
         description,
         nextAction,
-        category: categorizeShareError(e),
+        category,
         retry,
         downloadNow,
       });
       callbacks.onShareError?.(intent, {
         error: e,
-        category: categorizeShareError(e),
-        name: errorName(e),
+        category,
+        name,
       });
     } finally {
       setBusy(null);
@@ -439,9 +563,18 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
   const cancelPreview = useCallback(() => {
     setPreview(null);
     setLastError(null);
+    // Closing the preview without confirming counts as abandoning
+    // any in-flight confirm-step retry session.
+    resolveSession("abandoned");
   }, []);
 
-  const dismissError = useCallback(() => setLastError(null), []);
+  const dismissError = useCallback(() => {
+    setLastError(null);
+    // Dismissing the inline banner ends the retry session. If the
+    // seeker hasn't tapped Retry yet (attempts === 0) the session
+    // is silently dropped by `resolveSession`.
+    resolveSession("abandoned");
+  }, []);
 
   return {
     busy,
