@@ -508,6 +508,7 @@ function ChamberWeaveGraph({
   pattern: Pattern;
   userId: string | undefined;
 }) {
+  const navigate = useNavigate();
   const [weaves, setWeaves] = useState<Weave[]>([]);
   const [siblings, setSiblings] = useState<
     Record<string, { id: string; name: string; lifecycle_state: string }>
@@ -516,6 +517,8 @@ function ChamberWeaveGraph({
     Array<{ id: string; created_at: string; spread_type: string }>
   >([]);
   const [loading, setLoading] = useState(true);
+  const [focusId, setFocusId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!userId) return;
