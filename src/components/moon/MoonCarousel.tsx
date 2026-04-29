@@ -83,18 +83,22 @@ export function MoonCarousel() {
     return () => cancelAnimationFrame(t);
   }, []);
 
+  // Anchor "today" to noon UTC of the calendar day in the seeker's
+  // effective timezone. Using local-time noon caused getYmdInTz() to
+  // drift by a day for users whose effectiveTz differs from device tz,
+  // which in turn put the peak marker on the wrong seam.
   const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(12, 0, 0, 0);
-    return d;
-  }, []);
+    const parts = getDatePartsInTz(new Date(), effectiveTz);
+    return new Date(Date.UTC(parts.year, parts.month - 1, parts.day, 12, 0, 0));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveTz]);
 
   // Currently-viewed center date — used so phase jumps anchor on what the
-  // user is looking at, not on real-world today.
+  // user is looking at, not on real-world today. Date math via setUTCDate
+  // so it stays independent of the browser's local timezone.
   const viewedDate = useMemo(() => {
     const d = new Date(today);
-    d.setDate(today.getDate() + offset);
-    d.setHours(12, 0, 0, 0);
+    d.setUTCDate(today.getUTCDate() + offset);
     return d;
   }, [today, offset]);
 
@@ -222,7 +226,7 @@ export function MoonCarousel() {
       const out: DayCell[] = [];
       for (let i = -dayRange; i <= dayRange; i++) {
         const d = new Date(today);
-        d.setDate(today.getDate() + offset + i);
+        d.setUTCDate(today.getUTCDate() + offset + i);
         const info = getCurrentMoonPhase(d);
         out.push({ info, isToday: offset + i === 0, relative: offset + i, sign: getMoonSign(d) });
       }
