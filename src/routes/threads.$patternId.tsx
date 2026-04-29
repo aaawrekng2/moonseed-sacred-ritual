@@ -519,6 +519,12 @@ function ChamberWeaveGraph({
   const [loading, setLoading] = useState(true);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [tooltip, setTooltip] = useState<{
+    text: string;
+    sub?: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!userId) return;
