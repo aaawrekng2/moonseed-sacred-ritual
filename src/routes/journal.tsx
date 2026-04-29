@@ -54,6 +54,7 @@ type ReadingRow = {
   is_deep_reading: boolean;
   deep_reading_lenses: Record<string, string> | null;
   mirror_saved: boolean;
+  pattern_id: string | null;
 };
 
 type TagRow = { id: string; name: string; usage_count: number };
