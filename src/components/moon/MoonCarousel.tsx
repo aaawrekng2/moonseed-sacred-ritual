@@ -54,6 +54,10 @@ function addDaysToYmd(ymd: string, delta: number): string {
 export function MoonCarousel() {
   const [offset, setOffset] = useState(0);
   const [expandedRel, setExpandedRel] = useState<number | null>(null);
+  // Dev-only "date overlay" mode: outlines each visible day card and prints
+  // its effective-tz YMD key, plus highlights the selected/center cell.
+  // Toggle via the small button rendered alongside the debug panel.
+  const [dateOverlay, setDateOverlay] = useState(false);
   // Day card the user has explicitly tapped to "select". Stored as the
   // absolute relative-day value (matches `d.relative`) so it survives swipes
   // until the day scrolls out of the visible 5-day window.
@@ -563,6 +567,7 @@ export function MoonCarousel() {
                 style={{
                   alignSelf: "flex-start",
                   marginTop: `${topOffset}px`,
+                  position: dateOverlay ? "relative" : undefined,
                   // Shrink ±2 cards slightly on mobile so they fit beside the
                   // mobile ladders without clipping at the screen edges.
                   transform: absRel === 2 ? "scale(0.85)" : undefined,
@@ -584,6 +589,44 @@ export function MoonCarousel() {
                       : "opacity-70",
                 )}
               >
+                {dateOverlay && (
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      border: `1px dashed ${isCenter || isSelected ? "#f1ba4b" : "rgba(241,186,75,0.4)"}`,
+                      background:
+                        isCenter || isSelected
+                          ? "rgba(241,186,75,0.08)"
+                          : "transparent",
+                      borderRadius: 6,
+                      pointerEvents: "none",
+                      zIndex: 50,
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 2,
+                        left: 2,
+                        fontFamily: "var(--font-mono, monospace)",
+                        fontSize: 9,
+                        lineHeight: 1.1,
+                        color: "#f1ba4b",
+                        background: "rgba(0,0,0,0.55)",
+                        padding: "1px 3px",
+                        borderRadius: 2,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {d.ymd}
+                      {d.isToday ? " ·today" : ""}
+                      {isCenter ? " ·c" : ""}
+                      {isSelected ? " ·sel" : ""}
+                    </span>
+                  </div>
+                )}
                 {isCenter ? (
                   <CenterCard
                     info={d.info}
@@ -676,7 +719,25 @@ export function MoonCarousel() {
           </button>
         )}
       </div>
-      {import.meta.env.DEV && <MoonPeakDebugPanel />}
+      {import.meta.env.DEV && (
+        <>
+          <div className="mx-auto mt-2 flex max-w-2xl justify-end">
+            <button
+              type="button"
+              onClick={() => setDateOverlay((v) => !v)}
+              className={cn(
+                "rounded border px-2 py-1 font-mono text-[10px] transition-colors",
+                dateOverlay
+                  ? "border-primary bg-primary/20 text-foreground"
+                  : "border-border/50 text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {dateOverlay ? "date overlay: on" : "date overlay: off"}
+            </button>
+          </div>
+          <MoonPeakDebugPanel />
+        </>
+      )}
     </section>
   );
 }
