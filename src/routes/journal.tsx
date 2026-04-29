@@ -94,6 +94,7 @@ type PatternRow = {
   id: string;
   name: string;
   lifecycle_state: string;
+  description: string | null;
 };
 
 /* ---------- Helpers ---------- */
@@ -200,7 +201,7 @@ function JournalPage() {
         if (!cancelled) setThreads((threadRows ?? []) as ThreadRow[]);
         const { data: patternRows } = await supabase
           .from("patterns")
-          .select("id,name,lifecycle_state")
+          .select("id,name,lifecycle_state,description")
           .eq("user_id", user.id);
         if (!cancelled) {
           const map: Record<string, PatternRow> = {};
@@ -1248,6 +1249,19 @@ function ThreadsView({
                 {patternReadings.length === 1 ? "reading" : "readings"}
               </span>
             </Link>
+            {p.description && p.description.trim() && (
+              <p
+                className="m-0 font-display italic text-foreground/80 whitespace-pre-wrap"
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "var(--text-body-sm)",
+                  lineHeight: 1.6,
+                  opacity: "var(--ro-plus-20)",
+                }}
+              >
+                {p.description}
+              </p>
+            )}
             {patternReadings.length > 0 && (
               <ul className="flex flex-col gap-1.5">
                 {patternReadings.slice(0, 6).map((r) => (
