@@ -142,8 +142,7 @@ export function MoonCarousel() {
       // seam marker advance to the NEXT upcoming full moon. Search a couple
       // days back so the peak day itself stays "upcoming" for the whole
       // 24-hour window of the peak day.
-      const anchor = new Date(viewedDate);
-      anchor.setDate(anchor.getDate() - 2);
+      const anchor = getDayInTz(viewedDate, -2);
       const list = getPhaseOccurrences("Full Moon", anchor, 3);
       const cutoff = viewedDate.getTime() - 36 * 60 * 60 * 1000;
       const upcoming = list.find((d) => d.getTime() >= cutoff);
@@ -224,7 +223,7 @@ export function MoonCarousel() {
     try {
       const out: DayCell[] = [];
       for (let i = -dayRange; i <= dayRange; i++) {
-        const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + offset + i, 12, 0, 0, 0));
+        const d = getDayInTz(today, offset + i);
         const info = getCurrentMoonPhase(d);
         out.push({
           info,
