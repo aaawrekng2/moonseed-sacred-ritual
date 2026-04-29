@@ -65,6 +65,36 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Catch two distinct problems that `npm ci` alone does NOT catch:
+      #   1. A package.json change that wasn't reflected in package-lock.json
+      #      AND was committed alongside an out-of-date lockfile (npm ci
+      #      will refuse to install in that case, but only if package.json
+      #      and lock disagree — committing a stale lock that still parses
+      #      passes npm ci silently).
+      #   2. A postinstall script (or generator) that mutates tracked
+      #      files at install time. Those mutations would slip into
+      #      production if a developer forgets to commit them.
+      # We assert that the working tree is byte-identical to HEAD after
+      # `npm ci`. Anything different is a bug worth blocking the PR for.
+      - name: Verify lockfile + working tree are clean after install
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet HEAD -- package.json package-lock.json; then
+            echo "::error file=package-lock.json::package.json or package-lock.json changed after 'npm ci'."
+            echo "This usually means the committed lockfile is out of sync with package.json."
+            echo "Run 'npm install' locally and commit the updated package-lock.json."
+            git --no-pager diff HEAD -- package.json package-lock.json
+            exit 1
+          fi
+          # Broader sweep: any other tracked file mutated by install
+          # (e.g. a postinstall script writing into src/) is also a fail.
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Working tree changed after 'npm ci'. Tracked files were mutated by install."
+            git status --porcelain
+            git --no-pager diff
+            exit 1
+          fi
+
       - name: Run timezone unit + snapshot + property tests
         run: npm run test:ci
 
@@ -102,6 +132,22 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      # See the matrix job for rationale. We re-run the same lockfile
+      # guard here so the pinned-seed PR gate is also a clean-tree gate.
+      - name: Verify lockfile + working tree are clean after install
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet HEAD -- package.json package-lock.json; then
+            echo "::error file=package-lock.json::Lockfile drift after 'npm ci'. Run 'npm install' and commit package-lock.json."
+            git --no-pager diff HEAD -- package.json package-lock.json
+            exit 1
+          fi
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Working tree changed after 'npm ci'."
+            git status --porcelain
+            exit 1
+          fi
 
       - name: Run property suite with pinned seed
         run: |
