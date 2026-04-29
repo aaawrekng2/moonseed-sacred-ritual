@@ -334,18 +334,24 @@ export function DeepReadingPanel({
         <Lens
           label={LENS_LABELS[0]}
           body={lenses.present_resonance}
+          shareDisabled={shareLoading}
+          onShare={() => void openShareForLens(LENS_LABELS[0], lenses.present_resonance)}
         />
       )}
       {revealed >= 2 && lenses.thread_awareness && (
         <Lens
           label={LENS_LABELS[1]}
           body={lenses.thread_awareness}
+          shareDisabled={shareLoading}
+          onShare={() => void openShareForLens(LENS_LABELS[1], lenses.thread_awareness ?? "")}
         />
       )}
       {revealed >= 3 && (
         <Lens
           label={LENS_LABELS[2]}
           body={lenses.shadow_layer}
+          shareDisabled={shareLoading}
+          onShare={() => void openShareForLens(LENS_LABELS[2], lenses.shadow_layer)}
         />
       )}
       {revealed < 4 && (
