@@ -1508,8 +1508,7 @@ function ReadingDetail({
         interpretation={{
           overview: reading.interpretation ?? "",
           positions: [],
-          closing: null,
-          followups: [],
+          closing: "",
         }}
         guideName={guide.name}
         isOracle={isOracle}
