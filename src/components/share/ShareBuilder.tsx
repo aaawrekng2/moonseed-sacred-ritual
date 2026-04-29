@@ -36,6 +36,7 @@ import { Level4DeepLens, type DeepLensSelection } from "./levels/Level4DeepLens"
 import { Level5MirrorArtifact } from "./levels/Level5MirrorArtifact";
 import { SHARE_CARD_H, SHARE_CARD_W } from "./levels/share-card-shared";
 import { useShareCard } from "./useShareCard";
+import type { ShareBusyState } from "./useShareCard";
 import { useShareColor } from "./use-share-color";
 import { useLastShareLevel } from "./use-last-share-level";
 import {
@@ -176,7 +177,8 @@ export function ShareBuilder({
   }, [level, context.question]);
 
   const captureRef = useRef<HTMLDivElement | null>(null);
-  const { busy, toast, share, save } = useShareCard();
+  const { busy, toast, preview, prepare, confirm, cancelPreview } =
+    useShareCard();
 
   // Scale 1080x1920 down to fit the dialog preview.
   const PREVIEW_MAX_W = 280;
@@ -237,12 +239,18 @@ export function ShareBuilder({
 
   const handleShare = () => {
     if (!captureRef.current) return;
-    void share(captureRef.current, captureBackground);
+    void prepare(captureRef.current, captureBackground, "share");
   };
   const handleSave = () => {
     if (!captureRef.current) return;
-    void save(captureRef.current, captureBackground);
+    void prepare(captureRef.current, captureBackground, "save");
   };
+
+  // Close the entire builder when the user dismisses the dialog so a
+  // stale preview doesn't outlive its source reading.
+  useEffect(() => {
+    if (!open && preview) cancelPreview();
+  }, [open, preview, cancelPreview]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -568,6 +576,171 @@ export function ShareBuilder({
                 {toast}
               </div>
             )}
+          </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+      <SharePreviewModal
+        preview={preview}
+        busy={busy}
+        onConfirm={() => void confirm()}
+        onCancel={cancelPreview}
+      />
+    </Dialog>
+  );
+}
+
+/**
+ * Confirmation modal — shows the actual generated PNG so the seeker
+ * can sanity-check it before invoking Web Share or downloading.
+ * Rendered as a separate Radix dialog layered above the builder so a
+ * "Back to edit" cancel just closes this layer without unmounting the
+ * builder's state (level / color / toggles).
+ */
+function SharePreviewModal({
+  preview,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  preview: { intent: "share" | "save"; dataUrl: string; filename: string } | null;
+  busy: ShareBusyState;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const open = !!preview;
+  return (
+    <Dialog open={open} onOpenChange={(v) => (!v ? onCancel() : undefined)}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay
+          className={cn(
+            "fixed inset-0 z-[60] bg-black/85 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          )}
+        />
+        <DialogPrimitive.Content
+          className="fixed left-[50%] top-[50%] z-[60] flex w-full max-w-[400px] translate-x-[-50%] translate-y-[-50%] flex-col gap-0 overflow-hidden border duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+          style={{
+            background: "var(--surface-overlay)",
+            borderColor: "var(--border-default)",
+            borderRadius: 18,
+            maxHeight: "calc(100vh - 32px)",
+          }}
+        >
+          <DialogHeader
+            style={{
+              padding: "var(--space-5) var(--space-5) var(--space-2)",
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: "var(--space-3)",
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <DialogTitle
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-heading-sm)",
+                  color: "var(--accent)",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                {preview?.intent === "save" ? "Save this image?" : "Share this image?"}
+              </DialogTitle>
+              <DialogDescription
+                style={{
+                  fontSize: "var(--text-caption)",
+                  color: "var(--color-foreground)",
+                  opacity: 0.85,
+                }}
+              >
+                This is exactly what will{" "}
+                {preview?.intent === "save" ? "be downloaded" : "go to your share sheet"}.
+              </DialogDescription>
+            </div>
+            <button
+              type="button"
+              onClick={onCancel}
+              aria-label="Back to edit"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--color-foreground)",
+                opacity: 0.7,
+                padding: 4,
+                marginTop: 2,
+                lineHeight: 0,
+              }}
+            >
+              <X size={20} strokeWidth={1.5} />
+            </button>
+          </DialogHeader>
+
+          {/* Generated PNG — letterboxed onto a dark surface so the
+              real exported aspect ratio is unmistakable. */}
+          <div
+            style={{
+              padding: "var(--space-3) var(--space-5)",
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <div
+              style={{
+                width: "100%",
+                maxWidth: 280,
+                aspectRatio: `${SHARE_CARD_W} / ${SHARE_CARD_H}`,
+                background: "#000",
+                borderRadius: 12,
+                border: "1px solid var(--border-default)",
+                overflow: "hidden",
+                display: "flex",
+              }}
+            >
+              {preview && (
+                <img
+                  src={preview.dataUrl}
+                  alt="Share preview"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    display: "block",
+                  }}
+                />
+              )}
+            </div>
+          </div>
+
+          <div
+            style={{
+              padding: "var(--space-3) var(--space-5) var(--space-5)",
+              borderTop: "1px solid var(--border-subtle)",
+              background: "var(--surface-card)",
+              display: "flex",
+              gap: "var(--space-5)",
+              justifyContent: "center",
+            }}
+          >
+            <PlainAction
+              label="Back to edit"
+              onClick={onCancel}
+              disabled={busy !== null}
+            />
+            <PlainAction
+              label={
+                busy
+                  ? preview?.intent === "save"
+                    ? "Saving…"
+                    : "Sharing…"
+                  : preview?.intent === "save"
+                    ? "Save"
+                    : "Share"
+              }
+              onClick={onConfirm}
+              disabled={busy !== null || !preview}
+            />
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
