@@ -558,10 +558,26 @@ jobs:
         # Defense-in-depth: the job-level `if:` already blocks the
         # job, but if someone later loosens that condition this step
         # will still refuse to run without an exact `UPDATE` match.
+        #
+        # We check for empty FIRST so the operator gets a precise
+        # error ("you forgot the phrase") rather than a generic
+        # mismatch message. The `confirm` input is declared
+        # `required: true` at the workflow level, so an empty value
+        # should already be impossible from the UI — this branch
+        # exists to defend against API-driven dispatches
+        # (e.g. `gh workflow run` without `-f confirm=...`) that
+        # bypass the form's required-field check.
         env:
           CONFIRM: ${{ inputs.confirm }}
         run: |
           set -euo pipefail
+          if [ -z "${CONFIRM:-}" ]; then
+            echo "::error::Refusing to refresh snapshots: the 'confirm' input is required for every run and must be set to exactly 'UPDATE' (case-sensitive)."
+            echo ""
+            echo "From the Actions tab, type UPDATE in the confirmation field before clicking 'Run workflow'."
+            echo "From the CLI, pass it explicitly:  gh workflow run timezone-tests.yml -f update_snapshots=true -f confirm=UPDATE"
+            exit 1
+          fi
           if [ "$CONFIRM" != "UPDATE" ]; then
             echo "::error::Refusing to refresh snapshots: the 'confirm' input must be exactly 'UPDATE' (case-sensitive). Got: '${CONFIRM}'."
             echo ""
@@ -569,6 +585,11 @@ jobs:
             exit 1
           fi
           echo "Confirmation phrase accepted — proceeding with snapshot refresh."
+          echo ""
+          echo "Reminder: this job uses cancel-in-progress concurrency keyed on"
+          echo "(repository, snapshot_scope='${{ inputs.snapshot_scope }}'). If you"
+          echo "dispatch another refresh for the SAME scope before this one"
+          echo "finishes, this run will be cancelled and replaced by the newer one."
 
       # Surface the concurrency group this run belongs to, plus a
       # heads-up that a newer dispatch for the SAME group will cancel
