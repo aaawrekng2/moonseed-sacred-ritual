@@ -867,7 +867,13 @@ function ChamberWeaveGraph({
         <ReactFlow
           nodes={nodes}
           edges={edges}
-          fitView
+          {...(() => {
+            const saved = loadViewport(pattern.id);
+            return saved
+              ? { defaultViewport: saved }
+              : { fitView: true as const };
+          })()}
+          onMoveEnd={(_, vp) => saveViewport(pattern.id, vp)}
           panOnDrag
           zoomOnScroll={false}
           nodesDraggable={false}
