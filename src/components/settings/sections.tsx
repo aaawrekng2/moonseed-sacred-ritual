@@ -35,6 +35,9 @@ import {
   type RememberScope,
 } from "@/lib/use-auto-remember-question";
 import { AuthScreen } from "@/components/auth/AuthScreen";
+import { supabase } from "@/integrations/supabase/client";
+import { setDevMode } from "@/components/dev/DevOverlay";
+import { useEffect } from "react";
 
 /**
  * Settings page section components, ported from the source bundle and
@@ -269,9 +272,111 @@ function ProfileSectionInner({
               Save changes
             </button>
           </div>
+
+          <DevModeToggle userId={user.id} />
         </div>
       )}
     </SettingsSection>
+  );
+}
+
+/**
+ * Dev mode toggle — visible only to admin / super_admin. Mirrors the
+ * toggle in /admin so seekers on mobile can flip dev overlays without
+ * needing the desktop admin panel. Reads/writes the same localStorage
+ * key (`moonseed:dev_mode`) the overlay listens to.
+ */
+function DevModeToggle({ userId }: { userId: string }) {
+  const [role, setRole] = useState<string | null>(null);
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("role")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (cancelled) return;
+      const r = (data as { role?: string } | null)?.role ?? null;
+      setRole(r);
+    })();
+    if (typeof window !== "undefined") {
+      setEnabled(window.localStorage.getItem("moonseed:dev_mode") === "true");
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  if (role !== "admin" && role !== "super_admin") return null;
+
+  const toggle = () => {
+    const next = !enabled;
+    setEnabled(next);
+    setDevMode(next);
+  };
+
+  return (
+    <div
+      style={{
+        marginTop: "var(--space-6, 24px)",
+        paddingTop: "var(--space-4, 16px)",
+        borderTop: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontSize: "var(--text-body-sm)",
+              color: "var(--foreground)",
+            }}
+          >
+            Dev Mode
+          </div>
+          <div
+            style={{
+              fontSize: "var(--text-caption)",
+              color: "var(--foreground)",
+              opacity: 0.5,
+              marginTop: 2,
+            }}
+          >
+            Shows version, fog level, and resting opacity overlay.
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={toggle}
+          style={{
+            background: enabled
+              ? "color-mix(in oklab, var(--gold) 18%, transparent)"
+              : "transparent",
+            border:
+              "1px solid color-mix(in oklab, var(--gold) 35%, transparent)",
+            borderRadius: "var(--radius-md, 8px)",
+            padding: "6px 14px",
+            color: enabled ? "var(--gold)" : "var(--foreground)",
+            cursor: "pointer",
+            fontSize: "var(--text-caption)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            letterSpacing: "0.06em",
+          }}
+        >
+          {enabled ? "On" : "Off"}
+        </button>
+      </div>
+    </div>
   );
 }
 
