@@ -113,6 +113,42 @@ export type Database = {
         }
         Relationships: []
       }
+      detect_weaves_runs: {
+        Row: {
+          duration_ms: number
+          finished_at: string
+          id: string
+          message: string | null
+          per_user_errors: Json
+          started_at: string
+          status: string
+          users_scanned: number
+          weaves_detected: number
+        }
+        Insert: {
+          duration_ms?: number
+          finished_at?: string
+          id?: string
+          message?: string | null
+          per_user_errors?: Json
+          started_at?: string
+          status?: string
+          users_scanned?: number
+          weaves_detected?: number
+        }
+        Update: {
+          duration_ms?: number
+          finished_at?: string
+          id?: string
+          message?: string | null
+          per_user_errors?: Json
+          started_at?: string
+          status?: string
+          users_scanned?: number
+          weaves_detected?: number
+        }
+        Relationships: []
+      }
       memory_snapshots: {
         Row: {
           active_patterns_summary: string | null
