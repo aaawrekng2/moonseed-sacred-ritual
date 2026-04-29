@@ -943,6 +943,42 @@ jobs:
           git fetch --no-tags --depth=50 origin "$BRANCH" || true
           git fetch --no-tags --depth=50 origin "$BASELINE_SHA" 2>/dev/null || true
 
+          # Pre-compute two diagnostic facts once, so they're visible
+          # in the log on EVERY ancestry-check run (success or fail)
+          # and so the classification logic below doesn't have to
+          # recompute them. These are exactly the two signals you'd
+          # otherwise reach for manually:
+          #
+          #   BASELINE_PRESENT — does the baseline commit object still
+          #     exist locally (i.e. is it reachable from anything we
+          #     fetched)? "no" strongly implies a force-push that
+          #     pruned the commit from the remote.
+          #
+          #   MERGE_BASE_SHA  — the most recent common ancestor of
+          #     baseline and current tip, or empty if they share none.
+          #     Empty = disjoint histories (the branch was reset to
+          #     an unrelated commit). Non-empty but != baseline =
+          #     baseline is on a discarded branch, current tip lives
+          #     on a sibling history rooted at MERGE_BASE_SHA.
+          if git cat-file -e "${BASELINE_SHA}^{commit}" 2>/dev/null; then
+            BASELINE_PRESENT="yes"
+          else
+            BASELINE_PRESENT="no"
+          fi
+          if [ -n "${CURRENT_TIP:-}" ]; then
+            MERGE_BASE_SHA="$(git merge-base "$BASELINE_SHA" "$CURRENT_TIP" 2>/dev/null || true)"
+          else
+            MERGE_BASE_SHA=""
+          fi
+          echo "  Baseline present remotely : $BASELINE_PRESENT"
+          if [ -z "$MERGE_BASE_SHA" ]; then
+            echo "  merge-base(baseline,tip)  : <none — disjoint histories>"
+          elif [ "$MERGE_BASE_SHA" = "$BASELINE_SHA" ]; then
+            echo "  merge-base(baseline,tip)  : $MERGE_BASE_SHA (== baseline; tip is a descendant)"
+          else
+            echo "  merge-base(baseline,tip)  : $MERGE_BASE_SHA (baseline diverged from tip here)"
+          fi
+
           # The pushed commit must descend from the baseline we
           # observed. If `merge-base --is-ancestor` is non-zero, the
           # branch tip moved sideways under us — bail.
@@ -971,18 +1007,18 @@ jobs:
             #     new baseline and adds on top.
             # Either way the operator wants the exact scope value to
             # paste into `gh workflow run`, so we surface it.
+            # Classify using the diagnostic facts computed above.
+            # See those comments for what each signal means.
             FORCE_PUSHED="false"
-            if ! git cat-file -e "${BASELINE_SHA}^{commit}" 2>/dev/null; then
+            if [ "$BASELINE_PRESENT" = "no" ]; then
               FORCE_PUSHED="true"
               REASON="force-push or branch reset (baseline commit no longer exists on remote)"
-            elif [ -n "${CURRENT_TIP:-}" ] \
-                 && [ -z "$(git merge-base "$BASELINE_SHA" "$CURRENT_TIP" 2>/dev/null || true)" ]; then
+            elif [ -n "${CURRENT_TIP:-}" ] && [ -z "$MERGE_BASE_SHA" ]; then
               FORCE_PUSHED="true"
               REASON="force-push to disjoint history (baseline and current tip share no common ancestor)"
-            elif [ -n "${CURRENT_TIP:-}" ] \
-                 && ! git merge-base --is-ancestor "$BASELINE_SHA" "$CURRENT_TIP" 2>/dev/null; then
+            elif [ -n "${CURRENT_TIP:-}" ] && [ "$MERGE_BASE_SHA" != "$BASELINE_SHA" ]; then
               FORCE_PUSHED="true"
-              REASON="force-push that dropped the baseline commit (baseline is not an ancestor of current tip)"
+              REASON="force-push that dropped the baseline commit (baseline is not an ancestor of current tip; common ancestor is $MERGE_BASE_SHA)"
             else
               REASON="concurrent fast-forward by another writer (baseline still reachable, pushed SHA isn't)"
             fi
@@ -996,6 +1032,8 @@ jobs:
             echo "  Baseline (pre-run) tip : $BASELINE_SHA"
             echo "  Pushed head            : $PUSHED_SHA"
             echo "  Current remote tip     : ${CURRENT_TIP:-<none>}"
+            echo "  Baseline present       : $BASELINE_PRESENT"
+            echo "  Common ancestor SHA    : ${MERGE_BASE_SHA:-<none — disjoint>}"
             echo "  Failure mode           : $REASON"
             echo ""
             # Build the single-line, copy-pastable re-dispatch command
@@ -1111,6 +1149,8 @@ jobs:
               echo "- **Baseline SHA:** \`$BASELINE_SHA\`"
               echo "- **Pushed SHA:** \`$PUSHED_SHA\`"
               echo "- **Current remote tip:** \`${CURRENT_TIP:-<none>}\`"
+              echo "- **Baseline present remotely:** \`$BASELINE_PRESENT\`"
+              echo "- **\`merge-base(baseline, current tip)\`:** \`${MERGE_BASE_SHA:-<none — disjoint histories>}\`"
               echo ""
               echo "**Copy-paste re-dispatch command:**"
               echo ""
