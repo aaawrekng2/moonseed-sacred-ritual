@@ -548,22 +548,78 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline
 
+      # Translate the `snapshot_scope` choice into the two values
+      # downstream steps need:
+      #   VITEST_SCOPE  — passed to `vitest run -u` (a path filter, or
+      #                   empty for the whole project).
+      #   GIT_SCOPE     — pathspec used for `git status` / `git diff`
+      #                   and for the PR `add-paths` filter.
+      - name: Resolve snapshot scope
+        id: scope
+        env:
+          SCOPE: ${{ inputs.snapshot_scope }}
+        run: |
+          set -euo pipefail
+          case "$SCOPE" in
+            use-timezone)
+              VITEST_SCOPE="src/lib/use-timezone"
+              GIT_SCOPE="src/lib/__snapshots__"
+              ADD_PATHS=$'src/lib/__snapshots__/**'
+              ;;
+            lib)
+              VITEST_SCOPE="src/lib"
+              GIT_SCOPE="src/lib"
+              ADD_PATHS=$'src/lib/**/__snapshots__/**'
+              ;;
+            all)
+              VITEST_SCOPE=""
+              GIT_SCOPE=":(glob)**/__snapshots__/**"
+              ADD_PATHS=$'**/__snapshots__/**'
+              ;;
+            *)
+              echo "::error::Unknown snapshot_scope: '$SCOPE'"
+              exit 1
+              ;;
+          esac
+          echo "vitest_scope=$VITEST_SCOPE" >> "$GITHUB_OUTPUT"
+          echo "git_scope=$GIT_SCOPE"       >> "$GITHUB_OUTPUT"
+          # Multi-line outputs need the heredoc syntax.
+          {
+            echo "add_paths<<EOF"
+            echo "$ADD_PATHS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+          echo "Resolved scope '$SCOPE' → vitest='$VITEST_SCOPE', git='$GIT_SCOPE'"
+
       - name: Regenerate snapshots
-        # `-u` updates obsolete snapshots in place. We scope to the tz
-        # files only — refreshing every snapshot in the repo from a
-        # narrow timezone change would be a footgun.
-        run: npx vitest run -u src/lib/use-timezone
+        # `-u` updates obsolete snapshots in place. The path filter
+        # comes from the `snapshot_scope` input above so refreshes can
+        # be narrowed (default: just src/lib/use-timezone) or widened
+        # (`all` for a full repo refresh after a Vitest version bump).
+        env:
+          VITEST_SCOPE: ${{ steps.scope.outputs.vitest_scope }}
+        run: |
+          set -euo pipefail
+          if [ -n "$VITEST_SCOPE" ]; then
+            echo "Regenerating snapshots for: $VITEST_SCOPE"
+            npx vitest run -u "$VITEST_SCOPE"
+          else
+            echo "Regenerating ALL snapshots in the repo (snapshot_scope=all)"
+            npx vitest run -u
+          fi
 
       - name: Detect snapshot diff
         id: diff
+        env:
+          GIT_SCOPE: ${{ steps.scope.outputs.git_scope }}
         run: |
           set -euo pipefail
-          if [ -z "$(git status --porcelain src/lib/__snapshots__)" ]; then
+          if [ -z "$(git status --porcelain -- "$GIT_SCOPE")" ]; then
             echo "No snapshot changes — nothing to commit."
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Snapshot drift detected:"
-            git --no-pager diff --stat src/lib/__snapshots__
+            echo "Snapshot drift detected in scope '$GIT_SCOPE':"
+            git --no-pager diff --stat -- "$GIT_SCOPE"
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -572,9 +628,9 @@ jobs:
         uses: peter-evans/create-pull-request@v6
         with:
           base: ${{ inputs.base_branch }}
-          branch: ci/refresh-tz-snapshots-${{ github.run_id }}
-          commit-message: "test(tz): refresh timezone snapshots via workflow_dispatch"
-          title: "Refresh timezone snapshots (run #${{ github.run_number }})"
+          branch: ci/refresh-snapshots-${{ inputs.snapshot_scope }}-${{ github.run_id }}
+          commit-message: "test: refresh ${{ inputs.snapshot_scope }} snapshots via workflow_dispatch"
+          title: "Refresh snapshots (${{ inputs.snapshot_scope }}) — run #${{ github.run_number }}"
           body: |
             Automated snapshot refresh triggered manually via the
             **Timezone tests** workflow with `update_snapshots=true`.
@@ -582,11 +638,11 @@ jobs:
             - Triggered by: @${{ github.actor }}
             - Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             - Base branch: `${{ inputs.base_branch }}`
+            - Snapshot scope: `${{ inputs.snapshot_scope }}`
 
             ⚠️ **Review carefully.** Snapshot changes encode the expected
             output of `getYmdInTz` / `getDayInTz` for fixed instants and
             zones. A diff here means the timezone helpers' behavior has
             changed — make sure that change is intentional before merging.
-          add-paths: |
-            src/lib/__snapshots__/**
+          add-paths: ${{ steps.scope.outputs.add_paths }}
           delete-branch: true
