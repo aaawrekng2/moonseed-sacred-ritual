@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpen, Heart, Image as ImageIcon, Pencil, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -86,6 +86,13 @@ type ThreadRow = {
   reading_ids: string[] | null;
   status: "emerging" | "active" | "quieting" | "retired" | "reawakened";
   detected_at: string;
+  pattern_id: string | null;
+};
+
+type PatternRow = {
+  id: string;
+  name: string;
+  lifecycle_state: string;
 };
 
 /* ---------- Helpers ---------- */
@@ -131,6 +138,7 @@ function JournalPage() {
   const [readings, setReadings] = useState<ReadingRow[]>([]);
   const [tags, setTags] = useState<TagRow[]>([]);
   const [threads, setThreads] = useState<ThreadRow[]>([]);
+  const [patternsById, setPatternsById] = useState<Record<string, PatternRow>>({});
   const [photoCounts, setPhotoCounts] = useState<Record<string, number>>({});
   // Cover photo per reading: signed URL for the earliest photo.
   const [photoCovers, setPhotoCovers] = useState<Record<string, string>>({});
@@ -185,10 +193,19 @@ function JournalPage() {
       void (async () => {
         const { data: threadRows } = await supabase
           .from("symbolic_threads")
-          .select("id,summary,tags,reading_ids,status,detected_at")
+          .select("id,summary,tags,reading_ids,status,detected_at,pattern_id")
           .eq("user_id", user.id)
           .order("detected_at", { ascending: false });
         if (!cancelled) setThreads((threadRows ?? []) as ThreadRow[]);
+        const { data: patternRows } = await supabase
+          .from("patterns")
+          .select("id,name,lifecycle_state")
+          .eq("user_id", user.id);
+        if (!cancelled) {
+          const map: Record<string, PatternRow> = {};
+          for (const p of (patternRows ?? []) as PatternRow[]) map[p.id] = p;
+          setPatternsById(map);
+        }
       })();
       const counts: Record<string, number> = {};
       // Pick earliest photo per reading as the cover.
@@ -662,7 +679,7 @@ function JournalPage() {
             }}
           />
         ) : (
-          <ThreadsView threads={threads} />
+          <ThreadsView threads={threads} patternsById={patternsById} />
         )}
       </div>
 
@@ -1002,7 +1019,13 @@ function Empty({
 
 /* ---------- Threads view (Phase 7) ---------- */
 
-function ThreadsView({ threads }: { threads: ThreadRow[] }) {
+function ThreadsView({
+  threads,
+  patternsById,
+}: {
+  threads: ThreadRow[];
+  patternsById: Record<string, PatternRow>;
+}) {
   if (threads.length === 0) {
     return (
       <div className="mx-auto mt-16 flex max-w-md flex-col items-center gap-4 px-4 text-center">
@@ -1035,66 +1058,130 @@ function ThreadsView({ threads }: { threads: ThreadRow[] }) {
       </div>
     );
   }
+  // Group threads by pattern_id; ungrouped threads fall under "Other threads".
+  const grouped = new Map<string, ThreadRow[]>();
+  const ungrouped: ThreadRow[] = [];
+  for (const t of threads) {
+    if (t.pattern_id && patternsById[t.pattern_id]) {
+      const arr = grouped.get(t.pattern_id) ?? [];
+      arr.push(t);
+      grouped.set(t.pattern_id, arr);
+    } else {
+      ungrouped.push(t);
+    }
+  }
+  const orderedPatternIds = Array.from(grouped.keys()).sort((a, b) =>
+    patternsById[a].name.localeCompare(patternsById[b].name),
+  );
+
   return (
-    <ul className="flex flex-col gap-5">
-      {threads.map((t) => {
-        const statusOpacity =
-          t.status === "active"
-            ? 1
-            : t.status === "emerging"
-              ? 0.6
-              : 0.3;
-        const statusLabel =
-          t.status === "reawakened"
-            ? "Reawakened"
-            : t.status.charAt(0).toUpperCase() + t.status.slice(1);
-        const readingCount = (t.reading_ids ?? []).length;
+    <div className="flex flex-col gap-8">
+      {orderedPatternIds.map((pid) => {
+        const p = patternsById[pid];
         return (
-          <li
-            key={t.id}
-            className="rounded-lg border border-gold/20 bg-gold/5 px-4 py-3"
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <span
-                className="font-display text-[10px] uppercase tracking-[0.2em] text-gold"
-                style={{ opacity: statusOpacity }}
-              >
-                {statusLabel}
-              </span>
-              {readingCount > 0 && (
-                <span className="font-display text-[11px] italic text-muted-foreground">
-                  across {readingCount}{" "}
-                  {readingCount === 1 ? "reading" : "readings"}
-                </span>
-              )}
-            </div>
-            <p
-              className="font-display italic"
-              style={{
-                fontSize: "var(--text-body)",
-                lineHeight: 1.55,
-                color: "color-mix(in oklab, var(--foreground) 88%, transparent)",
-              }}
+          <section key={pid} className="flex flex-col gap-3">
+            <Link
+              to="/threads/$patternId"
+              params={{ patternId: pid }}
+              className="flex items-baseline justify-between gap-3 text-gold no-underline"
             >
-              {t.summary}
-            </p>
-            {(t.tags?.length ?? 0) > 0 && (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {t.tags!.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full border border-gold/30 px-2 py-0.5 font-display text-[11px] italic text-gold"
-                    style={{ opacity: "var(--ro-plus-30)" }}
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
-          </li>
+              <h3
+                className="m-0 font-display italic"
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "var(--text-heading-sm, 17px)",
+                  color: "var(--gold)",
+                }}
+              >
+                {p.name}
+              </h3>
+              <span
+                className="font-display text-[10px] uppercase tracking-[0.2em]"
+                style={{ opacity: "var(--ro-plus-20)" }}
+              >
+                {p.lifecycle_state}
+              </span>
+            </Link>
+            <ul className="flex flex-col gap-3">
+              {grouped.get(pid)!.map((t) => (
+                <ThreadCard key={t.id} t={t} />
+              ))}
+            </ul>
+          </section>
         );
       })}
-    </ul>
+      {ungrouped.length > 0 && (
+        <section className="flex flex-col gap-3">
+          {orderedPatternIds.length > 0 && (
+            <h3
+              className="m-0 font-display italic text-muted-foreground"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-body-sm)",
+                opacity: "var(--ro-plus-20)",
+              }}
+            >
+              Other threads
+            </h3>
+          )}
+          <ul className="flex flex-col gap-3">
+            {ungrouped.map((t) => (
+              <ThreadCard key={t.id} t={t} />
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function ThreadCard({ t }: { t: ThreadRow }) {
+  const statusOpacity =
+    t.status === "active" ? 1 : t.status === "emerging" ? 0.6 : 0.3;
+  const statusLabel =
+    t.status === "reawakened"
+      ? "Reawakened"
+      : t.status.charAt(0).toUpperCase() + t.status.slice(1);
+  const readingCount = (t.reading_ids ?? []).length;
+  return (
+    <li className="rounded-lg border border-gold/20 bg-gold/5 px-4 py-3">
+      <div className="mb-2 flex items-center justify-between">
+        <span
+          className="font-display text-[10px] uppercase tracking-[0.2em] text-gold"
+          style={{ opacity: statusOpacity }}
+        >
+          {statusLabel}
+        </span>
+        {readingCount > 0 && (
+          <span className="font-display text-[11px] italic text-muted-foreground">
+            across {readingCount} {readingCount === 1 ? "reading" : "readings"}
+          </span>
+        )}
+      </div>
+      <p
+        className="font-display italic"
+        style={{
+          fontSize: "var(--text-body)",
+          lineHeight: 1.55,
+          color: "color-mix(in oklab, var(--foreground) 88%, transparent)",
+        }}
+      >
+        {t.summary}
+      </p>
+      {(t.tags?.length ?? 0) > 0 && (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {t.tags!.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full border border-gold/30 px-2 py-0.5 font-display text-[11px] italic text-gold"
+              style={{ opacity: "var(--ro-plus-30)" }}
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+    </li>
   );
 }
 

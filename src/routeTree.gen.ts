@@ -25,6 +25,7 @@ import { Route as SettingsMoonRouteImport } from './routes/settings.moon'
 import { Route as SettingsGuidesRouteImport } from './routes/settings.guides'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
+import { Route as ApiPublicDetectWeavesRouteImport } from './routes/api/public/detect-weaves'
 
 const ThreadsRoute = ThreadsRouteImport.update({
   id: '/threads',
@@ -106,6 +107,11 @@ const SettingsBlueprintRoute = SettingsBlueprintRouteImport.update({
   path: '/blueprint',
   getParentRoute: () => SettingsRoute,
 } as any)
+const ApiPublicDetectWeavesRoute = ApiPublicDetectWeavesRouteImport.update({
+  id: '/api/public/detect-weaves',
+  path: '/api/public/detect-weaves',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
+  '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
+  '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -161,6 +169,7 @@ export interface FileRoutesById {
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
+  '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -181,6 +190,7 @@ export interface FileRouteTypes {
     | '/settings/profile'
     | '/settings/themes'
     | '/threads/$patternId'
+    | '/api/public/detect-weaves'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -199,6 +209,7 @@ export interface FileRouteTypes {
     | '/settings/profile'
     | '/settings/themes'
     | '/threads/$patternId'
+    | '/api/public/detect-weaves'
   id:
     | '__root__'
     | '/'
@@ -217,6 +228,7 @@ export interface FileRouteTypes {
     | '/settings/profile'
     | '/settings/themes'
     | '/threads/$patternId'
+    | '/api/public/detect-weaves'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -228,6 +240,7 @@ export interface RootRouteChildren {
   ScatterTestRoute: typeof ScatterTestRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   ThreadsRoute: typeof ThreadsRouteWithChildren
+  ApiPublicDetectWeavesRoute: typeof ApiPublicDetectWeavesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -344,6 +357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsBlueprintRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/api/public/detect-weaves': {
+      id: '/api/public/detect-weaves'
+      path: '/api/public/detect-weaves'
+      fullPath: '/api/public/detect-weaves'
+      preLoaderRoute: typeof ApiPublicDetectWeavesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -391,6 +411,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScatterTestRoute: ScatterTestRoute,
   SettingsRoute: SettingsRouteWithChildren,
   ThreadsRoute: ThreadsRouteWithChildren,
+  ApiPublicDetectWeavesRoute: ApiPublicDetectWeavesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

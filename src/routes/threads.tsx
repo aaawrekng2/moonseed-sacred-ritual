@@ -4,12 +4,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import {
   type Pattern,
+  type Weave,
   lifecycleLabel,
   lifecycleOpacity,
   formatMonthSince,
   formatDateSpan,
 } from "@/lib/patterns";
 import { BottomNav } from "@/components/nav/BottomNav";
+import {
+  ReactFlow,
+  Background,
+  type Node,
+  type Edge,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 
 export const Route = createFileRoute("/threads")({
   head: () => ({
@@ -136,7 +144,7 @@ function ThreadsPage() {
         ) : view === "active" ? (
           <ActiveView patterns={active} />
         ) : view === "weaves" ? (
-          <WeavesTeaser />
+          <WeavesView patterns={active} userId={user?.id} />
         ) : (
           <ArchiveView patterns={archived} />
         )}
@@ -258,6 +266,165 @@ function WeavesTeaser() {
       >
         Your patterns are weaving. See the full tapestry.
       </Link>
+    </div>
+  );
+}
+
+function WeavesView({
+  patterns,
+  userId,
+}: {
+  patterns: Pattern[];
+  userId: string | undefined;
+}) {
+  const [weaves, setWeaves] = useState<Weave[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("weaves")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      if (cancelled) return;
+      setWeaves((data ?? []) as Weave[]);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  // Need at least 2 patterns to weave anything visible.
+  if (loading) {
+    return <p style={{ opacity: 0.4, fontStyle: "italic" }}>Listening for weaves…</p>;
+  }
+  if (patterns.length < 2) {
+    return (
+      <div style={{ display: "grid", gap: "var(--space-4, 16px)" }}>
+        <div
+          style={{
+            padding: "var(--space-4, 16px)",
+            borderRadius: "var(--radius-lg, 14px)",
+            border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
+            background: "var(--surface-card, rgba(255,255,255,0.03))",
+            fontStyle: "italic",
+            color: "var(--color-foreground)",
+            opacity: 0.7,
+          }}
+        >
+          A weave forms when two or more patterns begin to speak to each other.
+          Yours are still gathering.
+        </div>
+        <div
+          aria-hidden="true"
+          style={{
+            height: 240,
+            borderRadius: "var(--radius-lg, 14px)",
+            background:
+              "radial-gradient(circle at 30% 40%, rgba(212,175,90,0.25), transparent 60%), radial-gradient(circle at 70% 60%, rgba(120,90,200,0.2), transparent 55%)",
+            filter: "blur(8px)",
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Layout patterns in a circle.
+  const nodes: Node[] = patterns.map((p, i) => {
+    const angle = (i / patterns.length) * Math.PI * 2;
+    const radius = 180;
+    return {
+      id: p.id,
+      position: { x: 240 + Math.cos(angle) * radius, y: 220 + Math.sin(angle) * radius },
+      data: { label: p.name },
+      style: {
+        background: "rgba(212,175,90,0.08)",
+        border: "1px solid rgba(212,175,90,0.45)",
+        color: "var(--color-foreground)",
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+        fontSize: 13,
+        borderRadius: 999,
+        padding: "10px 16px",
+        opacity: lifecycleOpacity(p.lifecycle_state),
+      },
+    };
+  });
+
+  // Edges from weaves: connect every pair of pattern_ids in each weave.
+  const edges: Edge[] = [];
+  const seen = new Set<string>();
+  for (const w of weaves) {
+    const ids = w.pattern_ids ?? [];
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const key = [ids[i], ids[j]].sort().join("-");
+        if (seen.has(key)) continue;
+        seen.add(key);
+        edges.push({
+          id: `${w.id}-${key}`,
+          source: ids[i],
+          target: ids[j],
+          animated: true,
+          style: {
+            stroke: "rgba(212,175,90,0.5)",
+            strokeWidth: 1,
+          },
+          label: w.title,
+          labelStyle: {
+            fill: "rgba(212,175,90,0.9)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 11,
+          },
+          labelBgStyle: { fill: "rgba(10,8,22,0.85)" },
+        });
+      }
+    }
+  }
+
+  return (
+    <div style={{ display: "grid", gap: "var(--space-4, 16px)" }}>
+      <p
+        style={{
+          fontStyle: "italic",
+          color: "var(--color-foreground)",
+          opacity: 0.7,
+          margin: 0,
+        }}
+      >
+        {weaves.length === 0
+          ? "Patterns gathering — no weaves yet."
+          : `${weaves.length} weave${weaves.length === 1 ? "" : "s"} between your patterns.`}
+      </p>
+      <div
+        style={{
+          height: 480,
+          borderRadius: "var(--radius-lg, 14px)",
+          border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
+          background:
+            "radial-gradient(circle at 50% 50%, rgba(120,90,200,0.08), transparent 70%)",
+          overflow: "hidden",
+        }}
+      >
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          fitView
+          panOnDrag
+          zoomOnScroll={false}
+          proOptions={{ hideAttribution: true }}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+        >
+          <Background color="rgba(212,175,90,0.08)" gap={32} />
+        </ReactFlow>
+      </div>
     </div>
   );
 }

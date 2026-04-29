@@ -14,6 +14,7 @@ import { Camera, CheckCheck, Copy, Heart, Loader2, Pencil, Plus, Share2, Tag as 
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
+import { Link } from "@tanstack/react-router";
 
 /* ---------- Types ---------- */
 
@@ -512,6 +513,7 @@ export function EnrichmentPanel({
       aria-label="Enrich this reading"
       className="mx-auto mt-10 max-w-prose"
     >
+      <PatternSurfacingLine readingId={reading.id} />
       {/* Hairline divider */}
       <div
         className="mb-5 h-px"
@@ -890,5 +892,69 @@ function SaveIndicator({
     >
       {text ?? "·"}
     </span>
+  );
+}
+
+/* ---------- Pattern surfacing (Phase 9) ---------- */
+
+function PatternSurfacingLine({ readingId }: { readingId: string }) {
+  const [pattern, setPattern] = useState<{
+    id: string;
+    name: string;
+    lifecycle_state: string;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setPattern(null);
+    void (async () => {
+      const { data: r } = await supabase
+        .from("readings")
+        .select("pattern_id")
+        .eq("id", readingId)
+        .maybeSingle();
+      const pid = (r as { pattern_id: string | null } | null)?.pattern_id;
+      if (!pid || cancelled) return;
+      const { data: p } = await supabase
+        .from("patterns")
+        .select("id, name, lifecycle_state")
+        .eq("id", pid)
+        .maybeSingle();
+      if (!cancelled && p) setPattern(p as { id: string; name: string; lifecycle_state: string });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [readingId]);
+
+  if (!pattern) return null;
+  return (
+    <div
+      className="mx-auto mb-4 max-w-prose text-center"
+      style={{
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+        fontSize: "var(--text-body-sm)",
+        opacity: "var(--ro-plus-30)",
+      }}
+    >
+      <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
+        This reading lives within{" "}
+      </span>
+      <Link
+        to="/threads/$patternId"
+        params={{ patternId: pattern.id }}
+        style={{
+          color: "var(--gold)",
+          textDecoration: "none",
+          borderBottom: "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
+        }}
+      >
+        {pattern.name}
+      </Link>
+      <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
+        .
+      </span>
+    </div>
   );
 }
