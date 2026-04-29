@@ -1499,6 +1499,21 @@ function ReadingDetail({
           />
         )}
       </div>
+      <TearOffCard
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        spread={spreadModeForShare}
+        picks={sharePicks}
+        positionLabels={sharePositions}
+        interpretation={{
+          overview: reading.interpretation ?? "",
+          positions: [],
+          closing: null,
+          followups: [],
+        }}
+        guideName={guide.name}
+        isOracle={isOracle}
+      />
     </div>
   );
 }
