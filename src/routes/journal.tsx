@@ -597,8 +597,8 @@ function JournalPage() {
             ["gallery", "Gallery", ImageIcon],
             ["notes", "Notes", Pencil],
             ["favorites", "Favorites", Heart],
-            ["calendar", "Calendar", null],
-            ["threads", "Threads", null],
+            ["calendar", "Calendar", CalendarDays],
+            ["threads", "Threads", Network],
           ] as const
         ).map(([key, label, Icon]) => {
           const active = view === key;
