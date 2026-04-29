@@ -77,6 +77,19 @@ const LEVEL_SPECS: Record<ShareLevel, LevelSpec> = {
 };
 
 /**
+ * User-facing label per analytics category. Kept terse so it fits
+ * inline as a chip alongside the step label. Mirrors the union in
+ * `useShareCard.ts → ShareErrorCategory`.
+ */
+const CATEGORY_LABEL: Record<ShareErrorCategory, string> = {
+  permission: "Permission blocked",
+  cors: "Cross-origin image",
+  network: "Network issue",
+  abort: "Cancelled",
+  unknown: "Unexpected error",
+};
+
+/**
  * Per-context inputs only certain levels need. Each is optional; a level
  * whose required extra is missing is auto-pruned from the level selector.
  */
