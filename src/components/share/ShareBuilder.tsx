@@ -281,7 +281,7 @@ export function ShareBuilder({
           level,
           intent,
           ok: false,
-          error: info.name,
+          errorName: info.name,
           category: info.category,
         });
         trackShareCaptureFailed({
@@ -301,7 +301,7 @@ export function ShareBuilder({
           context: contextKind,
           level,
           intent,
-          error: info.name,
+          errorName: info.name,
           category: info.category,
         });
         if (intent === "share") {
