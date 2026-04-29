@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ThreadsRouteImport } from './routes/threads'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScatterTestRouteImport } from './routes/scatter-test'
 import { Route as JournalRouteImport } from './routes/journal'
@@ -16,6 +17,7 @@ import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as DrawRouteImport } from './routes/draw'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ThreadsPatternIdRouteImport } from './routes/threads.$patternId'
 import { Route as SettingsThemesRouteImport } from './routes/settings.themes'
 import { Route as SettingsProfileRouteImport } from './routes/settings.profile'
 import { Route as SettingsPreferencesRouteImport } from './routes/settings.preferences'
@@ -24,6 +26,11 @@ import { Route as SettingsGuidesRouteImport } from './routes/settings.guides'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
 
+const ThreadsRoute = ThreadsRouteImport.update({
+  id: '/threads',
+  path: '/threads',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -58,6 +65,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ThreadsPatternIdRoute = ThreadsPatternIdRouteImport.update({
+  id: '/$patternId',
+  path: '/$patternId',
+  getParentRoute: () => ThreadsRoute,
 } as any)
 const SettingsThemesRoute = SettingsThemesRouteImport.update({
   id: '/themes',
@@ -103,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/threads': typeof ThreadsRouteWithChildren
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/guides': typeof SettingsGuidesRoute
@@ -110,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
+  '/threads/$patternId': typeof ThreadsPatternIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -119,6 +133,7 @@ export interface FileRoutesByTo {
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/threads': typeof ThreadsRouteWithChildren
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/guides': typeof SettingsGuidesRoute
@@ -126,6 +141,7 @@ export interface FileRoutesByTo {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
+  '/threads/$patternId': typeof ThreadsPatternIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -136,6 +152,7 @@ export interface FileRoutesById {
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
+  '/threads': typeof ThreadsRouteWithChildren
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/guides': typeof SettingsGuidesRoute
@@ -143,6 +160,7 @@ export interface FileRoutesById {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
+  '/threads/$patternId': typeof ThreadsPatternIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -154,6 +172,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/scatter-test'
     | '/settings'
+    | '/threads'
     | '/settings/blueprint'
     | '/settings/data'
     | '/settings/guides'
@@ -161,6 +180,7 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
+    | '/threads/$patternId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -170,6 +190,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/scatter-test'
     | '/settings'
+    | '/threads'
     | '/settings/blueprint'
     | '/settings/data'
     | '/settings/guides'
@@ -177,6 +198,7 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
+    | '/threads/$patternId'
   id:
     | '__root__'
     | '/'
@@ -186,6 +208,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/scatter-test'
     | '/settings'
+    | '/threads'
     | '/settings/blueprint'
     | '/settings/data'
     | '/settings/guides'
@@ -193,6 +216,7 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
+    | '/threads/$patternId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -203,10 +227,18 @@ export interface RootRouteChildren {
   JournalRoute: typeof JournalRoute
   ScatterTestRoute: typeof ScatterTestRoute
   SettingsRoute: typeof SettingsRouteWithChildren
+  ThreadsRoute: typeof ThreadsRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/threads': {
+      id: '/threads'
+      path: '/threads'
+      fullPath: '/threads'
+      preLoaderRoute: typeof ThreadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -255,6 +287,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/threads/$patternId': {
+      id: '/threads/$patternId'
+      path: '/$patternId'
+      fullPath: '/threads/$patternId'
+      preLoaderRoute: typeof ThreadsPatternIdRouteImport
+      parentRoute: typeof ThreadsRoute
     }
     '/settings/themes': {
       id: '/settings/themes'
@@ -332,6 +371,17 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
   SettingsRouteChildren,
 )
 
+interface ThreadsRouteChildren {
+  ThreadsPatternIdRoute: typeof ThreadsPatternIdRoute
+}
+
+const ThreadsRouteChildren: ThreadsRouteChildren = {
+  ThreadsPatternIdRoute: ThreadsPatternIdRoute,
+}
+
+const ThreadsRouteWithChildren =
+  ThreadsRoute._addFileChildren(ThreadsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
@@ -340,16 +390,8 @@ const rootRouteChildren: RootRouteChildren = {
   JournalRoute: JournalRoute,
   ScatterTestRoute: ScatterTestRoute,
   SettingsRoute: SettingsRouteWithChildren,
+  ThreadsRoute: ThreadsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
