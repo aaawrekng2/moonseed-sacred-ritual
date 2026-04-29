@@ -1063,15 +1063,41 @@ jobs:
             if [ "$FORCE_PUSHED" = "true" ]; then
               MODE_TAG="FORCE_PUSH"
               MODE_HEADLINE="Branch '$BRANCH' was rewritten (history force-pushed)"
+              # FORCE_PUSH = red ::error:: — needs human coordination
+              # before re-running, otherwise we silently overwrite the
+              # rewrite. Highest-severity annotation in the GitHub UI.
+              MODE_SEVERITY="error"
+              MODE_ICON="❌"
             else
               MODE_TAG="CONCURRENT"
               MODE_HEADLINE="Branch '$BRANCH' raced (concurrent fast-forward)"
+              # CONCURRENT = yellow ::warning:: — purely procedural
+              # race with no destructive aspect. Safe to re-dispatch
+              # immediately; the next run layers on top of the new
+              # tip. Lower severity makes a row of failed runs easy
+              # to triage at a glance: red rows need a human, yellow
+              # rows just need a click.
+              #
+              # NOTE: the step still EXITS NON-ZERO in both cases
+              # (the `exit 1` below is unconditional). The severity
+              # split only changes the annotation color; the job
+              # status stays "failed" so neither mode is silently
+              # missed. Don't downgrade `exit 1` to a soft pass here.
+              MODE_SEVERITY="warning"
+              MODE_ICON="⚠️"
             fi
-            echo "::notice title=❌ [$MODE_TAG] update-snapshots failure mode::$MODE_HEADLINE — Failed run: $RUN_URL — Re-dispatch UI: $RERUN_URL"
-            echo "::error title=❌ [$MODE_TAG] update-snapshots atomicity check failed::[$MODE_TAG] $MODE_HEADLINE. Reason: $REASON. Re-dispatch UI: $RERUN_URL — CLI: $RERUN_CMD"
+            # Top-of-run banner: always a ::notice:: (blue) — it's
+            # purely informational ("this is what happened"); the
+            # severity-coded annotation below is the one that drives
+            # triage color.
+            echo "::notice title=$MODE_ICON [$MODE_TAG] update-snapshots failure mode::$MODE_HEADLINE — Failed run: $RUN_URL — Re-dispatch UI: $RERUN_URL"
+            # Severity-mapped annotation:
+            #   FORCE_PUSH  → ::error::   (red,    coordination required)
+            #   CONCURRENT  → ::warning:: (yellow, safe to re-run as-is)
+            echo "::${MODE_SEVERITY} title=${MODE_ICON} [$MODE_TAG] update-snapshots atomicity check failed::[$MODE_TAG] $MODE_HEADLINE. Reason: $REASON. Re-dispatch UI: $RERUN_URL — CLI: $RERUN_CMD"
             echo ""
             echo "════════════════════════════════════════════════════════════"
-            echo "  ❌ FAILURE MODE: [$MODE_TAG]"
+            echo "  ${MODE_ICON} FAILURE MODE: [$MODE_TAG]   (annotation severity: ${MODE_SEVERITY})"
             echo "  $MODE_HEADLINE"
             echo "════════════════════════════════════════════════════════════"
             echo "  Full remote ref        : $REF"
