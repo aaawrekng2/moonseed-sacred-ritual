@@ -78,17 +78,15 @@ export async function detectWeavesForUser(
   return inserted;
 }
 
-export const detectWeaves = createServerFn({ method: "POST" }).handler(
-  async (): Promise<DetectWeavesResult> => {
+export const detectWeaves = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<DetectWeavesResult> => {
     try {
-      const auth = await requireSupabaseAuth();
-      if (!auth) return { ok: false, weaves_detected: 0 };
-      const { supabase, userId } = auth;
+      const { supabase, userId } = context;
       const inserted = await detectWeavesForUser(supabase, userId);
       return { ok: true, weaves_detected: inserted };
     } catch (e) {
       console.error("[detectWeaves] failed", e);
       return { ok: false, weaves_detected: 0 };
     }
-  },
-);
+  });
