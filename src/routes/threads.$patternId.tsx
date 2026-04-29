@@ -706,6 +706,7 @@ function ChamberWeaveGraph({
     const angle = (i / Math.max(readings.length, 1)) * Math.PI * 2;
     const x = CENTER_X + Math.cos(angle) * READING_RADIUS - 6;
     const y = CENTER_Y + Math.sin(angle) * READING_RADIUS - 6;
+    const dimReading = hasActive;
     nodes.push({
       id: `r:${r.id}`,
       position: { x, y },
@@ -726,13 +727,21 @@ function ChamberWeaveGraph({
         fontSize: 0, // hide label visually but keep for a11y
         color: "transparent",
         boxShadow: "0 0 8px rgba(212,175,90,0.5)",
+        opacity: dimReading ? 0.25 : 1,
+        cursor: "pointer",
+        transition: "opacity 180ms ease",
       },
     });
     edges.push({
       id: `r-edge:${r.id}`,
       source: `p:${pattern.id}`,
       target: `r:${r.id}`,
-      style: { stroke: "rgba(212,175,90,0.18)", strokeWidth: 1 },
+      style: {
+        stroke: "rgba(212,175,90,0.18)",
+        strokeWidth: 1,
+        opacity: dimReading ? 0.1 : 1,
+        transition: "opacity 180ms ease",
+      },
     });
   });
 
