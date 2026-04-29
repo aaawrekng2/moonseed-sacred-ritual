@@ -8,7 +8,7 @@ import { useStreak } from "@/lib/use-streak";
 import { QuestionPanel } from "@/components/draw/QuestionPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { updateUserPreferences } from "@/lib/user-preferences";
+import { updateUserPreferences } from "@/lib/user-preferences-write";
 
 type Search = { spread?: string; question?: string };
 
