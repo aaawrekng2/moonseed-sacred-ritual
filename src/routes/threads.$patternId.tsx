@@ -711,6 +711,93 @@ function PatternActions({
   );
 }
 
+/**
+ * "Card evidence" section — lists the underlying card-recurrence
+ * threads (from `symbolic_threads`) whose `pattern_id` matches this
+ * chamber. Threads no longer surface anywhere else in the UI; they
+ * live here as quiet supporting evidence for the pattern.
+ */
+function ChamberCardEvidence({
+  patternId,
+  userId,
+}: {
+  patternId: string;
+  userId: string | undefined;
+}) {
+  const [threads, setThreads] = useState<
+    Array<{ id: string; summary: string }>
+  >([]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("symbolic_threads")
+        .select("id, summary")
+        .eq("user_id", userId)
+        .eq("pattern_id", patternId)
+        .order("detected_at", { ascending: false });
+      if (cancelled) return;
+      setThreads(
+        (data ?? []).map((t) => ({
+          id: t.id as string,
+          summary: (t.summary as string) ?? "",
+        })),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [patternId, userId]);
+
+  if (threads.length === 0) return null;
+
+  return (
+    <section style={{ marginTop: "var(--space-6, 32px)" }}>
+      <h3
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-heading-sm, 17px)",
+          color: "var(--color-foreground)",
+          opacity: 0.7,
+          margin: 0,
+          marginBottom: "var(--space-3, 12px)",
+        }}
+      >
+        Card evidence
+      </h3>
+      <ul
+        style={{
+          listStyle: "none",
+          margin: 0,
+          padding: 0,
+          display: "grid",
+          gap: "var(--space-2, 8px)",
+        }}
+      >
+        {threads.map((t) => (
+          <li
+            key={t.id}
+            style={{
+              padding: "var(--space-3, 12px)",
+              borderRadius: "var(--radius-md, 10px)",
+              background: "var(--surface-card, rgba(255,255,255,0.03))",
+              border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              opacity: 0.85,
+            }}
+          >
+            {t.summary}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function ChamberTimeline({ readingIds }: { readingIds: string[] }) {
   const [rows, setRows] = useState<
     Array<{ id: string; created_at: string; spread_type: string; card_ids: number[]; interpretation: string | null }>
