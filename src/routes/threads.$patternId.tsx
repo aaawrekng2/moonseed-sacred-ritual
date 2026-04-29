@@ -5,10 +5,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import {
   type Pattern,
+  type Weave,
   lifecycleLabel,
   lifecycleOpacity,
   formatMonthSince,
 } from "@/lib/patterns";
+import {
+  ReactFlow,
+  Background,
+  type Node,
+  type Edge,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 
 export const Route = createFileRoute("/threads/$patternId")({
   component: PatternChamber,
@@ -167,6 +175,8 @@ function PatternChamber() {
       </div>
 
       <ChamberTimeline readingIds={pattern.reading_ids} />
+
+      <ChamberWeaveGraph pattern={pattern} userId={user?.id} />
     </div>
   );
 }
@@ -276,5 +286,283 @@ function ChamberTimeline({ readingIds }: { readingIds: string[] }) {
         );
       })}
     </ol>
+  );
+}
+
+/* ---------- Chamber weave graph (Phase 9 step 7) ---------- */
+
+/**
+ * Per-pattern weave visualization.
+ *
+ * Center node = the current pattern.
+ * Outer ring  = sibling patterns connected via any weave that includes
+ *               this pattern's id.
+ * Inner ring  = the readings inside this pattern (small satellite nodes,
+ *               clickable through to the journal).
+ *
+ * Hidden entirely when there's nothing to weave (no siblings AND fewer
+ * than 2 readings) — the chamber should never show an empty graph
+ * placeholder.
+ */
+function ChamberWeaveGraph({
+  pattern,
+  userId,
+}: {
+  pattern: Pattern;
+  userId: string | undefined;
+}) {
+  const [weaves, setWeaves] = useState<Weave[]>([]);
+  const [siblings, setSiblings] = useState<
+    Record<string, { id: string; name: string; lifecycle_state: string }>
+  >({});
+  const [readings, setReadings] = useState<
+    Array<{ id: string; created_at: string; spread_type: string }>
+  >([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    void (async () => {
+      // Weaves that include this pattern.
+      const { data: weaveRows } = await supabase
+        .from("weaves")
+        .select("*")
+        .eq("user_id", userId)
+        .contains("pattern_ids", [pattern.id]);
+      const ws = ((weaveRows ?? []) as Weave[]).filter((w) =>
+        (w.pattern_ids ?? []).includes(pattern.id),
+      );
+
+      // Sibling pattern ids = every other pattern that appears in any of
+      // those weaves.
+      const siblingIds = new Set<string>();
+      for (const w of ws) {
+        for (const pid of w.pattern_ids ?? []) {
+          if (pid !== pattern.id) siblingIds.add(pid);
+        }
+      }
+
+      let siblingMap: Record<string, { id: string; name: string; lifecycle_state: string }> = {};
+      if (siblingIds.size > 0) {
+        const { data: sibRows } = await supabase
+          .from("patterns")
+          .select("id, name, lifecycle_state")
+          .in("id", Array.from(siblingIds));
+        for (const s of (sibRows ?? []) as Array<{
+          id: string;
+          name: string;
+          lifecycle_state: string;
+        }>) {
+          siblingMap[s.id] = s;
+        }
+      }
+
+      // Readings inside this pattern (small satellite nodes).
+      let readingRows: Array<{ id: string; created_at: string; spread_type: string }> = [];
+      if (pattern.reading_ids.length > 0) {
+        const { data: rRows } = await supabase
+          .from("readings")
+          .select("id, created_at, spread_type")
+          .in("id", pattern.reading_ids)
+          .order("created_at", { ascending: false });
+        readingRows = ((rRows ?? []) as Array<{
+          id: string;
+          created_at: string;
+          spread_type: string;
+        }>);
+      }
+
+      if (cancelled) return;
+      setWeaves(ws);
+      setSiblings(siblingMap);
+      setReadings(readingRows);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, pattern.id, pattern.reading_ids]);
+
+  if (loading) return null;
+
+  const siblingList = Object.values(siblings);
+  // Nothing meaningful to draw — bail.
+  if (siblingList.length === 0 && readings.length < 2) return null;
+
+  const CENTER_X = 260;
+  const CENTER_Y = 240;
+  const SIBLING_RADIUS = 180;
+  const READING_RADIUS = 90;
+
+  const nodes: Node[] = [];
+  const edges: Edge[] = [];
+
+  // Center pattern node.
+  nodes.push({
+    id: `p:${pattern.id}`,
+    position: { x: CENTER_X - 90, y: CENTER_Y - 22 },
+    data: { label: pattern.name },
+    draggable: false,
+    selectable: false,
+    style: {
+      width: 180,
+      background: "rgba(212,175,90,0.14)",
+      border: "1px solid rgba(212,175,90,0.7)",
+      color: "var(--color-foreground)",
+      fontFamily: "var(--font-serif)",
+      fontStyle: "italic",
+      fontSize: 14,
+      borderRadius: 999,
+      padding: "10px 14px",
+      textAlign: "center",
+      opacity: lifecycleOpacity(pattern.lifecycle_state),
+    },
+  });
+
+  // Sibling pattern nodes around outer ring.
+  siblingList.forEach((s, i) => {
+    const angle = (i / Math.max(siblingList.length, 1)) * Math.PI * 2 - Math.PI / 2;
+    const x = CENTER_X + Math.cos(angle) * SIBLING_RADIUS - 70;
+    const y = CENTER_Y + Math.sin(angle) * SIBLING_RADIUS - 18;
+    nodes.push({
+      id: `p:${s.id}`,
+      position: { x, y },
+      data: { label: s.name },
+      draggable: false,
+      style: {
+        width: 140,
+        background: "rgba(212,175,90,0.06)",
+        border: "1px solid rgba(212,175,90,0.4)",
+        color: "var(--color-foreground)",
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+        fontSize: 12,
+        borderRadius: 999,
+        padding: "8px 12px",
+        textAlign: "center",
+        opacity: lifecycleOpacity(
+          s.lifecycle_state as Pattern["lifecycle_state"],
+        ),
+        cursor: "pointer",
+      },
+    });
+  });
+
+  // Edges from weaves (only those touching this pattern → siblings).
+  const seenEdge = new Set<string>();
+  for (const w of weaves) {
+    for (const pid of w.pattern_ids ?? []) {
+      if (pid === pattern.id) continue;
+      if (!siblings[pid]) continue;
+      const key = `${w.id}-${pid}`;
+      if (seenEdge.has(key)) continue;
+      seenEdge.add(key);
+      edges.push({
+        id: key,
+        source: `p:${pattern.id}`,
+        target: `p:${pid}`,
+        animated: true,
+        label: w.title,
+        style: { stroke: "rgba(212,175,90,0.55)", strokeWidth: 1 },
+        labelStyle: {
+          fill: "rgba(212,175,90,0.9)",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: 10,
+        },
+        labelBgStyle: { fill: "rgba(10,8,22,0.85)" },
+      });
+    }
+  }
+
+  // Readings as small inner satellites around the center.
+  readings.forEach((r, i) => {
+    const angle = (i / Math.max(readings.length, 1)) * Math.PI * 2;
+    const x = CENTER_X + Math.cos(angle) * READING_RADIUS - 6;
+    const y = CENTER_Y + Math.sin(angle) * READING_RADIUS - 6;
+    nodes.push({
+      id: `r:${r.id}`,
+      position: { x, y },
+      data: {
+        label: new Date(r.created_at).toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+        }),
+      },
+      draggable: false,
+      style: {
+        width: 12,
+        height: 12,
+        background: "rgba(212,175,90,0.85)",
+        border: "none",
+        borderRadius: "50%",
+        padding: 0,
+        fontSize: 0, // hide label visually but keep for a11y
+        color: "transparent",
+        boxShadow: "0 0 8px rgba(212,175,90,0.5)",
+      },
+    });
+    edges.push({
+      id: `r-edge:${r.id}`,
+      source: `p:${pattern.id}`,
+      target: `r:${r.id}`,
+      style: { stroke: "rgba(212,175,90,0.18)", strokeWidth: 1 },
+    });
+  });
+
+  return (
+    <section
+      aria-label="Pattern weave graph"
+      style={{ marginTop: "var(--space-6, 32px)" }}
+    >
+      <h2
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-body)",
+          color: "var(--color-foreground)",
+          opacity: 0.7,
+          margin: "0 0 var(--space-3, 12px)",
+        }}
+      >
+        {siblingList.length > 0
+          ? `Woven with ${siblingList.length} other pattern${siblingList.length === 1 ? "" : "s"}`
+          : "This pattern stands alone — for now."}
+      </h2>
+      <div
+        style={{
+          height: 480,
+          borderRadius: "var(--radius-lg, 14px)",
+          border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
+          background:
+            "radial-gradient(circle at 50% 50%, rgba(120,90,200,0.08), transparent 70%)",
+          overflow: "hidden",
+        }}
+      >
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          fitView
+          panOnDrag
+          zoomOnScroll={false}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable
+          proOptions={{ hideAttribution: true }}
+          onNodeClick={(_, node) => {
+            if (node.id.startsWith("p:") && node.id !== `p:${pattern.id}`) {
+              const sid = node.id.slice(2);
+              window.location.assign(`/threads/${sid}`);
+            } else if (node.id.startsWith("r:")) {
+              const rid = node.id.slice(2);
+              window.location.assign(`/journal?readingId=${rid}`);
+            }
+          }}
+        >
+          <Background color="rgba(212,175,90,0.08)" gap={32} />
+        </ReactFlow>
+      </div>
+    </section>
   );
 }
