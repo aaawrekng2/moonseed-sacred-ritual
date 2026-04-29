@@ -399,23 +399,6 @@ export function InlineReading({
           <div className="reading-actions-fade-in mt-2 flex flex-wrap items-center justify-center gap-2">
             <button
               type="button"
-              onClick={() => setTearOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 font-display text-xs uppercase tracking-[0.3em] text-gold transition-opacity hover:opacity-80 focus:outline-none focus-visible:underline"
-              aria-label={isOracle ? "Tear off a keepsake" : "Tear off card"}
-            >
-              <Scissors size={13} strokeWidth={1.5} aria-hidden />
-              {isOracle ? "Tear off keepsake" : "Tear off card"}
-            </button>
-            {copyText && (
-              <ShareButton
-                text={copyText}
-                title="A reading from Moonseed"
-                preface="A reading from Moonseed:"
-                ariaLabel="Share reading"
-              />
-            )}
-            <button
-              type="button"
               onClick={onExit}
               className="px-3 py-2 font-display text-xs uppercase tracking-[0.3em] text-gold transition-opacity hover:opacity-80 focus:outline-none focus-visible:underline"
             >
