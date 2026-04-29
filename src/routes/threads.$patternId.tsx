@@ -713,8 +713,14 @@ function ChamberWeaveGraph({
   }
 
   // Readings as small inner satellites around the center.
-  readings.forEach((r, i) => {
-    const angle = (i / Math.max(readings.length, 1)) * Math.PI * 2;
+  // Sort by id so satellite positions are deterministic across renders,
+  // independent of how the rows were returned by Supabase.
+  const orderedReadings = readings.slice().sort((a, b) =>
+    a.id.localeCompare(b.id),
+  );
+  orderedReadings.forEach((r, i) => {
+    const angle =
+      (i / Math.max(orderedReadings.length, 1)) * Math.PI * 2;
     const x = CENTER_X + Math.cos(angle) * READING_RADIUS - 6;
     const y = CENTER_Y + Math.sin(angle) * READING_RADIUS - 6;
     const dimReading = hasActive;
