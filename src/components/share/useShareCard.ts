@@ -16,6 +16,38 @@ export type ShareBusyState = null | "share" | "save";
 export type ShareIntent = "share" | "save";
 
 /**
+ * Stable, low-cardinality buckets for analytics. Mirrors the union
+ * declared in `share-events.ts` — re-declared here to avoid a circular
+ * dependency between hook and analytics layer.
+ */
+export type ShareErrorCategory =
+  | "permission"
+  | "cors"
+  | "network"
+  | "abort"
+  | "unknown";
+
+/**
+ * Bucket a thrown value into a stable analytics category. Free-form
+ * `name` / `message` strings still surface separately for debugging.
+ */
+export function categorizeShareError(e: unknown): ShareErrorCategory {
+  const err = e as { name?: string; message?: string } | null | undefined;
+  const name = err?.name ?? "";
+  const msg = (err?.message ?? "").toLowerCase();
+  if (name === "AbortError") return "abort";
+  if (name === "NotAllowedError" || msg.includes("permission")) return "permission";
+  if (msg.includes("tainted") || msg.includes("cors") || msg.includes("security")) return "cors";
+  if (msg.includes("network") || msg.includes("fetch")) return "network";
+  return "unknown";
+}
+
+function errorName(e: unknown): string {
+  const err = e as { name?: string; message?: string } | null | undefined;
+  return err?.name || err?.message || "unknown";
+}
+
+/**
  * The last failure the share flow saw, kept around so the UI can
  * render an inline Retry affordance in addition to the toast.
  * `step` tells the builder *where* to surface the banner:
@@ -49,10 +81,16 @@ export type ShareError = {
  */
 export type ShareCardCallbacks = {
   onPrepared?: (intent: ShareIntent) => void;
-  onPrepareError?: (intent: ShareIntent, error: unknown) => void;
+  onPrepareError?: (
+    intent: ShareIntent,
+    info: { error: unknown; category: ShareErrorCategory; name: string },
+  ) => void;
   onShareSuccess?: () => void;
   onShareDownload?: (reason: "user" | "share_unsupported") => void;
-  onShareError?: (intent: ShareIntent, error: unknown) => void;
+  onShareError?: (
+    intent: ShareIntent,
+    info: { error: unknown; category: ShareErrorCategory; name: string },
+  ) => void;
 };
 
 /**
@@ -274,7 +312,11 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         // No PNG yet — Download Now would have nothing to save.
         notifyError(title, description, nextAction, retry);
         setLastError({ step: "prepare", intent, title, description, nextAction, retry });
-        callbacks.onPrepareError?.(intent, e);
+        callbacks.onPrepareError?.(intent, {
+          error: e,
+          category: categorizeShareError(e),
+          name: errorName(e),
+        });
       } finally {
         setBusy(null);
       }
@@ -367,7 +409,11 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         retry,
         downloadNow,
       });
-      callbacks.onShareError?.(intent, e);
+      callbacks.onShareError?.(intent, {
+        error: e,
+        category: categorizeShareError(e),
+        name: errorName(e),
+      });
     } finally {
       setBusy(null);
     }
