@@ -138,6 +138,7 @@ function JournalPage() {
   const [readings, setReadings] = useState<ReadingRow[]>([]);
   const [tags, setTags] = useState<TagRow[]>([]);
   const [threads, setThreads] = useState<ThreadRow[]>([]);
+  const [patternsById, setPatternsById] = useState<Record<string, PatternRow>>({});
   const [photoCounts, setPhotoCounts] = useState<Record<string, number>>({});
   // Cover photo per reading: signed URL for the earliest photo.
   const [photoCovers, setPhotoCovers] = useState<Record<string, string>>({});
@@ -192,10 +193,19 @@ function JournalPage() {
       void (async () => {
         const { data: threadRows } = await supabase
           .from("symbolic_threads")
-          .select("id,summary,tags,reading_ids,status,detected_at")
+          .select("id,summary,tags,reading_ids,status,detected_at,pattern_id")
           .eq("user_id", user.id)
           .order("detected_at", { ascending: false });
         if (!cancelled) setThreads((threadRows ?? []) as ThreadRow[]);
+        const { data: patternRows } = await supabase
+          .from("patterns")
+          .select("id,name,lifecycle_state")
+          .eq("user_id", user.id);
+        if (!cancelled) {
+          const map: Record<string, PatternRow> = {};
+          for (const p of (patternRows ?? []) as PatternRow[]) map[p.id] = p;
+          setPatternsById(map);
+        }
       })();
       const counts: Record<string, number> = {};
       // Pick earliest photo per reading as the cover.
