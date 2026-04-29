@@ -305,23 +305,17 @@ export function getTodayInTz(timeZone: string, now: Date = new Date()): Date {
   return localDateTimeToUtc(timeZone, year, month, day, 12, 0);
 }
 
-/** Day-level representation offset from a timezone-local calendar day. */
-export function getDayInTz(todayInTz: Date, offsetDays: number, timeZone?: string): Date {
-  if (timeZone) {
-    const { year, month, day } = getDatePartsInTz(todayInTz, timeZone);
-    return localDateTimeToUtc(timeZone, year, month, day + offsetDays, 12, 0);
-  }
-  return new Date(
-    Date.UTC(
-      todayInTz.getUTCFullYear(),
-      todayInTz.getUTCMonth(),
-      todayInTz.getUTCDate() + offsetDays,
-      12,
-      0,
-      0,
-      0,
-    ),
-  );
+/**
+ * Day-level representation offset from a timezone-local calendar day.
+ *
+ * Always anchors at local noon in the given IANA zone, so DST transitions
+ * and date-line crossings cannot push the result onto an adjacent calendar
+ * day. `timeZone` is REQUIRED — there is no UTC/browser-local fallback
+ * because that path silently produced peak-drift bugs.
+ */
+export function getDayInTz(todayInTz: Date, offsetDays: number, timeZone: string): Date {
+  const { year, month, day } = getDatePartsInTz(todayInTz, timeZone);
+  return localDateTimeToUtc(timeZone, year, month, day + offsetDays, 12, 0);
 }
 
 /** UTC instant for local midnight of a timezone calendar day. */

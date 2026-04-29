@@ -76,7 +76,10 @@ function Index() {
   // Daily ritual reset — bumps `dayEpoch` whenever the local calendar
   // day flips so the gateway re-queries today's card and sibling UI
   // (the QuestionBox) can show a quiet "new day" affordance.
-  const { epoch: dayEpoch } = useDailyReset();
+  // Pass the seeker's effective timezone so the daily ritual flip honors
+  // their profile's tz mode (auto/device or fixed/profile) instead of
+  // silently using browser local time.
+  const { epoch: dayEpoch } = useDailyReset(effectiveTz);
   // Home is the only screen that exposes the Refresh icon in the
   // floating menu. Registered via context so the menu itself stays
   // route-agnostic.
