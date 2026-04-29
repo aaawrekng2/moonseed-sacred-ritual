@@ -340,6 +340,7 @@ export type Database = {
       readings: {
         Row: {
           card_ids: number[]
+          card_orientations: boolean[]
           created_at: string
           dawn_cycle_date: string | null
           deep_reading_lenses: Json | null
@@ -361,6 +362,7 @@ export type Database = {
         }
         Insert: {
           card_ids: number[]
+          card_orientations?: boolean[]
           created_at?: string
           dawn_cycle_date?: string | null
           deep_reading_lenses?: Json | null
@@ -382,6 +384,7 @@ export type Database = {
         }
         Update: {
           card_ids?: number[]
+          card_orientations?: boolean[]
           created_at?: string
           dawn_cycle_date?: string | null
           deep_reading_lenses?: Json | null
@@ -470,6 +473,7 @@ export type Database = {
           active_guide_id: string | null
           active_theme_slot: number | null
           admin_note: string | null
+          allow_reversed_cards: boolean
           archive_deepening_unlocked: boolean
           bg_gradient_from: string | null
           bg_gradient_to: string | null
@@ -526,6 +530,7 @@ export type Database = {
           active_guide_id?: string | null
           active_theme_slot?: number | null
           admin_note?: string | null
+          allow_reversed_cards?: boolean
           archive_deepening_unlocked?: boolean
           bg_gradient_from?: string | null
           bg_gradient_to?: string | null
@@ -582,6 +587,7 @@ export type Database = {
           active_guide_id?: string | null
           active_theme_slot?: number | null
           admin_note?: string | null
+          allow_reversed_cards?: boolean
           archive_deepening_unlocked?: boolean
           bg_gradient_from?: string | null
           bg_gradient_to?: string | null
