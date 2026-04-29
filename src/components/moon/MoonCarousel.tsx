@@ -8,6 +8,7 @@ import {
   type MoonPhaseName,
 } from "@/lib/moon";
 import { MoonPhaseIcon } from "./MoonPhaseIcon";
+import { MoonPeakDebugPanel } from "./MoonPeakDebugPanel";
 import { cn } from "@/lib/utils";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import {
@@ -673,6 +674,7 @@ export function MoonCarousel() {
           </button>
         )}
       </div>
+      {import.meta.env.DEV && <MoonPeakDebugPanel />}
     </section>
   );
 }
