@@ -281,7 +281,7 @@ function PatternChamber() {
 
       {retireStep > 0 && pattern && (
         <RetireConfirmModal
-          step={retireStep}
+          step={retireStep as 1 | 2}
           patternName={pattern.name}
           confirmText={retireConfirmText}
           onConfirmTextChange={setRetireConfirmText}
