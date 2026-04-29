@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`YMD snapshot grid (instant × timezone) > projects au-aedt-start-2026 (2026-10-03T15:30:00Z) onto each zone's calendar day 1`] = `
+exports[`YMD snapshot grid (instant × timezone) > projects au-aedt-start-2026 (2026-10-03T15:30:00.000Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
     "hour": 8,
@@ -45,7 +45,7 @@ exports[`YMD snapshot grid (instant × timezone) > projects au-aedt-start-2026 (
 }
 `;
 
-exports[`YMD snapshot grid (instant × timezone) > projects au-aest-return-2026 (2026-04-04T15:30:00Z) onto each zone's calendar day 1`] = `
+exports[`YMD snapshot grid (instant × timezone) > projects au-aest-return-2026 (2026-04-04T15:30:00.000Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
     "hour": 8,
@@ -90,7 +90,7 @@ exports[`YMD snapshot grid (instant × timezone) > projects au-aest-return-2026 
 }
 `;
 
-exports[`YMD snapshot grid (instant × timezone) > projects date-line-utc-midnight (2026-07-15T00:00:00Z) onto each zone's calendar day 1`] = `
+exports[`YMD snapshot grid (instant × timezone) > projects date-line-utc-midnight (2026-07-15T00:00:00.000Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
     "hour": 17,
@@ -135,7 +135,7 @@ exports[`YMD snapshot grid (instant × timezone) > projects date-line-utc-midnig
 }
 `;
 
-exports[`YMD snapshot grid (instant × timezone) > projects date-line-utc-near-midnight (2026-07-14T23:30:00Z) onto each zone's calendar day 1`] = `
+exports[`YMD snapshot grid (instant × timezone) > projects date-line-utc-near-midnight (2026-07-14T23:30:00.000Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
     "hour": 16,
@@ -180,7 +180,7 @@ exports[`YMD snapshot grid (instant × timezone) > projects date-line-utc-near-m
 }
 `;
 
-exports[`YMD snapshot grid (instant × timezone) > projects eu-cest-start-2026 (2026-03-29T00:30:00Z) onto each zone's calendar day 1`] = `
+exports[`YMD snapshot grid (instant × timezone) > projects eu-cest-start-2026 (2026-03-29T00:30:00.000Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
     "hour": 17,
@@ -225,7 +225,7 @@ exports[`YMD snapshot grid (instant × timezone) > projects eu-cest-start-2026 (
 }
 `;
 
-exports[`YMD snapshot grid (instant × timezone) > projects eu-cet-return-2026 (2026-10-25T00:30:00Z) onto each zone's calendar day 1`] = `
+exports[`YMD snapshot grid (instant × timezone) > projects eu-cet-return-2026 (2026-10-25T00:30:00.000Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
     "hour": 17,
@@ -270,7 +270,7 @@ exports[`YMD snapshot grid (instant × timezone) > projects eu-cet-return-2026 (
 }
 `;
 
-exports[`YMD snapshot grid (instant × timezone) > projects leap-day-2028 (2028-02-29T12:00:00Z) onto each zone's calendar day 1`] = `
+exports[`YMD snapshot grid (instant × timezone) > projects leap-day-2028 (2028-02-29T12:00:00.000Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
     "hour": 4,
@@ -315,7 +315,7 @@ exports[`YMD snapshot grid (instant × timezone) > projects leap-day-2028 (2028-
 }
 `;
 
-exports[`YMD snapshot grid (instant × timezone) > projects may-31-2026-full-moon-peak (2026-05-31T11:00:00Z) onto each zone's calendar day 1`] = `
+exports[`YMD snapshot grid (instant × timezone) > projects may-31-2026-full-moon-peak (2026-05-31T11:00:00.000Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
     "hour": 4,
@@ -360,7 +360,7 @@ exports[`YMD snapshot grid (instant × timezone) > projects may-31-2026-full-moo
 }
 `;
 
-exports[`YMD snapshot grid (instant × timezone) > projects nz-dst-end-2026 (2026-04-04T13:30:00Z) onto each zone's calendar day 1`] = `
+exports[`YMD snapshot grid (instant × timezone) > projects nz-dst-end-2026 (2026-04-04T13:30:00.000Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
     "hour": 6,
@@ -405,7 +405,7 @@ exports[`YMD snapshot grid (instant × timezone) > projects nz-dst-end-2026 (202
 }
 `;
 
-exports[`YMD snapshot grid (instant × timezone) > projects uk-bst-start-2026 (2026-03-29T00:30:00Z) onto each zone's calendar day 1`] = `
+exports[`YMD snapshot grid (instant × timezone) > projects uk-bst-start-2026 (2026-03-29T00:30:00.000Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
     "hour": 17,
@@ -450,7 +450,7 @@ exports[`YMD snapshot grid (instant × timezone) > projects uk-bst-start-2026 (2
 }
 `;
 
-exports[`YMD snapshot grid (instant × timezone) > projects us-fall-back-2026 (2026-11-01T08:30:00Z) onto each zone's calendar day 1`] = `
+exports[`YMD snapshot grid (instant × timezone) > projects us-fall-back-2026 (2026-11-01T08:30:00.000Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
     "hour": 1,
@@ -495,7 +495,7 @@ exports[`YMD snapshot grid (instant × timezone) > projects us-fall-back-2026 (2
 }
 `;
 
-exports[`YMD snapshot grid (instant × timezone) > projects us-spring-forward-2026 (2026-03-08T10:30:00Z) onto each zone's calendar day 1`] = `
+exports[`YMD snapshot grid (instant × timezone) > projects us-spring-forward-2026 (2026-03-08T10:30:00.000Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
     "hour": 3,
@@ -540,7 +540,7 @@ exports[`YMD snapshot grid (instant × timezone) > projects us-spring-forward-20
 }
 `;
 
-exports[`YMD snapshot grid (instant × timezone) > projects year-boundary (2027-01-01T00:00:00Z) onto each zone's calendar day 1`] = `
+exports[`YMD snapshot grid (instant × timezone) > projects year-boundary (2027-01-01T00:00:00.000Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
     "hour": 16,
