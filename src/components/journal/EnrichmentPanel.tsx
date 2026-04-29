@@ -903,31 +903,189 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
     name: string;
     lifecycle_state: string;
   } | null>(null);
+  // Suggestion shown when the reading isn't linked yet but matches a pattern.
+  const [suggestion, setSuggestion] = useState<{
+    id: string;
+    name: string;
+    reason: string;
+  } | null>(null);
+  const [attaching, setAttaching] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setPattern(null);
+    setSuggestion(null);
+    setDismissed(false);
     void (async () => {
       const { data: r } = await supabase
         .from("readings")
-        .select("pattern_id")
+        .select("pattern_id, user_id, card_ids, tags")
         .eq("id", readingId)
         .maybeSingle();
-      const pid = (r as { pattern_id: string | null } | null)?.pattern_id;
-      if (!pid || cancelled) return;
-      const { data: p } = await supabase
+      const row = r as
+        | {
+            pattern_id: string | null;
+            user_id: string;
+            card_ids: number[] | null;
+            tags: string[] | null;
+          }
+        | null;
+      if (!row || cancelled) return;
+      // Already attached → show the "lives within" line.
+      if (row.pattern_id) {
+        const { data: p } = await supabase
+          .from("patterns")
+          .select("id, name, lifecycle_state")
+          .eq("id", row.pattern_id)
+          .maybeSingle();
+        if (!cancelled && p) {
+          setPattern(p as { id: string; name: string; lifecycle_state: string });
+        }
+        return;
+      }
+      // Not attached → look for an active pattern that resonates by
+      // shared cards or tags.
+      const { data: patternRows } = await supabase
         .from("patterns")
-        .select("id, name, lifecycle_state")
-        .eq("id", pid)
-        .maybeSingle();
-      if (!cancelled && p) setPattern(p as { id: string; name: string; lifecycle_state: string });
+        .select("id, name, lifecycle_state, reading_ids")
+        .eq("user_id", row.user_id)
+        .in("lifecycle_state", ["emerging", "active", "reawakened"]);
+      const patterns = (patternRows ?? []) as Array<{
+        id: string;
+        name: string;
+        lifecycle_state: string;
+        reading_ids: string[];
+      }>;
+      if (patterns.length === 0) return;
+
+      // Pull each candidate pattern's readings to compare cards/tags.
+      const allReadingIds = Array.from(
+        new Set(patterns.flatMap((p) => p.reading_ids ?? [])),
+      ).filter((id) => id !== readingId);
+      if (allReadingIds.length === 0) return;
+      const { data: relRows } = await supabase
+        .from("readings")
+        .select("id, card_ids, tags")
+        .in("id", allReadingIds);
+      const rel = ((relRows ?? []) as Array<{
+        id: string;
+        card_ids: number[] | null;
+        tags: string[] | null;
+      }>).reduce<Record<string, { cards: Set<number>; tags: Set<string> }>>(
+        (acc, x) => {
+          acc[x.id] = {
+            cards: new Set(x.card_ids ?? []),
+            tags: new Set((x.tags ?? []).map((t) => t.toLowerCase())),
+          };
+          return acc;
+        },
+        {},
+      );
+
+      const myCards = new Set(row.card_ids ?? []);
+      const myTags = new Set((row.tags ?? []).map((t) => t.toLowerCase()));
+
+      let best:
+        | { id: string; name: string; reason: string; score: number }
+        | null = null;
+      for (const p of patterns) {
+        let cardHits = 0;
+        let tagHits = 0;
+        for (const rid of p.reading_ids ?? []) {
+          const meta = rel[rid];
+          if (!meta) continue;
+          for (const c of myCards) if (meta.cards.has(c)) cardHits += 1;
+          for (const t of myTags) if (meta.tags.has(t)) tagHits += 1;
+        }
+        const score = cardHits * 2 + tagHits;
+        if (score < 3) continue;
+        const reason =
+          cardHits >= 2
+            ? "shares cards with this pattern"
+            : tagHits >= 2
+              ? "echoes the same themes"
+              : "resonates with this pattern";
+        if (!best || score > best.score) {
+          best = { id: p.id, name: p.name, reason, score };
+        }
+      }
+      if (!cancelled && best) {
+        setSuggestion({ id: best.id, name: best.name, reason: best.reason });
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [readingId]);
 
-  if (!pattern) return null;
+  const attach = useCallback(async () => {
+    if (!suggestion || attaching) return;
+    setAttaching(true);
+    try {
+      const { data: pat } = await supabase
+        .from("patterns")
+        .select("id, name, lifecycle_state, reading_ids")
+        .eq("id", suggestion.id)
+        .maybeSingle();
+      const p = pat as
+        | { id: string; name: string; lifecycle_state: string; reading_ids: string[] }
+        | null;
+      if (!p) {
+        setAttaching(false);
+        return;
+      }
+      const nextReadings = Array.from(new Set([...(p.reading_ids ?? []), readingId]));
+      const [{ error: e1 }, { error: e2 }] = await Promise.all([
+        supabase.from("readings").update({ pattern_id: p.id }).eq("id", readingId),
+        supabase
+          .from("patterns")
+          .update({ reading_ids: nextReadings })
+          .eq("id", p.id),
+      ]);
+      if (!e1 && !e2) {
+        setSuggestion(null);
+        setPattern({ id: p.id, name: p.name, lifecycle_state: p.lifecycle_state });
+      }
+    } finally {
+      setAttaching(false);
+    }
+  }, [suggestion, attaching, readingId]);
+
+  if (pattern) {
+    return (
+      <div
+        className="mx-auto mb-4 max-w-prose text-center"
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-body-sm)",
+          opacity: "var(--ro-plus-30)",
+        }}
+      >
+        <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
+          This reading lives within{" "}
+        </span>
+        <Link
+          to="/threads/$patternId"
+          params={{ patternId: pattern.id }}
+          style={{
+            color: "var(--gold)",
+            textDecoration: "none",
+            borderBottom: "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
+          }}
+        >
+          {pattern.name}
+        </Link>
+        <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
+          .
+        </span>
+      </div>
+    );
+  }
+
+  if (!suggestion || dismissed) return null;
+
   return (
     <div
       className="mx-auto mb-4 max-w-prose text-center"
@@ -936,25 +1094,65 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
         fontStyle: "italic",
         fontSize: "var(--text-body-sm)",
         opacity: "var(--ro-plus-30)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 6,
       }}
     >
       <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
-        This reading lives within{" "}
-      </span>
-      <Link
-        to="/threads/$patternId"
-        params={{ patternId: pattern.id }}
-        style={{
-          color: "var(--gold)",
-          textDecoration: "none",
-          borderBottom: "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
-        }}
-      >
-        {pattern.name}
-      </Link>
-      <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
+        This reading{" "}
+        <Link
+          to="/threads/$patternId"
+          params={{ patternId: suggestion.id }}
+          style={{
+            color: "var(--gold)",
+            textDecoration: "none",
+            borderBottom: "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
+          }}
+        >
+          {suggestion.reason} {suggestion.name}
+        </Link>
         .
       </span>
+      <div style={{ display: "inline-flex", gap: 14 }}>
+        <button
+          type="button"
+          onClick={() => void attach()}
+          disabled={attaching}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: attaching ? "default" : "pointer",
+            color: "var(--gold)",
+            fontFamily: "var(--font-display, inherit)",
+            fontSize: 11,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            opacity: attaching ? 0.5 : 1,
+          }}
+        >
+          {attaching ? "Attaching…" : "Connect to pattern"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setDismissed(true)}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            color: "color-mix(in oklab, var(--foreground) 50%, transparent)",
+            fontFamily: "var(--font-display, inherit)",
+            fontSize: 11,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+          }}
+        >
+          Not now
+        </button>
+      </div>
     </div>
   );
 }
