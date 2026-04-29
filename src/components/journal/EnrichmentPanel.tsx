@@ -66,7 +66,7 @@ type Props = {
   /**
    * Optional handler invoked when the seeker taps the share icon. When
    * provided, a Share2 icon renders alongside the other action icons —
-   * this is the single share trigger per screen (tear-off card opener).
+   * this is the single share trigger per screen (opens the ShareBuilder).
    * Omit to hide the icon entirely.
    */
   onShare?: () => void;
