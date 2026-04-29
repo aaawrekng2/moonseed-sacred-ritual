@@ -36,6 +36,7 @@ import { Level4DeepLens, type DeepLensSelection } from "./levels/Level4DeepLens"
 import { Level5MirrorArtifact } from "./levels/Level5MirrorArtifact";
 import { SHARE_CARD_H, SHARE_CARD_W } from "./levels/share-card-shared";
 import { useShareCard } from "./useShareCard";
+import type { ShareBusyState } from "./useShareCard";
 import { useShareColor } from "./use-share-color";
 import { useLastShareLevel } from "./use-last-share-level";
 import {
