@@ -719,7 +719,25 @@ export function MoonCarousel() {
           </button>
         )}
       </div>
-      {import.meta.env.DEV && <MoonPeakDebugPanel />}
+      {import.meta.env.DEV && (
+        <>
+          <div className="mx-auto mt-2 flex max-w-2xl justify-end">
+            <button
+              type="button"
+              onClick={() => setDateOverlay((v) => !v)}
+              className={cn(
+                "rounded border px-2 py-1 font-mono text-[10px] transition-colors",
+                dateOverlay
+                  ? "border-primary bg-primary/20 text-foreground"
+                  : "border-border/50 text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {dateOverlay ? "date overlay: on" : "date overlay: off"}
+            </button>
+          </div>
+          <MoonPeakDebugPanel />
+        </>
+      )}
     </section>
   );
 }
