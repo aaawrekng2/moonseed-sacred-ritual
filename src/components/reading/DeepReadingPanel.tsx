@@ -22,7 +22,12 @@ import {
 } from "@/lib/deep-reading.functions";
 import { DeepReadingMist } from "./DeepReadingMist";
 import { stripMarkdown } from "@/lib/strip-markdown";
-import { ShareButton } from "@/components/share/ShareButton";
+import { Share2 } from "lucide-react";
+import { ShareBuilder, type ShareBuilderExtras } from "@/components/share/ShareBuilder";
+import type { ShareContext, ShareLevel } from "@/components/share/share-types";
+import type { DeepLensSelection } from "@/components/share/levels/Level4DeepLens";
+import { isValidSpreadMode, SPREAD_META, type SpreadMode } from "@/lib/spreads";
+import { getGuideById } from "@/lib/guides";
 import { publishMistLevel } from "@/components/dev/DevOverlay";
 
 type Props = {
@@ -72,6 +77,77 @@ export function DeepReadingPanel({
   const [mirrorSaved, setMirrorSavedState] = useState(
     !!initialMirrorSaved,
   );
+
+  // --- Share builder state (Levels 4 + 5 from a Deep Reading) ---
+  // We lazy-load the reading row + per-lens context the first time the
+  // user opens the share sheet so the panel stays cheap when nobody
+  // shares anything. The fetched picks/spread/guide are reused across
+  // subsequent shares within the same panel mount.
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareLevel, setShareLevel] = useState<ShareLevel>("lens");
+  const [shareLens, setShareLens] = useState<DeepLensSelection | null>(null);
+  const [shareCtx, setShareCtx] = useState<ShareContext | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+
+  /**
+   * Fetch (or reuse) the reading row needed to populate the share
+   * card with cards + spread + guide name. Returns a synthesized
+   * ShareContext suitable for the builder. Errors are swallowed —
+   * a failed fetch just leaves the share button unresponsive instead
+   * of poisoning the lens UI.
+   */
+  const ensureShareContext = async (): Promise<ShareContext | null> => {
+    if (shareCtx) return shareCtx;
+    setShareLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("readings")
+        .select("spread_type, card_ids, question, guide_id")
+        .eq("id", readingId)
+        .maybeSingle();
+      if (error || !data) return null;
+      const spread: SpreadMode = isValidSpreadMode(data.spread_type)
+        ? data.spread_type
+        : "single";
+      const cardIds = (data.card_ids ?? []) as number[];
+      const picks = cardIds.map((cardIndex, i) => ({ id: i, cardIndex }));
+      const positionLabels = SPREAD_META[spread].positions ?? picks.map((_, i) => `Card ${i + 1}`);
+      const ctx: ShareContext = {
+        question: data.question ?? undefined,
+        spread,
+        picks,
+        positionLabels,
+        interpretation: { overview: "", positions: [], closing: "" },
+        guideName: getGuideById(data.guide_id ?? guideId).name,
+        isOracle: false,
+      };
+      setShareCtx(ctx);
+      return ctx;
+    } catch (e) {
+      console.warn("[DeepReadingPanel] share context fetch failed", e);
+      return null;
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const openShareForLens = async (label: string, body: string) => {
+    const ctx = await ensureShareContext();
+    if (!ctx) return;
+    setShareLens({ label, body: stripMarkdown(body) });
+    setShareLevel("lens");
+    setShareOpen(true);
+  };
+  const openShareForMirror = async (body: string) => {
+    const ctx = await ensureShareContext();
+    if (!ctx) return;
+    // Re-use the lens slot too so users can switch to Lens view and
+    // see the mirror text styled as a lens if they want — the builder
+    // auto-prunes if the body is empty.
+    setShareLens({ label: "Mirror Artifact", body: stripMarkdown(body) });
+    setShareLevel("artifact");
+    setShareOpen(true);
+  };
 
   // Compute mist intensity from the user's last 30 readings.
   useEffect(() => {
@@ -258,18 +334,24 @@ export function DeepReadingPanel({
         <Lens
           label={LENS_LABELS[0]}
           body={lenses.present_resonance}
+          shareDisabled={shareLoading}
+          onShare={() => void openShareForLens(LENS_LABELS[0], lenses.present_resonance)}
         />
       )}
       {revealed >= 2 && lenses.thread_awareness && (
         <Lens
           label={LENS_LABELS[1]}
           body={lenses.thread_awareness}
+          shareDisabled={shareLoading}
+          onShare={() => void openShareForLens(LENS_LABELS[1], lenses.thread_awareness ?? "")}
         />
       )}
       {revealed >= 3 && (
         <Lens
           label={LENS_LABELS[2]}
           body={lenses.shadow_layer}
+          shareDisabled={shareLoading}
+          onShare={() => void openShareForLens(LENS_LABELS[2], lenses.shadow_layer)}
         />
       )}
       {revealed < 4 && (
@@ -289,20 +371,48 @@ export function DeepReadingPanel({
             >
               {mirrorSaved ? "Mirror saved" : "Save this mirror"}
             </button>
-            <ShareButton
-              text={stripMarkdown(lenses.mirror_artifact)}
-              title="A mirror from Moonseed"
-              preface="Mirror Artifact —"
+            <ShareIconButton
               ariaLabel="Share mirror artifact"
+              disabled={shareLoading}
+              onClick={() => void openShareForMirror(lenses.mirror_artifact)}
             />
           </div>
         </div>
+      )}
+      {shareCtx && (
+        <ShareBuilder
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          context={shareCtx}
+          defaultLevel={shareLevel}
+          availableLevels={["lens", "artifact", "reading", "pull"]}
+          extras={
+            {
+              lens: shareLens ?? undefined,
+              artifactText: shareLevel === "artifact"
+                ? stripMarkdown(
+                    flow.kind === "lenses" ? flow.lenses.mirror_artifact : "",
+                  )
+                : undefined,
+            } satisfies ShareBuilderExtras
+          }
+        />
       )}
     </div>
   );
 }
 
-function Lens({ label, body }: { label: string; body: string }) {
+function Lens({
+  label,
+  body,
+  onShare,
+  shareDisabled,
+}: {
+  label: string;
+  body: string;
+  onShare: () => void;
+  shareDisabled: boolean;
+}) {
   const clean = stripMarkdown(body);
   return (
     <section className="deep-lens">
@@ -310,13 +420,40 @@ function Lens({ label, body }: { label: string; body: string }) {
       <div className="deep-lens__divider" aria-hidden />
       <div className="deep-lens__body">{clean}</div>
       <div className="mt-2 flex justify-end">
-        <ShareButton
-          text={clean}
-          title={`${label} — Moonseed`}
-          preface={`${label} —`}
+        <ShareIconButton
           ariaLabel={`Share ${label}`}
+          disabled={shareDisabled}
+          onClick={onShare}
         />
       </div>
     </section>
+  );
+}
+
+/**
+ * Tiny ghost-icon trigger matching the rest of the app's share affordance.
+ * Opens the new ShareBuilder via its onClick — no text fallback any more.
+ */
+function ShareIconButton({
+  ariaLabel,
+  onClick,
+  disabled,
+}: {
+  ariaLabel: string;
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      className="inline-flex items-center justify-center rounded-full p-1.5 text-gold transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 disabled:opacity-40"
+      style={{ opacity: "var(--ro-plus-20)" }}
+      title="Share"
+    >
+      <Share2 size={18} strokeWidth={1.5} aria-hidden />
+    </button>
   );
 }
