@@ -152,6 +152,51 @@ export type Database = {
         }
         Relationships: []
       }
+      patterns: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_premium: boolean
+          is_user_named: boolean
+          lifecycle_state: string
+          name: string
+          reading_ids: string[]
+          retired_at: string | null
+          thread_ids: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_premium?: boolean
+          is_user_named?: boolean
+          lifecycle_state?: string
+          name: string
+          reading_ids?: string[]
+          retired_at?: string | null
+          thread_ids?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_premium?: boolean
+          is_user_named?: boolean
+          lifecycle_state?: string
+          name?: string
+          reading_ids?: string[]
+          retired_at?: string | null
+          thread_ids?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       reading_photos: {
         Row: {
           caption: string | null
@@ -203,6 +248,7 @@ export type Database = {
           mode: string
           moon_phase: string | null
           note: string | null
+          pattern_id: string | null
           question: string | null
           spread_type: string
           tags: string[]
@@ -223,6 +269,7 @@ export type Database = {
           mode?: string
           moon_phase?: string | null
           note?: string | null
+          pattern_id?: string | null
           question?: string | null
           spread_type: string
           tags?: string[]
@@ -243,6 +290,7 @@ export type Database = {
           mode?: string
           moon_phase?: string | null
           note?: string | null
+          pattern_id?: string | null
           question?: string | null
           spread_type?: string
           tags?: string[]
@@ -253,37 +301,58 @@ export type Database = {
       symbolic_threads: {
         Row: {
           card_ids: number[]
+          description: string | null
           detected_at: string
+          first_seen_at: string
           id: string
+          is_premium: boolean
+          last_seen_at: string
           name: string | null
+          pattern_id: string | null
           reading_ids: string[]
+          recurrence_count: number
           status: string
           summary: string
           tags: string[]
+          title: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           card_ids?: number[]
+          description?: string | null
           detected_at?: string
+          first_seen_at?: string
           id?: string
+          is_premium?: boolean
+          last_seen_at?: string
           name?: string | null
+          pattern_id?: string | null
           reading_ids?: string[]
+          recurrence_count?: number
           status?: string
           summary: string
           tags?: string[]
+          title?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           card_ids?: number[]
+          description?: string | null
           detected_at?: string
+          first_seen_at?: string
           id?: string
+          is_premium?: boolean
+          last_seen_at?: string
           name?: string | null
+          pattern_id?: string | null
           reading_ids?: string[]
+          recurrence_count?: number
           status?: string
           summary?: string
           tags?: string[]
+          title?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -499,6 +568,42 @@ export type Database = {
           name?: string
           usage_count?: number
           user_id?: string
+        }
+        Relationships: []
+      }
+      weaves: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_premium: boolean
+          pattern_ids: string[]
+          reading_ids: string[]
+          title: string
+          user_id: string
+          weave_type: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_premium?: boolean
+          pattern_ids?: string[]
+          reading_ids?: string[]
+          title: string
+          user_id: string
+          weave_type: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_premium?: boolean
+          pattern_ids?: string[]
+          reading_ids?: string[]
+          title?: string
+          user_id?: string
+          weave_type?: string
         }
         Relationships: []
       }
