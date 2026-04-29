@@ -679,7 +679,7 @@ function JournalPage() {
             }}
           />
         ) : (
-          <ThreadsView threads={threads} />
+          <ThreadsView threads={threads} patternsById={patternsById} />
         )}
       </div>
 
