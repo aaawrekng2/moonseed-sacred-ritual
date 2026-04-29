@@ -7,7 +7,9 @@
  *     are shown; per-context smart defaults set the initial level)
  *   - Color chip (collapsing row, see ColorChipSelector)
  *   - Content toggles (question / interpretation snippet, Levels 1 + 2)
- *   - Share + Save image actions (plain text, no pills)
+ *   - Share + Download PNG actions (plain text, no pills). The download
+ *     action is a guaranteed local fallback when the Web Share API
+ *     isn't available or the OS sheet fails.
  *
  * The preview is the SAME DOM that gets captured for the PNG. The
  * preview wrapper applies a CSS scale so the on-screen size fits the
@@ -213,7 +215,16 @@ export function ShareBuilder({
   }, [level, context.question]);
 
   const captureRef = useRef<HTMLDivElement | null>(null);
-  const { busy, toast, preview, prepare, confirm, cancelPreview } =
+  const {
+    busy,
+    toast,
+    preview,
+    prepare,
+    confirm,
+    cancelPreview,
+    lastError,
+    dismissError,
+  } =
     useShareCard({
       onPrepared: (intent) =>
         trackSharePrepare({ context: contextKind, level, intent, ok: true }),
@@ -237,6 +248,9 @@ export function ShareBuilder({
           error: errorMessage(error),
         }),
     });
+
+  const prepareError = lastError && lastError.step === "prepare" ? lastError : null;
+  const confirmError = lastError && lastError.step === "confirm" ? lastError : null;
 
   // Track cancel from the preview modal (user backed out of confirm).
   const handleCancelPreview = () => {
@@ -636,10 +650,23 @@ export function ShareBuilder({
                 disabled={busy !== null}
               />
               <PlainAction
-                label={busy === "save" ? "Saving…" : "Save image"}
+                label={busy === "save" ? "Downloading…" : "Download PNG"}
                 onClick={handleSave}
                 disabled={busy !== null}
               />
+            </div>
+            <div
+              style={{
+                textAlign: "center",
+                fontSize: "var(--text-caption)",
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: "var(--color-foreground)",
+                opacity: 0.5,
+                marginTop: "calc(var(--space-1) * -1)",
+              }}
+            >
+              Download PNG always works, even if Share is unavailable.
             </div>
             {toast && (
               <div
@@ -657,6 +684,15 @@ export function ShareBuilder({
                 {toast}
               </div>
             )}
+            {prepareError && (
+              <InlineErrorBanner
+                title={prepareError.title}
+                description={prepareError.description}
+                busy={busy !== null}
+                onRetry={prepareError.retry}
+                onDismiss={dismissError}
+              />
+            )}
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
@@ -665,6 +701,8 @@ export function ShareBuilder({
         busy={busy}
         onConfirm={() => void confirm()}
         onCancel={handleCancelPreview}
+        error={confirmError}
+        onDismissError={dismissError}
       />
     </Dialog>
   );
@@ -687,11 +725,15 @@ function SharePreviewModal({
   busy,
   onConfirm,
   onCancel,
+  error,
+  onDismissError,
 }: {
   preview: { intent: "share" | "save"; dataUrl: string; filename: string } | null;
   busy: ShareBusyState;
   onConfirm: () => void;
   onCancel: () => void;
+  error: { title: string; description: string; retry: () => void } | null;
+  onDismissError: () => void;
 }) {
   const open = !!preview;
   return (
@@ -731,7 +773,7 @@ function SharePreviewModal({
                   letterSpacing: "0.05em",
                 }}
               >
-                {preview?.intent === "save" ? "Save this image?" : "Share this image?"}
+                {preview?.intent === "save" ? "Download this PNG?" : "Share this image?"}
               </DialogTitle>
               <DialogDescription
                 style={{
@@ -741,7 +783,7 @@ function SharePreviewModal({
                 }}
               >
                 This is exactly what will{" "}
-                {preview?.intent === "save" ? "be downloaded" : "go to your share sheet"}.
+                {preview?.intent === "save" ? "be saved to your device" : "go to your share sheet"}.
               </DialogDescription>
             </div>
             <button
@@ -805,28 +847,46 @@ function SharePreviewModal({
               borderTop: "1px solid var(--border-subtle)",
               background: "var(--surface-card)",
               display: "flex",
-              gap: "var(--space-5)",
-              justifyContent: "center",
+              flexDirection: "column",
+              gap: "var(--space-3)",
+              alignItems: "stretch",
             }}
           >
-            <PlainAction
-              label="Back to edit"
-              onClick={onCancel}
-              disabled={busy !== null}
-            />
-            <PlainAction
-              label={
-                busy
-                  ? preview?.intent === "save"
-                    ? "Saving…"
-                    : "Sharing…"
-                  : preview?.intent === "save"
-                    ? "Save"
-                    : "Share"
-              }
-              onClick={onConfirm}
-              disabled={busy !== null || !preview}
-            />
+            {error && (
+              <InlineErrorBanner
+                title={error.title}
+                description={error.description}
+                busy={busy !== null}
+                onRetry={error.retry}
+                onDismiss={onDismissError}
+              />
+            )}
+            <div
+              style={{
+                display: "flex",
+                gap: "var(--space-5)",
+                justifyContent: "center",
+              }}
+            >
+              <PlainAction
+                label="Back to edit"
+                onClick={onCancel}
+                disabled={busy !== null}
+              />
+              <PlainAction
+                label={
+                  busy
+                    ? preview?.intent === "save"
+                      ? "Downloading…"
+                      : "Sharing…"
+                    : preview?.intent === "save"
+                      ? "Download PNG"
+                      : "Share"
+                }
+                onClick={onConfirm}
+                disabled={busy !== null || !preview}
+              />
+            </div>
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
@@ -895,6 +955,115 @@ function PlainAction({
     >
       {label}
     </button>
+  );
+}
+
+/**
+ * Inline, dismissible error banner with a Retry action. Shown next to
+ * the relevant controls so the seeker can recover without hunting for
+ * the toast — the toast still fires for cross-context visibility, but
+ * this banner persists until they retry or dismiss it.
+ */
+function InlineErrorBanner({
+  title,
+  description,
+  busy,
+  onRetry,
+  onDismiss,
+}: {
+  title: string;
+  description: string;
+  busy: boolean;
+  onRetry: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      style={{
+        display: "flex",
+        gap: "var(--space-3)",
+        alignItems: "flex-start",
+        padding: "var(--space-3)",
+        borderRadius: 10,
+        border: "1px solid color-mix(in oklab, var(--destructive, #b94a4a) 50%, transparent)",
+        background: "color-mix(in oklab, var(--destructive, #b94a4a) 10%, transparent)",
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "var(--text-caption)",
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            color: "var(--color-foreground)",
+            opacity: 0.95,
+            marginBottom: 4,
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "var(--text-caption)",
+            color: "var(--color-foreground)",
+            opacity: 0.75,
+            lineHeight: 1.45,
+          }}
+        >
+          {description}
+        </div>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--space-1)",
+          alignItems: "flex-end",
+        }}
+      >
+        <button
+          type="button"
+          onClick={onRetry}
+          disabled={busy}
+          style={{
+            background: "transparent",
+            border: "none",
+            padding: "2px 6px",
+            color: "var(--accent)",
+            fontFamily: "var(--font-sans)",
+            fontSize: "var(--text-caption)",
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            cursor: busy ? "not-allowed" : "pointer",
+            opacity: busy ? 0.5 : 1,
+          }}
+        >
+          {busy ? "Retrying…" : "Retry"}
+        </button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss error"
+          style={{
+            background: "transparent",
+            border: "none",
+            padding: "2px 6px",
+            color: "var(--color-foreground)",
+            opacity: 0.55,
+            fontFamily: "var(--font-sans)",
+            fontSize: "var(--text-caption)",
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+          }}
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
   );
 }
 
