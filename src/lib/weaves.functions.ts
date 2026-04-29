@@ -19,12 +19,18 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export type DetectWeavesResult = {
   ok: boolean;
   weaves_detected: number;
+  weaves_existing: number;
+};
+
+export type DetectWeavesCounts = {
+  inserted: number;
+  existing: number;
 };
 
 export async function detectWeavesForUser(
   supabase: { from: (table: string) => any },
   userId: string,
-): Promise<number> {
+): Promise<DetectWeavesCounts> {
   const sb = supabase as any;
 
   const { data: patternRows } = await sb
@@ -39,7 +45,7 @@ export async function detectWeavesForUser(
     thread_ids: string[];
     lifecycle_state: string;
   }>;
-  if (patterns.length < 2) return 0;
+  if (patterns.length < 2) return { inserted: 0, existing: 0 };
 
   const { data: existingWeaves } = await sb
     .from("weaves")
@@ -52,6 +58,7 @@ export async function detectWeavesForUser(
   );
 
   let inserted = 0;
+  let existing = 0;
   for (let i = 0; i < patterns.length; i++) {
     for (let j = i + 1; j < patterns.length; j++) {
       const a = patterns[i];
@@ -62,7 +69,10 @@ export async function detectWeavesForUser(
       if (sharedReadings.length < 2) continue;
 
       const key = [a.id, b.id].sort().join("|");
-      if (existingKeys.has(key)) continue;
+      if (existingKeys.has(key)) {
+        existing += 1;
+        continue;
+      }
 
       const { error } = await sb.from("weaves").insert({
         user_id: userId,
@@ -72,10 +82,20 @@ export async function detectWeavesForUser(
         pattern_ids: [a.id, b.id],
         reading_ids: sharedReadings,
       });
-      if (!error) inserted += 1;
+      if (!error) {
+        inserted += 1;
+        existingKeys.add(key);
+      } else if ((error as { code?: string }).code === "23505") {
+        // Unique-violation on (user_id, pattern_key): another concurrent
+        // run beat us to it. Treat as already-existing, not an error.
+        existing += 1;
+        existingKeys.add(key);
+      } else {
+        console.error("[detectWeavesForUser] insert failed", error);
+      }
     }
   }
-  return inserted;
+  return { inserted, existing };
 }
 
 export const detectWeaves = createServerFn({ method: "POST" })
@@ -83,10 +103,17 @@ export const detectWeaves = createServerFn({ method: "POST" })
   .handler(async ({ context }): Promise<DetectWeavesResult> => {
     try {
       const { supabase, userId } = context;
-      const inserted = await detectWeavesForUser(supabase, userId);
-      return { ok: true, weaves_detected: inserted };
+      const { inserted, existing } = await detectWeavesForUser(
+        supabase,
+        userId,
+      );
+      return {
+        ok: true,
+        weaves_detected: inserted,
+        weaves_existing: existing,
+      };
     } catch (e) {
       console.error("[detectWeaves] failed", e);
-      return { ok: false, weaves_detected: 0 };
+      return { ok: false, weaves_detected: 0, weaves_existing: 0 };
     }
   });
