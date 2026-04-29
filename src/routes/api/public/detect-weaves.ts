@@ -2,38 +2,32 @@
  * Public endpoint called by pg_cron nightly to detect weaves between
  * patterns for every active user.
  *
- * Security: protected by a shared bearer token (the Supabase service
- * role key). pg_cron passes it via the apikey header.
+ * Security: pg_cron passes the project's anon/publishable key via the
+ * `apikey` header. The handler verifies it matches the server's
+ * `SUPABASE_PUBLISHABLE_KEY` env var before doing anything.
  */
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { detectWeavesForUser } from "@/lib/weaves.functions";
 
 export const Route = createFileRoute("/api/public/detect-weaves")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const url = process.env.SUPABASE_URL;
-        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        if (!url || !serviceKey) {
+        const expected = process.env.SUPABASE_PUBLISHABLE_KEY;
+        if (!expected) {
           return new Response("Server not configured", { status: 500 });
         }
-        const auth =
-          request.headers.get("authorization") ??
+        const provided =
           request.headers.get("apikey") ??
+          request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
           "";
-        const token = auth.replace(/^Bearer\s+/i, "");
-        if (token !== serviceKey) {
+        if (provided !== expected) {
           return new Response("Unauthorized", { status: 401 });
         }
 
-        const admin = createClient<Database>(url, serviceKey, {
-          auth: { persistSession: false, autoRefreshToken: false },
-        });
-
         // Find every user that currently has at least 2 active patterns.
-        const { data: rows, error } = await admin
+        const { data: rows, error } = await supabaseAdmin
           .from("patterns")
           .select("user_id")
           .in("lifecycle_state", ["emerging", "active", "reawakened"]);
@@ -54,7 +48,7 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
         let totalDetected = 0;
         for (const userId of candidates) {
           try {
-            totalDetected += await detectWeavesForUser(admin, userId);
+            totalDetected += await detectWeavesForUser(supabaseAdmin, userId);
           } catch (e) {
             console.error("[detect-weaves cron] user failed", userId, e);
           }
