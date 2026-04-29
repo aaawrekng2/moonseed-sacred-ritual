@@ -554,6 +554,46 @@ jobs:
           fi
           echo "Confirmation phrase accepted — proceeding with snapshot refresh."
 
+      # Surface the concurrency group this run belongs to, plus a
+      # heads-up that a newer dispatch for the SAME group will cancel
+      # this run mid-flight (because `cancel-in-progress: true`).
+      #
+      # The group key is duplicated here as a literal because there's
+      # no `${{ job.concurrency.group }}` expression — keep it in sync
+      # with the `concurrency:` block above if you change either.
+      #
+      # We also detect the "this run was superseded" case from the
+      # OPPOSITE direction: when GitHub cancels a run because a newer
+      # one took its slot, the cancellation fires as the workflow is
+      # already running. The `post-run` step at the end of the job
+      # uses `if: cancelled()` to print the corresponding notice.
+      - name: Announce concurrency group
+        env:
+          GROUP: update-snapshots-${{ github.repository }}-${{ inputs.snapshot_scope }}
+        run: |
+          set -euo pipefail
+          echo "::notice title=Concurrency group::$GROUP"
+          echo ""
+          echo "─── update-snapshots concurrency ───"
+          echo "  Group key         : $GROUP"
+          echo "  cancel-in-progress: true"
+          echo "  Run ID            : ${{ github.run_id }}"
+          echo "  Run attempt       : ${{ github.run_attempt }}"
+          echo "  Triggered by      : @${{ github.actor }}"
+          echo "  Snapshot scope    : ${{ inputs.snapshot_scope }}"
+          echo "────────────────────────────────────"
+          echo ""
+          echo "If another 'Run workflow' is dispatched for the SAME"
+          echo "group while this run is still in flight, this run will"
+          echo "be cancelled and superseded by the newer one."
+          {
+            echo "## update-snapshots concurrency"
+            echo ""
+            echo "- **Group:** \`$GROUP\`"
+            echo "- **cancel-in-progress:** \`true\` (newer dispatch supersedes this run)"
+            echo "- **Run:** [#${{ github.run_id }} attempt ${{ github.run_attempt }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -754,3 +794,24 @@ jobs:
             exit 1
           fi
           echo "Atomicity check passed: $PUSHED_SHA descends from baseline $BASELINE_SHA."
+
+      # If GitHub cancels this run because a newer dispatch claimed
+      # the same concurrency group, the cancellation fires mid-flight
+      # and `cancelled()` becomes true. Surface that explicitly so the
+      # workflow log has a clear "I was superseded" line instead of
+      # just an unexplained ❌ on the run page.
+      - name: Report supersession (if cancelled by newer run)
+        if: cancelled()
+        env:
+          GROUP: update-snapshots-${{ github.repository }}-${{ inputs.snapshot_scope }}
+        run: |
+          set -euo pipefail
+          echo "::warning title=Run superseded::This run was cancelled — a newer dispatch claimed concurrency group '$GROUP'."
+          {
+            echo ""
+            echo "## ⚠️ Run superseded"
+            echo ""
+            echo "This run was cancelled because a newer dispatch claimed the concurrency group \`$GROUP\` (\`cancel-in-progress: true\`)."
+            echo ""
+            echo "Check the [Actions tab](${{ github.server_url }}/${{ github.repository }}/actions) for the newer run."
+          } >> "$GITHUB_STEP_SUMMARY"
