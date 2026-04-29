@@ -461,3 +461,118 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
       throw e;
     }
   });
+
+/* ---------- previewDetectWeavesAdmin ---------- */
+
+/**
+ * Admin-only preview ("dry run") for the Weave detector.
+ *
+ * Returns the weaves that WOULD be created on a real run for either a
+ * single user or every user with ≥2 active patterns, WITHOUT writing
+ * anything to the `weaves` table or the `detect_weaves_runs` log. Useful
+ * for inspecting what the detector is about to do before actually
+ * triggering it.
+ */
+export const previewDetectWeavesAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .union([
+        z.object({ scope: z.literal("all") }),
+        z.object({ scope: z.literal("user"), userId: z.string().uuid() }),
+      ])
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId, claims } = context;
+    await assertAdmin(supabase, userId);
+    const actorEmail = (claims as any)?.email ?? null;
+
+    const startedAt = Date.now();
+    let candidates: string[] = [];
+
+    if (data.scope === "user") {
+      candidates = [data.userId];
+    } else {
+      const { data: rows, error } = await supabaseAdmin
+        .from("patterns")
+        .select("user_id")
+        .in("lifecycle_state", ["emerging", "active", "reawakened"]);
+      if (error) throw new Error(error.message);
+      const counts = new Map<string, number>();
+      for (const r of (rows ?? []) as Array<{ user_id: string }>) {
+        counts.set(r.user_id, (counts.get(r.user_id) ?? 0) + 1);
+      }
+      candidates = Array.from(counts.entries())
+        .filter(([, c]) => c >= 2)
+        .map(([u]) => u)
+        .slice(0, MAX_USERS_PER_MANUAL_RUN);
+    }
+
+    type PerUser = {
+      user_id: string;
+      would_create: WeavePreview[];
+      already_existing: number;
+      error?: string;
+    };
+    const perUser: PerUser[] = [];
+    let totalWouldCreate = 0;
+    let totalAlreadyExisting = 0;
+    let errorCount = 0;
+    for (const uid of candidates) {
+      try {
+        const { would_create, already_existing } = await previewWeavesForUser(
+          supabaseAdmin,
+          uid,
+        );
+        totalWouldCreate += would_create.length;
+        totalAlreadyExisting += already_existing;
+        if (would_create.length > 0 || already_existing > 0) {
+          perUser.push({
+            user_id: uid,
+            would_create,
+            already_existing,
+          });
+        }
+      } catch (e) {
+        errorCount += 1;
+        perUser.push({
+          user_id: uid,
+          would_create: [],
+          already_existing: 0,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+
+    const duration_ms = Date.now() - startedAt;
+
+    // Audit-log the preview itself (read-only, but worth recording who
+    // peeked at the dry-run output for which scope).
+    await logAction(
+      userId,
+      actorEmail,
+      "preview_detect_weaves",
+      data.scope === "user" ? data.userId : null,
+      null,
+      {
+        scope: data.scope,
+        users_scanned: candidates.length,
+        would_create: totalWouldCreate,
+        already_existing: totalAlreadyExisting,
+        errors: errorCount,
+        duration_ms,
+      },
+    );
+
+    return {
+      ok: true,
+      dry_run: true,
+      users_scanned: candidates.length,
+      would_create: totalWouldCreate,
+      already_existing: totalAlreadyExisting,
+      errors: errorCount,
+      duration_ms,
+      per_user: perUser,
+    } as const;
+  });
