@@ -1201,7 +1201,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
       }}
     >
       <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
-        This reading{" "}
+        This reading {suggestion.reason} with{" "}
         <Link
           to="/threads/$patternId"
           params={{ patternId: suggestion.id }}
@@ -1213,7 +1213,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
             borderBottom: "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
           }}
         >
-          {suggestion.reason} {suggestion.name}
+          {suggestion.name}
         </Link>
         .
       </span>
