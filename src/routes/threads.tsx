@@ -605,7 +605,13 @@ function WeavesView({
   );
 }
 
-function ArchiveView({ patterns }: { patterns: Pattern[] }) {
+function ArchiveView({
+  patterns,
+  readingsByPattern,
+}: {
+  patterns: Pattern[];
+  readingsByPattern: Map<string, PatternReading[]>;
+}) {
   if (patterns.length === 0) {
     return (
       <p
@@ -622,39 +628,19 @@ function ArchiveView({ patterns }: { patterns: Pattern[] }) {
     );
   }
   return (
-    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: "var(--space-3, 12px)" }}>
+    <ul
+      style={{
+        listStyle: "none",
+        margin: 0,
+        padding: 0,
+        display: "grid",
+        gap: "var(--space-3, 12px)",
+        opacity: 0.85,
+      }}
+    >
       {patterns.map((p) => (
-        <li
-          key={p.id}
-          style={{
-            padding: "var(--space-3, 12px) var(--space-4, 16px)",
-            borderRadius: "var(--radius-md, 10px)",
-            border: "1px solid var(--border-subtle, rgba(255,255,255,0.06))",
-            opacity: 0.7,
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontSize: "var(--text-body-lg)",
-              color: "var(--color-foreground)",
-            }}
-          >
-            {p.name}
-          </div>
-          <div
-            style={{
-              fontSize: "var(--text-caption)",
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              color: "var(--color-foreground)",
-              opacity: 0.5,
-              marginTop: 2,
-            }}
-          >
-            {p.lifecycle_state === "retired" ? "Retired" : "Quieting"} ·{" "}
-            {formatDateSpan(p.created_at, p.retired_at)}
-          </div>
+        <li key={p.id}>
+          <PatternCard pattern={p} readings={readingsByPattern.get(p.id) ?? []} />
         </li>
       ))}
     </ul>
