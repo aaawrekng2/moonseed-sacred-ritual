@@ -34,6 +34,21 @@ on:
         description: "Type UPDATE to confirm. Required when update_snapshots=true."
         type: string
         default: ""
+      snapshot_scope:
+        # Which snapshot files to regenerate. Defaults to the timezone
+        # suite — the only one this workflow exists to manage. `all`
+        # is provided as an escape hatch (e.g. after a Vitest version
+        # bump that changes serialization), but it's deliberately NOT
+        # the default because a sweeping snapshot refresh is rarely
+        # what someone actually wants, and bundles unrelated diffs
+        # into a single PR.
+        description: "Which snapshots to refresh"
+        type: choice
+        options:
+          - use-timezone   # only src/lib/use-timezone* tests
+          - lib            # everything under src/lib
+          - all            # every snapshot in the repo
+        default: use-timezone
 
 # ---------------------------------------------------------------------------
 # Pinned fast-check seed for the property-based suite.
