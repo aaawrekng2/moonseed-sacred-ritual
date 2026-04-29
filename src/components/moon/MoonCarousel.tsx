@@ -243,7 +243,7 @@ export function MoonCarousel() {
   // the surrounding 3-day highlight window, so May 31 at 4 AM appears
   // between May 30 and May 31 — not between May 29 and May 30.
   useEffect(() => {
-    if (!peakDay || !peakMarkerSide) {
+    if (!peakYmd || !peakMarkerSide) {
       setMarkerLeft(null);
       return;
     }
@@ -252,7 +252,7 @@ export function MoonCarousel() {
       if (!row) return;
       const rowRect = row.getBoundingClientRect();
       const peakIdx = days.findIndex((d) =>
-        isSameDayInTz(d.info.date, peakDay, effectiveTz),
+        getYmdInTz(d.info.date, effectiveTz) === peakYmd,
       );
       const neighborIdx = peakMarkerSide === "left" ? peakIdx - 1 : peakIdx + 1;
       if (peakIdx < 0 || neighborIdx < 0 || neighborIdx >= days.length) {
@@ -281,7 +281,7 @@ export function MoonCarousel() {
       cancelAnimationFrame(id);
       window.removeEventListener("resize", measure);
     };
-  }, [peakDay, peakMarkerSide, days, offset, transitioning, isMobile, effectiveTz]);
+  }, [peakYmd, peakMarkerSide, days, offset, transitioning, isMobile, effectiveTz]);
 
   const [recomputing, setRecomputing] = useState(false);
   const recomputeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -542,9 +542,7 @@ export function MoonCarousel() {
             const topOffset = absRel === 0 ? 0 : absRel === 1 ? 52 : 68;
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
-            const isGoldDay = goldDates.some((g) =>
-              isSameDayInTz(g, d.info.date, effectiveTz),
-            );
+            const isGoldDay = goldYmds.includes(getYmdInTz(d.info.date, effectiveTz));
             return (
               <div
                 // Stable key by window slot index — prevents React from
