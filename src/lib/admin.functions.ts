@@ -15,6 +15,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { detectWeavesForUser } from "@/lib/weaves.functions";
 
 async function assertAdmin(supabase: any, userId: string): Promise<void> {
   const { data, error } = await supabase.rpc("has_admin_role", {
@@ -317,4 +318,133 @@ export const restoreAdminBackup = createServerFn({ method: "POST" })
       { backup_id: data.backupId },
     );
     return { ok: true, requiresManualRun: true } as const;
+  });
+
+/* ---------- runDetectWeavesAdmin ---------- */
+
+/**
+ * Admin-only manual trigger for the Weave detector.
+ *
+ * Scope is either:
+ *  - { mode: "user", userId } — run for a single user
+ *  - { mode: "all" }          — run for every user with ≥2 active patterns
+ *
+ * Persists a row in `detect_weaves_runs` with mode="manual" and the
+ * triggering admin id, plus an entry in `admin_audit_log`.
+ */
+const MAX_USERS_PER_MANUAL_RUN = 500;
+
+export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .union([
+        z.object({ scope: z.literal("all") }),
+        z.object({ scope: z.literal("user"), userId: z.string().uuid() }),
+      ])
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId, claims } = context;
+    await assertAdmin(supabase, userId);
+    const actorEmail = (claims as any)?.email ?? null;
+
+    const startedAt = Date.now();
+    let candidates: string[] = [];
+
+    try {
+      if (data.scope === "user") {
+        candidates = [data.userId];
+      } else {
+        const { data: rows, error } = await supabaseAdmin
+          .from("patterns")
+          .select("user_id")
+          .in("lifecycle_state", ["emerging", "active", "reawakened"]);
+        if (error) throw new Error(error.message);
+        const counts = new Map<string, number>();
+        for (const r of (rows ?? []) as Array<{ user_id: string }>) {
+          counts.set(r.user_id, (counts.get(r.user_id) ?? 0) + 1);
+        }
+        candidates = Array.from(counts.entries())
+          .filter(([, c]) => c >= 2)
+          .map(([u]) => u)
+          .slice(0, MAX_USERS_PER_MANUAL_RUN);
+      }
+
+      let totalDetected = 0;
+      const perUserErrors: Array<{ user_id: string; error: string }> = [];
+      for (const uid of candidates) {
+        try {
+          totalDetected += await detectWeavesForUser(supabaseAdmin, uid);
+        } catch (e) {
+          perUserErrors.push({
+            user_id: uid,
+            error: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
+
+      const finishedAt = Date.now();
+      const status =
+        perUserErrors.length === candidates.length && candidates.length > 0
+          ? "error"
+          : perUserErrors.length > 0
+            ? "partial"
+            : "success";
+
+      await supabaseAdmin.from("detect_weaves_runs" as never).insert({
+        started_at: new Date(startedAt).toISOString(),
+        finished_at: new Date(finishedAt).toISOString(),
+        duration_ms: finishedAt - startedAt,
+        users_scanned: candidates.length,
+        weaves_detected: totalDetected,
+        status,
+        message:
+          data.scope === "user"
+            ? `manual run for user ${data.userId}`
+            : "manual run for all eligible users",
+        per_user_errors: perUserErrors,
+        mode: "manual",
+        triggered_by: userId,
+      } as never);
+
+      await logAction(
+        userId,
+        actorEmail,
+        "run_detect_weaves",
+        data.scope === "user" ? data.userId : null,
+        null,
+        {
+          scope: data.scope,
+          users_scanned: candidates.length,
+          weaves_detected: totalDetected,
+          errors: perUserErrors.length,
+          duration_ms: finishedAt - startedAt,
+        },
+      );
+
+      return {
+        ok: true,
+        users_scanned: candidates.length,
+        weaves_detected: totalDetected,
+        errors: perUserErrors.length,
+        status,
+      } as const;
+    } catch (e) {
+      const finishedAt = Date.now();
+      const message = e instanceof Error ? e.message : String(e);
+      await supabaseAdmin.from("detect_weaves_runs" as never).insert({
+        started_at: new Date(startedAt).toISOString(),
+        finished_at: new Date(finishedAt).toISOString(),
+        duration_ms: finishedAt - startedAt,
+        users_scanned: candidates.length,
+        weaves_detected: 0,
+        status: "error",
+        message: `manual run failed: ${message}`,
+        per_user_errors: [],
+        mode: "manual",
+        triggered_by: userId,
+      } as never);
+      throw e;
+    }
   });

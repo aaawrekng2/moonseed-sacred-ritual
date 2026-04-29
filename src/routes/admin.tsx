@@ -43,6 +43,7 @@ import {
   getBackupDownloadUrl,
   listAdminUsers,
   restoreAdminBackup,
+  runDetectWeavesAdmin,
 } from "@/lib/admin.functions";
 import { setDevMode } from "@/components/dev/DevOverlay";
 
@@ -732,7 +733,179 @@ function DashboardTab() {
           </table>
         </div>
       </section>
+      <DetectWeavesPanel />
     </div>
+  );
+}
+
+/* ---------- Detect-weaves manual trigger ---------- */
+
+function DetectWeavesPanel() {
+  const [userId, setUserId] = useState("");
+  const [busy, setBusy] = useState<"user" | "all" | null>(null);
+  const [result, setResult] = useState<{
+    tone: "ok" | "warn" | "err";
+    text: string;
+  } | null>(null);
+
+  const validUuid = (v: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      v.trim(),
+    );
+
+  const run = async (scope: "user" | "all") => {
+    if (busy) return;
+    if (scope === "user" && !validUuid(userId)) {
+      setResult({ tone: "err", text: "Enter a valid user UUID first." });
+      return;
+    }
+    setBusy(scope);
+    setResult(null);
+    try {
+      const res = await runDetectWeavesAdmin({
+        headers: await authHeaders(),
+        data:
+          scope === "user"
+            ? { scope: "user", userId: userId.trim() }
+            : { scope: "all" },
+      });
+      const tone =
+        res.status === "success"
+          ? "ok"
+          : res.status === "partial"
+            ? "warn"
+            : "err";
+      setResult({
+        tone,
+        text: `Scanned ${res.users_scanned} user${
+          res.users_scanned === 1 ? "" : "s"
+        } · detected ${res.weaves_detected} weave${
+          res.weaves_detected === 1 ? "" : "s"
+        }${res.errors > 0 ? ` · ${res.errors} error${res.errors === 1 ? "" : "s"}` : ""}.`,
+      });
+    } catch (e) {
+      setResult({
+        tone: "err",
+        text: e instanceof Error ? e.message : "Run failed.",
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toneColor =
+    result?.tone === "ok"
+      ? "var(--accent, var(--gold))"
+      : result?.tone === "warn"
+        ? "oklch(0.78 0.13 70)"
+        : "oklch(0.7 0.18 25)";
+
+  return (
+    <section>
+      <SectionTitle>Detect weaves · manual run</SectionTitle>
+      <div
+        className="mt-4"
+        style={{
+          border: "1px solid var(--border-subtle)",
+          background:
+            "color-mix(in oklab, var(--background) 92%, transparent)",
+          padding: 16,
+          display: "flex",
+          flexDirection: "column",
+          gap: 12,
+        }}
+      >
+        <p
+          style={{
+            ...serif,
+            fontSize: "var(--text-body-sm)",
+            opacity: 0.7,
+            margin: 0,
+          }}
+        >
+          Re-run weave detection on demand. Each run is logged with timing,
+          counts, and any per-user errors.
+        </p>
+
+        <div
+          className="flex flex-col gap-2 md:flex-row md:items-center"
+          style={{ gap: 8 }}
+        >
+          <input
+            type="text"
+            placeholder="User UUID"
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+            disabled={busy !== null}
+            spellCheck={false}
+            style={{
+              ...serif,
+              flex: "1 1 320px",
+              padding: "8px 10px",
+              border: "1px solid var(--border-subtle)",
+              background: "rgba(0,0,0,0.25)",
+              color: "var(--foreground)",
+              fontSize: "var(--text-body-sm)",
+              fontFamily: "var(--font-mono, monospace)",
+              opacity: busy !== null ? 0.5 : 1,
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => void run("user")}
+            disabled={busy !== null || !userId.trim()}
+            style={{
+              ...display,
+              fontSize: 11,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              padding: "8px 14px",
+              border: "1px solid var(--accent, var(--gold))",
+              background: "transparent",
+              color: "var(--accent, var(--gold))",
+              cursor:
+                busy !== null || !userId.trim() ? "default" : "pointer",
+              opacity: busy !== null || !userId.trim() ? 0.5 : 1,
+            }}
+          >
+            {busy === "user" ? "Running…" : "Run for user"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void run("all")}
+            disabled={busy !== null}
+            style={{
+              ...display,
+              fontSize: 11,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              padding: "8px 14px",
+              border: "1px solid var(--accent, var(--gold))",
+              background: "var(--accent, var(--gold))",
+              color: "#0f1117",
+              cursor: busy !== null ? "default" : "pointer",
+              opacity: busy !== null ? 0.7 : 1,
+            }}
+          >
+            {busy === "all" ? "Running…" : "Run for all users"}
+          </button>
+        </div>
+
+        {result && (
+          <p
+            style={{
+              ...serif,
+              fontSize: "var(--text-body-sm)",
+              fontStyle: "italic",
+              color: toneColor,
+              margin: 0,
+            }}
+          >
+            {result.text}
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
 

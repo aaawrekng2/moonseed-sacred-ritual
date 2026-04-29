@@ -26,6 +26,35 @@ const MAX_USERS_PER_RUN = 500;
 
 let lastRunAt = 0;
 
+type RunStatus = "success" | "partial" | "refused" | "error";
+type PerUserError = { user_id: string; error: string };
+
+async function recordRun(opts: {
+  startedAt: number;
+  status: RunStatus;
+  usersScanned?: number;
+  weavesDetected?: number;
+  message?: string;
+  perUserErrors?: PerUserError[];
+}): Promise<void> {
+  const finishedAt = Date.now();
+  try {
+    await supabaseAdmin.from("detect_weaves_runs").insert({
+      started_at: new Date(opts.startedAt).toISOString(),
+      finished_at: new Date(finishedAt).toISOString(),
+      duration_ms: finishedAt - opts.startedAt,
+      users_scanned: opts.usersScanned ?? 0,
+      weaves_detected: opts.weavesDetected ?? 0,
+      status: opts.status,
+      message: opts.message ?? null,
+      per_user_errors: opts.perUserErrors ?? [],
+    });
+  } catch (e) {
+    // Logging must never break the run itself.
+    console.error("[detect-weaves] failed to persist run log", e);
+  }
+}
+
 function safeEqual(a: string, b: string): boolean {
   // Pad to equal length so timingSafeEqual doesn't throw and length is
   // not itself a timing oracle.
@@ -43,6 +72,7 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        const startedAt = Date.now();
         const cronSecret = process.env.DETECT_WEAVES_CRON_SECRET;
 
         // If the server secret isn't configured, refuse — never fall
@@ -51,11 +81,18 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
           console.error(
             "[detect-weaves] refused: DETECT_WEAVES_CRON_SECRET is not set",
           );
+          await recordRun({
+            startedAt,
+            status: "refused",
+            message: "DETECT_WEAVES_CRON_SECRET is not set",
+          });
           return new Response("Server not configured", { status: 503 });
         }
 
         const cronHeader = request.headers.get("x-cron-secret") ?? "";
         if (!safeEqual(cronHeader, cronSecret)) {
+          // Don't log unauthorized attempts to the runs table — those
+          // are not real scans and would let an attacker spam logs.
           return new Response("Unauthorized", { status: 401 });
         }
 
@@ -68,6 +105,11 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
           const retryAfter = Math.ceil(
             (MIN_INTERVAL_MS - (now - lastRunAt)) / 1000,
           );
+          await recordRun({
+            startedAt,
+            status: "refused",
+            message: `cooldown active, retry after ${retryAfter}s`,
+          });
           return new Response("Too soon", {
             status: 429,
             headers: { "retry-after": String(retryAfter) },
@@ -82,6 +124,11 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
           .in("lifecycle_state", ["emerging", "active", "reawakened"]);
         if (error) {
           console.error("[detect-weaves] load patterns failed", error.message);
+          await recordRun({
+            startedAt,
+            status: "error",
+            message: `load patterns failed: ${error.message}`,
+          });
           return new Response("Internal error", { status: 500 });
         }
         const userCounts = new Map<string, number>();
@@ -95,17 +142,30 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
           .slice(0, MAX_USERS_PER_RUN);
 
         let totalDetected = 0;
+        const perUserErrors: PerUserError[] = [];
         for (const userId of candidates) {
           try {
             totalDetected += await detectWeavesForUser(supabaseAdmin, userId);
           } catch (e) {
             console.error("[detect-weaves cron] user failed", userId, e);
+            perUserErrors.push({
+              user_id: userId,
+              error: e instanceof Error ? e.message : String(e),
+            });
           }
         }
+        await recordRun({
+          startedAt,
+          status: perUserErrors.length > 0 ? "partial" : "success",
+          usersScanned: candidates.length,
+          weavesDetected: totalDetected,
+          perUserErrors,
+        });
         return Response.json({
           ok: true,
           users_scanned: candidates.length,
           weaves_detected: totalDetected,
+          errors: perUserErrors.length,
         });
       },
     },
