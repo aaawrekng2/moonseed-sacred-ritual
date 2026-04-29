@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, Loader2 } from "lucide-react";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
@@ -37,7 +37,6 @@ import {
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { supabase } from "@/integrations/supabase/client";
 import { setDevMode } from "@/components/dev/DevOverlay";
-import { useEffect } from "react";
 
 /**
  * Settings page section components, ported from the source bundle and
