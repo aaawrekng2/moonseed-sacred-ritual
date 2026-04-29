@@ -323,3 +323,9 @@ export function getDayInTz(todayInTz: Date, offsetDays: number, timeZone?: strin
     ),
   );
 }
+
+/** UTC instant for local midnight of a timezone calendar day. */
+export function getStartOfDayInTz(dayInTz: Date, timeZone: string, offsetDays = 0): Date {
+  const { year, month, day } = getDatePartsInTz(dayInTz, timeZone);
+  return localDateTimeToUtc(timeZone, year, month, day + offsetDays, 0, 0);
+}
