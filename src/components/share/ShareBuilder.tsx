@@ -847,28 +847,46 @@ function SharePreviewModal({
               borderTop: "1px solid var(--border-subtle)",
               background: "var(--surface-card)",
               display: "flex",
-              gap: "var(--space-5)",
-              justifyContent: "center",
+              flexDirection: "column",
+              gap: "var(--space-3)",
+              alignItems: "stretch",
             }}
           >
-            <PlainAction
-              label="Back to edit"
-              onClick={onCancel}
-              disabled={busy !== null}
-            />
-            <PlainAction
-              label={
-                busy
-                  ? preview?.intent === "save"
-                    ? "Downloading…"
-                    : "Sharing…"
-                  : preview?.intent === "save"
-                    ? "Download PNG"
-                    : "Share"
-              }
-              onClick={onConfirm}
-              disabled={busy !== null || !preview}
-            />
+            {error && (
+              <InlineErrorBanner
+                title={error.title}
+                description={error.description}
+                busy={busy !== null}
+                onRetry={error.retry}
+                onDismiss={onDismissError}
+              />
+            )}
+            <div
+              style={{
+                display: "flex",
+                gap: "var(--space-5)",
+                justifyContent: "center",
+              }}
+            >
+              <PlainAction
+                label="Back to edit"
+                onClick={onCancel}
+                disabled={busy !== null}
+              />
+              <PlainAction
+                label={
+                  busy
+                    ? preview?.intent === "save"
+                      ? "Downloading…"
+                      : "Sharing…"
+                    : preview?.intent === "save"
+                      ? "Download PNG"
+                      : "Share"
+                }
+                onClick={onConfirm}
+                disabled={busy !== null || !preview}
+              />
+            </div>
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
