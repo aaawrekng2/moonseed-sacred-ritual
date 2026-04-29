@@ -160,6 +160,7 @@ export function EnrichmentPanel({
   onTagLibraryChange,
   onPhotoCountChange,
   copyText,
+  onShare,
 }: Props) {
   // Local mirrors of the reading fields so typing is responsive.
   const [note, setNote] = useState(reading.note ?? "");
