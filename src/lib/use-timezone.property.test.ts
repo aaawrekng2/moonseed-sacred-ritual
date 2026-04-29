@@ -88,9 +88,19 @@ type RunOptions = {
 function runProperty(opts: RunOptions): void {
   // fc.check returns Promise<RunDetails> for async properties and
   // RunDetails for sync ones. Our predicates are all sync, so narrow.
+  // CI pins FC_SEED so failures on a pull request are byte-for-byte
+  // reproducible locally with the same env var. When unset (typical
+  // local dev) fast-check picks a fresh seed each run for broader
+  // coverage over time.
+  const seedEnv = process.env.FC_SEED;
+  const seed = seedEnv !== undefined && seedEnv !== "" ? Number(seedEnv) : undefined;
+  if (seed !== undefined && !Number.isFinite(seed)) {
+    throw new Error(`FC_SEED must be a finite number, got: ${JSON.stringify(seedEnv)}`);
+  }
   const result = fc.check(opts.property, {
     numRuns: opts.numRuns ?? 500,
     verbose: fc.VerbosityLevel.Verbose,
+    ...(seed !== undefined ? { seed } : {}),
   }) as fc.RunDetails<unknown>;
 
   if (!result.failed) return;

@@ -10,6 +10,33 @@ on:
     branches: ["**"]
   pull_request:
 
+# ---------------------------------------------------------------------------
+# Pinned fast-check seed for the property-based suite.
+#
+# WHY a fixed seed in CI:
+#   - Pull requests must be deterministic. A flaky property failure on PR #N
+#     that disappears on rerun is worse than no test at all — reviewers
+#     can't tell signal from noise.
+#   - With FC_SEED pinned, every PR run explores the SAME 500 instants per
+#     property. A failure here is reproducible locally, byte-for-byte:
+#         FC_SEED=20260429 npm run test:tz:property
+#
+# WHY this specific value (20260429):
+#   - It's just today's date (YYYYMMDD) at the time the seed was chosen.
+#     No magic — it's documented so future maintainers know it isn't load-
+#     bearing. Bump it deliberately (e.g. once a quarter) to widen coverage,
+#     and update this comment + the README when you do.
+#
+# WHY a separate job (not just an env var on the matrix job):
+#   - The matrix job exercises the unit + snapshot + property tests under
+#     several Node versions and system TZs to catch host-leak bugs. Adding
+#     a pinned seed there would mask the value of a fresh seed per matrix
+#     cell. The dedicated `property-tests-pinned-seed` job below is the
+#     one PR reviewers should treat as the authoritative property gate.
+# ---------------------------------------------------------------------------
+env:
+  TIMEZONE_PROPERTY_SEED: "20260429"
+
 jobs:
   timezone-tests:
     name: Timezone helpers (Node ${{ matrix.node }}, TZ=${{ matrix.tz }})
@@ -48,3 +75,37 @@ jobs:
             git --no-pager diff src/lib/__snapshots__
             exit 1
           fi
+
+  property-tests-pinned-seed:
+    name: Property suite (pinned seed ${{ env.TIMEZONE_PROPERTY_SEED }})
+    # Only gate pull requests on the pinned-seed run. Push builds already
+    # cover this through the matrix job above (with fresh seeds), and we
+    # don't want to double-bill every push.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      TZ: "UTC"
+      CI: "true"
+      # Hand the documented seed to fast-check via the test runner. See
+      # runProperty() in src/lib/use-timezone.property.test.ts for how this
+      # is consumed.
+      FC_SEED: ${{ env.TIMEZONE_PROPERTY_SEED }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run property suite with pinned seed
+        run: |
+          echo "Using fast-check seed: $FC_SEED"
+          echo "To reproduce a failure locally:"
+          echo "  FC_SEED=$FC_SEED npm run test:tz:property"
+          npm run test:tz:property
