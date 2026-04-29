@@ -265,3 +265,37 @@ export function formatTimeInTz(date: Date, timeZone: string): string {
     hour12: true,
   }).format(date);
 }
+
+/**
+ * Integer day offset between two moments as observed in one IANA timezone.
+ * This compares local Y/M/D values, not milliseconds, so DST and date-line
+ * crossings cannot shift a moon event onto the wrong carousel day.
+ */
+export function getDayOffsetInTz(target: Date, reference: Date, timeZone: string): number {
+  const t = getDatePartsInTz(target, timeZone);
+  const r = getDatePartsInTz(reference, timeZone);
+  const tMs = Date.UTC(t.year, t.month - 1, t.day);
+  const rMs = Date.UTC(r.year, r.month - 1, r.day);
+  return Math.round((tMs - rMs) / (24 * 60 * 60 * 1000));
+}
+
+/** Day-level representation of "today" in the user's timezone. */
+export function getTodayInTz(timeZone: string, now: Date = new Date()): Date {
+  const { year, month, day } = getDatePartsInTz(now, timeZone);
+  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+}
+
+/** Day-level representation offset from a timezone-local calendar day. */
+export function getDayInTz(todayInTz: Date, offsetDays: number): Date {
+  return new Date(
+    Date.UTC(
+      todayInTz.getUTCFullYear(),
+      todayInTz.getUTCMonth(),
+      todayInTz.getUTCDate() + offsetDays,
+      12,
+      0,
+      0,
+      0,
+    ),
+  );
+}
