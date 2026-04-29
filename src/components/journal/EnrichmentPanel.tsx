@@ -898,6 +898,39 @@ function SaveIndicator({
 
 /* ---------- Pattern surfacing (Phase 9) ---------- */
 
+const DISMISS_STORAGE_PREFIX = "pattern-suggestion-dismissed:";
+// Dismissals expire after 30 days so a long-lived pattern can resurface later.
+const DISMISS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+function isDismissed(readingId: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.localStorage.getItem(DISMISS_STORAGE_PREFIX + readingId);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw) as { at?: number };
+    if (typeof parsed?.at !== "number") return false;
+    if (Date.now() - parsed.at > DISMISS_TTL_MS) {
+      window.localStorage.removeItem(DISMISS_STORAGE_PREFIX + readingId);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function markDismissed(readingId: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      DISMISS_STORAGE_PREFIX + readingId,
+      JSON.stringify({ at: Date.now() }),
+    );
+  } catch {
+    // ignore quota errors
+  }
+}
+
 function PatternSurfacingLine({ readingId }: { readingId: string }) {
   const [pattern, setPattern] = useState<{
     id: string;
@@ -911,13 +944,13 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
     reason: string;
   } | null>(null);
   const [attaching, setAttaching] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => isDismissed(readingId));
 
   useEffect(() => {
     let cancelled = false;
     setPattern(null);
     setSuggestion(null);
-    setDismissed(false);
+    setDismissed(isDismissed(readingId));
     void (async () => {
       const { data: r } = await supabase
         .from("readings")
@@ -1180,7 +1213,10 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
         </button>
         <button
           type="button"
-          onClick={() => setDismissed(true)}
+          onClick={() => {
+            markDismissed(readingId);
+            setDismissed(true);
+          }}
           disabled={attaching}
           style={{
             background: "none",
