@@ -584,7 +584,7 @@ function ChamberWeaveGraph({
     };
   }, [userId, pattern.id, pattern.reading_ids]);
 
-  if (loading) return null;
+  if (loading) return <WeaveGraphSkeleton />;
 
   const siblingList = Object.values(siblings);
   // Nothing meaningful to draw — bail.
@@ -905,6 +905,115 @@ function ChamberWeaveGraph({
         })()}
       </div>
       <WeaveGraphLegend />
+    </section>
+  );
+}
+
+function WeaveGraphSkeleton() {
+  return (
+    <section
+      aria-label="Loading pattern weave graph"
+      aria-busy="true"
+      style={{ marginTop: "var(--space-6, 32px)" }}
+    >
+      <div
+        style={{
+          height: 14,
+          width: 220,
+          borderRadius: 999,
+          background:
+            "linear-gradient(90deg, rgba(212,175,90,0.08), rgba(212,175,90,0.22), rgba(212,175,90,0.08))",
+          backgroundSize: "200% 100%",
+          animation: "weave-skeleton-shimmer 1.6s ease-in-out infinite",
+          margin: "0 0 var(--space-3, 12px)",
+        }}
+      />
+      <div
+        style={{
+          position: "relative",
+          height: 480,
+          borderRadius: "var(--radius-lg, 14px)",
+          border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
+          background:
+            "radial-gradient(circle at 50% 50%, rgba(120,90,200,0.08), transparent 70%)",
+          overflow: "hidden",
+        }}
+      >
+        {/* Center pattern placeholder */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 180,
+            height: 36,
+            borderRadius: 999,
+            background: "rgba(212,175,90,0.14)",
+            border: "1px solid rgba(212,175,90,0.5)",
+            animation: "weave-skeleton-pulse 1.8s ease-in-out infinite",
+          }}
+        />
+        {/* Sibling ring placeholders */}
+        {Array.from({ length: 6 }).map((_, i) => {
+          const angle = (i / 6) * Math.PI * 2 - Math.PI / 2;
+          const r = 180;
+          const x = `calc(50% + ${Math.cos(angle) * r}px)`;
+          const y = `calc(50% + ${Math.sin(angle) * r}px)`;
+          return (
+            <div
+              key={`s-${i}`}
+              style={{
+                position: "absolute",
+                top: y,
+                left: x,
+                transform: "translate(-50%, -50%)",
+                width: 110,
+                height: 26,
+                borderRadius: 999,
+                background: "rgba(212,175,90,0.06)",
+                border: "1px solid rgba(212,175,90,0.25)",
+                animation: `weave-skeleton-pulse 1.8s ease-in-out ${i * 120}ms infinite`,
+              }}
+            />
+          );
+        })}
+        {/* Reading dot placeholders */}
+        {Array.from({ length: 5 }).map((_, i) => {
+          const angle = (i / 5) * Math.PI * 2;
+          const r = 90;
+          const x = `calc(50% + ${Math.cos(angle) * r}px)`;
+          const y = `calc(50% + ${Math.sin(angle) * r}px)`;
+          return (
+            <div
+              key={`r-${i}`}
+              style={{
+                position: "absolute",
+                top: y,
+                left: x,
+                transform: "translate(-50%, -50%)",
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                background: "rgba(212,175,90,0.45)",
+                boxShadow: "0 0 8px rgba(212,175,90,0.35)",
+                animation: `weave-skeleton-pulse 1.8s ease-in-out ${i * 90}ms infinite`,
+              }}
+            />
+          );
+        })}
+        <span className="sr-only">Loading the weave graph for this pattern…</span>
+      </div>
+      <style>{`
+        @keyframes weave-skeleton-shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        @keyframes weave-skeleton-pulse {
+          0%, 100% { opacity: 0.45; }
+          50% { opacity: 0.95; }
+        }
+      `}</style>
     </section>
   );
 }
