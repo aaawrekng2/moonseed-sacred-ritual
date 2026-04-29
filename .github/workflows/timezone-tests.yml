@@ -947,14 +947,86 @@ jobs:
           # observed. If `merge-base --is-ancestor` is non-zero, the
           # branch tip moved sideways under us — bail.
           if ! git merge-base --is-ancestor "$BASELINE_SHA" "$PUSHED_SHA"; then
-            echo "::error::Refresh branch '$BRANCH' was modified concurrently."
+            # Distinguish two failure modes:
+            #
+            #   1. Force-push / rewrite: the baseline SHA we recorded
+            #      no longer exists in the branch's history at all.
+            #      `git cat-file` on the baseline either fails (commit
+            #      gone from the remote) or `merge-base` between
+            #      baseline and current returns nothing (disjoint
+            #      histories). This is the "someone rebased / reset
+            #      --hard / force-pushed" case.
+            #
+            #   2. Concurrent fast-forward by another writer: the
+            #      baseline IS still reachable from the current tip,
+            #      but our pushed SHA isn't — meaning another run
+            #      added its own commit and we built ours on stale
+            #      state. Less destructive, but still a race.
+            #
+            # The remediation differs:
+            #   - Force-push  → re-dispatch with the SAME scope, the
+            #     stable branch will be re-seeded from the new base.
+            #   - Concurrent  → re-dispatch with the SAME scope; the
+            #     next run picks up the other writer's commit as its
+            #     new baseline and adds on top.
+            # Either way the operator wants the exact scope value to
+            # paste into `gh workflow run`, so we surface it.
+            FORCE_PUSHED="false"
+            if ! git cat-file -e "${BASELINE_SHA}^{commit}" 2>/dev/null; then
+              FORCE_PUSHED="true"
+              REASON="force-push or branch reset (baseline commit no longer exists on remote)"
+            elif [ -n "${CURRENT_TIP:-}" ] \
+                 && [ -z "$(git merge-base "$BASELINE_SHA" "$CURRENT_TIP" 2>/dev/null || true)" ]; then
+              FORCE_PUSHED="true"
+              REASON="force-push to disjoint history (baseline and current tip share no common ancestor)"
+            elif [ -n "${CURRENT_TIP:-}" ] \
+                 && ! git merge-base --is-ancestor "$BASELINE_SHA" "$CURRENT_TIP" 2>/dev/null; then
+              FORCE_PUSHED="true"
+              REASON="force-push that dropped the baseline commit (baseline is not an ancestor of current tip)"
+            else
+              REASON="concurrent fast-forward by another writer (baseline still reachable, pushed SHA isn't)"
+            fi
+
+            if [ "$FORCE_PUSHED" = "true" ]; then
+              echo "::error title=Refresh branch force-pushed::Branch '$BRANCH' was rewritten: $REASON."
+            else
+              echo "::error title=Refresh branch raced::Branch '$BRANCH' was modified concurrently: $REASON."
+            fi
             echo "  Full remote ref        : $REF"
             echo "  Baseline (pre-run) tip : $BASELINE_SHA"
             echo "  Pushed head            : $PUSHED_SHA"
             echo "  Current remote tip     : ${CURRENT_TIP:-<none>}"
+            echo "  Failure mode           : $REASON"
             echo ""
-            echo "Another run (or a manual push) updated this branch between when this job started and when it tried to push. Re-run this workflow to rebase on the new tip, or reconcile the branches manually."
-            echo "  Result                 : FAIL (pushed SHA does not descend from baseline)"
+            echo "Re-run this workflow with the SAME scope to retry on top of"
+            echo "the new tip. From the Actions tab, set:"
+            echo "    snapshot_scope = ${{ inputs.snapshot_scope }}"
+            echo "    update_snapshots = true"
+            echo "    confirm = UPDATE"
+            echo "Or from the CLI:"
+            echo "    gh workflow run timezone-tests.yml \\"
+            echo "      -f snapshot_scope=${{ inputs.snapshot_scope }} \\"
+            echo "      -f update_snapshots=true \\"
+            echo "      -f confirm=UPDATE"
+            if [ "$FORCE_PUSHED" = "true" ]; then
+              echo ""
+              echo "Because the branch was force-pushed, also confirm with whoever"
+              echo "rewrote '$BRANCH' that their changes are intentional before"
+              echo "the next refresh overwrites them again."
+            fi
+            {
+              echo ""
+              echo "## ❌ update-snapshots: atomicity check failed"
+              echo ""
+              echo "- **Branch:** \`$BRANCH\`"
+              echo "- **Failure mode:** $REASON"
+              echo "- **Baseline SHA:** \`$BASELINE_SHA\`"
+              echo "- **Pushed SHA:** \`$PUSHED_SHA\`"
+              echo "- **Current remote tip:** \`${CURRENT_TIP:-<none>}\`"
+              echo ""
+              echo "Re-run with \`snapshot_scope=${{ inputs.snapshot_scope }}\`, \`update_snapshots=true\`, \`confirm=UPDATE\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "  Result                 : FAIL ($REASON)"
             echo "────────────────────────────────────"
             exit 1
           fi
