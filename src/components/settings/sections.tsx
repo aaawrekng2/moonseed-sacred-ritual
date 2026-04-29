@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useSettings, type Prefs } from "./SettingsContext";
 import { MoonFeaturesSection } from "./MoonFeaturesSection";
+import { useTimezone } from "@/lib/use-timezone";
+import { COMMON_TIMEZONES, timezoneLabel } from "@/lib/timezones";
 import {
   useAutoRememberQuestion,
   useRememberScope,
@@ -239,6 +241,8 @@ function ProfileSectionInner({
           </div>
 
           <IntentionField user={user} prefs={prefs} setPrefs={setPrefs} />
+
+          <TimezoneField />
 
           <div>
             <button
