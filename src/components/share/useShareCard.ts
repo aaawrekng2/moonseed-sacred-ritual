@@ -27,6 +27,12 @@ export type ShareError = {
   intent: ShareIntent;
   title: string;
   description: string;
+  /**
+   * Short, single-sentence next step hint (e.g. "Switch to Download PNG").
+   * Surfaced beneath the description in the inline banner so the seeker
+   * always sees a clear way forward, even before tapping Retry.
+   */
+  nextAction: string;
   retry: () => void;
 };
 
@@ -66,48 +72,104 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
   };
 
   /**
-   * Friendly, actionable error message based on the underlying failure.
-   * Returned strings are short enough to fit in a sonner toast title.
+   * Friendly, actionable, *step-aware* error message.
+   *
+   * `step` distinguishes:
+   *  - "prepare" → image capture (html-to-image rendering the off-screen
+   *    1080x1920 card to a PNG). Failures here are almost always
+   *    rendering / cross-origin issues; sharing was never attempted.
+   *  - "confirm" → Web Share or download. Failures here mean the PNG was
+   *    rendered fine but the OS share sheet (or download) refused.
+   *
+   * `intent` distinguishes whether the seeker chose Share or Download
+   * PNG, so the hint can point at the *other* path as a fallback.
    */
-  const describeError = (e: unknown): { title: string; description: string } => {
+  const describeError = (
+    e: unknown,
+    step: "prepare" | "confirm",
+    intent: ShareIntent,
+  ): { title: string; description: string; nextAction: string } => {
     const err = e as { name?: string; message?: string } | null | undefined;
     const name = err?.name ?? "";
     const msg = (err?.message ?? "").toLowerCase();
-    if (name === "NotAllowedError" || msg.includes("permission")) {
+
+    const fallbackHint =
+      intent === "share"
+        ? "Switch to Download PNG to save the card to your device."
+        : "Try again, or switch to Share to send via your apps.";
+
+    // ---- Capture (prepare) phase ---------------------------------------
+    if (step === "prepare") {
+      if (msg.includes("tainted") || msg.includes("cors") || msg.includes("security")) {
+        return {
+          title: "Couldn't capture the card",
+          description:
+            "An image on the card was blocked by cross-origin rules, so the screenshot couldn't be made. Nothing was shared.",
+          nextAction:
+            "Tap Retry — if it keeps failing, try a different share style.",
+        };
+      }
+      if (msg.includes("network") || msg.includes("fetch")) {
+        return {
+          title: "Couldn't capture the card",
+          description:
+            "A network hiccup interrupted the screenshot before sharing started.",
+          nextAction: "Check your connection, then tap Retry.",
+        };
+      }
       return {
-        title: "Share permission denied",
+        title: "Couldn't capture the card",
         description:
-          "Your browser blocked the share. Try Save image instead, or allow sharing in browser settings.",
+          "Something went wrong rendering the card to an image. Sharing was not attempted.",
+        nextAction: "Tap Retry to re-render the card.",
       };
     }
-    if (msg.includes("tainted") || msg.includes("cors") || msg.includes("security")) {
+
+    // ---- Confirm phase: Web Share / download ---------------------------
+    if (intent === "save") {
       return {
-        title: "Couldn't render share image",
+        title: "Download didn't start",
         description:
-          "An image on the card couldn't be captured (cross-origin block). Try again, or use Save image.",
+          "The image was captured fine, but your browser blocked the download.",
+        nextAction:
+          "Tap Retry — if it keeps failing, allow downloads in browser settings.",
+      };
+    }
+
+    // intent === "share" (Web Share API failure)
+    if (name === "NotAllowedError" || msg.includes("permission")) {
+      return {
+        title: "Share was blocked",
+        description:
+          "Your browser denied permission to open the share sheet. The card image is still ready.",
+        nextAction:
+          "Switch to Download PNG, or allow sharing in browser settings and Retry.",
       };
     }
     if (msg.includes("network") || msg.includes("fetch")) {
       return {
-        title: "Network hiccup while sharing",
-        description: "Check your connection and try again.",
+        title: "Share couldn't start",
+        description:
+          "A network hiccup interrupted the share sheet. The card image is still ready.",
+        nextAction: "Check your connection and tap Retry, or Download PNG instead.",
       };
     }
     return {
-      title: "Couldn't create share image",
+      title: "Share didn't go through",
       description:
-        "Something went wrong rendering the card. Tap Retry, or use Save image as a fallback.",
+        "The card was captured fine, but your device's share sheet returned an error.",
+      nextAction: fallbackHint,
     };
   };
 
   const notifyError = (
-    e: unknown,
-    fallbackTitle: string,
+    title: string,
+    description: string,
+    nextAction: string,
     onRetry: () => void,
   ) => {
-    const { title, description } = describeError(e);
-    sonner.error(title === "Couldn't create share image" ? fallbackTitle : title, {
-      description,
+    sonner.error(title, {
+      description: `${description} ${nextAction}`,
       action: {
         label: "Retry",
         onClick: () => {
@@ -187,13 +249,9 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
           setLastError(null);
           void prepare(node, backgroundColor, intent);
         };
-        notifyError(
-          e,
-          intent === "share" ? "Couldn't share" : "Couldn't save image",
-          retry,
-        );
-        const { title, description } = describeError(e);
-        setLastError({ step: "prepare", intent, title, description, retry });
+        const { title, description, nextAction } = describeError(e, "prepare", intent);
+        notifyError(title, description, nextAction, retry);
+        setLastError({ step: "prepare", intent, title, description, nextAction, retry });
         callbacks.onPrepareError?.(intent, e);
       } finally {
         setBusy(null);
@@ -250,13 +308,9 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         setLastError(null);
         void confirm();
       };
-      notifyError(
-        e,
-        intent === "share" ? "Couldn't share" : "Couldn't save image",
-        retry,
-      );
-      const { title, description } = describeError(e);
-      setLastError({ step: "confirm", intent, title, description, retry });
+      const { title, description, nextAction } = describeError(e, "confirm", intent);
+      notifyError(title, description, nextAction, retry);
+      setLastError({ step: "confirm", intent, title, description, nextAction, retry });
       callbacks.onShareError?.(intent, e);
     } finally {
       setBusy(null);
