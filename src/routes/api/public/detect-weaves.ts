@@ -4,12 +4,11 @@
  *
  * Security model (defense in depth — every layer must pass):
  *  1. Method must be POST.
- *  2. A dedicated cron secret (`DETECT_WEAVES_CRON_SECRET`) must be
+ *  2. A dedicated cron secret (`DETECT_WEAVES_CRON_SECRET`) MUST be
  *     present in the `x-cron-secret` header and match in constant time.
- *     If that secret is unset on the server, we fall back to a constant-
- *     time check against `SUPABASE_PUBLISHABLE_KEY` from the `apikey` /
- *     `authorization` header. If BOTH server secrets are missing we
- *     refuse the request rather than silently allowing it through.
+ *     There is intentionally no fallback to the publishable key, since
+ *     that key is embedded in every browser bundle and is not a secret.
+ *     If the server secret is unset we refuse the request entirely.
  *  3. An in-memory cooldown enforces at most one full scan per
  *     `MIN_INTERVAL_MS`, so even a leaked credential can't be used to
  *     hammer the database.
@@ -45,28 +44,18 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
     handlers: {
       POST: async ({ request }) => {
         const cronSecret = process.env.DETECT_WEAVES_CRON_SECRET;
-        const publishable = process.env.SUPABASE_PUBLISHABLE_KEY;
 
-        // If neither secret is configured on the server, refuse — don't
-        // silently fall through to "anyone can call this".
-        if (!cronSecret && !publishable) {
+        // If the server secret isn't configured, refuse — never fall
+        // through to a publishable / anon key, which is not secret.
+        if (!cronSecret) {
           console.error(
-            "[detect-weaves] refused: neither DETECT_WEAVES_CRON_SECRET nor SUPABASE_PUBLISHABLE_KEY is set",
+            "[detect-weaves] refused: DETECT_WEAVES_CRON_SECRET is not set",
           );
           return new Response("Server not configured", { status: 503 });
         }
 
         const cronHeader = request.headers.get("x-cron-secret") ?? "";
-        const apiKeyHeader =
-          request.headers.get("apikey") ??
-          request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
-          "";
-
-        const cronOk = !!cronSecret && safeEqual(cronHeader, cronSecret);
-        const apiKeyOk =
-          !!publishable && safeEqual(apiKeyHeader, publishable);
-
-        if (!cronOk && !apiKeyOk) {
+        if (!safeEqual(cronHeader, cronSecret)) {
           return new Response("Unauthorized", { status: 401 });
         }
 
