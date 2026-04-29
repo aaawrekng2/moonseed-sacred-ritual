@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_MAX_USERS_PER_RUN,
   runDetectWeaves,
+  validateDetectWeavesRequest,
   type DetectWeavesDeps,
   type RunRecordInput,
 } from "./detect-weaves-runner.server";
@@ -269,5 +270,83 @@ describe("runDetectWeaves throughput limits", () => {
     expect(partial?.perUserErrors).toEqual([
       { user_id: "boom", error: "kaboom" },
     ]);
+  });
+});
+
+describe("validateDetectWeavesRequest", () => {
+  function req(method: string, headers: Record<string, string> = {}) {
+    return { method, headers: new Headers(headers) };
+  }
+
+  it("returns null for a well-formed POST with application/json", () => {
+    const r = validateDetectWeavesRequest(
+      req("POST", { "content-type": "application/json", "x-cron-secret": "s" }),
+    );
+    expect(r).toBeNull();
+  });
+
+  it("returns null for a POST with no body and no content-type", () => {
+    expect(
+      validateDetectWeavesRequest(req("POST", { "x-cron-secret": "s" })),
+    ).toBeNull();
+  });
+
+  it("accepts content-type with charset parameter", () => {
+    expect(
+      validateDetectWeavesRequest(
+        req("POST", { "content-type": "application/json; charset=utf-8" }),
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects GET with 405 + Allow: POST", () => {
+    const r = validateDetectWeavesRequest(req("GET"));
+    expect(r?.status).toBe(405);
+    expect(r?.headers?.allow).toBe("POST");
+  });
+
+  it("rejects PUT/DELETE/OPTIONS with 405", () => {
+    for (const m of ["PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"]) {
+      expect(validateDetectWeavesRequest(req(m))?.status).toBe(405);
+    }
+  });
+
+  it("rejects POST with non-JSON content-type using 415", () => {
+    const r = validateDetectWeavesRequest(
+      req("POST", { "content-type": "text/plain" }),
+    );
+    expect(r?.status).toBe(415);
+    expect(r?.headers?.accept).toBe("application/json");
+  });
+
+  it("rejects POST with body but no content-type as 415", () => {
+    const r = validateDetectWeavesRequest(
+      req("POST", { "content-length": "5" }),
+    );
+    expect(r?.status).toBe(415);
+  });
+
+  it("rejects unexpected custom headers with 400", () => {
+    const r = validateDetectWeavesRequest(
+      req("POST", {
+        "content-type": "application/json",
+        "x-admin-override": "1",
+      }),
+    );
+    expect(r?.status).toBe(400);
+    expect(r?.body).toMatch(/x-admin-override/);
+  });
+
+  it("allows standard proxy headers (cf-*, x-forwarded-*, sec-*)", () => {
+    expect(
+      validateDetectWeavesRequest(
+        req("POST", {
+          "content-type": "application/json",
+          "cf-connecting-ip": "1.2.3.4",
+          "x-forwarded-for": "1.2.3.4",
+          "sec-fetch-mode": "cors",
+        }),
+      ),
+    ).toBeNull();
   });
 });
