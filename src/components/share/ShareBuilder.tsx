@@ -395,9 +395,12 @@ export function ShareBuilder({
           {/* Live preview */}
           <div
             style={{
-              padding: "var(--space-3) var(--space-5)",
+              padding: "var(--space-3) var(--space-5) var(--space-2)",
               display: "flex",
               justifyContent: "center",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "var(--space-2)",
             }}
           >
             <div
@@ -424,6 +427,14 @@ export function ShareBuilder({
                 <div aria-hidden>{renderLevel()}</div>
               </div>
             </div>
+            <PreviewCaption
+              level={level}
+              context={context}
+              includeQuestion={includeQuestion}
+              includeInterpretation={includeInterpretation}
+              positionIndex={localPositionIndex}
+              lensLabel={extras?.lens?.label}
+            />
           </div>
 
           {/*
