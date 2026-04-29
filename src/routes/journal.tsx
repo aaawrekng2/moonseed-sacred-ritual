@@ -7,7 +7,7 @@ import { useOracleMode } from "@/lib/use-oracle-mode";
 import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import { getGuideById } from "@/lib/guides";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
-import { cn } from "@/lib/utils";
+import { cn, firstCardName, formatRelativeTime } from "@/lib/utils";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import {
@@ -55,6 +55,7 @@ type ReadingRow = {
   deep_reading_lenses: Record<string, string> | null;
   mirror_saved: boolean;
   pattern_id: string | null;
+  question: string | null;
 };
 
 type TagRow = { id: string; name: string; usage_count: number };
@@ -171,7 +172,7 @@ function JournalPage() {
           supabase
             .from("readings")
             .select(
-              "id,user_id,spread_type,card_ids,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id",
+              "id,user_id,spread_type,card_ids,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question",
             )
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
@@ -1101,16 +1102,15 @@ function ThreadsView({
       </div>
     );
   }
-  // Group threads by pattern_id; ungrouped threads fall under "Other threads".
+  // Group threads by pattern_id so patterns surface even when their only
+  // signal is a thread (ungrouped threads stay silent in the DB and never
+  // render their own UI item — Phase 9 reset).
   const grouped = new Map<string, ThreadRow[]>();
-  const ungrouped: ThreadRow[] = [];
   for (const t of threads) {
     if (t.pattern_id && patternsById[t.pattern_id]) {
       const arr = grouped.get(t.pattern_id) ?? [];
       arr.push(t);
       grouped.set(t.pattern_id, arr);
-    } else {
-      ungrouped.push(t);
     }
   }
   // Order patterns: those with readings or threads first, by lifecycle weight then name.
@@ -1140,9 +1140,6 @@ function ThreadsView({
       : orderedPatternIds.filter(
           (pid) => patternsById[pid]?.lifecycle_state === lifecycleFilter,
         );
-  // Ungrouped threads have no pattern, so only show them under "All".
-  const showUngrouped = lifecycleFilter === "all";
-
   const filterOptions: Array<{ value: string; label: string }> = [
     { value: "all", label: "All" },
     { value: "emerging", label: "Emerging" },
@@ -1223,7 +1220,6 @@ function ThreadsView({
       {filteredPatternIds.map((pid) => {
         const p = patternsById[pid];
         const patternReadings = readingsByPattern.get(pid) ?? [];
-        const patternThreads = grouped.get(pid) ?? [];
         return (
           <Link
             key={pid}
@@ -1231,26 +1227,37 @@ function ThreadsView({
             params={{ patternId: pid }}
             style={{
               display: "block",
+              padding: "var(--space-4, 16px)",
+              borderRadius: "var(--radius-lg, 14px)",
+              background: "var(--surface-card, rgba(255,255,255,0.03))",
+              border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
               textDecoration: "none",
               color: "inherit",
               cursor: "pointer",
+              touchAction: "manipulation",
+              WebkitTapHighlightColor: "transparent",
+              userSelect: "none",
             }}
           >
             <section className="flex flex-col gap-3">
-              <div className="flex items-baseline justify-between gap-3 text-gold">
+              <div className="flex items-baseline justify-between gap-3">
                 <h3
                   className="m-0 font-display italic"
                   style={{
                     fontFamily: "var(--font-serif)",
                     fontSize: "var(--text-heading-sm, 17px)",
-                    color: "var(--gold)",
+                    color: "var(--color-foreground)",
                   }}
                 >
                   {p.name}
                 </h3>
                 <span
                   className="font-display text-[10px] uppercase tracking-[0.2em]"
-                  style={{ opacity: "var(--ro-plus-20)" }}
+                  style={{
+                    color: "var(--accent, var(--gold))",
+                    opacity: 0.6,
+                    whiteSpace: "nowrap",
+                  }}
                 >
                   {p.lifecycle_state} · {patternReadings.length}{" "}
                   {patternReadings.length === 1 ? "reading" : "readings"}
@@ -1258,12 +1265,13 @@ function ThreadsView({
               </div>
             {p.description && p.description.trim() && (
               <p
-                className="m-0 font-display italic text-foreground/80 whitespace-pre-wrap"
+                className="m-0 font-display whitespace-pre-wrap"
                 style={{
                   fontFamily: "var(--font-serif)",
                   fontSize: "var(--text-body-sm)",
                   lineHeight: 1.6,
-                  opacity: "var(--ro-plus-20)",
+                  color: "var(--color-foreground)",
+                  opacity: 0.8,
                 }}
               >
                 {p.description}
@@ -1271,33 +1279,65 @@ function ThreadsView({
             )}
             {patternReadings.length > 0 && (
               <ul className="flex flex-col gap-1.5">
-                {patternReadings.slice(0, 6).map((r) => (
-                  <li key={r.id}>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onOpenReading(r.id);
-                      }}
-                      className="flex w-full items-baseline justify-between gap-3 rounded-md px-2 py-1 text-left hover:bg-gold/5 focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/40"
-                    >
-                      <span
-                        className="font-display italic text-foreground/85 truncate"
-                        style={{ fontSize: "var(--text-body-sm)" }}
+                {patternReadings.slice(0, 6).map((r) => {
+                  const hasQuestion = !!r.question?.trim();
+                  const label = hasQuestion
+                    ? `"${r.question!.trim()}"`
+                    : firstCardName(r.card_ids);
+                  return (
+                    <li key={r.id}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onOpenReading(r.id);
+                        }}
+                        style={{
+                          display: "flex",
+                          alignItems: "baseline",
+                          justifyContent: "space-between",
+                          gap: "var(--space-3, 12px)",
+                          width: "100%",
+                          padding: "var(--space-2, 8px) var(--space-3, 12px)",
+                          background: "transparent",
+                          border: "none",
+                          borderRadius: "var(--radius-md, 10px)",
+                          cursor: "pointer",
+                          textAlign: "left",
+                          touchAction: "manipulation",
+                        }}
                       >
-                        {spreadLabel(r.spread_type)}
-                        {r.note ? ` — ${r.note.slice(0, 60)}` : ""}
-                      </span>
-                      <span
-                        className="font-display text-[11px] italic text-muted-foreground shrink-0"
-                        style={{ opacity: "var(--ro-plus-20)" }}
-                      >
-                        {relativeTime(r.created_at)}
-                      </span>
-                    </button>
-                  </li>
-                ))}
+                        <span
+                          style={{
+                            fontFamily: "var(--font-serif)",
+                            fontStyle: hasQuestion ? "italic" : "normal",
+                            fontSize: "var(--text-body-sm)",
+                            color: "var(--color-foreground)",
+                            opacity: 0.85,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {label}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "var(--text-caption)",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.15em",
+                            color: "var(--color-foreground)",
+                            opacity: 0.5,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {formatRelativeTime(r.created_at)}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
                 {patternReadings.length > 6 && (
                   <li
                     className="px-2 font-display text-[11px] italic text-muted-foreground"
@@ -1308,39 +1348,11 @@ function ThreadsView({
                 )}
               </ul>
             )}
-            {patternThreads.length > 0 && (
-              <ul className="flex flex-col gap-3">
-                {patternThreads.map((t) => (
-                  <ThreadCard key={t.id} t={t} />
-                ))}
-              </ul>
-            )}
             </section>
           </Link>
         );
       })}
-      {showUngrouped && ungrouped.length > 0 && (
-        <section className="flex flex-col gap-3">
-          {filteredPatternIds.length > 0 && (
-            <h3
-              className="m-0 font-display italic text-muted-foreground"
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: "var(--text-body-sm)",
-                opacity: "var(--ro-plus-20)",
-              }}
-            >
-              Other threads
-            </h3>
-          )}
-          <ul className="flex flex-col gap-3">
-            {ungrouped.map((t) => (
-              <ThreadCard key={t.id} t={t} />
-            ))}
-          </ul>
-        </section>
-      )}
-      {showUngrouped && unlinkedReadings.length > 0 && orderedPatternIds.length > 0 && (
+      {lifecycleFilter === "all" && unlinkedReadings.length > 0 && orderedPatternIds.length > 0 && (
         <p
           className="font-display text-[11px] italic text-muted-foreground"
           style={{ opacity: "var(--ro-plus-10)" }}
@@ -1351,56 +1363,6 @@ function ThreadsView({
         </p>
       )}
     </div>
-  );
-}
-
-function ThreadCard({ t }: { t: ThreadRow }) {
-  const statusOpacity =
-    t.status === "active" ? 1 : t.status === "emerging" ? 0.6 : 0.3;
-  const statusLabel =
-    t.status === "reawakened"
-      ? "Reawakened"
-      : t.status.charAt(0).toUpperCase() + t.status.slice(1);
-  const readingCount = (t.reading_ids ?? []).length;
-  return (
-    <li className="rounded-lg border border-gold/20 bg-gold/5 px-4 py-3">
-      <div className="mb-2 flex items-center justify-between">
-        <span
-          className="font-display text-[10px] uppercase tracking-[0.2em] text-gold"
-          style={{ opacity: statusOpacity }}
-        >
-          {statusLabel}
-        </span>
-        {readingCount > 0 && (
-          <span className="font-display text-[11px] italic text-muted-foreground">
-            across {readingCount} {readingCount === 1 ? "reading" : "readings"}
-          </span>
-        )}
-      </div>
-      <p
-        className="font-display italic"
-        style={{
-          fontSize: "var(--text-body)",
-          lineHeight: 1.55,
-          color: "color-mix(in oklab, var(--foreground) 88%, transparent)",
-        }}
-      >
-        {t.summary}
-      </p>
-      {(t.tags?.length ?? 0) > 0 && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {t.tags!.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full border border-gold/30 px-2 py-0.5 font-display text-[11px] italic text-gold"
-              style={{ opacity: "var(--ro-plus-30)" }}
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
-    </li>
   );
 }
 

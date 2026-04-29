@@ -5,11 +5,9 @@ import { useAuth } from "@/lib/auth";
 import {
   type Pattern,
   type Weave,
-  lifecycleLabel,
   lifecycleOpacity,
-  formatMonthSince,
-  formatDateSpan,
 } from "@/lib/patterns";
+import { firstCardName, formatRelativeTime } from "@/lib/utils";
 import { BottomNav } from "@/components/nav/BottomNav";
 import {
   ReactFlow,
@@ -54,23 +52,41 @@ export const Route = createFileRoute("/threads")({
 
 type View = "active" | "weaves" | "archive";
 
+type PatternReading = {
+  id: string;
+  pattern_id: string | null;
+  card_ids: number[];
+  question: string | null;
+  created_at: string;
+};
+
 function ThreadsPage() {
   const { user } = useAuth();
   const [view, setView] = useState<View>("active");
   const [patterns, setPatterns] = useState<Pattern[]>([]);
+  const [readings, setReadings] = useState<PatternReading[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     void (async () => {
-      const { data } = await supabase
-        .from("patterns")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      const [{ data: patternRows }, { data: readingRows }] = await Promise.all([
+        supabase
+          .from("patterns")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("readings")
+          .select("id,pattern_id,card_ids,question,created_at")
+          .eq("user_id", user.id)
+          .not("pattern_id", "is", null)
+          .order("created_at", { ascending: false }),
+      ]);
       if (cancelled) return;
-      setPatterns((data ?? []) as Pattern[]);
+      setPatterns((patternRows ?? []) as Pattern[]);
+      setReadings((readingRows ?? []) as PatternReading[]);
       setLoading(false);
     })();
     return () => {
@@ -84,6 +100,14 @@ function ThreadsPage() {
   const archived = patterns.filter((p) =>
     ["quieting", "retired"].includes(p.lifecycle_state),
   );
+
+  const readingsByPattern = new Map<string, PatternReading[]>();
+  for (const r of readings) {
+    if (!r.pattern_id) continue;
+    const arr = readingsByPattern.get(r.pattern_id) ?? [];
+    arr.push(r);
+    readingsByPattern.set(r.pattern_id, arr);
+  }
 
   return (
     <div
@@ -165,11 +189,11 @@ function ThreadsPage() {
         {loading ? (
           <p style={{ opacity: 0.5, fontStyle: "italic" }}>Listening for threads…</p>
         ) : view === "active" ? (
-          <ActiveView patterns={active} />
+          <ActiveView patterns={active} readingsByPattern={readingsByPattern} />
         ) : view === "weaves" ? (
           <WeavesView patterns={active} userId={user?.id} />
         ) : (
-          <ArchiveView patterns={archived} />
+          <ArchiveView patterns={archived} readingsByPattern={readingsByPattern} />
         )}
       </main>
 
@@ -178,7 +202,173 @@ function ThreadsPage() {
   );
 }
 
-function ActiveView({ patterns }: { patterns: Pattern[] }) {
+function PatternCard({
+  pattern,
+  readings,
+}: {
+  pattern: Pattern;
+  readings: PatternReading[];
+}) {
+  const count = readings.length || pattern.reading_ids.length;
+  return (
+    <Link
+      to="/threads/$patternId"
+      params={{ patternId: pattern.id }}
+      style={{
+        display: "block",
+        padding: "var(--space-4, 16px)",
+        borderRadius: "var(--radius-lg, 14px)",
+        background: "var(--surface-card, rgba(255,255,255,0.03))",
+        border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
+        textDecoration: "none",
+        color: "inherit",
+        cursor: "pointer",
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+        userSelect: "none",
+      }}
+    >
+      <section
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--space-3, 12px)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            gap: "var(--space-3, 12px)",
+          }}
+        >
+          <h3
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-heading-sm, 17px)",
+              color: "var(--color-foreground)",
+              margin: 0,
+              opacity: pattern.is_user_named ? 1 : 0.85,
+            }}
+          >
+            {pattern.name}
+          </h3>
+          <span
+            style={{
+              fontSize: "var(--text-caption)",
+              textTransform: "uppercase",
+              letterSpacing: "0.2em",
+              color: "var(--accent, var(--gold))",
+              opacity: 0.6,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {pattern.lifecycle_state} · {count} {count === 1 ? "reading" : "readings"}
+          </span>
+        </div>
+        {pattern.description && pattern.description.trim() && (
+          <p
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-body-sm)",
+              lineHeight: 1.6,
+              color: "var(--color-foreground)",
+              opacity: 0.8,
+              margin: 0,
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {pattern.description}
+          </p>
+        )}
+        {readings.length > 0 && (
+          <ul
+            style={{
+              listStyle: "none",
+              margin: 0,
+              padding: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--space-1, 6px)",
+            }}
+          >
+            {readings.slice(0, 6).map((r) => {
+              const hasQuestion = !!r.question?.trim();
+              const label = hasQuestion
+                ? `"${r.question!.trim()}"`
+                : firstCardName(r.card_ids);
+              return (
+                <li key={r.id}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "baseline",
+                      justifyContent: "space-between",
+                      gap: "var(--space-3, 12px)",
+                      width: "100%",
+                      padding: "var(--space-2, 8px) var(--space-3, 12px)",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: hasQuestion ? "italic" : "normal",
+                        fontSize: "var(--text-body-sm)",
+                        color: "var(--color-foreground)",
+                        opacity: 0.85,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {label}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "var(--text-caption)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.15em",
+                        color: "var(--color-foreground)",
+                        opacity: 0.5,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {formatRelativeTime(r.created_at)}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+            {readings.length > 6 && (
+              <li
+                style={{
+                  padding: "0 var(--space-3, 12px)",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption)",
+                  color: "var(--color-foreground)",
+                  opacity: 0.5,
+                }}
+              >
+                + {readings.length - 6} more
+              </li>
+            )}
+          </ul>
+        )}
+      </section>
+    </Link>
+  );
+}
+
+function ActiveView({
+  patterns,
+  readingsByPattern,
+}: {
+  patterns: Pattern[];
+  readingsByPattern: Map<string, PatternReading[]>;
+}) {
   if (patterns.length === 0) {
     return (
       <p
@@ -195,58 +385,18 @@ function ActiveView({ patterns }: { patterns: Pattern[] }) {
     );
   }
   return (
-    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: "var(--space-3, 12px)" }}>
+    <ul
+      style={{
+        listStyle: "none",
+        margin: 0,
+        padding: 0,
+        display: "grid",
+        gap: "var(--space-3, 12px)",
+      }}
+    >
       {patterns.map((p) => (
         <li key={p.id}>
-          <Link
-            to="/threads/$patternId"
-            params={{ patternId: p.id }}
-            style={{
-              display: "block",
-              padding: "var(--space-4, 16px)",
-              borderRadius: "var(--radius-lg, 14px)",
-              background: "var(--surface-card, rgba(255,255,255,0.03))",
-              border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
-              textDecoration: "none",
-              color: "inherit",
-            }}
-          >
-            <div
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: "var(--text-heading-md)",
-                color: "var(--color-foreground)",
-                opacity: p.is_user_named ? 1 : 0.75,
-              }}
-            >
-              {p.name}
-            </div>
-            <div
-              style={{
-                fontSize: "var(--text-caption)",
-                letterSpacing: "0.18em",
-                textTransform: "uppercase",
-                color: "var(--accent, var(--gold))",
-                opacity: lifecycleOpacity(p.lifecycle_state),
-                marginTop: 4,
-              }}
-            >
-              {lifecycleLabel(p.lifecycle_state)}
-            </div>
-            <div
-              style={{
-                fontSize: "var(--text-body-sm)",
-                color: "var(--color-foreground)",
-                opacity: 0.6,
-                marginTop: 6,
-              }}
-            >
-              {p.lifecycle_state === "emerging"
-                ? `Emerged ${formatMonthSince(p.created_at)}`
-                : `Active since ${formatMonthSince(p.created_at)}`}{" "}
-              · {p.reading_ids.length} reading{p.reading_ids.length === 1 ? "" : "s"}
-            </div>
-          </Link>
+          <PatternCard pattern={p} readings={readingsByPattern.get(p.id) ?? []} />
         </li>
       ))}
     </ul>
@@ -452,7 +602,13 @@ function WeavesView({
   );
 }
 
-function ArchiveView({ patterns }: { patterns: Pattern[] }) {
+function ArchiveView({
+  patterns,
+  readingsByPattern,
+}: {
+  patterns: Pattern[];
+  readingsByPattern: Map<string, PatternReading[]>;
+}) {
   if (patterns.length === 0) {
     return (
       <p
@@ -469,39 +625,19 @@ function ArchiveView({ patterns }: { patterns: Pattern[] }) {
     );
   }
   return (
-    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: "var(--space-3, 12px)" }}>
+    <ul
+      style={{
+        listStyle: "none",
+        margin: 0,
+        padding: 0,
+        display: "grid",
+        gap: "var(--space-3, 12px)",
+        opacity: 0.85,
+      }}
+    >
       {patterns.map((p) => (
-        <li
-          key={p.id}
-          style={{
-            padding: "var(--space-3, 12px) var(--space-4, 16px)",
-            borderRadius: "var(--radius-md, 10px)",
-            border: "1px solid var(--border-subtle, rgba(255,255,255,0.06))",
-            opacity: 0.7,
-          }}
-        >
-          <div
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontSize: "var(--text-body-lg)",
-              color: "var(--color-foreground)",
-            }}
-          >
-            {p.name}
-          </div>
-          <div
-            style={{
-              fontSize: "var(--text-caption)",
-              letterSpacing: "0.16em",
-              textTransform: "uppercase",
-              color: "var(--color-foreground)",
-              opacity: 0.5,
-              marginTop: 2,
-            }}
-          >
-            {p.lifecycle_state === "retired" ? "Retired" : "Quieting"} ·{" "}
-            {formatDateSpan(p.created_at, p.retired_at)}
-          </div>
+        <li key={p.id}>
+          <PatternCard pattern={p} readings={readingsByPattern.get(p.id) ?? []} />
         </li>
       ))}
     </ul>
