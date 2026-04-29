@@ -34,14 +34,10 @@ type DayCell = {
   sign: string;
 };
 
-/**
- * Returns true if two Date objects fall on the same calendar day in the
- * given IANA timezone. Used to flag the three days that wrap a full moon
- * for gold treatment, and to align the seam marker against day cards
- * whose labels were rendered in that same timezone.
- */
-function isSameDayInTz(a: Date, b: Date, tz: string): boolean {
-  return getYmdInTz(a, tz) === getYmdInTz(b, tz);
+function addDaysToYmd(ymd: string, delta: number): string {
+  const [year, month, day] = ymd.split("-").map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day + delta, 12, 0, 0));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
 export function MoonCarousel() {
@@ -154,16 +150,12 @@ export function MoonCarousel() {
     }
   }, [retryNonce, viewedDate]);
 
-  const peakDay = useMemo<Date | null>(() => {
+  const peakYmd = useMemo<string | null>(() => {
     if (!fullMoonPeak) return null;
-    // Anchor the "peak day" to the calendar day of the peak as observed
-    // in the seeker's effective timezone, NOT the browser's local zone.
-    // Otherwise a peak at e.g. 4 AM PT (= 11 AM UTC) renders against the
-    // wrong day for users whose device tz differs from their profile tz.
-    const { year, month, day } = getDatePartsInTz(fullMoonPeak, effectiveTz);
-    // Construct a UTC noon Date for that Y/M/D; downstream logic only
-    // uses this as a key (it's matched via isSameDayInTz / addDays).
-    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    // String calendar key for the exact peak day in the seeker's timezone.
+    // Keeping this as YMD avoids Date-object timezone drift when matching
+    // the actual day card that should own the marker edge.
+    return getYmdInTz(fullMoonPeak, effectiveTz);
   }, [fullMoonPeak, effectiveTz]);
 
   // Hour of the full-moon peak as observed in the seeker's effective tz.
@@ -179,9 +171,9 @@ export function MoonCarousel() {
   // Morning peaks sit on the peak day's left edge (between previous day
   // and peak day); evening/night peaks sit on the peak day's right edge.
   const peakMarkerSide = useMemo<"left" | "right" | null>(() => {
-    if (!peakDay || peakTzHour == null) return null;
+    if (!peakYmd || peakTzHour == null) return null;
     return peakTzHour < 12 ? "left" : "right";
-  }, [peakDay, peakTzHour]);
+  }, [peakYmd, peakTzHour]);
 
   // Only display the marker for nighttime peaks (9 PM – 6 AM in the
   // seeker's effective tz). Daytime full moons aren't visible, so the
@@ -191,14 +183,10 @@ export function MoonCarousel() {
     return peakTzHour >= 21 || peakTzHour < 6;
   }, [peakTzHour]);
 
-  const goldDates = useMemo<Date[]>(() => {
-    if (!peakDay) return [];
-    const before = new Date(peakDay);
-    before.setUTCDate(peakDay.getUTCDate() - 1);
-    const after = new Date(peakDay);
-    after.setUTCDate(peakDay.getUTCDate() + 1);
-    return [before, peakDay, after];
-  }, [peakDay]);
+  const goldYmds = useMemo<string[]>(() => {
+    if (!peakYmd) return [];
+    return [addDaysToYmd(peakYmd, -1), peakYmd, addDaysToYmd(peakYmd, 1)];
+  }, [peakYmd]);
 
   // Refs to each rendered day cell so the seam marker can be positioned
   // exactly on the boundary between two adjacent cards regardless of
