@@ -15,28 +15,36 @@
  * sibling components in different trees can react without prop-drilling.
  */
 import { useEffect, useState } from "react";
+import { getYmdInTz, getDeviceTimezone } from "@/lib/use-timezone";
 
 export const DAILY_RESET_EVENT = "moonseed:daily-reset";
 
-export function getLocalDayKey(d: Date = new Date()): string {
-  // YYYY-MM-DD in the seeker's local time zone — never UTC, since the
-  // ritual cadence is anchored to the seeker's own dawn.
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+/**
+ * YYYY-MM-DD key for "today" as observed in the given IANA timezone.
+ * Defaults to the device timezone when omitted — but callers that know
+ * the seeker's effective timezone (e.g. profile-locked "fixed" mode)
+ * SHOULD pass it explicitly so the ritual cadence honors that choice.
+ */
+export function getLocalDayKey(timeZone?: string, d: Date = new Date()): string {
+  return getYmdInTz(d, timeZone ?? getDeviceTimezone());
 }
 
-export function useDailyReset(): { today: string; epoch: number } {
-  const [today, setToday] = useState<string>(() => getLocalDayKey());
+export function useDailyReset(timeZone?: string): { today: string; epoch: number } {
+  const [today, setToday] = useState<string>(() => getLocalDayKey(timeZone));
   const [epoch, setEpoch] = useState<number>(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    let last = today;
+    let last = getLocalDayKey(timeZone);
+    // If the timezone changed (e.g. user toggled fixed → auto), re-seed
+    // immediately so the next check compares against the right day.
+    if (last !== today) {
+      setToday(last);
+      setEpoch((n) => n + 1);
+    }
 
     const check = () => {
-      const next = getLocalDayKey();
+      const next = getLocalDayKey(timeZone);
       if (next !== last) {
         last = next;
         setToday(next);
@@ -76,10 +84,10 @@ export function useDailyReset(): { today: string; epoch: number } {
       window.removeEventListener(DAILY_RESET_EVENT, onExternal);
       window.clearInterval(interval);
     };
-    // Intentionally only on mount — the inner `last` closure tracks the
-    // current day without re-subscribing on every render.
+    // Re-subscribe when the seeker's effective timezone changes so the
+    // day-flip check honors the new zone immediately.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [timeZone]);
 
   return { today, epoch };
 }
