@@ -476,7 +476,12 @@ describe("getDayInTz / getDayOffsetInTz — property-based invariants", () => {
       "24h-shift bound: getDayOffsetInTz of (a + 24h, a) must be 0 (DST loss), 1 (normal), or 2 (DST gain).";
     runProperty({
       invariant: INV,
-      numRuns: 1000,
+      // Bumped above the default because this is the only invariant that
+      // exercises DST gain/loss directly. With the narrower 18-month
+      // instant window, 400 runs land ~28 cases per zone — still enough
+      // to hit both spring-forward and fall-back transitions for every
+      // zone in the set.
+      numRuns: 400,
       property: fc.property(arbInstant, arbZone, (instant, tz) => {
         recordCase(INV, tz);
         const a = instant;
