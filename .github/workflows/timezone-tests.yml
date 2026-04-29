@@ -168,6 +168,21 @@ jobs:
       - name: Run timezone unit + snapshot + property tests
         run: npm run test:ci
 
+      # Upload the per-invariant per-zone coverage JSON written by the
+      # property suite (see afterAll in use-timezone.property.test.ts).
+      # `if: always()` so we still get the artifact when tests fail —
+      # that's exactly when comparing against a known-good run is most
+      # useful. Each matrix cell uploads under a unique name so all
+      # files coexist on the workflow run page.
+      - name: Upload timezone coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tz-coverage-node${{ matrix.node }}-${{ matrix.tz }}
+          path: coverage-artifacts/
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Verify snapshots are committed (no drift)
         run: |
           if [ -n "$(git status --porcelain src/lib/__snapshots__)" ]; then
@@ -246,6 +261,15 @@ jobs:
           echo "To reproduce a failure locally:"
           echo "  FC_SEED=$FC_SEED npm run test:tz:property"
           npm run test:tz:property
+
+      - name: Upload pinned-seed coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tz-coverage-pinned-seed-${{ env.TIMEZONE_PROPERTY_SEED }}
+          path: coverage-artifacts/
+          if-no-files-found: warn
+          retention-days: 90
 
   # ---------------------------------------------------------------------------
   # Manual snapshot refresh.
