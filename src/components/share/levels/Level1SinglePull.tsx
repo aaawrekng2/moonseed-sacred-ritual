@@ -30,11 +30,15 @@ export function Level1SinglePull({
           style={{
             textAlign: "center",
             fontStyle: "italic",
-            fontSize: 56,
+            fontSize: 48,
             lineHeight: 1.4,
             opacity: 0.92,
             maxWidth: 860,
             margin: "0 auto",
+            display: "-webkit-box",
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
           }}
         >
           “{ctx.question!.trim()}”

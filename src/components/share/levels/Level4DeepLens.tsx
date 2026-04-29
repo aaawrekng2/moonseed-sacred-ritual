@@ -74,11 +74,15 @@ export function Level4DeepLens({
           style={{
             textAlign: "center",
             fontFamily: "var(--font-serif)",
-            fontSize: 56,
+            fontSize: 44,
             lineHeight: 1.5,
             maxWidth: 900,
             margin: "0 auto",
             opacity: 0.95,
+            display: "-webkit-box",
+            WebkitLineClamp: 6,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
           }}
         >
           {snippet}

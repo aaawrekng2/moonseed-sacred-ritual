@@ -49,13 +49,17 @@ export function Level5MirrorArtifact({
           textAlign: "center",
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 60,
+          fontSize: 48,
           lineHeight: 1.6,
           maxWidth: 880,
           margin: "0 auto",
           opacity: 0.98,
           letterSpacing: "0.01em",
           whiteSpace: "pre-wrap",
+          display: "-webkit-box",
+          WebkitLineClamp: 8,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
         }}
       >
         {text || "—"}
