@@ -27,7 +27,9 @@ const ZONES = [
   "America/Los_Angeles",
   "America/New_York",
   "Europe/London",
+  "Europe/Berlin",
   "Asia/Tokyo",
+  "Australia/Sydney",
   "Pacific/Auckland",
 ] as const;
 
@@ -36,6 +38,10 @@ const INSTANTS: Array<{ label: string; iso: string }> = [
   { label: "us-spring-forward-2026", iso: "2026-03-08T10:30:00Z" }, // LA: 02:30 → 03:30
   { label: "us-fall-back-2026", iso: "2026-11-01T08:30:00Z" }, // LA: 01:30 PDT, then PST
   { label: "uk-bst-start-2026", iso: "2026-03-29T00:30:00Z" }, // London 00:30 → BST at 01:00
+  { label: "eu-cest-start-2026", iso: "2026-03-29T00:30:00Z" }, // Berlin 01:30 → CEST at 02:00→03:00
+  { label: "eu-cet-return-2026", iso: "2026-10-25T00:30:00Z" }, // Berlin 02:30 CEST → 02:30 CET
+  { label: "au-aedt-start-2026", iso: "2026-10-03T15:30:00Z" }, // Sydney 02:30 → 03:30 AEDT
+  { label: "au-aest-return-2026", iso: "2026-04-04T15:30:00Z" }, // Sydney 02:30 AEDT → 02:30 AEST
   { label: "date-line-utc-midnight", iso: "2026-07-15T00:00:00Z" },
   { label: "date-line-utc-near-midnight", iso: "2026-07-14T23:30:00Z" },
   { label: "year-boundary", iso: "2027-01-01T00:00:00Z" },

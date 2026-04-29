@@ -81,6 +81,64 @@ describe("getDayInTz", () => {
       .toBe("2026-03-30");
   });
 
+  it("walks +/- one day across CEST start (Europe/Berlin spring-forward)", () => {
+    // CEST start: 2026-03-29 02:00 → 03:00 in Europe/Berlin.
+    const anchor = getTodayInTz(
+      "Europe/Berlin",
+      new Date("2026-03-29T11:00:00Z"), // = Mar 29 13:00 CEST
+    );
+    expect(getYmdInTz(anchor, "Europe/Berlin")).toBe("2026-03-29");
+    expect(getYmdInTz(getDayInTz(anchor, -1, "Europe/Berlin"), "Europe/Berlin"))
+      .toBe("2026-03-28");
+    expect(getYmdInTz(getDayInTz(anchor, 1, "Europe/Berlin"), "Europe/Berlin"))
+      .toBe("2026-03-30");
+    // Noon-anchor should stay at hour=12 across the boundary.
+    expect(getDatePartsInTz(anchor, "Europe/Berlin").hour).toBe(12);
+  });
+
+  it("walks +/- one day across CET start (Europe/Berlin fall-back)", () => {
+    // CET return: 2026-10-25 03:00 → 02:00 in Europe/Berlin.
+    const anchor = getTodayInTz(
+      "Europe/Berlin",
+      new Date("2026-10-25T11:00:00Z"), // = Oct 25 12:00 CET
+    );
+    expect(getYmdInTz(anchor, "Europe/Berlin")).toBe("2026-10-25");
+    expect(getYmdInTz(getDayInTz(anchor, -1, "Europe/Berlin"), "Europe/Berlin"))
+      .toBe("2026-10-24");
+    expect(getYmdInTz(getDayInTz(anchor, 1, "Europe/Berlin"), "Europe/Berlin"))
+      .toBe("2026-10-26");
+    expect(getDatePartsInTz(anchor, "Europe/Berlin").hour).toBe(12);
+  });
+
+  it("walks +/- one day across AEDT start (Australia/Sydney spring-forward, southern hemisphere)", () => {
+    // AEDT start: 2026-10-04 02:00 → 03:00 in Australia/Sydney
+    // (southern hemisphere DST runs Oct → Apr — opposite of the north).
+    const anchor = getTodayInTz(
+      "Australia/Sydney",
+      new Date("2026-10-04T01:00:00Z"), // = Oct 4 12:00 AEDT
+    );
+    expect(getYmdInTz(anchor, "Australia/Sydney")).toBe("2026-10-04");
+    expect(getYmdInTz(getDayInTz(anchor, -1, "Australia/Sydney"), "Australia/Sydney"))
+      .toBe("2026-10-03");
+    expect(getYmdInTz(getDayInTz(anchor, 1, "Australia/Sydney"), "Australia/Sydney"))
+      .toBe("2026-10-05");
+    expect(getDatePartsInTz(anchor, "Australia/Sydney").hour).toBe(12);
+  });
+
+  it("walks +/- one day across AEST return (Australia/Sydney fall-back, southern hemisphere)", () => {
+    // AEST return: 2026-04-05 03:00 → 02:00 in Australia/Sydney.
+    const anchor = getTodayInTz(
+      "Australia/Sydney",
+      new Date("2026-04-05T02:00:00Z"), // = Apr 5 12:00 AEST
+    );
+    expect(getYmdInTz(anchor, "Australia/Sydney")).toBe("2026-04-05");
+    expect(getYmdInTz(getDayInTz(anchor, -1, "Australia/Sydney"), "Australia/Sydney"))
+      .toBe("2026-04-04");
+    expect(getYmdInTz(getDayInTz(anchor, 1, "Australia/Sydney"), "Australia/Sydney"))
+      .toBe("2026-04-06");
+    expect(getDatePartsInTz(anchor, "Australia/Sydney").hour).toBe(12);
+  });
+
   it("walks across the May 31 full moon date line (Pacific vs Tokyo)", () => {
     // Conceptual peak instant: 2026-05-31 11:00 UTC.
     //   - LA (PDT, UTC-7): 2026-05-31 04:00  → peak day = May 31
