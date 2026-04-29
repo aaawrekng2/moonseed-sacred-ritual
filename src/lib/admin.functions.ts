@@ -20,6 +20,7 @@ import {
   previewWeavesForUser,
   type WeavePreview,
 } from "@/lib/weaves.functions";
+import { evaluateDetectWeavesAlerts } from "@/lib/detect-weaves-alerts.server";
 
 async function assertAdmin(supabase: any, userId: string): Promise<void> {
   const { data, error } = await supabase.rpc("has_admin_role", {
@@ -402,7 +403,9 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
             ? "partial"
             : "success";
 
-      await supabaseAdmin.from("detect_weaves_runs" as never).insert({
+      const { data: insertedRun } = await supabaseAdmin
+        .from("detect_weaves_runs" as never)
+        .insert({
         started_at: new Date(startedAt).toISOString(),
         finished_at: new Date(finishedAt).toISOString(),
         duration_ms: finishedAt - startedAt,
@@ -417,7 +420,16 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
         per_user_errors: perUserErrors,
         mode: "manual",
         triggered_by: userId,
-      } as never);
+      } as never)
+        .select("id")
+        .single();
+
+      const manualRunId = (insertedRun as { id?: string } | null)?.id ?? null;
+      if (manualRunId) {
+        await evaluateDetectWeavesAlerts(manualRunId).catch((err) =>
+          console.error("[detect-weaves alerts] eval failed", err),
+        );
+      }
 
       await logAction(
         userId,
@@ -446,7 +458,9 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
     } catch (e) {
       const finishedAt = Date.now();
       const message = e instanceof Error ? e.message : String(e);
-      await supabaseAdmin.from("detect_weaves_runs" as never).insert({
+      const { data: failedRun } = await supabaseAdmin
+        .from("detect_weaves_runs" as never)
+        .insert({
         started_at: new Date(startedAt).toISOString(),
         finished_at: new Date(finishedAt).toISOString(),
         duration_ms: finishedAt - startedAt,
@@ -457,7 +471,15 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
         per_user_errors: [],
         mode: "manual",
         triggered_by: userId,
-      } as never);
+      } as never)
+        .select("id")
+        .single();
+      const failedRunId = (failedRun as { id?: string } | null)?.id ?? null;
+      if (failedRunId) {
+        await evaluateDetectWeavesAlerts(failedRunId).catch((err) =>
+          console.error("[detect-weaves alerts] eval failed", err),
+        );
+      }
       throw e;
     }
   });
@@ -575,4 +597,87 @@ export const previewDetectWeavesAdmin = createServerFn({ method: "POST" })
       duration_ms,
       per_user: perUser,
     } as const;
+  });
+
+/* ---------- detect-weaves alerts ---------- */
+
+export type DetectWeavesAlert = {
+  id: string;
+  created_at: string;
+  kind: "failure" | "partial" | "zero_streak";
+  severity: "info" | "warn" | "error";
+  message: string;
+  details: Record<string, any>;
+  run_id: string | null;
+  notified_at: string | null;
+  resolved_at: string | null;
+  resolved_by: string | null;
+};
+
+/**
+ * Admin-only: list detect-weaves alerts. Defaults to unresolved only.
+ */
+export const listDetectWeavesAlerts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        includeResolved: z.boolean().optional().default(false),
+        limit: z.number().int().min(1).max(200).optional().default(50),
+      })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    let query = supabaseAdmin
+      .from("detect_weaves_alerts" as never)
+      .select(
+        "id, created_at, kind, severity, message, details, run_id, notified_at, resolved_at, resolved_by",
+      )
+      .order("created_at", { ascending: false })
+      .limit(data.limit);
+    if (!data.includeResolved) {
+      query = query.is("resolved_at", null);
+    }
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
+    return {
+      alerts: (rows ?? []) as unknown as DetectWeavesAlert[],
+    };
+  });
+
+/**
+ * Admin-only: mark a detect-weaves alert as resolved.
+ */
+export const resolveDetectWeavesAlert = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ alertId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId, claims } = context;
+    await assertAdmin(supabase, userId);
+    const actorEmail = (claims as any)?.email ?? null;
+
+    const { error } = await supabaseAdmin
+      .from("detect_weaves_alerts" as never)
+      .update({
+        resolved_at: new Date().toISOString(),
+        resolved_by: userId,
+      } as never)
+      .eq("id", data.alertId)
+      .is("resolved_at", null);
+    if (error) throw new Error(error.message);
+
+    await logAction(
+      userId,
+      actorEmail,
+      "resolve_detect_weaves_alert",
+      null,
+      null,
+      { alert_id: data.alertId },
+    );
+    return { ok: true } as const;
   });

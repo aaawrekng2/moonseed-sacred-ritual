@@ -18,6 +18,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { timingSafeEqual } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { detectWeavesForUser } from "@/lib/weaves.functions";
+import { evaluateDetectWeavesAlerts } from "@/lib/detect-weaves-alerts.server";
 
 /** Minimum gap between full scans, regardless of caller. 30 minutes. */
 const MIN_INTERVAL_MS = 30 * 60 * 1000;
@@ -37,23 +38,30 @@ async function recordRun(opts: {
   weavesExisting?: number;
   message?: string;
   perUserErrors?: PerUserError[];
-}): Promise<void> {
+}): Promise<string | null> {
   const finishedAt = Date.now();
   try {
-    await supabaseAdmin.from("detect_weaves_runs").insert({
-      started_at: new Date(opts.startedAt).toISOString(),
-      finished_at: new Date(finishedAt).toISOString(),
-      duration_ms: finishedAt - opts.startedAt,
-      users_scanned: opts.usersScanned ?? 0,
-      weaves_detected: opts.weavesDetected ?? 0,
-      weaves_existing: opts.weavesExisting ?? 0,
-      status: opts.status,
-      message: opts.message ?? null,
-      per_user_errors: opts.perUserErrors ?? [],
-    });
+    const { data, error } = await supabaseAdmin
+      .from("detect_weaves_runs")
+      .insert({
+        started_at: new Date(opts.startedAt).toISOString(),
+        finished_at: new Date(finishedAt).toISOString(),
+        duration_ms: finishedAt - opts.startedAt,
+        users_scanned: opts.usersScanned ?? 0,
+        weaves_detected: opts.weavesDetected ?? 0,
+        weaves_existing: opts.weavesExisting ?? 0,
+        status: opts.status,
+        message: opts.message ?? null,
+        per_user_errors: opts.perUserErrors ?? [],
+      })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return (data as { id: string }).id;
   } catch (e) {
     // Logging must never break the run itself.
     console.error("[detect-weaves] failed to persist run log", e);
+    return null;
   }
 }
 
@@ -126,11 +134,16 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
           .in("lifecycle_state", ["emerging", "active", "reawakened"]);
         if (error) {
           console.error("[detect-weaves] load patterns failed", error.message);
-          await recordRun({
+          const failedRunId = await recordRun({
             startedAt,
             status: "error",
             message: `load patterns failed: ${error.message}`,
           });
+          if (failedRunId) {
+            await evaluateDetectWeavesAlerts(failedRunId).catch((err) =>
+              console.error("[detect-weaves alerts] eval failed", err),
+            );
+          }
           return new Response("Internal error", { status: 500 });
         }
         const userCounts = new Map<string, number>();
@@ -162,7 +175,7 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
             });
           }
         }
-        await recordRun({
+        const finishedRunId = await recordRun({
           startedAt,
           status: perUserErrors.length > 0 ? "partial" : "success",
           usersScanned: candidates.length,
@@ -170,6 +183,11 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
           weavesExisting: totalExisting,
           perUserErrors,
         });
+        if (finishedRunId) {
+          await evaluateDetectWeavesAlerts(finishedRunId).catch((err) =>
+            console.error("[detect-weaves alerts] eval failed", err),
+          );
+        }
         return Response.json({
           ok: true,
           users_scanned: candidates.length,
