@@ -383,6 +383,7 @@ export function InlineReading({
               onTagLibraryChange={handleEnrichTagLibraryChange}
               onPhotoCountChange={handleEnrichPhotoCountChange}
               copyText={copyText ?? undefined}
+              onShare={() => setTearOpen(true)}
             />
           )}
           {(savedReading || (state.kind === "loaded" && state.readingId)) && (
