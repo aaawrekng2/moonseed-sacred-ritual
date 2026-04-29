@@ -113,8 +113,48 @@ export type Database = {
         }
         Relationships: []
       }
+      detect_weaves_alerts: {
+        Row: {
+          created_at: string
+          details: Json
+          id: string
+          kind: string
+          message: string
+          notified_at: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          run_id: string | null
+          severity: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json
+          id?: string
+          kind: string
+          message: string
+          notified_at?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          run_id?: string | null
+          severity?: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json
+          id?: string
+          kind?: string
+          message?: string
+          notified_at?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          run_id?: string | null
+          severity?: string
+        }
+        Relationships: []
+      }
       detect_weaves_runs: {
         Row: {
+          alerted: boolean
           duration_ms: number
           finished_at: string
           id: string
@@ -129,6 +169,7 @@ export type Database = {
           weaves_existing: number
         }
         Insert: {
+          alerted?: boolean
           duration_ms?: number
           finished_at?: string
           id?: string
@@ -143,6 +184,7 @@ export type Database = {
           weaves_existing?: number
         }
         Update: {
+          alerted?: boolean
           duration_ms?: number
           finished_at?: string
           id?: string
