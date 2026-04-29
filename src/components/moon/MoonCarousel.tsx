@@ -54,6 +54,10 @@ function addDaysToYmd(ymd: string, delta: number): string {
 export function MoonCarousel() {
   const [offset, setOffset] = useState(0);
   const [expandedRel, setExpandedRel] = useState<number | null>(null);
+  // Dev-only "date overlay" mode: outlines each visible day card and prints
+  // its effective-tz YMD key, plus highlights the selected/center cell.
+  // Toggle via the small button rendered alongside the debug panel.
+  const [dateOverlay, setDateOverlay] = useState(false);
   // Day card the user has explicitly tapped to "select". Stored as the
   // absolute relative-day value (matches `d.relative`) so it survives swipes
   // until the day scrolls out of the visible 5-day window.
