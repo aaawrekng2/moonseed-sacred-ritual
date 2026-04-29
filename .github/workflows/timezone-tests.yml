@@ -1086,15 +1086,28 @@ jobs:
               MODE_SEVERITY="warning"
               MODE_ICON="⚠️"
             fi
+            # Compose a SHA fragment once and reuse it in both the
+            # blue ::notice:: banner and the severity-mapped
+            # annotation. Showing branch + baseline + pushed + (when
+            # known) current tip directly in the banner lets you
+            # triage from the run-page header without opening the
+            # step log.
+            SHA_FRAGMENT="branch='$BRANCH' baseline=$BASELINE_SHA pushed=$PUSHED_SHA"
+            if [ -n "${CURRENT_TIP:-}" ]; then
+              SHA_FRAGMENT="$SHA_FRAGMENT current=$CURRENT_TIP"
+            fi
+
             # Top-of-run banner: always a ::notice:: (blue) — it's
             # purely informational ("this is what happened"); the
             # severity-coded annotation below is the one that drives
-            # triage color.
-            echo "::notice title=$MODE_ICON [$MODE_TAG] update-snapshots failure mode::$MODE_HEADLINE — Failed run: $RUN_URL — Re-dispatch UI: $RERUN_URL"
+            # triage color. Branch + SHAs are inlined here so they
+            # show up in the run-page header.
+            echo "::notice title=$MODE_ICON [$MODE_TAG] update-snapshots failure mode::$MODE_HEADLINE — $SHA_FRAGMENT — Failed run: $RUN_URL — Re-dispatch UI: $RERUN_URL"
             # Severity-mapped annotation:
             #   FORCE_PUSH  → ::error::   (red,    coordination required)
             #   CONCURRENT  → ::warning:: (yellow, safe to re-run as-is)
-            echo "::${MODE_SEVERITY} title=${MODE_ICON} [$MODE_TAG] update-snapshots atomicity check failed::[$MODE_TAG] $MODE_HEADLINE. Reason: $REASON. Re-dispatch UI: $RERUN_URL — CLI: $RERUN_CMD"
+            # Same SHA fragment so the two annotations stay in sync.
+            echo "::${MODE_SEVERITY} title=${MODE_ICON} [$MODE_TAG] update-snapshots atomicity check failed::[$MODE_TAG] $MODE_HEADLINE. $SHA_FRAGMENT. Reason: $REASON. Re-dispatch UI: $RERUN_URL — CLI: $RERUN_CMD"
             echo ""
             echo "════════════════════════════════════════════════════════════"
             echo "  ${MODE_ICON} FAILURE MODE: [$MODE_TAG]   (annotation severity: ${MODE_SEVERITY})"
