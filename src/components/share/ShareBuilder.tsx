@@ -215,7 +215,16 @@ export function ShareBuilder({
   }, [level, context.question]);
 
   const captureRef = useRef<HTMLDivElement | null>(null);
-  const { busy, toast, preview, prepare, confirm, cancelPreview } =
+  const {
+    busy,
+    toast,
+    preview,
+    prepare,
+    confirm,
+    cancelPreview,
+    lastError,
+    dismissError,
+  } =
     useShareCard({
       onPrepared: (intent) =>
         trackSharePrepare({ context: contextKind, level, intent, ok: true }),
@@ -239,6 +248,9 @@ export function ShareBuilder({
           error: errorMessage(error),
         }),
     });
+
+  const prepareError = lastError && lastError.step === "prepare" ? lastError : null;
+  const confirmError = lastError && lastError.step === "confirm" ? lastError : null;
 
   // Track cancel from the preview modal (user backed out of confirm).
   const handleCancelPreview = () => {
@@ -672,6 +684,15 @@ export function ShareBuilder({
                 {toast}
               </div>
             )}
+            {prepareError && (
+              <InlineErrorBanner
+                title={prepareError.title}
+                description={prepareError.description}
+                busy={busy !== null}
+                onRetry={prepareError.retry}
+                onDismiss={dismissError}
+              />
+            )}
           </div>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
@@ -680,6 +701,8 @@ export function ShareBuilder({
         busy={busy}
         onConfirm={() => void confirm()}
         onCancel={handleCancelPreview}
+        error={confirmError}
+        onDismissError={dismissError}
       />
     </Dialog>
   );
@@ -702,11 +725,15 @@ function SharePreviewModal({
   busy,
   onConfirm,
   onCancel,
+  error,
+  onDismissError,
 }: {
   preview: { intent: "share" | "save"; dataUrl: string; filename: string } | null;
   busy: ShareBusyState;
   onConfirm: () => void;
   onCancel: () => void;
+  error: { title: string; description: string; retry: () => void } | null;
+  onDismissError: () => void;
 }) {
   const open = !!preview;
   return (
