@@ -3,26 +3,38 @@ import {
   DEFAULT_MAX_USERS_PER_RUN,
   runDetectWeaves,
   type DetectWeavesDeps,
-  type DetectWeavesState,
   type RunRecordInput,
 } from "./detect-weaves-runner.server";
+
+type SlotCall = { minIntervalMs: number };
 
 type FakeDeps = DetectWeavesDeps & {
   recordedRuns: RunRecordInput[];
   detectCalls: string[];
   alertCalls: string[];
+  slotCalls: SlotCall[];
 };
 
+/**
+ * Build a fully-stubbed dependency bag. Every test starts from
+ * `acquired: true` slot acquisition so success-path tests don't have to
+ * opt in; cooldown tests override `tryAcquireSlot` explicitly.
+ */
 function makeDeps(overrides: Partial<DetectWeavesDeps> = {}): FakeDeps {
   const recordedRuns: RunRecordInput[] = [];
   const detectCalls: string[] = [];
   const alertCalls: string[] = [];
+  const slotCalls: SlotCall[] = [];
 
   const base: DetectWeavesDeps = {
     now: () => 1_000_000,
     recordRun: async (input) => {
       recordedRuns.push(input);
       return `run-${recordedRuns.length}`;
+    },
+    tryAcquireSlot: async (minIntervalMs) => {
+      slotCalls.push({ minIntervalMs });
+      return { acquired: true, retryAfterSeconds: 0 };
     },
     loadActivePatternUserIds: async () => ({ rows: [], error: null }),
     detectWeavesForUser: async (userId) => {
@@ -36,11 +48,12 @@ function makeDeps(overrides: Partial<DetectWeavesDeps> = {}): FakeDeps {
   };
 
   const merged: DetectWeavesDeps = { ...base, ...overrides };
-  return Object.assign(merged, { recordedRuns, detectCalls, alertCalls });
-}
-
-function freshState(): DetectWeavesState {
-  return { lastRunAt: 0 };
+  return Object.assign(merged, {
+    recordedRuns,
+    detectCalls,
+    alertCalls,
+    slotCalls,
+  });
 }
 
 describe("runDetectWeaves auth", () => {
@@ -52,30 +65,25 @@ describe("runDetectWeaves auth", () => {
     const res = await runDetectWeaves(
       deps,
       { cronSecret: undefined },
-      freshState(),
       "anything",
     );
 
     expect(res.status).toBe(503);
     expect(res.body).toBe("Server not configured");
-    // The refusal IS persisted so operators can see misconfiguration.
     expect(deps.recordedRuns).toHaveLength(1);
     expect(deps.recordedRuns[0].status).toBe("refused");
     expect(deps.recordedRuns[0].message).toContain("not set");
     expect(errorSpy).toHaveBeenCalled();
-    // No work should have been attempted.
+    // 503 happens BEFORE the lock is taken — must not have hit the DB.
+    expect(deps.slotCalls).toEqual([]);
     expect(deps.detectCalls).toEqual([]);
   });
 
   it("returns 503 when secret is empty string (treated as unset)", async () => {
     const deps = makeDeps();
-    const res = await runDetectWeaves(
-      deps,
-      { cronSecret: "" },
-      freshState(),
-      "anything",
-    );
+    const res = await runDetectWeaves(deps, { cronSecret: "" }, "anything");
     expect(res.status).toBe(503);
+    expect(deps.slotCalls).toEqual([]);
   });
 
   it("returns 401 when the x-cron-secret header is missing", async () => {
@@ -83,13 +91,13 @@ describe("runDetectWeaves auth", () => {
     const res = await runDetectWeaves(
       deps,
       { cronSecret: "real-secret" },
-      freshState(),
       null,
     );
     expect(res.status).toBe(401);
     expect(res.body).toBe("Unauthorized");
-    // 401s must NOT touch the runs table — that would let an attacker spam logs.
+    // 401s must NOT touch the runs table or take the lock.
     expect(deps.recordedRuns).toEqual([]);
+    expect(deps.slotCalls).toEqual([]);
     expect(deps.detectCalls).toEqual([]);
   });
 
@@ -98,11 +106,10 @@ describe("runDetectWeaves auth", () => {
     const res = await runDetectWeaves(
       deps,
       { cronSecret: "real-secret" },
-      freshState(),
       "wrong-secret",
     );
     expect(res.status).toBe(401);
-    expect(deps.recordedRuns).toEqual([]);
+    expect(deps.slotCalls).toEqual([]);
   });
 
   it("returns 401 when only the prefix matches (constant-time guard)", async () => {
@@ -110,63 +117,92 @@ describe("runDetectWeaves auth", () => {
     const res = await runDetectWeaves(
       deps,
       { cronSecret: "real-secret" },
-      freshState(),
       "real",
     );
     expect(res.status).toBe(401);
   });
 });
 
-describe("runDetectWeaves cooldown", () => {
-  it("rejects the second call inside the cooldown window with 429 + retry-after", async () => {
-    let nowMs = 10_000_000;
-    const deps = makeDeps({ now: () => nowMs });
-    const state = freshState();
-    const config = {
-      cronSecret: "secret",
-      minIntervalMs: 30 * 60 * 1000, // 30 min
-    };
+describe("runDetectWeaves cooldown (database-backed lock)", () => {
+  it("delegates the cooldown decision to tryAcquireSlot and returns 429 on refusal", async () => {
+    const deps = makeDeps({
+      tryAcquireSlot: async () => ({
+        acquired: false,
+        retryAfterSeconds: 1500, // 25 minutes
+      }),
+    });
 
-    const first = await runDetectWeaves(deps, config, state, "secret");
-    expect(first.status).toBe(200);
-    expect(state.lastRunAt).toBe(nowMs);
+    const res = await runDetectWeaves(
+      deps,
+      { cronSecret: "secret", minIntervalMs: 30 * 60 * 1000 },
+      "secret",
+    );
 
-    // Advance only 5 minutes — still inside the 30 min cooldown.
-    nowMs += 5 * 60 * 1000;
-    const second = await runDetectWeaves(deps, config, state, "secret");
+    expect(res.status).toBe(429);
+    expect(res.body).toBe("Too soon");
+    expect(res.headers?.["retry-after"]).toBe("1500");
 
-    expect(second.status).toBe(429);
-    expect(second.body).toBe("Too soon");
-    // ~25 minutes remaining, expressed in seconds.
-    expect(second.headers?.["retry-after"]).toBe(String(25 * 60));
-
-    // Cooldown refusal IS persisted (status: refused).
+    // The refusal IS persisted so operators can see the cooldown firing.
     const refused = deps.recordedRuns.filter((r) => r.status === "refused");
     expect(refused).toHaveLength(1);
     expect(refused[0].message).toMatch(/cooldown active/);
+    // No scan work performed.
+    expect(deps.detectCalls).toEqual([]);
   });
 
-  it("allows a second call after the cooldown elapses", async () => {
-    let nowMs = 10_000_000;
-    const deps = makeDeps({ now: () => nowMs });
-    const state = freshState();
-    const config = {
-      cronSecret: "secret",
-      minIntervalMs: 30 * 60 * 1000,
-    };
+  it("clamps retry-after to at least 1 second when the lock reports 0", async () => {
+    const deps = makeDeps({
+      tryAcquireSlot: async () => ({ acquired: false, retryAfterSeconds: 0 }),
+    });
+    const res = await runDetectWeaves(deps, { cronSecret: "secret" }, "secret");
+    expect(res.status).toBe(429);
+    expect(res.headers?.["retry-after"]).toBe("1");
+  });
 
-    const first = await runDetectWeaves(deps, config, state, "secret");
-    expect(first.status).toBe(200);
+  it("forwards minIntervalMs to the lock so the DB enforces the same window", async () => {
+    const deps = makeDeps();
+    await runDetectWeaves(
+      deps,
+      { cronSecret: "secret", minIntervalMs: 12_345 },
+      "secret",
+    );
+    expect(deps.slotCalls).toEqual([{ minIntervalMs: 12_345 }]);
+  });
 
-    nowMs += 30 * 60 * 1000 + 1; // just past the boundary
-    const second = await runDetectWeaves(deps, config, state, "secret");
-    expect(second.status).toBe(200);
+  it("returns 500 + records an error when the lock RPC throws", async () => {
+    const errorSpy = vi.fn();
+    const deps = makeDeps({
+      tryAcquireSlot: async () => {
+        throw new Error("postgres unavailable");
+      },
+    });
+    deps.log = { error: errorSpy };
+
+    const res = await runDetectWeaves(deps, { cronSecret: "secret" }, "secret");
+
+    expect(res.status).toBe(500);
+    expect(res.body).toBe("Internal error");
+    const errored = deps.recordedRuns.find((r) => r.status === "error");
+    expect(errored?.message).toMatch(/lock acquire failed/);
+    expect(errored?.message).toMatch(/postgres unavailable/);
+    expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it("does NOT keep in-memory state across calls — each call re-asks the lock", async () => {
+    // Even after a successful run, the next call must consult the lock again.
+    // The previous in-memory implementation would have skipped the second
+    // acquire; the new contract MUST always defer to the database.
+    const deps = makeDeps();
+
+    await runDetectWeaves(deps, { cronSecret: "secret" }, "secret");
+    await runDetectWeaves(deps, { cronSecret: "secret" }, "secret");
+
+    expect(deps.slotCalls).toHaveLength(2);
   });
 });
 
 describe("runDetectWeaves throughput limits", () => {
   it("caps the number of users processed at maxUsersPerRun", async () => {
-    // Create 7 users, each with two patterns => 7 candidates.
     const userIds = Array.from({ length: 7 }, (_, i) => `user-${i}`);
     const rows = userIds.flatMap((u) => [{ user_id: u }, { user_id: u }]);
 
@@ -176,12 +212,7 @@ describe("runDetectWeaves throughput limits", () => {
 
     const res = await runDetectWeaves(
       deps,
-      {
-        cronSecret: "secret",
-        minIntervalMs: 0,
-        maxUsersPerRun: 3, // intentionally below the candidate count
-      },
-      freshState(),
+      { cronSecret: "secret", maxUsersPerRun: 3 },
       "secret",
     );
 
@@ -189,7 +220,6 @@ describe("runDetectWeaves throughput limits", () => {
     expect(deps.detectCalls).toHaveLength(3);
     const body = res.body as Record<string, unknown>;
     expect(body.users_scanned).toBe(3);
-    // The recorded run reflects the cap, not the candidate pool size.
     const success = deps.recordedRuns.find((r) => r.status === "success");
     expect(success?.usersScanned).toBe(3);
   });
@@ -204,12 +234,7 @@ describe("runDetectWeaves throughput limits", () => {
       loadActivePatternUserIds: async () => ({ rows, error: null }),
     });
 
-    const res = await runDetectWeaves(
-      deps,
-      { cronSecret: "secret", minIntervalMs: 0 },
-      freshState(),
-      "secret",
-    );
+    const res = await runDetectWeaves(deps, { cronSecret: "secret" }, "secret");
 
     expect(res.status).toBe(200);
     expect(deps.detectCalls).toEqual(["weaver"]);
@@ -234,12 +259,7 @@ describe("runDetectWeaves throughput limits", () => {
       },
     });
 
-    const res = await runDetectWeaves(
-      deps,
-      { cronSecret: "secret", minIntervalMs: 0 },
-      freshState(),
-      "secret",
-    );
+    const res = await runDetectWeaves(deps, { cronSecret: "secret" }, "secret");
 
     expect(res.status).toBe(200);
     const body = res.body as Record<string, unknown>;

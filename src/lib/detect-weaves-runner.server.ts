@@ -35,6 +35,21 @@ export type DetectWeavesDeps = {
   /** Persist a run row. Returns the inserted run id, or null on failure. */
   recordRun: (input: RunRecordInput) => Promise<string | null>;
   /**
+   * Atomic database-backed cooldown check. The implementation MUST:
+   *   - take a short-lived advisory lock so concurrent calls across
+   *     instances cannot both acquire the slot;
+   *   - compare the persisted last-run timestamp to `minIntervalMs`;
+   *   - on success, stamp a new last-run timestamp and return acquired=true;
+   *   - on cooldown / lock contention, return acquired=false plus the
+   *     number of seconds the caller should wait before retrying.
+   *
+   * This replaces the in-memory `lastRunAt` so the cooldown survives
+   * restarts and is enforced across multiple server instances.
+   */
+  tryAcquireSlot: (
+    minIntervalMs: number,
+  ) => Promise<{ acquired: boolean; retryAfterSeconds: number }>;
+  /**
    * Returns user_ids that currently have an "active-ish" pattern (one row per
    * pattern; duplicates are aggregated by the runner to find users with >= 2).
    * Returns null + an error message on failure.
@@ -60,11 +75,6 @@ export type DetectWeavesConfig = {
   maxUsersPerRun?: number;
 };
 
-export type DetectWeavesState = {
-  /** Epoch ms of the last accepted (post-auth, post-cooldown) run. */
-  lastRunAt: number;
-};
-
 export type DetectWeavesResponse = {
   status: number;
   body: string | Record<string, unknown>;
@@ -86,13 +96,14 @@ export function safeEqual(a: string, b: string): boolean {
 
 /**
  * Core handler. Returns a serializable response shape that the HTTP route
- * adapts into a real Response. `state` is mutated in place so the caller can
- * persist `lastRunAt` across invocations.
+ * adapts into a real Response. The cooldown is enforced via
+ * `deps.tryAcquireSlot`, which is backed by Postgres (see migration
+ * `try_acquire_detect_weaves_slot`) — no in-memory state is used so that the
+ * limit holds across server restarts and multiple instances.
  */
 export async function runDetectWeaves(
   deps: DetectWeavesDeps,
   config: DetectWeavesConfig,
-  state: DetectWeavesState,
   cronHeader: string | null,
 ): Promise<DetectWeavesResponse> {
   const startedAt = deps.now();
@@ -120,9 +131,27 @@ export async function runDetectWeaves(
     return { status: 401, body: "Unauthorized" };
   }
 
-  const now = deps.now();
-  if (now - state.lastRunAt < minIntervalMs) {
-    const retryAfter = Math.ceil((minIntervalMs - (now - state.lastRunAt)) / 1000);
+  // Persistent, multi-instance safe cooldown. Backed by an advisory lock
+  // + singleton row in Postgres — see try_acquire_detect_weaves_slot.
+  let slot: { acquired: boolean; retryAfterSeconds: number };
+  try {
+    slot = await deps.tryAcquireSlot(minIntervalMs);
+  } catch (e) {
+    log.error("[detect-weaves] tryAcquireSlot failed", e);
+    await deps.recordRun({
+      startedAt,
+      finishedAt: deps.now(),
+      status: "error",
+      usersScanned: 0,
+      weavesDetected: 0,
+      weavesExisting: 0,
+      message: `lock acquire failed: ${e instanceof Error ? e.message : String(e)}`,
+      perUserErrors: [],
+    });
+    return { status: 500, body: "Internal error" };
+  }
+  if (!slot.acquired) {
+    const retryAfter = Math.max(1, slot.retryAfterSeconds);
     await deps.recordRun({
       startedAt,
       finishedAt: deps.now(),
@@ -139,7 +168,6 @@ export async function runDetectWeaves(
       headers: { "retry-after": String(retryAfter) },
     };
   }
-  state.lastRunAt = now;
 
   const { rows, error: loadError } = await deps.loadActivePatternUserIds();
   if (loadError) {

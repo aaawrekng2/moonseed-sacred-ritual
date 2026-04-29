@@ -9,9 +9,10 @@
  *     There is intentionally no fallback to the publishable key, since
  *     that key is embedded in every browser bundle and is not a secret.
  *     If the server secret is unset we refuse the request entirely.
- *  3. An in-memory cooldown enforces at most one full scan per
- *     `MIN_INTERVAL_MS`, so even a leaked credential can't be used to
- *     hammer the database.
+ *  3. A database-backed cooldown (advisory lock + singleton row, see
+ *     `try_acquire_detect_weaves_slot`) enforces at most one full scan
+ *     per `MIN_INTERVAL_MS` across server restarts and multiple instances.
+ *     Even a leaked credential can't be used to hammer the database.
  *  4. The response never leaks user ids or per-user counts.
  */
 import { createFileRoute } from "@tanstack/react-router";
@@ -23,11 +24,8 @@ import {
   DEFAULT_MIN_INTERVAL_MS,
   runDetectWeaves,
   type DetectWeavesDeps,
-  type DetectWeavesState,
   type RunRecordInput,
 } from "@/lib/detect-weaves-runner.server";
-
-const state: DetectWeavesState = { lastRunAt: 0 };
 
 async function recordRun(opts: RunRecordInput): Promise<string | null> {
   try {
@@ -55,6 +53,36 @@ async function recordRun(opts: RunRecordInput): Promise<string | null> {
   }
 }
 
+/**
+ * Calls the security-definer function in Postgres that atomically:
+ *   - takes a transaction-scoped advisory lock,
+ *   - checks the persisted `last_run_at`,
+ *   - and either stamps a new run time (acquired) or reports
+ *     how many seconds remain on the cooldown.
+ */
+async function tryAcquireSlot(
+  minIntervalMs: number,
+): Promise<{ acquired: boolean; retryAfterSeconds: number }> {
+  const minSeconds = Math.max(0, Math.ceil(minIntervalMs / 1000));
+  const { data, error } = await supabaseAdmin.rpc(
+    "try_acquire_detect_weaves_slot",
+    { _min_interval_seconds: minSeconds },
+  );
+  if (error) {
+    throw new Error(`try_acquire_detect_weaves_slot rpc failed: ${error.message}`);
+  }
+  // Postgres function returns a single-row table.
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row !== "object") {
+    throw new Error("try_acquire_detect_weaves_slot returned no row");
+  }
+  const r = row as { acquired: boolean; retry_after_seconds: number | null };
+  return {
+    acquired: !!r.acquired,
+    retryAfterSeconds: Number(r.retry_after_seconds ?? minSeconds),
+  };
+}
+
 export const Route = createFileRoute("/api/public/detect-weaves")({
   server: {
     handlers: {
@@ -62,6 +90,7 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
         const deps: DetectWeavesDeps = {
           now: () => Date.now(),
           recordRun,
+          tryAcquireSlot,
           loadActivePatternUserIds: async () => {
             const { data, error } = await supabaseAdmin
               .from("patterns")
@@ -89,7 +118,6 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
             minIntervalMs: DEFAULT_MIN_INTERVAL_MS,
             maxUsersPerRun: DEFAULT_MAX_USERS_PER_RUN,
           },
-          state,
           request.headers.get("x-cron-secret"),
         );
 

@@ -152,6 +152,24 @@ export type Database = {
         }
         Relationships: []
       }
+      detect_weaves_lock: {
+        Row: {
+          id: string
+          last_run_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          last_run_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          last_run_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       detect_weaves_runs: {
         Row: {
           alerted: boolean
@@ -713,6 +731,14 @@ export type Database = {
         Returns: string
       }
       seed_default_user_tags: { Args: { _user_id: string }; Returns: undefined }
+      try_acquire_detect_weaves_slot: {
+        Args: { _min_interval_seconds: number }
+        Returns: {
+          acquired: boolean
+          last_run_at: string
+          retry_after_seconds: number
+        }[]
+      }
       weave_pattern_key: { Args: { _pattern_ids: string[] }; Returns: string }
     }
     Enums: {
