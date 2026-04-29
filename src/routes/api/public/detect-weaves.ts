@@ -34,6 +34,7 @@ async function recordRun(opts: {
   status: RunStatus;
   usersScanned?: number;
   weavesDetected?: number;
+  weavesExisting?: number;
   message?: string;
   perUserErrors?: PerUserError[];
 }): Promise<void> {
@@ -45,6 +46,7 @@ async function recordRun(opts: {
       duration_ms: finishedAt - opts.startedAt,
       users_scanned: opts.usersScanned ?? 0,
       weaves_detected: opts.weavesDetected ?? 0,
+      weaves_existing: opts.weavesExisting ?? 0,
       status: opts.status,
       message: opts.message ?? null,
       per_user_errors: opts.perUserErrors ?? [],
@@ -142,10 +144,16 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
           .slice(0, MAX_USERS_PER_RUN);
 
         let totalDetected = 0;
+        let totalExisting = 0;
         const perUserErrors: PerUserError[] = [];
         for (const userId of candidates) {
           try {
-            totalDetected += await detectWeavesForUser(supabaseAdmin, userId);
+            const { inserted, existing } = await detectWeavesForUser(
+              supabaseAdmin,
+              userId,
+            );
+            totalDetected += inserted;
+            totalExisting += existing;
           } catch (e) {
             console.error("[detect-weaves cron] user failed", userId, e);
             perUserErrors.push({
@@ -159,12 +167,14 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
           status: perUserErrors.length > 0 ? "partial" : "success",
           usersScanned: candidates.length,
           weavesDetected: totalDetected,
+          weavesExisting: totalExisting,
           perUserErrors,
         });
         return Response.json({
           ok: true,
           users_scanned: candidates.length,
           weaves_detected: totalDetected,
+          weaves_existing: totalExisting,
           errors: perUserErrors.length,
         });
       },

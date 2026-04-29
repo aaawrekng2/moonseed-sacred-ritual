@@ -126,6 +126,7 @@ export type Database = {
           triggered_by: string | null
           users_scanned: number
           weaves_detected: number
+          weaves_existing: number
         }
         Insert: {
           duration_ms?: number
@@ -139,6 +140,7 @@ export type Database = {
           triggered_by?: string | null
           users_scanned?: number
           weaves_detected?: number
+          weaves_existing?: number
         }
         Update: {
           duration_ms?: number
@@ -152,6 +154,7 @@ export type Database = {
           triggered_by?: string | null
           users_scanned?: number
           weaves_detected?: number
+          weaves_existing?: number
         }
         Relationships: []
       }
@@ -620,6 +623,7 @@ export type Database = {
           id: string
           is_premium: boolean
           pattern_ids: string[]
+          pattern_key: string | null
           reading_ids: string[]
           title: string
           user_id: string
@@ -631,6 +635,7 @@ export type Database = {
           id?: string
           is_premium?: boolean
           pattern_ids?: string[]
+          pattern_key?: string | null
           reading_ids?: string[]
           title: string
           user_id: string
@@ -642,6 +647,7 @@ export type Database = {
           id?: string
           is_premium?: boolean
           pattern_ids?: string[]
+          pattern_key?: string | null
           reading_ids?: string[]
           title?: string
           user_id?: string
@@ -665,6 +671,7 @@ export type Database = {
         Returns: string
       }
       seed_default_user_tags: { Args: { _user_id: string }; Returns: undefined }
+      weave_pattern_key: { Args: { _pattern_ids: string[] }; Returns: string }
     }
     Enums: {
       [_ in never]: never
