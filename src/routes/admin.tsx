@@ -1039,6 +1039,59 @@ function DetectWeavesPanel() {
           </p>
         )}
 
+        {runPerUser && runPerUser.length > 0 && (
+          <div
+            style={{
+              border: "1px solid var(--border-subtle)",
+              padding: 12,
+              maxHeight: 320,
+              overflowY: "auto",
+              fontSize: "var(--text-body-sm)",
+              ...serif,
+            }}
+          >
+            <div
+              style={{
+                ...display,
+                fontSize: 11,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                opacity: 0.7,
+                marginBottom: 8,
+              }}
+            >
+              Per-user results
+            </div>
+            {runPerUser.map((u) => (
+              <div key={u.user_id} style={{ marginBottom: 8 }}>
+                <div
+                  style={{
+                    fontFamily: "var(--font-mono, monospace)",
+                    fontSize: "var(--text-caption)",
+                    opacity: 0.75,
+                  }}
+                >
+                  {u.user_id}
+                </div>
+                <div style={{ marginTop: 2, opacity: 0.85 }}>
+                  {u.error ? (
+                    <span style={{ color: "oklch(0.7 0.18 25)" }}>
+                      error: {u.error}
+                    </span>
+                  ) : (
+                    <>
+                      <strong>{u.inserted}</strong> new ·{" "}
+                      <span style={{ opacity: 0.7 }}>
+                        {u.existing} already existed
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {preview && (preview.would_create > 0 || preview.errors > 0) && (
           <div
             style={{
