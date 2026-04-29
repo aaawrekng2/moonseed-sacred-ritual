@@ -1808,7 +1808,7 @@ function ReadingDetail({
           guideName: guide.name,
           isOracle,
         }}
-        defaultLevel="reading"
+        defaultLevel={reading.interpretation?.trim() ? "reading" : "pull"}
       />
     </div>
   );
