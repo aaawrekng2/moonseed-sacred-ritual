@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:tz": "vitest run src/lib/use-timezone",
-    "test:tz:property": "vitest run src/lib/use-timezone.property.test.ts"
+    "test:tz:property": "vitest run src/lib/use-timezone.property.test.ts",
+    "test:ci": "vitest run src/lib/use-timezone.test.ts src/lib/use-timezone.snapshot.test.ts src/lib/use-timezone.property.test.ts"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",
