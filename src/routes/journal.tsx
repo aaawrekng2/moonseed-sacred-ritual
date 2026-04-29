@@ -679,7 +679,12 @@ function JournalPage() {
             }}
           />
         ) : (
-          <ThreadsView threads={threads} patternsById={patternsById} />
+          <ThreadsView
+            threads={threads}
+            patternsById={patternsById}
+            readings={filtered}
+            onOpenReading={(id) => setOpenId(id)}
+          />
         )}
       </div>
 
