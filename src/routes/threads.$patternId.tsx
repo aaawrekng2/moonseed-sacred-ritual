@@ -904,6 +904,131 @@ function ChamberWeaveGraph({
           );
         })()}
       </div>
+      <WeaveGraphLegend />
     </section>
+  );
+}
+
+function WeaveGraphLegend() {
+  const itemStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    fontFamily: "var(--font-serif)",
+    fontStyle: "italic",
+    fontSize: "var(--text-caption)",
+    color: "var(--color-foreground)",
+    opacity: 0.75,
+  };
+  const swatch: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: 28,
+    height: 18,
+    flexShrink: 0,
+  };
+  return (
+    <dl
+      aria-label="Weave graph legend"
+      style={{
+        marginTop: "var(--space-3, 12px)",
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+        gap: "var(--space-2, 8px) var(--space-4, 16px)",
+        padding: "var(--space-3, 12px) var(--space-4, 16px)",
+        borderRadius: "var(--radius-md, 10px)",
+        border: "1px solid var(--border-subtle, rgba(255,255,255,0.06))",
+        background: "rgba(10,8,22,0.4)",
+      }}
+    >
+      <div style={itemStyle}>
+        <span style={swatch} aria-hidden>
+          <span
+            style={{
+              width: 22,
+              height: 14,
+              borderRadius: 999,
+              background: "rgba(212,175,90,0.18)",
+              border: "1px solid rgba(212,175,90,0.85)",
+            }}
+          />
+        </span>
+        <dt style={{ display: "inline" }}>Pattern node</dt>
+        <dd style={{ margin: 0, opacity: 0.7 }}>— brighter = more active in your readings</dd>
+      </div>
+      <div style={itemStyle}>
+        <span style={swatch} aria-hidden>
+          <span
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              background: "rgba(212,175,90,0.85)",
+              boxShadow: "0 0 8px rgba(212,175,90,0.5)",
+            }}
+          />
+        </span>
+        <dt style={{ display: "inline" }}>Reading dot</dt>
+        <dd style={{ margin: 0, opacity: 0.7 }}>— a single entry where this pattern surfaced</dd>
+      </div>
+      <div style={itemStyle}>
+        <span style={swatch} aria-hidden>
+          <svg width={28} height={10} viewBox="0 0 28 10">
+            <line
+              x1={1}
+              y1={5}
+              x2={27}
+              y2={5}
+              stroke="rgba(212,175,90,0.55)"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+            >
+              <animate
+                attributeName="stroke-dashoffset"
+                from="0"
+                to="-14"
+                dur="1.2s"
+                repeatCount="indefinite"
+              />
+            </line>
+          </svg>
+        </span>
+        <dt style={{ display: "inline" }}>Gold flowing edge</dt>
+        <dd style={{ margin: 0, opacity: 0.7 }}>— an active weave linking two patterns</dd>
+      </div>
+      <div style={itemStyle}>
+        <span style={swatch} aria-hidden>
+          <svg width={28} height={10} viewBox="0 0 28 10">
+            <line
+              x1={1}
+              y1={5}
+              x2={27}
+              y2={5}
+              stroke="rgba(232,200,120,1)"
+              strokeWidth={2}
+            />
+          </svg>
+        </span>
+        <dt style={{ display: "inline" }}>Bright bold edge</dt>
+        <dd style={{ margin: 0, opacity: 0.7 }}>— the weave you're hovering or focused on</dd>
+      </div>
+      <div style={itemStyle}>
+        <span style={swatch} aria-hidden>
+          <span
+            style={{
+              width: 22,
+              height: 14,
+              borderRadius: 999,
+              background: "rgba(212,175,90,0.06)",
+              border: "1px solid rgba(212,175,90,0.4)",
+              opacity: 0.35,
+            }}
+          />
+        </span>
+        <dt style={{ display: "inline" }}>Dimmed node</dt>
+        <dd style={{ margin: 0, opacity: 0.7 }}>— retired or unrelated to the active weave</dd>
+      </div>
+    </dl>
   );
 }
