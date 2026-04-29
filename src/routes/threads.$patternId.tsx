@@ -584,7 +584,7 @@ function ChamberWeaveGraph({
     };
   }, [userId, pattern.id, pattern.reading_ids]);
 
-  if (loading) return null;
+  if (loading) return <WeaveGraphSkeleton />;
 
   const siblingList = Object.values(siblings);
   // Nothing meaningful to draw — bail.
