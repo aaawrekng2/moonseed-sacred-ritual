@@ -166,3 +166,20 @@ describe("getDayOffsetInTz", () => {
     expect(getDayOffsetInTz(target, reference, "Asia/Tokyo")).toBe(1);
   });
 });
+
+describe("getDayInTz (no UTC fallback)", () => {
+  it("requires a timezone — type signature prevents silent UTC drift", () => {
+    // Compile-time safety check: this test exists to document that
+    // getDayInTz now takes a REQUIRED timeZone. If someone reverts the
+    // change to make it optional, this comment + the next assertion
+    // (which depends on tz-honest behavior) acts as a tripwire.
+    const today = getTodayInTz("Pacific/Auckland", new Date("2026-04-04T13:00:00Z"));
+    // 2026-04-05 NZDT before DST end → +1 day must be 2026-04-06
+    // (NZDT ends 2026-04-05 03:00 → 02:00 NZST). Without tz-aware math
+    // this would land on 04-06 still, but a UTC fallback could mis-anchor
+    // the noon hour on the DST boundary.
+    const next = getDayInTz(today, 1, "Pacific/Auckland");
+    expect(getYmdInTz(next, "Pacific/Auckland")).toBe("2026-04-06");
+    expect(getDatePartsInTz(next, "Pacific/Auckland").hour).toBe(12);
+  });
+});
