@@ -8,6 +8,8 @@ import {
   type Weave,
   lifecycleLabel,
   lifecycleOpacity,
+  lifecycleColor,
+  lifecycleEdgeColor,
   formatMonthSince,
 } from "@/lib/patterns";
 import {
@@ -641,9 +643,10 @@ function ChamberWeaveGraph({
     const y = CENTER_Y + Math.sin(angle) * SIBLING_RADIUS - 18;
     const isActive = activeId === s.id;
     const dim = hasActive && !isActive;
-    const baseOp = lifecycleOpacity(
-      s.lifecycle_state as Pattern["lifecycle_state"],
-    );
+    const sState = s.lifecycle_state as Pattern["lifecycle_state"];
+    const baseOp = lifecycleOpacity(sState);
+    const lifeStroke = lifecycleColor(sState, 0.85);
+    const lifeFill = lifecycleColor(sState, 0.1);
     nodes.push({
       id: `p:${s.id}`,
       position: { x, y },
@@ -653,10 +656,10 @@ function ChamberWeaveGraph({
         width: 140,
         background: isActive
           ? "rgba(212,175,90,0.22)"
-          : "rgba(212,175,90,0.06)",
+          : lifeFill,
         border: isActive
           ? "1px solid rgba(212,175,90,0.95)"
-          : "1px solid rgba(212,175,90,0.4)",
+          : `1px solid ${lifeStroke}`,
         color: "var(--color-foreground)",
         fontFamily: "var(--font-serif)",
         fontStyle: "italic",
@@ -684,6 +687,17 @@ function ChamberWeaveGraph({
       seenEdge.add(key);
       const isActiveEdge = activeId === pid;
       const dimEdge = hasActive && !isActiveEdge;
+      const sibState = siblings[pid].lifecycle_state as Pattern["lifecycle_state"];
+      const lifeEdge = lifecycleEdgeColor(
+        pattern.lifecycle_state,
+        sibState,
+        0.7,
+      );
+      const lifeEdgeStrong = lifecycleEdgeColor(
+        pattern.lifecycle_state,
+        sibState,
+        1,
+      );
       edges.push({
         id: key,
         source: `p:${pattern.id}`,
@@ -693,7 +707,7 @@ function ChamberWeaveGraph({
         style: {
           stroke: isActiveEdge
             ? "rgba(212,175,90,0.95)"
-            : "rgba(212,175,90,0.55)",
+            : lifeEdge,
           strokeWidth: isActiveEdge ? 2 : 1,
           opacity: dimEdge ? 0.18 : 1,
           transition: "opacity 180ms ease, stroke 180ms ease",
@@ -701,7 +715,7 @@ function ChamberWeaveGraph({
         labelStyle: {
           fill: isActiveEdge
             ? "rgba(232,200,120,1)"
-            : "rgba(212,175,90,0.9)",
+            : lifeEdgeStrong,
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
           fontSize: 10,
@@ -1225,6 +1239,48 @@ function WeaveGraphLegend() {
         </span>
         <dt style={{ display: "inline" }}>Bright bold edge</dt>
         <dd style={{ margin: 0, opacity: 0.7 }}>— the weave you're hovering or focused on</dd>
+      </div>
+      <div
+        style={{
+          ...itemStyle,
+          gridColumn: "1 / -1",
+          flexWrap: "wrap",
+          rowGap: 6,
+        }}
+      >
+        <dt style={{ display: "inline", marginRight: 4 }}>Lifecycle hues</dt>
+        {(
+          [
+            ["emerging", "Emerging"],
+            ["active", "Active"],
+            ["reawakened", "Reawakened"],
+            ["quieting", "Quieting"],
+            ["retired", "Retired"],
+          ] as const
+        ).map(([state, label]) => (
+          <span
+            key={state}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              marginRight: 12,
+              opacity: 0.85,
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: 999,
+                background: lifecycleColor(state, 0.18),
+                border: `1px solid ${lifecycleColor(state, 0.9)}`,
+              }}
+            />
+            {label}
+          </span>
+        ))}
       </div>
       <div style={itemStyle}>
         <span style={swatch} aria-hidden>

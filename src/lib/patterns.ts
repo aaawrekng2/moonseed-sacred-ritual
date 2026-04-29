@@ -105,6 +105,57 @@ export function lifecycleOpacity(state: PatternLifecycleState): number {
 }
 
 /**
+ * Hue (in degrees) used to color a pattern node or weave edge by its
+ * lifecycle state. Designed to read alongside the gold accent without
+ * fighting it: emerging is moonlit silver-blue, active is full gold,
+ * quieting fades to mauve, retired is cool slate, reawakened glows rose.
+ */
+export function lifecycleColor(
+  state: PatternLifecycleState,
+  alpha = 1,
+): string {
+  switch (state) {
+    case "emerging":
+      // soft moon-silver
+      return `rgba(170, 195, 230, ${alpha})`;
+    case "active":
+      // chamber gold
+      return `rgba(212, 175, 90, ${alpha})`;
+    case "quieting":
+      // dusk mauve
+      return `rgba(180, 150, 200, ${alpha})`;
+    case "retired":
+      // cool slate
+      return `rgba(140, 150, 170, ${alpha})`;
+    case "reawakened":
+      // rekindled rose
+      return `rgba(232, 145, 160, ${alpha})`;
+  }
+}
+
+/**
+ * Color a weave edge spanning two patterns. Uses the brighter (more
+ * "alive") endpoint as the dominant tone so an edge from an active to a
+ * retired pattern still reads as gold rather than slate. Equal-rank
+ * states fall back to the source's color.
+ */
+export function lifecycleEdgeColor(
+  a: PatternLifecycleState,
+  b: PatternLifecycleState,
+  alpha = 1,
+): string {
+  const rank: Record<PatternLifecycleState, number> = {
+    active: 5,
+    reawakened: 5,
+    emerging: 4,
+    quieting: 3,
+    retired: 2,
+  };
+  const dominant = rank[a] >= rank[b] ? a : b;
+  return lifecycleColor(dominant, alpha);
+}
+
+/**
  * Watches the `patterns` table for the current user and returns the
  * count. The Threads bottom-nav tab uses this — when count > 0 it
  * fades in. Realtime: we subscribe to inserts so the tab appears the
