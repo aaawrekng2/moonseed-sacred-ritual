@@ -1352,7 +1352,7 @@ function ThreadsView({
           </Link>
         );
       })}
-      {showUngrouped && unlinkedReadings.length > 0 && orderedPatternIds.length > 0 && (
+      {lifecycleFilter === "all" && unlinkedReadings.length > 0 && orderedPatternIds.length > 0 && (
         <p
           className="font-display text-[11px] italic text-muted-foreground"
           style={{ opacity: "var(--ro-plus-10)" }}
