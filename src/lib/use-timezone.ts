@@ -265,3 +265,67 @@ export function formatTimeInTz(date: Date, timeZone: string): string {
     hour12: true,
   }).format(date);
 }
+
+/**
+ * Integer day offset between two moments as observed in one IANA timezone.
+ * This compares local Y/M/D values, not milliseconds, so DST and date-line
+ * crossings cannot shift a moon event onto the wrong carousel day.
+ */
+export function getDayOffsetInTz(target: Date, reference: Date, timeZone: string): number {
+  const t = getDatePartsInTz(target, timeZone);
+  const r = getDatePartsInTz(reference, timeZone);
+  const tMs = Date.UTC(t.year, t.month - 1, t.day);
+  const rMs = Date.UTC(r.year, r.month - 1, r.day);
+  return Math.round((tMs - rMs) / (24 * 60 * 60 * 1000));
+}
+
+function localDateTimeToUtc(
+  timeZone: string,
+  year: number,
+  month: number,
+  day: number,
+  hour = 12,
+  minute = 0,
+): Date {
+  let utc = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
+  const targetMs = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+  for (let i = 0; i < 4; i++) {
+    const actual = getDatePartsInTz(utc, timeZone);
+    const actualMs = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, 0, 0);
+    const diff = targetMs - actualMs;
+    if (diff === 0) break;
+    utc = new Date(utc.getTime() + diff);
+  }
+  return utc;
+}
+
+/** Day-level representation of "today" in the user's timezone. */
+export function getTodayInTz(timeZone: string, now: Date = new Date()): Date {
+  const { year, month, day } = getDatePartsInTz(now, timeZone);
+  return localDateTimeToUtc(timeZone, year, month, day, 12, 0);
+}
+
+/** Day-level representation offset from a timezone-local calendar day. */
+export function getDayInTz(todayInTz: Date, offsetDays: number, timeZone?: string): Date {
+  if (timeZone) {
+    const { year, month, day } = getDatePartsInTz(todayInTz, timeZone);
+    return localDateTimeToUtc(timeZone, year, month, day + offsetDays, 12, 0);
+  }
+  return new Date(
+    Date.UTC(
+      todayInTz.getUTCFullYear(),
+      todayInTz.getUTCMonth(),
+      todayInTz.getUTCDate() + offsetDays,
+      12,
+      0,
+      0,
+      0,
+    ),
+  );
+}
+
+/** UTC instant for local midnight of a timezone calendar day. */
+export function getStartOfDayInTz(dayInTz: Date, timeZone: string, offsetDays = 0): Date {
+  const { year, month, day } = getDatePartsInTz(dayInTz, timeZone);
+  return localDateTimeToUtc(timeZone, year, month, day + offsetDays, 0, 0);
+}

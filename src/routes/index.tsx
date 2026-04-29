@@ -18,6 +18,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 import { DAILY_RESET_EVENT, useDailyReset } from "@/lib/use-daily-reset";
+import { getStartOfDayInTz, getTodayInTz, useTimezone } from "@/lib/use-timezone";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +48,7 @@ function Index() {
   const navigate = useNavigate();
   const { currentStreak } = useStreak();
   const { user } = useAuth();
+  const { effectiveTz } = useTimezone();
   const isAnonymous = !user?.email;
   const [nudgeDismissed, setNudgeDismissed] = useState(true);
   // Hydrate dismissed state on the client only to avoid SSR mismatch.
@@ -98,13 +100,16 @@ function Index() {
       const { data: sessionData } = await supabase.auth.getSession();
       const uid = sessionData.session?.user?.id;
       if (!uid) return;
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayInTz(effectiveTz);
+      const start = getStartOfDayInTz(today, effectiveTz);
+      const end = getStartOfDayInTz(today, effectiveTz, 1);
       const { data } = await supabase
         .from("readings")
         .select("card_ids")
         .eq("user_id", uid)
         .eq("spread_type", "single")
-        .gte("created_at", `${today}T00:00:00`)
+        .gte("created_at", start.toISOString())
+        .lt("created_at", end.toISOString())
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -115,7 +120,7 @@ function Index() {
     return () => {
       cancelled = true;
     };
-  }, [dayEpoch]);
+  }, [dayEpoch, effectiveTz]);
 
   return (
     <main

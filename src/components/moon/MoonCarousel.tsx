@@ -10,7 +10,15 @@ import {
 import { MoonPhaseIcon } from "./MoonPhaseIcon";
 import { cn } from "@/lib/utils";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
-import { useTimezone, getDatePartsInTz, getYmdInTz, formatTimeInTz } from "@/lib/use-timezone";
+import {
+  useTimezone,
+  getDatePartsInTz,
+  getYmdInTz,
+  formatTimeInTz,
+  getDayOffsetInTz,
+  getDayInTz,
+  getTodayInTz,
+} from "@/lib/use-timezone";
 
 // Moonseed-native accent resolver — reads --gold from active CSS theme.
 function useMoonseedAccent(): string {
@@ -85,16 +93,13 @@ export function MoonCarousel() {
     return () => cancelAnimationFrame(t);
   }, []);
 
-  const today = useMemo(() => {
-    const now = new Date();
-    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0, 0));
-  }, []);
+  const today = useMemo(() => getTodayInTz(effectiveTz), [effectiveTz]);
 
   // Currently-viewed center date — used so phase jumps anchor on what the
   // user is looking at, not on real-world today.
   const viewedDate = useMemo(() => {
-    return new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + offset, 12, 0, 0, 0));
-  }, [today, offset]);
+    return getDayInTz(today, offset, effectiveTz);
+  }, [today, offset, effectiveTz]);
 
   // Mobile shows a 3-day window (-1, 0, +1); desktop shows 5 (-2..+2).
   // Tracked via matchMedia so the layout updates live on resize/rotation —
@@ -137,8 +142,7 @@ export function MoonCarousel() {
       // seam marker advance to the NEXT upcoming full moon. Search a couple
       // days back so the peak day itself stays "upcoming" for the whole
       // 24-hour window of the peak day.
-      const anchor = new Date(viewedDate);
-      anchor.setDate(anchor.getDate() - 2);
+      const anchor = getDayInTz(viewedDate, -2, effectiveTz);
       const list = getPhaseOccurrences("Full Moon", anchor, 3);
       const cutoff = viewedDate.getTime() - 36 * 60 * 60 * 1000;
       const upcoming = list.find((d) => d.getTime() >= cutoff);
@@ -146,7 +150,7 @@ export function MoonCarousel() {
     } catch {
       return null;
     }
-  }, [retryNonce, viewedDate]);
+  }, [retryNonce, viewedDate, effectiveTz]);
 
   const peakYmd = useMemo<string | null>(() => {
     if (!fullMoonPeak) return null;
@@ -219,7 +223,7 @@ export function MoonCarousel() {
     try {
       const out: DayCell[] = [];
       for (let i = -dayRange; i <= dayRange; i++) {
-        const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + offset + i, 12, 0, 0, 0));
+        const d = getDayInTz(today, offset + i, effectiveTz);
         const info = getCurrentMoonPhase(d);
         out.push({
           info,
@@ -387,12 +391,10 @@ export function MoonCarousel() {
     // currently viewing (or closest to). This keeps left/right ladder
     // taps symmetric: pressing right then left should always return to
     // the previous occurrence, regardless of how the cursor was last set.
-    const dayMs = 24 * 60 * 60 * 1000;
-    const viewedMs = viewedDate.getTime();
     // Index of the occurrence on (or nearest to) the viewed day.
     let currentIdx = -1;
     for (let i = 0; i < list.length; i++) {
-      if (Math.abs(list[i].getTime() - viewedMs) < dayMs / 2) {
+      if (getDayOffsetInTz(list[i], viewedDate, effectiveTz) === 0) {
         currentIdx = i;
         break;
       }
@@ -403,7 +405,7 @@ export function MoonCarousel() {
       if (currentIdx >= 0) {
         nextIdx = (currentIdx + 1) % list.length;
       } else {
-        const found = list.findIndex((d) => d.getTime() > viewedMs);
+        const found = list.findIndex((d) => getDayOffsetInTz(d, viewedDate, effectiveTz) > 0);
         nextIdx = found === -1 ? 0 : found;
       }
     } else {
@@ -413,7 +415,7 @@ export function MoonCarousel() {
         // Last occurrence strictly before the viewed day.
         let found = -1;
         for (let i = list.length - 1; i >= 0; i--) {
-          if (list[i].getTime() < viewedMs) {
+          if (getDayOffsetInTz(list[i], viewedDate, effectiveTz) < 0) {
             found = i;
             break;
           }
@@ -426,7 +428,7 @@ export function MoonCarousel() {
     const targetDate = list[nextIdx];
     if (!targetDate) return;
     // Convert target absolute date back into an offset relative to today.
-    const deltaFromToday = Math.round((targetDate.getTime() - today.getTime()) / dayMs);
+    const deltaFromToday = getDayOffsetInTz(targetDate, today, effectiveTz);
     setEnterDir(deltaFromToday >= offset ? "right" : "left");
     tweenOffsetTo(deltaFromToday);
   };
