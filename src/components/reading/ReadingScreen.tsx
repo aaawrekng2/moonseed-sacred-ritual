@@ -249,6 +249,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
                 user_id: uid,
                 spread_type: spread,
                 card_ids: picks.map((p) => p.cardIndex),
+                card_orientations: picks.map((p) => p.isReversed ?? false),
                 interpretation: interpretationText,
                 guide_id: guideId,
                 lens_id: lensId,
