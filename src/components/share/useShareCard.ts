@@ -16,6 +16,21 @@ export type ShareBusyState = null | "share" | "save";
 export type ShareIntent = "share" | "save";
 
 /**
+ * The last failure the share flow saw, kept around so the UI can
+ * render an inline Retry affordance in addition to the toast.
+ * `step` tells the builder *where* to surface the banner:
+ *   - "prepare" → before the preview exists (next to Share/Download)
+ *   - "confirm" → after preview, inside the preview modal
+ */
+export type ShareError = {
+  step: "prepare" | "confirm";
+  intent: ShareIntent;
+  title: string;
+  description: string;
+  retry: () => void;
+};
+
+/**
  * Optional analytics callbacks. The hook stays presentation-only and
  * delegates "what happened" reporting upward so each call site can tag
  * the event with its own `context` / `level`.
@@ -43,6 +58,7 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
   const [busy, setBusy] = useState<ShareBusyState>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [preview, setPreview] = useState<SharePreview | null>(null);
+  const [lastError, setLastError] = useState<ShareError | null>(null);
 
   const flash = (msg: string, ms = 1800) => {
     setToast(msg);
@@ -157,6 +173,7 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
     ) => {
       try {
         setBusy(intent);
+        setLastError(null);
         const dataUrl = await renderToPng(node, backgroundColor);
         const filename = `moonseed-${new Date()
           .toISOString()
@@ -166,13 +183,17 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
       } catch (e) {
         console.error("[useShareCard] prepare failed", e);
         flash(intent === "share" ? "Couldn't share" : "Couldn't save");
+        const retry = () => {
+          setLastError(null);
+          void prepare(node, backgroundColor, intent);
+        };
         notifyError(
           e,
           intent === "share" ? "Couldn't share" : "Couldn't save image",
-          () => {
-            void prepare(node, backgroundColor, intent);
-          },
+          retry,
         );
+        const { title, description } = describeError(e);
+        setLastError({ step: "prepare", intent, title, description, retry });
         callbacks.onPrepareError?.(intent, e);
       } finally {
         setBusy(null);
@@ -190,6 +211,7 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
     const { intent, dataUrl, filename } = preview;
     try {
       setBusy(intent);
+      setLastError(null);
       if (intent === "save") {
         downloadDataUrl(dataUrl, filename);
         flash("PNG downloaded");
@@ -224,20 +246,38 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
       if ((e as { name?: string })?.name === "AbortError") return;
       console.error("[useShareCard] confirm failed", e);
       flash(intent === "share" ? "Couldn't share" : "Couldn't save");
+      const retry = () => {
+        setLastError(null);
+        void confirm();
+      };
       notifyError(
         e,
         intent === "share" ? "Couldn't share" : "Couldn't save image",
-        () => {
-          void confirm();
-        },
+        retry,
       );
+      const { title, description } = describeError(e);
+      setLastError({ step: "confirm", intent, title, description, retry });
       callbacks.onShareError?.(intent, e);
     } finally {
       setBusy(null);
     }
   }, [preview, callbacks]);
 
-  const cancelPreview = useCallback(() => setPreview(null), []);
+  const cancelPreview = useCallback(() => {
+    setPreview(null);
+    setLastError(null);
+  }, []);
 
-  return { busy, toast, preview, prepare, confirm, cancelPreview };
+  const dismissError = useCallback(() => setLastError(null), []);
+
+  return {
+    busy,
+    toast,
+    preview,
+    prepare,
+    confirm,
+    cancelPreview,
+    lastError,
+    dismissError,
+  };
 }
