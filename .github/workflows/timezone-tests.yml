@@ -262,6 +262,72 @@ jobs:
           echo "  FC_SEED=$FC_SEED npm run test:tz:property"
           npm run test:tz:property
 
+      # ---------------------------------------------------------------
+      # Cross-run comparison.
+      #
+      # Download the pinned-seed coverage artifact from the most recent
+      # SUCCESSFUL workflow run on the same workflow file, then diff it
+      # against the JSON we just produced. This catches "silent"
+      # coverage regressions: a zone that used to receive 30 cases now
+      # gets 0 because someone narrowed an `arbInstant` range or
+      # accidentally pruned a zone from the list.
+      #
+      # Best-effort: a brand-new branch (or first run after the artifact
+      # retention window) won't have a previous artifact, so we just
+      # log "no baseline" and move on. We never fail the build for a
+      # missing baseline — only for a real regression.
+      # ---------------------------------------------------------------
+      - name: Download previous pinned-seed coverage (best-effort)
+        id: prev
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_NAME: tz-coverage-pinned-seed-${{ env.TIMEZONE_PROPERTY_SEED }}
+        run: |
+          set -euo pipefail
+          mkdir -p previous-coverage
+
+          # Find the most recent SUCCESSFUL run of THIS workflow that
+          # isn't the current run. We restrict to workflow_dispatch +
+          # pull_request triggers since those are the only events that
+          # populate this artifact.
+          PREV_RUN_ID="$(gh run list \
+            --workflow "${{ github.workflow }}" \
+            --status success \
+            --limit 20 \
+            --json databaseId,headSha \
+            --jq "[.[] | select(.databaseId != ${{ github.run_id }})] | .[0].databaseId" || true)"
+
+          if [ -z "$PREV_RUN_ID" ] || [ "$PREV_RUN_ID" = "null" ]; then
+            echo "No previous successful run found — skipping coverage diff."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Comparing against run #$PREV_RUN_ID"
+          if gh run download "$PREV_RUN_ID" -n "$ARTIFACT_NAME" -D previous-coverage 2>/dev/null; then
+            if [ -f previous-coverage/latest.json ]; then
+              echo "found=true" >> "$GITHUB_OUTPUT"
+              echo "prev_run_id=$PREV_RUN_ID" >> "$GITHUB_OUTPUT"
+            else
+              echo "Previous artifact downloaded but no latest.json inside — skipping."
+              echo "found=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "Previous run had no '$ARTIFACT_NAME' artifact (likely expired or schema changed) — skipping."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Diff coverage against previous run
+        if: always() && steps.prev.outputs.found == 'true'
+        run: |
+          node scripts/compare-tz-coverage.mjs \
+            --current coverage-artifacts/latest.json \
+            --previous previous-coverage/latest.json \
+            --summary "$GITHUB_STEP_SUMMARY" \
+            --fail-on-disappeared-zone \
+            --drop-threshold 5
+
       - name: Upload pinned-seed coverage artifact
         if: always()
         uses: actions/upload-artifact@v4
