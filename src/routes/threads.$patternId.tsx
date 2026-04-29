@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Pencil, Archive, StickyNote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import {
@@ -29,6 +29,10 @@ function PatternChamber() {
   const [pattern, setPattern] = useState<Pattern | null>(null);
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState("");
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [draftNote, setDraftNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const [retiring, setRetiring] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -44,6 +48,7 @@ function PatternChamber() {
       if (data) {
         setPattern(data as Pattern);
         setDraftName((data as Pattern).name);
+        setDraftNote((data as Pattern).description ?? "");
       }
     })();
     return () => {
@@ -66,6 +71,48 @@ function PatternChamber() {
       setPattern({ ...pattern, name: trimmed, is_user_named: true });
     }
     setEditing(false);
+  };
+
+  const saveNote = async () => {
+    if (!pattern) return;
+    const next = draftNote.trim() ? draftNote : null;
+    if ((pattern.description ?? null) === next) {
+      setNoteOpen(false);
+      return;
+    }
+    setSavingNote(true);
+    const { error } = await supabase
+      .from("patterns")
+      .update({ description: next })
+      .eq("id", pattern.id);
+    setSavingNote(false);
+    if (!error) {
+      setPattern({ ...pattern, description: next });
+      setNoteOpen(false);
+    }
+  };
+
+  const retirePattern = async () => {
+    if (!pattern) return;
+    if (pattern.lifecycle_state === "retired") return;
+    const ok = window.confirm(
+      `Retire "${pattern.name}"? It will quiet down and stop surfacing in active views. You can revisit it any time.`,
+    );
+    if (!ok) return;
+    setRetiring(true);
+    const nowIso = new Date().toISOString();
+    const { error } = await supabase
+      .from("patterns")
+      .update({ lifecycle_state: "retired", retired_at: nowIso })
+      .eq("id", pattern.id);
+    setRetiring(false);
+    if (!error) {
+      setPattern({
+        ...pattern,
+        lifecycle_state: "retired",
+        retired_at: nowIso,
+      });
+    }
   };
 
   if (!pattern) {
@@ -174,9 +221,159 @@ function PatternChamber() {
         {pattern.reading_ids.length === 1 ? "" : "s"}
       </div>
 
+      <PatternActions
+        onRename={() => setEditing(true)}
+        onToggleNote={() => setNoteOpen((v) => !v)}
+        onRetire={retirePattern}
+        retiring={retiring}
+        retired={pattern.lifecycle_state === "retired"}
+        hasNote={!!(pattern.description && pattern.description.trim())}
+        noteOpen={noteOpen}
+      />
+
+      {noteOpen ? (
+        <div style={{ marginTop: 12 }}>
+          <textarea
+            value={draftNote}
+            onChange={(e) => setDraftNote(e.target.value)}
+            placeholder="What does this pattern mean to you right now?"
+            rows={4}
+            style={{
+              width: "100%",
+              background: "rgba(212,175,90,0.04)",
+              border: "1px solid rgba(212,175,90,0.25)",
+              borderRadius: 8,
+              padding: 10,
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              outline: "none",
+              resize: "vertical",
+            }}
+          />
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button
+              type="button"
+              onClick={saveNote}
+              disabled={savingNote}
+              style={chamberPrimaryBtn}
+            >
+              {savingNote ? "Saving…" : "Save note"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDraftNote(pattern.description ?? "");
+                setNoteOpen(false);
+              }}
+              style={chamberGhostBtn}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        pattern.description && pattern.description.trim() && (
+          <p
+            style={{
+              marginTop: 12,
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              opacity: 0.75,
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {pattern.description}
+          </p>
+        )
+      )}
+
       <ChamberTimeline readingIds={pattern.reading_ids} />
 
       <ChamberWeaveGraph pattern={pattern} userId={user?.id} />
+    </div>
+  );
+}
+
+const chamberActionBtn: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  background: "transparent",
+  border: "1px solid rgba(212,175,90,0.3)",
+  color: "var(--color-foreground)",
+  borderRadius: 999,
+  padding: "6px 12px",
+  fontFamily: "var(--font-serif)",
+  fontStyle: "italic",
+  fontSize: "var(--text-caption)",
+  letterSpacing: "0.06em",
+  cursor: "pointer",
+  opacity: 0.85,
+};
+
+const chamberPrimaryBtn: React.CSSProperties = {
+  ...chamberActionBtn,
+  background: "rgba(212,175,90,0.18)",
+  borderColor: "rgba(212,175,90,0.6)",
+  opacity: 1,
+};
+
+const chamberGhostBtn: React.CSSProperties = {
+  ...chamberActionBtn,
+  border: "none",
+  opacity: 0.6,
+};
+
+function PatternActions({
+  onRename,
+  onToggleNote,
+  onRetire,
+  retiring,
+  retired,
+  hasNote,
+  noteOpen,
+}: {
+  onRename: () => void;
+  onToggleNote: () => void;
+  onRetire: () => void;
+  retiring: boolean;
+  retired: boolean;
+  hasNote: boolean;
+  noteOpen: boolean;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 8,
+        marginTop: 16,
+      }}
+    >
+      <button type="button" onClick={onRename} style={chamberActionBtn}>
+        <Pencil size={12} /> Rename
+      </button>
+      <button type="button" onClick={onToggleNote} style={chamberActionBtn}>
+        <StickyNote size={12} />
+        {noteOpen ? "Close note" : hasNote ? "Edit note" : "Add a note"}
+      </button>
+      <button
+        type="button"
+        onClick={onRetire}
+        disabled={retired || retiring}
+        style={{
+          ...chamberActionBtn,
+          opacity: retired ? 0.4 : retiring ? 0.6 : 0.85,
+          cursor: retired ? "default" : "pointer",
+        }}
+        title={retired ? "Already retired" : "Retire this pattern"}
+      >
+        <Archive size={12} /> {retired ? "Retired" : retiring ? "Retiring…" : "Retire"}
+      </button>
     </div>
   );
 }
