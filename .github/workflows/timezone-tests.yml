@@ -45,10 +45,27 @@ jobs:
       fail-fast: false
       matrix:
         node: ["20", "22"]
-        # Run under a few different system TZ values to guarantee no test
+        # Run under several system TZ values to guarantee no test
         # accidentally relies on the runner's local zone. If one of these
         # fails while UTC passes, a test is leaking host-local date math.
-        tz: ["UTC", "America/Los_Angeles", "Asia/Tokyo"]
+        #
+        # Coverage rationale (one zone per "DST regime" we care about):
+        #   - UTC                  baseline, no DST at all
+        #   - America/Los_Angeles  US DST (March / November transitions)
+        #   - Europe/Berlin        EU DST (last Sunday of March / October)
+        #   - Asia/Tokyo           no DST, +9 fixed offset (catches code
+        #                          that assumes DST always exists)
+        #   - Australia/Sydney     Southern-Hemisphere DST (October /
+        #                          April — opposite direction from NH)
+        #   - Pacific/Auckland     Southern-Hemisphere DST + +12/+13
+        #                          offset, exercises the int'l date line
+        tz:
+          - "UTC"
+          - "America/Los_Angeles"
+          - "Europe/Berlin"
+          - "Asia/Tokyo"
+          - "Australia/Sydney"
+          - "Pacific/Auckland"
     env:
       TZ: ${{ matrix.tz }}
       CI: "true"
