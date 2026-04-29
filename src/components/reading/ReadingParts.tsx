@@ -82,6 +82,12 @@ export function InlineReading({
   const requestSeqRef = useRef(0);
   // Tear-off keepsake modal — opened from the Done row.
   const [tearOpen, setTearOpen] = useState(false);
+  // Which level + position the share builder should open at. Only meaningful
+  // while `tearOpen` is true; reset between opens so a stale positionIndex
+  // can't leak into a later "Share reading" click.
+  const [tearDefaultLevel, setTearDefaultLevel] = useState<ShareLevel>("reading");
+  const [tearPositionIndex, setTearPositionIndex] = useState<number | undefined>(undefined);
+  const [tearHonorLast, setTearHonorLast] = useState(true);
   const [savedReading, setSavedReading] = useState<{
     id: string;
     user_id: string;
