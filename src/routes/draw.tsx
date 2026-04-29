@@ -1,11 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Tabletop } from "@/components/tabletop/Tabletop";
 import { SpreadLayout } from "@/components/tabletop/SpreadLayout";
 import { ReadingScreen } from "@/components/reading/ReadingScreen";
 import { isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import { useStreak } from "@/lib/use-streak";
 import { QuestionPanel } from "@/components/draw/QuestionPanel";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { updateUserPreferences } from "@/lib/user-preferences";
 
 type Search = { spread?: string; question?: string };
 
@@ -35,10 +38,32 @@ function DrawPage() {
   // seed from the URL search param when arriving from a legacy entry
   // point that still passes `?question=…`.
   const [question, setQuestion] = useState<string>(search.question ?? "");
+  const { user } = useAuth();
   // Question panel starts open so the seeker is greeted by the prompt
   // the moment the table appears; the close (X / Skip / Continue)
-  // collapses it to a quill icon they can re-tap any time.
+  // collapses it to a quill icon they can re-tap any time. If the
+  // seeker has previously turned off the prompt (in Settings or via
+  // "Don't ask again"), it stays collapsed until they tap the quill.
   const [questionOpen, setQuestionOpen] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("show_question_prompt")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data && data.show_question_prompt === false) {
+        setQuestionOpen(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const exit = () => {
     void navigate({ to: "/" });
@@ -86,6 +111,15 @@ function DrawPage() {
           onQuestionChange={setQuestion}
           onClose={() => setQuestionOpen(false)}
           onOpen={() => setQuestionOpen(true)}
+          onDontAskAgain={
+            user
+              ? () => {
+                  void updateUserPreferences(user.id, {
+                    show_question_prompt: false,
+                  });
+                }
+              : undefined
+          }
         />
       )}
     </div>
