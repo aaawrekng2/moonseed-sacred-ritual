@@ -15,6 +15,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { useFloatingMenu } from "@/lib/floating-menu-context";
 import { PremiumModal } from "@/components/premium/PremiumModal";
 import { DevOverlay } from "@/components/dev/DevOverlay";
+import { TimezoneMismatchDialog } from "@/components/settings/TimezoneMismatchDialog";
 
 /**
  * Read the persisted resting opacity from localStorage and apply it to
@@ -233,6 +234,7 @@ function RootComponent() {
           <BottomNavGate />
           <DevOverlay />
           {mounted && <Toaster />}
+          <TimezoneMismatchDialog />
           <PremiumModal
             open={premiumOpen}
             onOpenChange={setPremiumOpen}
