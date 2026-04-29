@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import {
   type Pattern,
+  type PatternLifecycleState,
   type Weave,
   lifecycleLabel,
   lifecycleOpacity,
@@ -72,7 +73,7 @@ function PatternChamber() {
   const [retireStep, setRetireStep] = useState<0 | 1 | 2>(0);
   const [retireConfirmText, setRetireConfirmText] = useState("");
   const [undoRetire, setUndoRetire] = useState<{
-    prevLifecycle: string;
+    prevLifecycle: PatternLifecycleState;
     prevRetiredAt: string | null;
   } | null>(null);
   const [undoing, setUndoing] = useState(false);
