@@ -529,7 +529,7 @@ export function MoonCarousel() {
         />
 
         <div
-          className="flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl overflow-visible"
+          className="relative flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl overflow-visible"
           ref={cardsRowRef}
           role="group"
           aria-label={`Day strip, ${days.length} days`}
