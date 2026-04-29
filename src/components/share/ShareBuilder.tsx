@@ -50,6 +50,9 @@ import {
   trackShareOpen,
   trackSharePrepare,
   trackShareSuccess,
+  trackShareCaptureFailed,
+  trackShareWebShareFailed,
+  trackShareSaveFailed,
 } from "./share-events";
 import {
   getShareColor,
@@ -272,25 +275,51 @@ export function ShareBuilder({
     useShareCard({
       onPrepared: (intent) =>
         trackSharePrepare({ context: contextKind, level, intent, ok: true }),
-      onPrepareError: (intent, error) =>
+      onPrepareError: (intent, info) => {
         trackSharePrepare({
           context: contextKind,
           level,
           intent,
           ok: false,
-          error: errorMessage(error),
-        }),
+          errorName: info.name,
+          category: info.category,
+        });
+        trackShareCaptureFailed({
+          context: contextKind,
+          level,
+          intent,
+          category: info.category,
+          errorName: info.name,
+        });
+      },
       onShareSuccess: () =>
         trackShareSuccess({ context: contextKind, level }),
       onShareDownload: (reason) =>
         trackShareDownload({ context: contextKind, level, reason }),
-      onShareError: (intent, error) =>
+      onShareError: (intent, info) => {
         trackShareError({
           context: contextKind,
           level,
           intent,
-          error: errorMessage(error),
-        }),
+          errorName: info.name,
+          category: info.category,
+        });
+        if (intent === "share") {
+          trackShareWebShareFailed({
+            context: contextKind,
+            level,
+            category: info.category,
+            errorName: info.name,
+          });
+        } else {
+          trackShareSaveFailed({
+            context: contextKind,
+            level,
+            category: info.category,
+            errorName: info.name,
+          });
+        }
+      },
     });
 
   const prepareError = lastError && lastError.step === "prepare" ? lastError : null;
@@ -752,11 +781,6 @@ export function ShareBuilder({
       />
     </Dialog>
   );
-}
-
-function errorMessage(e: unknown): string {
-  const err = e as { name?: string; message?: string } | null | undefined;
-  return err?.name || err?.message || "unknown";
 }
 
 /**
