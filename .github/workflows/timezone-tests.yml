@@ -794,3 +794,24 @@ jobs:
             exit 1
           fi
           echo "Atomicity check passed: $PUSHED_SHA descends from baseline $BASELINE_SHA."
+
+      # If GitHub cancels this run because a newer dispatch claimed
+      # the same concurrency group, the cancellation fires mid-flight
+      # and `cancelled()` becomes true. Surface that explicitly so the
+      # workflow log has a clear "I was superseded" line instead of
+      # just an unexplained ❌ on the run page.
+      - name: Report supersession (if cancelled by newer run)
+        if: cancelled()
+        env:
+          GROUP: update-snapshots-${{ github.repository }}-${{ inputs.snapshot_scope }}
+        run: |
+          set -euo pipefail
+          echo "::warning title=Run superseded::This run was cancelled — a newer dispatch claimed concurrency group '$GROUP'."
+          {
+            echo ""
+            echo "## ⚠️ Run superseded"
+            echo ""
+            echo "This run was cancelled because a newer dispatch claimed the concurrency group \`$GROUP\` (\`cancel-in-progress: true\`)."
+            echo ""
+            echo "Check the [Actions tab](${{ github.server_url }}/${{ github.repository }}/actions) for the newer run."
+          } >> "$GITHUB_STEP_SUMMARY"
