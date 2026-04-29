@@ -592,7 +592,12 @@ function ChamberWeaveGraph({
 
   if (loading) return <WeaveGraphSkeleton />;
 
-  const siblingList = Object.values(siblings);
+  // Stable order across renders so ring positions don't shuffle when the
+  // siblings map is rebuilt — sort by id (immutable) instead of relying on
+  // Object.values insertion order.
+  const siblingList = Object.values(siblings).slice().sort((a, b) =>
+    a.id.localeCompare(b.id),
+  );
   // Nothing meaningful to draw — bail.
   if (siblingList.length === 0 && readings.length < 2) return null;
 
