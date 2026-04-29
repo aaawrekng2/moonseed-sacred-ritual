@@ -959,6 +959,115 @@ function PlainAction({
 }
 
 /**
+ * Inline, dismissible error banner with a Retry action. Shown next to
+ * the relevant controls so the seeker can recover without hunting for
+ * the toast — the toast still fires for cross-context visibility, but
+ * this banner persists until they retry or dismiss it.
+ */
+function InlineErrorBanner({
+  title,
+  description,
+  busy,
+  onRetry,
+  onDismiss,
+}: {
+  title: string;
+  description: string;
+  busy: boolean;
+  onRetry: () => void;
+  onDismiss: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      style={{
+        display: "flex",
+        gap: "var(--space-3)",
+        alignItems: "flex-start",
+        padding: "var(--space-3)",
+        borderRadius: 10,
+        border: "1px solid color-mix(in oklab, var(--destructive, #b94a4a) 50%, transparent)",
+        background: "color-mix(in oklab, var(--destructive, #b94a4a) 10%, transparent)",
+      }}
+    >
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "var(--text-caption)",
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            color: "var(--color-foreground)",
+            opacity: 0.95,
+            marginBottom: 4,
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "var(--text-caption)",
+            color: "var(--color-foreground)",
+            opacity: 0.75,
+            lineHeight: 1.45,
+          }}
+        >
+          {description}
+        </div>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--space-1)",
+          alignItems: "flex-end",
+        }}
+      >
+        <button
+          type="button"
+          onClick={onRetry}
+          disabled={busy}
+          style={{
+            background: "transparent",
+            border: "none",
+            padding: "2px 6px",
+            color: "var(--accent)",
+            fontFamily: "var(--font-sans)",
+            fontSize: "var(--text-caption)",
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            cursor: busy ? "not-allowed" : "pointer",
+            opacity: busy ? 0.5 : 1,
+          }}
+        >
+          {busy ? "Retrying…" : "Retry"}
+        </button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss error"
+          style={{
+            background: "transparent",
+            border: "none",
+            padding: "2px 6px",
+            color: "var(--color-foreground)",
+            opacity: 0.55,
+            fontFamily: "var(--font-sans)",
+            fontSize: "var(--text-caption)",
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            cursor: "pointer",
+          }}
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Tiny caption beneath the preview that describes — in plain words —
  * exactly which optional elements will land on the captured PNG, so
  * the seeker can confirm before sharing.
