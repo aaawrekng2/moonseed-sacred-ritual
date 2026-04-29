@@ -72,6 +72,22 @@ function PatternChamber() {
   const [retireStep, setRetireStep] = useState<0 | 1 | 2>(0);
   const [retireConfirmText, setRetireConfirmText] = useState("");
 
+  const noteHasUnsavedChanges = () => {
+    const original = (pattern?.description ?? "").trim();
+    return draftNote.trim() !== original;
+  };
+
+  const closeNoteEditor = () => {
+    if (noteHasUnsavedChanges()) {
+      const ok = window.confirm(
+        "Discard your unsaved note changes? Your edits will be lost.",
+      );
+      if (!ok) return;
+    }
+    setDraftNote(pattern?.description ?? "");
+    setNoteOpen(false);
+  };
+
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -271,7 +287,10 @@ function PatternChamber() {
 
       <PatternActions
         onRename={() => setEditing(true)}
-        onToggleNote={() => setNoteOpen((v) => !v)}
+        onToggleNote={() => {
+          if (noteOpen) closeNoteEditor();
+          else setNoteOpen(true);
+        }}
         onRetire={openRetireFlow}
         retiring={retiring}
         retired={pattern.lifecycle_state === "retired"}
@@ -324,10 +343,7 @@ function PatternChamber() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setDraftNote(pattern.description ?? "");
-                setNoteOpen(false);
-              }}
+              onClick={closeNoteEditor}
               style={chamberGhostBtn}
             >
               Cancel
