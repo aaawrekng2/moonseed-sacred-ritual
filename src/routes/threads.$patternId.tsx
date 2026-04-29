@@ -8,6 +8,8 @@ import {
   type Weave,
   lifecycleLabel,
   lifecycleOpacity,
+  lifecycleColor,
+  lifecycleEdgeColor,
   formatMonthSince,
 } from "@/lib/patterns";
 import {
