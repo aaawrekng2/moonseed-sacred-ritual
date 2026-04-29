@@ -156,10 +156,15 @@ export function MoonCarousel() {
 
   const peakDay = useMemo<Date | null>(() => {
     if (!fullMoonPeak) return null;
-    const d = new Date(fullMoonPeak);
-    d.setHours(12, 0, 0, 0);
-    return d;
-  }, [fullMoonPeak]);
+    // Anchor the "peak day" to the calendar day of the peak as observed
+    // in the seeker's effective timezone, NOT the browser's local zone.
+    // Otherwise a peak at e.g. 4 AM PT (= 11 AM UTC) renders against the
+    // wrong day for users whose device tz differs from their profile tz.
+    const { year, month, day } = getDatePartsInTz(fullMoonPeak, effectiveTz);
+    // Construct a UTC noon Date for that Y/M/D; downstream logic only
+    // uses this as a key (it's matched via isSameDayInTz / addDays).
+    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  }, [fullMoonPeak, effectiveTz]);
 
   // Hour of the full-moon peak as observed in the seeker's effective tz.
   // Drives both seam placement and night-only visibility — we never want
@@ -180,8 +185,12 @@ export function MoonCarousel() {
   //     (peak+1).
   const seamLeftDate = useMemo<Date | null>(() => {
     if (!fullMoonPeak || !peakDay || peakTzHour == null) return null;
+    // Seam sits on the LEFT border of the peak day card when the peak
+    // happens before noon (tz-local), otherwise on the RIGHT border.
+    // Use UTC arithmetic to match peakDay's UTC-noon construction so day
+    // math is independent of the browser's local timezone.
     const seam = new Date(peakDay);
-    if (peakTzHour < 12) seam.setDate(peakDay.getDate() - 1);
+    if (peakTzHour < 12) seam.setUTCDate(peakDay.getUTCDate() - 1);
     return seam;
   }, [fullMoonPeak, peakDay, peakTzHour]);
 
@@ -196,9 +205,9 @@ export function MoonCarousel() {
   const goldDates = useMemo<Date[]>(() => {
     if (!peakDay) return [];
     const before = new Date(peakDay);
-    before.setDate(peakDay.getDate() - 1);
+    before.setUTCDate(peakDay.getUTCDate() - 1);
     const after = new Date(peakDay);
-    after.setDate(peakDay.getDate() + 1);
+    after.setUTCDate(peakDay.getUTCDate() + 1);
     return [before, peakDay, after];
   }, [peakDay]);
 
