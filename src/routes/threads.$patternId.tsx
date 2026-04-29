@@ -5,10 +5,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import {
   type Pattern,
+  type Weave,
   lifecycleLabel,
   lifecycleOpacity,
   formatMonthSince,
 } from "@/lib/patterns";
+import {
+  ReactFlow,
+  Background,
+  type Node,
+  type Edge,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 
 export const Route = createFileRoute("/threads/$patternId")({
   component: PatternChamber,
@@ -167,6 +175,8 @@ function PatternChamber() {
       </div>
 
       <ChamberTimeline readingIds={pattern.reading_ids} />
+
+      <ChamberWeaveGraph pattern={pattern} userId={user?.id} />
     </div>
   );
 }
