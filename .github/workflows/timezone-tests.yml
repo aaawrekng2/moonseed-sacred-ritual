@@ -480,7 +480,19 @@ jobs:
   # ---------------------------------------------------------------------------
   update-snapshots:
     name: Refresh timezone snapshots (manual)
-    if: github.event_name == 'workflow_dispatch' && inputs.update_snapshots == true
+    # Two-layer guard:
+    #   1. job-level `if:` keeps the job from even being scheduled
+    #      unless the operator explicitly checked `update_snapshots`
+    #      AND typed the confirmation phrase exactly. Comparison is
+    #      case-sensitive (workflow expressions use ==, not equalsIgnoreCase).
+    #   2. The first step inside the job re-validates the phrase and
+    #      fails fast with a clear error message if anything is off,
+    #      so a future change to the `if:` condition can't silently
+    #      bypass the gate.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      && inputs.update_snapshots == true
+      && inputs.confirm == 'UPDATE'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -489,6 +501,22 @@ jobs:
       TZ: "UTC"
       CI: "true"
     steps:
+      - name: Validate confirmation phrase
+        # Defense-in-depth: the job-level `if:` already blocks the
+        # job, but if someone later loosens that condition this step
+        # will still refuse to run without an exact `UPDATE` match.
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          set -euo pipefail
+          if [ "$CONFIRM" != "UPDATE" ]; then
+            echo "::error::Refusing to refresh snapshots: the 'confirm' input must be exactly 'UPDATE' (case-sensitive). Got: '${CONFIRM}'."
+            echo ""
+            echo "Re-run this workflow from the Actions tab and type UPDATE in the confirmation field."
+            exit 1
+          fi
+          echo "Confirmation phrase accepted — proceeding with snapshot refresh."
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
