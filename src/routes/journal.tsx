@@ -1019,7 +1019,13 @@ function Empty({
 
 /* ---------- Threads view (Phase 7) ---------- */
 
-function ThreadsView({ threads }: { threads: ThreadRow[] }) {
+function ThreadsView({
+  threads,
+  patternsById,
+}: {
+  threads: ThreadRow[];
+  patternsById: Record<string, PatternRow>;
+}) {
   if (threads.length === 0) {
     return (
       <div className="mx-auto mt-16 flex max-w-md flex-col items-center gap-4 px-4 text-center">
