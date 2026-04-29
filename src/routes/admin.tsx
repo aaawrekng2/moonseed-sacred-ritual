@@ -955,6 +955,63 @@ function DetectWeavesPanel() {
           </button>
         </div>
 
+        <div
+          className="flex flex-col gap-2 md:flex-row md:items-center"
+          style={{ gap: 8 }}
+        >
+          <span
+            style={{
+              ...serif,
+              fontSize: "var(--text-caption)",
+              opacity: 0.55,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              alignSelf: "center",
+            }}
+          >
+            Dry run (no writes)
+          </span>
+          <button
+            type="button"
+            onClick={() => void runPreview("user")}
+            disabled={busy !== null || !userId.trim()}
+            style={{
+              ...display,
+              fontSize: 11,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              padding: "8px 14px",
+              border: "1px solid var(--border-subtle)",
+              background: "transparent",
+              color: "var(--foreground)",
+              cursor:
+                busy !== null || !userId.trim() ? "default" : "pointer",
+              opacity: busy !== null || !userId.trim() ? 0.5 : 1,
+            }}
+          >
+            {busy === "preview-user" ? "Previewing…" : "Preview for user"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void runPreview("all")}
+            disabled={busy !== null}
+            style={{
+              ...display,
+              fontSize: 11,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              padding: "8px 14px",
+              border: "1px solid var(--border-subtle)",
+              background: "transparent",
+              color: "var(--foreground)",
+              cursor: busy !== null ? "default" : "pointer",
+              opacity: busy !== null ? 0.5 : 1,
+            }}
+          >
+            {busy === "preview-all" ? "Previewing…" : "Preview for all users"}
+          </button>
+        </div>
+
         {result && (
           <p
             style={{
@@ -967,6 +1024,54 @@ function DetectWeavesPanel() {
           >
             {result.text}
           </p>
+        )}
+
+        {preview && (preview.would_create > 0 || preview.errors > 0) && (
+          <div
+            style={{
+              border: "1px solid var(--border-subtle)",
+              padding: 12,
+              maxHeight: 320,
+              overflowY: "auto",
+              fontSize: "var(--text-body-sm)",
+              ...serif,
+            }}
+          >
+            {preview.per_user.length === 0 && (
+              <p style={{ margin: 0, opacity: 0.6 }}>
+                Nothing to create — all candidate weaves already exist.
+              </p>
+            )}
+            {preview.per_user.map((u) => (
+              <div key={u.user_id} style={{ marginBottom: 12 }}>
+                <div
+                  style={{
+                    ...display,
+                    fontSize: 11,
+                    letterSpacing: "0.16em",
+                    textTransform: "uppercase",
+                    opacity: 0.7,
+                    fontFamily: "var(--font-mono, monospace)",
+                  }}
+                >
+                  {u.user_id}
+                  {u.error ? ` · error: ${u.error}` : ""}
+                </div>
+                {u.would_create.length === 0 && !u.error && (
+                  <p style={{ margin: "4px 0 0", opacity: 0.55 }}>
+                    No new weaves ({u.already_existing} already existed)
+                  </p>
+                )}
+                <ul style={{ margin: "4px 0 0", paddingLeft: 16 }}>
+                  {u.would_create.map((w, i) => (
+                    <li key={i} style={{ marginTop: 2 }}>
+                      <em>{w.title}</em> — {w.shared_readings} shared readings
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </section>
