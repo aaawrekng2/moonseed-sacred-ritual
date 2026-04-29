@@ -1366,56 +1366,6 @@ function ThreadsView({
   );
 }
 
-function ThreadCard({ t }: { t: ThreadRow }) {
-  const statusOpacity =
-    t.status === "active" ? 1 : t.status === "emerging" ? 0.6 : 0.3;
-  const statusLabel =
-    t.status === "reawakened"
-      ? "Reawakened"
-      : t.status.charAt(0).toUpperCase() + t.status.slice(1);
-  const readingCount = (t.reading_ids ?? []).length;
-  return (
-    <li className="rounded-lg border border-gold/20 bg-gold/5 px-4 py-3">
-      <div className="mb-2 flex items-center justify-between">
-        <span
-          className="font-display text-[10px] uppercase tracking-[0.2em] text-gold"
-          style={{ opacity: statusOpacity }}
-        >
-          {statusLabel}
-        </span>
-        {readingCount > 0 && (
-          <span className="font-display text-[11px] italic text-muted-foreground">
-            across {readingCount} {readingCount === 1 ? "reading" : "readings"}
-          </span>
-        )}
-      </div>
-      <p
-        className="font-display italic"
-        style={{
-          fontSize: "var(--text-body)",
-          lineHeight: 1.55,
-          color: "color-mix(in oklab, var(--foreground) 88%, transparent)",
-        }}
-      >
-        {t.summary}
-      </p>
-      {(t.tags?.length ?? 0) > 0 && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {t.tags!.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full border border-gold/30 px-2 py-0.5 font-display text-[11px] italic text-gold"
-              style={{ opacity: "var(--ro-plus-30)" }}
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
-    </li>
-  );
-}
-
 /* ---------- Reading detail overlay ---------- */
 
 /* ---------- Calendar view ---------- */
