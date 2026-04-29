@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Heart, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
+import { BookOpen, Heart, Image as ImageIcon, Pencil, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useOracleMode } from "@/lib/use-oracle-mode";
@@ -536,7 +536,7 @@ function JournalPage() {
               padding: "0 var(--space-2) 0 0",
             }}
           >
-            Clear all
+            CLEAR FILTERS
           </button>
         )}
         {/* Inline summary of active filters — visible on all sizes so the
@@ -569,24 +569,25 @@ function JournalPage() {
         )}
       </div>
 
-      {/* View tabs */}
+      {/* View tabs — icons only on mobile (< sm), label-only at sm+ */}
       <div className="mt-5 flex items-center gap-5">
         {(
           [
-            ["readings", "Readings"],
-            ["gallery", "Gallery"],
-            ["notes", "Notes"],
-            ["favorites", "Favorites"],
-            ["calendar", "Calendar"],
-            ["threads", "Threads"],
+            ["readings", "Readings", BookOpen],
+            ["gallery", "Gallery", ImageIcon],
+            ["notes", "Notes", Pencil],
+            ["favorites", "Favorites", Heart],
+            ["calendar", "Calendar", null],
+            ["threads", "Threads", null],
           ] as const
-        ).map(([key, label]) => {
+        ).map(([key, label, Icon]) => {
           const active = view === key;
           return (
             <button
               key={key}
               type="button"
               onClick={() => setView(key)}
+              aria-label={label}
               className="font-display text-[13px] italic text-gold transition-opacity"
               style={{
                 opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-10)",
@@ -596,7 +597,16 @@ function JournalPage() {
                 paddingBottom: 2,
               }}
             >
-              {label}
+              {Icon ? (
+                <>
+                  <span className="inline-flex sm:hidden">
+                    <Icon size={16} strokeWidth={1.5} aria-hidden />
+                  </span>
+                  <span className="hidden sm:inline">{label}</span>
+                </>
+              ) : (
+                <span>{label}</span>
+              )}
             </button>
           );
         })}
