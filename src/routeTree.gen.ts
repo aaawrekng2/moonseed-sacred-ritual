@@ -26,6 +26,7 @@ import { Route as SettingsGuidesRouteImport } from './routes/settings.guides'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
 import { Route as ApiPublicDetectWeavesRouteImport } from './routes/api/public/detect-weaves'
+import { Route as ApiPublicDetectWeavesStatusRouteImport } from './routes/api/public/detect-weaves/status'
 
 const ThreadsRoute = ThreadsRouteImport.update({
   id: '/threads',
@@ -112,6 +113,12 @@ const ApiPublicDetectWeavesRoute = ApiPublicDetectWeavesRouteImport.update({
   path: '/api/public/detect-weaves',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicDetectWeavesStatusRoute =
+  ApiPublicDetectWeavesStatusRouteImport.update({
+    id: '/status',
+    path: '/status',
+    getParentRoute: () => ApiPublicDetectWeavesRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -130,7 +137,8 @@ export interface FileRoutesByFullPath {
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
-  '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRoute
+  '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
+  '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -149,7 +157,8 @@ export interface FileRoutesByTo {
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
-  '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRoute
+  '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
+  '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -169,7 +178,8 @@ export interface FileRoutesById {
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
-  '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRoute
+  '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
+  '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/settings/themes'
     | '/threads/$patternId'
     | '/api/public/detect-weaves'
+    | '/api/public/detect-weaves/status'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/settings/themes'
     | '/threads/$patternId'
     | '/api/public/detect-weaves'
+    | '/api/public/detect-weaves/status'
   id:
     | '__root__'
     | '/'
@@ -229,6 +241,7 @@ export interface FileRouteTypes {
     | '/settings/themes'
     | '/threads/$patternId'
     | '/api/public/detect-weaves'
+    | '/api/public/detect-weaves/status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -240,7 +253,7 @@ export interface RootRouteChildren {
   ScatterTestRoute: typeof ScatterTestRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   ThreadsRoute: typeof ThreadsRouteWithChildren
-  ApiPublicDetectWeavesRoute: typeof ApiPublicDetectWeavesRoute
+  ApiPublicDetectWeavesRoute: typeof ApiPublicDetectWeavesRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -364,6 +377,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicDetectWeavesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/detect-weaves/status': {
+      id: '/api/public/detect-weaves/status'
+      path: '/status'
+      fullPath: '/api/public/detect-weaves/status'
+      preLoaderRoute: typeof ApiPublicDetectWeavesStatusRouteImport
+      parentRoute: typeof ApiPublicDetectWeavesRoute
+    }
   }
 }
 
@@ -402,6 +422,19 @@ const ThreadsRouteChildren: ThreadsRouteChildren = {
 const ThreadsRouteWithChildren =
   ThreadsRoute._addFileChildren(ThreadsRouteChildren)
 
+interface ApiPublicDetectWeavesRouteChildren {
+  ApiPublicDetectWeavesStatusRoute: typeof ApiPublicDetectWeavesStatusRoute
+}
+
+const ApiPublicDetectWeavesRouteChildren: ApiPublicDetectWeavesRouteChildren = {
+  ApiPublicDetectWeavesStatusRoute: ApiPublicDetectWeavesStatusRoute,
+}
+
+const ApiPublicDetectWeavesRouteWithChildren =
+  ApiPublicDetectWeavesRoute._addFileChildren(
+    ApiPublicDetectWeavesRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
@@ -411,7 +444,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScatterTestRoute: ScatterTestRoute,
   SettingsRoute: SettingsRouteWithChildren,
   ThreadsRoute: ThreadsRouteWithChildren,
-  ApiPublicDetectWeavesRoute: ApiPublicDetectWeavesRoute,
+  ApiPublicDetectWeavesRoute: ApiPublicDetectWeavesRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -720,6 +720,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_detect_weaves_status: {
+        Args: { _max_users_per_run: number; _min_interval_seconds: number }
+        Returns: {
+          cooldown_active: boolean
+          cooldown_remaining_seconds: number
+          last_run_cap_hit: boolean
+        }[]
+      }
       has_admin_role: { Args: { _user_id: string }; Returns: boolean }
       log_admin_action: {
         Args: {
