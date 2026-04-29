@@ -10,6 +10,7 @@ import {
 import { MoonPhaseIcon } from "./MoonPhaseIcon";
 import { cn } from "@/lib/utils";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
+import { useTimezone, getDatePartsInTz, getYmdInTz, formatTimeInTz } from "@/lib/use-timezone";
 
 // Moonseed-native accent resolver — reads --gold from active CSS theme.
 function useMoonseedAccent(): string {
@@ -35,15 +36,12 @@ type DayCell = {
 
 /**
  * Returns true if two Date objects fall on the same calendar day in the
- * user's local timezone. Used to flag the three days that wrap a full
- * moon (day before, day of peak, day after) for gold treatment.
+ * given IANA timezone. Used to flag the three days that wrap a full moon
+ * for gold treatment, and to align the seam marker against day cards
+ * whose labels were rendered in that same timezone.
  */
-function isSameLocalDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
+function isSameDayInTz(a: Date, b: Date, tz: string): boolean {
+  return getYmdInTz(a, tz) === getYmdInTz(b, tz);
 }
 
 export function MoonCarousel() {
