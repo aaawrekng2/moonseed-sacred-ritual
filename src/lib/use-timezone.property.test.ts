@@ -336,18 +336,24 @@ function formatCoverageTable(): string {
   const rows = Array.from(coverage.values());
   if (rows.length === 0) return "(no invariants recorded)";
 
-  // All zones any invariant touched, in stable canonical order.
-  const zonesSeen = new Set<string>();
-  rows.forEach((r) => Object.keys(r.perZone).forEach((z) => zonesSeen.add(z)));
-  const orderedZones = ZONES.filter((z) => zonesSeen.has(z));
+  // Use the FULL canonical zone list (not just zones-seen) so a zone
+  // that received zero cases still appears as a `0` column. That way
+  // distribution gaps stand out the moment you look at the table.
+  const orderedZones = [...ZONES];
 
-  const header = ["Invariant", "Status", "Cases", ...orderedZones];
-  const body = rows.map((r) => [
-    r.invariant,
-    r.status.toUpperCase(),
-    String(r.totalCases),
-    ...orderedZones.map((z) => String(r.perZone[z] ?? 0)),
-  ]);
+  const header = ["Invariant", "Status", "Cases", ...orderedZones, "Missed zones"];
+  const body = rows.map((r) => {
+    const missed = missedZonesFor(r);
+    return [
+      r.invariant,
+      r.status.toUpperCase(),
+      String(r.totalCases),
+      ...orderedZones.map((z) => String(r.perZone[z] ?? 0)),
+      // Empty string (rendered as "—") when the property hit every
+      // zone, so the gap-finding signal is visually loud.
+      missed.length ? missed.join(", ") : "—",
+    ];
+  });
 
   const widths = header.map((h, i) =>
     Math.max(h.length, ...body.map((row) => row[i].length)),
@@ -362,20 +368,32 @@ function formatCoverageTable(): string {
 function formatMarkdownTable(): string {
   // GitHub step summary uses GFM tables; reuse the same column layout.
   const rows = Array.from(coverage.values());
-  const zonesSeen = new Set<string>();
-  rows.forEach((r) => Object.keys(r.perZone).forEach((z) => zonesSeen.add(z)));
-  const orderedZones = ZONES.filter((z) => zonesSeen.has(z));
+  const orderedZones = [...ZONES];
 
-  const header = ["Invariant", "Status", "Cases", ...orderedZones];
+  const header = ["Invariant", "Status", "Cases", ...orderedZones, "Missed zones"];
   const sep = header.map(() => "---");
-  const body = rows.map((r) => [
-    r.invariant,
-    r.status === "passed" ? "✅ PASS" : r.status === "failed" ? "❌ FAIL" : "⚠️ PENDING",
-    String(r.totalCases),
-    ...orderedZones.map((z) => String(r.perZone[z] ?? 0)),
-  ]);
+  const body = rows.map((r) => {
+    const missed = missedZonesFor(r);
+    return [
+      r.invariant,
+      r.status === "passed" ? "✅ PASS" : r.status === "failed" ? "❌ FAIL" : "⚠️ PENDING",
+      String(r.totalCases),
+      ...orderedZones.map((z) => {
+        const n = r.perZone[z] ?? 0;
+        // Bold the zero-cells so reviewers spot gaps even before they
+        // read the dedicated column.
+        return n === 0 ? "**0**" : String(n);
+      }),
+      missed.length ? `⚠️ ${missed.join(", ")}` : "—",
+    ];
+  });
   const toRow = (cells: string[]) => "| " + cells.join(" | ") + " |";
   return [toRow(header), toRow(sep), ...body.map(toRow)].join("\n");
+}
+
+/** Zones from the canonical list that this invariant never exercised. */
+function missedZonesFor(stats: InvariantStats): string[] {
+  return ZONES.filter((z) => (stats.perZone[z] ?? 0) === 0);
 }
 
 afterAll(() => {
@@ -403,7 +421,10 @@ afterAll(() => {
       generatedAt: new Date().toISOString(),
       seed: process.env.FC_SEED ?? null,
       summary: { total, passed, failed },
-      invariants: Array.from(coverage.values()),
+      invariants: Array.from(coverage.values()).map((r) => ({
+        ...r,
+        missedZones: missedZonesFor(r),
+      })),
     };
     writeFileSync(
       "/tmp/timezone-property-coverage.json",
