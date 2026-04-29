@@ -130,6 +130,10 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
             cronSecret: process.env.DETECT_WEAVES_CRON_SECRET,
             minIntervalMs: DEFAULT_MIN_INTERVAL_MS,
             maxUsersPerRun: DEFAULT_MAX_USERS_PER_RUN,
+            // TEMPORARY (Phase 9): Vault seeding is deferred, so we run
+            // without the cron-secret gate. Cooldown + per-run cap still
+            // apply. Phase 10 will remove this flag and require the secret.
+            requireCronSecret: false,
           },
           request.headers.get("x-cron-secret"),
         );
