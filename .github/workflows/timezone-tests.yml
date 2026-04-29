@@ -1029,6 +1029,24 @@ jobs:
             # there saves a click).
             RERUN_CMD="gh workflow run timezone-tests.yml -f snapshot_scope=${{ inputs.snapshot_scope }} -f update_snapshots=true -f confirm=UPDATE"
 
+            # Direct links for fast re-dispatch from the annotation.
+            # GitHub Actions annotations render as plain text (no
+            # clickable hyperlinks), but the URLs themselves are
+            # auto-linkified by most browsers when you hover/right-
+            # click in the annotation panel, and they're trivially
+            # copy-pasteable from the ::error:: line.
+            #
+            # RUN_URL    — the current (failed) run, useful for
+            #              context: "this is the run that failed".
+            # RERUN_URL  — opens the workflow's "Run workflow" dialog
+            #              pre-scoped to the file. The operator still
+            #              has to fill in inputs, but it's one click
+            #              instead of three (Actions → workflow → Run).
+            # The step summary further down renders these as proper
+            # clickable markdown links.
+            RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            RERUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/workflows/timezone-tests.yml"
+
             # Emit Actions UI annotations with clearly labeled,
             # all-caps failure-mode tags so the run page shows e.g.
             #   ❌ [FORCE_PUSH] update-snapshots: branch '...' rewritten
@@ -1049,8 +1067,8 @@ jobs:
               MODE_TAG="CONCURRENT"
               MODE_HEADLINE="Branch '$BRANCH' raced (concurrent fast-forward)"
             fi
-            echo "::notice title=❌ [$MODE_TAG] update-snapshots failure mode::$MODE_HEADLINE — see step log for full diagnostics and copy-paste re-dispatch command."
-            echo "::error title=❌ [$MODE_TAG] update-snapshots atomicity check failed::[$MODE_TAG] $MODE_HEADLINE. Reason: $REASON. Re-run: $RERUN_CMD"
+            echo "::notice title=❌ [$MODE_TAG] update-snapshots failure mode::$MODE_HEADLINE — Failed run: $RUN_URL — Re-dispatch UI: $RERUN_URL"
+            echo "::error title=❌ [$MODE_TAG] update-snapshots atomicity check failed::[$MODE_TAG] $MODE_HEADLINE. Reason: $REASON. Re-dispatch UI: $RERUN_URL — CLI: $RERUN_CMD"
             echo ""
             echo "════════════════════════════════════════════════════════════"
             echo "  ❌ FAILURE MODE: [$MODE_TAG]"
@@ -1063,6 +1081,8 @@ jobs:
             echo "  Baseline present       : $BASELINE_PRESENT"
             echo "  Common ancestor SHA    : ${MERGE_BASE_SHA:-<none — disjoint>}"
             echo "  Failure mode           : $REASON"
+            echo "  Failed run URL         : $RUN_URL"
+            echo "  Re-dispatch UI URL     : $RERUN_URL"
             echo ""
             echo "════════════════════════════════════════════════════════════"
             echo "  📋 COPY-PASTE RE-DISPATCH COMMAND"
@@ -1214,6 +1234,11 @@ jobs:
               echo "- **Current remote tip:** \`${CURRENT_TIP:-<none>}\`"
               echo "- **Baseline present remotely:** \`$BASELINE_PRESENT\`"
               echo "- **\`merge-base(baseline, current tip)\`:** \`${MERGE_BASE_SHA:-<none — disjoint histories>}\`"
+              echo ""
+              echo "**Quick links:**"
+              echo ""
+              echo "- 🔁 [**Re-dispatch this workflow**]($RERUN_URL) — opens the Run workflow dialog (fill in \`snapshot_scope=${{ inputs.snapshot_scope }}\`, \`update_snapshots=true\`, \`confirm=UPDATE\`)"
+              echo "- 🔗 [Failed run #${{ github.run_id }}]($RUN_URL)"
               echo ""
               echo "**Copy-paste re-dispatch command:**"
               echo ""
