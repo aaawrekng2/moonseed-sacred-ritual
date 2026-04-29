@@ -1021,27 +1021,48 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
       const myTags = new Set((row.tags ?? []).map((t) => t.toLowerCase()));
 
       let best:
-        | { id: string; name: string; reason: string; score: number }
+        | {
+            id: string;
+            name: string;
+            reason: string;
+            source: "cards" | "tags" | "both";
+            sharedCards: string[];
+            sharedTags: string[];
+            score: number;
+          }
         | null = null;
       for (const p of patterns) {
-        let cardHits = 0;
-        let tagHits = 0;
+        const sharedCardSet = new Set<number>();
+        const sharedTagSet = new Set<string>();
         for (const rid of p.reading_ids ?? []) {
           const meta = rel[rid];
           if (!meta) continue;
-          for (const c of myCards) if (meta.cards.has(c)) cardHits += 1;
-          for (const t of myTags) if (meta.tags.has(t)) tagHits += 1;
+          for (const c of myCards) if (meta.cards.has(c)) sharedCardSet.add(c);
+          for (const t of myTags) if (meta.tags.has(t)) sharedTagSet.add(t);
         }
-        const score = cardHits * 2 + tagHits;
-        if (score < 3) continue;
-        const reason =
-          cardHits >= 2
-            ? "shares cards with this pattern"
-            : tagHits >= 2
-              ? "echoes the same themes"
-              : "resonates with this pattern";
+        const cardCount = sharedCardSet.size;
+        const tagCount = sharedTagSet.size;
+        const score = cardCount * 2 + tagCount;
+        if (score < 2) continue;
+        const sharedCards = Array.from(sharedCardSet).map((id) => `#${id}`);
+        const sharedTags = Array.from(sharedTagSet);
+        const source: "cards" | "tags" | "both" =
+          cardCount > 0 && tagCount > 0
+            ? "both"
+            : cardCount > 0
+              ? "cards"
+              : "tags";
+        const reason = buildReason(source, sharedCards, sharedTags);
         if (!best || score > best.score) {
-          best = { id: p.id, name: p.name, reason, score };
+          best = {
+            id: p.id,
+            name: p.name,
+            reason,
+            source,
+            sharedCards,
+            sharedTags,
+            score,
+          };
         }
       }
       if (!cancelled && best) {
