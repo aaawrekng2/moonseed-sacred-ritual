@@ -811,3 +811,41 @@ describe("getDayInTz / getDayOffsetInTz — property-based invariants", () => {
     });
   });
 });
+
+/**
+ * Coverage-policy gate.
+ *
+ * Runs as a real `it()` AFTER all property tests and the coverage
+ * `afterAll` hook (Vitest executes tests in declaration order). Lives
+ * in its own describe so it shows up as a clearly-named test in the
+ * runner output rather than as an opaque hook failure.
+ *
+ * The properties may all pass while this fails — that's the point: a
+ * green property run that only ever sampled UTC tells you nothing
+ * about Pacific/Chatham, and we want CI to flag that explicitly.
+ */
+describe("coverage policy", () => {
+  it("meets per-zone and per-invariant case-count thresholds", () => {
+    const policy = loadPolicyFromEnv();
+    // Skip cleanly when no thresholds are configured. We don't want
+    // local `bun run test:tz:property` invocations to fail just
+    // because the developer hasn't opted into a policy.
+    if (
+      policy.minCasesPerZone === 0 &&
+      policy.minTotalCasesPerInvariant === 0
+    ) {
+      // eslint-disable-next-line no-console
+      console.log(
+        "[coverage policy] No thresholds configured — skipping. Set " +
+          "TZ_COVERAGE_REQUIRE_ALL_ZONES=true or TZ_COVERAGE_MIN_CASES_PER_ZONE=N " +
+          "to enforce.",
+      );
+      return;
+    }
+
+    const violations = evaluatePolicy(policy);
+    if (violations.length === 0) return;
+
+    throw new Error(formatViolations(violations, policy));
+  });
+});
