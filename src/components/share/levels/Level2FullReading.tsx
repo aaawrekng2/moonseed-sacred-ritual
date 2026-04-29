@@ -31,7 +31,7 @@ export function Level2FullReading({
     <ShareCardFrame
       guideName={ctx.guideName}
       accent={color.accent}
-      background={`linear-gradient(180deg, #07070d 0%, #14110a 55%, #1f1a10 100%), radial-gradient(ellipse at 50% 20%, ${color.glow} 0%, transparent 60%)`}
+      background={`radial-gradient(ellipse at 50% 18%, ${color.glow.replace(/0\.35\)/, "0.8)")} 0%, transparent 60%), linear-gradient(180deg, color-mix(in oklab, ${color.accent} 5%, #07070d) 0%, color-mix(in oklab, ${color.accent} 4%, #14110a) 55%, color-mix(in oklab, ${color.accent} 6%, #1f1a10) 100%)`}
     >
       <ShareCardRow picks={ctx.picks} />
       {showQuestion && (
@@ -39,10 +39,10 @@ export function Level2FullReading({
           style={{
             textAlign: "center",
             fontStyle: "italic",
-            fontSize: 32,
-            lineHeight: 1.35,
+            fontSize: 56,
+            lineHeight: 1.4,
             opacity: 0.85,
-            maxWidth: 760,
+            maxWidth: 860,
             margin: "0 auto",
           }}
         >
@@ -54,9 +54,9 @@ export function Level2FullReading({
           style={{
             textAlign: "center",
             fontFamily: "var(--font-serif)",
-            fontSize: 30,
-            lineHeight: 1.55,
-            maxWidth: 820,
+            fontSize: 52,
+            lineHeight: 1.5,
+            maxWidth: 880,
             margin: "0 auto",
             opacity: 0.95,
           }}

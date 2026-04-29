@@ -28,7 +28,7 @@ export function Level4DeepLens({
   lens: DeepLensSelection;
   variant?: "anchor" | "spread";
 }) {
-  const snippet = snippetFromOverview(lens.body, 360);
+  const snippet = snippetFromOverview(lens.body, 420);
   const anchorPick = variant === "anchor" ? ctx.picks.slice(0, 1) : ctx.picks;
   return (
     <ShareCardFrame
@@ -36,9 +36,9 @@ export function Level4DeepLens({
       accent={color.accent}
       // Layered mist: dark base + soft glow halo + faint vertical band.
       background={[
-        `radial-gradient(ellipse at 50% 30%, ${color.glow} 0%, transparent 60%)`,
-        `radial-gradient(circle at 20% 80%, rgba(255,255,255,0.04) 0%, transparent 35%)`,
-        `radial-gradient(circle at 80% 70%, rgba(255,255,255,0.05) 0%, transparent 40%)`,
+        `radial-gradient(ellipse at 50% 30%, ${color.glow.replace(/0\.35\)/, "0.7)")} 0%, transparent 60%)`,
+        `radial-gradient(circle at 20% 80%, ${color.glow} 0%, transparent 40%)`,
+        `radial-gradient(circle at 80% 70%, ${color.glow} 0%, transparent 45%)`,
         `linear-gradient(180deg, #050509 0%, #0a0a14 50%, #0e0a18 100%)`,
       ].join(", ")}
     >
@@ -47,11 +47,11 @@ export function Level4DeepLens({
           textAlign: "center",
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 56,
+          fontSize: 44,
           letterSpacing: "0.06em",
           color: color.accent,
-          opacity: 0.92,
-          textShadow: `0 0 24px ${color.glow}`,
+          opacity: 1,
+          textShadow: `0 0 28px ${color.glow}`,
         }}
       >
         {lens.label}
@@ -74,9 +74,9 @@ export function Level4DeepLens({
           style={{
             textAlign: "center",
             fontFamily: "var(--font-serif)",
-            fontSize: 32,
-            lineHeight: 1.6,
-            maxWidth: 820,
+            fontSize: 56,
+            lineHeight: 1.5,
+            maxWidth: 900,
             margin: "0 auto",
             opacity: 0.95,
           }}

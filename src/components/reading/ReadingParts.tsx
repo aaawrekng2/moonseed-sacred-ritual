@@ -349,12 +349,6 @@ export function InlineReading({
             positionLabels={positionLabels}
             isOracle={isOracle}
             copyText={copyText ?? ""}
-            onSharePosition={(i) => {
-              setTearDefaultLevel("position");
-              setTearPositionIndex(i);
-              setTearHonorLast(false);
-              setTearOpen(true);
-            }}
             />
           </>
         )}
@@ -935,15 +929,12 @@ function ReadingBody({
   positionLabels,
   isOracle,
   copyText,
-  onSharePosition,
 }: {
   interpretation: InterpretationPayload;
   picks: Pick[];
   positionLabels: string[];
   isOracle: boolean;
   copyText: string;
-  /** When provided, each position renders a small share affordance. */
-  onSharePosition?: (positionIndex: number) => void;
 }) {
   const { size, setSize } = useReadingFontSize();
   const [showSlider, setShowSlider] = useState(false);
@@ -1051,37 +1042,6 @@ function ReadingBody({
             >
               {p.interpretation}
             </p>
-            {onSharePosition && (
-              <div className="mt-1 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => onSharePosition(i)}
-                  aria-label={`Share ${p.position}`}
-                  title="Share this position"
-                  className="inline-flex items-center justify-center rounded-full p-1 text-gold transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
-                  style={{ opacity: "var(--ro-plus-20)" }}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden
-                  >
-                    <circle cx="18" cy="5" r="3" />
-                    <circle cx="6" cy="12" r="3" />
-                    <circle cx="18" cy="19" r="3" />
-                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                  </svg>
-                </button>
-              </div>
-            )}
           </li>
         ))}
       </ul>

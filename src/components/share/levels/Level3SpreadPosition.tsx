@@ -29,7 +29,7 @@ export function Level3SpreadPosition({
     ctx.positionLabels[safeIndex] ?? `Card ${safeIndex + 1}`;
   const positionInterpretation =
     ctx.interpretation.positions[safeIndex]?.interpretation ?? "";
-  const snippet = snippetFromOverview(positionInterpretation, 240);
+  const snippet = snippetFromOverview(positionInterpretation, 320);
 
   return (
     <ShareCardFrame
@@ -42,24 +42,25 @@ export function Level3SpreadPosition({
           textAlign: "center",
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 64,
+          fontSize: 80,
           letterSpacing: "0.12em",
           textTransform: "uppercase",
           color: color.accent,
-          opacity: 0.95,
+          opacity: 1,
+          textShadow: `0 0 24px ${color.glow}`,
         }}
       >
         {label}
       </div>
-      {pick && <ShareCardRow picks={[pick]} maxWidth={500} />}
+      {pick && <ShareCardRow picks={[pick]} maxWidth={520} />}
       {snippet && (
         <p
           style={{
             textAlign: "center",
             fontFamily: "var(--font-serif)",
-            fontSize: 30,
-            lineHeight: 1.55,
-            maxWidth: 780,
+            fontSize: 52,
+            lineHeight: 1.5,
+            maxWidth: 860,
             margin: "0 auto",
             opacity: 0.95,
           }}

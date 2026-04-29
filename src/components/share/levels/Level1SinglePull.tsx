@@ -23,17 +23,17 @@ export function Level1SinglePull({
     <ShareCardFrame
       guideName={ctx.guideName}
       accent={color.accent}
-      background={`radial-gradient(ellipse at 50% 38%, ${color.glow} 0%, transparent 55%), #06060c`}
+      background={`radial-gradient(ellipse at 50% 38%, ${color.glow.replace(/0\.35\)/, "0.7)")} 0%, transparent 60%), #06060c`}
     >
       {showQuestion && (
         <div
           style={{
             textAlign: "center",
             fontStyle: "italic",
-            fontSize: 38,
-            lineHeight: 1.35,
+            fontSize: 56,
+            lineHeight: 1.4,
             opacity: 0.92,
-            maxWidth: 760,
+            maxWidth: 860,
             margin: "0 auto",
           }}
         >

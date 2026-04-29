@@ -46,10 +46,19 @@ export function ShareCardFrame({
           inset: 0,
           display: "flex",
           flexDirection: "column",
-          padding: "120px 96px 80px",
+          padding: "140px 96px 100px",
+          gap: 80,
         }}
       >
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 48 }}>
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-around",
+            gap: 64,
+          }}
+        >
           {children}
         </div>
         <ShareCardFooter guideName={guideName} accent={accent} />
@@ -83,8 +92,8 @@ export function ShareCardFooter({
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 26,
-          opacity: 0.55,
+          fontSize: 38,
+          opacity: 0.85,
           letterSpacing: "0.04em",
           color: accent,
         }}
@@ -94,10 +103,10 @@ export function ShareCardFooter({
       <div
         style={{
           fontFamily: "var(--font-sans)",
-          fontSize: 18,
+          fontSize: 26,
           letterSpacing: "0.32em",
           textTransform: "uppercase",
-          opacity: 0.4,
+          opacity: 0.55,
         }}
       >
         moonseed.com
