@@ -31,6 +31,10 @@ const InterpretInput = z.object({
       z.object({
         id: z.number().int(),
         cardIndex: z.number().int().min(0).max(77),
+        // Phase 9.55 — optional so older clients keep working. Missing
+        // means upright. The server stores the parallel array on the
+        // readings row and threads orientation into the AI prompt.
+        isReversed: z.boolean().optional(),
       }),
     )
     .min(1)
@@ -114,9 +118,11 @@ export const interpretReading = createServerFn({ method: "POST" })
       // 2. Build the user prompt from the picks + spread metadata.
       const positionLabels: string[] =
         meta.positions ?? data.picks.map((_, i) => `Card ${i + 1}`);
-      const lines = data.picks.map(
-        (p, i) => `- ${positionLabels[i] ?? `Card ${i + 1}`}: ${getCardName(p.cardIndex)}`,
-      );
+      const lines = data.picks.map((p, i) => {
+        const name = getCardName(p.cardIndex);
+        const label = positionLabels[i] ?? `Card ${i + 1}`;
+        return `- ${label}: ${p.isReversed ? `${name} (reversed)` : name}`;
+      });
       const userPrompt = `Spread: ${meta.label}\nCards drawn:\n${lines.join("\n")}\n\nPlease interpret this reading.`;
       const userPromptWithQuestion = data.question
         ? `${userPrompt}\n\nThe seeker's question: "${data.question}"`
@@ -307,6 +313,7 @@ export const interpretReading = createServerFn({ method: "POST" })
             user_id: userId,
             spread_type: spread,
             card_ids: data.picks.map((p) => p.cardIndex),
+            card_orientations: data.picks.map((p) => p.isReversed ?? false),
             interpretation: JSON.stringify(interpretation),
             question: data.question ?? null,
           })
