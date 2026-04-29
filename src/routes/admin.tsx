@@ -779,9 +779,9 @@ function DetectWeavesPanel() {
         tone,
         text: `Scanned ${res.users_scanned} user${
           res.users_scanned === 1 ? "" : "s"
-        } · detected ${res.weaves_detected} weave${
+        } · ${res.weaves_detected} new weave${
           res.weaves_detected === 1 ? "" : "s"
-        }${res.errors > 0 ? ` · ${res.errors} error${res.errors === 1 ? "" : "s"}` : ""}.`,
+        } · ${res.weaves_existing} already existed${res.errors > 0 ? ` · ${res.errors} error${res.errors === 1 ? "" : "s"}` : ""}.`,
       });
     } catch (e) {
       setResult({
