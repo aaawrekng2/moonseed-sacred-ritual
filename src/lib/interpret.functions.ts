@@ -136,6 +136,15 @@ export const interpretReading = createServerFn({ method: "POST" })
         facetIds: data.facetIds ?? [],
       });
 
+      // Phase 9.55 — when any drawn card is reversed, prepend a brief
+      // instruction so the model interprets reversal as nuance rather
+      // than negation. We only add this when reversals are present so
+      // upright-only readings stay token-clean.
+      const hasReversed = data.picks.some((p) => p.isReversed);
+      const systemPromptWithReversal = hasReversed
+        ? `${systemPrompt}\n\nWhen a card is marked (reversed), interpret it with awareness of reversal — its energy may be blocked, internalized, delayed, or expressed as its shadow. Reversed does not mean negative; it means nuanced.`
+        : systemPrompt;
+
       // ---- Memory context (Phase 7) -----------------------------------
       // If the user has memory_ai_permission enabled and a non-expired
       // snapshot exists for the chosen Lens, prepend it to the user prompt
@@ -218,7 +227,7 @@ export const interpretReading = createServerFn({ method: "POST" })
             body: JSON.stringify({
               model,
               max_tokens: maxTokens,
-              system: systemPrompt,
+              system: systemPromptWithReversal,
               messages: [{ role: "user", content: userPromptWithMemory }],
             }),
           });
