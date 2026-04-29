@@ -80,6 +80,7 @@ export function MoonCarousel() {
   const accent = useMoonseedAccent();
   const { opacity } = useRestingOpacity();
   const restingAlpha = Math.max(0, Math.min(1, opacity / 100));
+  const { effectiveTz } = useTimezone();
 
   useEffect(() => {
     const t = requestAnimationFrame(() => setReady(true));
@@ -160,33 +161,37 @@ export function MoonCarousel() {
     return d;
   }, [fullMoonPeak]);
 
+  // Hour of the full-moon peak as observed in the seeker's effective tz.
+  // Drives both seam placement and night-only visibility — we never want
+  // to use the device's getHours() here because that would shift the
+  // marker by a whole day for users in non-default zones.
+  const peakTzHour = useMemo<number | null>(() => {
+    if (!fullMoonPeak) return null;
+    return getDatePartsInTz(fullMoonPeak, effectiveTz).hour;
+  }, [fullMoonPeak, effectiveTz]);
+
   // For each visible day, classify whether it should be tinted gold —
   // the day-before, day-of, and day-after the next full-moon peak. Also
   // determine which two adjacent visible days the peak moment falls
   // between (the "seam"), so the marker can sit on that boundary.
-  //   - Peak hour < 6am (local): seam is between (peak-1) and peak.
-  //   - Otherwise: seam is between peak and (peak+1).
+  //   - Peak hour < 12 (tz-local): seam is on the LEFT border of the
+  //     peak day card → between (peak-1) and peak.
+  //   - Otherwise: seam is on the RIGHT border → between peak and
+  //     (peak+1).
   const seamLeftDate = useMemo<Date | null>(() => {
-    if (!fullMoonPeak || !peakDay) return null;
-    const hour = fullMoonPeak.getHours();
-    // Per spec:
-    //   00:00–11:59 → seam is on the LEFT border of the peak day card
-    //                  → between (peak-1) and peak → seamLeft = peak-1
-    //   12:00–23:59 → seam is on the RIGHT border of the peak day card
-    //                  → between peak and (peak+1) → seamLeft = peak
+    if (!fullMoonPeak || !peakDay || peakTzHour == null) return null;
     const seam = new Date(peakDay);
-    if (hour < 12) seam.setDate(peakDay.getDate() - 1);
+    if (peakTzHour < 12) seam.setDate(peakDay.getDate() - 1);
     return seam;
-  }, [fullMoonPeak, peakDay]);
+  }, [fullMoonPeak, peakDay, peakTzHour]);
 
-  // Only display the marker for nighttime peaks (9 PM – 6 AM local).
-  // Daytime full moons aren't visible to the seeker, so the marker
-  // would be misleading.
+  // Only display the marker for nighttime peaks (9 PM – 6 AM in the
+  // seeker's effective tz). Daytime full moons aren't visible, so the
+  // marker would be misleading.
   const showMarker = useMemo<boolean>(() => {
-    if (!fullMoonPeak) return false;
-    const h = fullMoonPeak.getHours();
-    return h >= 21 || h < 6;
-  }, [fullMoonPeak]);
+    if (peakTzHour == null) return false;
+    return peakTzHour >= 21 || peakTzHour < 6;
+  }, [peakTzHour]);
 
   const goldDates = useMemo<Date[]>(() => {
     if (!peakDay) return [];
@@ -260,7 +265,7 @@ export function MoonCarousel() {
       if (!row) return;
       const rowRect = row.getBoundingClientRect();
       const leftIdx = days.findIndex((d) =>
-        isSameLocalDay(d.info.date, seamLeftDate),
+        isSameDayInTz(d.info.date, seamLeftDate, effectiveTz),
       );
       if (leftIdx < 0 || leftIdx >= days.length - 1) {
         setMarkerLeft(null);
@@ -285,7 +290,7 @@ export function MoonCarousel() {
       cancelAnimationFrame(id);
       window.removeEventListener("resize", measure);
     };
-  }, [seamLeftDate, days, offset, transitioning, isMobile]);
+  }, [seamLeftDate, days, offset, transitioning, isMobile, effectiveTz]);
 
   const [recomputing, setRecomputing] = useState(false);
   const recomputeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -547,7 +552,7 @@ export function MoonCarousel() {
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
             const isGoldDay = goldDates.some((g) =>
-              isSameLocalDay(g, d.info.date),
+              isSameDayInTz(g, d.info.date, effectiveTz),
             );
             return (
               <div
@@ -635,6 +640,7 @@ export function MoonCarousel() {
             <FullMoonMarker
               left={markerLeft}
               peak={fullMoonPeak}
+              timeZone={effectiveTz}
             />
           )}
         </div>
