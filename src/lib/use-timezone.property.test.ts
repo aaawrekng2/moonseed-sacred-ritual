@@ -397,6 +397,143 @@ function missedZonesFor(stats: InvariantStats): string[] {
   return ZONES.filter((z) => (stats.perZone[z] ?? 0) === 0);
 }
 
+/**
+ * Coverage policy.
+ *
+ * Configurable via env vars so CI can tighten or relax thresholds
+ * without code edits. Defaults are deliberately permissive — the suite
+ * only fails the policy when *something is clearly wrong*, not when a
+ * zone is merely under-sampled by a couple of cases.
+ *
+ * Env vars:
+ *   TZ_COVERAGE_MIN_CASES_PER_ZONE
+ *     Minimum number of cases each zone must receive PER INVARIANT.
+ *     Default: 0 (disabled). Set to e.g. 5 to enforce that every zone
+ *     gets ≥5 cases per property.
+ *
+ *   TZ_COVERAGE_REQUIRE_ALL_ZONES
+ *     "true" → every zone must receive ≥1 case per invariant.
+ *     Equivalent to TZ_COVERAGE_MIN_CASES_PER_ZONE=1, but more
+ *     readable in CI env blocks. Defaults to "false".
+ *
+ *   TZ_COVERAGE_MIN_TOTAL_CASES_PER_INVARIANT
+ *     Minimum number of total cases per invariant (sum across zones).
+ *     Default: 0 (disabled). Useful as a sanity check that we didn't
+ *     accidentally drop numRuns.
+ *
+ *   TZ_COVERAGE_ALLOW_MISSED_ZONES
+ *     Comma-separated list of IANA zones that are EXEMPT from the
+ *     "all zones" rule. Use sparingly — for zones we know are flaky
+ *     under fast-check's sampling distribution. Default: empty.
+ */
+type CoveragePolicy = {
+  minCasesPerZone: number;
+  requireAllZones: boolean;
+  minTotalCasesPerInvariant: number;
+  allowMissedZones: Set<string>;
+};
+
+function loadPolicyFromEnv(): CoveragePolicy {
+  const parseInt0 = (raw: string | undefined): number => {
+    if (!raw) return 0;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) {
+      throw new Error(
+        `Invalid coverage threshold: expected non-negative integer, got ${JSON.stringify(raw)}`,
+      );
+    }
+    return Math.floor(n);
+  };
+  const requireAll = (process.env.TZ_COVERAGE_REQUIRE_ALL_ZONES ?? "").toLowerCase() === "true";
+  const minPerZone = parseInt0(process.env.TZ_COVERAGE_MIN_CASES_PER_ZONE);
+  return {
+    // requireAllZones is sugar for "min per zone = 1"; honor whichever
+    // is stricter when both are set.
+    minCasesPerZone: Math.max(minPerZone, requireAll ? 1 : 0),
+    requireAllZones: requireAll,
+    minTotalCasesPerInvariant: parseInt0(process.env.TZ_COVERAGE_MIN_TOTAL_CASES_PER_INVARIANT),
+    allowMissedZones: new Set(
+      (process.env.TZ_COVERAGE_ALLOW_MISSED_ZONES ?? "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  };
+}
+
+type PolicyViolation =
+  | { kind: "zone-under-threshold"; invariant: string; zone: string; cases: number; min: number }
+  | { kind: "invariant-under-threshold"; invariant: string; total: number; min: number };
+
+function evaluatePolicy(policy: CoveragePolicy): PolicyViolation[] {
+  const violations: PolicyViolation[] = [];
+  for (const stats of coverage.values()) {
+    if (
+      policy.minTotalCasesPerInvariant > 0 &&
+      stats.totalCases < policy.minTotalCasesPerInvariant
+    ) {
+      violations.push({
+        kind: "invariant-under-threshold",
+        invariant: stats.invariant,
+        total: stats.totalCases,
+        min: policy.minTotalCasesPerInvariant,
+      });
+    }
+    if (policy.minCasesPerZone > 0) {
+      for (const zone of ZONES) {
+        if (policy.allowMissedZones.has(zone)) continue;
+        const cases = stats.perZone[zone] ?? 0;
+        if (cases < policy.minCasesPerZone) {
+          violations.push({
+            kind: "zone-under-threshold",
+            invariant: stats.invariant,
+            zone,
+            cases,
+            min: policy.minCasesPerZone,
+          });
+        }
+      }
+    }
+  }
+  return violations;
+}
+
+function formatViolations(violations: PolicyViolation[], policy: CoveragePolicy): string {
+  const lines: string[] = [];
+  lines.push("Coverage policy violations:");
+  lines.push(
+    `  - minCasesPerZone=${policy.minCasesPerZone}` +
+      `, requireAllZones=${policy.requireAllZones}` +
+      `, minTotalCasesPerInvariant=${policy.minTotalCasesPerInvariant}` +
+      (policy.allowMissedZones.size
+        ? `, allowMissedZones=[${[...policy.allowMissedZones].join(", ")}]`
+        : ""),
+  );
+  lines.push("");
+  for (const v of violations) {
+    if (v.kind === "zone-under-threshold") {
+      lines.push(
+        `  ⛔ ${v.invariant}\n       zone=${v.zone}   cases=${v.cases}   (min=${v.min})`,
+      );
+    } else {
+      lines.push(
+        `  ⛔ ${v.invariant}\n       total cases=${v.total}   (min=${v.min})`,
+      );
+    }
+  }
+  lines.push("");
+  lines.push(
+    "Adjust the FC_SEED, broaden arbInstant, raise numRuns, or relax thresholds via",
+  );
+  lines.push(
+    "  TZ_COVERAGE_MIN_CASES_PER_ZONE / TZ_COVERAGE_REQUIRE_ALL_ZONES /",
+  );
+  lines.push(
+    "  TZ_COVERAGE_MIN_TOTAL_CASES_PER_INVARIANT / TZ_COVERAGE_ALLOW_MISSED_ZONES.",
+  );
+  return lines.join("\n");
+}
+
 afterAll(() => {
   const table = formatCoverageTable();
   const passed = Array.from(coverage.values()).filter((r) => r.status === "passed").length;
@@ -672,5 +809,43 @@ describe("getDayInTz / getDayOffsetInTz — property-based invariants", () => {
         tz: tz as string,
       }),
     });
+  });
+});
+
+/**
+ * Coverage-policy gate.
+ *
+ * Runs as a real `it()` AFTER all property tests and the coverage
+ * `afterAll` hook (Vitest executes tests in declaration order). Lives
+ * in its own describe so it shows up as a clearly-named test in the
+ * runner output rather than as an opaque hook failure.
+ *
+ * The properties may all pass while this fails — that's the point: a
+ * green property run that only ever sampled UTC tells you nothing
+ * about Pacific/Chatham, and we want CI to flag that explicitly.
+ */
+describe("coverage policy", () => {
+  it("meets per-zone and per-invariant case-count thresholds", () => {
+    const policy = loadPolicyFromEnv();
+    // Skip cleanly when no thresholds are configured. We don't want
+    // local `bun run test:tz:property` invocations to fail just
+    // because the developer hasn't opted into a policy.
+    if (
+      policy.minCasesPerZone === 0 &&
+      policy.minTotalCasesPerInvariant === 0
+    ) {
+      // eslint-disable-next-line no-console
+      console.log(
+        "[coverage policy] No thresholds configured — skipping. Set " +
+          "TZ_COVERAGE_REQUIRE_ALL_ZONES=true or TZ_COVERAGE_MIN_CASES_PER_ZONE=N " +
+          "to enforce.",
+      );
+      return;
+    }
+
+    const violations = evaluatePolicy(policy);
+    if (violations.length === 0) return;
+
+    throw new Error(formatViolations(violations, policy));
   });
 });
