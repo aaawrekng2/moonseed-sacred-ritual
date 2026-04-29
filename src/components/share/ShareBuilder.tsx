@@ -746,7 +746,7 @@ function SharePreviewModal({
                   letterSpacing: "0.05em",
                 }}
               >
-                {preview?.intent === "save" ? "Save this image?" : "Share this image?"}
+                {preview?.intent === "save" ? "Download this PNG?" : "Share this image?"}
               </DialogTitle>
               <DialogDescription
                 style={{
@@ -756,7 +756,7 @@ function SharePreviewModal({
                 }}
               >
                 This is exactly what will{" "}
-                {preview?.intent === "save" ? "be downloaded" : "go to your share sheet"}.
+                {preview?.intent === "save" ? "be saved to your device" : "go to your share sheet"}.
               </DialogDescription>
             </div>
             <button
@@ -833,10 +833,10 @@ function SharePreviewModal({
               label={
                 busy
                   ? preview?.intent === "save"
-                    ? "Saving…"
+                    ? "Downloading…"
                     : "Sharing…"
                   : preview?.intent === "save"
-                    ? "Save"
+                    ? "Download PNG"
                     : "Share"
               }
               onClick={onConfirm}
