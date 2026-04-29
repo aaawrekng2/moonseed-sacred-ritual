@@ -312,7 +312,11 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         // No PNG yet — Download Now would have nothing to save.
         notifyError(title, description, nextAction, retry);
         setLastError({ step: "prepare", intent, title, description, nextAction, retry });
-        callbacks.onPrepareError?.(intent, e);
+        callbacks.onPrepareError?.(intent, {
+          error: e,
+          category: categorizeShareError(e),
+          name: errorName(e),
+        });
       } finally {
         setBusy(null);
       }
@@ -405,7 +409,11 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         retry,
         downloadNow,
       });
-      callbacks.onShareError?.(intent, e);
+      callbacks.onShareError?.(intent, {
+        error: e,
+        category: categorizeShareError(e),
+        name: errorName(e),
+      });
     } finally {
       setBusy(null);
     }
