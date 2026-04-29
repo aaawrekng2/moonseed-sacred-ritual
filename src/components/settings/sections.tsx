@@ -502,6 +502,82 @@ function BlueprintSectionInner({
   );
 }
 
+/**
+ * Timezone control for the Profile section.
+ *  - Auto: follow whatever device the seeker opens the app on.
+ *  - Fixed: always use a chosen IANA zone, ignoring the device.
+ * Saved to user_preferences.timezone / tz_mode via useTimezone().
+ */
+function TimezoneField() {
+  const tz = useTimezone();
+  if (!tz.loaded) return null;
+  const isAuto = tz.mode === "auto";
+  // If the seeker's actual saved tz isn't in the curated list, prepend it
+  // so the picker can still display it as the selected value.
+  const options = COMMON_TIMEZONES.some((t) => t.value === (tz.profileTz ?? tz.deviceTz))
+    ? COMMON_TIMEZONES
+    : [
+        { value: tz.profileTz ?? tz.deviceTz, label: tz.profileTz ?? tz.deviceTz },
+        ...COMMON_TIMEZONES,
+      ];
+  return (
+    <div className="space-y-3 rounded-lg border border-border/60 bg-card/40 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <Label className="text-sm">Timezone</Label>
+          <p className="text-xs text-muted-foreground">
+            Used to calculate moon peaks and night windows. Device detected as{" "}
+            <strong>{timezoneLabel(tz.deviceTz)}</strong>.
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            {isAuto ? "Follow device" : "Fixed"}
+          </span>
+          <Switch
+            checked={!isAuto}
+            onCheckedChange={(checked) => {
+              void tz.setMode(checked ? "fixed" : "auto");
+            }}
+            aria-label="Lock to a specific timezone"
+          />
+        </div>
+      </div>
+      {!isAuto && (
+        <div className="space-y-1">
+          <Select
+            value={tz.profileTz ?? tz.deviceTz}
+            onValueChange={(v) => {
+              void tz.setProfileTimezone(v, "fixed");
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Choose a timezone" />
+            </SelectTrigger>
+            <SelectContent className="max-h-72">
+              {options.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground">
+            All moon math will use this zone, even if you open the app from
+            another location.
+          </p>
+        </div>
+      )}
+      {isAuto && tz.profileTz && tz.profileTz !== tz.deviceTz && (
+        <p className="text-[11px] text-amber-500/80">
+          Saved profile zone: <strong>{timezoneLabel(tz.profileTz)}</strong>.
+          In auto mode we'll follow the device.
+        </p>
+      )}
+    </div>
+  );
+}
+
 /* ------------------------- Preferences (combined) ------------------------- */
 
 export function PreferencesTab() {
