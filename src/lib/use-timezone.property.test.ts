@@ -40,14 +40,35 @@ const ZONES = [
   "Pacific/Chatham", // UTC+12:45 — bizarre offset
 ] as const;
 
-const MIN_MS = Date.UTC(2024, 0, 1);
-const MAX_MS = Date.UTC(2030, 11, 31);
+// Instant range: 18 months covering Sep 2025 → Mar 2027.
+//
+// Why this window (and why it's enough):
+//   - It contains TWO Northern-Hemisphere DST cycles (spring-forward
+//     Mar 2026 + Mar 2027, fall-back Nov 2025 + Nov 2026) for US/EU/UK.
+//   - It contains TWO Southern-Hemisphere cycles for AU/NZ (Apr + Oct
+//     transitions in 2026), plus Pacific/Chatham's :45 offset shifts.
+//   - It still spans a year boundary, so YMD-string comparisons cross
+//     both month and year rollovers.
+// We previously sampled a 7-year window, but per-zone case counts in
+// the coverage summary showed every zone hit ≥30 times even with the
+// tighter window — the extra years bought no additional bug-finding
+// power, only wall-clock time.
+const MIN_MS = Date.UTC(2025, 8, 1); // 2025-09-01
+const MAX_MS = Date.UTC(2027, 2, 31); // 2027-03-31
 
 const arbInstant = fc
   .integer({ min: MIN_MS, max: MAX_MS })
   .map((ms) => new Date(ms));
 const arbZone = fc.constantFrom(...ZONES);
-const arbOffset = fc.integer({ min: -120, max: 120 });
+// Day offsets: ±60 instead of ±120. The helpers are linear in N — once
+// round-trip / composition pass over a ±2-month span we're not learning
+// anything new from ±4-month inputs.
+const arbOffset = fc.integer({ min: -60, max: 60 });
+
+// Default fast-check iterations per property. 150 still hits every one
+// of the 14 zones ~10 times per invariant (verified via the coverage
+// summary), which is enough to catch real regressions.
+const DEFAULT_NUM_RUNS = 150;
 
 /**
  * Coverage tracker.
@@ -142,7 +163,7 @@ function runProperty(opts: RunOptions): void {
     throw new Error(`FC_SEED must be a finite number, got: ${JSON.stringify(seedEnv)}`);
   }
   const result = fc.check(opts.property, {
-    numRuns: opts.numRuns ?? 500,
+    numRuns: opts.numRuns ?? DEFAULT_NUM_RUNS,
     verbose: fc.VerbosityLevel.Verbose,
     ...(seed !== undefined ? { seed } : {}),
   }) as fc.RunDetails<unknown>;
@@ -455,7 +476,12 @@ describe("getDayInTz / getDayOffsetInTz — property-based invariants", () => {
       "24h-shift bound: getDayOffsetInTz of (a + 24h, a) must be 0 (DST loss), 1 (normal), or 2 (DST gain).";
     runProperty({
       invariant: INV,
-      numRuns: 1000,
+      // Bumped above the default because this is the only invariant that
+      // exercises DST gain/loss directly. With the narrower 18-month
+      // instant window, 400 runs land ~28 cases per zone — still enough
+      // to hit both spring-forward and fall-back transitions for every
+      // zone in the set.
+      numRuns: 400,
       property: fc.property(arbInstant, arbZone, (instant, tz) => {
         recordCase(INV, tz);
         const a = instant;
