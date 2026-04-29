@@ -793,8 +793,12 @@ function AdjacentCard({
   );
 }
 
-function formatShortDate(d: Date) {
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+function formatShortDate(d: Date, timeZone?: string) {
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(timeZone ? { timeZone } : {}),
+  });
 }
 
 /**
