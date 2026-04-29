@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
 import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 
 /* ---------- Types ---------- */
 
@@ -1021,6 +1022,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
 
   const attach = useCallback(async () => {
     if (!suggestion || attaching) return;
+    const previousSuggestion = suggestion;
     setAttaching(true);
     try {
       const { data: pat } = await supabase
@@ -1032,7 +1034,9 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
         | { id: string; name: string; lifecycle_state: string; reading_ids: string[] }
         | null;
       if (!p) {
-        setAttaching(false);
+        toast.error("Couldn't find that pattern", {
+          description: "It may have been retired. Please try again.",
+        });
         return;
       }
       const nextReadings = Array.from(new Set([...(p.reading_ids ?? []), readingId]));
@@ -1043,10 +1047,28 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
           .update({ reading_ids: nextReadings })
           .eq("id", p.id),
       ]);
-      if (!e1 && !e2) {
-        setSuggestion(null);
-        setPattern({ id: p.id, name: p.name, lifecycle_state: p.lifecycle_state });
+      if (e1 || e2) {
+        // Best-effort rollback: if the reading update succeeded but the
+        // pattern's reading_ids didn't, detach so state stays consistent.
+        if (!e1 && e2) {
+          await supabase
+            .from("readings")
+            .update({ pattern_id: null })
+            .eq("id", readingId);
+        }
+        setSuggestion(previousSuggestion);
+        toast.error("Couldn't connect to pattern", {
+          description: "Please check your connection and try again.",
+        });
+        return;
       }
+      setSuggestion(null);
+      setPattern({ id: p.id, name: p.name, lifecycle_state: p.lifecycle_state });
+    } catch (err) {
+      setSuggestion(previousSuggestion);
+      toast.error("Couldn't connect to pattern", {
+        description: err instanceof Error ? err.message : "Please try again.",
+      });
     } finally {
       setAttaching(false);
     }
@@ -1135,23 +1157,42 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
             letterSpacing: "0.18em",
             textTransform: "uppercase",
             opacity: attaching ? 0.5 : 1,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
           }}
         >
+          {attaching && (
+            <span
+              aria-hidden="true"
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                border: "1.5px solid color-mix(in oklab, var(--gold) 35%, transparent)",
+                borderTopColor: "var(--gold)",
+                animation: "spin 0.8s linear infinite",
+                display: "inline-block",
+              }}
+            />
+          )}
           {attaching ? "Attaching…" : "Connect to pattern"}
         </button>
         <button
           type="button"
           onClick={() => setDismissed(true)}
+          disabled={attaching}
           style={{
             background: "none",
             border: "none",
             padding: 0,
-            cursor: "pointer",
+            cursor: attaching ? "default" : "pointer",
             color: "color-mix(in oklab, var(--foreground) 50%, transparent)",
             fontFamily: "var(--font-display, inherit)",
             fontSize: 11,
             letterSpacing: "0.18em",
             textTransform: "uppercase",
+            opacity: attaching ? 0.5 : 1,
           }}
         >
           Not now
