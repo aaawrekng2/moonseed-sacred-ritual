@@ -267,7 +267,7 @@ function buildReproSnippet(args: {
   invariant: string;
   rendered: Record<string, unknown>;
   seed: number;
-  path: string;
+  path: string | null;
   underlyingError: string;
 }): string {
   const { invariant, rendered, seed, path, underlyingError } = args;
