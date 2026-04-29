@@ -77,7 +77,9 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
           },
           detectWeavesForUser: (userId) =>
             detectWeavesForUser(supabaseAdmin, userId),
-          evaluateAlerts: (runId) => evaluateDetectWeavesAlerts(runId),
+          evaluateAlerts: async (runId) => {
+            await evaluateDetectWeavesAlerts(runId);
+          },
         };
 
         const result = await runDetectWeaves(
