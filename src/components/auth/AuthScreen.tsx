@@ -162,7 +162,7 @@ export function AuthScreen({
               opacity: 0.8,
             }}
           >
-            {mode === "signin" ? "Sign In" : "Create Account"}
+            {signupSent ? "Check Your Email" : mode === "signin" ? "Sign In" : "Create Account"}
           </span>
           <button
             type="button"
@@ -174,6 +174,48 @@ export function AuthScreen({
           </button>
         </div>
 
+        {signupSent ? (
+          <div className="flex flex-col items-center gap-5 py-6 text-center">
+            <p
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body-lg)",
+                color: "var(--foreground)",
+                lineHeight: 1.6,
+                opacity: 0.92,
+                padding: "0 8px",
+              }}
+            >
+              Check your email to confirm your account. Once confirmed, you can sign in.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSignupSent(false);
+                setMode("signin");
+                setError(null);
+                setSuccess(null);
+                setPassword("");
+                setConfirmPassword("");
+              }}
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--foreground)",
+                opacity: 0.55,
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+              }}
+            >
+              Back to sign in
+            </button>
+          </div>
+        ) : (
+        <>
         {/* Fields */}
         <div className="flex flex-col gap-3">
           <input
