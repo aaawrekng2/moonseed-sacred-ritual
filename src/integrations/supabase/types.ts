@@ -337,6 +337,8 @@ export type Database = {
           show_reversals: boolean
           subscription_type: string
           sun_sign: string | null
+          timezone: string | null
+          tz_mode: string
           ui_density: number
           updated_at: string
           user_id: string
@@ -388,6 +390,8 @@ export type Database = {
           show_reversals?: boolean
           subscription_type?: string
           sun_sign?: string | null
+          timezone?: string | null
+          tz_mode?: string
           ui_density?: number
           updated_at?: string
           user_id: string
@@ -439,6 +443,8 @@ export type Database = {
           show_reversals?: boolean
           subscription_type?: string
           sun_sign?: string | null
+          timezone?: string | null
+          tz_mode?: string
           ui_density?: number
           updated_at?: string
           user_id?: string
