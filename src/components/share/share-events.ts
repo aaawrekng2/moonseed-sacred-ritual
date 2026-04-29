@@ -69,11 +69,80 @@ function emit(
   payload: Omit<ShareEventEnvelope, "schemaVersion" | "event"> &
     Record<string, unknown>,
 ) {
+  // Failure events get deduped within a short window so a seeker
+  // tap-tap-tapping Share doesn't spam dashboards with identical
+  // rows. Success and lifecycle events always pass through.
+  if (FAILURE_EVENTS.has(event) && shouldSuppressFailure(event, payload)) {
+    return;
+  }
   track(event, {
     schemaVersion: SHARE_ANALYTICS_SCHEMA_VERSION,
     event,
     ...payload,
   });
+}
+
+// ─── Failure dedup ───────────────────────────────────────────────────
+//
+// Identical failure events fired within `FAILURE_DEDUP_WINDOW_MS` are
+// dropped at the source so analytics stays signal-rich. "Identical"
+// means same event name + context + level + intent + category +
+// errorName — different categories or different errors still flow
+// through, even back-to-back.
+//
+// Window is intentionally short (a couple of seconds): long enough to
+// absorb double-tap / rage-tap bursts, short enough that a deliberate
+// retry after reading the error banner is still recorded.
+
+const FAILURE_EVENTS: ReadonlySet<string> = new Set([
+  "share_capture_failed",
+  "share_web_share_failed",
+  "share_save_failed",
+  "share_error",
+  // share_prepare with ok:false also counts as a failure event
+  "share_prepare",
+]);
+
+const FAILURE_DEDUP_WINDOW_MS = 2000;
+
+const lastFailureAt = new Map<string, number>();
+
+function failureKey(
+  event: string,
+  payload: Record<string, unknown>,
+): string {
+  return [
+    event,
+    payload.context ?? "",
+    payload.level ?? "",
+    payload.intent ?? "",
+    payload.category ?? "",
+    payload.errorName ?? "",
+  ].join("|");
+}
+
+function shouldSuppressFailure(
+  event: string,
+  payload: Record<string, unknown>,
+): boolean {
+  // share_prepare success (ok:true) is not a failure — let it through.
+  if (event === "share_prepare" && payload.ok !== false) return false;
+
+  const now = Date.now();
+  const key = failureKey(event, payload);
+  const prev = lastFailureAt.get(key);
+  if (prev !== undefined && now - prev < FAILURE_DEDUP_WINDOW_MS) {
+    return true;
+  }
+  lastFailureAt.set(key, now);
+  // Opportunistic GC so the map can't grow unbounded across a long
+  // session of varied failures.
+  if (lastFailureAt.size > 64) {
+    for (const [k, t] of lastFailureAt) {
+      if (now - t >= FAILURE_DEDUP_WINDOW_MS) lastFailureAt.delete(k);
+    }
+  }
+  return false;
 }
 
 // ─── Lifecycle ───────────────────────────────────────────────────────
