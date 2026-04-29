@@ -607,7 +607,7 @@ export type DetectWeavesAlert = {
   kind: "failure" | "partial" | "zero_streak";
   severity: "info" | "warn" | "error";
   message: string;
-  details: Record<string, unknown>;
+  details: Record<string, any>;
   run_id: string | null;
   notified_at: string | null;
   resolved_at: string | null;
