@@ -1082,6 +1082,177 @@ function DetectWeavesPanel() {
   );
 }
 
+function DetectWeavesAlertsPanel() {
+  const [alerts, setAlerts] = useState<DetectWeavesAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await listDetectWeavesAlerts({
+        headers: await authHeaders(),
+        data: { includeResolved: false, limit: 50 },
+      });
+      setAlerts(res.alerts);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load alerts.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+  }, []);
+
+  const resolve = async (id: string) => {
+    setBusyId(id);
+    try {
+      await resolveDetectWeavesAlert({
+        headers: await authHeaders(),
+        data: { alertId: id },
+      });
+      setAlerts((prev) => prev.filter((a) => a.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to resolve alert.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const sevColor = (s: DetectWeavesAlert["severity"]) =>
+    s === "error"
+      ? "oklch(0.7 0.18 25)"
+      : s === "warn"
+        ? "oklch(0.78 0.13 70)"
+        : "var(--accent, var(--gold))";
+
+  return (
+    <section style={{ marginTop: 24 }}>
+      <SectionTitle>
+        Detect-weaves alerts
+        {alerts.length > 0 && (
+          <span
+            style={{
+              marginLeft: 10,
+              padding: "2px 8px",
+              fontSize: 11,
+              border: "1px solid oklch(0.7 0.18 25)",
+              color: "oklch(0.7 0.18 25)",
+              borderRadius: 999,
+            }}
+          >
+            {alerts.length}
+          </span>
+        )}
+      </SectionTitle>
+      <div
+        className="mt-4"
+        style={{
+          border: "1px solid var(--border-subtle)",
+          background:
+            "color-mix(in oklab, var(--background) 92%, transparent)",
+          padding: 16,
+        }}
+      >
+        <p
+          style={{
+            ...serif,
+            fontSize: "var(--text-body-sm)",
+            opacity: 0.7,
+            margin: "0 0 12px",
+          }}
+        >
+          Raised automatically when a run fails, when more than 25% of users
+          error in a single run, or when 7 consecutive scheduled runs detect
+          zero new weaves. Admins are also emailed when email infrastructure
+          is configured.
+        </p>
+        {loading && <p style={{ ...serif, opacity: 0.6 }}>Loading…</p>}
+        {error && (
+          <p style={{ ...serif, color: "oklch(0.7 0.18 25)" }}>{error}</p>
+        )}
+        {!loading && !error && alerts.length === 0 && (
+          <p style={{ ...serif, opacity: 0.6, margin: 0 }}>
+            No unresolved alerts. ✦
+          </p>
+        )}
+        {alerts.length > 0 && (
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {alerts.map((a) => (
+              <li
+                key={a.id}
+                style={{
+                  borderTop: "1px solid var(--border-subtle)",
+                  padding: "10px 0",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 12,
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div
+                    style={{
+                      ...display,
+                      fontSize: 11,
+                      letterSpacing: "0.18em",
+                      textTransform: "uppercase",
+                      color: sevColor(a.severity),
+                    }}
+                  >
+                    {a.kind} · {a.severity}
+                  </div>
+                  <div
+                    style={{
+                      ...serif,
+                      fontSize: "var(--text-body-sm)",
+                      marginTop: 2,
+                    }}
+                  >
+                    {a.message}
+                  </div>
+                  <div
+                    style={{
+                      ...serif,
+                      fontSize: "var(--text-caption)",
+                      opacity: 0.5,
+                      marginTop: 2,
+                    }}
+                  >
+                    {new Date(a.created_at).toLocaleString()}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void resolve(a.id)}
+                  disabled={busyId === a.id}
+                  style={{
+                    ...display,
+                    fontSize: 11,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    padding: "6px 12px",
+                    border: "1px solid var(--border-subtle)",
+                    background: "transparent",
+                    color: "var(--foreground)",
+                    cursor: busyId === a.id ? "default" : "pointer",
+                    opacity: busyId === a.id ? 0.5 : 1,
+                  }}
+                >
+                  {busyId === a.id ? "…" : "Resolve"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
     <div
