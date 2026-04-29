@@ -379,6 +379,12 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
       let totalDetected = 0;
       let totalExisting = 0;
       const perUserErrors: Array<{ user_id: string; error: string }> = [];
+      const perUser: Array<{
+        user_id: string;
+        inserted: number;
+        existing: number;
+        error?: string;
+      }> = [];
       for (const uid of candidates) {
         try {
           const { inserted, existing } = await detectWeavesForUser(
@@ -387,11 +393,14 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
           );
           totalDetected += inserted;
           totalExisting += existing;
+          perUser.push({ user_id: uid, inserted, existing });
         } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
           perUserErrors.push({
             user_id: uid,
-            error: e instanceof Error ? e.message : String(e),
+            error: msg,
           });
+          perUser.push({ user_id: uid, inserted: 0, existing: 0, error: msg });
         }
       }
 
@@ -454,6 +463,7 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
         weaves_existing: totalExisting,
         errors: perUserErrors.length,
         status,
+        per_user: perUser,
       } as const;
     } catch (e) {
       const finishedAt = Date.now();
