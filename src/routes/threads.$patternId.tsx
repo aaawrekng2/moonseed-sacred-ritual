@@ -468,6 +468,8 @@ function PatternChamber() {
 
       <ChamberTimeline readingIds={pattern.reading_ids} />
 
+      <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
+
       <ChamberWeaveGraph pattern={pattern} userId={user?.id} />
     </div>
   );
