@@ -739,6 +739,7 @@ function SharePreviewModal({
     description: string;
     nextAction: string;
     intent: "share" | "save";
+    downloadNow?: () => void;
     retry: () => void;
   } | null;
   onDismissError: () => void;
@@ -873,6 +874,7 @@ function SharePreviewModal({
                 busy={busy !== null}
                 onRetry={error.retry}
                 onDismiss={onDismissError}
+                onDownloadNow={error.downloadNow}
               />
             )}
             <div
@@ -986,6 +988,7 @@ function InlineErrorBanner({
   busy,
   onRetry,
   onDismiss,
+  onDownloadNow,
 }: {
   stepLabel: string;
   title: string;
@@ -994,6 +997,7 @@ function InlineErrorBanner({
   busy: boolean;
   onRetry: () => void;
   onDismiss: () => void;
+  onDownloadNow?: () => void;
 }) {
   return (
     <div
@@ -1086,6 +1090,27 @@ function InlineErrorBanner({
         >
           {busy ? "Retrying…" : "Retry"}
         </button>
+        {onDownloadNow && (
+          <button
+            type="button"
+            onClick={onDownloadNow}
+            disabled={busy}
+            style={{
+              background: "transparent",
+              border: "none",
+              padding: "2px 6px",
+              color: "var(--accent)",
+              fontFamily: "var(--font-sans)",
+              fontSize: "var(--text-caption)",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              cursor: busy ? "not-allowed" : "pointer",
+              opacity: busy ? 0.5 : 1,
+            }}
+          >
+            Download PNG
+          </button>
+        )}
         <button
           type="button"
           onClick={onDismiss}
