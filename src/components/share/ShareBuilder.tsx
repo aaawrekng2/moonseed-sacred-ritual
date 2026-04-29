@@ -37,6 +37,7 @@ import { Level5MirrorArtifact } from "./levels/Level5MirrorArtifact";
 import { SHARE_CARD_H, SHARE_CARD_W } from "./levels/share-card-shared";
 import { useShareCard } from "./useShareCard";
 import { useShareColor } from "./use-share-color";
+import { useLastShareLevel } from "./use-last-share-level";
 import {
   getShareColor,
   type ShareContext,
@@ -83,6 +84,13 @@ export function ShareBuilder({
    */
   availableLevels = ["pull", "reading"],
   extras,
+  /**
+   * When true, the user's persisted `last_share_level` overrides
+   * `defaultLevel` (still subject to enabledLevels). Use false when
+   * the caller has a specific intent (e.g. per-position share opens
+   * Position; lens share opens Lens) so the click target wins.
+   */
+  honorLastLevel = true,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -90,9 +98,11 @@ export function ShareBuilder({
   defaultLevel?: ShareLevel;
   availableLevels?: ShareLevel[];
   extras?: ShareBuilderExtras;
+  honorLastLevel?: boolean;
 }) {
   const { color: colorId, setColor } = useShareColor();
   const color = getShareColor(colorId);
+  const { lastLevel, remember } = useLastShareLevel();
 
   // Auto-prune levels whose required extras aren't supplied.
   const enabledLevels = useMemo<ShareLevel[]>(() => {
@@ -115,8 +125,12 @@ export function ShareBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableLevels, extras, context.picks.length]);
 
-  const initialLevel: ShareLevel = enabledLevels.includes(defaultLevel)
-    ? defaultLevel
+  const preferred: ShareLevel =
+    honorLastLevel && lastLevel && enabledLevels.includes(lastLevel)
+      ? lastLevel
+      : defaultLevel;
+  const initialLevel: ShareLevel = enabledLevels.includes(preferred)
+    ? preferred
     : enabledLevels[0] ?? "reading";
 
   const [level, setLevel] = useState<ShareLevel>(initialLevel);
@@ -127,6 +141,12 @@ export function ShareBuilder({
     // initialLevel is derived from open + defaultLevel + enabledLevels.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, defaultLevel, enabledLevels]);
+
+  // Remember every explicit user level switch (not the auto-resync above).
+  const handlePickLevel = (id: ShareLevel) => {
+    setLevel(id);
+    remember(id);
+  };
 
   const [includeQuestion, setIncludeQuestion] = useState<boolean>(false);
   const [includeInterpretation, setIncludeInterpretation] = useState<boolean>(true);
@@ -313,7 +333,7 @@ export function ShareBuilder({
                     <button
                       key={id}
                       type="button"
-                      onClick={() => setLevel(id)}
+                      onClick={() => handlePickLevel(id)}
                       aria-pressed={active}
                       style={{
                         display: "flex",
