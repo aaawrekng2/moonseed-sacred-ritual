@@ -9,6 +9,21 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  # Manual trigger: run from the Actions tab with `update_snapshots=true`
+  # to regenerate the committed Vitest snapshots and open a PR with the
+  # diff. This is the ONLY supported way to refresh snapshots from CI —
+  # the matrix job intentionally fails on drift, so we never want to
+  # auto-update on a normal push/PR run.
+  workflow_dispatch:
+    inputs:
+      update_snapshots:
+        description: "Regenerate timezone snapshots and open a PR with the diff"
+        type: boolean
+        default: false
+      base_branch:
+        description: "Branch to open the snapshot-update PR against"
+        type: string
+        default: "main"
 
 # ---------------------------------------------------------------------------
 # Pinned fast-check seed for the property-based suite.
