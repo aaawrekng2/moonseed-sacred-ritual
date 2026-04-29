@@ -98,8 +98,8 @@ export function MoonCarousel() {
   // Currently-viewed center date — used so phase jumps anchor on what the
   // user is looking at, not on real-world today.
   const viewedDate = useMemo(() => {
-    return getDayInTz(today, offset);
-  }, [today, offset]);
+    return getDayInTz(today, offset, effectiveTz);
+  }, [today, offset, effectiveTz]);
 
   // Mobile shows a 3-day window (-1, 0, +1); desktop shows 5 (-2..+2).
   // Tracked via matchMedia so the layout updates live on resize/rotation —
@@ -142,7 +142,7 @@ export function MoonCarousel() {
       // seam marker advance to the NEXT upcoming full moon. Search a couple
       // days back so the peak day itself stays "upcoming" for the whole
       // 24-hour window of the peak day.
-      const anchor = getDayInTz(viewedDate, -2);
+      const anchor = getDayInTz(viewedDate, -2, effectiveTz);
       const list = getPhaseOccurrences("Full Moon", anchor, 3);
       const cutoff = viewedDate.getTime() - 36 * 60 * 60 * 1000;
       const upcoming = list.find((d) => d.getTime() >= cutoff);
@@ -150,7 +150,7 @@ export function MoonCarousel() {
     } catch {
       return null;
     }
-  }, [retryNonce, viewedDate]);
+  }, [retryNonce, viewedDate, effectiveTz]);
 
   const peakYmd = useMemo<string | null>(() => {
     if (!fullMoonPeak) return null;
@@ -223,7 +223,7 @@ export function MoonCarousel() {
     try {
       const out: DayCell[] = [];
       for (let i = -dayRange; i <= dayRange; i++) {
-        const d = getDayInTz(today, offset + i);
+        const d = getDayInTz(today, offset + i, effectiveTz);
         const info = getCurrentMoonPhase(d);
         out.push({
           info,
