@@ -1213,7 +1213,10 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
         </button>
         <button
           type="button"
-          onClick={() => setDismissed(true)}
+          onClick={() => {
+            markDismissed(readingId);
+            setDismissed(true);
+          }}
           disabled={attaching}
           style={{
             background: "none",
