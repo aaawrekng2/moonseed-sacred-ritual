@@ -1056,6 +1056,7 @@ function InlineErrorBanner({
   title,
   description,
   nextAction,
+  category,
   busy,
   onRetry,
   onDismiss,
@@ -1065,11 +1066,13 @@ function InlineErrorBanner({
   title: string;
   description: string;
   nextAction: string;
+  category?: ShareErrorCategory;
   busy: boolean;
   onRetry: () => void;
   onDismiss: () => void;
   onDownloadNow?: () => void;
 }) {
+  const categoryLabel = category ? CATEGORY_LABEL[category] : null;
   return (
     <div
       role="alert"
@@ -1086,16 +1089,44 @@ function InlineErrorBanner({
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
-            fontFamily: "var(--font-sans)",
-            fontSize: 10,
-            letterSpacing: "0.22em",
-            textTransform: "uppercase",
-            color: "var(--destructive, #b94a4a)",
-            opacity: 0.9,
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 6,
             marginBottom: 4,
           }}
         >
-          {stepLabel}
+          <div
+            style={{
+              fontFamily: "var(--font-sans)",
+              fontSize: 10,
+              letterSpacing: "0.22em",
+              textTransform: "uppercase",
+              color: "var(--destructive, #b94a4a)",
+              opacity: 0.9,
+            }}
+          >
+            {stepLabel}
+          </div>
+          {categoryLabel && (
+            <div
+              aria-label={`Failure type: ${categoryLabel}`}
+              style={{
+                fontFamily: "var(--font-sans)",
+                fontSize: 9,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                color: "var(--color-foreground)",
+                opacity: 0.85,
+                padding: "2px 6px",
+                borderRadius: 999,
+                border: "1px solid color-mix(in oklab, var(--destructive, #b94a4a) 45%, transparent)",
+                background: "color-mix(in oklab, var(--destructive, #b94a4a) 14%, transparent)",
+              }}
+            >
+              {categoryLabel}
+            </div>
+          )}
         </div>
         <div
           style={{
