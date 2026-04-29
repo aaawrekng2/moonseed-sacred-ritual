@@ -78,6 +78,77 @@ export function DeepReadingPanel({
     !!initialMirrorSaved,
   );
 
+  // --- Share builder state (Levels 4 + 5 from a Deep Reading) ---
+  // We lazy-load the reading row + per-lens context the first time the
+  // user opens the share sheet so the panel stays cheap when nobody
+  // shares anything. The fetched picks/spread/guide are reused across
+  // subsequent shares within the same panel mount.
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareLevel, setShareLevel] = useState<ShareLevel>("lens");
+  const [shareLens, setShareLens] = useState<DeepLensSelection | null>(null);
+  const [shareCtx, setShareCtx] = useState<ShareContext | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
+
+  /**
+   * Fetch (or reuse) the reading row needed to populate the share
+   * card with cards + spread + guide name. Returns a synthesized
+   * ShareContext suitable for the builder. Errors are swallowed —
+   * a failed fetch just leaves the share button unresponsive instead
+   * of poisoning the lens UI.
+   */
+  const ensureShareContext = async (): Promise<ShareContext | null> => {
+    if (shareCtx) return shareCtx;
+    setShareLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("readings")
+        .select("spread_type, card_ids, question, guide_id")
+        .eq("id", readingId)
+        .maybeSingle();
+      if (error || !data) return null;
+      const spread: SpreadMode = isValidSpreadMode(data.spread_type)
+        ? data.spread_type
+        : "single";
+      const cardIds = (data.card_ids ?? []) as number[];
+      const picks = cardIds.map((cardIndex, i) => ({ id: i, cardIndex }));
+      const positionLabels = SPREAD_META[spread].positions ?? picks.map((_, i) => `Card ${i + 1}`);
+      const ctx: ShareContext = {
+        question: data.question ?? undefined,
+        spread,
+        picks,
+        positionLabels,
+        interpretation: { overview: "", positions: [], closing: "" },
+        guideName: getGuideById(data.guide_id ?? guideId).name,
+        isOracle: false,
+      };
+      setShareCtx(ctx);
+      return ctx;
+    } catch (e) {
+      console.warn("[DeepReadingPanel] share context fetch failed", e);
+      return null;
+    } finally {
+      setShareLoading(false);
+    }
+  };
+
+  const openShareForLens = async (label: string, body: string) => {
+    const ctx = await ensureShareContext();
+    if (!ctx) return;
+    setShareLens({ label, body: stripMarkdown(body) });
+    setShareLevel("lens");
+    setShareOpen(true);
+  };
+  const openShareForMirror = async (body: string) => {
+    const ctx = await ensureShareContext();
+    if (!ctx) return;
+    // Re-use the lens slot too so users can switch to Lens view and
+    // see the mirror text styled as a lens if they want — the builder
+    // auto-prunes if the body is empty.
+    setShareLens({ label: "Mirror Artifact", body: stripMarkdown(body) });
+    setShareLevel("artifact");
+    setShareOpen(true);
+  };
+
   // Compute mist intensity from the user's last 30 readings.
   useEffect(() => {
     if (!user) return;
