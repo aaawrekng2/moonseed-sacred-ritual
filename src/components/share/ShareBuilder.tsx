@@ -340,8 +340,55 @@ export function ShareBuilder({
                   transformOrigin: "top left",
                 }}
               >
-                <div ref={captureRef}>{renderLevel()}</div>
+                {/* Visual-only preview clone. Capture happens off-screen
+                    against `captureRef` below so a reflow of this scaled
+                    node can never deform the exported PNG. */}
+                <div aria-hidden>{renderLevel()}</div>
               </div>
+            </div>
+          </div>
+
+          {/*
+           * Off-screen capture target — locked to true 1080x1920 portrait,
+           * positioned outside the viewport so it never scrolls into view
+           * and never participates in layout. html-to-image walks this
+           * subtree using its real dimensions, immune to dialog reflows,
+           * mobile keyboard insets, or device-orientation changes.
+           */}
+          <div
+            aria-hidden
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              // Translate fully off-screen rather than display:none so
+              // images, fonts, and gradients still resolve at capture time.
+              transform: "translate(-200vw, -200vh)",
+              pointerEvents: "none",
+              zIndex: -1,
+              // Hard-lock portrait dimensions — no auto, no flex, no shrink.
+              width: SHARE_CARD_W,
+              minWidth: SHARE_CARD_W,
+              maxWidth: SHARE_CARD_W,
+              height: SHARE_CARD_H,
+              minHeight: SHARE_CARD_H,
+              maxHeight: SHARE_CARD_H,
+              overflow: "hidden",
+              contain: "layout size paint",
+              isolation: "isolate",
+            }}
+          >
+            <div
+              ref={captureRef}
+              style={{
+                width: SHARE_CARD_W,
+                height: SHARE_CARD_H,
+                // Defensive: never let an ancestor flex/grid context
+                // squish the capture root before html-to-image reads it.
+                flex: "none",
+              }}
+            >
+              {renderLevel()}
             </div>
           </div>
 
