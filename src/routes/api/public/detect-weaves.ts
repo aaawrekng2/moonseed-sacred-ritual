@@ -34,6 +34,7 @@ async function recordRun(opts: {
   status: RunStatus;
   usersScanned?: number;
   weavesDetected?: number;
+  weavesExisting?: number;
   message?: string;
   perUserErrors?: PerUserError[];
 }): Promise<void> {
@@ -45,6 +46,7 @@ async function recordRun(opts: {
       duration_ms: finishedAt - opts.startedAt,
       users_scanned: opts.usersScanned ?? 0,
       weaves_detected: opts.weavesDetected ?? 0,
+      weaves_existing: opts.weavesExisting ?? 0,
       status: opts.status,
       message: opts.message ?? null,
       per_user_errors: opts.perUserErrors ?? [],
