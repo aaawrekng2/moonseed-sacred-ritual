@@ -20,7 +20,6 @@ import {
   type Edge,
   type Viewport,
 } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
 
 const VIEWPORT_STORAGE_PREFIX = "weave-viewport:";
 
@@ -57,6 +56,30 @@ function saveViewport(patternId: string, vp: Viewport) {
 
 export const Route = createFileRoute("/threads/$patternId")({
   component: PatternChamber,
+  errorComponent: ({ error }) => (
+    <div style={{ padding: 24, fontStyle: "italic", opacity: 0.6, textAlign: "center" }}>
+      <div>Something stirred and settled.</div>
+      {error?.message && (
+        <div style={{ fontSize: 12, opacity: 0.4, marginTop: 8 }}>{error.message}</div>
+      )}
+      <button
+        type="button"
+        onClick={() => {
+          if (typeof window !== "undefined") window.location.href = "/threads";
+        }}
+        style={{
+          marginTop: 16,
+          background: "none",
+          border: "none",
+          color: "var(--accent, var(--gold))",
+          cursor: "pointer",
+          fontStyle: "italic",
+        }}
+      >
+        Return to threads
+      </button>
+    </div>
+  ),
 });
 
 function PatternChamber() {
