@@ -34,6 +34,12 @@ export type ShareError = {
    */
   nextAction: string;
   retry: () => void;
+  /**
+   * Present when an already-rendered PNG is available (i.e. the share
+   * step failed *after* a successful capture). Calling it triggers the
+   * download path with the existing PNG — no re-render, no Web Share.
+   */
+  downloadNow?: () => void;
 };
 
 /**
@@ -167,6 +173,11 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
     description: string,
     nextAction: string,
     onRetry: () => void,
+    /**
+     * When provided, the toast surfaces a second "Download PNG" button
+     * (using sonner's `cancel` slot) that bypasses Web Share entirely.
+     */
+    onDownloadNow?: () => void,
   ) => {
     sonner.error(title, {
       description: `${description} ${nextAction}`,
@@ -176,7 +187,17 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
           onRetry();
         },
       },
-      duration: 8000,
+      ...(onDownloadNow
+        ? {
+            cancel: {
+              label: "Download PNG",
+              onClick: () => {
+                onDownloadNow();
+              },
+            },
+          }
+        : {}),
+      duration: 10000,
     });
   };
 
@@ -250,6 +271,7 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
           void prepare(node, backgroundColor, intent);
         };
         const { title, description, nextAction } = describeError(e, "prepare", intent);
+        // No PNG yet — Download Now would have nothing to save.
         notifyError(title, description, nextAction, retry);
         setLastError({ step: "prepare", intent, title, description, nextAction, retry });
         callbacks.onPrepareError?.(intent, e);
@@ -308,9 +330,43 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         setLastError(null);
         void confirm();
       };
+      // PNG was already rendered (preview exists), so we can offer an
+      // immediate switch to the download path. Only meaningful for
+      // share failures — for download failures, "Retry" already does
+      // the same thing.
+      const downloadNow =
+        intent === "share"
+          ? () => {
+              try {
+                downloadDataUrl(dataUrl, filename);
+                flash("PNG downloaded");
+                callbacks.onShareDownload?.("user");
+                setLastError(null);
+                setPreview(null);
+              } catch (downloadErr) {
+                console.error(
+                  "[useShareCard] downloadNow failed",
+                  downloadErr,
+                );
+                sonner.error("Download didn't start", {
+                  description:
+                    "Your browser blocked the download. Try again or check browser settings.",
+                  duration: 6000,
+                });
+              }
+            }
+          : undefined;
       const { title, description, nextAction } = describeError(e, "confirm", intent);
-      notifyError(title, description, nextAction, retry);
-      setLastError({ step: "confirm", intent, title, description, nextAction, retry });
+      notifyError(title, description, nextAction, retry, downloadNow);
+      setLastError({
+        step: "confirm",
+        intent,
+        title,
+        description,
+        nextAction,
+        retry,
+        downloadNow,
+      });
       callbacks.onShareError?.(intent, e);
     } finally {
       setBusy(null);
