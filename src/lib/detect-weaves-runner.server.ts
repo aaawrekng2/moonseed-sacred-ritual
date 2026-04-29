@@ -73,6 +73,14 @@ export type DetectWeavesConfig = {
   cronSecret: string | undefined;
   minIntervalMs?: number;
   maxUsersPerRun?: number;
+  /**
+   * When false, the cron-secret check is bypassed entirely (no 503 if the
+   * secret is unset, no 401 on mismatch). Cooldown + per-run cap still apply.
+   *
+   * TEMPORARY: used in Phase 9 while Vault seeding is deferred. Phase 10 will
+   * flip this back to true and reinstate the secret requirement.
+   */
+  requireCronSecret?: boolean;
 };
 
 export type DetectWeavesResponse = {
@@ -212,23 +220,29 @@ export async function runDetectWeaves(
   const log = deps.log ?? console;
 
   const cronSecret = config.cronSecret;
-  if (!cronSecret) {
-    log.error("[detect-weaves] refused: DETECT_WEAVES_CRON_SECRET is not set");
-    await deps.recordRun({
-      startedAt,
-      finishedAt: deps.now(),
-      status: "refused",
-      usersScanned: 0,
-      weavesDetected: 0,
-      weavesExisting: 0,
-      message: "DETECT_WEAVES_CRON_SECRET is not set",
-      perUserErrors: [],
-    });
-    return { status: 503, body: "Server not configured" };
-  }
-
-  if (!safeEqual(cronHeader ?? "", cronSecret)) {
-    return { status: 401, body: "Unauthorized" };
+  const requireCronSecret = config.requireCronSecret ?? true;
+  if (requireCronSecret) {
+    if (!cronSecret) {
+      log.error("[detect-weaves] refused: DETECT_WEAVES_CRON_SECRET is not set");
+      await deps.recordRun({
+        startedAt,
+        finishedAt: deps.now(),
+        status: "refused",
+        usersScanned: 0,
+        weavesDetected: 0,
+        weavesExisting: 0,
+        message: "DETECT_WEAVES_CRON_SECRET is not set",
+        perUserErrors: [],
+      });
+      return { status: 503, body: "Server not configured" };
+    }
+    if (!safeEqual(cronHeader ?? "", cronSecret)) {
+      return { status: 401, body: "Unauthorized" };
+    }
+  } else {
+    log.error(
+      "[detect-weaves] WARNING: cron-secret check disabled (requireCronSecret=false). Phase 10 must re-enable it.",
+    );
   }
 
   // Persistent, multi-instance safe cooldown. Backed by an advisory lock
