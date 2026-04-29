@@ -1036,6 +1036,8 @@ function ThreadsView({
   readings: ReadingRow[];
   onOpenReading: (id: string) => void;
 }) {
+  const [lifecycleFilter, setLifecycleFilter] = useState<string>("all");
+
   // Build pattern -> readings map.
   const readingsByPattern = new Map<string, ReadingRow[]>();
   const unlinkedReadings: ReadingRow[] = [];
@@ -1131,8 +1133,59 @@ function ThreadsView({
     return pa.name.localeCompare(pb.name);
   });
 
+  const filteredPatternIds =
+    lifecycleFilter === "all"
+      ? orderedPatternIds
+      : orderedPatternIds.filter(
+          (pid) => patternsById[pid]?.lifecycle_state === lifecycleFilter,
+        );
+  // Ungrouped threads have no pattern, so only show them under "All".
+  const showUngrouped = lifecycleFilter === "all";
+
+  const filterOptions: Array<{ value: string; label: string }> = [
+    { value: "all", label: "All" },
+    { value: "emerging", label: "Emerging" },
+    { value: "active", label: "Active" },
+    { value: "reawakened", label: "Reawakened" },
+    { value: "quieting", label: "Quieting" },
+    { value: "retired", label: "Retired" },
+  ];
+
   return (
     <div className="flex flex-col gap-8">
+      <div
+        className="flex flex-wrap gap-1.5"
+        role="tablist"
+        aria-label="Filter threads by lifecycle"
+      >
+        {filterOptions.map((opt) => {
+          const active = lifecycleFilter === opt.value;
+          const disabled =
+            opt.value !== "all" && (lifecycleCounts[opt.value] ?? 0) === 0;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              disabled={disabled}
+              onClick={() => setLifecycleFilter(opt.value)}
+              className={cn(
+                "rounded-full border px-3 py-1 font-display text-[11px] uppercase tracking-[0.2em] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/40",
+                active
+                  ? "border-gold/60 bg-gold/10 text-gold"
+                  : "border-gold/20 text-muted-foreground hover:text-gold",
+                disabled && "opacity-30 cursor-not-allowed",
+              )}
+            >
+              {opt.label}
+              {opt.value !== "all" && lifecycleCounts[opt.value]
+                ? ` · ${lifecycleCounts[opt.value]}`
+                : ""}
+            </button>
+          );
+        })}
+      </div>
       {lifecycleEntries.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {lifecycleEntries.map(([state, count]) => {
@@ -1158,7 +1211,15 @@ function ThreadsView({
           })}
         </div>
       )}
-      {orderedPatternIds.map((pid) => {
+      {filteredPatternIds.length === 0 && (
+        <p
+          className="font-display text-[12px] italic text-muted-foreground"
+          style={{ opacity: "var(--ro-plus-20)" }}
+        >
+          No patterns in this lifecycle stage yet.
+        </p>
+      )}
+      {filteredPatternIds.map((pid) => {
         const p = patternsById[pid];
         const patternReadings = readingsByPattern.get(pid) ?? [];
         const patternThreads = grouped.get(pid) ?? [];
@@ -1232,9 +1293,9 @@ function ThreadsView({
           </section>
         );
       })}
-      {ungrouped.length > 0 && (
+      {showUngrouped && ungrouped.length > 0 && (
         <section className="flex flex-col gap-3">
-          {orderedPatternIds.length > 0 && (
+          {filteredPatternIds.length > 0 && (
             <h3
               className="m-0 font-display italic text-muted-foreground"
               style={{
@@ -1253,7 +1314,7 @@ function ThreadsView({
           </ul>
         </section>
       )}
-      {unlinkedReadings.length > 0 && orderedPatternIds.length > 0 && (
+      {showUngrouped && unlinkedReadings.length > 0 && orderedPatternIds.length > 0 && (
         <p
           className="font-display text-[11px] italic text-muted-foreground"
           style={{ opacity: "var(--ro-plus-10)" }}
