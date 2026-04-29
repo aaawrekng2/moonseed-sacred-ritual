@@ -17,7 +17,6 @@ import {
   type Node,
   type Edge,
 } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
 
 export const Route = createFileRoute("/threads")({
   head: () => ({
@@ -27,6 +26,30 @@ export const Route = createFileRoute("/threads")({
     ],
   }),
   component: ThreadsPage,
+  errorComponent: ({ error }) => (
+    <div style={{ padding: 24, fontStyle: "italic", opacity: 0.6, textAlign: "center" }}>
+      <div>Something stirred and settled.</div>
+      {error?.message && (
+        <div style={{ fontSize: 12, opacity: 0.4, marginTop: 8 }}>{error.message}</div>
+      )}
+      <button
+        type="button"
+        onClick={() => {
+          if (typeof window !== "undefined") window.location.href = "/";
+        }}
+        style={{
+          marginTop: 16,
+          background: "none",
+          border: "none",
+          color: "var(--accent, var(--gold))",
+          cursor: "pointer",
+          fontStyle: "italic",
+        }}
+      >
+        Return home
+      </button>
+    </div>
+  ),
 });
 
 type View = "active" | "weaves" | "archive";
