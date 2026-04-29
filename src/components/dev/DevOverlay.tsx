@@ -1,5 +1,5 @@
 /**
- * Dev overlay (vG).
+ * Dev overlay (vV).
  *
  * A small pill in the top-left corner that surfaces three live signals:
  *   - the current app version letter (hardcoded per build)
@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
-export const APP_VERSION_LETTER = "U";
+export const APP_VERSION_LETTER = "V";
 const DEV_MODE_KEY = "moonseed:dev_mode";
 const MIST_KEY = "moonseed:mist-level";
 const OPACITY_KEY = "moonseed:resting-opacity";

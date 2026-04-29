@@ -35,8 +35,8 @@ import {
   EnrichmentPanel,
   type EnrichmentTag,
 } from "@/components/journal/EnrichmentPanel";
-import { TearOffCard } from "@/components/reading/TearOffCard";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
+import { ShareBuilder } from "@/components/share/ShareBuilder";
 
 type Pick = { id: number; cardIndex: number };
 
@@ -404,16 +404,19 @@ export function InlineReading({
               Done
             </button>
           </div>
-          <TearOffCard
+          <ShareBuilder
             open={tearOpen}
             onOpenChange={setTearOpen}
-            question={question}
-            spread={spread}
-            picks={picks}
-            positionLabels={positionLabels}
-            interpretation={state.interpretation}
-            guideName={getGuideById(guideId).name}
-            isOracle={isOracle}
+            context={{
+              question,
+              spread,
+              picks,
+              positionLabels,
+              interpretation: state.interpretation,
+              guideName: getGuideById(guideId).name,
+              isOracle,
+            }}
+            defaultLevel="reading"
           />
         </>
       )}

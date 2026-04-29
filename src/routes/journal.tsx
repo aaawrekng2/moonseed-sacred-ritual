@@ -15,7 +15,7 @@ import {
   type EnrichmentTag,
 } from "@/components/journal/EnrichmentPanel";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
-import { TearOffCard } from "@/components/reading/TearOffCard";
+import { ShareBuilder } from "@/components/share/ShareBuilder";
 
 export const Route = createFileRoute("/journal")({
   head: () => ({
@@ -1793,19 +1793,22 @@ function ReadingDetail({
           />
         )}
       </div>
-      <TearOffCard
+      <ShareBuilder
         open={shareOpen}
         onOpenChange={setShareOpen}
-        spread={spreadModeForShare}
-        picks={sharePicks}
-        positionLabels={sharePositions}
-        interpretation={{
-          overview: reading.interpretation ?? "",
-          positions: [],
-          closing: "",
+        context={{
+          spread: spreadModeForShare,
+          picks: sharePicks,
+          positionLabels: sharePositions,
+          interpretation: {
+            overview: reading.interpretation ?? "",
+            positions: [],
+            closing: "",
+          },
+          guideName: guide.name,
+          isOracle,
         }}
-        guideName={guide.name}
-        isOracle={isOracle}
+        defaultLevel="reading"
       />
     </div>
   );

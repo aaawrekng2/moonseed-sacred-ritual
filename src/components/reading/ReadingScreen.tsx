@@ -366,7 +366,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
         className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5"
         style={{
           paddingTop: "calc(var(--topbar-pad) + 16px)",
-          // Reserve enough room above the 64px BottomNav so the tear-off
+          // Reserve enough room above the 64px BottomNav so the share
           // card, share button, and Done CTA are never clipped.
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)",
         }}
