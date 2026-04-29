@@ -567,6 +567,7 @@ export function MoonCarousel() {
                 style={{
                   alignSelf: "flex-start",
                   marginTop: `${topOffset}px`,
+                  position: dateOverlay ? "relative" : undefined,
                   // Shrink ±2 cards slightly on mobile so they fit beside the
                   // mobile ladders without clipping at the screen edges.
                   transform: absRel === 2 ? "scale(0.85)" : undefined,
