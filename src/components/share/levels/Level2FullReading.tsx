@@ -44,10 +44,6 @@ export function Level2FullReading({
             opacity: 0.85,
             maxWidth: 860,
             margin: "0 auto",
-            display: "-webkit-box",
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
           }}
         >
           “{ctx.question!.trim()}”
@@ -63,10 +59,6 @@ export function Level2FullReading({
             maxWidth: 880,
             margin: "0 auto",
             opacity: 0.95,
-            display: "-webkit-box",
-            WebkitLineClamp: 4,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
           }}
         >
           {snippet}

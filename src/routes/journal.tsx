@@ -1225,30 +1225,37 @@ function ThreadsView({
         const patternReadings = readingsByPattern.get(pid) ?? [];
         const patternThreads = grouped.get(pid) ?? [];
         return (
-          <section key={pid} className="flex flex-col gap-3">
-            <Link
-              to="/threads/$patternId"
-              params={{ patternId: pid }}
-              className="flex items-baseline justify-between gap-3 text-gold no-underline"
-            >
-              <h3
-                className="m-0 font-display italic"
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontSize: "var(--text-heading-sm, 17px)",
-                  color: "var(--gold)",
-                }}
-              >
-                {p.name}
-              </h3>
-              <span
-                className="font-display text-[10px] uppercase tracking-[0.2em]"
-                style={{ opacity: "var(--ro-plus-20)" }}
-              >
-                {p.lifecycle_state} · {patternReadings.length}{" "}
-                {patternReadings.length === 1 ? "reading" : "readings"}
-              </span>
-            </Link>
+          <Link
+            key={pid}
+            to="/threads/$patternId"
+            params={{ patternId: pid }}
+            style={{
+              display: "block",
+              textDecoration: "none",
+              color: "inherit",
+              cursor: "pointer",
+            }}
+          >
+            <section className="flex flex-col gap-3">
+              <div className="flex items-baseline justify-between gap-3 text-gold">
+                <h3
+                  className="m-0 font-display italic"
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "var(--text-heading-sm, 17px)",
+                    color: "var(--gold)",
+                  }}
+                >
+                  {p.name}
+                </h3>
+                <span
+                  className="font-display text-[10px] uppercase tracking-[0.2em]"
+                  style={{ opacity: "var(--ro-plus-20)" }}
+                >
+                  {p.lifecycle_state} · {patternReadings.length}{" "}
+                  {patternReadings.length === 1 ? "reading" : "readings"}
+                </span>
+              </div>
             {p.description && p.description.trim() && (
               <p
                 className="m-0 font-display italic text-foreground/80 whitespace-pre-wrap"
@@ -1268,7 +1275,11 @@ function ThreadsView({
                   <li key={r.id}>
                     <button
                       type="button"
-                      onClick={() => onOpenReading(r.id)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onOpenReading(r.id);
+                      }}
                       className="flex w-full items-baseline justify-between gap-3 rounded-md px-2 py-1 text-left hover:bg-gold/5 focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/40"
                     >
                       <span
@@ -1304,7 +1315,8 @@ function ThreadsView({
                 ))}
               </ul>
             )}
-          </section>
+            </section>
+          </Link>
         );
       })}
       {showUngrouped && ungrouped.length > 0 && (
