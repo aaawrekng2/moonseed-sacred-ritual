@@ -289,10 +289,12 @@ afterAll(() => {
 
 describe("getDayInTz / getDayOffsetInTz — property-based invariants", () => {
   it("round-trip: offset(getDayInTz(today, n), today) === n", () => {
+    const INV =
+      "Round-trip: shifting today by N days then measuring the offset back to today must yield N.";
     runProperty({
-      invariant:
-        "Round-trip: shifting today by N days then measuring the offset back to today must yield N.",
+      invariant: INV,
       property: fc.property(arbInstant, arbZone, arbOffset, (instant, tz, n) => {
+        recordCase(INV, tz);
         const today = getTodayInTz(tz, instant);
         const shifted = getDayInTz(today, n, tz);
         const measured = getDayOffsetInTz(shifted, today, tz);
@@ -307,9 +309,11 @@ describe("getDayInTz / getDayOffsetInTz — property-based invariants", () => {
   });
 
   it("symmetry: offset(a, b) === -offset(b, a)", () => {
+    const INV = "Symmetry: getDayOffsetInTz must be antisymmetric in its two arguments.";
     runProperty({
-      invariant: "Symmetry: getDayOffsetInTz must be antisymmetric in its two arguments.",
+      invariant: INV,
       property: fc.property(arbInstant, arbInstant, arbZone, (aInstant, bInstant, tz) => {
+        recordCase(INV, tz);
         const a = getTodayInTz(tz, aInstant);
         const b = getTodayInTz(tz, bInstant);
         const ab = getDayOffsetInTz(a, b, tz);
@@ -326,14 +330,16 @@ describe("getDayInTz / getDayOffsetInTz — property-based invariants", () => {
   });
 
   it("transitive: offset(a, c) === offset(a, b) + offset(b, c)", () => {
+    const INV = "Transitivity: day offsets must compose like integer subtraction.";
     runProperty({
-      invariant: "Transitivity: day offsets must compose like integer subtraction.",
+      invariant: INV,
       property: fc.property(
         arbInstant,
         arbInstant,
         arbInstant,
         arbZone,
         (aI, bI, cI, tz) => {
+          recordCase(INV, tz);
           const a = getTodayInTz(tz, aI);
           const b = getTodayInTz(tz, bI);
           const c = getTodayInTz(tz, cI);
@@ -352,9 +358,11 @@ describe("getDayInTz / getDayOffsetInTz — property-based invariants", () => {
   });
 
   it("noon stability: getDayInTz always anchors at local hour=12", () => {
+    const INV = "Noon stability: every day-cell anchor must report local hour=12.";
     runProperty({
-      invariant: "Noon stability: every day-cell anchor must report local hour=12.",
+      invariant: INV,
       property: fc.property(arbInstant, arbZone, arbOffset, (instant, tz, n) => {
+        recordCase(INV, tz);
         const today = getTodayInTz(tz, instant);
         const shifted = getDayInTz(today, n, tz);
         const { hour } = getDatePartsInTz(shifted, tz);
@@ -369,14 +377,16 @@ describe("getDayInTz / getDayOffsetInTz — property-based invariants", () => {
   });
 
   it("YMD monotonicity: positive offset → later YMD, negative → earlier", () => {
+    const INV =
+      "YMD monotonicity: forward day walks must produce lexicographically-greater YMDs and vice versa.";
     runProperty({
-      invariant:
-        "YMD monotonicity: forward day walks must produce lexicographically-greater YMDs and vice versa.",
+      invariant: INV,
       property: fc.property(
         arbInstant,
         arbZone,
         fc.integer({ min: 1, max: 90 }),
         (instant, tz, n) => {
+          recordCase(INV, tz);
           const today = getTodayInTz(tz, instant);
           const future = getYmdInTz(getDayInTz(today, n, tz), tz);
           const past = getYmdInTz(getDayInTz(today, -n, tz), tz);
@@ -394,10 +404,12 @@ describe("getDayInTz / getDayOffsetInTz — property-based invariants", () => {
   });
 
   it("step uniqueness: today, today±1, today±2 are all distinct YMDs", () => {
+    const INV =
+      "Step uniqueness: a 5-day window centered on today must contain 5 distinct YMD keys.";
     runProperty({
-      invariant:
-        "Step uniqueness: a 5-day window centered on today must contain 5 distinct YMD keys.",
+      invariant: INV,
       property: fc.property(arbInstant, arbZone, (instant, tz) => {
+        recordCase(INV, tz);
         const today = getTodayInTz(tz, instant);
         const ymds = [-2, -1, 0, 1, 2].map((o) =>
           getYmdInTz(getDayInTz(today, o, tz), tz),
@@ -412,15 +424,17 @@ describe("getDayInTz / getDayOffsetInTz — property-based invariants", () => {
   });
 
   it("composition: getDayInTz(getDayInTz(t, a), b) === getDayInTz(t, a+b)", () => {
+    const INV =
+      "Composition: stepping a then b days must equal stepping a+b days in one go.";
     runProperty({
-      invariant:
-        "Composition: stepping a then b days must equal stepping a+b days in one go.",
+      invariant: INV,
       property: fc.property(
         arbInstant,
         arbZone,
         fc.integer({ min: -60, max: 60 }),
         fc.integer({ min: -60, max: 60 }),
         (instant, tz, a, b) => {
+          recordCase(INV, tz);
           const today = getTodayInTz(tz, instant);
           const stepwise = getDayInTz(getDayInTz(today, a, tz), b, tz);
           const direct = getDayInTz(today, a + b, tz);
@@ -437,11 +451,13 @@ describe("getDayInTz / getDayOffsetInTz — property-based invariants", () => {
   });
 
   it("24h-shift bound: a +24h jump always lands 0, 1, or 2 days later", () => {
+    const INV =
+      "24h-shift bound: getDayOffsetInTz of (a + 24h, a) must be 0 (DST loss), 1 (normal), or 2 (DST gain).";
     runProperty({
-      invariant:
-        "24h-shift bound: getDayOffsetInTz of (a + 24h, a) must be 0 (DST loss), 1 (normal), or 2 (DST gain).",
+      invariant: INV,
       numRuns: 1000,
       property: fc.property(arbInstant, arbZone, (instant, tz) => {
+        recordCase(INV, tz);
         const a = instant;
         const b = new Date(instant.getTime() + 24 * 60 * 60 * 1000);
         const offset = getDayOffsetInTz(b, a, tz);
