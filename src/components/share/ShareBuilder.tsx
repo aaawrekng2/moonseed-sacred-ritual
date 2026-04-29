@@ -4,18 +4,23 @@
  * Replaces the old TearOffCard dialog. Single screen with a live
  * preview on top and controls below:
  *   - Five level icons (only those available for the current context
- *     are shown; this slice ships Levels 1 + 2 only)
+ *     are shown; per-context smart defaults set the initial level)
  *   - Color chip (collapsing row, see ColorChipSelector)
- *   - Content toggles (question / interpretation snippet, Level 2 only)
+ *   - Content toggles (question / interpretation snippet, Levels 1 + 2)
  *   - Share + Save image actions (plain text, no pills)
  *
  * The preview is the SAME DOM that gets captured for the PNG. The
  * preview wrapper applies a CSS scale so the on-screen size fits the
  * dialog while the captured image is the true 1080x1920.
+ *
+ * Per-context Levels 3/4/5 require extra inputs that travel via the
+ * `extras` prop (`positionIndex`, `lens`, `artifactText`). The builder
+ * is permissive: any level whose extras are missing is auto-pruned
+ * from `availableLevels` so the selector can never enter a broken state.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Layers, Sparkles } from "lucide-react";
+import { Eye, Layers, Quote, Sparkles, Star } from "lucide-react";
 import {
   Dialog,
   DialogDescription,
@@ -26,10 +31,10 @@ import { cn } from "@/lib/utils";
 import { ColorChipSelector } from "./ColorChipSelector";
 import { Level1SinglePull } from "./levels/Level1SinglePull";
 import { Level2FullReading } from "./levels/Level2FullReading";
-import {
-  SHARE_CARD_H,
-  SHARE_CARD_W,
-} from "./levels/share-card-shared";
+import { Level3SpreadPosition } from "./levels/Level3SpreadPosition";
+import { Level4DeepLens, type DeepLensSelection } from "./levels/Level4DeepLens";
+import { Level5MirrorArtifact } from "./levels/Level5MirrorArtifact";
+import { SHARE_CARD_H, SHARE_CARD_W } from "./levels/share-card-shared";
 import { useShareCard } from "./useShareCard";
 import { useShareColor } from "./use-share-color";
 import {
@@ -49,49 +54,84 @@ type LevelSpec = {
 const LEVEL_SPECS: Record<ShareLevel, LevelSpec> = {
   pull:     { id: "pull",     label: "Pull",     icon: Sparkles, captureBackground: "#06060c" },
   reading:  { id: "reading",  label: "Reading",  icon: Layers,   captureBackground: "#07070d" },
-  position: { id: "position", label: "Position", icon: Layers,   captureBackground: "#07070d" },
-  lens:     { id: "lens",     label: "Lens",     icon: Layers,   captureBackground: "#07070d" },
-  artifact: { id: "artifact", label: "Artifact", icon: Layers,   captureBackground: "#0a0a0f" },
+  position: { id: "position", label: "Position", icon: Quote,    captureBackground: "#07070d" },
+  lens:     { id: "lens",     label: "Lens",     icon: Eye,      captureBackground: "#050509" },
+  artifact: { id: "artifact", label: "Artifact", icon: Star,     captureBackground: "#0c0a08" },
+};
+
+/**
+ * Per-context inputs only certain levels need. Each is optional; a level
+ * whose required extra is missing is auto-pruned from the level selector.
+ */
+export type ShareBuilderExtras = {
+  /** Level 3 — which position from the spread to feature. */
+  positionIndex?: number;
+  /** Level 4 — the specific lens (label + body) to feature. */
+  lens?: DeepLensSelection;
+  /** Level 5 — the mirror artifact text. */
+  artifactText?: string;
 };
 
 export function ShareBuilder({
   open,
   onOpenChange,
   context,
-  /** Smart default level the builder opens at. User can switch from there. */
   defaultLevel = "reading",
   /**
-   * Levels shown in the level selector. Defaults to the two implemented
-   * in this slice (1 + 2). Future phases will widen this set.
+   * Caller-declared list of levels meaningful for the current screen.
+   * Levels missing the required `extras` field are auto-removed.
    */
   availableLevels = ["pull", "reading"],
+  extras,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   context: ShareContext;
   defaultLevel?: ShareLevel;
   availableLevels?: ShareLevel[];
+  extras?: ShareBuilderExtras;
 }) {
   const { color: colorId, setColor } = useShareColor();
   const color = getShareColor(colorId);
 
-  const [level, setLevel] = useState<ShareLevel>(() =>
-    availableLevels.includes(defaultLevel) ? defaultLevel : availableLevels[0],
-  );
+  // Auto-prune levels whose required extras aren't supplied.
+  const enabledLevels = useMemo<ShareLevel[]>(() => {
+    return availableLevels.filter((id) => {
+      switch (id) {
+        case "position":
+          return typeof extras?.positionIndex === "number" && context.picks.length > 0;
+        case "lens":
+          return !!extras?.lens && extras.lens.body.trim().length > 0;
+        case "artifact":
+          return !!extras?.artifactText && extras.artifactText.trim().length > 0;
+        case "pull":
+          return context.picks.length > 0;
+        case "reading":
+        default:
+          return true;
+      }
+    });
+    // availableLevels intentionally compared by reference identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableLevels, extras, context.picks.length]);
+
+  const initialLevel: ShareLevel = enabledLevels.includes(defaultLevel)
+    ? defaultLevel
+    : enabledLevels[0] ?? "reading";
+
+  const [level, setLevel] = useState<ShareLevel>(initialLevel);
   // Re-sync if the host swaps to a different reading mid-flight.
   useEffect(() => {
     if (!open) return;
-    setLevel(
-      availableLevels.includes(defaultLevel) ? defaultLevel : availableLevels[0],
-    );
-    // availableLevels intentionally compared by identity — tightly held by callers.
+    setLevel(initialLevel);
+    // initialLevel is derived from open + defaultLevel + enabledLevels.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, defaultLevel]);
+  }, [open, defaultLevel, enabledLevels]);
 
   const [includeQuestion, setIncludeQuestion] = useState<boolean>(false);
   const [includeInterpretation, setIncludeInterpretation] = useState<boolean>(true);
 
-  // Smart defaults per level (matches the spec).
+  // Smart toggle defaults per level.
   useEffect(() => {
     if (level === "pull") {
       setIncludeQuestion(!!context.question?.trim());
@@ -105,7 +145,7 @@ export function ShareBuilder({
   const captureRef = useRef<HTMLDivElement | null>(null);
   const { busy, toast, share, save } = useShareCard();
 
-  // Scale the 1080x1920 capture node down to fit the dialog preview.
+  // Scale 1080x1920 down to fit the dialog preview.
   const PREVIEW_MAX_W = 280;
   const PREVIEW_MAX_H = 480;
   const scale = Math.min(PREVIEW_MAX_W / SHARE_CARD_W, PREVIEW_MAX_H / SHARE_CARD_H);
@@ -122,6 +162,31 @@ export function ShareBuilder({
             ctx={context}
             color={color}
             includeQuestion={includeQuestion}
+          />
+        );
+      case "position":
+        return (
+          <Level3SpreadPosition
+            ctx={context}
+            color={color}
+            positionIndex={extras?.positionIndex ?? 0}
+          />
+        );
+      case "lens":
+        // enabledLevels guarantees extras.lens exists when level === 'lens'.
+        return (
+          <Level4DeepLens
+            ctx={context}
+            color={color}
+            lens={extras!.lens!}
+          />
+        );
+      case "artifact":
+        return (
+          <Level5MirrorArtifact
+            ctx={context}
+            color={color}
+            artifactText={extras?.artifactText ?? ""}
           />
         );
       case "reading":
@@ -155,18 +220,16 @@ export function ShareBuilder({
           )}
         />
         <DialogPrimitive.Content
-          className="fixed left-[50%] top-[50%] z-50 flex w-full max-w-[420px] translate-x-[-50%] translate-y-[-50%] flex-col gap-0 overflow-hidden border duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+          className="fixed left-[50%] top-[50%] z-50 flex w-full max-w-[440px] translate-x-[-50%] translate-y-[-50%] flex-col gap-0 overflow-hidden border duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
           style={{
             background: "var(--surface-overlay)",
             borderColor: "var(--border-default)",
             borderRadius: 18,
+            maxHeight: "calc(100vh - 32px)",
+            overflow: "hidden",
           }}
         >
-          <DialogHeader
-            style={{
-              padding: "var(--space-5) var(--space-5) var(--space-3)",
-            }}
-          >
+          <DialogHeader style={{ padding: "var(--space-5) var(--space-5) var(--space-3)" }}>
             <DialogTitle
               style={{
                 fontFamily: "var(--font-serif)",
@@ -189,7 +252,7 @@ export function ShareBuilder({
             </DialogDescription>
           </DialogHeader>
 
-          {/* Live preview — same DOM that gets captured. */}
+          {/* Live preview */}
           <div
             style={{
               padding: "var(--space-3) var(--space-5)",
@@ -220,7 +283,7 @@ export function ShareBuilder({
             </div>
           </div>
 
-          {/* Controls */}
+          {/* Controls (scrollable on small screens) */}
           <div
             style={{
               padding: "var(--space-3) var(--space-5) var(--space-5)",
@@ -229,47 +292,55 @@ export function ShareBuilder({
               flexDirection: "column",
               gap: "var(--space-4)",
               background: "var(--surface-card)",
+              overflowY: "auto",
             }}
           >
             {/* Level selector */}
-            <div style={{ display: "flex", gap: "var(--space-3)", justifyContent: "center" }}>
-              {availableLevels.map((id) => {
-                const spec = LEVEL_SPECS[id];
-                const Icon = spec.icon;
-                const active = id === level;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setLevel(id)}
-                    aria-pressed={active}
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: "var(--space-1)",
-                      padding: "var(--space-2) var(--space-3)",
-                      background: "transparent",
-                      border: "none",
-                      cursor: "pointer",
-                      color: active
-                        ? "var(--accent)"
-                        : "var(--color-foreground)",
-                      opacity: active ? 1 : 0.55,
-                      fontFamily: "var(--font-sans)",
-                      fontSize: "var(--text-caption)",
-                      letterSpacing: "0.18em",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    <Icon size={18} strokeWidth={1.5} />
-                    <span>{spec.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {enabledLevels.length > 1 && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: "var(--space-3)",
+                  justifyContent: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                {enabledLevels.map((id) => {
+                  const spec = LEVEL_SPECS[id];
+                  const Icon = spec.icon;
+                  const active = id === level;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setLevel(id)}
+                      aria-pressed={active}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "var(--space-1)",
+                        padding: "var(--space-2) var(--space-3)",
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        color: active ? "var(--accent)" : "var(--color-foreground)",
+                        opacity: active ? 1 : 0.55,
+                        fontFamily: "var(--font-sans)",
+                        fontSize: "var(--text-caption)",
+                        letterSpacing: "0.18em",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      <Icon size={18} strokeWidth={1.5} />
+                      <span>{spec.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-            {/* Toggles (Level 2 only for this slice) */}
+            {/* Toggles (Levels 1 + 2 only) */}
             {level === "reading" && (
               <div
                 style={{
