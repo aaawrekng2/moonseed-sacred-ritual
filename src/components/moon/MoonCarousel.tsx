@@ -674,6 +674,7 @@ export function MoonCarousel() {
           </button>
         )}
       </div>
+      {import.meta.env.DEV && <MoonPeakDebugPanel />}
     </section>
   );
 }
