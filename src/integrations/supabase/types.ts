@@ -119,9 +119,11 @@ export type Database = {
           finished_at: string
           id: string
           message: string | null
+          mode: string
           per_user_errors: Json
           started_at: string
           status: string
+          triggered_by: string | null
           users_scanned: number
           weaves_detected: number
         }
@@ -130,9 +132,11 @@ export type Database = {
           finished_at?: string
           id?: string
           message?: string | null
+          mode?: string
           per_user_errors?: Json
           started_at?: string
           status?: string
+          triggered_by?: string | null
           users_scanned?: number
           weaves_detected?: number
         }
@@ -141,9 +145,11 @@ export type Database = {
           finished_at?: string
           id?: string
           message?: string | null
+          mode?: string
           per_user_errors?: Json
           started_at?: string
           status?: string
+          triggered_by?: string | null
           users_scanned?: number
           weaves_detected?: number
         }
