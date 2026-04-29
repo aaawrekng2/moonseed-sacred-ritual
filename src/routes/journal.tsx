@@ -1102,16 +1102,15 @@ function ThreadsView({
       </div>
     );
   }
-  // Group threads by pattern_id; ungrouped threads fall under "Other threads".
+  // Group threads by pattern_id so patterns surface even when their only
+  // signal is a thread (ungrouped threads stay silent in the DB and never
+  // render their own UI item — Phase 9 reset).
   const grouped = new Map<string, ThreadRow[]>();
-  const ungrouped: ThreadRow[] = [];
   for (const t of threads) {
     if (t.pattern_id && patternsById[t.pattern_id]) {
       const arr = grouped.get(t.pattern_id) ?? [];
       arr.push(t);
       grouped.set(t.pattern_id, arr);
-    } else {
-      ungrouped.push(t);
     }
   }
   // Order patterns: those with readings or threads first, by lifecycle weight then name.
@@ -1141,9 +1140,6 @@ function ThreadsView({
       : orderedPatternIds.filter(
           (pid) => patternsById[pid]?.lifecycle_state === lifecycleFilter,
         );
-  // Ungrouped threads have no pattern, so only show them under "All".
-  const showUngrouped = lifecycleFilter === "all";
-
   const filterOptions: Array<{ value: string; label: string }> = [
     { value: "all", label: "All" },
     { value: "emerging", label: "Emerging" },
