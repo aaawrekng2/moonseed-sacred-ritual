@@ -10,6 +10,7 @@
 import { useCallback, useState } from "react";
 import { toPng } from "html-to-image";
 import { toast as sonner } from "sonner";
+import { SHARE_CARD_H, SHARE_CARD_W } from "./levels/share-card-shared";
 
 export type ShareBusyState = null | "share" | "save";
 
@@ -84,10 +85,24 @@ export function useShareCard() {
     async (node: HTMLElement, backgroundColor: string): Promise<string> => {
       // pixelRatio: 1 because the off-screen container is already at the
       // target physical dimensions. Setting >1 would balloon the file.
+      // width/height + canvasWidth/canvasHeight + an explicit transform
+      // force the exported PNG to true portrait 1080x1920 even if the
+      // capture node is briefly mis-measured during a reflow (mobile
+      // keyboard, dialog resize, orientation change, etc.).
       return toPng(node, {
         pixelRatio: 1,
         cacheBust: true,
         backgroundColor,
+        width: SHARE_CARD_W,
+        height: SHARE_CARD_H,
+        canvasWidth: SHARE_CARD_W,
+        canvasHeight: SHARE_CARD_H,
+        style: {
+          width: `${SHARE_CARD_W}px`,
+          height: `${SHARE_CARD_H}px`,
+          transform: "none",
+          transformOrigin: "top left",
+        },
       });
     },
     [],
