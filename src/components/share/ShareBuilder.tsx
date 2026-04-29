@@ -38,7 +38,7 @@ import { Level4DeepLens, type DeepLensSelection } from "./levels/Level4DeepLens"
 import { Level5MirrorArtifact } from "./levels/Level5MirrorArtifact";
 import { SHARE_CARD_H, SHARE_CARD_W } from "./levels/share-card-shared";
 import { useShareCard } from "./useShareCard";
-import type { ShareBusyState } from "./useShareCard";
+import type { ShareBusyState, ShareErrorCategory } from "./useShareCard";
 import { useShareColor } from "./use-share-color";
 import { useLastShareLevel } from "./use-last-share-level";
 import { useShareCaptureOptions } from "./use-share-capture-options";
@@ -763,6 +763,7 @@ export function ShareBuilder({
                 title={prepareError.title}
                 description={prepareError.description}
                 nextAction={prepareError.nextAction}
+                category={prepareError.category}
                 busy={busy !== null}
                 onRetry={prepareError.retry}
                 onDismiss={dismissError}
@@ -807,6 +808,7 @@ function SharePreviewModal({
     description: string;
     nextAction: string;
     intent: "share" | "save";
+    category: ShareErrorCategory;
     downloadNow?: () => void;
     retry: () => void;
   } | null;
@@ -939,6 +941,7 @@ function SharePreviewModal({
                 title={error.title}
                 description={error.description}
                 nextAction={error.nextAction}
+                category={error.category}
                 busy={busy !== null}
                 onRetry={error.retry}
                 onDismiss={onDismissError}
