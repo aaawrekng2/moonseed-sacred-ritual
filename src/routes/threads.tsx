@@ -55,23 +55,41 @@ export const Route = createFileRoute("/threads")({
 
 type View = "active" | "weaves" | "archive";
 
+type PatternReading = {
+  id: string;
+  pattern_id: string | null;
+  card_ids: number[];
+  question: string | null;
+  created_at: string;
+};
+
 function ThreadsPage() {
   const { user } = useAuth();
   const [view, setView] = useState<View>("active");
   const [patterns, setPatterns] = useState<Pattern[]>([]);
+  const [readings, setReadings] = useState<PatternReading[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     void (async () => {
-      const { data } = await supabase
-        .from("patterns")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+      const [{ data: patternRows }, { data: readingRows }] = await Promise.all([
+        supabase
+          .from("patterns")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("readings")
+          .select("id,pattern_id,card_ids,question,created_at")
+          .eq("user_id", user.id)
+          .not("pattern_id", "is", null)
+          .order("created_at", { ascending: false }),
+      ]);
       if (cancelled) return;
-      setPatterns((data ?? []) as Pattern[]);
+      setPatterns((patternRows ?? []) as Pattern[]);
+      setReadings((readingRows ?? []) as PatternReading[]);
       setLoading(false);
     })();
     return () => {
@@ -85,6 +103,14 @@ function ThreadsPage() {
   const archived = patterns.filter((p) =>
     ["quieting", "retired"].includes(p.lifecycle_state),
   );
+
+  const readingsByPattern = new Map<string, PatternReading[]>();
+  for (const r of readings) {
+    if (!r.pattern_id) continue;
+    const arr = readingsByPattern.get(r.pattern_id) ?? [];
+    arr.push(r);
+    readingsByPattern.set(r.pattern_id, arr);
+  }
 
   return (
     <div
