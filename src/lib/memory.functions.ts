@@ -184,6 +184,9 @@ export const detectThreads = createServerFn({ method: "POST" })
         }>;
 
         let inserted = 0;
+        // Track which thread row each candidate maps to (existing or newly
+        // inserted) so we can drive pattern detection with stable IDs.
+        const touchedThreadIds: string[] = [];
         for (const cand of candidates) {
           const overlap = (a: number[], b: number[]) =>
             a.filter((x) => b.includes(x)).length;
@@ -194,27 +197,47 @@ export const detectThreads = createServerFn({ method: "POST" })
             const mergedReadings = Array.from(
               new Set([...(match.reading_ids ?? []), ...cand.reading_ids]),
             );
+            const nextRecurrence = mergedReadings.length;
+            const nextStatus =
+              match.status === "quieting"
+                ? "reawakened"
+                : nextRecurrence >= 3
+                  ? "active"
+                  : "active";
             await supabase
               .from("symbolic_threads")
               .update({
                 summary: cand.summary,
+                title: cand.summary,
                 tags: cand.tags ?? [],
                 reading_ids: mergedReadings,
-                status: match.status === "quieting" ? "reawakened" : "active",
+                status: nextStatus,
+                recurrence_count: nextRecurrence,
+                last_seen_at: new Date().toISOString(),
               })
               .eq("id", match.id);
+            touchedThreadIds.push(match.id);
           } else {
-            const { error: insErr } = await supabase
+            const { data: ins, error: insErr } = await supabase
               .from("symbolic_threads")
               .insert({
                 user_id: userId,
                 summary: cand.summary,
+                title: cand.summary,
                 card_ids: cand.card_ids,
                 tags: cand.tags ?? [],
                 reading_ids: cand.reading_ids,
                 status: "emerging",
-              });
-            if (!insErr) inserted += 1;
+                recurrence_count: cand.reading_ids.length || 1,
+                first_seen_at: new Date().toISOString(),
+                last_seen_at: new Date().toISOString(),
+              })
+              .select("id")
+              .single();
+            if (!insErr && ins) {
+              inserted += 1;
+              touchedThreadIds.push(ins.id);
+            }
           }
         }
 
@@ -243,6 +266,16 @@ export const detectThreads = createServerFn({ method: "POST" })
           }
         }
 
+        // ---- Phase 9: Pattern detection ---------------------------------
+        // When 3+ threads share overlapping cards, group them under a
+        // pattern (create or extend). Then transition pattern lifecycle
+        // states based on activity.
+        try {
+          await detectAndUpdatePatterns(supabase, userId);
+        } catch (e) {
+          console.warn("[detectThreads] pattern detection failed", e);
+        }
+
         return { ok: true, threads_detected: inserted };
       } catch (e) {
         console.error("[detectThreads] unexpected failure", e);
@@ -250,6 +283,230 @@ export const detectThreads = createServerFn({ method: "POST" })
       }
     },
   );
+
+/* ---------- Pattern detection helper ---------- */
+
+/**
+ * Group threads that share 2+ overlapping card_ids into patterns.
+ * Creates an emerging pattern when 3+ threads cluster; extends an
+ * existing pattern when threads already in it overlap with new ones.
+ * Then runs lifecycle transitions:
+ *   emerging  → active     when recurrence_count >= 3
+ *   active    → quieting   when no related reading in 30 days
+ *   quieting  → retired    automatically after 90 days quieting
+ *   quieting  → reawakened when a previously quieting thread receives a new reading
+ */
+async function detectAndUpdatePatterns(
+  supabase: NonNullable<unknown> & {
+    from: (table: string) => any;
+  },
+  userId: string,
+): Promise<void> {
+  const sb = supabase as any;
+
+  const { data: threadRows } = await sb
+    .from("symbolic_threads")
+    .select("id, card_ids, reading_ids, status, summary, title, pattern_id")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false })
+    .limit(100);
+
+  const threads = (threadRows ?? []) as Array<{
+    id: string;
+    card_ids: number[];
+    reading_ids: string[];
+    status: string;
+    summary: string;
+    title: string | null;
+    pattern_id: string | null;
+  }>;
+
+  if (threads.length < 3) return;
+
+  const overlap = (a: number[], b: number[]) =>
+    a.filter((x) => b.includes(x)).length;
+
+  // Naive clustering: for each unassigned thread, find peers with 2+
+  // shared cards. Threads with 3+ peers form a cluster.
+  const used = new Set<string>(
+    threads.filter((t) => t.pattern_id).map((t) => t.id),
+  );
+
+  const clusters: Array<{ threadIds: string[]; cardIds: number[]; title: string }> = [];
+
+  for (const t of threads) {
+    if (used.has(t.id)) continue;
+    const peers = threads.filter(
+      (o) =>
+        o.id !== t.id &&
+        !used.has(o.id) &&
+        overlap(o.card_ids ?? [], t.card_ids ?? []) >= 2,
+    );
+    if (peers.length >= 2) {
+      const cluster = [t, ...peers];
+      const cardSet = new Set<number>();
+      for (const c of cluster) for (const cid of c.card_ids ?? []) cardSet.add(cid);
+      const seedTitle = (t.title || t.summary || "Recurring symbols").slice(0, 60);
+      clusters.push({
+        threadIds: cluster.map((c) => c.id),
+        cardIds: Array.from(cardSet),
+        title: seedTitle,
+      });
+      for (const c of cluster) used.add(c.id);
+    }
+  }
+
+  // Persist clusters as patterns (create new emerging patterns).
+  for (const cluster of clusters) {
+    // Re-check whether any thread already belongs to a pattern (race-safe).
+    const { data: existingLink } = await sb
+      .from("symbolic_threads")
+      .select("pattern_id")
+      .in("id", cluster.threadIds)
+      .not("pattern_id", "is", null)
+      .limit(1);
+    const linked = (existingLink ?? []) as Array<{ pattern_id: string | null }>;
+    let patternId: string | null = linked[0]?.pattern_id ?? null;
+
+    // Aggregate reading_ids from threads in this cluster.
+    const readingSet = new Set<string>();
+    const clusterThreads = threads.filter((t) => cluster.threadIds.includes(t.id));
+    for (const t of clusterThreads) for (const rid of t.reading_ids ?? []) readingSet.add(rid);
+    const aggregatedReadingIds = Array.from(readingSet);
+
+    if (!patternId) {
+      const { data: pat, error: patErr } = await sb
+        .from("patterns")
+        .insert({
+          user_id: userId,
+          name: cluster.title,
+          lifecycle_state: "emerging",
+          thread_ids: cluster.threadIds,
+          reading_ids: aggregatedReadingIds,
+          is_user_named: false,
+        })
+        .select("id")
+        .single();
+      if (patErr || !pat) continue;
+      patternId = pat.id;
+    } else {
+      // Extend the existing pattern with these threads & readings.
+      const { data: existingPat } = await sb
+        .from("patterns")
+        .select("thread_ids, reading_ids, lifecycle_state")
+        .eq("id", patternId)
+        .maybeSingle();
+      const ep = existingPat as
+        | { thread_ids: string[]; reading_ids: string[]; lifecycle_state: string }
+        | null;
+      if (ep) {
+        const mergedThreads = Array.from(
+          new Set([...(ep.thread_ids ?? []), ...cluster.threadIds]),
+        );
+        const mergedReadings = Array.from(
+          new Set([...(ep.reading_ids ?? []), ...aggregatedReadingIds]),
+        );
+        await sb
+          .from("patterns")
+          .update({
+            thread_ids: mergedThreads,
+            reading_ids: mergedReadings,
+            lifecycle_state:
+              ep.lifecycle_state === "quieting" ? "reawakened" : ep.lifecycle_state,
+          })
+          .eq("id", patternId);
+      }
+    }
+
+    // Link threads back to pattern.
+    if (patternId) {
+      await sb
+        .from("symbolic_threads")
+        .update({ pattern_id: patternId })
+        .in("id", cluster.threadIds)
+        .is("pattern_id", null);
+
+      // Tag the readings themselves with the active pattern_id (best
+      // effort; failures are silent).
+      if (aggregatedReadingIds.length > 0) {
+        await sb
+          .from("readings")
+          .update({ pattern_id: patternId })
+          .in("id", aggregatedReadingIds)
+          .is("pattern_id", null);
+      }
+    }
+  }
+
+  // ---- Lifecycle transitions on existing patterns -----------------------
+  const { data: patternRows } = await sb
+    .from("patterns")
+    .select("id, lifecycle_state, reading_ids, retired_at, updated_at")
+    .eq("user_id", userId);
+  const patterns = (patternRows ?? []) as Array<{
+    id: string;
+    lifecycle_state: string;
+    reading_ids: string[];
+    retired_at: string | null;
+    updated_at: string;
+  }>;
+
+  if (patterns.length === 0) return;
+
+  // Look up newest reading per pattern.
+  const allReadingIds = Array.from(
+    new Set(patterns.flatMap((p) => p.reading_ids ?? [])),
+  );
+  const readingDateMap = new Map<string, number>();
+  if (allReadingIds.length > 0) {
+    const { data: rdates } = await sb
+      .from("readings")
+      .select("id, created_at")
+      .in("id", allReadingIds);
+    for (const r of (rdates ?? []) as Array<{ id: string; created_at: string }>) {
+      readingDateMap.set(r.id, new Date(r.created_at).getTime());
+    }
+  }
+
+  const now = Date.now();
+  const THIRTY = 30 * 24 * 60 * 60 * 1000;
+  const NINETY = 90 * 24 * 60 * 60 * 1000;
+
+  for (const p of patterns) {
+    const newest = (p.reading_ids ?? [])
+      .map((rid) => readingDateMap.get(rid) ?? 0)
+      .reduce((a, b) => Math.max(a, b), 0);
+    const recurrenceCount = (p.reading_ids ?? []).length;
+
+    // emerging -> active
+    if (p.lifecycle_state === "emerging" && recurrenceCount >= 3) {
+      await sb.from("patterns").update({ lifecycle_state: "active" }).eq("id", p.id);
+      continue;
+    }
+    // active -> quieting (no related reading in 30 days)
+    if (
+      (p.lifecycle_state === "active" || p.lifecycle_state === "reawakened") &&
+      newest > 0 &&
+      now - newest > THIRTY
+    ) {
+      await sb.from("patterns").update({ lifecycle_state: "quieting" }).eq("id", p.id);
+      continue;
+    }
+    // quieting -> retired (after 90 days quieting)
+    if (
+      p.lifecycle_state === "quieting" &&
+      now - new Date(p.updated_at).getTime() > NINETY
+    ) {
+      await sb
+        .from("patterns")
+        .update({
+          lifecycle_state: "retired",
+          retired_at: new Date().toISOString(),
+        })
+        .eq("id", p.id);
+    }
+  }
+}
 
 /* ---------- buildMemorySnapshot ---------- */
 
