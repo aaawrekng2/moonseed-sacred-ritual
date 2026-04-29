@@ -1240,6 +1240,48 @@ function WeaveGraphLegend() {
         <dt style={{ display: "inline" }}>Bright bold edge</dt>
         <dd style={{ margin: 0, opacity: 0.7 }}>— the weave you're hovering or focused on</dd>
       </div>
+      <div
+        style={{
+          ...itemStyle,
+          gridColumn: "1 / -1",
+          flexWrap: "wrap",
+          rowGap: 6,
+        }}
+      >
+        <dt style={{ display: "inline", marginRight: 4 }}>Lifecycle hues</dt>
+        {(
+          [
+            ["emerging", "Emerging"],
+            ["active", "Active"],
+            ["reawakened", "Reawakened"],
+            ["quieting", "Quieting"],
+            ["retired", "Retired"],
+          ] as const
+        ).map(([state, label]) => (
+          <span
+            key={state}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              marginRight: 12,
+              opacity: 0.85,
+            }}
+          >
+            <span
+              aria-hidden
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: 999,
+                background: lifecycleColor(state, 0.18),
+                border: `1px solid ${lifecycleColor(state, 0.9)}`,
+              }}
+            />
+            {label}
+          </span>
+        ))}
+      </div>
       <div style={itemStyle}>
         <span style={swatch} aria-hidden>
           <span
