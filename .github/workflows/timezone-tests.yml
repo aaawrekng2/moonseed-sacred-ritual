@@ -714,8 +714,17 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$(git status --porcelain -- "$GIT_SCOPE")" ]; then
-            echo "No snapshot changes — nothing to commit."
+            echo "No snapshot changes detected in scope '$GIT_SCOPE'."
+            echo "Skipping the atomic-branch guard (baseline capture, PR open,"
+            echo "fast tip check, ancestry verification) — there is nothing to"
+            echo "push and therefore nothing to race against. The remaining"
+            echo "steps in this job will short-circuit via 'if: steps.diff.outputs.changed == true'."
             echo "changed=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## update-snapshots: no-op"
+              echo ""
+              echo "No snapshot drift in scope \`${{ inputs.snapshot_scope }}\`. Atomicity guard and PR creation skipped."
+            } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "Snapshot drift detected in scope '$GIT_SCOPE':"
             git --no-pager diff --stat -- "$GIT_SCOPE"
