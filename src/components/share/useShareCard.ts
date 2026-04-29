@@ -192,7 +192,7 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
       setBusy(intent);
       if (intent === "save") {
         downloadDataUrl(dataUrl, filename);
-        flash("Image saved");
+        flash("PNG downloaded");
         callbacks.onShareDownload?.("user");
         setPreview(null);
         return;

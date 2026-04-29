@@ -7,7 +7,9 @@
  *     are shown; per-context smart defaults set the initial level)
  *   - Color chip (collapsing row, see ColorChipSelector)
  *   - Content toggles (question / interpretation snippet, Levels 1 + 2)
- *   - Share + Save image actions (plain text, no pills)
+ *   - Share + Download PNG actions (plain text, no pills). The download
+ *     action is a guaranteed local fallback when the Web Share API
+ *     isn't available or the OS sheet fails.
  *
  * The preview is the SAME DOM that gets captured for the PNG. The
  * preview wrapper applies a CSS scale so the on-screen size fits the
@@ -636,10 +638,23 @@ export function ShareBuilder({
                 disabled={busy !== null}
               />
               <PlainAction
-                label={busy === "save" ? "Saving…" : "Save image"}
+                label={busy === "save" ? "Downloading…" : "Download PNG"}
                 onClick={handleSave}
                 disabled={busy !== null}
               />
+            </div>
+            <div
+              style={{
+                textAlign: "center",
+                fontSize: "var(--text-caption)",
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: "var(--color-foreground)",
+                opacity: 0.5,
+                marginTop: "calc(var(--space-1) * -1)",
+              }}
+            >
+              Download PNG always works, even if Share is unavailable.
             </div>
             {toast && (
               <div
@@ -731,7 +746,7 @@ function SharePreviewModal({
                   letterSpacing: "0.05em",
                 }}
               >
-                {preview?.intent === "save" ? "Save this image?" : "Share this image?"}
+                {preview?.intent === "save" ? "Download this PNG?" : "Share this image?"}
               </DialogTitle>
               <DialogDescription
                 style={{
@@ -741,7 +756,7 @@ function SharePreviewModal({
                 }}
               >
                 This is exactly what will{" "}
-                {preview?.intent === "save" ? "be downloaded" : "go to your share sheet"}.
+                {preview?.intent === "save" ? "be saved to your device" : "go to your share sheet"}.
               </DialogDescription>
             </div>
             <button
@@ -818,10 +833,10 @@ function SharePreviewModal({
               label={
                 busy
                   ? preview?.intent === "save"
-                    ? "Saving…"
+                    ? "Downloading…"
                     : "Sharing…"
                   : preview?.intent === "save"
-                    ? "Save"
+                    ? "Download PNG"
                     : "Share"
               }
               onClick={onConfirm}
