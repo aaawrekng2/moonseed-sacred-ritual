@@ -157,7 +157,13 @@ export function ShareCardRow({
             src={getCardImagePath(p.cardIndex)}
             alt=""
             crossOrigin="anonymous"
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              display: "block",
+              transform: p.isReversed ? "rotate(180deg)" : undefined,
+            }}
           />
         </div>
       ))}
