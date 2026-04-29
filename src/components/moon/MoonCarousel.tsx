@@ -175,24 +175,13 @@ export function MoonCarousel() {
     return getDatePartsInTz(fullMoonPeak, effectiveTz).hour;
   }, [fullMoonPeak, effectiveTz]);
 
-  // For each visible day, classify whether it should be tinted gold —
-  // the day-before, day-of, and day-after the next full-moon peak. Also
-  // determine which two adjacent visible days the peak moment falls
-  // between (the "seam"), so the marker can sit on that boundary.
-  //   - Peak hour < 12 (tz-local): seam is on the LEFT border of the
-  //     peak day card → between (peak-1) and peak.
-  //   - Otherwise: seam is on the RIGHT border → between peak and
-  //     (peak+1).
-  const seamLeftDate = useMemo<Date | null>(() => {
-    if (!fullMoonPeak || !peakDay || peakTzHour == null) return null;
-    // Seam sits on the LEFT border of the peak day card when the peak
-    // happens before noon (tz-local), otherwise on the RIGHT border.
-    // Use UTC arithmetic to match peakDay's UTC-noon construction so day
-    // math is independent of the browser's local timezone.
-    const seam = new Date(peakDay);
-    if (peakTzHour < 12) seam.setUTCDate(peakDay.getUTCDate() - 1);
-    return seam;
-  }, [fullMoonPeak, peakDay, peakTzHour]);
+  // Which edge of the ACTUAL peak day card should receive the marker.
+  // Morning peaks sit on the peak day's left edge (between previous day
+  // and peak day); evening/night peaks sit on the peak day's right edge.
+  const peakMarkerSide = useMemo<"left" | "right" | null>(() => {
+    if (!peakDay || peakTzHour == null) return null;
+    return peakTzHour < 12 ? "left" : "right";
+  }, [peakDay, peakTzHour]);
 
   // Only display the marker for nighttime peaks (9 PM – 6 AM in the
   // seeker's effective tz). Daytime full moons aren't visible, so the
@@ -261,11 +250,12 @@ export function MoonCarousel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offset, today, retryNonce, dayRange]);
 
-  // Measure the seam pixel position whenever layout might shift. Looks
-  // for the visible cell that matches `seamLeftDate` and the cell
-  // immediately after it; the marker sits centered between the two.
+  // Measure the seam pixel position whenever layout might shift. Anchor
+  // the marker to the actual peak day card's left/right edge rather than
+  // the surrounding 3-day highlight window, so May 31 at 4 AM appears
+  // between May 30 and May 31 — not between May 29 and May 30.
   useEffect(() => {
-    if (!seamLeftDate) {
+    if (!peakDay || !peakMarkerSide) {
       setMarkerLeft(null);
       return;
     }
@@ -273,22 +263,26 @@ export function MoonCarousel() {
       const row = cardsRowRef.current;
       if (!row) return;
       const rowRect = row.getBoundingClientRect();
-      const leftIdx = days.findIndex((d) =>
-        isSameDayInTz(d.info.date, seamLeftDate, effectiveTz),
+      const peakIdx = days.findIndex((d) =>
+        isSameDayInTz(d.info.date, peakDay, effectiveTz),
       );
-      if (leftIdx < 0 || leftIdx >= days.length - 1) {
+      const neighborIdx = peakMarkerSide === "left" ? peakIdx - 1 : peakIdx + 1;
+      if (peakIdx < 0 || neighborIdx < 0 || neighborIdx >= days.length) {
         setMarkerLeft(null);
         return;
       }
-      const leftEl = cellRefs.current[leftIdx];
-      const rightEl = cellRefs.current[leftIdx + 1];
-      if (!leftEl || !rightEl) {
+      const peakEl = cellRefs.current[peakIdx];
+      const neighborEl = cellRefs.current[neighborIdx];
+      if (!peakEl || !neighborEl) {
         setMarkerLeft(null);
         return;
       }
-      const lr = leftEl.getBoundingClientRect();
-      const rr = rightEl.getBoundingClientRect();
-      const center = (lr.right + rr.left) / 2 - rowRect.left;
+      const pr = peakEl.getBoundingClientRect();
+      const nr = neighborEl.getBoundingClientRect();
+      const center =
+        peakMarkerSide === "left"
+          ? (nr.right + pr.left) / 2 - rowRect.left
+          : (pr.right + nr.left) / 2 - rowRect.left;
       setMarkerLeft(center);
     };
     const id = requestAnimationFrame(() =>
@@ -299,7 +293,7 @@ export function MoonCarousel() {
       cancelAnimationFrame(id);
       window.removeEventListener("resize", measure);
     };
-  }, [seamLeftDate, days, offset, transitioning, isMobile, effectiveTz]);
+  }, [peakDay, peakMarkerSide, days, offset, transitioning, isMobile, effectiveTz]);
 
   const [recomputing, setRecomputing] = useState(false);
   const recomputeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -496,7 +490,7 @@ export function MoonCarousel() {
       {/* Screen-reader-only live status describing the currently centered day. */}
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {centerDay
-          ? `Viewing ${centerDay.isToday ? "today" : formatShortDate(centerDay.info.date)}, ${centerDay.info.phase}, ${centerDay.info.illumination}% illuminated, Moon in ${centerDay.isToday ? todayMoonSign : centerDay.sign}.`
+          ? `Viewing ${centerDay.isToday ? "today" : formatShortDate(centerDay.info.date, effectiveTz)}, ${centerDay.info.phase}, ${centerDay.info.illumination}% illuminated, Moon in ${centerDay.isToday ? todayMoonSign : centerDay.sign}.`
           : ""}
       </p>
 
@@ -575,7 +569,7 @@ export function MoonCarousel() {
                 }}
                 role="group"
                 aria-roledescription="day"
-                aria-label={`${d.isToday ? "Today" : formatShortDate(d.info.date)}, ${d.info.phase}`}
+                aria-label={`${d.isToday ? "Today" : formatShortDate(d.info.date, effectiveTz)}, ${d.info.phase}`}
                 style={{
                   alignSelf: "flex-start",
                   marginTop: `${topOffset}px`,
@@ -606,6 +600,7 @@ export function MoonCarousel() {
                     moonSign={d.isToday ? todayMoonSign : d.sign}
                     isToday={d.isToday}
                     selected={isSelected}
+                    timeZone={effectiveTz}
                     enterDir={enterDir}
                     onToggle={() => {
                       if (swipedRef.current) {
@@ -621,6 +616,7 @@ export function MoonCarousel() {
                     sign={d.sign}
                     expanded={isExpanded}
                     selected={isSelected}
+                    timeZone={effectiveTz}
                     enterDir={enterDir}
                     onToggle={() => {
                       if (swipedRef.current) {
