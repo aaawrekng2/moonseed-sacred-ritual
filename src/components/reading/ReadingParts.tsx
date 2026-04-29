@@ -349,6 +349,12 @@ export function InlineReading({
             positionLabels={positionLabels}
             isOracle={isOracle}
             copyText={copyText ?? ""}
+            onSharePosition={(i) => {
+              setTearDefaultLevel("position");
+              setTearPositionIndex(i);
+              setTearHonorLast(false);
+              setTearOpen(true);
+            }}
             />
           </>
         )}
@@ -388,7 +394,12 @@ export function InlineReading({
               onTagLibraryChange={handleEnrichTagLibraryChange}
               onPhotoCountChange={handleEnrichPhotoCountChange}
               copyText={copyText ?? undefined}
-              onShare={() => setTearOpen(true)}
+              onShare={() => {
+                setTearDefaultLevel("reading");
+                setTearPositionIndex(undefined);
+                setTearHonorLast(true);
+                setTearOpen(true);
+              }}
             />
           )}
           {(savedReading || (state.kind === "loaded" && state.readingId)) && (
@@ -423,7 +434,10 @@ export function InlineReading({
               guideName: getGuideById(guideId).name,
               isOracle,
             }}
-            defaultLevel="reading"
+            defaultLevel={tearDefaultLevel}
+            availableLevels={["pull", "reading", "position"]}
+            extras={{ positionIndex: tearPositionIndex }}
+            honorLastLevel={tearHonorLast}
           />
         </>
       )}
