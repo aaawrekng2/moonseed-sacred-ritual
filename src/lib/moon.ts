@@ -97,9 +97,13 @@ export function findNextPhaseOccurrence(
   const currentPhase = getCurrentMoonPhase(fromDate).phase;
   const startAlreadyMatches = currentPhase === targetPhase;
 
+  // Step in absolute 24h chunks so DST transitions can never shift the
+  // probe instant onto the wrong astronomical day. Calendar-day classification
+  // happens later via tz-aware helpers — here we only care that each probe
+  // is exactly N * 24h away from `fromDate`.
+  const DAY_MS = 24 * 60 * 60 * 1000;
   for (let i = 1; i <= 60; i++) {
-    const d = new Date(fromDate);
-    d.setDate(fromDate.getDate() + step * i);
+    const d = new Date(fromDate.getTime() + step * i * DAY_MS);
     const phase = getCurrentMoonPhase(d).phase;
     if (phase === targetPhase) {
       // If start already matched, skip the immediate continuation window so
@@ -155,10 +159,15 @@ export function getPhaseOccurrences(
   monthsAhead = 13,
 ): Date[] {
   const out: Date[] = [];
-  const start = new Date(fromDate);
-  start.setHours(12, 0, 0, 0);
-  const end = new Date(start);
-  end.setMonth(end.getMonth() + monthsAhead);
+  // Search bounds are absolute UTC instants. We anchor at the same wall
+  // time as `fromDate` (no setHours), and treat `monthsAhead` as
+  // 30-day chunks of pure milliseconds so DST cannot expand or shrink
+  // the window. astronomy-engine works in absolute UTC, so this is the
+  // honest representation; calendar-day projection is done later with
+  // tz helpers when needed.
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const start = new Date(fromDate.getTime());
+  const end = new Date(start.getTime() + monthsAhead * 30 * DAY_MS);
 
   // Quarter-phase fast path using SearchMoonPhase.
   const QUARTER_LON: Partial<Record<MoonPhaseName, number>> = {
@@ -184,17 +193,17 @@ export function getPhaseOccurrences(
   }
 
   // Intermediate-phase day-scan fallback.
-  let cursor = new Date(start);
+  let cursor = new Date(start.getTime());
   while (cursor <= end) {
     const phase = getCurrentMoonPhase(cursor).phase;
     if (phase === targetPhase) {
       out.push(new Date(cursor));
       // Skip past the rest of this phase window (~80% of a lunar cycle)
       // so we don't record the same occurrence multiple days running.
-      cursor.setDate(cursor.getDate() + 24);
+      cursor = new Date(cursor.getTime() + 24 * DAY_MS);
       continue;
     }
-    cursor.setDate(cursor.getDate() + 1);
+    cursor = new Date(cursor.getTime() + DAY_MS);
   }
   return out;
 }
