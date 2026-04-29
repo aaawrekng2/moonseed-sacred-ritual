@@ -23,6 +23,7 @@ import {
   DEFAULT_MAX_USERS_PER_RUN,
   DEFAULT_MIN_INTERVAL_MS,
   runDetectWeaves,
+  validateDetectWeavesRequest,
   type DetectWeavesDeps,
   type RunRecordInput,
 } from "@/lib/detect-weaves-runner.server";
@@ -87,6 +88,18 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Cheapest validation first: method, content-type, header allowlist.
+        // Runs BEFORE auth/DB so malformed traffic is dropped at the edge.
+        const invalid = validateDetectWeavesRequest(request);
+        if (invalid) {
+          return new Response(
+            typeof invalid.body === "string"
+              ? invalid.body
+              : JSON.stringify(invalid.body),
+            { status: invalid.status, headers: invalid.headers },
+          );
+        }
+
         const deps: DetectWeavesDeps = {
           now: () => Date.now(),
           recordRun,

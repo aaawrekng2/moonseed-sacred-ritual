@@ -82,6 +82,106 @@ export type DetectWeavesResponse = {
 };
 
 /**
+ * Headers we accept on the incoming request. Anything else is rejected so an
+ * attacker cannot smuggle extra metadata (custom auth tokens, tracing, cache
+ * poisoning hints) through the public endpoint. Standard hop-by-hop and
+ * transport headers added automatically by clients/proxies are allowed.
+ */
+const ALLOWED_REQUEST_HEADERS = new Set<string>([
+  // Required / expected app headers
+  "x-cron-secret",
+  "content-type",
+  "content-length",
+  "accept",
+  "user-agent",
+  // Standard transport / proxy headers we don't control
+  "host",
+  "connection",
+  "accept-encoding",
+  "accept-language",
+  "cache-control",
+  "pragma",
+  "te",
+  "traceparent",
+  "tracestate",
+  "x-request-id",
+  "x-forwarded-for",
+  "x-forwarded-proto",
+  "x-forwarded-host",
+  "x-real-ip",
+  "cf-connecting-ip",
+  "cf-ipcountry",
+  "cf-ray",
+  "cf-visitor",
+  "cdn-loop",
+  "forwarded",
+  "via",
+]);
+
+/** Header names matching these prefixes are always allowed (proxy noise). */
+const ALLOWED_REQUEST_HEADER_PREFIXES = ["sec-", "cf-", "x-vercel-"];
+
+export type RequestLike = {
+  method: string;
+  headers: { forEach: (cb: (value: string, key: string) => void) => void };
+};
+
+/**
+ * Strict request shape validation. Runs BEFORE any auth or DB work so the
+ * cheapest checks rejecting bad shapes happen first.
+ *
+ *  - Only POST is accepted (other methods get 405 + Allow header).
+ *  - A request body, if any, MUST declare `application/json` (415 otherwise).
+ *    A missing content-type is allowed only when there is no body
+ *    (content-length 0 / absent). pg_cron's net.http_post always sets it.
+ *  - Any header outside the allowlist (and standard proxy noise) yields 400.
+ */
+export function validateDetectWeavesRequest(
+  req: RequestLike,
+): DetectWeavesResponse | null {
+  if (req.method !== "POST") {
+    return {
+      status: 405,
+      body: "Method Not Allowed",
+      headers: { allow: "POST" },
+    };
+  }
+
+  let contentType: string | null = null;
+  let contentLength: string | null = null;
+  const unexpected: string[] = [];
+  req.headers.forEach((value, key) => {
+    const k = key.toLowerCase();
+    if (k === "content-type") contentType = value;
+    if (k === "content-length") contentLength = value;
+    if (ALLOWED_REQUEST_HEADERS.has(k)) return;
+    if (ALLOWED_REQUEST_HEADER_PREFIXES.some((p) => k.startsWith(p))) return;
+    unexpected.push(k);
+  });
+
+  if (unexpected.length > 0) {
+    return {
+      status: 400,
+      body: `Unexpected header(s): ${unexpected.sort().join(", ")}`,
+    };
+  }
+
+  const hasBody = contentLength !== null && contentLength !== "0";
+  if (hasBody || contentType !== null) {
+    const ct = (contentType ?? "").toLowerCase().split(";")[0].trim();
+    if (ct !== "application/json") {
+      return {
+        status: 415,
+        body: "Unsupported Media Type",
+        headers: { accept: "application/json" },
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Constant-time string comparison that tolerates unequal-length inputs
  * without leaking the length difference via timingSafeEqual throwing.
  */
