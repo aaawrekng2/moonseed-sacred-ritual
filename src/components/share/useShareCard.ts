@@ -9,6 +9,7 @@
  */
 import { useCallback, useState } from "react";
 import { toPng } from "html-to-image";
+import { toast as sonner } from "sonner";
 
 export type ShareBusyState = null | "share" | "save";
 
@@ -19,6 +20,59 @@ export function useShareCard() {
   const flash = (msg: string, ms = 1800) => {
     setToast(msg);
     window.setTimeout(() => setToast(null), ms);
+  };
+
+  /**
+   * Friendly, actionable error message based on the underlying failure.
+   * Returned strings are short enough to fit in a sonner toast title.
+   */
+  const describeError = (e: unknown): { title: string; description: string } => {
+    const err = e as { name?: string; message?: string } | null | undefined;
+    const name = err?.name ?? "";
+    const msg = (err?.message ?? "").toLowerCase();
+    if (name === "NotAllowedError" || msg.includes("permission")) {
+      return {
+        title: "Share permission denied",
+        description:
+          "Your browser blocked the share. Try Save image instead, or allow sharing in browser settings.",
+      };
+    }
+    if (msg.includes("tainted") || msg.includes("cors") || msg.includes("security")) {
+      return {
+        title: "Couldn't render share image",
+        description:
+          "An image on the card couldn't be captured (cross-origin block). Try again, or use Save image.",
+      };
+    }
+    if (msg.includes("network") || msg.includes("fetch")) {
+      return {
+        title: "Network hiccup while sharing",
+        description: "Check your connection and try again.",
+      };
+    }
+    return {
+      title: "Couldn't create share image",
+      description:
+        "Something went wrong rendering the card. Tap Retry, or use Save image as a fallback.",
+    };
+  };
+
+  const notifyError = (
+    e: unknown,
+    fallbackTitle: string,
+    onRetry: () => void,
+  ) => {
+    const { title, description } = describeError(e);
+    sonner.error(title === "Couldn't create share image" ? fallbackTitle : title, {
+      description,
+      action: {
+        label: "Retry",
+        onClick: () => {
+          onRetry();
+        },
+      },
+      duration: 8000,
+    });
   };
 
   /**
@@ -68,12 +122,19 @@ export function useShareCard() {
         } else {
           downloadDataUrl(dataUrl, file.name);
           flash("Saved (sharing not supported)");
+          sonner.info("Sharing isn't supported here", {
+            description: "We saved the image instead so you can share it manually.",
+            duration: 5000,
+          });
         }
       } catch (e) {
-        if ((e as { name?: string })?.name !== "AbortError") {
-          console.error("[useShareCard] share failed", e);
-          flash("Couldn't share");
-        }
+        // User dismissing the native share sheet is not an error.
+        if ((e as { name?: string })?.name === "AbortError") return;
+        console.error("[useShareCard] share failed", e);
+        flash("Couldn't share");
+        notifyError(e, "Couldn't share", () => {
+          void share(node, backgroundColor);
+        });
       } finally {
         setBusy(null);
       }
@@ -94,6 +155,9 @@ export function useShareCard() {
       } catch (e) {
         console.error("[useShareCard] save failed", e);
         flash("Couldn't save");
+        notifyError(e, "Couldn't save image", () => {
+          void save(node, backgroundColor);
+        });
       } finally {
         setBusy(null);
       }
