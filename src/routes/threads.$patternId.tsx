@@ -794,6 +794,16 @@ function ChamberWeaveGraph({
           overflow: "hidden",
           position: "relative",
         }}
+        onMouseMove={(e) => {
+          if (!tooltip) return;
+          const rect = e.currentTarget.getBoundingClientRect();
+          setTooltip({
+            ...tooltip,
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          });
+        }}
+        onMouseLeave={() => setTooltip(null)}
       >
         <ReactFlow
           nodes={nodes}
@@ -833,19 +843,96 @@ function ChamberWeaveGraph({
               });
             }
           }}
-          onNodeMouseEnter={(_, node) => {
-            if (node.id.startsWith("p:") && node.id !== `p:${pattern.id}`) {
-              setHoveredId(node.id.slice(2));
+          onNodeMouseEnter={(e, node) => {
+            const container = (e.currentTarget as HTMLElement).closest(
+              ".react-flow",
+            )?.parentElement;
+            const rect = container?.getBoundingClientRect();
+            const x = rect ? e.clientX - rect.left : 0;
+            const y = rect ? e.clientY - rect.top : 0;
+            if (node.id.startsWith("p:")) {
+              const sid = node.id.slice(2);
+              const isCenter = sid === pattern.id;
+              const sib = isCenter ? null : siblings[sid];
+              const name = isCenter ? pattern.name : sib?.name;
+              if (!name) return;
+              const lifecycle = isCenter
+                ? pattern.lifecycle_state
+                : sib?.lifecycle_state;
+              setTooltip({
+                text: name,
+                sub: isCenter
+                  ? `This chamber · ${lifecycle}`
+                  : `${lifecycle} · tap to highlight`,
+                x,
+                y,
+              });
+              if (!isCenter) setHoveredId(sid);
+            } else if (node.id.startsWith("r:")) {
+              const rid = node.id.slice(2);
+              const r = readings.find((x) => x.id === rid);
+              if (!r) return;
+              const date = new Date(r.created_at).toLocaleDateString(
+                undefined,
+                { weekday: "short", month: "long", day: "numeric", year: "numeric" },
+              );
+              setTooltip({
+                text: date,
+                sub: `${r.spread_type} · open in journal`,
+                x,
+                y,
+              });
             }
           }}
-          onNodeMouseLeave={() => setHoveredId(null)}
+          onNodeMouseLeave={() => {
+            setHoveredId(null);
+            setTooltip(null);
+          }}
           onPaneClick={() => {
             setFocusId(null);
             setHoveredId(null);
+            setTooltip(null);
           }}
         >
           <Background color="rgba(212,175,90,0.08)" gap={32} />
         </ReactFlow>
+        {tooltip && (
+          <div
+            role="tooltip"
+            style={{
+              position: "absolute",
+              left: Math.min(Math.max(tooltip.x + 14, 8), 9999),
+              top: Math.max(tooltip.y - 8, 8),
+              transform: "translateY(-100%)",
+              padding: "6px 10px",
+              background: "rgba(10,8,22,0.95)",
+              border: "1px solid rgba(212,175,90,0.45)",
+              borderRadius: "var(--radius-sm, 8px)",
+              color: "var(--color-foreground)",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption)",
+              whiteSpace: "nowrap",
+              pointerEvents: "none",
+              boxShadow: "0 4px 18px rgba(0,0,0,0.45)",
+              zIndex: 10,
+            }}
+          >
+            <div style={{ color: "rgba(232,200,120,1)" }}>{tooltip.text}</div>
+            {tooltip.sub && (
+              <div
+                style={{
+                  marginTop: 2,
+                  fontSize: 10,
+                  opacity: 0.7,
+                  letterSpacing: "0.04em",
+                }}
+              >
+                {tooltip.sub}
+              </div>
+            )}
+          </div>
+        )}
         {(() => {
           const activeSibling = activeId ? siblings[activeId] ?? null : null;
           if (!activeSibling) return null;
