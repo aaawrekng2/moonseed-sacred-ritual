@@ -25,15 +25,31 @@ on:
         type: string
         default: "main"
       confirm:
-        # Required confirmation phrase. Must equal `UPDATE` (case-
+        # REQUIRED confirmation phrase. Must equal `UPDATE` (case-
         # sensitive) for the update-snapshots job to actually run.
         # This is a guardrail against accidentally clicking "Run
         # workflow" with `update_snapshots=true` checked from the
         # default form — the operator has to deliberately type the
         # phrase, which makes a slip impossible.
-        description: "Type UPDATE to confirm. Required when update_snapshots=true."
+        #
+        # NOTE: `required: true` + no default means the GitHub UI
+        # refuses to dispatch the workflow until you type something
+        # in this field. The job-level `if:` and the in-job
+        # `Validate confirmation phrase` step then enforce that the
+        # value is exactly `UPDATE`.
+        #
+        # ALSO NOTE: the `update-snapshots` job uses
+        # `concurrency: { cancel-in-progress: true }` keyed on
+        # (repository, snapshot_scope). Dispatching a fresh refresh
+        # for the same scope while an older one is still running
+        # WILL terminate the older run mid-flight. That's
+        # intentional — it guarantees the most recent `UPDATE`
+        # request wins and you never end up reviewing a PR built
+        # from stale snapshots. If you see "Run superseded" in a
+        # run's log, that's why.
+        description: "Type UPDATE to confirm. REQUIRED for every run. Newer dispatches for the same scope cancel older ones."
         type: string
-        default: ""
+        required: true
       snapshot_scope:
         # Which snapshot files to regenerate. Defaults to the timezone
         # suite — the only one this workflow exists to manage. `all`
