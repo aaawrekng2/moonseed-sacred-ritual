@@ -942,12 +942,12 @@ function buildReason(
 ): string {
   const cardN = sharedCards.length;
   const tagN = sharedTags.length;
-  const cardPart = `${cardN} shared ${pluralize(cardN, "card")}`;
+  const cardPart = `${cardN} ${pluralize(cardN, "card")}`;
   const tagPreview = sharedTags.slice(0, 2).map((t) => `“${t}”`).join(" and ");
   const tagPart =
     tagN <= 2
       ? `${pluralize(tagN, "the tag", "the tags")} ${tagPreview}`
-      : `${tagN} shared tags including ${tagPreview}`;
+      : `${tagN} tags including ${tagPreview}`;
   if (source === "cards") return `shares ${cardPart}`;
   if (source === "tags") return `shares ${tagPart}`;
   return `shares ${cardPart} and ${tagPart}`;
