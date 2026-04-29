@@ -53,6 +53,8 @@ import {
   trackShareCaptureFailed,
   trackShareWebShareFailed,
   trackShareSaveFailed,
+  trackShareRetryAttempt,
+  trackShareRetryResolved,
 } from "./share-events";
 import {
   getShareColor,
@@ -333,6 +335,27 @@ export function ShareBuilder({
           });
         }
       },
+      onRetryAttempt: (info) =>
+        trackShareRetryAttempt({
+          context: contextKind,
+          level,
+          intent: info.intent,
+          step: info.step,
+          attempts: info.attempts,
+          originalCategory: info.originalCategory,
+          originalErrorName: info.originalErrorName,
+        }),
+      onRetryResolved: (info) =>
+        trackShareRetryResolved({
+          context: contextKind,
+          level,
+          intent: info.intent,
+          step: info.step,
+          attempts: info.attempts,
+          resolution: info.resolution,
+          originalCategory: info.originalCategory,
+          originalErrorName: info.originalErrorName,
+        }),
     });
 
   const prepareError = lastError && lastError.step === "prepare" ? lastError : null;
