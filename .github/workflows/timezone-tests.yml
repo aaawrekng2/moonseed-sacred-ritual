@@ -799,6 +799,66 @@ jobs:
           add-paths: ${{ steps.scope.outputs.add_paths }}
           delete-branch: true
 
+      # Fail-fast post-push tip check.
+      #
+      # Runs BEFORE the deeper merge-base ancestry check below. The
+      # merge-base check tolerates fast-forward commits on top of our
+      # push (it only fails if the branch moved sideways from our
+      # baseline). This step is stricter and faster: immediately
+      # after `create-pull-request` returns, the remote tip of the
+      # refresh branch MUST equal the SHA the action just pushed. If
+      # anything else (another concurrent refresh, a manual push,
+      # someone editing the PR via the GitHub UI) has already
+      # advanced the branch in the few seconds since our push, bail
+      # right here instead of letting the workflow continue and
+      # produce a misleading "success" result on a PR that doesn't
+      # actually contain our snapshots.
+      - name: Fail fast if refresh branch advanced after our push
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          BRANCH: ${{ steps.branch_baseline.outputs.branch }}
+          PUSHED_SHA: ${{ steps.cpr.outputs.pull-request-head-sha }}
+          OPERATION: ${{ steps.cpr.outputs.pull-request-operation }}
+        run: |
+          set -euo pipefail
+
+          # `none` means create-pull-request decided there was nothing
+          # to push (e.g. the remote already had identical content).
+          # That's not a race — it's a no-op — so skip the check.
+          if [ "${OPERATION:-}" = "none" ]; then
+            echo "create-pull-request reported operation=none; nothing was pushed, no tip check needed."
+            exit 0
+          fi
+
+          if [ -z "${PUSHED_SHA:-}" ]; then
+            echo "::warning::create-pull-request did not report a head SHA (operation='${OPERATION:-}'); skipping fast tip check."
+            exit 0
+          fi
+
+          # Re-query the remote tip RIGHT NOW. No fetch — `ls-remote`
+          # talks directly to the server, so we see the authoritative
+          # current value, not a cached local ref.
+          REMOTE_LINE="$(git ls-remote origin "refs/heads/$BRANCH" || true)"
+          if [ -z "$REMOTE_LINE" ]; then
+            echo "::error::Refresh branch '$BRANCH' disappeared from the remote immediately after we pushed it. Something deleted the branch concurrently — aborting."
+            exit 1
+          fi
+          CURRENT_TIP="$(echo "$REMOTE_LINE" | awk '{print $1}')"
+
+          if [ "$CURRENT_TIP" != "$PUSHED_SHA" ]; then
+            echo "::error::Refresh branch '$BRANCH' was updated by another writer between our push and this check."
+            echo "  We pushed     : $PUSHED_SHA"
+            echo "  Remote tip now: $CURRENT_TIP"
+            echo ""
+            echo "Another concurrent refresh, a manual push, or a GitHub UI"
+            echo "edit advanced the branch out from under this run. Failing"
+            echo "fast so the resulting PR isn't mistaken for one that"
+            echo "contains the snapshots this run produced. Re-dispatch the"
+            echo "workflow to retry on top of the new tip."
+            exit 1
+          fi
+          echo "Tip check OK: remote '$BRANCH' still at $PUSHED_SHA (operation=$OPERATION)."
+
       # Post-push atomicity check.
       #
       # peter-evans/create-pull-request reports the SHA it pushed
