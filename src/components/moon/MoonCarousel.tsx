@@ -588,6 +588,44 @@ export function MoonCarousel() {
                       : "opacity-70",
                 )}
               >
+                {dateOverlay && (
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      border: `1px dashed ${isCenter || isSelected ? "#f1ba4b" : "rgba(241,186,75,0.4)"}`,
+                      background:
+                        isCenter || isSelected
+                          ? "rgba(241,186,75,0.08)"
+                          : "transparent",
+                      borderRadius: 6,
+                      pointerEvents: "none",
+                      zIndex: 50,
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 2,
+                        left: 2,
+                        fontFamily: "var(--font-mono, monospace)",
+                        fontSize: 9,
+                        lineHeight: 1.1,
+                        color: "#f1ba4b",
+                        background: "rgba(0,0,0,0.55)",
+                        padding: "1px 3px",
+                        borderRadius: 2,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {d.ymd}
+                      {d.isToday ? " ·today" : ""}
+                      {isCenter ? " ·c" : ""}
+                      {isSelected ? " ·sel" : ""}
+                    </span>
+                  </div>
+                )}
                 {isCenter ? (
                   <CenterCard
                     info={d.info}
