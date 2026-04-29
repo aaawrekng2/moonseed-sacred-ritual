@@ -743,10 +743,30 @@ function DashboardTab() {
 
 function DetectWeavesPanel() {
   const [userId, setUserId] = useState("");
-  const [busy, setBusy] = useState<"user" | "all" | null>(null);
+  const [busy, setBusy] = useState<
+    "user" | "all" | "preview-user" | "preview-all" | null
+  >(null);
   const [result, setResult] = useState<{
     tone: "ok" | "warn" | "err";
     text: string;
+  } | null>(null);
+  const [preview, setPreview] = useState<{
+    scope: "user" | "all";
+    users_scanned: number;
+    would_create: number;
+    already_existing: number;
+    errors: number;
+    per_user: Array<{
+      user_id: string;
+      already_existing: number;
+      error?: string;
+      would_create: Array<{
+        title: string;
+        description: string;
+        shared_readings: number;
+        pattern_names: [string, string];
+      }>;
+    }>;
   } | null>(null);
 
   const validUuid = (v: string) =>
@@ -788,6 +808,49 @@ function DetectWeavesPanel() {
       setResult({
         tone: "err",
         text: e instanceof Error ? e.message : "Run failed.",
+      });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const runPreview = async (scope: "user" | "all") => {
+    if (busy) return;
+    if (scope === "user" && !validUuid(userId)) {
+      setResult({ tone: "err", text: "Enter a valid user UUID first." });
+      return;
+    }
+    setBusy(scope === "user" ? "preview-user" : "preview-all");
+    setResult(null);
+    setPreview(null);
+    try {
+      const res = await previewDetectWeavesAdmin({
+        headers: await authHeaders(),
+        data:
+          scope === "user"
+            ? { scope: "user", userId: userId.trim() }
+            : { scope: "all" },
+      });
+      setPreview({
+        scope,
+        users_scanned: res.users_scanned,
+        would_create: res.would_create,
+        already_existing: res.already_existing,
+        errors: res.errors,
+        per_user: res.per_user,
+      });
+      setResult({
+        tone: res.errors > 0 ? "warn" : "ok",
+        text: `Dry run · scanned ${res.users_scanned} user${
+          res.users_scanned === 1 ? "" : "s"
+        } · would create ${res.would_create} weave${
+          res.would_create === 1 ? "" : "s"
+        } · ${res.already_existing} already existed${res.errors > 0 ? ` · ${res.errors} error${res.errors === 1 ? "" : "s"}` : ""}. No data was written.`,
+      });
+    } catch (e) {
+      setResult({
+        tone: "err",
+        text: e instanceof Error ? e.message : "Preview failed.",
       });
     } finally {
       setBusy(null);
