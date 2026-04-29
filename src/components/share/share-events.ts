@@ -15,6 +15,12 @@
  *   category?:     ShareErrorCategory  // present on every failure event
  *   errorName?:    string          // raw error.name|message, present on failures
  *
+ * TIMING FIELDS (all optional, all in whole milliseconds)
+ *   captureMs?:    number          // html-to-image render duration
+ *   blobMs?:       number          // dataURL → Blob/File duration (share intent)
+ *   shareMs?:      number          // navigator.share() duration
+ *   downloadMs?:   number          // anchor-click download duration
+ *
  * Per-event extras live alongside the envelope keys (see each helper).
  *
  * Events:
