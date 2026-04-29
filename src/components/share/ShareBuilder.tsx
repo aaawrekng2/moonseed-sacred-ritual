@@ -739,6 +739,7 @@ function SharePreviewModal({
     description: string;
     nextAction: string;
     intent: "share" | "save";
+    downloadNow?: () => void;
     retry: () => void;
   } | null;
   onDismissError: () => void;
@@ -873,6 +874,7 @@ function SharePreviewModal({
                 busy={busy !== null}
                 onRetry={error.retry}
                 onDismiss={onDismissError}
+                onDownloadNow={error.downloadNow}
               />
             )}
             <div
