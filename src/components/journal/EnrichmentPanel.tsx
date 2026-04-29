@@ -14,6 +14,7 @@ import { Camera, CheckCheck, Copy, Heart, Loader2, Pencil, Plus, Share2, Tag as 
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
+import { Link } from "@tanstack/react-router";
 
 /* ---------- Types ---------- */
 
