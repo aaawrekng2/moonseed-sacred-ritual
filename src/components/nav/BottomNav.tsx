@@ -1,10 +1,13 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Moon, BookOpen, SlidersHorizontal } from "lucide-react";
+import { Moon, BookOpen, SlidersHorizontal, Network } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
+import { usePatternsCount } from "@/lib/patterns";
+import { useEffect, useState } from "react";
 
 type Tab = {
-  to: "/" | "/journal" | "/settings";
+  to: "/" | "/journal" | "/settings" | "/threads";
   label: string;
   Icon: LucideIcon;
   primary?: boolean;
@@ -12,14 +15,37 @@ type Tab = {
 
 // Order: Journal (left), Home (center, primary), Settings (right).
 // Home is the moon-phase landing — the primary destination of the app.
-const TABS: readonly Tab[] = [
+const BASE_TABS: readonly Tab[] = [
   { to: "/journal", label: "Journal", Icon: BookOpen },
   { to: "/", label: "Home", Icon: Moon, primary: true },
   { to: "/settings", label: "Settings", Icon: SlidersHorizontal },
 ] as const;
 
+const THREADS_TAB: Tab = { to: "/threads", label: "Threads", Icon: Network };
+
 export function BottomNav() {
   const location = useLocation();
+  const { user } = useAuth();
+  const { count } = usePatternsCount(user?.id);
+  // Once a pattern exists we mount the tab and fade it in (200ms).
+  // We never *unmount* it after first appearance within this session
+  // even if the count drops back to 0 mid-flight — patterns becoming
+  // ephemeral would be jarring.
+  const [showThreads, setShowThreads] = useState(false);
+  const [threadsOpacity, setThreadsOpacity] = useState(0);
+  useEffect(() => {
+    if (count > 0 && !showThreads) {
+      setShowThreads(true);
+      // next paint -> fade in
+      requestAnimationFrame(() => setThreadsOpacity(1));
+    } else if (count > 0) {
+      setThreadsOpacity(1);
+    }
+  }, [count, showThreads]);
+
+  const tabs: Tab[] = showThreads
+    ? [BASE_TABS[0], THREADS_TAB, BASE_TABS[1], BASE_TABS[2]]
+    : [...BASE_TABS];
 
   return (
     <nav
@@ -31,9 +57,9 @@ export function BottomNav() {
     >
       <ul
         className="mx-auto flex items-end justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+8px)]"
-        style={{ height: 64, maxWidth: 320, gap: 48 }}
+        style={{ height: 64, maxWidth: showThreads ? 380 : 320, gap: showThreads ? 36 : 48 }}
       >
-        {TABS.map(({ to, label, Icon, primary }) => {
+        {tabs.map(({ to, label, Icon, primary }) => {
           // Settings nav nests sub-routes (/settings/profile, /settings/themes,
           // …) so an exact-match active check left the icon perpetually
           // un-highlighted. Use a prefix match for /settings, exact match for
@@ -42,6 +68,8 @@ export function BottomNav() {
           const active =
             to === "/settings"
               ? path === "/settings" || path.startsWith("/settings/")
+              : to === "/threads"
+              ? path === "/threads" || path.startsWith("/threads/")
               : path === to;
           const iconSize = primary ? 32 : 20;
           // Active = signature gold. Inactive (including Home) = neutral
@@ -49,13 +77,21 @@ export function BottomNav() {
           const tabAlpha = active
             ? "var(--ro-plus-10)"
             : "var(--ro-plus-0)";
+          const isThreadsTab = to === "/threads";
           return (
-            <li key={to}>
+            <li
+              key={to}
+              style={
+                isThreadsTab
+                  ? { opacity: threadsOpacity, transition: "opacity 200ms ease-out" }
+                  : undefined
+              }
+            >
               <Link
                 to={to}
                 aria-label={`${label}${active ? " (current page)" : ""}`}
                 style={{
-                  opacity: tabAlpha,
+                  opacity: isThreadsTab ? undefined : tabAlpha,
                   transform: primary ? undefined : "translateY(4px)",
                   color: active ? "var(--gold)" : undefined,
                 }}
@@ -73,6 +109,7 @@ export function BottomNav() {
                   className={cn(
                     "clarity-label font-display tracking-wide",
                     primary ? "text-[13px] font-medium" : "text-[11px]",
+                    "hidden sm:inline-block",
                   )}
                 >
                   {label}
