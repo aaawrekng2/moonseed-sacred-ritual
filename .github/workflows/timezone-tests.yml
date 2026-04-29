@@ -1097,17 +1097,36 @@ jobs:
               SHA_FRAGMENT="$SHA_FRAGMENT current=$CURRENT_TIP"
             fi
 
-            # Top-of-run banner: always a ::notice:: (blue) — it's
-            # purely informational ("this is what happened"); the
-            # severity-coded annotation below is the one that drives
-            # triage color. Branch + SHAs are inlined here so they
-            # show up in the run-page header.
-            echo "::notice title=$MODE_ICON [$MODE_TAG] update-snapshots failure mode::$MODE_HEADLINE — $SHA_FRAGMENT — Failed run: $RUN_URL — Re-dispatch UI: $RERUN_URL"
-            # Severity-mapped annotation:
-            #   FORCE_PUSH  → ::error::   (red,    coordination required)
-            #   CONCURRENT  → ::warning:: (yellow, safe to re-run as-is)
-            # Same SHA fragment so the two annotations stay in sync.
-            echo "::${MODE_SEVERITY} title=${MODE_ICON} [$MODE_TAG] update-snapshots atomicity check failed::[$MODE_TAG] $MODE_HEADLINE. $SHA_FRAGMENT. Reason: $REASON. Re-dispatch UI: $RERUN_URL — CLI: $RERUN_CMD"
+            # Build ONE consolidated annotation payload instead of
+            # the previous notice + severity-mapped pair. GitHub
+            # Actions annotations render multi-line bodies when
+            # newlines are URL-encoded as %0A; this lets us pack a
+            # structured "key: value" block (mode, branch, SHAs,
+            # reason, links, copy-paste command) into a single
+            # annotation card on the run page. Less repeated text,
+            # same triage info, copy-paste command preserved verbatim
+            # on its own line so it survives selecting just that row.
+            #
+            # Severity mapping is unchanged:
+            #   FORCE_PUSH → ::error::   (red,    coordination required)
+            #   CONCURRENT → ::warning:: (yellow, safe to re-run as-is)
+            # The step still `exit 1`s either way — severity only
+            # controls annotation color.
+            ANNOTATION_BODY="\
+[$MODE_TAG] $MODE_HEADLINE%0A\
+%0A\
+Mode      : $MODE_TAG ($MODE_SEVERITY)%0A\
+Branch    : $BRANCH%0A\
+Baseline  : $BASELINE_SHA%0A\
+Pushed    : $PUSHED_SHA%0A\
+Current   : ${CURRENT_TIP:-<none>}%0A\
+Reason    : $REASON%0A\
+Failed run: $RUN_URL%0A\
+Re-run UI : $RERUN_URL%0A\
+%0A\
+Copy-paste re-dispatch command:%0A\
+$RERUN_CMD"
+            echo "::${MODE_SEVERITY} title=${MODE_ICON} [$MODE_TAG] update-snapshots atomicity check failed::${ANNOTATION_BODY}"
             echo ""
             echo "════════════════════════════════════════════════════════════"
             echo "  ${MODE_ICON} FAILURE MODE: [$MODE_TAG]   (annotation severity: ${MODE_SEVERITY})"
