@@ -645,12 +645,53 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # ---------------------------------------------------------------
+      # Atomic-branch guard.
+      #
+      # We deliberately use a STABLE branch name (no run_id suffix) so
+      # repeated refreshes for the same scope keep updating the same
+      # PR instead of opening a new one each time. The trade-off is
+      # that two refreshes which slipped past the job-level
+      # `concurrency` group (e.g. cross-fork dispatches, or a manual
+      # `git push` to the branch by a maintainer between when this job
+      # started and when it's about to push) could clobber each other.
+      #
+      # This step records the branch's remote tip BEFORE we attempt to
+      # write to it. The post-push verification step below re-reads the
+      # tip and fails the job if it changed underneath us in a way we
+      # didn't author — "fail fast" rather than racing peter-evans's
+      # internal force-push.
+      - name: Capture refresh branch baseline (atomic guard)
+        id: branch_baseline
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          BRANCH: ci/refresh-snapshots-${{ inputs.snapshot_scope }}
+        run: |
+          set -euo pipefail
+          # `ls-remote` returns "<sha>\t<ref>" or empty if the branch
+          # doesn't exist yet. Empty is fine — that's the "first run
+          # for this scope" case and there's nothing to race against.
+          REMOTE_LINE="$(git ls-remote origin "refs/heads/$BRANCH" || true)"
+          if [ -z "$REMOTE_LINE" ]; then
+            BASELINE_SHA=""
+            echo "No existing remote branch '$BRANCH' — first refresh for this scope."
+          else
+            BASELINE_SHA="$(echo "$REMOTE_LINE" | awk '{print $1}')"
+            echo "Existing remote branch '$BRANCH' is at $BASELINE_SHA"
+          fi
+          echo "branch=$BRANCH"           >> "$GITHUB_OUTPUT"
+          echo "baseline_sha=$BASELINE_SHA" >> "$GITHUB_OUTPUT"
+
       - name: Open pull request with refreshed snapshots
         if: steps.diff.outputs.changed == 'true'
+        id: cpr
         uses: peter-evans/create-pull-request@v6
         with:
           base: ${{ inputs.base_branch }}
-          branch: ci/refresh-snapshots-${{ inputs.snapshot_scope }}-${{ github.run_id }}
+          # STABLE per-scope branch. Re-uses the same PR across runs.
+          # Atomicity is enforced by the baseline-capture step above
+          # and the post-push verification step below.
+          branch: ci/refresh-snapshots-${{ inputs.snapshot_scope }}
           commit-message: "test: refresh ${{ inputs.snapshot_scope }} snapshots via workflow_dispatch"
           title: "Refresh snapshots (${{ inputs.snapshot_scope }}) — run #${{ github.run_number }}"
           body: |
@@ -668,3 +709,48 @@ jobs:
             changed — make sure that change is intentional before merging.
           add-paths: ${{ steps.scope.outputs.add_paths }}
           delete-branch: true
+
+      # Post-push atomicity check.
+      #
+      # peter-evans/create-pull-request reports the SHA it pushed
+      # (`pull-request-head-sha`) and the parent it built on top of.
+      # If the remote tip we observed at baseline-capture time is
+      # neither empty (first run) nor an ancestor of the SHA the
+      # action just pushed, then someone else updated the branch
+      # between our checkout and our push — abort loudly so a human
+      # can reconcile, instead of silently letting the action's
+      # force-push win.
+      - name: Verify refresh branch was not modified concurrently
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          BRANCH: ${{ steps.branch_baseline.outputs.branch }}
+          BASELINE_SHA: ${{ steps.branch_baseline.outputs.baseline_sha }}
+          PUSHED_SHA: ${{ steps.cpr.outputs.pull-request-head-sha }}
+        run: |
+          set -euo pipefail
+          # No prior branch → nothing could have raced.
+          if [ -z "$BASELINE_SHA" ]; then
+            echo "No baseline SHA recorded; nothing to verify."
+            exit 0
+          fi
+          if [ -z "${PUSHED_SHA:-}" ]; then
+            echo "::warning::create-pull-request did not report a head SHA; skipping atomicity check."
+            exit 0
+          fi
+
+          # Make sure we have both SHAs locally so `merge-base` works.
+          git fetch --no-tags --depth=50 origin "$BRANCH" || true
+          git fetch --no-tags --depth=50 origin "$BASELINE_SHA" 2>/dev/null || true
+
+          # The pushed commit must descend from the baseline we
+          # observed. If `merge-base --is-ancestor` is non-zero, the
+          # branch tip moved sideways under us — bail.
+          if ! git merge-base --is-ancestor "$BASELINE_SHA" "$PUSHED_SHA"; then
+            echo "::error::Refresh branch '$BRANCH' was modified concurrently."
+            echo "  Baseline (pre-run) tip: $BASELINE_SHA"
+            echo "  Pushed head:            $PUSHED_SHA"
+            echo ""
+            echo "Another run (or a manual push) updated this branch between when this job started and when it tried to push. Re-run this workflow to rebase on the new tip, or reconcile the branches manually."
+            exit 1
+          fi
+          echo "Atomicity check passed: $PUSHED_SHA descends from baseline $BASELINE_SHA."
