@@ -69,6 +69,8 @@ function PatternChamber() {
   const [draftNote, setDraftNote] = useState("");
   const [savingNote, setSavingNote] = useState(false);
   const [retiring, setRetiring] = useState(false);
+  const [retireStep, setRetireStep] = useState<0 | 1 | 2>(0);
+  const [retireConfirmText, setRetireConfirmText] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -128,13 +130,21 @@ function PatternChamber() {
     }
   };
 
-  const retirePattern = async () => {
+  const openRetireFlow = () => {
     if (!pattern) return;
     if (pattern.lifecycle_state === "retired") return;
-    const ok = window.confirm(
-      `Retire "${pattern.name}"? It will quiet down and stop surfacing in active views. You can revisit it any time.`,
-    );
-    if (!ok) return;
+    setRetireConfirmText("");
+    setRetireStep(1);
+  };
+
+  const cancelRetireFlow = () => {
+    setRetireStep(0);
+    setRetireConfirmText("");
+  };
+
+  const confirmRetirePattern = async () => {
+    if (!pattern) return;
+    if (pattern.lifecycle_state === "retired") return;
     setRetiring(true);
     const nowIso = new Date().toISOString();
     const { error } = await supabase
@@ -148,6 +158,8 @@ function PatternChamber() {
         lifecycle_state: "retired",
         retired_at: nowIso,
       });
+      setRetireStep(0);
+      setRetireConfirmText("");
     }
   };
 
@@ -260,12 +272,25 @@ function PatternChamber() {
       <PatternActions
         onRename={() => setEditing(true)}
         onToggleNote={() => setNoteOpen((v) => !v)}
-        onRetire={retirePattern}
+        onRetire={openRetireFlow}
         retiring={retiring}
         retired={pattern.lifecycle_state === "retired"}
         hasNote={!!(pattern.description && pattern.description.trim())}
         noteOpen={noteOpen}
       />
+
+      {retireStep > 0 && pattern && (
+        <RetireConfirmModal
+          step={retireStep}
+          patternName={pattern.name}
+          confirmText={retireConfirmText}
+          onConfirmTextChange={setRetireConfirmText}
+          onAdvance={() => setRetireStep(2)}
+          onConfirm={confirmRetirePattern}
+          onCancel={cancelRetireFlow}
+          retiring={retiring}
+        />
+      )}
 
       {noteOpen ? (
         <div style={{ marginTop: 12 }}>
