@@ -365,20 +365,48 @@ export function DeepReadingPanel({
             >
               {mirrorSaved ? "Mirror saved" : "Save this mirror"}
             </button>
-            <ShareButton
-              text={stripMarkdown(lenses.mirror_artifact)}
-              title="A mirror from Moonseed"
-              preface="Mirror Artifact —"
+            <ShareIconButton
               ariaLabel="Share mirror artifact"
+              disabled={shareLoading}
+              onClick={() => void openShareForMirror(lenses.mirror_artifact)}
             />
           </div>
         </div>
+      )}
+      {shareCtx && (
+        <ShareBuilder
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          context={shareCtx}
+          defaultLevel={shareLevel}
+          availableLevels={["lens", "artifact", "reading", "pull"]}
+          extras={
+            {
+              lens: shareLens ?? undefined,
+              artifactText: shareLevel === "artifact"
+                ? stripMarkdown(
+                    flow.kind === "lenses" ? flow.lenses.mirror_artifact : "",
+                  )
+                : undefined,
+            } satisfies ShareBuilderExtras
+          }
+        />
       )}
     </div>
   );
 }
 
-function Lens({ label, body }: { label: string; body: string }) {
+function Lens({
+  label,
+  body,
+  onShare,
+  shareDisabled,
+}: {
+  label: string;
+  body: string;
+  onShare: () => void;
+  shareDisabled: boolean;
+}) {
   const clean = stripMarkdown(body);
   return (
     <section className="deep-lens">
@@ -386,13 +414,40 @@ function Lens({ label, body }: { label: string; body: string }) {
       <div className="deep-lens__divider" aria-hidden />
       <div className="deep-lens__body">{clean}</div>
       <div className="mt-2 flex justify-end">
-        <ShareButton
-          text={clean}
-          title={`${label} — Moonseed`}
-          preface={`${label} —`}
+        <ShareIconButton
           ariaLabel={`Share ${label}`}
+          disabled={shareDisabled}
+          onClick={onShare}
         />
       </div>
     </section>
+  );
+}
+
+/**
+ * Tiny ghost-icon trigger matching the rest of the app's share affordance.
+ * Opens the new ShareBuilder via its onClick — no text fallback any more.
+ */
+function ShareIconButton({
+  ariaLabel,
+  onClick,
+  disabled,
+}: {
+  ariaLabel: string;
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      className="inline-flex items-center justify-center rounded-full p-1.5 text-gold transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 disabled:opacity-40"
+      style={{ opacity: "var(--ro-plus-20)" }}
+      title="Share"
+    >
+      <Share2 size={18} strokeWidth={1.5} aria-hidden />
+    </button>
   );
 }
