@@ -41,6 +41,7 @@ import { useShareCard } from "./useShareCard";
 import type { ShareBusyState } from "./useShareCard";
 import { useShareColor } from "./use-share-color";
 import { useLastShareLevel } from "./use-last-share-level";
+import { useShareCaptureOptions } from "./use-share-capture-options";
 import {
   trackShareCancel,
   trackShareDownload,
@@ -191,28 +192,71 @@ export function ShareBuilder({
   };
 
   // Builder-owned position selector for Level 3 (Fix 2).
-  const [localPositionIndex, setLocalPositionIndex] = useState<number>(
-    extras?.positionIndex ?? 0,
+  // Persisted per-level capture options (toggles + last position).
+  // Seeds from localStorage so a Retry — or any reopen — resumes
+  // against the exact settings the seeker last used. Smart defaults
+  // only apply when a level has no stored value yet.
+  const { get: getStoredOptions, remember: rememberOptions } =
+    useShareCaptureOptions();
+
+  const storedPosition = getStoredOptions("position")?.positionIndex;
+  const [localPositionIndex, setLocalPositionIndexState] = useState<number>(
+    extras?.positionIndex ?? storedPosition ?? 0,
   );
+  // Caller-supplied positionIndex is treated as an explicit hint and
+  // wins over the stored value (e.g. per-position click on the spread).
   useEffect(() => {
     if (typeof extras?.positionIndex === "number") {
-      setLocalPositionIndex(extras.positionIndex);
+      setLocalPositionIndexState(extras.positionIndex);
     }
   }, [extras?.positionIndex, open]);
+  const setLocalPositionIndex = (idx: number) => {
+    setLocalPositionIndexState(idx);
+    rememberOptions("position", { positionIndex: idx });
+  };
 
-  const [includeQuestion, setIncludeQuestion] = useState<boolean>(false);
-  const [includeInterpretation, setIncludeInterpretation] = useState<boolean>(true);
+  const [includeQuestion, setIncludeQuestionState] = useState<boolean>(false);
+  const [includeInterpretation, setIncludeInterpretationState] =
+    useState<boolean>(true);
 
-  // Smart toggle defaults per level.
+  // Per-level seeding: prefer the stored value; fall back to a smart
+  // default driven by context. Re-runs whenever the user switches
+  // level so each level keeps its own remembered shape.
   useEffect(() => {
     if (level === "pull") {
-      setIncludeQuestion(!!context.question?.trim());
-      setIncludeInterpretation(false);
+      const stored = getStoredOptions("pull");
+      const fallback = !!context.question?.trim();
+      setIncludeQuestionState(stored?.includeQuestion ?? fallback);
+      setIncludeInterpretationState(false);
     } else if (level === "reading") {
-      setIncludeQuestion(false);
-      setIncludeInterpretation(true);
+      const stored = getStoredOptions("reading");
+      setIncludeQuestionState(stored?.includeQuestion ?? false);
+      setIncludeInterpretationState(stored?.includeInterpretation ?? true);
     }
+    // getStoredOptions is stable per options change; we deliberately
+    // re-seed only when level / question change to avoid clobbering
+    // an in-flight user toggle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [level, context.question]);
+
+  const setIncludeQuestion = (next: boolean | ((v: boolean) => boolean)) => {
+    setIncludeQuestionState((prev) => {
+      const value = typeof next === "function" ? next(prev) : next;
+      if (level === "pull" || level === "reading") {
+        rememberOptions(level, { includeQuestion: value });
+      }
+      return value;
+    });
+  };
+  const setIncludeInterpretation = (next: boolean | ((v: boolean) => boolean)) => {
+    setIncludeInterpretationState((prev) => {
+      const value = typeof next === "function" ? next(prev) : next;
+      if (level === "reading") {
+        rememberOptions("reading", { includeInterpretation: value });
+      }
+      return value;
+    });
+  };
 
   const captureRef = useRef<HTMLDivElement | null>(null);
   const {
