@@ -691,6 +691,7 @@ function ReadingPreferencesSection({
   const [spread, setSpread] = useState<SpreadType>(prefs.default_spread as SpreadType);
   const [saving, setSaving] = useState(false);
   const [savingPrompt, setSavingPrompt] = useState(false);
+  const [savingReversed, setSavingReversed] = useState(false);
 
   const togglePrompt = async (next: boolean) => {
     setSavingPrompt(true);
@@ -706,6 +707,24 @@ function ReadingPreferencesSection({
       return;
     }
     toast.success(next ? "Question prompt on" : "Question prompt off", {
+      icon: "✓",
+    });
+  };
+
+  const toggleReversed = async (next: boolean) => {
+    setSavingReversed(true);
+    const previous = prefs.allow_reversed_cards;
+    setPrefs({ ...prefs, allow_reversed_cards: next });
+    const { error } = await updateUserPreferences(user.id, {
+      allow_reversed_cards: next,
+    });
+    setSavingReversed(false);
+    if (error) {
+      setPrefs({ ...prefs, allow_reversed_cards: previous });
+      toast.error("Couldn't save your preference.");
+      return;
+    }
+    toast.success(next ? "Reversed cards on" : "Reversed cards off", {
       icon: "✓",
     });
   };
@@ -758,6 +777,25 @@ function ReadingPreferencesSection({
             checked={prefs.show_question_prompt}
             disabled={savingPrompt}
             onCheckedChange={togglePrompt}
+          />
+        </div>
+
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
+          <div className="space-y-0.5">
+            <Label htmlFor="allow-reversed-cards" className="text-sm">
+              Allow reversed cards
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Some readers find reversed cards add nuance and depth. When on,
+              cards may appear reversed during draws, with separate
+              interpretations.
+            </p>
+          </div>
+          <Switch
+            id="allow-reversed-cards"
+            checked={prefs.allow_reversed_cards}
+            disabled={savingReversed}
+            onCheckedChange={toggleReversed}
           />
         </div>
 
