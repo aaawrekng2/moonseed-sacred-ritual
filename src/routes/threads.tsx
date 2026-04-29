@@ -4,12 +4,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import {
   type Pattern,
+  type Weave,
   lifecycleLabel,
   lifecycleOpacity,
   formatMonthSince,
   formatDateSpan,
 } from "@/lib/patterns";
 import { BottomNav } from "@/components/nav/BottomNav";
+import {
+  ReactFlow,
+  Background,
+  type Node,
+  type Edge,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 
 export const Route = createFileRoute("/threads")({
   head: () => ({
@@ -136,7 +144,7 @@ function ThreadsPage() {
         ) : view === "active" ? (
           <ActiveView patterns={active} />
         ) : view === "weaves" ? (
-          <WeavesTeaser />
+          <WeavesView patterns={active} userId={user?.id} />
         ) : (
           <ArchiveView patterns={archived} />
         )}
