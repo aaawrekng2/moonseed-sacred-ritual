@@ -1069,6 +1069,8 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
         <Link
           to="/threads/$patternId"
           params={{ patternId: pattern.id }}
+          title={`Open the ${pattern.name} chamber`}
+          aria-label={`Open the ${pattern.name} pattern chamber`}
           style={{
             color: "var(--gold)",
             textDecoration: "none",
@@ -1105,6 +1107,8 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
         <Link
           to="/threads/$patternId"
           params={{ patternId: suggestion.id }}
+          title={`Open the ${suggestion.name} chamber`}
+          aria-label={`Open the ${suggestion.name} pattern chamber — ${suggestion.reason}`}
           style={{
             color: "var(--gold)",
             textDecoration: "none",
