@@ -372,10 +372,16 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
       }
 
       let totalDetected = 0;
+      let totalExisting = 0;
       const perUserErrors: Array<{ user_id: string; error: string }> = [];
       for (const uid of candidates) {
         try {
-          totalDetected += await detectWeavesForUser(supabaseAdmin, uid);
+          const { inserted, existing } = await detectWeavesForUser(
+            supabaseAdmin,
+            uid,
+          );
+          totalDetected += inserted;
+          totalExisting += existing;
         } catch (e) {
           perUserErrors.push({
             user_id: uid,
@@ -398,6 +404,7 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
         duration_ms: finishedAt - startedAt,
         users_scanned: candidates.length,
         weaves_detected: totalDetected,
+        weaves_existing: totalExisting,
         status,
         message:
           data.scope === "user"
@@ -418,6 +425,7 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
           scope: data.scope,
           users_scanned: candidates.length,
           weaves_detected: totalDetected,
+          weaves_existing: totalExisting,
           errors: perUserErrors.length,
           duration_ms: finishedAt - startedAt,
         },
@@ -427,6 +435,7 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
         ok: true,
         users_scanned: candidates.length,
         weaves_detected: totalDetected,
+        weaves_existing: totalExisting,
         errors: perUserErrors.length,
         status,
       } as const;
