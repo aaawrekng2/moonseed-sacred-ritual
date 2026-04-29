@@ -754,6 +754,12 @@ function DetectWeavesPanel() {
     tone: "ok" | "warn" | "err";
     text: string;
   } | null>(null);
+  const [runPerUser, setRunPerUser] = useState<Array<{
+    user_id: string;
+    inserted: number;
+    existing: number;
+    error?: string;
+  }> | null>(null);
   const [preview, setPreview] = useState<{
     scope: "user" | "all";
     users_scanned: number;
@@ -786,6 +792,7 @@ function DetectWeavesPanel() {
     }
     setBusy(scope);
     setResult(null);
+    setRunPerUser(null);
     try {
       const res = await runDetectWeavesAdmin({
         headers: await authHeaders(),
@@ -808,6 +815,7 @@ function DetectWeavesPanel() {
           res.weaves_detected === 1 ? "" : "s"
         } · ${res.weaves_existing} already existed${res.errors > 0 ? ` · ${res.errors} error${res.errors === 1 ? "" : "s"}` : ""}.`,
       });
+      setRunPerUser(res.per_user ?? []);
     } catch (e) {
       setResult({
         tone: "err",
@@ -827,6 +835,7 @@ function DetectWeavesPanel() {
     setBusy(scope === "user" ? "preview-user" : "preview-all");
     setResult(null);
     setPreview(null);
+    setRunPerUser(null);
     try {
       const res = await previewDetectWeavesAdmin({
         headers: await authHeaders(),
