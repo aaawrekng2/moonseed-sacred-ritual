@@ -63,7 +63,45 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        # `--prefer-offline` keeps npm honest (still a clean install, no
+        # mutating package-lock.json) but reuses the actions/setup-node
+        # cache restored above when entries are present, which on a warm
+        # cache shaves ~15-20s off install. Falls back to the registry
+        # for any package not yet cached.
+        run: npm ci --prefer-offline
+
+      # Surface environment + install info BEFORE the test step so a
+      # failing run already has the diagnostics inline. We re-run npm
+      # with --silent=false and a verbose log level so any peer-dep
+      # warning, deprecation notice, or postinstall output is visible
+      # without a second CI run.
+      - name: Print debug info (Node / npm / install log)
+        if: always()
+        run: |
+          echo "::group::Versions"
+          echo "node:    $(node -v)"
+          echo "npm:     $(npm -v)"
+          echo "OS:      $(uname -a)"
+          echo "TZ:      ${TZ:-<unset>}"
+          echo "::endgroup::"
+
+          echo "::group::npm config (subset)"
+          npm config get registry
+          npm config get cache
+          npm config get prefer-offline
+          echo "::endgroup::"
+
+          # The most recent npm log file (if any) — invaluable when
+          # `npm ci` fails partway and the step output got truncated.
+          LOG_DIR="$(npm config get cache)/_logs"
+          if [ -d "$LOG_DIR" ]; then
+            LATEST="$(ls -t "$LOG_DIR" 2>/dev/null | head -n1 || true)"
+            if [ -n "$LATEST" ]; then
+              echo "::group::Latest npm log ($LATEST)"
+              tail -n 200 "$LOG_DIR/$LATEST"
+              echo "::endgroup::"
+            fi
+          fi
 
       # Catch two distinct problems that `npm ci` alone does NOT catch:
       #   1. A package.json change that wasn't reflected in package-lock.json
@@ -131,7 +169,28 @@ jobs:
           cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --prefer-offline
+
+      - name: Print debug info (Node / npm / install log)
+        if: always()
+        run: |
+          echo "::group::Versions"
+          echo "node:    $(node -v)"
+          echo "npm:     $(npm -v)"
+          echo "OS:      $(uname -a)"
+          echo "TZ:      ${TZ:-<unset>}"
+          echo "FC_SEED: ${FC_SEED:-<unset>}"
+          echo "::endgroup::"
+
+          LOG_DIR="$(npm config get cache)/_logs"
+          if [ -d "$LOG_DIR" ]; then
+            LATEST="$(ls -t "$LOG_DIR" 2>/dev/null | head -n1 || true)"
+            if [ -n "$LATEST" ]; then
+              echo "::group::Latest npm log ($LATEST)"
+              tail -n 200 "$LOG_DIR/$LATEST"
+              echo "::endgroup::"
+            fi
+          fi
 
       # See the matrix job for rationale. We re-run the same lockfile
       # guard here so the pinned-seed PR gate is also a clean-tree gate.
