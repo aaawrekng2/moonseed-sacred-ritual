@@ -23,6 +23,13 @@ type FloatingMenuExtras = {
   showRefresh: boolean;
   /** True while the seeker is on the draw-table card selection view. */
   tabletopActive: boolean;
+  /**
+   * Optional handler registered by an open ShareBuilder. When set, the
+   * floating menu's X button calls this instead of the screen-level
+   * close handler — so dismissing the menu closes only the share
+   * builder, not the underlying reading.
+   */
+  shareBuilderClose: (() => void) | null;
 };
 
 type FloatingMenuContextValue = FloatingMenuExtras & {
@@ -31,6 +38,7 @@ type FloatingMenuContextValue = FloatingMenuExtras & {
   setCopyText: (text: string | null) => void;
   setShowRefresh: (v: boolean) => void;
   setTabletopActive: (v: boolean) => void;
+  setShareBuilderClose: (fn: (() => void) | null) => void;
 };
 
 const FloatingMenuContext = createContext<FloatingMenuContextValue>({
@@ -39,11 +47,13 @@ const FloatingMenuContext = createContext<FloatingMenuContextValue>({
   copyText: null,
   showRefresh: false,
   tabletopActive: false,
+  shareBuilderClose: null,
   setCloseHandler: () => {},
   setHelpHandler: () => {},
   setCopyText: () => {},
   setShowRefresh: () => {},
   setTabletopActive: () => {},
+  setShareBuilderClose: () => {},
 });
 
 export function FloatingMenuProvider({ children }: { children: ReactNode }) {
@@ -56,6 +66,9 @@ export function FloatingMenuProvider({ children }: { children: ReactNode }) {
   const [copyText, setCopyText] = useState<string | null>(null);
   const [showRefresh, setShowRefresh] = useState(false);
   const [tabletopActive, setTabletopActive] = useState(false);
+  const [shareBuilderClose, setShareBuilderCloseState] = useState<
+    (() => void) | null
+  >(null);
 
   const setCloseHandler = useCallback((fn: (() => void) | null) => {
     // Store the function reference itself, not a deferred call result —
@@ -67,6 +80,10 @@ export function FloatingMenuProvider({ children }: { children: ReactNode }) {
     setHelpHandlerState(() => fn);
   }, []);
 
+  const setShareBuilderClose = useCallback((fn: (() => void) | null) => {
+    setShareBuilderCloseState(() => fn);
+  }, []);
+
   return (
     <FloatingMenuContext.Provider
       value={{
@@ -75,11 +92,13 @@ export function FloatingMenuProvider({ children }: { children: ReactNode }) {
         copyText,
         showRefresh,
         tabletopActive,
+        shareBuilderClose,
         setCloseHandler,
         setHelpHandler,
         setCopyText,
         setShowRefresh,
         setTabletopActive,
+        setShareBuilderClose,
       }}
     >
       {children}
@@ -154,4 +173,25 @@ export function useRegisterTabletopActive(active: boolean) {
     setTabletopActive(active);
     return () => setTabletopActive(false);
   }, [active, setTabletopActive]);
+}
+
+/**
+ * Called by ShareBuilder while it is open. The floating menu's X
+ * button calls this handler instead of the screen-level close while
+ * a builder is mounted — so closing the menu dismisses the share
+ * sheet without killing the reading underneath.
+ */
+export function useRegisterShareBuilderClose(fn: (() => void) | null) {
+  const { setShareBuilderClose } = useFloatingMenu();
+  const ref = useRef(fn);
+  ref.current = fn;
+  useEffect(() => {
+    if (!ref.current) {
+      setShareBuilderClose(null);
+      return;
+    }
+    setShareBuilderClose(() => ref.current?.());
+    return () => setShareBuilderClose(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setShareBuilderClose]);
 }

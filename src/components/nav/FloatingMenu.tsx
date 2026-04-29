@@ -38,7 +38,8 @@ export function FloatingMenu() {
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
   const { level, cycleLevel } = useUIDensity();
-  const { closeHandler, copyText, showRefresh } = useFloatingMenu();
+  const { closeHandler, copyText, showRefresh, shareBuilderClose } =
+    useFloatingMenu();
   const { helpHandler } = useFloatingMenu();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -348,11 +349,19 @@ export function FloatingMenu() {
             )}
           </button>
 
-          {closeHandler && (
+          {(shareBuilderClose || closeHandler) && (
             <MenuButton
               onClick={() => {
                 resetTimer();
-                closeHandler();
+                // If a ShareBuilder is open, dismiss only the builder
+                // — keep the underlying reading intact. Falls back to
+                // the screen-level close handler when no builder is
+                // mounted.
+                if (shareBuilderClose) {
+                  shareBuilderClose();
+                  return;
+                }
+                closeHandler?.();
               }}
               ariaLabel="Close"
             >

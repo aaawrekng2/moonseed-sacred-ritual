@@ -42,6 +42,7 @@ import type { ShareBusyState, ShareErrorCategory } from "./useShareCard";
 import { useShareColor } from "./use-share-color";
 import { useLastShareLevel } from "./use-last-share-level";
 import { useShareCaptureOptions } from "./use-share-capture-options";
+import { useRegisterShareBuilderClose } from "@/lib/floating-menu-context";
 import {
   trackShareCancel,
   trackShareDownload,
@@ -134,6 +135,11 @@ export function ShareBuilder({
   const { color: colorId, setColor } = useShareColor();
   const color = getShareColor(colorId);
   const { lastLevel, remember } = useLastShareLevel();
+
+  // While the builder is open, route the floating menu's X to dismiss
+  // the builder instead of the screen-level close handler — so tapping
+  // X never accidentally kills the underlying reading.
+  useRegisterShareBuilderClose(open ? () => onOpenChange(false) : null);
 
   // Auto-prune levels whose required extras aren't supplied.
   const enabledLevels = useMemo<ShareLevel[]>(() => {

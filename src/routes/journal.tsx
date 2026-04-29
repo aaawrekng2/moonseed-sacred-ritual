@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BookOpen, Heart, Image as ImageIcon, Pencil, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
+import { BookOpen, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useOracleMode } from "@/lib/use-oracle-mode";
@@ -597,8 +597,8 @@ function JournalPage() {
             ["gallery", "Gallery", ImageIcon],
             ["notes", "Notes", Pencil],
             ["favorites", "Favorites", Heart],
-            ["calendar", "Calendar", null],
-            ["threads", "Threads", null],
+            ["calendar", "Calendar", CalendarDays],
+            ["threads", "Threads", Network],
           ] as const
         ).map(([key, label, Icon]) => {
           const active = view === key;
