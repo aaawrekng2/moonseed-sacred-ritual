@@ -279,14 +279,38 @@ export function getDayOffsetInTz(target: Date, reference: Date, timeZone: string
   return Math.round((tMs - rMs) / (24 * 60 * 60 * 1000));
 }
 
+function localDateTimeToUtc(
+  timeZone: string,
+  year: number,
+  month: number,
+  day: number,
+  hour = 12,
+  minute = 0,
+): Date {
+  let utc = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
+  const targetMs = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+  for (let i = 0; i < 4; i++) {
+    const actual = getDatePartsInTz(utc, timeZone);
+    const actualMs = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, 0, 0);
+    const diff = targetMs - actualMs;
+    if (diff === 0) break;
+    utc = new Date(utc.getTime() + diff);
+  }
+  return utc;
+}
+
 /** Day-level representation of "today" in the user's timezone. */
 export function getTodayInTz(timeZone: string, now: Date = new Date()): Date {
   const { year, month, day } = getDatePartsInTz(now, timeZone);
-  return new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+  return localDateTimeToUtc(timeZone, year, month, day, 12, 0);
 }
 
 /** Day-level representation offset from a timezone-local calendar day. */
-export function getDayInTz(todayInTz: Date, offsetDays: number): Date {
+export function getDayInTz(todayInTz: Date, offsetDays: number, timeZone?: string): Date {
+  if (timeZone) {
+    const { year, month, day } = getDatePartsInTz(todayInTz, timeZone);
+    return localDateTimeToUtc(timeZone, year, month, day + offsetDays, 12, 0);
+  }
   return new Date(
     Date.UTC(
       todayInTz.getUTCFullYear(),
