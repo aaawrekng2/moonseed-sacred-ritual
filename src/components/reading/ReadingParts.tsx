@@ -35,8 +35,8 @@ import {
   EnrichmentPanel,
   type EnrichmentTag,
 } from "@/components/journal/EnrichmentPanel";
-import { TearOffCard } from "@/components/reading/TearOffCard";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
+import { ShareBuilder } from "@/components/share/ShareBuilder";
 
 type Pick = { id: number; cardIndex: number };
 
