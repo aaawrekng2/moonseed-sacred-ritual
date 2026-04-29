@@ -783,11 +783,6 @@ export function ShareBuilder({
   );
 }
 
-function errorMessage(e: unknown): string {
-  const err = e as { name?: string; message?: string } | null | undefined;
-  return err?.name || err?.message || "unknown";
-}
-
 /**
  * Confirmation modal — shows the actual generated PNG so the seeker
  * can sanity-check it before invoking Web Share or downloading.
