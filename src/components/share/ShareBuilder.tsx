@@ -38,7 +38,7 @@ import { Level4DeepLens, type DeepLensSelection } from "./levels/Level4DeepLens"
 import { Level5MirrorArtifact } from "./levels/Level5MirrorArtifact";
 import { SHARE_CARD_H, SHARE_CARD_W } from "./levels/share-card-shared";
 import { useShareCard } from "./useShareCard";
-import type { ShareBusyState } from "./useShareCard";
+import type { ShareBusyState, ShareErrorCategory } from "./useShareCard";
 import { useShareColor } from "./use-share-color";
 import { useLastShareLevel } from "./use-last-share-level";
 import { useShareCaptureOptions } from "./use-share-capture-options";
@@ -74,6 +74,19 @@ const LEVEL_SPECS: Record<ShareLevel, LevelSpec> = {
   position: { id: "position", label: "Position", icon: Quote,    captureBackground: "#07070d" },
   lens:     { id: "lens",     label: "Lens",     icon: Eye,      captureBackground: "#050509" },
   artifact: { id: "artifact", label: "Artifact", icon: Star,     captureBackground: "#0c0a08" },
+};
+
+/**
+ * User-facing label per analytics category. Kept terse so it fits
+ * inline as a chip alongside the step label. Mirrors the union in
+ * `useShareCard.ts → ShareErrorCategory`.
+ */
+const CATEGORY_LABEL: Record<ShareErrorCategory, string> = {
+  permission: "Permission blocked",
+  cors: "Cross-origin image",
+  network: "Network issue",
+  abort: "Cancelled",
+  unknown: "Unexpected error",
 };
 
 /**
@@ -763,6 +776,7 @@ export function ShareBuilder({
                 title={prepareError.title}
                 description={prepareError.description}
                 nextAction={prepareError.nextAction}
+                category={prepareError.category}
                 busy={busy !== null}
                 onRetry={prepareError.retry}
                 onDismiss={dismissError}
@@ -807,6 +821,7 @@ function SharePreviewModal({
     description: string;
     nextAction: string;
     intent: "share" | "save";
+    category: ShareErrorCategory;
     downloadNow?: () => void;
     retry: () => void;
   } | null;
@@ -939,6 +954,7 @@ function SharePreviewModal({
                 title={error.title}
                 description={error.description}
                 nextAction={error.nextAction}
+                category={error.category}
                 busy={busy !== null}
                 onRetry={error.retry}
                 onDismiss={onDismissError}
@@ -1053,6 +1069,7 @@ function InlineErrorBanner({
   title,
   description,
   nextAction,
+  category,
   busy,
   onRetry,
   onDismiss,
@@ -1062,11 +1079,13 @@ function InlineErrorBanner({
   title: string;
   description: string;
   nextAction: string;
+  category?: ShareErrorCategory;
   busy: boolean;
   onRetry: () => void;
   onDismiss: () => void;
   onDownloadNow?: () => void;
 }) {
+  const categoryLabel = category ? CATEGORY_LABEL[category] : null;
   return (
     <div
       role="alert"
@@ -1083,16 +1102,44 @@ function InlineErrorBanner({
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
-            fontFamily: "var(--font-sans)",
-            fontSize: 10,
-            letterSpacing: "0.22em",
-            textTransform: "uppercase",
-            color: "var(--destructive, #b94a4a)",
-            opacity: 0.9,
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 6,
             marginBottom: 4,
           }}
         >
-          {stepLabel}
+          <div
+            style={{
+              fontFamily: "var(--font-sans)",
+              fontSize: 10,
+              letterSpacing: "0.22em",
+              textTransform: "uppercase",
+              color: "var(--destructive, #b94a4a)",
+              opacity: 0.9,
+            }}
+          >
+            {stepLabel}
+          </div>
+          {categoryLabel && (
+            <div
+              aria-label={`Failure type: ${categoryLabel}`}
+              style={{
+                fontFamily: "var(--font-sans)",
+                fontSize: 9,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                color: "var(--color-foreground)",
+                opacity: 0.85,
+                padding: "2px 6px",
+                borderRadius: 999,
+                border: "1px solid color-mix(in oklab, var(--destructive, #b94a4a) 45%, transparent)",
+                background: "color-mix(in oklab, var(--destructive, #b94a4a) 14%, transparent)",
+              }}
+            >
+              {categoryLabel}
+            </div>
+          )}
         </div>
         <div
           style={{

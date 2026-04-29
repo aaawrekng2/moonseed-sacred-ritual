@@ -65,6 +65,14 @@ export type ShareError = {
    * always sees a clear way forward, even before tapping Retry.
    */
   nextAction: string;
+  /**
+   * Stable, low-cardinality bucket (mirrors the analytics category) so
+   * the inline banner can render a user-friendly label that matches the
+   * underlying failure shape (permission / cors / network / abort /
+   * unknown). Kept separate from the free-form `title` so the label
+   * stays consistent across copy tweaks.
+   */
+  category: ShareErrorCategory;
   retry: () => void;
   /**
    * Present when an already-rendered PNG is available (i.e. the share
@@ -311,7 +319,15 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         const { title, description, nextAction } = describeError(e, "prepare", intent);
         // No PNG yet — Download Now would have nothing to save.
         notifyError(title, description, nextAction, retry);
-        setLastError({ step: "prepare", intent, title, description, nextAction, retry });
+        setLastError({
+          step: "prepare",
+          intent,
+          title,
+          description,
+          nextAction,
+          category: categorizeShareError(e),
+          retry,
+        });
         callbacks.onPrepareError?.(intent, {
           error: e,
           category: categorizeShareError(e),
@@ -406,6 +422,7 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         title,
         description,
         nextAction,
+        category: categorizeShareError(e),
         retry,
         downloadNow,
       });
