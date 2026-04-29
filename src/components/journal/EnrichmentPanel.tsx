@@ -521,9 +521,9 @@ export function EnrichmentPanel({
         }}
       />
 
-      {/* Action row */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-5">
+      {/* Action row — icons always horizontally centered */}
+      <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-5">
           <IconAction
             label={favorite ? "Unfavorite" : "Favorite"}
             active={favorite}
@@ -578,8 +578,18 @@ export function EnrichmentPanel({
               <Camera size={18} strokeWidth={1.5} />
             )}
           </IconAction>
+          {onShare && (
+            <IconAction
+              label="Share"
+              active={false}
+              onClick={onShare}
+            >
+              <Share2 size={18} strokeWidth={1.5} />
+            </IconAction>
+          )}
         </div>
-
+      </div>
+      <div className="mt-1 flex justify-center">
         <SaveIndicator
           saving={anySaving}
           saved={anySaved}
