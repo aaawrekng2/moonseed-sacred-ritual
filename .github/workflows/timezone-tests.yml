@@ -183,13 +183,126 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Verify snapshots are committed (no drift)
+      # ----------------------------------------------------------------
+      # Snapshot drift handling.
+      #
+      # Split into four steps so a drifted run still produces a
+      # downloadable artifact + a clickable URL in the log BEFORE the
+      # build fails. The original single-step guard only printed the
+      # diff to stdout, which is hard to share with reviewers and gets
+      # truncated for large snapshots.
+      # ----------------------------------------------------------------
+      - name: Detect snapshot drift
+        id: snapshot_drift
+        # Run regardless of upstream test failures — we still want to
+        # surface drift even if a property test failed first.
+        if: always()
         run: |
+          set -euo pipefail
           if [ -n "$(git status --porcelain src/lib/__snapshots__)" ]; then
-            echo "::error::Snapshot drift detected. Run 'npm test -- -u' locally and commit the updated snapshots."
-            git --no-pager diff src/lib/__snapshots__
-            exit 1
+            echo "drifted=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::Snapshot drift detected — capturing diff as artifact (build will fail at end of job)."
+          else
+            echo "drifted=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Capture snapshot diff
+        if: always() && steps.snapshot_drift.outputs.drifted == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p snapshot-diff
+
+          # 1. Unified diff (what most reviewers want).
+          git --no-pager diff --no-color src/lib/__snapshots__ \
+            > snapshot-diff/snapshot.diff
+
+          # 2. Side-by-side stat for the PR description.
+          git --no-pager diff --stat src/lib/__snapshots__ \
+            > snapshot-diff/snapshot.stat.txt
+
+          # 3. The changed snapshot files themselves so a developer can
+          #    `cp` them into their working tree without re-running tests.
+          mkdir -p snapshot-diff/updated-files
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            mkdir -p "snapshot-diff/updated-files/$(dirname "$f")"
+            cp "$f" "snapshot-diff/updated-files/$f"
+          done < <(git diff --name-only src/lib/__snapshots__)
+
+          # 4. A README explaining how to apply the diff.
+          cat > snapshot-diff/README.md <<EOF
+          # Snapshot drift on $(echo "${{ matrix.tz }}") / Node ${{ matrix.node }}
+
+          - **Workflow run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          - **Commit:** ${{ github.sha }}
+          - **Trigger:** ${{ github.event_name }}
+
+          ## Files
+          - \`snapshot.diff\` — unified diff against \`HEAD\`
+          - \`snapshot.stat.txt\` — line-count summary
+          - \`updated-files/\` — full new snapshot files (drop-in replacements)
+
+          ## To apply locally
+          \`\`\`sh
+          cd <repo>
+          git apply path/to/snapshot.diff
+          # OR
+          cp -R path/to/updated-files/src/lib/__snapshots__/. src/lib/__snapshots__/
+          npm run test:tz   # confirm clean
+          git add src/lib/__snapshots__ && git commit -m "test(tz): refresh snapshots"
+          \`\`\`
+          EOF
+
+          echo "::group::Snapshot diff (preview, also in artifact)"
+          head -n 200 snapshot-diff/snapshot.diff || true
+          echo "::endgroup::"
+
+      - name: Upload snapshot diff artifact
+        if: always() && steps.snapshot_drift.outputs.drifted == 'true'
+        id: upload_snapshot_diff
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-diff-node${{ matrix.node }}-${{ matrix.tz }}
+          path: snapshot-diff/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Print snapshot diff artifact link
+        if: always() && steps.snapshot_drift.outputs.drifted == 'true'
+        env:
+          ARTIFACT_ID: ${{ steps.upload_snapshot_diff.outputs.artifact-id }}
+          ARTIFACT_URL: ${{ steps.upload_snapshot_diff.outputs.artifact-url }}
+        run: |
+          set -euo pipefail
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          # The `artifact-url` output is the canonical, short-lived
+          # download link emitted by upload-artifact@v4. We also surface
+          # the run URL as a stable fallback in case the artifact link
+          # expires before someone clicks it.
+          echo "::notice title=Snapshot diff uploaded::Download: ${ARTIFACT_URL:-$RUN_URL}"
+          echo ""
+          echo "─── Snapshot drift artifact ───"
+          echo "  Direct download : ${ARTIFACT_URL:-<unavailable>}"
+          echo "  Workflow run    : $RUN_URL"
+          echo "  Artifact name   : snapshot-diff-node${{ matrix.node }}-${{ matrix.tz }}"
+          echo "  Artifact ID     : ${ARTIFACT_ID:-<unavailable>}"
+          echo "───────────────────────────────"
+
+          # Mirror the link into the workflow Summary tab so it shows
+          # up alongside the coverage table.
+          {
+            echo ""
+            echo "## ⚠️ Snapshot drift on \`${{ matrix.tz }}\` / Node ${{ matrix.node }}"
+            echo ""
+            echo "- **Download diff artifact:** ${ARTIFACT_URL:-(see workflow run page)}"
+            echo "- **Workflow run:** $RUN_URL"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail build on snapshot drift
+        if: always() && steps.snapshot_drift.outputs.drifted == 'true'
+        run: |
+          echo "::error::Snapshot drift detected. Download the 'snapshot-diff-node${{ matrix.node }}-${{ matrix.tz }}' artifact above for the full diff, then run 'npm test -- -u' locally and commit the updated snapshots."
+          exit 1
 
   property-tests-pinned-seed:
     name: Property suite (pinned seed ${{ env.TIMEZONE_PROPERTY_SEED }})
