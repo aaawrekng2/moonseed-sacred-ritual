@@ -959,19 +959,22 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
     name: string;
     lifecycle_state: string;
   } | null>(null);
-  // Suggestion shown when the reading isn't linked yet but matches a pattern.
-  const [suggestion, setSuggestion] = useState<{
+  // Top matching patterns shown when the reading isn't linked yet.
+  type PatternSuggestion = {
     id: string;
     name: string;
+    lifecycle_state: string;
     reason: string;
-  } | null>(null);
-  const [attaching, setAttaching] = useState(false);
+    score: number;
+  };
+  const [suggestions, setSuggestions] = useState<PatternSuggestion[]>([]);
+  const [attachingId, setAttachingId] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(() => isDismissed(readingId));
 
   useEffect(() => {
     let cancelled = false;
     setPattern(null);
-    setSuggestion(null);
+    setSuggestions([]);
     setDismissed(isDismissed(readingId));
     void (async () => {
       const { data: r } = await supabase
@@ -1042,17 +1045,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
       const myCards = new Set(row.card_ids ?? []);
       const myTags = new Set((row.tags ?? []).map((t) => t.toLowerCase()));
 
-      let best:
-        | {
-            id: string;
-            name: string;
-            reason: string;
-            source: "cards" | "tags" | "both";
-            sharedCards: string[];
-            sharedTags: string[];
-            score: number;
-          }
-        | null = null;
+      const scored: PatternSuggestion[] = [];
       for (const p of patterns) {
         const sharedCardSet = new Set<number>();
         const sharedTagSet = new Set<string>();
@@ -1075,20 +1068,17 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
               ? "cards"
               : "tags";
         const reason = buildReason(source, sharedCards, sharedTags);
-        if (!best || score > best.score) {
-          best = {
-            id: p.id,
-            name: p.name,
-            reason,
-            source,
-            sharedCards,
-            sharedTags,
-            score,
-          };
-        }
+        scored.push({
+          id: p.id,
+          name: p.name,
+          lifecycle_state: p.lifecycle_state,
+          reason,
+          score,
+        });
       }
-      if (!cancelled && best) {
-        setSuggestion({ id: best.id, name: best.name, reason: best.reason });
+      if (!cancelled && scored.length > 0) {
+        scored.sort((a, b) => b.score - a.score);
+        setSuggestions(scored.slice(0, 3));
       }
     })();
     return () => {
@@ -1096,59 +1086,60 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
     };
   }, [readingId]);
 
-  const attach = useCallback(async () => {
-    if (!suggestion || attaching) return;
-    const previousSuggestion = suggestion;
-    setAttaching(true);
-    try {
-      const { data: pat } = await supabase
-        .from("patterns")
-        .select("id, name, lifecycle_state, reading_ids")
-        .eq("id", suggestion.id)
-        .maybeSingle();
-      const p = pat as
-        | { id: string; name: string; lifecycle_state: string; reading_ids: string[] }
-        | null;
-      if (!p) {
-        toast.error("Couldn't find that pattern", {
-          description: "It may have been retired. Please try again.",
-        });
-        return;
-      }
-      const nextReadings = Array.from(new Set([...(p.reading_ids ?? []), readingId]));
-      const [{ error: e1 }, { error: e2 }] = await Promise.all([
-        supabase.from("readings").update({ pattern_id: p.id }).eq("id", readingId),
-        supabase
+  const attach = useCallback(
+    async (target: PatternSuggestion) => {
+      if (attachingId) return;
+      setAttachingId(target.id);
+      try {
+        const { data: pat } = await supabase
           .from("patterns")
-          .update({ reading_ids: nextReadings })
-          .eq("id", p.id),
-      ]);
-      if (e1 || e2) {
-        // Best-effort rollback: if the reading update succeeded but the
-        // pattern's reading_ids didn't, detach so state stays consistent.
-        if (!e1 && e2) {
-          await supabase
-            .from("readings")
-            .update({ pattern_id: null })
-            .eq("id", readingId);
+          .select("id, name, lifecycle_state, reading_ids")
+          .eq("id", target.id)
+          .maybeSingle();
+        const p = pat as
+          | { id: string; name: string; lifecycle_state: string; reading_ids: string[] }
+          | null;
+        if (!p) {
+          toast.error("Couldn't find that pattern", {
+            description: "It may have been retired. Please try again.",
+          });
+          setSuggestions((prev) => prev.filter((s) => s.id !== target.id));
+          return;
         }
-        setSuggestion(previousSuggestion);
+        const nextReadings = Array.from(
+          new Set([...(p.reading_ids ?? []), readingId]),
+        );
+        const [{ error: e1 }, { error: e2 }] = await Promise.all([
+          supabase.from("readings").update({ pattern_id: p.id }).eq("id", readingId),
+          supabase
+            .from("patterns")
+            .update({ reading_ids: nextReadings })
+            .eq("id", p.id),
+        ]);
+        if (e1 || e2) {
+          if (!e1 && e2) {
+            await supabase
+              .from("readings")
+              .update({ pattern_id: null })
+              .eq("id", readingId);
+          }
+          toast.error("Couldn't connect to pattern", {
+            description: "Please check your connection and try again.",
+          });
+          return;
+        }
+        setSuggestions([]);
+        setPattern({ id: p.id, name: p.name, lifecycle_state: p.lifecycle_state });
+      } catch (err) {
         toast.error("Couldn't connect to pattern", {
-          description: "Please check your connection and try again.",
+          description: err instanceof Error ? err.message : "Please try again.",
         });
-        return;
+      } finally {
+        setAttachingId(null);
       }
-      setSuggestion(null);
-      setPattern({ id: p.id, name: p.name, lifecycle_state: p.lifecycle_state });
-    } catch (err) {
-      setSuggestion(previousSuggestion);
-      toast.error("Couldn't connect to pattern", {
-        description: err instanceof Error ? err.message : "Please try again.",
-      });
-    } finally {
-      setAttaching(false);
-    }
-  }, [suggestion, attaching, readingId]);
+    },
+    [attachingId, readingId],
+  );
 
   if (pattern) {
     return (
@@ -1184,7 +1175,13 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
     );
   }
 
-  if (!suggestion || dismissed) return null;
+  if (suggestions.length === 0 || dismissed) return null;
+
+  const busy = attachingId !== null;
+  const headline =
+    suggestions.length === 1
+      ? "This reading resonates with a pattern:"
+      : `This reading resonates with ${suggestions.length} patterns:`;
 
   return (
     <div
@@ -1197,86 +1194,123 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 6,
+        gap: 10,
       }}
     >
       <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
-        This reading {suggestion.reason} with{" "}
-        <Link
-          to="/threads/$patternId"
-          params={{ patternId: suggestion.id }}
-          title={`Open the ${suggestion.name} chamber`}
-          aria-label={`Open the ${suggestion.name} pattern chamber — ${suggestion.reason}`}
-          style={{
-            color: "var(--gold)",
-            textDecoration: "none",
-            borderBottom: "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
-          }}
-        >
-          {suggestion.name}
-        </Link>
-        .
+        {headline}
       </span>
-      <div style={{ display: "inline-flex", gap: 14 }}>
-        <button
-          type="button"
-          onClick={() => void attach()}
-          disabled={attaching}
-          style={{
-            background: "none",
-            border: "none",
-            padding: 0,
-            cursor: attaching ? "default" : "pointer",
-            color: "var(--gold)",
-            fontFamily: "var(--font-display, inherit)",
-            fontSize: 11,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            opacity: attaching ? 0.5 : 1,
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          {attaching && (
-            <span
-              aria-hidden="true"
+      <ul
+        style={{
+          listStyle: "none",
+          padding: 0,
+          margin: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: 8,
+          width: "100%",
+        }}
+      >
+        {suggestions.map((s) => {
+          const isThisAttaching = attachingId === s.id;
+          return (
+            <li
+              key={s.id}
               style={{
-                width: 10,
-                height: 10,
-                borderRadius: "50%",
-                border: "1.5px solid color-mix(in oklab, var(--gold) 35%, transparent)",
-                borderTopColor: "var(--gold)",
-                animation: "spin 0.8s linear infinite",
-                display: "inline-block",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 4,
+                padding: "8px 10px",
+                borderTop:
+                  "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
               }}
-            />
-          )}
-          {attaching ? "Attaching…" : "Connect to pattern"}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            markDismissed(readingId);
-            setDismissed(true);
-          }}
-          disabled={attaching}
-          style={{
-            background: "none",
-            border: "none",
-            padding: 0,
-            cursor: attaching ? "default" : "pointer",
-            color: "color-mix(in oklab, var(--foreground) 50%, transparent)",
-            fontFamily: "var(--font-display, inherit)",
-            fontSize: 11,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            opacity: attaching ? 0.5 : 1,
-          }}
-        >
-          Not now
-        </button>
-      </div>
+            >
+              <span
+                style={{
+                  color: "color-mix(in oklab, var(--foreground) 70%, transparent)",
+                }}
+              >
+                {s.reason} with{" "}
+                <Link
+                  to="/threads/$patternId"
+                  params={{ patternId: s.id }}
+                  title={`Open the ${s.name} chamber`}
+                  aria-label={`Open the ${s.name} pattern chamber — ${s.reason}`}
+                  style={{
+                    color: "var(--gold)",
+                    textDecoration: "none",
+                    borderBottom:
+                      "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
+                  }}
+                >
+                  {s.name}
+                </Link>
+                .
+              </span>
+              <button
+                type="button"
+                onClick={() => void attach(s)}
+                disabled={busy}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: busy ? "default" : "pointer",
+                  color: "var(--gold)",
+                  fontFamily: "var(--font-display, inherit)",
+                  fontSize: 11,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  opacity: busy && !isThisAttaching ? 0.35 : isThisAttaching ? 0.7 : 1,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                {isThisAttaching && (
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      border:
+                        "1.5px solid color-mix(in oklab, var(--gold) 35%, transparent)",
+                      borderTopColor: "var(--gold)",
+                      animation: "spin 0.8s linear infinite",
+                      display: "inline-block",
+                    }}
+                  />
+                )}
+                {isThisAttaching ? "Attaching…" : "Connect"}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <button
+        type="button"
+        onClick={() => {
+          markDismissed(readingId);
+          setDismissed(true);
+        }}
+        disabled={busy}
+        style={{
+          background: "none",
+          border: "none",
+          padding: 0,
+          cursor: busy ? "default" : "pointer",
+          color: "color-mix(in oklab, var(--foreground) 50%, transparent)",
+          fontFamily: "var(--font-display, inherit)",
+          fontSize: 11,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          opacity: busy ? 0.5 : 1,
+        }}
+      >
+        Not now
+      </button>
     </div>
   );
 }
