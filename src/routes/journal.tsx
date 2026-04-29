@@ -86,6 +86,13 @@ type ThreadRow = {
   reading_ids: string[] | null;
   status: "emerging" | "active" | "quieting" | "retired" | "reawakened";
   detected_at: string;
+  pattern_id: string | null;
+};
+
+type PatternRow = {
+  id: string;
+  name: string;
+  lifecycle_state: string;
 };
 
 /* ---------- Helpers ---------- */
