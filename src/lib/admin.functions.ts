@@ -20,6 +20,7 @@ import {
   previewWeavesForUser,
   type WeavePreview,
 } from "@/lib/weaves.functions";
+import { evaluateDetectWeavesAlerts } from "@/lib/detect-weaves-alerts.server";
 
 async function assertAdmin(supabase: any, userId: string): Promise<void> {
   const { data, error } = await supabase.rpc("has_admin_role", {
@@ -402,7 +403,9 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
             ? "partial"
             : "success";
 
-      await supabaseAdmin.from("detect_weaves_runs" as never).insert({
+      const { data: insertedRun } = await supabaseAdmin
+        .from("detect_weaves_runs" as never)
+        .insert({
         started_at: new Date(startedAt).toISOString(),
         finished_at: new Date(finishedAt).toISOString(),
         duration_ms: finishedAt - startedAt,
@@ -417,7 +420,16 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
         per_user_errors: perUserErrors,
         mode: "manual",
         triggered_by: userId,
-      } as never);
+      } as never)
+        .select("id")
+        .single();
+
+      const manualRunId = (insertedRun as { id?: string } | null)?.id ?? null;
+      if (manualRunId) {
+        await evaluateDetectWeavesAlerts(manualRunId).catch((err) =>
+          console.error("[detect-weaves alerts] eval failed", err),
+        );
+      }
 
       await logAction(
         userId,
@@ -446,7 +458,9 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
     } catch (e) {
       const finishedAt = Date.now();
       const message = e instanceof Error ? e.message : String(e);
-      await supabaseAdmin.from("detect_weaves_runs" as never).insert({
+      const { data: failedRun } = await supabaseAdmin
+        .from("detect_weaves_runs" as never)
+        .insert({
         started_at: new Date(startedAt).toISOString(),
         finished_at: new Date(finishedAt).toISOString(),
         duration_ms: finishedAt - startedAt,
@@ -457,7 +471,15 @@ export const runDetectWeavesAdmin = createServerFn({ method: "POST" })
         per_user_errors: [],
         mode: "manual",
         triggered_by: userId,
-      } as never);
+      } as never)
+        .select("id")
+        .single();
+      const failedRunId = (failedRun as { id?: string } | null)?.id ?? null;
+      if (failedRunId) {
+        await evaluateDetectWeavesAlerts(failedRunId).catch((err) =>
+          console.error("[detect-weaves alerts] eval failed", err),
+        );
+      }
       throw e;
     }
   });
