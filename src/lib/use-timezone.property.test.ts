@@ -1,6 +1,7 @@
 import { describe, it, expect, afterAll } from "vitest";
 import fc from "fast-check";
-import { appendFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import {
   getDayInTz,
   getDayOffsetInTz,
@@ -415,23 +416,52 @@ afterAll(() => {
     ].join("\n"),
   );
 
-  // JSON artifact for downstream tooling (CI uploads, dashboards, etc.).
+  // JSON artifact for downstream tooling.
+  //
+  // Two destinations:
+  //   1. <repo>/coverage-artifacts/  — the canonical location. This is
+  //      the path the GitHub Actions workflow uploads via
+  //      `actions/upload-artifact`, so a developer can download it from
+  //      a workflow run and diff it against a previous run locally.
+  //      The directory is .gitignore'd so it never gets committed.
+  //   2. /tmp/  — kept as a fallback for sandboxes where the project
+  //      directory isn't writable (some Vitest CI runners).
+  //
+  // Filename includes the seed (or "unpinned") + Node version so a
+  // single CI matrix run produces N distinguishable files when
+  // multiple matrix cells upload to the same artifact bucket.
+  const payload = {
+    generatedAt: new Date().toISOString(),
+    seed: process.env.FC_SEED ?? null,
+    nodeVersion: process.version,
+    systemTz: process.env.TZ ?? null,
+    summary: { total, passed, failed },
+    invariants: Array.from(coverage.values()).map((r) => ({
+      ...r,
+      missedZones: missedZonesFor(r),
+    })),
+  };
+  const seedTag = process.env.FC_SEED ?? "unpinned";
+  const tzTag = (process.env.TZ ?? "host").replace(/\//g, "-");
+  const fileName = `timezone-property-coverage.seed-${seedTag}.tz-${tzTag}.node-${process.version}.json`;
+  const json = JSON.stringify(payload, null, 2);
+
+  const repoArtifactDir = resolve(process.cwd(), "coverage-artifacts");
   try {
-    const payload = {
-      generatedAt: new Date().toISOString(),
-      seed: process.env.FC_SEED ?? null,
-      summary: { total, passed, failed },
-      invariants: Array.from(coverage.values()).map((r) => ({
-        ...r,
-        missedZones: missedZonesFor(r),
-      })),
-    };
-    writeFileSync(
-      "/tmp/timezone-property-coverage.json",
-      JSON.stringify(payload, null, 2),
-    );
+    mkdirSync(repoArtifactDir, { recursive: true });
+    writeFileSync(join(repoArtifactDir, fileName), json);
+    // Also write a stable, predictable filename so consumers that
+    // don't know the seed/tz/node ahead of time (dashboards, scripts)
+    // always have a known path to read from.
+    writeFileSync(join(repoArtifactDir, "latest.json"), json);
   } catch {
-    // Non-fatal: /tmp may not be writable in some sandboxed runners.
+    // Non-fatal: directory may be read-only in some sandboxes.
+  }
+
+  try {
+    writeFileSync(`/tmp/${fileName}`, json);
+  } catch {
+    // Non-fatal: /tmp may not be writable everywhere.
   }
 
   // GitHub Actions: render the table on the workflow's Summary tab.
