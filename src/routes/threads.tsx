@@ -10,6 +10,7 @@ import {
   formatMonthSince,
   formatDateSpan,
 } from "@/lib/patterns";
+import { firstCardName, formatRelativeTime } from "@/lib/utils";
 import { BottomNav } from "@/components/nav/BottomNav";
 import {
   ReactFlow,
