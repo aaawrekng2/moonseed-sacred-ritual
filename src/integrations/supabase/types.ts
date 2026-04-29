@@ -334,6 +334,7 @@ export type Database = {
           role: string
           saved_themes: Json
           show_labels: boolean
+          show_question_prompt: boolean
           show_reversals: boolean
           subscription_type: string
           sun_sign: string | null
@@ -387,6 +388,7 @@ export type Database = {
           role?: string
           saved_themes?: Json
           show_labels?: boolean
+          show_question_prompt?: boolean
           show_reversals?: boolean
           subscription_type?: string
           sun_sign?: string | null
@@ -440,6 +442,7 @@ export type Database = {
           role?: string
           saved_themes?: Json
           show_labels?: boolean
+          show_question_prompt?: boolean
           show_reversals?: boolean
           subscription_type?: string
           sun_sign?: string | null

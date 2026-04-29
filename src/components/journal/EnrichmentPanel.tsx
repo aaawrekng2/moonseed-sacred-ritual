@@ -10,7 +10,7 @@
  * "a gentle invitation, not a form" (per the Phase 6 spec).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, CheckCheck, Copy, Heart, Loader2, Pencil, Plus, Tag as TagIcon, X } from "lucide-react";
+import { Camera, CheckCheck, Copy, Heart, Loader2, Pencil, Plus, Share2, Tag as TagIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
@@ -61,6 +61,13 @@ type Props = {
    * and writes this text to the clipboard on tap.
    */
   copyText?: string;
+  /**
+   * Optional handler invoked when the seeker taps the share icon. When
+   * provided, a Share2 icon renders alongside the other action icons —
+   * this is the single share trigger per screen (tear-off card opener).
+   * Omit to hide the icon entirely.
+   */
+  onShare?: () => void;
 };
 
 const SAVE_DELAY_MS = 800;
@@ -153,6 +160,7 @@ export function EnrichmentPanel({
   onTagLibraryChange,
   onPhotoCountChange,
   copyText,
+  onShare,
 }: Props) {
   // Local mirrors of the reading fields so typing is responsive.
   const [note, setNote] = useState(reading.note ?? "");
@@ -513,9 +521,9 @@ export function EnrichmentPanel({
         }}
       />
 
-      {/* Action row */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-5">
+      {/* Action row — icons always horizontally centered */}
+      <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-5">
           <IconAction
             label={favorite ? "Unfavorite" : "Favorite"}
             active={favorite}
@@ -570,8 +578,18 @@ export function EnrichmentPanel({
               <Camera size={18} strokeWidth={1.5} />
             )}
           </IconAction>
+          {onShare && (
+            <IconAction
+              label="Share"
+              active={false}
+              onClick={onShare}
+            >
+              <Share2 size={18} strokeWidth={1.5} />
+            </IconAction>
+          )}
         </div>
-
+      </div>
+      <div className="mt-1 flex justify-center">
         <SaveIndicator
           saving={anySaving}
           saved={anySaved}

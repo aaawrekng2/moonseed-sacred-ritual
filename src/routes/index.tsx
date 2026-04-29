@@ -138,8 +138,10 @@ function Index() {
       </header>
 
       {/* Gateway card — centered in the remaining vertical space now
-          that the question prompt has moved to the draw table. */}
-      <section className="flex flex-1 flex-col items-center justify-center px-6">
+          that the question prompt has moved to the draw table.
+          Extra top padding pushes the gateway down so it doesn't crowd
+          the moon carousel above. */}
+      <section className="flex flex-1 flex-col items-center justify-center px-6 pt-10 sm:pt-14">
         <div style={{ position: "relative", display: "inline-block" }}>
           <button
             type="button"
@@ -194,8 +196,9 @@ function Index() {
         </div>
       </section>
 
-      {/* Spread icons — sit just above bottom nav */}
-      <section className="pb-24">
+      {/* Spread icons — sit just above bottom nav. Extra top padding
+          gives the spread labels breathing room over the gateway. */}
+      <section className="pb-24 pt-6">
         {isAnonymous && !nudgeDismissed && (
           <div
             className="flex items-center justify-center gap-3 px-5 py-2.5"
