@@ -42,7 +42,7 @@ export function Level3SpreadPosition({
           textAlign: "center",
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 80,
+          fontSize: 64,
           letterSpacing: "0.12em",
           textTransform: "uppercase",
           color: color.accent,
@@ -58,11 +58,15 @@ export function Level3SpreadPosition({
           style={{
             textAlign: "center",
             fontFamily: "var(--font-serif)",
-            fontSize: 52,
+            fontSize: 40,
             lineHeight: 1.5,
             maxWidth: 860,
             margin: "0 auto",
             opacity: 0.95,
+            display: "-webkit-box",
+            WebkitLineClamp: 5,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
           }}
         >
           {snippet}

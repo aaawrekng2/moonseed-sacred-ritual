@@ -353,27 +353,11 @@ function DevModeToggle({ userId }: { userId: string }) {
             Shows version, fog level, and resting opacity overlay.
           </div>
         </div>
-        <button
-          type="button"
-          onClick={toggle}
-          style={{
-            background: enabled
-              ? "color-mix(in oklab, var(--gold) 18%, transparent)"
-              : "transparent",
-            border:
-              "1px solid color-mix(in oklab, var(--gold) 35%, transparent)",
-            borderRadius: "var(--radius-md, 8px)",
-            padding: "6px 14px",
-            color: enabled ? "var(--gold)" : "var(--foreground)",
-            cursor: "pointer",
-            fontSize: "var(--text-caption)",
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            letterSpacing: "0.06em",
-          }}
-        >
-          {enabled ? "On" : "Off"}
-        </button>
+        <Switch
+          checked={enabled}
+          onCheckedChange={toggle}
+          aria-label="Toggle dev mode"
+        />
       </div>
     </div>
   );

@@ -46,8 +46,8 @@ export function ShareCardFrame({
           inset: 0,
           display: "flex",
           flexDirection: "column",
-          padding: "140px 96px 100px",
-          gap: 80,
+          padding: "80px 72px 70px",
+          gap: 40,
         }}
       >
         <div
@@ -56,7 +56,7 @@ export function ShareCardFrame({
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-around",
-            gap: 64,
+            gap: 40,
           }}
         >
           {children}
@@ -92,7 +92,7 @@ export function ShareCardFooter({
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 38,
+          fontSize: 32,
           opacity: 0.85,
           letterSpacing: "0.04em",
           color: accent,
@@ -103,7 +103,7 @@ export function ShareCardFooter({
       <div
         style={{
           fontFamily: "var(--font-sans)",
-          fontSize: 26,
+          fontSize: 22,
           letterSpacing: "0.32em",
           textTransform: "uppercase",
           opacity: 0.55,
@@ -169,7 +169,7 @@ export function ShareCardRow({
  * Trim the interpretation overview to its first ~2-3 sentences so the
  * snippet shown in Level 2 stays readable on a Story canvas.
  */
-export function snippetFromOverview(overview: string, maxChars = 280): string {
+export function snippetFromOverview(overview: string, maxChars = 160): string {
   const trimmed = (overview ?? "").trim();
   if (!trimmed) return "";
   // First pass: take first 2-3 sentences.

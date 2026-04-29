@@ -158,8 +158,14 @@ export function lifecycleEdgeColor(
 /**
  * Watches the `patterns` table for the current user and returns the
  * count. The Threads bottom-nav tab uses this — when count > 0 it
- * fades in. Realtime: we subscribe to inserts so the tab appears the
- * moment a pattern is born.
+ * fades in. We deliberately do NOT subscribe to realtime here:
+ * the BottomNav is mounted on every screen, and a long-lived
+ * `postgres_changes` channel on `patterns` was conflicting with the
+ * /threads route's own queries ("cannot add postgres_changes
+ * callbacks after subscribe()"), causing /threads to render empty
+ * when arriving from the bottom nav. A one-shot count on mount is
+ * enough — patterns appear via async detect-threads anyway, so a
+ * brand-new pattern simply shows up on next navigation.
  */
 export function usePatternsCount(userId: string | undefined): {
   count: number;
@@ -184,27 +190,8 @@ export function usePatternsCount(userId: string | undefined): {
       setCount(c ?? 0);
       setLoading(false);
     })();
-
-    const channel = supabase
-      .channel(`patterns-count-${userId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "patterns", filter: `user_id=eq.${userId}` },
-        () => {
-          void (async () => {
-            const { count: c } = await supabase
-              .from("patterns")
-              .select("id", { count: "exact", head: true })
-              .eq("user_id", userId);
-            if (!cancelled) setCount(c ?? 0);
-          })();
-        },
-      )
-      .subscribe();
-
     return () => {
       cancelled = true;
-      void supabase.removeChannel(channel);
     };
   }, [userId]);
 
