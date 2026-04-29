@@ -36,9 +36,7 @@ import {
   type EnrichmentTag,
 } from "@/components/journal/EnrichmentPanel";
 import { TearOffCard } from "@/components/reading/TearOffCard";
-import { Scissors } from "lucide-react";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
-import { ShareButton } from "@/components/share/ShareButton";
 
 type Pick = { id: number; cardIndex: number };
 
