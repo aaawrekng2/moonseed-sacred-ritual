@@ -34,14 +34,10 @@ type DayCell = {
   sign: string;
 };
 
-/**
- * Returns true if two Date objects fall on the same calendar day in the
- * given IANA timezone. Used to flag the three days that wrap a full moon
- * for gold treatment, and to align the seam marker against day cards
- * whose labels were rendered in that same timezone.
- */
-function isSameDayInTz(a: Date, b: Date, tz: string): boolean {
-  return getYmdInTz(a, tz) === getYmdInTz(b, tz);
+function addDaysToYmd(ymd: string, delta: number): string {
+  const [year, month, day] = ymd.split("-").map(Number);
+  const d = new Date(Date.UTC(year, month - 1, day + delta, 12, 0, 0));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
 export function MoonCarousel() {
@@ -154,16 +150,12 @@ export function MoonCarousel() {
     }
   }, [retryNonce, viewedDate]);
 
-  const peakDay = useMemo<Date | null>(() => {
+  const peakYmd = useMemo<string | null>(() => {
     if (!fullMoonPeak) return null;
-    // Anchor the "peak day" to the calendar day of the peak as observed
-    // in the seeker's effective timezone, NOT the browser's local zone.
-    // Otherwise a peak at e.g. 4 AM PT (= 11 AM UTC) renders against the
-    // wrong day for users whose device tz differs from their profile tz.
-    const { year, month, day } = getDatePartsInTz(fullMoonPeak, effectiveTz);
-    // Construct a UTC noon Date for that Y/M/D; downstream logic only
-    // uses this as a key (it's matched via isSameDayInTz / addDays).
-    return new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    // String calendar key for the exact peak day in the seeker's timezone.
+    // Keeping this as YMD avoids Date-object timezone drift when matching
+    // the actual day card that should own the marker edge.
+    return getYmdInTz(fullMoonPeak, effectiveTz);
   }, [fullMoonPeak, effectiveTz]);
 
   // Hour of the full-moon peak as observed in the seeker's effective tz.
@@ -175,24 +167,13 @@ export function MoonCarousel() {
     return getDatePartsInTz(fullMoonPeak, effectiveTz).hour;
   }, [fullMoonPeak, effectiveTz]);
 
-  // For each visible day, classify whether it should be tinted gold —
-  // the day-before, day-of, and day-after the next full-moon peak. Also
-  // determine which two adjacent visible days the peak moment falls
-  // between (the "seam"), so the marker can sit on that boundary.
-  //   - Peak hour < 12 (tz-local): seam is on the LEFT border of the
-  //     peak day card → between (peak-1) and peak.
-  //   - Otherwise: seam is on the RIGHT border → between peak and
-  //     (peak+1).
-  const seamLeftDate = useMemo<Date | null>(() => {
-    if (!fullMoonPeak || !peakDay || peakTzHour == null) return null;
-    // Seam sits on the LEFT border of the peak day card when the peak
-    // happens before noon (tz-local), otherwise on the RIGHT border.
-    // Use UTC arithmetic to match peakDay's UTC-noon construction so day
-    // math is independent of the browser's local timezone.
-    const seam = new Date(peakDay);
-    if (peakTzHour < 12) seam.setUTCDate(peakDay.getUTCDate() - 1);
-    return seam;
-  }, [fullMoonPeak, peakDay, peakTzHour]);
+  // Which edge of the ACTUAL peak day card should receive the marker.
+  // Morning peaks sit on the peak day's left edge (between previous day
+  // and peak day); evening/night peaks sit on the peak day's right edge.
+  const peakMarkerSide = useMemo<"left" | "right" | null>(() => {
+    if (!peakYmd || peakTzHour == null) return null;
+    return peakTzHour < 12 ? "left" : "right";
+  }, [peakYmd, peakTzHour]);
 
   // Only display the marker for nighttime peaks (9 PM – 6 AM in the
   // seeker's effective tz). Daytime full moons aren't visible, so the
@@ -202,14 +183,10 @@ export function MoonCarousel() {
     return peakTzHour >= 21 || peakTzHour < 6;
   }, [peakTzHour]);
 
-  const goldDates = useMemo<Date[]>(() => {
-    if (!peakDay) return [];
-    const before = new Date(peakDay);
-    before.setUTCDate(peakDay.getUTCDate() - 1);
-    const after = new Date(peakDay);
-    after.setUTCDate(peakDay.getUTCDate() + 1);
-    return [before, peakDay, after];
-  }, [peakDay]);
+  const goldYmds = useMemo<string[]>(() => {
+    if (!peakYmd) return [];
+    return [addDaysToYmd(peakYmd, -1), peakYmd, addDaysToYmd(peakYmd, 1)];
+  }, [peakYmd]);
 
   // Refs to each rendered day cell so the seam marker can be positioned
   // exactly on the boundary between two adjacent cards regardless of
@@ -261,11 +238,12 @@ export function MoonCarousel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offset, today, retryNonce, dayRange]);
 
-  // Measure the seam pixel position whenever layout might shift. Looks
-  // for the visible cell that matches `seamLeftDate` and the cell
-  // immediately after it; the marker sits centered between the two.
+  // Measure the seam pixel position whenever layout might shift. Anchor
+  // the marker to the actual peak day card's left/right edge rather than
+  // the surrounding 3-day highlight window, so May 31 at 4 AM appears
+  // between May 30 and May 31 — not between May 29 and May 30.
   useEffect(() => {
-    if (!seamLeftDate) {
+    if (!peakYmd || !peakMarkerSide) {
       setMarkerLeft(null);
       return;
     }
@@ -273,22 +251,26 @@ export function MoonCarousel() {
       const row = cardsRowRef.current;
       if (!row) return;
       const rowRect = row.getBoundingClientRect();
-      const leftIdx = days.findIndex((d) =>
-        isSameDayInTz(d.info.date, seamLeftDate, effectiveTz),
+      const peakIdx = days.findIndex((d) =>
+        getYmdInTz(d.info.date, effectiveTz) === peakYmd,
       );
-      if (leftIdx < 0 || leftIdx >= days.length - 1) {
+      const neighborIdx = peakMarkerSide === "left" ? peakIdx - 1 : peakIdx + 1;
+      if (peakIdx < 0 || neighborIdx < 0 || neighborIdx >= days.length) {
         setMarkerLeft(null);
         return;
       }
-      const leftEl = cellRefs.current[leftIdx];
-      const rightEl = cellRefs.current[leftIdx + 1];
-      if (!leftEl || !rightEl) {
+      const peakEl = cellRefs.current[peakIdx];
+      const neighborEl = cellRefs.current[neighborIdx];
+      if (!peakEl || !neighborEl) {
         setMarkerLeft(null);
         return;
       }
-      const lr = leftEl.getBoundingClientRect();
-      const rr = rightEl.getBoundingClientRect();
-      const center = (lr.right + rr.left) / 2 - rowRect.left;
+      const pr = peakEl.getBoundingClientRect();
+      const nr = neighborEl.getBoundingClientRect();
+      const center =
+        peakMarkerSide === "left"
+          ? (nr.right + pr.left) / 2 - rowRect.left
+          : (pr.right + nr.left) / 2 - rowRect.left;
       setMarkerLeft(center);
     };
     const id = requestAnimationFrame(() =>
@@ -299,7 +281,7 @@ export function MoonCarousel() {
       cancelAnimationFrame(id);
       window.removeEventListener("resize", measure);
     };
-  }, [seamLeftDate, days, offset, transitioning, isMobile, effectiveTz]);
+  }, [peakYmd, peakMarkerSide, days, offset, transitioning, isMobile, effectiveTz]);
 
   const [recomputing, setRecomputing] = useState(false);
   const recomputeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -496,7 +478,7 @@ export function MoonCarousel() {
       {/* Screen-reader-only live status describing the currently centered day. */}
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {centerDay
-          ? `Viewing ${centerDay.isToday ? "today" : formatShortDate(centerDay.info.date)}, ${centerDay.info.phase}, ${centerDay.info.illumination}% illuminated, Moon in ${centerDay.isToday ? todayMoonSign : centerDay.sign}.`
+          ? `Viewing ${centerDay.isToday ? "today" : formatShortDate(centerDay.info.date, effectiveTz)}, ${centerDay.info.phase}, ${centerDay.info.illumination}% illuminated, Moon in ${centerDay.isToday ? todayMoonSign : centerDay.sign}.`
           : ""}
       </p>
 
@@ -560,9 +542,7 @@ export function MoonCarousel() {
             const topOffset = absRel === 0 ? 0 : absRel === 1 ? 52 : 68;
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
-            const isGoldDay = goldDates.some((g) =>
-              isSameDayInTz(g, d.info.date, effectiveTz),
-            );
+            const isGoldDay = goldYmds.includes(getYmdInTz(d.info.date, effectiveTz));
             return (
               <div
                 // Stable key by window slot index — prevents React from
@@ -575,7 +555,7 @@ export function MoonCarousel() {
                 }}
                 role="group"
                 aria-roledescription="day"
-                aria-label={`${d.isToday ? "Today" : formatShortDate(d.info.date)}, ${d.info.phase}`}
+                aria-label={`${d.isToday ? "Today" : formatShortDate(d.info.date, effectiveTz)}, ${d.info.phase}`}
                 style={{
                   alignSelf: "flex-start",
                   marginTop: `${topOffset}px`,
@@ -606,6 +586,7 @@ export function MoonCarousel() {
                     moonSign={d.isToday ? todayMoonSign : d.sign}
                     isToday={d.isToday}
                     selected={isSelected}
+                    timeZone={effectiveTz}
                     enterDir={enterDir}
                     onToggle={() => {
                       if (swipedRef.current) {
@@ -621,6 +602,7 @@ export function MoonCarousel() {
                     sign={d.sign}
                     expanded={isExpanded}
                     selected={isSelected}
+                    timeZone={effectiveTz}
                     enterDir={enterDir}
                     onToggle={() => {
                       if (swipedRef.current) {
@@ -697,6 +679,7 @@ function CenterCard({
   moonSign,
   isToday,
   selected,
+  timeZone,
   enterDir,
   onToggle,
 }: {
@@ -704,6 +687,7 @@ function CenterCard({
   moonSign: string;
   isToday: boolean;
   selected: boolean;
+  timeZone: string;
   enterDir: "left" | "right";
   onToggle: () => void;
 }) {
@@ -712,12 +696,12 @@ function CenterCard({
       type="button"
       onClick={onToggle}
       aria-pressed={selected}
-      aria-label={`${isToday ? "Today" : formatShortDate(info.date)}, ${info.phase}. Tap to ${selected ? "deselect" : "select"}.`}
+      aria-label={`${isToday ? "Today" : formatShortDate(info.date, timeZone)}, ${info.phase}. Tap to ${selected ? "deselect" : "select"}.`}
       className="flex flex-col items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       style={{ minWidth: 120, maxWidth: 160 }}
     >
       <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-gold">
-        {isToday ? "Today" : formatShortDate(info.date)}
+        {isToday ? "Today" : formatShortDate(info.date, timeZone)}
       </span>
       <div
         className={cn(
@@ -732,7 +716,7 @@ function CenterCard({
         <div className="flex flex-col items-center gap-2 text-center">
           <MoonPhaseIcon phase={info.phase} size={72} illumination={info.illumination} />
           <p className="whitespace-nowrap text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {formatShortDate(info.date)}
+            {formatShortDate(info.date, timeZone)}
           </p>
           <p className="whitespace-nowrap font-display text-sm text-gold">{info.phase}</p>
           <p className="whitespace-nowrap text-xs text-gold/80">{info.illumination}% illuminated</p>
@@ -750,6 +734,7 @@ function AdjacentCard({
   sign,
   expanded,
   selected,
+  timeZone,
   enterDir,
   onToggle,
   size = "medium",
@@ -758,6 +743,7 @@ function AdjacentCard({
   sign: string;
   expanded: boolean;
   selected: boolean;
+  timeZone: string;
   /** Same swipe direction var used by the center card so all cells
       cross-fade + slide in concert across all breakpoints. */
   enterDir: "left" | "right";
@@ -771,7 +757,7 @@ function AdjacentCard({
       onClick={onToggle}
       aria-expanded={expanded}
       aria-pressed={selected}
-      aria-label={`${formatShortDate(info.date)}, ${info.phase}, ${info.illumination}% illuminated. Tap for details.`}
+      aria-label={`${formatShortDate(info.date, timeZone)}, ${info.phase}, ${info.illumination}% illuminated. Tap for details.`}
       className={cn(
         "flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-all duration-300 ease-out cursor-pointer",
         "outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
@@ -786,7 +772,7 @@ function AdjacentCard({
       <div className="flex flex-col items-center gap-1">
         <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          {formatShortDate(info.date)}
+          {formatShortDate(info.date, timeZone)}
         </p>
         <p className="text-[11px] text-muted-foreground">{info.phase}</p>
         <p className="text-[10px] text-gold/80">{info.illumination}% illuminated</p>
