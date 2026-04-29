@@ -13,10 +13,23 @@ import { toast as sonner } from "sonner";
 import { SHARE_CARD_H, SHARE_CARD_W } from "./levels/share-card-shared";
 
 export type ShareBusyState = null | "share" | "save";
+export type ShareIntent = "share" | "save";
+
+/**
+ * The currently rendered preview waiting for user confirmation.
+ * The preview modal in ShareBuilder consumes `dataUrl`; `intent`
+ * tells `confirm()` whether to invoke Web Share or download.
+ */
+export type SharePreview = {
+  intent: ShareIntent;
+  dataUrl: string;
+  filename: string;
+};
 
 export function useShareCard() {
   const [busy, setBusy] = useState<ShareBusyState>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [preview, setPreview] = useState<SharePreview | null>(null);
 
   const flash = (msg: string, ms = 1800) => {
     setToast(msg);
@@ -117,39 +130,35 @@ export function useShareCard() {
     document.body.removeChild(a);
   };
 
-  const share = useCallback(
-    async (node: HTMLElement, backgroundColor: string) => {
+  /**
+   * Step 1 — render the PNG and stash it as a preview. The actual
+   * Web Share / download happens in `confirm()`. This split lets the
+   * builder show the user the real generated image before anything
+   * leaves the app.
+   */
+  const prepare = useCallback(
+    async (
+      node: HTMLElement,
+      backgroundColor: string,
+      intent: ShareIntent,
+    ) => {
       try {
-        setBusy("share");
+        setBusy(intent);
         const dataUrl = await renderToPng(node, backgroundColor);
-        const blob = await (await fetch(dataUrl)).blob();
-        const file = new File(
-          [blob],
-          `moonseed-${new Date().toISOString().slice(0, 10)}.png`,
-          { type: "image/png" },
-        );
-        const nav = navigator as Navigator & {
-          canShare?: (data: ShareData) => boolean;
-        };
-        if (nav.canShare && nav.canShare({ files: [file] })) {
-          await nav.share({ files: [file], title: "Moonseed" });
-          flash("Shared");
-        } else {
-          downloadDataUrl(dataUrl, file.name);
-          flash("Saved (sharing not supported)");
-          sonner.info("Sharing isn't supported here", {
-            description: "We saved the image instead so you can share it manually.",
-            duration: 5000,
-          });
-        }
+        const filename = `moonseed-${new Date()
+          .toISOString()
+          .slice(0, 10)}.png`;
+        setPreview({ intent, dataUrl, filename });
       } catch (e) {
-        // User dismissing the native share sheet is not an error.
-        if ((e as { name?: string })?.name === "AbortError") return;
-        console.error("[useShareCard] share failed", e);
-        flash("Couldn't share");
-        notifyError(e, "Couldn't share", () => {
-          void share(node, backgroundColor);
-        });
+        console.error("[useShareCard] prepare failed", e);
+        flash(intent === "share" ? "Couldn't share" : "Couldn't save");
+        notifyError(
+          e,
+          intent === "share" ? "Couldn't share" : "Couldn't save image",
+          () => {
+            void prepare(node, backgroundColor, intent);
+          },
+        );
       } finally {
         setBusy(null);
       }
@@ -157,28 +166,59 @@ export function useShareCard() {
     [renderToPng],
   );
 
-  const save = useCallback(
-    async (node: HTMLElement, backgroundColor: string) => {
-      try {
-        setBusy("save");
-        const dataUrl = await renderToPng(node, backgroundColor);
-        downloadDataUrl(
-          dataUrl,
-          `moonseed-${new Date().toISOString().slice(0, 10)}.png`,
-        );
+  /**
+   * Step 2 — user confirmed the preview. Invoke Web Share for "share"
+   * or trigger the download for "save". Closes the preview when done.
+   */
+  const confirm = useCallback(async () => {
+    if (!preview) return;
+    const { intent, dataUrl, filename } = preview;
+    try {
+      setBusy(intent);
+      if (intent === "save") {
+        downloadDataUrl(dataUrl, filename);
         flash("Image saved");
-      } catch (e) {
-        console.error("[useShareCard] save failed", e);
-        flash("Couldn't save");
-        notifyError(e, "Couldn't save image", () => {
-          void save(node, backgroundColor);
-        });
-      } finally {
-        setBusy(null);
+        setPreview(null);
+        return;
       }
-    },
-    [renderToPng],
-  );
+      // intent === "share"
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], filename, { type: "image/png" });
+      const nav = navigator as Navigator & {
+        canShare?: (data: ShareData) => boolean;
+      };
+      if (nav.canShare && nav.canShare({ files: [file] })) {
+        await nav.share({ files: [file], title: "Moonseed" });
+        flash("Shared");
+      } else {
+        downloadDataUrl(dataUrl, filename);
+        flash("Saved (sharing not supported)");
+        sonner.info("Sharing isn't supported here", {
+          description:
+            "We saved the image instead so you can share it manually.",
+          duration: 5000,
+        });
+      }
+      setPreview(null);
+    } catch (e) {
+      // User dismissing the native share sheet is not an error — keep
+      // the preview open so they can try again or save instead.
+      if ((e as { name?: string })?.name === "AbortError") return;
+      console.error("[useShareCard] confirm failed", e);
+      flash(intent === "share" ? "Couldn't share" : "Couldn't save");
+      notifyError(
+        e,
+        intent === "share" ? "Couldn't share" : "Couldn't save image",
+        () => {
+          void confirm();
+        },
+      );
+    } finally {
+      setBusy(null);
+    }
+  }, [preview]);
 
-  return { busy, toast, share, save };
+  const cancelPreview = useCallback(() => setPreview(null), []);
+
+  return { busy, toast, preview, prepare, confirm, cancelPreview };
 }
