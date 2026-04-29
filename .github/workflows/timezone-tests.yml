@@ -1023,6 +1023,12 @@ jobs:
               REASON="concurrent fast-forward by another writer (baseline still reachable, pushed SHA isn't)"
             fi
 
+            # Build the copy-paste command BEFORE the annotations so
+            # the ::error:: line can include it (annotations render
+            # at the top of the run page; surfacing the rerun command
+            # there saves a click).
+            RERUN_CMD="gh workflow run timezone-tests.yml -f snapshot_scope=${{ inputs.snapshot_scope }} -f update_snapshots=true -f confirm=UPDATE"
+
             # Emit Actions UI annotations with clearly labeled,
             # all-caps failure-mode tags so the run page shows e.g.
             #   ❌ [FORCE_PUSH] update-snapshots: branch '...' rewritten
@@ -1058,13 +1064,6 @@ jobs:
             echo "  Common ancestor SHA    : ${MERGE_BASE_SHA:-<none — disjoint>}"
             echo "  Failure mode           : $REASON"
             echo ""
-            # Build the single-line, copy-pastable re-dispatch command
-            # ONCE so both failure branches (force-push + concurrent
-            # fast-forward) and the GITHUB_STEP_SUMMARY all show the
-            # exact same string. No backslash continuations — the
-            # whole thing fits on one line so it survives copying out
-            # of the Actions log without losing line breaks.
-            RERUN_CMD="gh workflow run timezone-tests.yml -f snapshot_scope=${{ inputs.snapshot_scope }} -f update_snapshots=true -f confirm=UPDATE"
             echo "════════════════════════════════════════════════════════════"
             echo "  📋 COPY-PASTE RE-DISPATCH COMMAND"
             echo "════════════════════════════════════════════════════════════"
