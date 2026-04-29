@@ -42,6 +42,7 @@ import {
   createAdminBackup,
   getBackupDownloadUrl,
   listAdminUsers,
+  previewDetectWeavesAdmin,
   restoreAdminBackup,
   runDetectWeavesAdmin,
 } from "@/lib/admin.functions";
