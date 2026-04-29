@@ -421,7 +421,10 @@ afterAll(() => {
       generatedAt: new Date().toISOString(),
       seed: process.env.FC_SEED ?? null,
       summary: { total, passed, failed },
-      invariants: Array.from(coverage.values()),
+      invariants: Array.from(coverage.values()).map((r) => ({
+        ...r,
+        missedZones: missedZonesFor(r),
+      })),
     };
     writeFileSync(
       "/tmp/timezone-property-coverage.json",
