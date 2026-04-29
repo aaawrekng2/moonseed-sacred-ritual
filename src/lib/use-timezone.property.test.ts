@@ -75,7 +75,8 @@ describe("getDayInTz / getDayOffsetInTz — property-based invariants", () => {
         const b = getTodayInTz(tz, bInstant);
         const ab = getDayOffsetInTz(a, b, tz);
         const ba = getDayOffsetInTz(b, a, tz);
-        expect(ab).toBe(-ba);
+        // Normalize -0 → 0 so toBe (Object.is) treats them equal.
+        expect(ab + 0).toBe(-ba + 0);
       }),
       { numRuns: 500 },
     );
