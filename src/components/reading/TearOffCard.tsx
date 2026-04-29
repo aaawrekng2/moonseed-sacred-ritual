@@ -268,7 +268,7 @@ export function TearOffCard({
               letterSpacing: "0.06em",
             }}
           >
-            {isOracle ? "A keepsake to carry" : "Tear-off card"}
+            {isOracle ? "A keepsake to carry" : "Share"}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
             Save this reading as an image or PDF.
@@ -947,6 +947,15 @@ const CardArtwork = ({
           }}
         >
           <span>moon · {moonPhase}</span>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            textAlign: "center",
+          }}
+        >
+          <span style={{ letterSpacing: "0.18em" }}>moonseed.com</span>
         </div>
       </div>
     </div>

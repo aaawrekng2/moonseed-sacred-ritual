@@ -15,6 +15,7 @@ import {
   type EnrichmentTag,
 } from "@/components/journal/EnrichmentPanel";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
+import { TearOffCard } from "@/components/reading/TearOffCard";
 
 export const Route = createFileRoute("/journal")({
   head: () => ({
@@ -1291,6 +1292,16 @@ function ReadingDetail({
   const positions = isValidSpreadMode(reading.spread_type)
     ? SPREAD_META[reading.spread_type as SpreadMode].positions
     : undefined;
+  const [shareOpen, setShareOpen] = useState(false);
+  const spreadModeForShare: SpreadMode = isValidSpreadMode(reading.spread_type)
+    ? (reading.spread_type as SpreadMode)
+    : "single";
+  const sharePicks = reading.card_ids.map((id, idx) => ({
+    id: idx,
+    cardIndex: id,
+  }));
+  const sharePositions =
+    positions ?? reading.card_ids.map((id) => getCardName(id));
 
   // Lock body scroll while the overlay is open.
   useEffect(() => {
@@ -1474,6 +1485,7 @@ function ReadingDetail({
           onTagLibraryChange={onTagLibraryChange}
           onPhotoCountChange={onPhotoCountChange}
           copyText={reading.interpretation ?? undefined}
+          onShare={() => setShareOpen(true)}
         />
 
         {/* Phase 8: surface the Deep Reading mist (or completed lenses) so
@@ -1487,6 +1499,20 @@ function ReadingDetail({
           />
         )}
       </div>
+      <TearOffCard
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        spread={spreadModeForShare}
+        picks={sharePicks}
+        positionLabels={sharePositions}
+        interpretation={{
+          overview: reading.interpretation ?? "",
+          positions: [],
+          closing: "",
+        }}
+        guideName={guide.name}
+        isOracle={isOracle}
+      />
     </div>
   );
 }
