@@ -21,6 +21,10 @@ export function AuthScreen({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  // After a successful sign-up we replace the entire form with a
+  // "check your email" confirmation pane until the seeker chooses to
+  // go back to sign-in. Persists for the lifetime of the modal.
+  const [signupSent, setSignupSent] = useState(false);
 
   const exportLocalReadings = async () => {
     try {
@@ -90,12 +94,9 @@ export function AuthScreen({
         });
         if (signUpError) throw signUpError;
 
-        // Close the modal immediately and surface a toast so the seeker
-        // isn't left staring at an empty form. The toast auto-dismisses.
-        toast.success("Check your email to confirm your account.", {
-          duration: 5000,
-        });
-        onClose();
+        // Replace the form with a confirmation pane so the seeker has
+        // a clear next step instead of an empty card or a fleeting toast.
+        setSignupSent(true);
         return;
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -113,7 +114,7 @@ export function AuthScreen({
               email,
             );
             throw new Error(
-              "Please check your email and confirm your account before signing in.",
+              "Please confirm your email before signing in. Check your inbox.",
             );
           }
           if (msg.includes("invalid login credentials")) {
