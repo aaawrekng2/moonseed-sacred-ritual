@@ -40,6 +40,15 @@ import type { ShareBusyState } from "./useShareCard";
 import { useShareColor } from "./use-share-color";
 import { useLastShareLevel } from "./use-last-share-level";
 import {
+  trackShareCancel,
+  trackShareDownload,
+  trackShareError,
+  trackShareLevelPick,
+  trackShareOpen,
+  trackSharePrepare,
+  trackShareSuccess,
+} from "./share-events";
+import {
   getShareColor,
   type ShareContext,
   type ShareLevel,
@@ -146,8 +155,35 @@ export function ShareBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, defaultLevel, enabledLevels]);
 
+  // Stable, low-cardinality identifier for the screen the share was
+  // launched from. `spread` already encodes single/three/celtic/etc;
+  // we tag oracle separately so dashboards can split that mode out.
+  const contextKind = useMemo(
+    () => (context.isOracle ? `oracle:${context.spread}` : context.spread),
+    [context.isOracle, context.spread],
+  );
+
+  // Fire `share_open` once per dialog open transition.
+  useEffect(() => {
+    if (!open) return;
+    trackShareOpen({
+      context: contextKind,
+      initialLevel,
+      availableLevels: enabledLevels,
+    });
+    // Only re-fire when the dialog actually transitions to open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   // Remember every explicit user level switch (not the auto-resync above).
   const handlePickLevel = (id: ShareLevel) => {
+    if (id !== level) {
+      trackShareLevelPick({
+        context: contextKind,
+        level: id,
+        previousLevel: level,
+      });
+    }
     setLevel(id);
     remember(id);
   };
@@ -178,7 +214,41 @@ export function ShareBuilder({
 
   const captureRef = useRef<HTMLDivElement | null>(null);
   const { busy, toast, preview, prepare, confirm, cancelPreview } =
-    useShareCard();
+    useShareCard({
+      onPrepared: (intent) =>
+        trackSharePrepare({ context: contextKind, level, intent, ok: true }),
+      onPrepareError: (intent, error) =>
+        trackSharePrepare({
+          context: contextKind,
+          level,
+          intent,
+          ok: false,
+          error: errorMessage(error),
+        }),
+      onShareSuccess: () =>
+        trackShareSuccess({ context: contextKind, level }),
+      onShareDownload: (reason) =>
+        trackShareDownload({ context: contextKind, level, reason }),
+      onShareError: (intent, error) =>
+        trackShareError({
+          context: contextKind,
+          level,
+          intent,
+          error: errorMessage(error),
+        }),
+    });
+
+  // Track cancel from the preview modal (user backed out of confirm).
+  const handleCancelPreview = () => {
+    if (preview) {
+      trackShareCancel({
+        context: contextKind,
+        level,
+        intent: preview.intent,
+      });
+    }
+    cancelPreview();
+  };
 
   // Scale 1080x1920 down to fit the dialog preview.
   const PREVIEW_MAX_W = 280;
@@ -583,10 +653,15 @@ export function ShareBuilder({
         preview={preview}
         busy={busy}
         onConfirm={() => void confirm()}
-        onCancel={cancelPreview}
+        onCancel={handleCancelPreview}
       />
     </Dialog>
   );
+}
+
+function errorMessage(e: unknown): string {
+  const err = e as { name?: string; message?: string } | null | undefined;
+  return err?.name || err?.message || "unknown";
 }
 
 /**
