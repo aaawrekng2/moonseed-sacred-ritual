@@ -16,6 +16,19 @@ export type ShareBusyState = null | "share" | "save";
 export type ShareIntent = "share" | "save";
 
 /**
+ * Optional analytics callbacks. The hook stays presentation-only and
+ * delegates "what happened" reporting upward so each call site can tag
+ * the event with its own `context` / `level`.
+ */
+export type ShareCardCallbacks = {
+  onPrepared?: (intent: ShareIntent) => void;
+  onPrepareError?: (intent: ShareIntent, error: unknown) => void;
+  onShareSuccess?: () => void;
+  onShareDownload?: (reason: "user" | "share_unsupported") => void;
+  onShareError?: (intent: ShareIntent, error: unknown) => void;
+};
+
+/**
  * The currently rendered preview waiting for user confirmation.
  * The preview modal in ShareBuilder consumes `dataUrl`; `intent`
  * tells `confirm()` whether to invoke Web Share or download.
@@ -26,7 +39,7 @@ export type SharePreview = {
   filename: string;
 };
 
-export function useShareCard() {
+export function useShareCard(callbacks: ShareCardCallbacks = {}) {
   const [busy, setBusy] = useState<ShareBusyState>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [preview, setPreview] = useState<SharePreview | null>(null);
@@ -149,6 +162,7 @@ export function useShareCard() {
           .toISOString()
           .slice(0, 10)}.png`;
         setPreview({ intent, dataUrl, filename });
+        callbacks.onPrepared?.(intent);
       } catch (e) {
         console.error("[useShareCard] prepare failed", e);
         flash(intent === "share" ? "Couldn't share" : "Couldn't save");
@@ -159,11 +173,12 @@ export function useShareCard() {
             void prepare(node, backgroundColor, intent);
           },
         );
+        callbacks.onPrepareError?.(intent, e);
       } finally {
         setBusy(null);
       }
     },
-    [renderToPng],
+    [renderToPng, callbacks],
   );
 
   /**
@@ -178,6 +193,7 @@ export function useShareCard() {
       if (intent === "save") {
         downloadDataUrl(dataUrl, filename);
         flash("Image saved");
+        callbacks.onShareDownload?.("user");
         setPreview(null);
         return;
       }
@@ -190,6 +206,7 @@ export function useShareCard() {
       if (nav.canShare && nav.canShare({ files: [file] })) {
         await nav.share({ files: [file], title: "Moonseed" });
         flash("Shared");
+        callbacks.onShareSuccess?.();
       } else {
         downloadDataUrl(dataUrl, filename);
         flash("Saved (sharing not supported)");
@@ -198,6 +215,7 @@ export function useShareCard() {
             "We saved the image instead so you can share it manually.",
           duration: 5000,
         });
+        callbacks.onShareDownload?.("share_unsupported");
       }
       setPreview(null);
     } catch (e) {
@@ -213,10 +231,11 @@ export function useShareCard() {
           void confirm();
         },
       );
+      callbacks.onShareError?.(intent, e);
     } finally {
       setBusy(null);
     }
-  }, [preview]);
+  }, [preview, callbacks]);
 
   const cancelPreview = useCallback(() => setPreview(null), []);
 
