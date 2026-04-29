@@ -134,11 +134,16 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
           .in("lifecycle_state", ["emerging", "active", "reawakened"]);
         if (error) {
           console.error("[detect-weaves] load patterns failed", error.message);
-          await recordRun({
+          const failedRunId = await recordRun({
             startedAt,
             status: "error",
             message: `load patterns failed: ${error.message}`,
           });
+          if (failedRunId) {
+            await evaluateDetectWeavesAlerts(failedRunId).catch((err) =>
+              console.error("[detect-weaves alerts] eval failed", err),
+            );
+          }
           return new Response("Internal error", { status: 500 });
         }
         const userCounts = new Map<string, number>();
@@ -170,7 +175,7 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
             });
           }
         }
-        await recordRun({
+        const finishedRunId = await recordRun({
           startedAt,
           status: perUserErrors.length > 0 ? "partial" : "success",
           usersScanned: candidates.length,
@@ -178,6 +183,11 @@ export const Route = createFileRoute("/api/public/detect-weaves")({
           weavesExisting: totalExisting,
           perUserErrors,
         });
+        if (finishedRunId) {
+          await evaluateDetectWeavesAlerts(finishedRunId).catch((err) =>
+            console.error("[detect-weaves alerts] eval failed", err),
+          );
+        }
         return Response.json({
           ok: true,
           users_scanned: candidates.length,
