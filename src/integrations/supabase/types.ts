@@ -478,6 +478,7 @@ export type Database = {
           birth_time: string | null
           card_back: string
           default_life_area: string
+          default_share_color: string
           default_spread: string
           display_name: string | null
           gifted_by: string | null
@@ -487,6 +488,7 @@ export type Database = {
           heading_font_size: number | null
           initial_intention: string | null
           is_premium: boolean
+          last_share_level: string | null
           memory_ai_permission: boolean
           moon_ai_phase: boolean
           moon_ai_sign: boolean
@@ -532,6 +534,7 @@ export type Database = {
           birth_time?: string | null
           card_back?: string
           default_life_area?: string
+          default_share_color?: string
           default_spread?: string
           display_name?: string | null
           gifted_by?: string | null
@@ -541,6 +544,7 @@ export type Database = {
           heading_font_size?: number | null
           initial_intention?: string | null
           is_premium?: boolean
+          last_share_level?: string | null
           memory_ai_permission?: boolean
           moon_ai_phase?: boolean
           moon_ai_sign?: boolean
@@ -586,6 +590,7 @@ export type Database = {
           birth_time?: string | null
           card_back?: string
           default_life_area?: string
+          default_share_color?: string
           default_spread?: string
           display_name?: string | null
           gifted_by?: string | null
@@ -595,6 +600,7 @@ export type Database = {
           heading_font_size?: number | null
           initial_intention?: string | null
           is_premium?: boolean
+          last_share_level?: string | null
           memory_ai_permission?: boolean
           moon_ai_phase?: boolean
           moon_ai_sign?: boolean
