@@ -802,12 +802,8 @@ function formatShortDate(d: Date) {
  * day cards in the carousel. Decorative — pointer-events disabled so it
  * never blocks taps on the underlying day cards.
  */
-function FullMoonMarker({ left, peak }: { left: number; peak: Date }) {
-  const time = peak.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+function FullMoonMarker({ left, peak, timeZone }: { left: number; peak: Date; timeZone: string }) {
+  const time = formatTimeInTz(peak, timeZone);
   return (
     <div
       aria-hidden="true"
