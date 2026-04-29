@@ -288,8 +288,14 @@ export function ShareBuilder({
     dismissError,
   } =
     useShareCard({
-      onPrepared: (intent) =>
-        trackSharePrepare({ context: contextKind, level, intent, ok: true }),
+      onPrepared: (intent, info) =>
+        trackSharePrepare({
+          context: contextKind,
+          level,
+          intent,
+          ok: true,
+          captureMs: info.captureMs,
+        }),
       onPrepareError: (intent, info) => {
         trackSharePrepare({
           context: contextKind,
@@ -298,6 +304,7 @@ export function ShareBuilder({
           ok: false,
           errorName: info.name,
           category: info.category,
+          captureMs: info.captureMs,
         });
         trackShareCaptureFailed({
           context: contextKind,
@@ -305,12 +312,23 @@ export function ShareBuilder({
           intent,
           category: info.category,
           errorName: info.name,
+          captureMs: info.captureMs,
         });
       },
-      onShareSuccess: () =>
-        trackShareSuccess({ context: contextKind, level }),
-      onShareDownload: (reason) =>
-        trackShareDownload({ context: contextKind, level, reason }),
+      onShareSuccess: (info) =>
+        trackShareSuccess({
+          context: contextKind,
+          level,
+          blobMs: info.blobMs,
+          shareMs: info.shareMs,
+        }),
+      onShareDownload: (reason, info) =>
+        trackShareDownload({
+          context: contextKind,
+          level,
+          reason,
+          downloadMs: info.downloadMs,
+        }),
       onShareError: (intent, info) => {
         trackShareError({
           context: contextKind,
@@ -318,6 +336,9 @@ export function ShareBuilder({
           intent,
           errorName: info.name,
           category: info.category,
+          blobMs: info.blobMs,
+          shareMs: info.shareMs,
+          downloadMs: info.downloadMs,
         });
         if (intent === "share") {
           trackShareWebShareFailed({
@@ -325,6 +346,8 @@ export function ShareBuilder({
             level,
             category: info.category,
             errorName: info.name,
+            blobMs: info.blobMs,
+            shareMs: info.shareMs,
           });
         } else {
           trackShareSaveFailed({
@@ -332,6 +355,7 @@ export function ShareBuilder({
             level,
             category: info.category,
             errorName: info.name,
+            downloadMs: info.downloadMs,
           });
         }
       },
