@@ -54,6 +54,7 @@ type ReadingRow = {
   is_deep_reading: boolean;
   deep_reading_lenses: Record<string, string> | null;
   mirror_saved: boolean;
+  pattern_id: string | null;
 };
 
 type TagRow = { id: string; name: string; usage_count: number };
@@ -169,7 +170,7 @@ function JournalPage() {
           supabase
             .from("readings")
             .select(
-              "id,user_id,spread_type,card_ids,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved",
+              "id,user_id,spread_type,card_ids,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id",
             )
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
@@ -679,7 +680,12 @@ function JournalPage() {
             }}
           />
         ) : (
-          <ThreadsView threads={threads} patternsById={patternsById} />
+          <ThreadsView
+            threads={threads}
+            patternsById={patternsById}
+            readings={filtered}
+            onOpenReading={(id) => setOpenId(id)}
+          />
         )}
       </div>
 
@@ -1022,11 +1028,45 @@ function Empty({
 function ThreadsView({
   threads,
   patternsById,
+  readings,
+  onOpenReading,
 }: {
   threads: ThreadRow[];
   patternsById: Record<string, PatternRow>;
+  readings: ReadingRow[];
+  onOpenReading: (id: string) => void;
 }) {
-  if (threads.length === 0) {
+  // Build pattern -> readings map.
+  const readingsByPattern = new Map<string, ReadingRow[]>();
+  const unlinkedReadings: ReadingRow[] = [];
+  for (const r of readings) {
+    if (r.pattern_id && patternsById[r.pattern_id]) {
+      const arr = readingsByPattern.get(r.pattern_id) ?? [];
+      arr.push(r);
+      readingsByPattern.set(r.pattern_id, arr);
+    } else {
+      unlinkedReadings.push(r);
+    }
+  }
+
+  // Lifecycle counts across all known patterns (not just those with readings).
+  const lifecycleCounts: Record<string, number> = {};
+  for (const p of Object.values(patternsById)) {
+    lifecycleCounts[p.lifecycle_state] =
+      (lifecycleCounts[p.lifecycle_state] ?? 0) + 1;
+  }
+  const lifecycleOrder = [
+    "emerging",
+    "active",
+    "reawakened",
+    "quieting",
+    "retired",
+  ];
+  const lifecycleEntries = lifecycleOrder
+    .filter((s) => (lifecycleCounts[s] ?? 0) > 0)
+    .map((s) => [s, lifecycleCounts[s]] as const);
+
+  if (threads.length === 0 && Object.keys(patternsById).length === 0) {
     return (
       <div className="mx-auto mt-16 flex max-w-md flex-col items-center gap-4 px-4 text-center">
         <p
@@ -1070,14 +1110,58 @@ function ThreadsView({
       ungrouped.push(t);
     }
   }
-  const orderedPatternIds = Array.from(grouped.keys()).sort((a, b) =>
-    patternsById[a].name.localeCompare(patternsById[b].name),
-  );
+  // Order patterns: those with readings or threads first, by lifecycle weight then name.
+  const lifecycleWeight: Record<string, number> = {
+    active: 0,
+    reawakened: 1,
+    emerging: 2,
+    quieting: 3,
+    retired: 4,
+  };
+  const allPatternIds = new Set<string>([
+    ...readingsByPattern.keys(),
+    ...grouped.keys(),
+  ]);
+  const orderedPatternIds = Array.from(allPatternIds).sort((a, b) => {
+    const pa = patternsById[a];
+    const pb = patternsById[b];
+    const wa = lifecycleWeight[pa.lifecycle_state] ?? 9;
+    const wb = lifecycleWeight[pb.lifecycle_state] ?? 9;
+    if (wa !== wb) return wa - wb;
+    return pa.name.localeCompare(pb.name);
+  });
 
   return (
     <div className="flex flex-col gap-8">
+      {lifecycleEntries.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {lifecycleEntries.map(([state, count]) => {
+            const op =
+              state === "active"
+                ? 1
+                : state === "reawakened"
+                  ? 0.85
+                  : state === "emerging"
+                    ? 0.6
+                    : state === "quieting"
+                      ? 0.4
+                      : 0.25;
+            return (
+              <span
+                key={state}
+                className="rounded-full border border-gold/30 px-3 py-1 font-display text-[11px] uppercase tracking-[0.2em] text-gold"
+                style={{ opacity: op }}
+              >
+                {state} · {count}
+              </span>
+            );
+          })}
+        </div>
+      )}
       {orderedPatternIds.map((pid) => {
         const p = patternsById[pid];
+        const patternReadings = readingsByPattern.get(pid) ?? [];
+        const patternThreads = grouped.get(pid) ?? [];
         return (
           <section key={pid} className="flex flex-col gap-3">
             <Link
@@ -1099,14 +1183,52 @@ function ThreadsView({
                 className="font-display text-[10px] uppercase tracking-[0.2em]"
                 style={{ opacity: "var(--ro-plus-20)" }}
               >
-                {p.lifecycle_state}
+                {p.lifecycle_state} · {patternReadings.length}{" "}
+                {patternReadings.length === 1 ? "reading" : "readings"}
               </span>
             </Link>
-            <ul className="flex flex-col gap-3">
-              {grouped.get(pid)!.map((t) => (
-                <ThreadCard key={t.id} t={t} />
-              ))}
-            </ul>
+            {patternReadings.length > 0 && (
+              <ul className="flex flex-col gap-1.5">
+                {patternReadings.slice(0, 6).map((r) => (
+                  <li key={r.id}>
+                    <button
+                      type="button"
+                      onClick={() => onOpenReading(r.id)}
+                      className="flex w-full items-baseline justify-between gap-3 rounded-md px-2 py-1 text-left hover:bg-gold/5 focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/40"
+                    >
+                      <span
+                        className="font-display italic text-foreground/85 truncate"
+                        style={{ fontSize: "var(--text-body-sm)" }}
+                      >
+                        {spreadLabel(r.spread_type)}
+                        {r.note ? ` — ${r.note.slice(0, 60)}` : ""}
+                      </span>
+                      <span
+                        className="font-display text-[11px] italic text-muted-foreground shrink-0"
+                        style={{ opacity: "var(--ro-plus-20)" }}
+                      >
+                        {relativeTime(r.created_at)}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+                {patternReadings.length > 6 && (
+                  <li
+                    className="px-2 font-display text-[11px] italic text-muted-foreground"
+                    style={{ opacity: "var(--ro-plus-20)" }}
+                  >
+                    + {patternReadings.length - 6} more
+                  </li>
+                )}
+              </ul>
+            )}
+            {patternThreads.length > 0 && (
+              <ul className="flex flex-col gap-3">
+                {patternThreads.map((t) => (
+                  <ThreadCard key={t.id} t={t} />
+                ))}
+              </ul>
+            )}
           </section>
         );
       })}
@@ -1130,6 +1252,16 @@ function ThreadsView({
             ))}
           </ul>
         </section>
+      )}
+      {unlinkedReadings.length > 0 && orderedPatternIds.length > 0 && (
+        <p
+          className="font-display text-[11px] italic text-muted-foreground"
+          style={{ opacity: "var(--ro-plus-10)" }}
+        >
+          {unlinkedReadings.length} reading
+          {unlinkedReadings.length === 1 ? "" : "s"} not yet woven into a
+          pattern.
+        </p>
       )}
     </div>
   );
