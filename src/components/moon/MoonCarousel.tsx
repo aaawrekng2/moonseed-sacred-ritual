@@ -391,12 +391,10 @@ export function MoonCarousel() {
     // currently viewing (or closest to). This keeps left/right ladder
     // taps symmetric: pressing right then left should always return to
     // the previous occurrence, regardless of how the cursor was last set.
-    const dayMs = 24 * 60 * 60 * 1000;
-    const viewedMs = viewedDate.getTime();
     // Index of the occurrence on (or nearest to) the viewed day.
     let currentIdx = -1;
     for (let i = 0; i < list.length; i++) {
-      if (Math.abs(list[i].getTime() - viewedMs) < dayMs / 2) {
+      if (getDayOffsetInTz(list[i], viewedDate, effectiveTz) === 0) {
         currentIdx = i;
         break;
       }
@@ -407,7 +405,7 @@ export function MoonCarousel() {
       if (currentIdx >= 0) {
         nextIdx = (currentIdx + 1) % list.length;
       } else {
-        const found = list.findIndex((d) => d.getTime() > viewedMs);
+        const found = list.findIndex((d) => getDayOffsetInTz(d, viewedDate, effectiveTz) > 0);
         nextIdx = found === -1 ? 0 : found;
       }
     } else {
@@ -417,7 +415,7 @@ export function MoonCarousel() {
         // Last occurrence strictly before the viewed day.
         let found = -1;
         for (let i = list.length - 1; i >= 0; i--) {
-          if (list[i].getTime() < viewedMs) {
+          if (getDayOffsetInTz(list[i], viewedDate, effectiveTz) < 0) {
             found = i;
             break;
           }
@@ -430,7 +428,7 @@ export function MoonCarousel() {
     const targetDate = list[nextIdx];
     if (!targetDate) return;
     // Convert target absolute date back into an offset relative to today.
-    const deltaFromToday = Math.round((targetDate.getTime() - today.getTime()) / dayMs);
+    const deltaFromToday = getDayOffsetInTz(targetDate, today, effectiveTz);
     setEnterDir(deltaFromToday >= offset ? "right" : "left");
     tweenOffsetTo(deltaFromToday);
   };
