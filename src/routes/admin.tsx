@@ -43,6 +43,7 @@ import {
   getBackupDownloadUrl,
   listAdminUsers,
   restoreAdminBackup,
+  runDetectWeavesAdmin,
 } from "@/lib/admin.functions";
 import { setDevMode } from "@/components/dev/DevOverlay";
 
