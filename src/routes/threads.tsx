@@ -192,11 +192,11 @@ function ThreadsPage() {
         {loading ? (
           <p style={{ opacity: 0.5, fontStyle: "italic" }}>Listening for threads…</p>
         ) : view === "active" ? (
-          <ActiveView patterns={active} />
+          <ActiveView patterns={active} readingsByPattern={readingsByPattern} />
         ) : view === "weaves" ? (
           <WeavesView patterns={active} userId={user?.id} />
         ) : (
-          <ArchiveView patterns={archived} />
+          <ArchiveView patterns={archived} readingsByPattern={readingsByPattern} />
         )}
       </main>
 
