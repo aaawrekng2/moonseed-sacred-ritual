@@ -395,9 +395,12 @@ export function ShareBuilder({
           {/* Live preview */}
           <div
             style={{
-              padding: "var(--space-3) var(--space-5)",
+              padding: "var(--space-3) var(--space-5) var(--space-2)",
               display: "flex",
               justifyContent: "center",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "var(--space-2)",
             }}
           >
             <div
@@ -424,6 +427,14 @@ export function ShareBuilder({
                 <div aria-hidden>{renderLevel()}</div>
               </div>
             </div>
+            <PreviewCaption
+              level={level}
+              context={context}
+              includeQuestion={includeQuestion}
+              includeInterpretation={includeInterpretation}
+              positionIndex={localPositionIndex}
+              lensLabel={extras?.lens?.label}
+            />
           </div>
 
           {/*
@@ -884,5 +895,65 @@ function PlainAction({
     >
       {label}
     </button>
+  );
+}
+
+/**
+ * Tiny caption beneath the preview that describes — in plain words —
+ * exactly which optional elements will land on the captured PNG, so
+ * the seeker can confirm before sharing.
+ */
+function PreviewCaption({
+  level,
+  context,
+  includeQuestion,
+  includeInterpretation,
+  positionIndex,
+  lensLabel,
+}: {
+  level: ShareLevel;
+  context: ShareContext;
+  includeQuestion: boolean;
+  includeInterpretation: boolean;
+  positionIndex: number;
+  lensLabel?: string;
+}) {
+  const hasQuestion = !!context.question?.trim();
+  const parts: string[] = [];
+
+  if (level === "pull") {
+    parts.push("Card");
+    if (hasQuestion) parts.push(includeQuestion ? "question" : "no question");
+  } else if (level === "reading") {
+    parts.push("Full reading");
+    if (hasQuestion) parts.push(includeQuestion ? "question" : "no question");
+    parts.push(includeInterpretation ? "interpretation" : "no interpretation");
+  } else if (level === "position") {
+    const label = context.positionLabels[positionIndex];
+    parts.push(label ? `Position · ${label}` : "Position");
+  } else if (level === "lens") {
+    parts.push(lensLabel ? `Lens · ${lensLabel}` : "Lens");
+  } else if (level === "artifact") {
+    parts.push("Mirror artifact");
+  }
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        fontFamily: "var(--font-sans)",
+        fontSize: "var(--text-caption)",
+        letterSpacing: "0.18em",
+        textTransform: "uppercase",
+        color: "var(--color-foreground)",
+        opacity: 0.6,
+        textAlign: "center",
+        lineHeight: 1.5,
+        maxWidth: 280,
+      }}
+    >
+      Will include: {parts.join(" · ")}
+    </div>
   );
 }
