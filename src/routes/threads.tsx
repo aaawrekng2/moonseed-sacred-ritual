@@ -5,10 +5,7 @@ import { useAuth } from "@/lib/auth";
 import {
   type Pattern,
   type Weave,
-  lifecycleLabel,
   lifecycleOpacity,
-  formatMonthSince,
-  formatDateSpan,
 } from "@/lib/patterns";
 import { firstCardName, formatRelativeTime } from "@/lib/utils";
 import { BottomNav } from "@/components/nav/BottomNav";
