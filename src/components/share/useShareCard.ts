@@ -88,16 +88,41 @@ export type ShareError = {
  * the event with its own `context` / `level`.
  */
 export type ShareCardCallbacks = {
-  onPrepared?: (intent: ShareIntent) => void;
+  onPrepared?: (
+    intent: ShareIntent,
+    info: { captureMs: number },
+  ) => void;
   onPrepareError?: (
     intent: ShareIntent,
-    info: { error: unknown; category: ShareErrorCategory; name: string },
+    info: {
+      error: unknown;
+      category: ShareErrorCategory;
+      name: string;
+      /** ms spent in html-to-image before it threw */
+      captureMs: number;
+    },
   ) => void;
-  onShareSuccess?: () => void;
-  onShareDownload?: (reason: "user" | "share_unsupported") => void;
+  onShareSuccess?: (info: {
+    /** time fetching the dataURL into a Blob/File */
+    blobMs: number;
+    /** time spent in navigator.share() */
+    shareMs: number;
+  }) => void;
+  onShareDownload?: (
+    reason: "user" | "share_unsupported",
+    info: { downloadMs: number },
+  ) => void;
   onShareError?: (
     intent: ShareIntent,
-    info: { error: unknown; category: ShareErrorCategory; name: string },
+    info: {
+      error: unknown;
+      category: ShareErrorCategory;
+      name: string;
+      /** Whichever leg of confirm was running when it threw. */
+      blobMs?: number;
+      shareMs?: number;
+      downloadMs?: number;
+    },
   ) => void;
   /**
    * Fired the moment a user taps Retry — *before* the retried
