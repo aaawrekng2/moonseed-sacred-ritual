@@ -22,7 +22,12 @@ import {
 } from "@/lib/deep-reading.functions";
 import { DeepReadingMist } from "./DeepReadingMist";
 import { stripMarkdown } from "@/lib/strip-markdown";
-import { ShareButton } from "@/components/share/ShareButton";
+import { Share2 } from "lucide-react";
+import { ShareBuilder, type ShareBuilderExtras } from "@/components/share/ShareBuilder";
+import type { ShareContext, ShareLevel } from "@/components/share/share-types";
+import type { DeepLensSelection } from "@/components/share/levels/Level4DeepLens";
+import { isValidSpreadMode, SPREAD_META, type SpreadMode } from "@/lib/spreads";
+import { getGuideById } from "@/lib/guides";
 import { publishMistLevel } from "@/components/dev/DevOverlay";
 
 type Props = {
