@@ -176,7 +176,8 @@ export function ShareBuilder({
   }, [level, context.question]);
 
   const captureRef = useRef<HTMLDivElement | null>(null);
-  const { busy, toast, share, save } = useShareCard();
+  const { busy, toast, preview, prepare, confirm, cancelPreview } =
+    useShareCard();
 
   // Scale 1080x1920 down to fit the dialog preview.
   const PREVIEW_MAX_W = 280;
@@ -237,12 +238,18 @@ export function ShareBuilder({
 
   const handleShare = () => {
     if (!captureRef.current) return;
-    void share(captureRef.current, captureBackground);
+    void prepare(captureRef.current, captureBackground, "share");
   };
   const handleSave = () => {
     if (!captureRef.current) return;
-    void save(captureRef.current, captureBackground);
+    void prepare(captureRef.current, captureBackground, "save");
   };
+
+  // Close the entire builder when the user dismisses the dialog so a
+  // stale preview doesn't outlive its source reading.
+  useEffect(() => {
+    if (!open && preview) cancelPreview();
+  }, [open, preview, cancelPreview]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
