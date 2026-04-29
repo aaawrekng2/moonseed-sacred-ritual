@@ -35,10 +35,6 @@ export function Level1SinglePull({
             opacity: 0.92,
             maxWidth: 860,
             margin: "0 auto",
-            display: "-webkit-box",
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
           }}
         >
           “{ctx.question!.trim()}”

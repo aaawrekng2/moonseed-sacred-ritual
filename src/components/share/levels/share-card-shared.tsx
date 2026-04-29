@@ -46,7 +46,7 @@ export function ShareCardFrame({
           inset: 0,
           display: "flex",
           flexDirection: "column",
-          padding: "80px 72px 70px",
+          padding: "160px 80px 100px",
           gap: 40,
         }}
       >
@@ -55,7 +55,7 @@ export function ShareCardFrame({
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            justifyContent: "space-around",
+            justifyContent: "flex-start",
             gap: 40,
           }}
         >
@@ -169,7 +169,7 @@ export function ShareCardRow({
  * Trim the interpretation overview to its first ~2-3 sentences so the
  * snippet shown in Level 2 stays readable on a Story canvas.
  */
-export function snippetFromOverview(overview: string, maxChars = 160): string {
+export function snippetFromOverview(overview: string, maxChars = 200): string {
   const trimmed = (overview ?? "").trim();
   if (!trimmed) return "";
   // First pass: take first 2-3 sentences.
