@@ -10,7 +10,15 @@ import {
 import { MoonPhaseIcon } from "./MoonPhaseIcon";
 import { cn } from "@/lib/utils";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
-import { useTimezone, getDatePartsInTz, getYmdInTz, formatTimeInTz } from "@/lib/use-timezone";
+import {
+  useTimezone,
+  getDatePartsInTz,
+  getYmdInTz,
+  formatTimeInTz,
+  getDayOffsetInTz,
+  getDayInTz,
+  getTodayInTz,
+} from "@/lib/use-timezone";
 
 // Moonseed-native accent resolver — reads --gold from active CSS theme.
 function useMoonseedAccent(): string {
@@ -85,15 +93,12 @@ export function MoonCarousel() {
     return () => cancelAnimationFrame(t);
   }, []);
 
-  const today = useMemo(() => {
-    const now = new Date();
-    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 12, 0, 0, 0));
-  }, []);
+  const today = useMemo(() => getTodayInTz(effectiveTz), [effectiveTz]);
 
   // Currently-viewed center date — used so phase jumps anchor on what the
   // user is looking at, not on real-world today.
   const viewedDate = useMemo(() => {
-    return new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + offset, 12, 0, 0, 0));
+    return getDayInTz(today, offset);
   }, [today, offset]);
 
   // Mobile shows a 3-day window (-1, 0, +1); desktop shows 5 (-2..+2).
