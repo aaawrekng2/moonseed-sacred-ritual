@@ -686,8 +686,10 @@ export function ShareBuilder({
             )}
             {prepareError && (
               <InlineErrorBanner
+                stepLabel="Image capture failed"
                 title={prepareError.title}
                 description={prepareError.description}
+                nextAction={prepareError.nextAction}
                 busy={busy !== null}
                 onRetry={prepareError.retry}
                 onDismiss={dismissError}
