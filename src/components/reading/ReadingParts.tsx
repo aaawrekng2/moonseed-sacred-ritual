@@ -37,6 +37,7 @@ import {
 } from "@/components/journal/EnrichmentPanel";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
+import type { ShareLevel } from "@/components/share/share-types";
 
 type Pick = { id: number; cardIndex: number };
 
