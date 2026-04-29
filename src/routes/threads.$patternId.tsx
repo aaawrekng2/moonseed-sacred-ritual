@@ -628,6 +628,11 @@ function ChamberWeaveGraph({
     const angle = (i / Math.max(siblingList.length, 1)) * Math.PI * 2 - Math.PI / 2;
     const x = CENTER_X + Math.cos(angle) * SIBLING_RADIUS - 70;
     const y = CENTER_Y + Math.sin(angle) * SIBLING_RADIUS - 18;
+    const isActive = activeId === s.id;
+    const dim = hasActive && !isActive;
+    const baseOp = lifecycleOpacity(
+      s.lifecycle_state as Pattern["lifecycle_state"],
+    );
     nodes.push({
       id: `p:${s.id}`,
       position: { x, y },
@@ -635,8 +640,12 @@ function ChamberWeaveGraph({
       draggable: false,
       style: {
         width: 140,
-        background: "rgba(212,175,90,0.06)",
-        border: "1px solid rgba(212,175,90,0.4)",
+        background: isActive
+          ? "rgba(212,175,90,0.22)"
+          : "rgba(212,175,90,0.06)",
+        border: isActive
+          ? "1px solid rgba(212,175,90,0.95)"
+          : "1px solid rgba(212,175,90,0.4)",
         color: "var(--color-foreground)",
         fontFamily: "var(--font-serif)",
         fontStyle: "italic",
@@ -644,10 +653,11 @@ function ChamberWeaveGraph({
         borderRadius: 999,
         padding: "8px 12px",
         textAlign: "center",
-        opacity: lifecycleOpacity(
-          s.lifecycle_state as Pattern["lifecycle_state"],
-        ),
+        opacity: dim ? baseOp * 0.3 : baseOp,
         cursor: "pointer",
+        boxShadow: isActive ? "0 0 14px rgba(212,175,90,0.55)" : "none",
+        transition:
+          "opacity 180ms ease, background 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
       },
     });
   });
