@@ -979,14 +979,18 @@ function PlainAction({
  * this banner persists until they retry or dismiss it.
  */
 function InlineErrorBanner({
+  stepLabel,
   title,
   description,
+  nextAction,
   busy,
   onRetry,
   onDismiss,
 }: {
+  stepLabel: string;
   title: string;
   description: string;
+  nextAction: string;
   busy: boolean;
   onRetry: () => void;
   onDismiss: () => void;
@@ -1008,6 +1012,19 @@ function InlineErrorBanner({
         <div
           style={{
             fontFamily: "var(--font-sans)",
+            fontSize: 10,
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            color: "var(--destructive, #b94a4a)",
+            opacity: 0.9,
+            marginBottom: 4,
+          }}
+        >
+          {stepLabel}
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-sans)",
             fontSize: "var(--text-caption)",
             letterSpacing: "0.16em",
             textTransform: "uppercase",
@@ -1025,9 +1042,21 @@ function InlineErrorBanner({
             color: "var(--color-foreground)",
             opacity: 0.75,
             lineHeight: 1.45,
+            marginBottom: 6,
           }}
         >
           {description}
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-sans)",
+            fontSize: "var(--text-caption)",
+            color: "var(--accent)",
+            opacity: 0.9,
+            lineHeight: 1.45,
+          }}
+        >
+          → {nextAction}
         </div>
       </div>
       <div
