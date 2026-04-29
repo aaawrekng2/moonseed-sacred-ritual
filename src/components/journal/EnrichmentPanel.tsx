@@ -524,8 +524,20 @@ export function EnrichmentPanel({
         }}
       />
 
-      {/* Action row — icons always horizontally centered */}
-      <div className="flex items-center justify-center gap-3">
+      {/* Action row — sticky just above the bottom nav so it stays
+          accessible while the seeker scrolls through the spread above. */}
+      <div
+        style={{
+          position: "sticky",
+          bottom: "calc(var(--bottom-nav-height, 64px) + var(--space-2))",
+          zIndex: 30,
+          background:
+            "linear-gradient(180deg, transparent 0%, var(--color-background, #06060c) 60%)",
+          paddingTop: "var(--space-4)",
+          paddingBottom: "var(--space-2)",
+        }}
+        className="flex items-center justify-center gap-3"
+      >
         <div className="flex items-center justify-center gap-5">
           <IconAction
             label={favorite ? "Unfavorite" : "Favorite"}
