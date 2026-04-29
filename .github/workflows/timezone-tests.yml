@@ -745,18 +745,25 @@ jobs:
           BRANCH: ci/refresh-snapshots-${{ inputs.snapshot_scope }}
         run: |
           set -euo pipefail
+          REF="refs/heads/$BRANCH"
           # `ls-remote` returns "<sha>\t<ref>" or empty if the branch
           # doesn't exist yet. Empty is fine — that's the "first run
           # for this scope" case and there's nothing to race against.
-          REMOTE_LINE="$(git ls-remote origin "refs/heads/$BRANCH" || true)"
+          REMOTE_LINE="$(git ls-remote origin "$REF" || true)"
+          echo "─── atomic guard: baseline capture ───"
+          echo "  Branch (short)  : $BRANCH"
+          echo "  Full remote ref : $REF"
+          echo "  ls-remote raw   : ${REMOTE_LINE:-<empty: branch does not exist>}"
           if [ -z "$REMOTE_LINE" ]; then
             BASELINE_SHA=""
-            echo "No existing remote branch '$BRANCH' — first refresh for this scope."
+            echo "  Baseline SHA    : <none> (first refresh for this scope)"
           else
             BASELINE_SHA="$(echo "$REMOTE_LINE" | awk '{print $1}')"
-            echo "Existing remote branch '$BRANCH' is at $BASELINE_SHA"
+            echo "  Baseline SHA    : $BASELINE_SHA"
           fi
-          echo "branch=$BRANCH"           >> "$GITHUB_OUTPUT"
+          echo "──────────────────────────────────────"
+          echo "branch=$BRANCH"             >> "$GITHUB_OUTPUT"
+          echo "ref=$REF"                   >> "$GITHUB_OUTPUT"
           echo "baseline_sha=$BASELINE_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Open pull request with refreshed snapshots
@@ -817,47 +824,67 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         env:
           BRANCH: ${{ steps.branch_baseline.outputs.branch }}
+          REF: ${{ steps.branch_baseline.outputs.ref }}
+          BASELINE_SHA: ${{ steps.branch_baseline.outputs.baseline_sha }}
           PUSHED_SHA: ${{ steps.cpr.outputs.pull-request-head-sha }}
           OPERATION: ${{ steps.cpr.outputs.pull-request-operation }}
         run: |
           set -euo pipefail
+          echo "─── atomic guard: fast tip check ───"
+          echo "  Branch (short)  : $BRANCH"
+          echo "  Full remote ref : $REF"
+          echo "  Baseline SHA    : ${BASELINE_SHA:-<none>}"
+          echo "  Pushed SHA      : ${PUSHED_SHA:-<none>}"
+          echo "  CPR operation   : ${OPERATION:-<none>}"
 
           # `none` means create-pull-request decided there was nothing
           # to push (e.g. the remote already had identical content).
           # That's not a race — it's a no-op — so skip the check.
           if [ "${OPERATION:-}" = "none" ]; then
-            echo "create-pull-request reported operation=none; nothing was pushed, no tip check needed."
+            echo "  Result          : SKIP (operation=none, nothing pushed)"
+            echo "────────────────────────────────────"
             exit 0
           fi
 
           if [ -z "${PUSHED_SHA:-}" ]; then
             echo "::warning::create-pull-request did not report a head SHA (operation='${OPERATION:-}'); skipping fast tip check."
+            echo "  Result          : SKIP (no pushed SHA reported)"
+            echo "────────────────────────────────────"
             exit 0
           fi
 
           # Re-query the remote tip RIGHT NOW. No fetch — `ls-remote`
           # talks directly to the server, so we see the authoritative
           # current value, not a cached local ref.
-          REMOTE_LINE="$(git ls-remote origin "refs/heads/$BRANCH" || true)"
+          REMOTE_LINE="$(git ls-remote origin "$REF" || true)"
+          echo "  ls-remote raw   : ${REMOTE_LINE:-<empty>}"
           if [ -z "$REMOTE_LINE" ]; then
             echo "::error::Refresh branch '$BRANCH' disappeared from the remote immediately after we pushed it. Something deleted the branch concurrently — aborting."
+            echo "  Result          : FAIL (branch deleted post-push)"
+            echo "────────────────────────────────────"
             exit 1
           fi
           CURRENT_TIP="$(echo "$REMOTE_LINE" | awk '{print $1}')"
+          echo "  Current tip SHA : $CURRENT_TIP"
 
           if [ "$CURRENT_TIP" != "$PUSHED_SHA" ]; then
             echo "::error::Refresh branch '$BRANCH' was updated by another writer between our push and this check."
-            echo "  We pushed     : $PUSHED_SHA"
-            echo "  Remote tip now: $CURRENT_TIP"
+            echo "  Full remote ref : $REF"
+            echo "  Baseline SHA    : ${BASELINE_SHA:-<none>}"
+            echo "  We pushed       : $PUSHED_SHA"
+            echo "  Remote tip now  : $CURRENT_TIP"
             echo ""
             echo "Another concurrent refresh, a manual push, or a GitHub UI"
             echo "edit advanced the branch out from under this run. Failing"
             echo "fast so the resulting PR isn't mistaken for one that"
             echo "contains the snapshots this run produced. Re-dispatch the"
             echo "workflow to retry on top of the new tip."
+            echo "  Result          : FAIL (tip advanced post-push)"
+            echo "────────────────────────────────────"
             exit 1
           fi
-          echo "Tip check OK: remote '$BRANCH' still at $PUSHED_SHA (operation=$OPERATION)."
+          echo "  Result          : OK (remote tip == pushed SHA)"
+          echo "────────────────────────────────────"
 
       # Post-push atomicity check.
       #
@@ -873,19 +900,35 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         env:
           BRANCH: ${{ steps.branch_baseline.outputs.branch }}
+          REF: ${{ steps.branch_baseline.outputs.ref }}
           BASELINE_SHA: ${{ steps.branch_baseline.outputs.baseline_sha }}
           PUSHED_SHA: ${{ steps.cpr.outputs.pull-request-head-sha }}
         run: |
           set -euo pipefail
+          echo "─── atomic guard: ancestry check ───"
+          echo "  Branch (short)  : $BRANCH"
+          echo "  Full remote ref : $REF"
+          echo "  Baseline SHA    : ${BASELINE_SHA:-<none>}"
+          echo "  Pushed SHA      : ${PUSHED_SHA:-<none>}"
+
           # No prior branch → nothing could have raced.
           if [ -z "$BASELINE_SHA" ]; then
-            echo "No baseline SHA recorded; nothing to verify."
+            echo "  Result          : SKIP (no baseline — first refresh)"
+            echo "────────────────────────────────────"
             exit 0
           fi
           if [ -z "${PUSHED_SHA:-}" ]; then
             echo "::warning::create-pull-request did not report a head SHA; skipping atomicity check."
+            echo "  Result          : SKIP (no pushed SHA reported)"
+            echo "────────────────────────────────────"
             exit 0
           fi
+
+          # Also surface the CURRENT remote tip at this stage so the
+          # log captures all three SHAs side-by-side for debugging.
+          CURRENT_LINE="$(git ls-remote origin "$REF" || true)"
+          CURRENT_TIP="$(echo "$CURRENT_LINE" | awk '{print $1}')"
+          echo "  Current tip SHA : ${CURRENT_TIP:-<none>}"
 
           # Make sure we have both SHAs locally so `merge-base` works.
           git fetch --no-tags --depth=50 origin "$BRANCH" || true
@@ -896,13 +939,18 @@ jobs:
           # branch tip moved sideways under us — bail.
           if ! git merge-base --is-ancestor "$BASELINE_SHA" "$PUSHED_SHA"; then
             echo "::error::Refresh branch '$BRANCH' was modified concurrently."
-            echo "  Baseline (pre-run) tip: $BASELINE_SHA"
-            echo "  Pushed head:            $PUSHED_SHA"
+            echo "  Full remote ref        : $REF"
+            echo "  Baseline (pre-run) tip : $BASELINE_SHA"
+            echo "  Pushed head            : $PUSHED_SHA"
+            echo "  Current remote tip     : ${CURRENT_TIP:-<none>}"
             echo ""
             echo "Another run (or a manual push) updated this branch between when this job started and when it tried to push. Re-run this workflow to rebase on the new tip, or reconcile the branches manually."
+            echo "  Result                 : FAIL (pushed SHA does not descend from baseline)"
+            echo "────────────────────────────────────"
             exit 1
           fi
-          echo "Atomicity check passed: $PUSHED_SHA descends from baseline $BASELINE_SHA."
+          echo "  Result          : OK ($PUSHED_SHA descends from $BASELINE_SHA)"
+          echo "────────────────────────────────────"
 
       # If GitHub cancels this run because a newer dispatch claimed
       # the same concurrency group, the cancellation fires mid-flight
