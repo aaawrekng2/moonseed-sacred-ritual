@@ -780,6 +780,18 @@ jobs:
             - Base branch: `${{ inputs.base_branch }}`
             - Snapshot scope: `${{ inputs.snapshot_scope }}`
 
+            ### Provenance
+
+            - **Run ID:** `${{ github.run_id }}` (attempt `${{ github.run_attempt }}`)
+            - **Run number:** `#${{ github.run_number }}`
+            - **Commit:** `${{ github.sha }}`
+            - **Concurrency group:** `update-snapshots-${{ github.repository }}-${{ inputs.snapshot_scope }}`
+            - **cancel-in-progress:** `true` — newer dispatches for the same
+              scope cancel older runs, so this PR reflects the most recent
+              `UPDATE` request for `${{ inputs.snapshot_scope }}`. If you
+              see a more recent run on the Actions tab in the same group,
+              this PR may have been superseded — check before merging.
+
             ⚠️ **Review carefully.** Snapshot changes encode the expected
             output of `getYmdInTz` / `getDayInTz` for fixed instants and
             zones. A diff here means the timezone helpers' behavior has
