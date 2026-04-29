@@ -699,8 +699,10 @@ export function MoonCarousel() {
 
       {/* Return-to-today affordance. The previous "Swipe to browse"
           hint that appeared at offset === 0 has been removed —
-          seekers don't need a persistent instructional tagline. */}
-      <div className="-mt-2 flex h-5 w-full items-center justify-center">
+          seekers don't need a persistent instructional tagline.
+          Elevated z-index so it's never covered by the full-moon
+          peak marker or other absolutely-positioned card overlays. */}
+      <div className="relative z-30 mt-2 flex h-6 w-full items-center justify-center">
         {offset !== 0 && (
           <button
             type="button"
