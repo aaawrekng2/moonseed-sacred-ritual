@@ -1,5 +1,5 @@
 /**
- * Dev overlay (vG).
+ * Dev overlay (vV).
  *
  * A small pill in the top-left corner that surfaces three live signals:
  *   - the current app version letter (hardcoded per build)
