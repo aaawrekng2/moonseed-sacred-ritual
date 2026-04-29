@@ -1135,23 +1135,42 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
             letterSpacing: "0.18em",
             textTransform: "uppercase",
             opacity: attaching ? 0.5 : 1,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
           }}
         >
+          {attaching && (
+            <span
+              aria-hidden="true"
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                border: "1.5px solid color-mix(in oklab, var(--gold) 35%, transparent)",
+                borderTopColor: "var(--gold)",
+                animation: "spin 0.8s linear infinite",
+                display: "inline-block",
+              }}
+            />
+          )}
           {attaching ? "Attaching…" : "Connect to pattern"}
         </button>
         <button
           type="button"
           onClick={() => setDismissed(true)}
+          disabled={attaching}
           style={{
             background: "none",
             border: "none",
             padding: 0,
-            cursor: "pointer",
+            cursor: attaching ? "default" : "pointer",
             color: "color-mix(in oklab, var(--foreground) 50%, transparent)",
             fontFamily: "var(--font-display, inherit)",
             fontSize: 11,
             letterSpacing: "0.18em",
             textTransform: "uppercase",
+            opacity: attaching ? 0.5 : 1,
           }}
         >
           Not now
