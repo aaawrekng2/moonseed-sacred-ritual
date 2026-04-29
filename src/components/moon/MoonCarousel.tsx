@@ -636,6 +636,8 @@ export function MoonCarousel() {
               left={markerLeft}
               peak={fullMoonPeak}
               timeZone={effectiveTz}
+              side={peakMarkerSide}
+              ymd={peakYmd}
             />
           )}
         </div>
