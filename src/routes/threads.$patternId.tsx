@@ -671,18 +671,30 @@ function ChamberWeaveGraph({
       const key = `${w.id}-${pid}`;
       if (seenEdge.has(key)) continue;
       seenEdge.add(key);
+      const isActiveEdge = activeId === pid;
+      const dimEdge = hasActive && !isActiveEdge;
       edges.push({
         id: key,
         source: `p:${pattern.id}`,
         target: `p:${pid}`,
-        animated: true,
+        animated: isActiveEdge || !hasActive,
         label: w.title,
-        style: { stroke: "rgba(212,175,90,0.55)", strokeWidth: 1 },
+        style: {
+          stroke: isActiveEdge
+            ? "rgba(212,175,90,0.95)"
+            : "rgba(212,175,90,0.55)",
+          strokeWidth: isActiveEdge ? 2 : 1,
+          opacity: dimEdge ? 0.18 : 1,
+          transition: "opacity 180ms ease, stroke 180ms ease",
+        },
         labelStyle: {
-          fill: "rgba(212,175,90,0.9)",
+          fill: isActiveEdge
+            ? "rgba(232,200,120,1)"
+            : "rgba(212,175,90,0.9)",
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
           fontSize: 10,
+          opacity: dimEdge ? 0.25 : 1,
         },
         labelBgStyle: { fill: "rgba(10,8,22,0.85)" },
       });
