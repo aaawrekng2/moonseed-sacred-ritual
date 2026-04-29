@@ -1,5 +1,95 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`YMD snapshot grid (instant × timezone) > projects au-aedt-start-2026 (2026-10-03T15:30:00Z) onto each zone's calendar day 1`] = `
+{
+  "America/Los_Angeles": {
+    "hour": 8,
+    "minute": 30,
+    "ymd": "2026-10-03",
+  },
+  "America/New_York": {
+    "hour": 11,
+    "minute": 30,
+    "ymd": "2026-10-03",
+  },
+  "Asia/Tokyo": {
+    "hour": 0,
+    "minute": 30,
+    "ymd": "2026-10-04",
+  },
+  "Australia/Sydney": {
+    "hour": 1,
+    "minute": 30,
+    "ymd": "2026-10-04",
+  },
+  "Europe/Berlin": {
+    "hour": 17,
+    "minute": 30,
+    "ymd": "2026-10-03",
+  },
+  "Europe/London": {
+    "hour": 16,
+    "minute": 30,
+    "ymd": "2026-10-03",
+  },
+  "Pacific/Auckland": {
+    "hour": 4,
+    "minute": 30,
+    "ymd": "2026-10-04",
+  },
+  "UTC": {
+    "hour": 15,
+    "minute": 30,
+    "ymd": "2026-10-03",
+  },
+}
+`;
+
+exports[`YMD snapshot grid (instant × timezone) > projects au-aest-return-2026 (2026-04-04T15:30:00Z) onto each zone's calendar day 1`] = `
+{
+  "America/Los_Angeles": {
+    "hour": 8,
+    "minute": 30,
+    "ymd": "2026-04-04",
+  },
+  "America/New_York": {
+    "hour": 11,
+    "minute": 30,
+    "ymd": "2026-04-04",
+  },
+  "Asia/Tokyo": {
+    "hour": 0,
+    "minute": 30,
+    "ymd": "2026-04-05",
+  },
+  "Australia/Sydney": {
+    "hour": 2,
+    "minute": 30,
+    "ymd": "2026-04-05",
+  },
+  "Europe/Berlin": {
+    "hour": 17,
+    "minute": 30,
+    "ymd": "2026-04-04",
+  },
+  "Europe/London": {
+    "hour": 16,
+    "minute": 30,
+    "ymd": "2026-04-04",
+  },
+  "Pacific/Auckland": {
+    "hour": 3,
+    "minute": 30,
+    "ymd": "2026-04-05",
+  },
+  "UTC": {
+    "hour": 15,
+    "minute": 30,
+    "ymd": "2026-04-04",
+  },
+}
+`;
+
 exports[`YMD snapshot grid (instant × timezone) > projects date-line-utc-midnight (2026-07-15T00:00:00Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
@@ -14,6 +104,16 @@ exports[`YMD snapshot grid (instant × timezone) > projects date-line-utc-midnig
   },
   "Asia/Tokyo": {
     "hour": 9,
+    "minute": 0,
+    "ymd": "2026-07-15",
+  },
+  "Australia/Sydney": {
+    "hour": 10,
+    "minute": 0,
+    "ymd": "2026-07-15",
+  },
+  "Europe/Berlin": {
+    "hour": 2,
     "minute": 0,
     "ymd": "2026-07-15",
   },
@@ -52,6 +152,16 @@ exports[`YMD snapshot grid (instant × timezone) > projects date-line-utc-near-m
     "minute": 30,
     "ymd": "2026-07-15",
   },
+  "Australia/Sydney": {
+    "hour": 9,
+    "minute": 30,
+    "ymd": "2026-07-15",
+  },
+  "Europe/Berlin": {
+    "hour": 1,
+    "minute": 30,
+    "ymd": "2026-07-15",
+  },
   "Europe/London": {
     "hour": 0,
     "minute": 30,
@@ -70,6 +180,96 @@ exports[`YMD snapshot grid (instant × timezone) > projects date-line-utc-near-m
 }
 `;
 
+exports[`YMD snapshot grid (instant × timezone) > projects eu-cest-start-2026 (2026-03-29T00:30:00Z) onto each zone's calendar day 1`] = `
+{
+  "America/Los_Angeles": {
+    "hour": 17,
+    "minute": 30,
+    "ymd": "2026-03-28",
+  },
+  "America/New_York": {
+    "hour": 20,
+    "minute": 30,
+    "ymd": "2026-03-28",
+  },
+  "Asia/Tokyo": {
+    "hour": 9,
+    "minute": 30,
+    "ymd": "2026-03-29",
+  },
+  "Australia/Sydney": {
+    "hour": 11,
+    "minute": 30,
+    "ymd": "2026-03-29",
+  },
+  "Europe/Berlin": {
+    "hour": 1,
+    "minute": 30,
+    "ymd": "2026-03-29",
+  },
+  "Europe/London": {
+    "hour": 0,
+    "minute": 30,
+    "ymd": "2026-03-29",
+  },
+  "Pacific/Auckland": {
+    "hour": 13,
+    "minute": 30,
+    "ymd": "2026-03-29",
+  },
+  "UTC": {
+    "hour": 0,
+    "minute": 30,
+    "ymd": "2026-03-29",
+  },
+}
+`;
+
+exports[`YMD snapshot grid (instant × timezone) > projects eu-cet-return-2026 (2026-10-25T00:30:00Z) onto each zone's calendar day 1`] = `
+{
+  "America/Los_Angeles": {
+    "hour": 17,
+    "minute": 30,
+    "ymd": "2026-10-24",
+  },
+  "America/New_York": {
+    "hour": 20,
+    "minute": 30,
+    "ymd": "2026-10-24",
+  },
+  "Asia/Tokyo": {
+    "hour": 9,
+    "minute": 30,
+    "ymd": "2026-10-25",
+  },
+  "Australia/Sydney": {
+    "hour": 11,
+    "minute": 30,
+    "ymd": "2026-10-25",
+  },
+  "Europe/Berlin": {
+    "hour": 2,
+    "minute": 30,
+    "ymd": "2026-10-25",
+  },
+  "Europe/London": {
+    "hour": 1,
+    "minute": 30,
+    "ymd": "2026-10-25",
+  },
+  "Pacific/Auckland": {
+    "hour": 13,
+    "minute": 30,
+    "ymd": "2026-10-25",
+  },
+  "UTC": {
+    "hour": 0,
+    "minute": 30,
+    "ymd": "2026-10-25",
+  },
+}
+`;
+
 exports[`YMD snapshot grid (instant × timezone) > projects leap-day-2028 (2028-02-29T12:00:00Z) onto each zone's calendar day 1`] = `
 {
   "America/Los_Angeles": {
@@ -84,6 +284,16 @@ exports[`YMD snapshot grid (instant × timezone) > projects leap-day-2028 (2028-
   },
   "Asia/Tokyo": {
     "hour": 21,
+    "minute": 0,
+    "ymd": "2028-02-29",
+  },
+  "Australia/Sydney": {
+    "hour": 23,
+    "minute": 0,
+    "ymd": "2028-02-29",
+  },
+  "Europe/Berlin": {
+    "hour": 13,
     "minute": 0,
     "ymd": "2028-02-29",
   },
@@ -122,6 +332,16 @@ exports[`YMD snapshot grid (instant × timezone) > projects may-31-2026-full-moo
     "minute": 0,
     "ymd": "2026-05-31",
   },
+  "Australia/Sydney": {
+    "hour": 21,
+    "minute": 0,
+    "ymd": "2026-05-31",
+  },
+  "Europe/Berlin": {
+    "hour": 13,
+    "minute": 0,
+    "ymd": "2026-05-31",
+  },
   "Europe/London": {
     "hour": 12,
     "minute": 0,
@@ -154,6 +374,16 @@ exports[`YMD snapshot grid (instant × timezone) > projects nz-dst-end-2026 (202
   },
   "Asia/Tokyo": {
     "hour": 22,
+    "minute": 30,
+    "ymd": "2026-04-04",
+  },
+  "Australia/Sydney": {
+    "hour": 0,
+    "minute": 30,
+    "ymd": "2026-04-05",
+  },
+  "Europe/Berlin": {
+    "hour": 15,
     "minute": 30,
     "ymd": "2026-04-04",
   },
@@ -192,6 +422,16 @@ exports[`YMD snapshot grid (instant × timezone) > projects uk-bst-start-2026 (2
     "minute": 30,
     "ymd": "2026-03-29",
   },
+  "Australia/Sydney": {
+    "hour": 11,
+    "minute": 30,
+    "ymd": "2026-03-29",
+  },
+  "Europe/Berlin": {
+    "hour": 1,
+    "minute": 30,
+    "ymd": "2026-03-29",
+  },
   "Europe/London": {
     "hour": 0,
     "minute": 30,
@@ -224,6 +464,16 @@ exports[`YMD snapshot grid (instant × timezone) > projects us-fall-back-2026 (2
   },
   "Asia/Tokyo": {
     "hour": 17,
+    "minute": 30,
+    "ymd": "2026-11-01",
+  },
+  "Australia/Sydney": {
+    "hour": 19,
+    "minute": 30,
+    "ymd": "2026-11-01",
+  },
+  "Europe/Berlin": {
+    "hour": 9,
     "minute": 30,
     "ymd": "2026-11-01",
   },
@@ -262,6 +512,16 @@ exports[`YMD snapshot grid (instant × timezone) > projects us-spring-forward-20
     "minute": 30,
     "ymd": "2026-03-08",
   },
+  "Australia/Sydney": {
+    "hour": 21,
+    "minute": 30,
+    "ymd": "2026-03-08",
+  },
+  "Europe/Berlin": {
+    "hour": 11,
+    "minute": 30,
+    "ymd": "2026-03-08",
+  },
   "Europe/London": {
     "hour": 10,
     "minute": 30,
@@ -297,6 +557,16 @@ exports[`YMD snapshot grid (instant × timezone) > projects year-boundary (2027-
     "minute": 0,
     "ymd": "2027-01-01",
   },
+  "Australia/Sydney": {
+    "hour": 11,
+    "minute": 0,
+    "ymd": "2027-01-01",
+  },
+  "Europe/Berlin": {
+    "hour": 1,
+    "minute": 0,
+    "ymd": "2027-01-01",
+  },
   "Europe/London": {
     "hour": 0,
     "minute": 0,
@@ -311,6 +581,128 @@ exports[`YMD snapshot grid (instant × timezone) > projects year-boundary (2027-
     "hour": 0,
     "minute": 0,
     "ymd": "2027-01-01",
+  },
+}
+`;
+
+exports[`getDayInTz ±N walk snapshots > walks ±N days from au-aedt-start-2026 in every zone 1`] = `
+{
+  "America/Los_Angeles": {
+    "-1": "2026-10-02",
+    "-7": "2026-09-26",
+    "0": "2026-10-03",
+    "1": "2026-10-04",
+    "7": "2026-10-10",
+  },
+  "America/New_York": {
+    "-1": "2026-10-02",
+    "-7": "2026-09-26",
+    "0": "2026-10-03",
+    "1": "2026-10-04",
+    "7": "2026-10-10",
+  },
+  "Asia/Tokyo": {
+    "-1": "2026-10-03",
+    "-7": "2026-09-27",
+    "0": "2026-10-04",
+    "1": "2026-10-05",
+    "7": "2026-10-11",
+  },
+  "Australia/Sydney": {
+    "-1": "2026-10-03",
+    "-7": "2026-09-27",
+    "0": "2026-10-04",
+    "1": "2026-10-05",
+    "7": "2026-10-11",
+  },
+  "Europe/Berlin": {
+    "-1": "2026-10-02",
+    "-7": "2026-09-26",
+    "0": "2026-10-03",
+    "1": "2026-10-04",
+    "7": "2026-10-10",
+  },
+  "Europe/London": {
+    "-1": "2026-10-02",
+    "-7": "2026-09-26",
+    "0": "2026-10-03",
+    "1": "2026-10-04",
+    "7": "2026-10-10",
+  },
+  "Pacific/Auckland": {
+    "-1": "2026-10-03",
+    "-7": "2026-09-27",
+    "0": "2026-10-04",
+    "1": "2026-10-05",
+    "7": "2026-10-11",
+  },
+  "UTC": {
+    "-1": "2026-10-02",
+    "-7": "2026-09-26",
+    "0": "2026-10-03",
+    "1": "2026-10-04",
+    "7": "2026-10-10",
+  },
+}
+`;
+
+exports[`getDayInTz ±N walk snapshots > walks ±N days from au-aest-return-2026 in every zone 1`] = `
+{
+  "America/Los_Angeles": {
+    "-1": "2026-04-03",
+    "-7": "2026-03-28",
+    "0": "2026-04-04",
+    "1": "2026-04-05",
+    "7": "2026-04-11",
+  },
+  "America/New_York": {
+    "-1": "2026-04-03",
+    "-7": "2026-03-28",
+    "0": "2026-04-04",
+    "1": "2026-04-05",
+    "7": "2026-04-11",
+  },
+  "Asia/Tokyo": {
+    "-1": "2026-04-04",
+    "-7": "2026-03-29",
+    "0": "2026-04-05",
+    "1": "2026-04-06",
+    "7": "2026-04-12",
+  },
+  "Australia/Sydney": {
+    "-1": "2026-04-04",
+    "-7": "2026-03-29",
+    "0": "2026-04-05",
+    "1": "2026-04-06",
+    "7": "2026-04-12",
+  },
+  "Europe/Berlin": {
+    "-1": "2026-04-03",
+    "-7": "2026-03-28",
+    "0": "2026-04-04",
+    "1": "2026-04-05",
+    "7": "2026-04-11",
+  },
+  "Europe/London": {
+    "-1": "2026-04-03",
+    "-7": "2026-03-28",
+    "0": "2026-04-04",
+    "1": "2026-04-05",
+    "7": "2026-04-11",
+  },
+  "Pacific/Auckland": {
+    "-1": "2026-04-04",
+    "-7": "2026-03-29",
+    "0": "2026-04-05",
+    "1": "2026-04-06",
+    "7": "2026-04-12",
+  },
+  "UTC": {
+    "-1": "2026-04-03",
+    "-7": "2026-03-28",
+    "0": "2026-04-04",
+    "1": "2026-04-05",
+    "7": "2026-04-11",
   },
 }
 `;
@@ -332,6 +724,20 @@ exports[`getDayInTz ±N walk snapshots > walks ±N days from date-line-utc-midni
     "7": "2026-07-21",
   },
   "Asia/Tokyo": {
+    "-1": "2026-07-14",
+    "-7": "2026-07-08",
+    "0": "2026-07-15",
+    "1": "2026-07-16",
+    "7": "2026-07-22",
+  },
+  "Australia/Sydney": {
+    "-1": "2026-07-14",
+    "-7": "2026-07-08",
+    "0": "2026-07-15",
+    "1": "2026-07-16",
+    "7": "2026-07-22",
+  },
+  "Europe/Berlin": {
     "-1": "2026-07-14",
     "-7": "2026-07-08",
     "0": "2026-07-15",
@@ -385,6 +791,20 @@ exports[`getDayInTz ±N walk snapshots > walks ±N days from date-line-utc-near-
     "1": "2026-07-16",
     "7": "2026-07-22",
   },
+  "Australia/Sydney": {
+    "-1": "2026-07-14",
+    "-7": "2026-07-08",
+    "0": "2026-07-15",
+    "1": "2026-07-16",
+    "7": "2026-07-22",
+  },
+  "Europe/Berlin": {
+    "-1": "2026-07-14",
+    "-7": "2026-07-08",
+    "0": "2026-07-15",
+    "1": "2026-07-16",
+    "7": "2026-07-22",
+  },
   "Europe/London": {
     "-1": "2026-07-14",
     "-7": "2026-07-08",
@@ -409,6 +829,128 @@ exports[`getDayInTz ±N walk snapshots > walks ±N days from date-line-utc-near-
 }
 `;
 
+exports[`getDayInTz ±N walk snapshots > walks ±N days from eu-cest-start-2026 in every zone 1`] = `
+{
+  "America/Los_Angeles": {
+    "-1": "2026-03-27",
+    "-7": "2026-03-21",
+    "0": "2026-03-28",
+    "1": "2026-03-29",
+    "7": "2026-04-04",
+  },
+  "America/New_York": {
+    "-1": "2026-03-27",
+    "-7": "2026-03-21",
+    "0": "2026-03-28",
+    "1": "2026-03-29",
+    "7": "2026-04-04",
+  },
+  "Asia/Tokyo": {
+    "-1": "2026-03-28",
+    "-7": "2026-03-22",
+    "0": "2026-03-29",
+    "1": "2026-03-30",
+    "7": "2026-04-05",
+  },
+  "Australia/Sydney": {
+    "-1": "2026-03-28",
+    "-7": "2026-03-22",
+    "0": "2026-03-29",
+    "1": "2026-03-30",
+    "7": "2026-04-05",
+  },
+  "Europe/Berlin": {
+    "-1": "2026-03-28",
+    "-7": "2026-03-22",
+    "0": "2026-03-29",
+    "1": "2026-03-30",
+    "7": "2026-04-05",
+  },
+  "Europe/London": {
+    "-1": "2026-03-28",
+    "-7": "2026-03-22",
+    "0": "2026-03-29",
+    "1": "2026-03-30",
+    "7": "2026-04-05",
+  },
+  "Pacific/Auckland": {
+    "-1": "2026-03-28",
+    "-7": "2026-03-22",
+    "0": "2026-03-29",
+    "1": "2026-03-30",
+    "7": "2026-04-05",
+  },
+  "UTC": {
+    "-1": "2026-03-28",
+    "-7": "2026-03-22",
+    "0": "2026-03-29",
+    "1": "2026-03-30",
+    "7": "2026-04-05",
+  },
+}
+`;
+
+exports[`getDayInTz ±N walk snapshots > walks ±N days from eu-cet-return-2026 in every zone 1`] = `
+{
+  "America/Los_Angeles": {
+    "-1": "2026-10-23",
+    "-7": "2026-10-17",
+    "0": "2026-10-24",
+    "1": "2026-10-25",
+    "7": "2026-10-31",
+  },
+  "America/New_York": {
+    "-1": "2026-10-23",
+    "-7": "2026-10-17",
+    "0": "2026-10-24",
+    "1": "2026-10-25",
+    "7": "2026-10-31",
+  },
+  "Asia/Tokyo": {
+    "-1": "2026-10-24",
+    "-7": "2026-10-18",
+    "0": "2026-10-25",
+    "1": "2026-10-26",
+    "7": "2026-11-01",
+  },
+  "Australia/Sydney": {
+    "-1": "2026-10-24",
+    "-7": "2026-10-18",
+    "0": "2026-10-25",
+    "1": "2026-10-26",
+    "7": "2026-11-01",
+  },
+  "Europe/Berlin": {
+    "-1": "2026-10-24",
+    "-7": "2026-10-18",
+    "0": "2026-10-25",
+    "1": "2026-10-26",
+    "7": "2026-11-01",
+  },
+  "Europe/London": {
+    "-1": "2026-10-24",
+    "-7": "2026-10-18",
+    "0": "2026-10-25",
+    "1": "2026-10-26",
+    "7": "2026-11-01",
+  },
+  "Pacific/Auckland": {
+    "-1": "2026-10-24",
+    "-7": "2026-10-18",
+    "0": "2026-10-25",
+    "1": "2026-10-26",
+    "7": "2026-11-01",
+  },
+  "UTC": {
+    "-1": "2026-10-24",
+    "-7": "2026-10-18",
+    "0": "2026-10-25",
+    "1": "2026-10-26",
+    "7": "2026-11-01",
+  },
+}
+`;
+
 exports[`getDayInTz ±N walk snapshots > walks ±N days from leap-day-2028 in every zone 1`] = `
 {
   "America/Los_Angeles": {
@@ -426,6 +968,20 @@ exports[`getDayInTz ±N walk snapshots > walks ±N days from leap-day-2028 in ev
     "7": "2028-03-07",
   },
   "Asia/Tokyo": {
+    "-1": "2028-02-28",
+    "-7": "2028-02-22",
+    "0": "2028-02-29",
+    "1": "2028-03-01",
+    "7": "2028-03-07",
+  },
+  "Australia/Sydney": {
+    "-1": "2028-02-28",
+    "-7": "2028-02-22",
+    "0": "2028-02-29",
+    "1": "2028-03-01",
+    "7": "2028-03-07",
+  },
+  "Europe/Berlin": {
     "-1": "2028-02-28",
     "-7": "2028-02-22",
     "0": "2028-02-29",
@@ -479,6 +1035,20 @@ exports[`getDayInTz ±N walk snapshots > walks ±N days from may-31-2026-full-mo
     "1": "2026-06-01",
     "7": "2026-06-07",
   },
+  "Australia/Sydney": {
+    "-1": "2026-05-30",
+    "-7": "2026-05-24",
+    "0": "2026-05-31",
+    "1": "2026-06-01",
+    "7": "2026-06-07",
+  },
+  "Europe/Berlin": {
+    "-1": "2026-05-30",
+    "-7": "2026-05-24",
+    "0": "2026-05-31",
+    "1": "2026-06-01",
+    "7": "2026-06-07",
+  },
   "Europe/London": {
     "-1": "2026-05-30",
     "-7": "2026-05-24",
@@ -520,6 +1090,20 @@ exports[`getDayInTz ±N walk snapshots > walks ±N days from nz-dst-end-2026 in 
     "7": "2026-04-11",
   },
   "Asia/Tokyo": {
+    "-1": "2026-04-03",
+    "-7": "2026-03-28",
+    "0": "2026-04-04",
+    "1": "2026-04-05",
+    "7": "2026-04-11",
+  },
+  "Australia/Sydney": {
+    "-1": "2026-04-04",
+    "-7": "2026-03-29",
+    "0": "2026-04-05",
+    "1": "2026-04-06",
+    "7": "2026-04-12",
+  },
+  "Europe/Berlin": {
     "-1": "2026-04-03",
     "-7": "2026-03-28",
     "0": "2026-04-04",
@@ -573,6 +1157,20 @@ exports[`getDayInTz ±N walk snapshots > walks ±N days from uk-bst-start-2026 i
     "1": "2026-03-30",
     "7": "2026-04-05",
   },
+  "Australia/Sydney": {
+    "-1": "2026-03-28",
+    "-7": "2026-03-22",
+    "0": "2026-03-29",
+    "1": "2026-03-30",
+    "7": "2026-04-05",
+  },
+  "Europe/Berlin": {
+    "-1": "2026-03-28",
+    "-7": "2026-03-22",
+    "0": "2026-03-29",
+    "1": "2026-03-30",
+    "7": "2026-04-05",
+  },
   "Europe/London": {
     "-1": "2026-03-28",
     "-7": "2026-03-22",
@@ -614,6 +1212,20 @@ exports[`getDayInTz ±N walk snapshots > walks ±N days from us-fall-back-2026 i
     "7": "2026-11-08",
   },
   "Asia/Tokyo": {
+    "-1": "2026-10-31",
+    "-7": "2026-10-25",
+    "0": "2026-11-01",
+    "1": "2026-11-02",
+    "7": "2026-11-08",
+  },
+  "Australia/Sydney": {
+    "-1": "2026-10-31",
+    "-7": "2026-10-25",
+    "0": "2026-11-01",
+    "1": "2026-11-02",
+    "7": "2026-11-08",
+  },
+  "Europe/Berlin": {
     "-1": "2026-10-31",
     "-7": "2026-10-25",
     "0": "2026-11-01",
@@ -667,6 +1279,20 @@ exports[`getDayInTz ±N walk snapshots > walks ±N days from us-spring-forward-2
     "1": "2026-03-09",
     "7": "2026-03-15",
   },
+  "Australia/Sydney": {
+    "-1": "2026-03-07",
+    "-7": "2026-03-01",
+    "0": "2026-03-08",
+    "1": "2026-03-09",
+    "7": "2026-03-15",
+  },
+  "Europe/Berlin": {
+    "-1": "2026-03-07",
+    "-7": "2026-03-01",
+    "0": "2026-03-08",
+    "1": "2026-03-09",
+    "7": "2026-03-15",
+  },
   "Europe/London": {
     "-1": "2026-03-07",
     "-7": "2026-03-01",
@@ -708,6 +1334,20 @@ exports[`getDayInTz ±N walk snapshots > walks ±N days from year-boundary in ev
     "7": "2027-01-07",
   },
   "Asia/Tokyo": {
+    "-1": "2026-12-31",
+    "-7": "2026-12-25",
+    "0": "2027-01-01",
+    "1": "2027-01-02",
+    "7": "2027-01-08",
+  },
+  "Australia/Sydney": {
+    "-1": "2026-12-31",
+    "-7": "2026-12-25",
+    "0": "2027-01-01",
+    "1": "2027-01-02",
+    "7": "2027-01-08",
+  },
+  "Europe/Berlin": {
     "-1": "2026-12-31",
     "-7": "2026-12-25",
     "0": "2027-01-01",
