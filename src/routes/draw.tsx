@@ -39,15 +39,26 @@ function DrawPage() {
   // point that still passes `?question=…`.
   const [question, setQuestion] = useState<string>(search.question ?? "");
   const { user } = useAuth();
-  // Question panel starts open so the seeker is greeted by the prompt
-  // the moment the table appears; the close (X / Skip / Continue)
-  // collapses it to a quill icon they can re-tap any time. If the
-  // seeker has previously turned off the prompt (in Settings or via
-  // "Don't ask again"), it stays collapsed until they tap the quill.
-  const [questionOpen, setQuestionOpen] = useState(true);
+  // Gate the entire QuestionPanel on the seeker's preference. We must
+  // wait for the preference to load before mounting anything — otherwise
+  // the card flashes open for users who have turned it off. Once loaded:
+  //   - showQuestionPrompt === true  → render the expanded card
+  //   - showQuestionPrompt === false → render nothing (no quill either)
+  // "Skip" / "Don't ask again" within the session also hide the panel
+  // entirely so the quill can't reappear after the seeker dismissed it.
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [showQuestionPrompt, setShowQuestionPrompt] = useState(false);
+  const [questionOpen, setQuestionOpen] = useState(false);
+  const [sessionDismissed, setSessionDismissed] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      // Anonymous: default to the prompt being on.
+      setShowQuestionPrompt(true);
+      setQuestionOpen(true);
+      setPrefsLoaded(true);
+      return;
+    }
     let cancelled = false;
     void (async () => {
       const { data } = await supabase
@@ -56,9 +67,10 @@ function DrawPage() {
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
-      if (data && data.show_question_prompt === false) {
-        setQuestionOpen(false);
-      }
+      const enabled = !(data && data.show_question_prompt === false);
+      setShowQuestionPrompt(enabled);
+      setQuestionOpen(enabled);
+      setPrefsLoaded(true);
     })();
     return () => {
       cancelled = true;
@@ -101,15 +113,23 @@ function DrawPage() {
       )}
 
       {/* Quill / question panel only belongs to the draw table phase.
-          Once the seeker advances to "cast" (cards face-down on the
-          spread layout) or "reading", the table is gone — and so the
-          quill should be too. */}
-      {phase === "select" && (
+          Once the seeker advances to "cast" or "reading", the table is
+          gone — and so the quill should be too. We also gate on the
+          loaded preference so the card never flashes for users who have
+          it disabled, and on `sessionDismissed` so Skip / "Don't ask
+          again" hides the quill for the rest of the session. */}
+      {phase === "select" && prefsLoaded && showQuestionPrompt && !sessionDismissed && (
         <QuestionPanel
           open={questionOpen}
           question={question}
           onQuestionChange={setQuestion}
-          onClose={() => setQuestionOpen(false)}
+          onClose={() => {
+            setQuestionOpen(false);
+            // A close (X / Skip / Continue) hides the quill for the
+            // session — it should not reappear until the seeker
+            // returns to the table.
+            setSessionDismissed(true);
+          }}
           onOpen={() => setQuestionOpen(true)}
           onDontAskAgain={
             user
@@ -117,6 +137,8 @@ function DrawPage() {
                   void updateUserPreferences(user.id, {
                     show_question_prompt: false,
                   });
+                  setShowQuestionPrompt(false);
+                  setSessionDismissed(true);
                 }
               : undefined
           }
