@@ -1442,55 +1442,71 @@ function ZoomModal({
   src,
   context,
   canUseAsBack,
+  shape,
+  cornerRadiusPercent,
   onPickCard,
   onReassign,
   onUseAsBack,
   onSkip,
   onBack,
+  onSendBackToUnassigned,
 }: {
   src: string;
   context: "unassigned" | "assigned" | "skipped";
   canUseAsBack: boolean;
+  shape: "rectangle" | "round";
+  cornerRadiusPercent: number;
   onPickCard: () => void;
   onReassign: () => void;
   onUseAsBack: () => void;
   onSkip: () => void;
   onBack: () => void;
+  onSendBackToUnassigned: () => void;
 }) {
+  const imgStyle: React.CSSProperties =
+    shape === "round"
+      ? { clipPath: "circle(50%)", maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }
+      : {
+          maxWidth: "100%",
+          maxHeight: "100%",
+          objectFit: "contain",
+          borderRadius: `${(cornerRadiusPercent / 100) * 200}px`,
+        };
   return (
     <div
       className="fixed inset-0 z-[120] flex flex-col items-center justify-center p-4"
       style={{ background: "var(--surface-overlay, rgba(0,0,0,0.85))" }}
       onClick={onBack}
     >
-      <img
-        src={src}
-        alt=""
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxHeight: "78vh", maxWidth: "100%" }}
-        className="rounded"
-      />
       <div
-        className="mt-4 flex flex-wrap items-center justify-center gap-3"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: "min(85vw, 600px)",
+          maxHeight: "70vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <img src={src} alt="" style={imgStyle} />
+      </div>
+      <div
+        className="mt-4 flex flex-col items-center justify-center gap-2 sm:flex-row sm:flex-wrap"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-md px-4 py-2"
-          style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
-        >
-          Back
-        </button>
         {context === "unassigned" && (
           <>
             <button
               type="button"
-              onClick={onSkip}
-              className="rounded-md px-4 py-2"
-              style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+              onClick={onPickCard}
+              className="rounded-md px-4 py-2 font-medium"
+              style={{
+                background: "var(--accent)",
+                color: "var(--accent-foreground, #000)",
+                fontSize: "var(--text-body-sm)",
+              }}
             >
-              Skip
+              Assign to a card
             </button>
             {canUseAsBack && (
               <button
@@ -1508,6 +1524,42 @@ function ZoomModal({
             )}
             <button
               type="button"
+              onClick={onSkip}
+              className="rounded-md px-4 py-2"
+              style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+            >
+              Skip
+            </button>
+          </>
+        )}
+        {context === "assigned" && (
+          <>
+            <button
+              type="button"
+              onClick={onReassign}
+              className="rounded-md px-4 py-2 font-medium"
+              style={{
+                background: "var(--accent)",
+                color: "var(--accent-foreground, #000)",
+                fontSize: "var(--text-body-sm)",
+              }}
+            >
+              Reassign to different card
+            </button>
+            <button
+              type="button"
+              onClick={onSendBackToUnassigned}
+              className="rounded-md px-4 py-2"
+              style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+            >
+              Send back to unassigned
+            </button>
+          </>
+        )}
+        {context === "skipped" && (
+          <>
+            <button
+              type="button"
               onClick={onPickCard}
               className="rounded-md px-4 py-2 font-medium"
               style={{
@@ -1516,38 +1568,26 @@ function ZoomModal({
                 fontSize: "var(--text-body-sm)",
               }}
             >
-              Pick a card
+              Assign to a card
+            </button>
+            <button
+              type="button"
+              onClick={onSendBackToUnassigned}
+              className="rounded-md px-4 py-2"
+              style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+            >
+              Send back to unassigned
             </button>
           </>
         )}
-        {context === "assigned" && (
-          <button
-            type="button"
-            onClick={onReassign}
-            className="rounded-md px-4 py-2 font-medium"
-            style={{
-              background: "var(--accent)",
-              color: "var(--accent-foreground, #000)",
-              fontSize: "var(--text-body-sm)",
-            }}
-          >
-            Reassign to different card
-          </button>
-        )}
-        {context === "skipped" && (
-          <button
-            type="button"
-            onClick={onPickCard}
-            className="rounded-md px-4 py-2 font-medium"
-            style={{
-              background: "var(--accent)",
-              color: "var(--accent-foreground, #000)",
-              fontSize: "var(--text-body-sm)",
-            }}
-          >
-            Pick a card
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded-md px-4 py-2"
+          style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+        >
+          Back
+        </button>
       </div>
     </div>
   );
