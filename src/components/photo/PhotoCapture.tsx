@@ -508,6 +508,7 @@ function RefineView({
   onPointerMove,
   onPointerUp,
   onWheel,
+  onMeasure,
 }: {
   image: HTMLImageElement;
   shape: PhotoCaptureShape;
@@ -519,9 +520,34 @@ function RefineView({
   onPointerMove: (e: React.PointerEvent) => void;
   onPointerUp: (e: React.PointerEvent) => void;
   onWheel: (e: React.WheelEvent) => void;
+  onMeasure: (
+    viewport: { w: number; h: number },
+    frame: { w: number; h: number },
+  ) => void;
 }) {
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      // Frame is 76% wide for rectangle, otherwise sized to fit with 12% inset.
+      // Mirror ShapeOverlay logic by reading the rendered overlay's rect.
+      const overlay = el.querySelector("[data-overlay-frame]") as HTMLElement | null;
+      const fr = overlay?.getBoundingClientRect();
+      onMeasure(
+        { w: r.width, h: r.height },
+        fr ? { w: fr.width, h: fr.height } : { w: r.width, h: r.height },
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [onMeasure, frameAspect, shape]);
   return (
     <div
+      ref={wrapRef}
       className="relative h-full w-full select-none overflow-hidden"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
