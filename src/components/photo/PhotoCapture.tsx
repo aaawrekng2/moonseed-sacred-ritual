@@ -277,8 +277,6 @@ export function PhotoCapture({
         r: rotation,
       };
       dragRef.current = null;
-    } else if (pointersRef.current.size === 1) {
-      dragRef.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
     }
   };
   const onPointerMove = (e: React.PointerEvent) => {
@@ -300,19 +298,11 @@ export function PhotoCapture({
       setRotation(((g.r + da) % 360 + 360) % 360);
       return;
     }
-    if (!dragRef.current) return;
-    const dx = e.clientX - dragRef.current.x;
-    const dy = e.clientY - dragRef.current.y;
-    setPan({ x: dragRef.current.px - dx / zoom, y: dragRef.current.py - dy / zoom });
   };
   const onPointerUp = (e: React.PointerEvent) => {
     pointersRef.current.delete(e.pointerId);
     if (pointersRef.current.size < 2) gestureRef.current = null;
     if (pointersRef.current.size === 0) dragRef.current = null;
-    else if (pointersRef.current.size === 1) {
-      const [p] = Array.from(pointersRef.current.values());
-      dragRef.current = { x: p.x, y: p.y, px: pan.x, py: pan.y };
-    }
   };
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
