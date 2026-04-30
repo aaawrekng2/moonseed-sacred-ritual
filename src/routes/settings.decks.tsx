@@ -30,6 +30,7 @@ import { useActiveDeck } from "@/lib/active-deck";
 import { PhotoCapture } from "@/components/photo/PhotoCapture";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
+import { ZipImporter } from "@/components/deck-import/ZipImporter";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/settings/decks")({
@@ -284,7 +285,8 @@ type EditorMode =
   | { kind: "grid"; deckId: string }
   | { kind: "picker"; deckId: string }
   | { kind: "capture"; deckId: string; cardId: number }
-  | { kind: "back-capture"; deckId: string };
+  | { kind: "back-capture"; deckId: string }
+  | { kind: "import"; deckId: string };
 
 function DeckEditor({
   userId,
@@ -437,6 +439,47 @@ function DeckEditor({
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Continue → photograph cards
           </button>
+
+          {/* Bulk import entry — Stamp BH. Creates the deck row first so a
+              cancelled import still leaves a recoverable empty deck. */}
+          <div className="pt-2">
+            <button
+              type="button"
+              disabled={saving || !name.trim()}
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  const { data, error } = await supabase
+                    .from("custom_decks")
+                    .insert({
+                      user_id: userId,
+                      name: name.trim(),
+                      shape,
+                      corner_radius_percent: cornerRadius,
+                    })
+                    .select("*")
+                    .single();
+                  if (error) throw error;
+                  setMode({ kind: "import", deckId: (data as CustomDeck).id });
+                } catch (err) {
+                  alert(`Couldn't create deck: ${(err as Error).message}`);
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              className="italic underline disabled:opacity-50"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--accent)",
+                background: "none",
+                border: "none",
+                padding: 0,
+              }}
+            >
+              Already have your deck digitized? Import from zip
+            </button>
+          </div>
         </div>
       </section>
     );
@@ -579,6 +622,24 @@ function DeckEditor({
         onCapture={async (blob) => {
           const url = await uploadDeckBack({ userId, deckId, blob });
           if (url) setDeckBackUrl(url);
+          setMode({ kind: "grid", deckId });
+        }}
+      />
+    );
+  }
+
+  // ---------- Step 3d: bulk zip import (Stamp BH) ----------
+  if (mode.kind === "import") {
+    const deckId = mode.deckId;
+    return (
+      <ZipImporter
+        userId={userId}
+        deckId={deckId}
+        shape={shape === "round" ? "round" : "rectangle"}
+        cornerRadiusPercent={cornerRadius}
+        onCancel={() => setMode({ kind: "grid", deckId })}
+        onDone={async () => {
+          await reloadCards(deckId);
           setMode({ kind: "grid", deckId });
         }}
       />
