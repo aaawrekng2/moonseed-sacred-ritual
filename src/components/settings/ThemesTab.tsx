@@ -93,6 +93,7 @@ import {
   setStoredCommunityTheme,
   resolveCommunityTheme,
 } from "@/lib/community-themes";
+import { applyCommunityTheme } from "@/lib/theme-apply";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 import {
   ThemeDirtyProvider,
