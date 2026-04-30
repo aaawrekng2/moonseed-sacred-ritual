@@ -91,6 +91,7 @@ import {
   COMMUNITY_THEMES,
   getStoredCommunityTheme,
   setStoredCommunityTheme,
+  resolveCommunityTheme,
 } from "@/lib/community-themes";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 import {
