@@ -131,6 +131,7 @@ export type Database = {
         Row: {
           card_back_thumb_url: string | null
           card_back_url: string | null
+          cards_photographed_count: number
           corner_radius_percent: number
           created_at: string
           height_inches: number | null
@@ -146,6 +147,7 @@ export type Database = {
         Insert: {
           card_back_thumb_url?: string | null
           card_back_url?: string | null
+          cards_photographed_count?: number
           corner_radius_percent?: number
           created_at?: string
           height_inches?: number | null
@@ -161,6 +163,7 @@ export type Database = {
         Update: {
           card_back_thumb_url?: string | null
           card_back_url?: string | null
+          cards_photographed_count?: number
           corner_radius_percent?: number
           created_at?: string
           height_inches?: number | null
@@ -438,7 +441,9 @@ export type Database = {
           card_orientations: boolean[]
           created_at: string
           dawn_cycle_date: string | null
+          deck_id: string | null
           deep_reading_lenses: Json | null
+          entry_mode: string
           guide_id: string | null
           id: string
           interpretation: string | null
@@ -460,7 +465,9 @@ export type Database = {
           card_orientations?: boolean[]
           created_at?: string
           dawn_cycle_date?: string | null
+          deck_id?: string | null
           deep_reading_lenses?: Json | null
+          entry_mode?: string
           guide_id?: string | null
           id?: string
           interpretation?: string | null
@@ -482,7 +489,9 @@ export type Database = {
           card_orientations?: boolean[]
           created_at?: string
           dawn_cycle_date?: string | null
+          deck_id?: string | null
           deep_reading_lenses?: Json | null
+          entry_mode?: string
           guide_id?: string | null
           id?: string
           interpretation?: string | null
@@ -499,7 +508,15 @@ export type Database = {
           tags?: string[]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "readings_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "custom_decks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       symbolic_threads: {
         Row: {
