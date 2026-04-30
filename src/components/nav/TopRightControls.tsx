@@ -12,7 +12,11 @@ import { setStoredCardBack } from "@/lib/card-backs";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useUIDensity } from "@/lib/use-ui-density";
 import { dispatchActiveThemeChanged } from "@/lib/theme-events";
-import { setStoredCommunityTheme } from "@/lib/community-themes";
+import {
+  COMMUNITY_THEMES,
+  setStoredCommunityTheme,
+} from "@/lib/community-themes";
+import { applyCommunityTheme } from "@/lib/theme-apply";
 import { triggerPeek } from "@/lib/use-tap-to-peek";
 
 /**
@@ -25,20 +29,20 @@ export function applySanctuary(
   setOpacity: (n: number) => void,
 ) {
   if (typeof document === "undefined") return;
-  if (theme.bg_left && theme.bg_right) {
-    document.documentElement.style.setProperty(
-      "--bg-gradient-left",
-      theme.bg_left,
-    );
-    document.documentElement.style.setProperty(
-      "--bg-gradient-right",
-      theme.bg_right,
-    );
-  }
-  if (theme.accent) {
-    document.documentElement.style.setProperty("--gold", theme.accent);
-    document.documentElement.style.setProperty("--primary", theme.accent);
-    document.documentElement.style.setProperty("--ring", `${theme.accent}99`);
+  // BS — resolve the saved theme's community key and apply the full token
+  // set (surfaces, borders, foreground, accent). Falls back to Mystic for
+  // legacy saved themes that don't carry a theme_key yet.
+  const community =
+    (theme.theme_key &&
+      COMMUNITY_THEMES.find((t) => t.key === theme.theme_key)) ||
+    COMMUNITY_THEMES.find((t) => t.key === "mystic-default");
+  if (community) applyCommunityTheme(community);
+  // The user may have customized accent on top of the community theme.
+  if (theme.accent && theme.accent !== community?.accent) {
+    const root = document.documentElement;
+    root.style.setProperty("--gold", theme.accent);
+    root.style.setProperty("--primary", theme.accent);
+    root.style.setProperty("--ring", `${theme.accent}99`);
   }
   if (theme.font) applyHeadingFont(theme.font);
   if (theme.font_size) applyHeadingFontSize(theme.font_size);
