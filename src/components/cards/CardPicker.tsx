@@ -172,7 +172,7 @@ export function CardPicker({
                 "rounded-full border px-3 py-1 text-xs",
                 suit === s
                   ? "border-foreground/60 bg-foreground/15"
-                  : "border-foreground/15 bg-transparent hover:bg-foreground/5",
+                  : "border-border/60 bg-transparent hover:bg-foreground/10",
               )}
             >
               {s}
@@ -300,7 +300,7 @@ function ConfirmReversed({
         <div className="flex gap-3">
           <button
             onClick={onBack}
-            className="rounded-full border border-foreground/15 px-5 py-2 text-sm hover:bg-foreground/5"
+            className="rounded-full border border-border/60 px-5 py-2 text-sm hover:bg-foreground/10"
           >
             Back
           </button>
