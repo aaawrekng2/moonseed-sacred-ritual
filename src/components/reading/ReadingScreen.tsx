@@ -7,7 +7,8 @@ import {
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, CheckCheck, ChevronDown, ChevronRight, Copy, Share2 } from "lucide-react";
-import { getCardImagePath, getCardName } from "@/lib/tarot";
+import { getCardName } from "@/lib/tarot";
+import { useActiveDeckImage } from "@/lib/active-deck";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import {
   interpretReading,
