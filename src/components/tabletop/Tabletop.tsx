@@ -1211,6 +1211,7 @@ export function Tabletop({
       onComplete(
         picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
         "cast",
+        { entryMode: "digital" },
       );
     }, 1500);
     return () => window.clearTimeout(timer);
@@ -1239,22 +1240,22 @@ export function Tabletop({
           <CardPicker
             mode="manual-entry"
             excludeCardIds={manualPicks.map((p) => p.cardIndex)}
-            showReversedToggle={false}
+            showReversedToggle={allowReversed}
             title={`Pick card ${manualPicks.length + 1} of ${required}`}
             onCancel={() => {
               setManualOpen(false);
               setManualPicks([]);
             }}
-            onSelect={(cardIndex) => {
+            onSelect={(cardIndex, isReversed) => {
               const next = [
                 ...manualPicks,
-                { id: 1000 + manualPicks.length, cardIndex },
+                { id: 1000 + manualPicks.length, cardIndex, isReversed },
               ];
               if (next.length >= required) {
                 setManualOpen(false);
                 setManualPicks([]);
                 clearTabletopSession(spread);
-                onComplete(next, "reveal");
+                onComplete(next, "reveal", { entryMode: "manual" });
               } else {
                 setManualPicks(next);
               }
