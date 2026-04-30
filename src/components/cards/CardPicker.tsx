@@ -225,6 +225,7 @@ function ConfirmReversed({
   onBack,
   onConfirm,
   resolveImageSrc,
+  embedded = false,
 }: {
   cardIndex: number;
   isReversed: boolean;
@@ -232,10 +233,16 @@ function ConfirmReversed({
   onBack: () => void;
   onConfirm: () => void;
   resolveImageSrc?: (cardIndex: number) => string;
+  embedded?: boolean;
 }) {
   const src = resolveImageSrc ? resolveImageSrc(cardIndex) : getCardImagePath(cardIndex);
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-[var(--color-background)] text-[var(--color-foreground)]">
+    <div
+      className={cn(
+        "flex flex-col bg-[var(--color-background)] text-[var(--color-foreground)]",
+        embedded ? "absolute inset-0" : "fixed inset-0 z-[100]",
+      )}
+    >
       <div className="flex items-center justify-between border-b border-white/10 p-3">
         <button onClick={onBack} className="rounded-full p-2 hover:bg-white/10" aria-label="Back">
           <ChevronLeft className="h-5 w-5" />
