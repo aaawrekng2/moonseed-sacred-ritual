@@ -352,16 +352,12 @@ function ResetToDefaultsButton() {
   const reset = async () => {
     setStoredCardBack(DEFAULT_CARD_BACK);
     applyAccentTheme("default");
-    if (typeof document !== "undefined") {
-      document.documentElement.style.setProperty(
-        "--bg-gradient-left",
-        DEFAULT_BG_LEFT,
-      );
-      document.documentElement.style.setProperty(
-        "--bg-gradient-right",
-        DEFAULT_BG_RIGHT,
-      );
-    }
+    // BS — restore the Mystic default community theme's full token set
+    // so surfaces/foreground/etc. all return to baseline, not just the
+    // gradient stops.
+    const mystic = COMMUNITY_THEMES.find((t) => t.key === "mystic-default");
+    if (mystic) applyCommunityTheme(mystic);
+    setStoredCommunityTheme(null);
     setOpacity(DEFAULT_RESTING_OPACITY);
     applyHeadingFont(DEFAULT_THEME_FONT);
     applyHeadingFontSize(DEFAULT_FONT_SIZE);
