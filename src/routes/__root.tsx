@@ -17,6 +17,7 @@ import { PremiumModal } from "@/components/premium/PremiumModal";
 import { DevOverlay } from "@/components/dev/DevOverlay";
 import { TimezoneMismatchDialog } from "@/components/settings/TimezoneMismatchDialog";
 import { ActiveDeckProvider } from "@/lib/active-deck";
+import { cleanupStaleSessions } from "@/lib/import-session";
 
 /**
  * Read the persisted resting opacity from localStorage and apply it to
@@ -198,6 +199,11 @@ function RootComponent() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
+  }, []);
+  // Fire-and-forget cleanup of orphaned import-wizard sessions older
+  // than 30 days (Stamp BJ Fix 3). Prevents IndexedDB blob accumulation.
+  useEffect(() => {
+    void cleanupStaleSessions();
   }, []);
   // Global listener for the "moonseed:open-premium" event dispatched
   // from anywhere in the app (e.g. the Deep Reading limit overlay's
