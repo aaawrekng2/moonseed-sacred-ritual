@@ -918,3 +918,298 @@ async function uploadDeckBack(args: {
   }
   return url;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Corner radius previews (BM Fix 4.3)                                */
+/* ------------------------------------------------------------------ */
+
+function CornerRadiusPreview({ cornerRadiusPercent }: { cornerRadiusPercent: number }) {
+  const w = 160;
+  const h = 240;
+  const radiusPx = (cornerRadiusPercent / 100) * Math.min(w, h) / 2;
+  return (
+    <div className="mt-3 flex justify-center">
+      <div
+        className="overflow-hidden border"
+        style={{
+          width: w,
+          height: h,
+          borderRadius: radiusPx,
+          borderColor: "var(--border-subtle)",
+          background: "var(--surface-card)",
+        }}
+      >
+        <img
+          src={getCardImagePath(SAMPLE_PREVIEW_CARD_ID)}
+          alt="Sample card preview"
+          className="h-full w-full object-cover"
+          style={{ borderRadius: radiusPx }}
+          loading="lazy"
+        />
+      </div>
+    </div>
+  );
+}
+
+function RoundShapePreview() {
+  const size = 180;
+  return (
+    <div className="mt-3 flex justify-center">
+      <div
+        className="overflow-hidden border"
+        style={{
+          width: size,
+          height: size,
+          borderRadius: "9999px",
+          borderColor: "var(--border-subtle)",
+          background: "var(--surface-card)",
+        }}
+      >
+        <img
+          src={getCardImagePath(SAMPLE_PREVIEW_CARD_ID)}
+          alt="Round sample card preview"
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Per-card review modal (BM Fix 4.1)                                 */
+/* ------------------------------------------------------------------ */
+
+function PerCardReviewModal({
+  userId,
+  deckId,
+  cardId,
+  photo,
+  shape,
+  cornerRadius,
+  onClose,
+  onRetake,
+  onChanged,
+}: {
+  userId: string;
+  deckId: string;
+  cardId: number;
+  photo: CustomDeckCard;
+  shape: CustomDeck["shape"];
+  cornerRadius: number;
+  onClose: () => void;
+  onRetake: () => void;
+  onChanged: () => void | Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const previewBorderRadius =
+    shape === "round"
+      ? "9999px"
+      : `${(cornerRadius / 100) * 200}px`; // approximate visible rounding
+
+  const handleReset = async () => {
+    setBusy(true);
+    try {
+      const { error } = await supabase
+        .from("custom_deck_cards")
+        .update({ archived_at: new Date().toISOString() })
+        .eq("id", photo.id);
+      if (error) throw error;
+      toast("Reverted to default. Photo archived.");
+      await onChanged();
+    } catch (err) {
+      toast.error(`Reset failed: ${(err as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleReplaceFromFile = async (file: File) => {
+    setBusy(true);
+    try {
+      const { encodeOne } = await import("@/lib/deck-image-pipeline");
+      const key = `replace-${cardId}-${Date.now()}`;
+      const asset = await encodeOne(key, file, {
+        shape: shape === "round" ? "round" : "rectangle",
+        cornerRadiusPercent: cornerRadius,
+      });
+      const ts = Date.now();
+      const displayPath = `${userId}/${deckId}/card-${cardId}-${ts}.webp`;
+      const thumbPath = `${userId}/${deckId}/card-${cardId}-${ts}-thumb.webp`;
+      const { error: e1 } = await supabase.storage
+        .from(DECK_BUCKET)
+        .upload(displayPath, asset.displayBlob, { contentType: "image/webp", upsert: true });
+      if (e1) throw e1;
+      const { error: e2 } = await supabase.storage
+        .from(DECK_BUCKET)
+        .upload(thumbPath, asset.thumbnailBlob, { contentType: "image/webp", upsert: true });
+      if (e2) throw e2;
+      const yearSecs = 60 * 60 * 24 * 365;
+      const [{ data: d1 }, { data: d2 }] = await Promise.all([
+        supabase.storage.from(DECK_BUCKET).createSignedUrl(displayPath, yearSecs),
+        supabase.storage.from(DECK_BUCKET).createSignedUrl(thumbPath, yearSecs),
+      ]);
+      // Archive old, insert new.
+      await supabase
+        .from("custom_deck_cards")
+        .update({ archived_at: new Date().toISOString() })
+        .eq("id", photo.id);
+      const { error: insErr } = await supabase.from("custom_deck_cards").insert({
+        deck_id: deckId,
+        user_id: userId,
+        card_id: cardId,
+        display_url: d1?.signedUrl ?? "",
+        thumbnail_url: d2?.signedUrl ?? d1?.signedUrl ?? "",
+        display_path: displayPath,
+        thumbnail_path: thumbPath,
+        source: "imported",
+      });
+      if (insErr) throw insErr;
+      toast("Image replaced.");
+      await onChanged();
+    } catch (err) {
+      toast.error(`Replace failed: ${(err as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center p-6"
+      style={{
+        background:
+          "var(--surface-overlay, color-mix(in oklab, var(--color-background) 80%, black))",
+      }}
+      onClick={busy ? undefined : onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex w-full max-w-sm flex-col items-center gap-4 rounded-xl border"
+        style={{
+          background: "var(--surface-card)",
+          borderColor: "var(--border-subtle)",
+          color: "var(--color-foreground)",
+          padding: "var(--space-5, 1.25rem)",
+          borderRadius: "var(--radius-lg, 0.75rem)",
+        }}
+      >
+        <h3
+          className="italic"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-heading-sm)",
+            color: "var(--accent)",
+          }}
+        >
+          {getCardName(cardId)}
+        </h3>
+        <img
+          src={photo.display_url}
+          alt={getCardName(cardId)}
+          style={{
+            maxHeight: "60vh",
+            maxWidth: "100%",
+            borderRadius: previewBorderRadius,
+          }}
+        />
+        {!confirmReset ? (
+          <div className="flex w-full flex-col gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onRetake}
+              className="w-full rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
+              style={{
+                background: "var(--accent)",
+                color: "var(--accent-foreground, #000)",
+              }}
+            >
+              Retake
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full rounded-md border px-4 py-2 text-sm disabled:opacity-50"
+              style={{
+                borderColor: "var(--border-subtle)",
+                color: "var(--color-foreground)",
+              }}
+            >
+              Replace from file
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleReplaceFromFile(f);
+                e.currentTarget.value = "";
+              }}
+            />
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setConfirmReset(true)}
+              className="w-full px-4 py-2 text-sm italic underline disabled:opacity-50"
+              style={{ color: "var(--color-foreground)", opacity: 0.7 }}
+            >
+              Reset to default
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onClose}
+              className="w-full px-4 py-2 text-sm disabled:opacity-50"
+              style={{ color: "var(--color-foreground)", opacity: 0.7 }}
+            >
+              Done
+            </button>
+            {busy && (
+              <p className="text-center text-xs text-muted-foreground">
+                <Loader2 className="inline h-3 w-3 animate-spin" /> working…
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="flex w-full flex-col gap-3">
+            <p className="text-sm">
+              Remove your custom image and use the default? Your photo will be
+              archived and can be restored later.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setConfirmReset(false)}
+                className="flex-1 rounded-md border px-4 py-2 text-sm disabled:opacity-50"
+                style={{ borderColor: "var(--border-subtle)" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={handleReset}
+                className="flex-1 rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
+                style={{
+                  background: "var(--accent)",
+                  color: "var(--accent-foreground, #000)",
+                }}
+              >
+                {busy ? "Working…" : "Confirm reset"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body,
+  );
+}
