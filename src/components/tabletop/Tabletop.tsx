@@ -7,7 +7,9 @@ import {
   useState,
 } from "react";
 import { Undo2, Redo2, X } from "lucide-react";
+import { Hand } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
+import { CardPicker } from "@/components/cards/CardPicker";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { getCardName } from "@/lib/tarot";
@@ -365,6 +367,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const meta = SPREAD_META[spread];
   const required = meta.count;
   const usesSlots = spreadUsesSlots(spread);
+
+  // AU — Manual card entry. Bypass the scatter and let the seeker pick
+  // cards from a 78-card grid (used for logging a physical reading).
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualPicks, setManualPicks] = useState<
+    { id: number; cardIndex: number }[]
+  >([]);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -1203,6 +1212,46 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-cosmos">
+      {/* AU — manual card entry overlay. Sits above the scatter, lets the
+          seeker pick cards directly from a grid (e.g. when logging a
+          physical reading they've already pulled). */}
+      <button
+        type="button"
+        onClick={() => setManualOpen(true)}
+        className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+8px)] z-50 inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-cosmos/70 px-3 py-1.5 text-xs text-foreground/80 backdrop-blur hover:bg-gold/10"
+        aria-label="Pick cards manually"
+      >
+        <Hand className="h-3.5 w-3.5" /> Pick manually
+      </button>
+      {manualOpen && (
+        <div className="fixed inset-0 z-[60] bg-cosmos">
+          <CardPicker
+            mode="manual-entry"
+            excludeCardIds={manualPicks.map((p) => p.cardIndex)}
+            showReversedToggle={false}
+            title={`Pick card ${manualPicks.length + 1} of ${required}`}
+            onCancel={() => {
+              setManualOpen(false);
+              setManualPicks([]);
+            }}
+            onSelect={(cardIndex) => {
+              const next = [
+                ...manualPicks,
+                { id: 1000 + manualPicks.length, cardIndex },
+              ];
+              if (next.length >= required) {
+                setManualOpen(false);
+                setManualPicks([]);
+                clearTabletopSession(spread);
+                onComplete(next, "reveal");
+              } else {
+                setManualPicks(next);
+              }
+            }}
+          />
+        </div>
+      )}
+
       {/* Undo / Redo moved into the upper-right cluster below so all
           tabletop chrome sits in one row at the top-right. */}
 

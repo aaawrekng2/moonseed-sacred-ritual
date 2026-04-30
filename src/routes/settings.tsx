@@ -14,6 +14,7 @@ import {
   User as UserIcon,
   Sparkles,
   Moon,
+  Layers,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,7 @@ type TabKey =
   | "themes"
   | "guides"
   | "moon"
+  | "decks"
   | "data";
 
 type TabDef = {
@@ -65,6 +67,7 @@ type TabDef = {
     | "/settings/themes"
     | "/settings/guides"
     | "/settings/moon"
+    | "/settings/decks"
     | "/settings/data";
   icon: typeof UserIcon;
 };
@@ -75,6 +78,7 @@ const TABS: TabDef[] = [
   { key: "preferences", label: "Preferences", to: "/settings/preferences", icon: Sliders },
   { key: "themes", label: "Themes", to: "/settings/themes", icon: Palette },
   { key: "guides", label: "Guides", to: "/settings/guides", icon: Sparkles },
+  { key: "decks", label: "My Decks", to: "/settings/decks", icon: Layers },
   { key: "moon", label: "Subscriptions", to: "/settings/moon", icon: Moon },
   { key: "data", label: "Data", to: "/settings/data", icon: Database },
 ];
@@ -86,6 +90,7 @@ function tabFromPath(pathname: string): TabKey | null {
   if (pathname.startsWith("/settings/themes")) return "themes";
   if (pathname.startsWith("/settings/guides")) return "guides";
   if (pathname.startsWith("/settings/moon")) return "moon";
+  if (pathname.startsWith("/settings/decks")) return "decks";
   if (pathname.startsWith("/settings/data")) return "data";
   return null;
 }
