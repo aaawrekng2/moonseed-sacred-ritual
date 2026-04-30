@@ -80,6 +80,101 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_deck_cards: {
+        Row: {
+          card_id: number
+          created_at: string
+          deck_id: string
+          display_path: string
+          display_url: string
+          id: string
+          thumbnail_path: string
+          thumbnail_url: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          card_id: number
+          created_at?: string
+          deck_id: string
+          display_path: string
+          display_url: string
+          id?: string
+          thumbnail_path: string
+          thumbnail_url: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          card_id?: number
+          created_at?: string
+          deck_id?: string
+          display_path?: string
+          display_url?: string
+          id?: string
+          thumbnail_path?: string
+          thumbnail_url?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_deck_cards_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "custom_decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_decks: {
+        Row: {
+          card_back_thumb_url: string | null
+          card_back_url: string | null
+          corner_radius_percent: number
+          created_at: string
+          height_inches: number | null
+          id: string
+          is_active: boolean
+          is_complete: boolean
+          name: string
+          shape: string
+          updated_at: string
+          user_id: string
+          width_inches: number | null
+        }
+        Insert: {
+          card_back_thumb_url?: string | null
+          card_back_url?: string | null
+          corner_radius_percent?: number
+          created_at?: string
+          height_inches?: number | null
+          id?: string
+          is_active?: boolean
+          is_complete?: boolean
+          name: string
+          shape: string
+          updated_at?: string
+          user_id: string
+          width_inches?: number | null
+        }
+        Update: {
+          card_back_thumb_url?: string | null
+          card_back_url?: string | null
+          corner_radius_percent?: number
+          created_at?: string
+          height_inches?: number | null
+          id?: string
+          is_active?: boolean
+          is_complete?: boolean
+          name?: string
+          shape?: string
+          updated_at?: string
+          user_id?: string
+          width_inches?: number | null
+        }
+        Relationships: []
+      }
       custom_guides: {
         Row: {
           base_guide_id: string
