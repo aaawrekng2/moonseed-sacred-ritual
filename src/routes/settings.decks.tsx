@@ -30,6 +30,7 @@ import { useActiveDeck } from "@/lib/active-deck";
 import { PhotoCapture } from "@/components/photo/PhotoCapture";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
+import { ZipImporter } from "@/components/deck-import/ZipImporter";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/settings/decks")({
@@ -284,7 +285,8 @@ type EditorMode =
   | { kind: "grid"; deckId: string }
   | { kind: "picker"; deckId: string }
   | { kind: "capture"; deckId: string; cardId: number }
-  | { kind: "back-capture"; deckId: string };
+  | { kind: "back-capture"; deckId: string }
+  | { kind: "import"; deckId: string };
 
 function DeckEditor({
   userId,
