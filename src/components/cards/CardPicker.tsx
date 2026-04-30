@@ -147,6 +147,7 @@ export function CardPicker({
             const isExcluded = mode === "manual-entry" && excluded.has(idx);
             const isShot = mode === "photography" && photographed.has(idx);
             const src = resolveImageSrc ? resolveImageSrc(idx) : getCardImagePath(idx);
+            const dimDefault = mode === "photography" && !isShot;
             return (
               <button
                 key={idx}
@@ -164,10 +165,20 @@ export function CardPicker({
                     alt=""
                     loading="lazy"
                     className="h-full w-full object-cover"
+                    style={
+                      dimDefault
+                        ? { opacity: 0.3, filter: "grayscale(100%)" }
+                        : undefined
+                    }
                   />
                   {isShot && (
                     <div className="absolute right-1 top-1 rounded-full bg-emerald-500/90 p-1 text-white">
                       <Check className="h-3 w-3" />
+                    </div>
+                  )}
+                  {dimDefault && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-1 text-center text-[10px] uppercase tracking-wider text-white/80">
+                      Tap to photograph
                     </div>
                   )}
                   {isExcluded && (
