@@ -496,7 +496,9 @@ function DeckEditor({
                   .select("*")
                   .single();
                 if (error) throw error;
-                setMode({ kind: "grid", deckId: (data as CustomDeck).id });
+                // Fix 5 — go straight to card-back capture so the user
+                // sees their deck "exist" in the app immediately.
+                setMode({ kind: "back-capture", deckId: (data as CustomDeck).id });
               } catch (err) {
                 alert(`Couldn't create deck: ${(err as Error).message}`);
               } finally {
