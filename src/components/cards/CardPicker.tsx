@@ -65,6 +65,7 @@ export function CardPicker({
   const [suit, setSuit] = useState<Suit>("All");
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [pendingReversed, setPendingReversed] = useState(false);
+  const [reviewingCardId, setReviewingCardId] = useState<number | null>(null);
 
   const photographed = useMemo(() => new Set(photographedIds), [photographedIds]);
   const excluded = useMemo(() => new Set(excludeCardIds), [excludeCardIds]);
@@ -81,6 +82,10 @@ export function CardPicker({
 
   const handleTap = (cardIndex: number) => {
     if (mode === "manual-entry" && excluded.has(cardIndex)) return;
+    if (mode === "photography" && photographed.has(cardIndex)) {
+      setReviewingCardId(cardIndex);
+      return;
+    }
     if (mode === "manual-entry" && showReversedToggle) {
       setPendingId(cardIndex);
       setPendingReversed(false);
@@ -110,6 +115,22 @@ export function CardPicker({
         embedded ? "absolute inset-0" : "fixed inset-0 z-[100]",
       )}
     >
+      {reviewingCardId !== null && (
+        <ReviewPhoto
+          cardIndex={reviewingCardId}
+          src={
+            resolveImageSrc
+              ? resolveImageSrc(reviewingCardId)
+              : getCardImagePath(reviewingCardId)
+          }
+          onRetake={() => {
+            const id = reviewingCardId;
+            setReviewingCardId(null);
+            onSelect(id, false);
+          }}
+          onDone={() => setReviewingCardId(null)}
+        />
+      )}
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/10 p-3">
         <button
