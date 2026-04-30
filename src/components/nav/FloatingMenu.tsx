@@ -38,7 +38,7 @@ export function FloatingMenu() {
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
   const { level, cycleLevel } = useUIDensity();
-  const { closeHandler, copyText, showRefresh, shareBuilderClose } =
+  const { closeHandler, copyText, showRefresh, shareBuilderClose, hidden } =
     useFloatingMenu();
   const { helpHandler } = useFloatingMenu();
   const { user } = useAuth();
@@ -146,6 +146,8 @@ export function FloatingMenu() {
       if (labelTimer.current) window.clearTimeout(labelTimer.current);
     };
   }, []);
+
+  if (hidden) return null;
 
   const handleCopy = () => {
     if (!copyText) return;

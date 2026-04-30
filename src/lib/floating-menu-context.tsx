@@ -30,6 +30,12 @@ type FloatingMenuExtras = {
    * builder, not the underlying reading.
    */
   shareBuilderClose: (() => void) | null;
+  /**
+   * When true, the entire floating menu is unmounted (used while the
+   * mobile share builder is open so the top-right pop-down doesn't
+   * sit on top of the share preview).
+   */
+  hidden: boolean;
 };
 
 type FloatingMenuContextValue = FloatingMenuExtras & {
@@ -39,6 +45,7 @@ type FloatingMenuContextValue = FloatingMenuExtras & {
   setShowRefresh: (v: boolean) => void;
   setTabletopActive: (v: boolean) => void;
   setShareBuilderClose: (fn: (() => void) | null) => void;
+  setHidden: (v: boolean) => void;
 };
 
 const FloatingMenuContext = createContext<FloatingMenuContextValue>({
@@ -48,12 +55,14 @@ const FloatingMenuContext = createContext<FloatingMenuContextValue>({
   showRefresh: false,
   tabletopActive: false,
   shareBuilderClose: null,
+  hidden: false,
   setCloseHandler: () => {},
   setHelpHandler: () => {},
   setCopyText: () => {},
   setShowRefresh: () => {},
   setTabletopActive: () => {},
   setShareBuilderClose: () => {},
+  setHidden: () => {},
 });
 
 export function FloatingMenuProvider({ children }: { children: ReactNode }) {
@@ -69,6 +78,7 @@ export function FloatingMenuProvider({ children }: { children: ReactNode }) {
   const [shareBuilderClose, setShareBuilderCloseState] = useState<
     (() => void) | null
   >(null);
+  const [hidden, setHidden] = useState(false);
 
   const setCloseHandler = useCallback((fn: (() => void) | null) => {
     // Store the function reference itself, not a deferred call result —
@@ -93,12 +103,14 @@ export function FloatingMenuProvider({ children }: { children: ReactNode }) {
         showRefresh,
         tabletopActive,
         shareBuilderClose,
+        hidden,
         setCloseHandler,
         setHelpHandler,
         setCopyText,
         setShowRefresh,
         setTabletopActive,
         setShareBuilderClose,
+        setHidden,
       }}
     >
       {children}

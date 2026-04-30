@@ -7,7 +7,7 @@
  * by the parent ShareBuilder so we never maintain two layouts.
  */
 import type { CSSProperties, ReactNode } from "react";
-import { getCardImagePath } from "@/lib/tarot";
+import { getCardImagePath, getCardName } from "@/lib/tarot";
 import type { SharePick } from "../share-types";
 
 /*
@@ -144,26 +144,49 @@ export function ShareCardRow({
         <div
           key={p.id}
           style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 16,
             width: cardWidth,
-            height: cardHeight,
-            borderRadius: 16,
-            overflow: "hidden",
-            boxShadow: "0 24px 48px rgba(0,0,0,0.45)",
-            background: "#0b0b14",
           }}
         >
-          <img
-            src={getCardImagePath(p.cardIndex)}
-            alt=""
-            crossOrigin="anonymous"
+          <div
             style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              display: "block",
-              transform: p.isReversed ? "rotate(180deg)" : undefined,
+              width: cardWidth,
+              height: cardHeight,
+              borderRadius: 16,
+              overflow: "hidden",
+              boxShadow: "0 24px 48px rgba(0,0,0,0.45)",
+              background: "#0b0b14",
             }}
-          />
+          >
+            <img
+              src={getCardImagePath(p.cardIndex)}
+              alt=""
+              crossOrigin="anonymous"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+                transform: p.isReversed ? "rotate(180deg)" : undefined,
+              }}
+            />
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: 28,
+              lineHeight: 1.2,
+              textAlign: "center",
+              opacity: 0.92,
+              letterSpacing: "0.02em",
+            }}
+          >
+            {getCardName(p.cardIndex)}
+            {p.isReversed ? " (R)" : ""}
+          </div>
         </div>
       ))}
     </div>

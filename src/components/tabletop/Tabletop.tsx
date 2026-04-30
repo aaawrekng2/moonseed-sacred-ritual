@@ -449,8 +449,18 @@ export function Tabletop({
     if (!el) return;
     const update = () => {
       const r = el.getBoundingClientRect();
-      setSize({ w: r.width, h: r.height });
       setContainerOrigin({ left: r.left, top: r.top });
+      setSize((prev) => {
+        if (!prev) return { w: r.width, h: r.height };
+        const dw = Math.abs(r.width - prev.w);
+        const dh = Math.abs(r.height - prev.h);
+        // Ignore sub-5px size changes — these are usually mobile
+        // viewport-bar collapses or scrollbar transitions, not real
+        // resizes. Recomputing the scatter on those shifts visibly
+        // reflows cards as they fly to a slot.
+        if (dw < 5 && dh < 5) return prev;
+        return { w: r.width, h: r.height };
+      });
     };
     update();
     const ro = new ResizeObserver(update);
