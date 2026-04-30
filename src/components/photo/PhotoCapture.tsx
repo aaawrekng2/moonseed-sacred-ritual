@@ -622,11 +622,13 @@ function RefineView({
   ) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [vp, setVp] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
     const measure = () => {
       const r = el.getBoundingClientRect();
+      setVp({ w: r.width, h: r.height });
       onMeasure({ w: r.width, h: r.height }, { left: r.left, top: r.top });
     };
     measure();
@@ -639,10 +641,17 @@ function RefineView({
     };
   }, [onMeasure]);
 
-  // Build SVG polygon path for the crop boundary.
+  // BP Fix 5 — corners are in image space; project to screen for render.
+  const imgDims = { w: image.naturalWidth, h: image.naturalHeight };
+  const screenCorners =
+    corners.length === 4 && vp.w > 0 && vp.h > 0
+      ? corners.map((c) =>
+          imageToScreen(c, imgDims, vp, pan, zoom, rotation),
+        )
+      : [];
   const polyPoints =
-    corners.length === 4
-      ? corners.map((c) => `${c.x},${c.y}`).join(" ")
+    screenCorners.length === 4
+      ? screenCorners.map((c) => `${c.x},${c.y}`).join(" ")
       : "";
 
   return (
@@ -683,7 +692,7 @@ function RefineView({
       />
 
       {/* Dim outside the polygon + draw the crop boundary. */}
-      {corners.length === 4 && (
+      {screenCorners.length === 4 && (
         <>
           <svg
             className="pointer-events-none absolute inset-0 h-full w-full"
@@ -710,7 +719,7 @@ function RefineView({
           </svg>
 
           {/* Corner handles */}
-          {corners.map((c, i) => (
+          {screenCorners.map((c, i) => (
             <div
               key={i}
               onPointerDown={onCornerPointerDown(i)}
