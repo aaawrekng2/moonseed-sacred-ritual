@@ -232,43 +232,50 @@ function DeckRow({
 
   return (
     <li className="flex items-center gap-3 rounded-lg border border-gold/15 bg-card p-3">
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gold/15 bg-cosmos">
-        {deck.card_back_thumb_url ? (
-          <img src={deck.card_back_thumb_url} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <Camera className="h-5 w-5 opacity-40" />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate font-medium">{deck.name}</p>
-          {deck.is_active && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-gold">
-              <Star className="h-3 w-3" /> Active
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {count === null ? "…" : `${count}/78 customized`} · {deck.shape}
-        </p>
-      </div>
       <button
         type="button"
-        onClick={onToggleActive}
+        onClick={onEdit}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        aria-label={`Edit ${deck.name}`}
+      >
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gold/15 bg-cosmos">
+          {deck.card_back_thumb_url ? (
+            <img src={deck.card_back_thumb_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <Camera className="h-5 w-5 opacity-40" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate font-medium">{deck.name}</p>
+            {deck.is_active && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-gold">
+                <Star className="h-3 w-3" /> Active
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {count === null ? "…" : `${count}/78 customized`} · {deck.shape}
+          </p>
+        </div>
+      </button>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onToggleActive(); }}
         className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
       >
         {deck.is_active ? "Deactivate" : "Set active"}
       </button>
       <button
         type="button"
-        onClick={onEdit}
+        onClick={(e) => { e.stopPropagation(); onEdit(); }}
         className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
       >
         Edit
       </button>
       <button
         type="button"
-        onClick={onDelete}
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
         className="rounded-md border border-destructive/40 p-1.5 text-destructive hover:bg-destructive/10"
         aria-label="Delete deck"
       >
