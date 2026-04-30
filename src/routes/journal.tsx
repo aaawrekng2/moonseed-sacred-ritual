@@ -43,6 +43,7 @@ type ReadingRow = {
   user_id: string;
   spread_type: string;
   card_ids: number[];
+  card_orientations: boolean[] | null;
   interpretation: string | null;
   created_at: string;
   guide_id: string | null;
@@ -172,7 +173,7 @@ function JournalPage() {
           supabase
             .from("readings")
             .select(
-              "id,user_id,spread_type,card_ids,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question",
+              "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question",
             )
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
@@ -1567,6 +1568,7 @@ function ReadingDetail({
   const sharePicks = reading.card_ids.map((id, idx) => ({
     id: idx,
     cardIndex: id,
+    isReversed: reading.card_orientations?.[idx] ?? false,
   }));
   const sharePositions =
     positions ?? reading.card_ids.map((id) => getCardName(id));
@@ -1638,13 +1640,17 @@ function ReadingDetail({
                   border:
                     "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
                   opacity: "var(--ro-plus-40)",
+                  transform: reading.card_orientations?.[idx]
+                    ? "rotate(180deg)"
+                    : undefined,
                 }}
               />
               <span
                 className="mt-1 max-w-[90px] text-center font-display text-[10px] italic text-muted-foreground"
                 style={{ opacity: "var(--ro-plus-20)" }}
               >
-                {positions?.[idx] ?? getCardName(id)}
+                {(positions?.[idx] ?? getCardName(id))}
+                {reading.card_orientations?.[idx] ? " (reversed)" : ""}
               </span>
             </div>
           ))}
