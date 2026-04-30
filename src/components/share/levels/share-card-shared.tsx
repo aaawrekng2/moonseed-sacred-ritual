@@ -83,8 +83,8 @@ export function ShareCardFrame({
  * Identical across every level — the brand sign-off.
  */
 export function ShareCardFooter({
-  guideName,
-  accent,
+  guideName: _guideName,
+  accent: _accent,
 }: {
   guideName: string;
   accent: string;
