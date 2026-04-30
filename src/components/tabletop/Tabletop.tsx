@@ -1233,32 +1233,26 @@ export function Tabletop({
         <Hand className="h-3.5 w-3.5" /> Pick manually
       </button>
       {manualOpen && (
-        <div className="fixed inset-0 z-[60] bg-cosmos">
-          <CardPicker
-            mode="manual-entry"
-            excludeCardIds={manualPicks.map((p) => p.cardIndex)}
-            showReversedToggle={allowReversed}
-            title={`Pick card ${manualPicks.length + 1} of ${required}`}
-            onCancel={() => {
-              setManualOpen(false);
-              setManualPicks([]);
-            }}
-            onSelect={(cardIndex, isReversed) => {
-              const next = [
-                ...manualPicks,
-                { id: 1000 + manualPicks.length, cardIndex, isReversed },
-              ];
-              if (next.length >= required) {
-                setManualOpen(false);
-                setManualPicks([]);
-                clearTabletopSession(spread);
-                onComplete(next, "reveal", { entryMode: "manual" });
-              } else {
-                setManualPicks(next);
-              }
-            }}
-          />
-        </div>
+        <ManualEntryBuilder
+          spread={spread}
+          allowReversed={allowReversed}
+          onCancel={() => setManualOpen(false)}
+          onComplete={(picks) => {
+            setManualOpen(false);
+            clearTabletopSession(spread);
+            // Fix 9 — route through SpreadLayout (cast phase) so the
+            // manual reading visuals match a digital draw exactly.
+            onComplete(
+              picks.map((p) => ({
+                id: p.id,
+                cardIndex: p.cardIndex,
+                isReversed: p.isReversed,
+              })),
+              "cast",
+              { entryMode: "manual" },
+            );
+          }}
+        />
       )}
 
       {/* Undo / Redo moved into the upper-right cluster below so all
