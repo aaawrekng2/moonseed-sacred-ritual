@@ -179,7 +179,7 @@ function ThemesTabInner() {
               className="text-2xl font-semibold tracking-tight italic text-gold"
               style={{ fontFamily: "var(--font-serif)" }}
             >
-              The Atmosphere
+              Theme
             </h2>
             <p className="text-sm text-muted-foreground">
               Shape the space where your readings live.
@@ -400,20 +400,20 @@ function ResetToDefaultsButton() {
         className="gap-2 text-muted-foreground hover:text-foreground"
       >
         <RotateCcw className="h-3.5 w-3.5" />
-        Return to silence
+        Reset to Default
       </Button>
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Clear the altar?</AlertDialogTitle>
+            <AlertDialogTitle>Begin again?</AlertDialogTitle>
             <AlertDialogDescription>
-              The veil, the thread, the horizon, the voice, and the veil
-              opacity all return to silence. Your sanctuaries are kept.
+              Card back, accent, background, heading font, and interface
+              fade all return to defaults. Your saved themes are kept.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={reset}>Return to silence</AlertDialogAction>
+            <AlertDialogAction onClick={reset}>Reset to Default</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -448,7 +448,7 @@ function CardBackSection() {
 
   return (
     <SettingsSection
-      title="The Veil"
+      title="Card Back"
       description="What the cards show before they speak."
     >
       <div className="grid grid-cols-5 gap-1.5 sm:gap-3">
@@ -764,14 +764,14 @@ function TheFieldSection() {
 
   return (
     <SettingsSection
-      title="The Field"
+      title="Colors & Background"
       description="Cast your color into the space — and the horizon it lives within."
     >
       <div className="space-y-5">
         {/* Three swatches in a row */}
         <div className="grid grid-cols-3 gap-3">
           <FieldSwatch
-            label="Your Signature"
+            label="Accent Color"
             value={accentValue}
             isOpen={openSwatch === "signature"}
             onToggle={() =>
@@ -779,7 +779,7 @@ function TheFieldSection() {
             }
           />
           <FieldSwatch
-            label="The Past"
+            label="Left Color"
             value={leftValue}
             isOpen={openSwatch === "past"}
             onToggle={() =>
@@ -787,7 +787,7 @@ function TheFieldSection() {
             }
           />
           <FieldSwatch
-            label="The Future"
+            label="Right Color"
             value={rightValue}
             isOpen={openSwatch === "future"}
             onToggle={() =>
@@ -1036,7 +1036,7 @@ function HeadingFontSection() {
               color: "color-mix(in oklab, var(--gold) 75%, white)",
             }}
           >
-            The Atmosphere
+            Theme
           </div>
           <div
             className="mt-1"
@@ -1112,7 +1112,7 @@ function InterfaceFadeSection() {
 
   return (
     <SettingsSection
-      title="The Veil Opacity"
+      title="Interface Fade"
       description="How quietly the interface rests when not needed."
     >
       <div className="space-y-3">
@@ -1470,7 +1470,7 @@ function CommunityThemesSection() {
 
   return (
     <SettingsSection
-      title="Celestial Palettes"
+      title="Themes"
       description="Curated atmospheres — designed with intention, named for the cosmos."
     >
       <ThemeCarousel
@@ -1690,7 +1690,7 @@ function SavedThemesSection() {
 
   return (
     <SettingsSection
-      title="Your Sanctuaries"
+      title="Your Saved Themes"
       description="Capture the atmosphere of a perfect reading. Return to it anytime."
     >
       <ThemeCarousel count={MAX_SAVED_THEMES} ariaLabel="Your sanctuaries">
