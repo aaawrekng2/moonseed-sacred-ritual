@@ -698,9 +698,7 @@ function TheFieldSection() {
   const leftValue = prefs.bg_gradient_from ?? DEFAULT_BG_LEFT;
   const rightValue = prefs.bg_gradient_to ?? DEFAULT_BG_RIGHT;
 
-  const [openSwatch, setOpenSwatch] = useState<
-    "signature" | "past" | "future" | null
-  >(null);
+  const [openSwatch, setOpenSwatch] = useState<"signature" | null>(null);
 
   // Push the resolved accent into the live --gold/--primary tokens on
   // mount + whenever it changes, so other gold-themed UI picks it up
@@ -742,23 +740,6 @@ function TheFieldSection() {
     markDirty();
     await updateUserPreferences(user.id, { accent_color: lower });
     setPrefs({ ...prefs, accent_color: lower });
-    setOpenSwatch(null);
-  };
-
-  const applyGradient = async (left: string, right: string) => {
-    if (!isHex(left) || !isHex(right)) return;
-    document.documentElement.style.setProperty("--bg-gradient-left", left);
-    document.documentElement.style.setProperty("--bg-gradient-right", right);
-    markDirty();
-    await updateUserPreferences(user.id, {
-      bg_gradient_from: left.toLowerCase(),
-      bg_gradient_to: right.toLowerCase(),
-    });
-    setPrefs({
-      ...prefs,
-      bg_gradient_from: left.toLowerCase(),
-      bg_gradient_to: right.toLowerCase(),
-    });
     setOpenSwatch(null);
   };
 
