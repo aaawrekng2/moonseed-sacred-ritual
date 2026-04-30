@@ -82,36 +82,42 @@ export type Database = {
       }
       custom_deck_cards: {
         Row: {
+          archived_at: string | null
           card_id: number
           created_at: string
           deck_id: string
           display_path: string
           display_url: string
           id: string
+          source: string
           thumbnail_path: string
           thumbnail_url: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          archived_at?: string | null
           card_id: number
           created_at?: string
           deck_id: string
           display_path: string
           display_url: string
           id?: string
+          source?: string
           thumbnail_path: string
           thumbnail_url: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          archived_at?: string | null
           card_id?: number
           created_at?: string
           deck_id?: string
           display_path?: string
           display_url?: string
           id?: string
+          source?: string
           thumbnail_path?: string
           thumbnail_url?: string
           updated_at?: string
