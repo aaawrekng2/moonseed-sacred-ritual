@@ -10,11 +10,10 @@
  * resulting reading is visually identical (Fix 9).
  */
 import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { X } from "lucide-react";
 import { CardPicker } from "@/components/cards/CardPicker";
-import { useActiveDeckImage } from "@/lib/active-deck";
-import { getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
+import { ManualSpreadSlots } from "@/components/tabletop/SpreadLayout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +31,6 @@ export function ManualEntryBuilder({ spread, allowReversed, onCancel, onComplete
   const meta = SPREAD_META[spread];
   const required = meta.count;
   const labels = meta.positions ?? [];
-  const resolveImage = useActiveDeckImage();
 
   const [picks, setPicks] = useState<(ManualPick | null)[]>(
     Array.from({ length: required }, () => null),
@@ -67,51 +65,21 @@ export function ManualEntryBuilder({ spread, allowReversed, onCancel, onComplete
         <div className="w-9" />
       </header>
 
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
+      <div className="flex flex-1 flex-col items-center justify-start gap-6 overflow-y-auto p-6">
         <p className="text-center text-sm opacity-70">
           Tap each position to pick the card you drew.
         </p>
-        <div
-          className={cn(
-            "grid w-full max-w-md gap-3",
-            required <= 3 ? "grid-cols-3" : required <= 6 ? "grid-cols-3" : "grid-cols-5",
+
+        {/* Phase 9.5b Fix 5 — slot positions match the SpreadLayout used
+            by the reading screen exactly, so manual entry feels like the
+            same spread the seeker is about to read. */}
+        <ManualSpreadSlots
+          spread={spread}
+          picks={picks.map((p) =>
+            p ? { cardIndex: p.cardIndex, isReversed: p.isReversed } : null,
           )}
-        >
-          {picks.map((pick, idx) => {
-            const label = labels[idx] ?? `Card ${idx + 1}`;
-            return (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setPickerSlot(idx)}
-                className={cn(
-                  "group flex flex-col items-stretch gap-1 rounded-lg border bg-white/[0.02] p-1.5 text-left transition active:scale-[0.98]",
-                  pick
-                    ? "border-gold/30"
-                    : "border-dashed border-white/20 hover:border-gold/40 hover:bg-gold/5",
-                )}
-              >
-                <div className="relative aspect-[0.625] w-full overflow-hidden rounded bg-black">
-                  {pick ? (
-                    <img
-                      src={resolveImage(pick.cardIndex)}
-                      alt={getCardName(pick.cardIndex)}
-                      className="h-full w-full object-cover"
-                      style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center opacity-50">
-                      <Plus className="h-5 w-5" />
-                    </div>
-                  )}
-                </div>
-                <div className="truncate text-center text-[10px] uppercase tracking-wider opacity-70">
-                  {label}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+          onSlotTap={(idx) => setPickerSlot(idx)}
+        />
 
         <button
           type="button"

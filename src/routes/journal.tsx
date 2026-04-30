@@ -1628,32 +1628,46 @@ function ReadingDetail({
           </div>
         </header>
 
-        {/* Cards */}
-        <div className="mt-6 flex flex-wrap items-end justify-center gap-3">
-          {reading.card_ids.map((id, idx) => (
-            <div key={`${id}-${idx}`} className="flex flex-col items-center">
-              <img
-                src={getCardImagePath(id)}
-                alt={getCardName(id)}
-                className="h-32 w-20 rounded-md object-cover"
-                style={{
-                  border:
-                    "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
-                  opacity: "var(--ro-plus-40)",
-                  transform: reading.card_orientations?.[idx]
-                    ? "rotate(180deg)"
-                    : undefined,
-                }}
-              />
-              <span
-                className="mt-1 max-w-[90px] text-center font-display text-[10px] italic text-muted-foreground"
-                style={{ opacity: "var(--ro-plus-20)" }}
-              >
-                {(positions?.[idx] ?? getCardName(id))}
-                {reading.card_orientations?.[idx] ? " (reversed)" : ""}
-              </span>
-            </div>
-          ))}
+        {/* Cards — align to top so any reversed-label line break does
+            NOT push some cards down (Phase 9.5b Fix 7). The position
+            label sits on its own row, the optional "Reversed" tag is a
+            separate line whose space is reserved with min-height even
+            when absent. */}
+        <div className="mt-6 flex flex-wrap items-start justify-center gap-3">
+          {reading.card_ids.map((id, idx) => {
+            const isReversed = !!reading.card_orientations?.[idx];
+            return (
+              <div key={`${id}-${idx}`} className="flex flex-col items-center">
+                <img
+                  src={getCardImagePath(id)}
+                  alt={getCardName(id)}
+                  className="h-32 w-20 rounded-md object-cover"
+                  style={{
+                    border:
+                      "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+                    opacity: "var(--ro-plus-40)",
+                    transform: isReversed ? "rotate(180deg)" : undefined,
+                  }}
+                />
+                <span
+                  className="mt-1 max-w-[90px] text-center font-display text-[10px] italic text-muted-foreground"
+                  style={{ opacity: "var(--ro-plus-20)" }}
+                >
+                  {positions?.[idx] ?? getCardName(id)}
+                </span>
+                <span
+                  className="text-center font-display text-[10px] italic text-muted-foreground"
+                  style={{
+                    opacity: "var(--ro-plus-10)",
+                    minHeight: "1.4em",
+                    visibility: isReversed ? "visible" : "hidden",
+                  }}
+                >
+                  reversed
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Interpretation */}

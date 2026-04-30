@@ -1220,6 +1220,31 @@ export function Tabletop({
   }, [ready, required]);
 
   return (
+    manualOpen ? (
+      // Phase 9.5b Fix 4 — manual entry replaces the tabletop entirely.
+      // Returning early ensures the scatter (and its high-z cards/slots)
+      // never bleed through behind the manual entry UI.
+      <ManualEntryBuilder
+        spread={spread}
+        allowReversed={allowReversed}
+        onCancel={() => setManualOpen(false)}
+        onComplete={(picks) => {
+          setManualOpen(false);
+          clearTabletopSession(spread);
+          // Phase 9.5b Fix 6 — manual entry skips the flip animation
+          // entirely and jumps straight to interpretation.
+          onComplete(
+            picks.map((p) => ({
+              id: p.id,
+              cardIndex: p.cardIndex,
+              isReversed: p.isReversed,
+            })),
+            "reveal",
+            { entryMode: "manual" },
+          );
+        }}
+      />
+    ) : (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-cosmos">
       {/* AU — manual card entry overlay. Sits above the scatter, lets the
           seeker pick cards directly from a grid (e.g. when logging a
@@ -1232,28 +1257,6 @@ export function Tabletop({
       >
         <Hand className="h-3.5 w-3.5" /> Pick manually
       </button>
-      {manualOpen && (
-        <ManualEntryBuilder
-          spread={spread}
-          allowReversed={allowReversed}
-          onCancel={() => setManualOpen(false)}
-          onComplete={(picks) => {
-            setManualOpen(false);
-            clearTabletopSession(spread);
-            // Fix 9 — route through SpreadLayout (cast phase) so the
-            // manual reading visuals match a digital draw exactly.
-            onComplete(
-              picks.map((p) => ({
-                id: p.id,
-                cardIndex: p.cardIndex,
-                isReversed: p.isReversed,
-              })),
-              "cast",
-              { entryMode: "manual" },
-            );
-          }}
-        />
-      )}
 
       {/* Undo / Redo moved into the upper-right cluster below so all
           tabletop chrome sits in one row at the top-right. */}
@@ -1831,6 +1834,7 @@ export function Tabletop({
         </div>
       )}
     </div>
+    )
   );
 }
 
