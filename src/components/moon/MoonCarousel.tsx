@@ -482,7 +482,7 @@ export function MoonCarousel() {
     <section
       aria-label="Moon phase calendar"
       aria-roledescription="carousel"
-      className="relative animate-in fade-in slide-in-from-top-2 duration-500"
+      className="relative animate-in fade-in slide-in-from-top-2 duration-500 pt-6 sm:pt-8"
       style={{ minHeight: 280 }}
     >
       {/* Screen-reader-only live status describing the currently centered day. */}
@@ -919,7 +919,10 @@ function FullMoonMarker({
         flexDirection: "column",
         alignItems: "center",
         gap: 4,
-        zIndex: 9999,
+        // Kept low so the "Return" affordance below the cards row is never
+        // visually covered by the marker. Marker is decorative + pointer-
+        // events:none, but a high z-index could still paint over text.
+        zIndex: 5,
       }}
     >
       <div
