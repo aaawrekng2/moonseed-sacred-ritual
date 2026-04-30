@@ -15,7 +15,7 @@
  * caller's responsibility.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, Loader2, RotateCw, Undo2, X } from "lucide-react";
+import { Check, Loader2, RotateCcw, RotateCw, Undo2, X } from "lucide-react";
 
 export type PhotoCaptureShape = "rectangle" | "square" | "round" | "free";
 
@@ -113,66 +113,54 @@ function resizeToMaxDimension(
   return out;
 }
 
-/** Crop the source bitmap to the framed area defined by the shape. */
-function cropToShape(
-  source: HTMLImageElement | HTMLCanvasElement,
-  shape: PhotoCaptureShape,
-  aspectRatio: number | undefined,
+/**
+ * WYSIWYG crop. Replays the on-screen transform (translate → rotate →
+ * scale) onto an output canvas sized to the visible crop frame, so what
+ * the user saw inside the overlay is exactly what gets saved.
+ *
+ * The viewer fits the source so its HEIGHT matches the viewport height
+ * (CSS: height: 100%, width: auto). `viewerScale` converts viewport CSS
+ * pixels to source pixels. Pan, rotation and zoom are then applied
+ * around the viewport centre, mirroring the CSS transform string.
+ */
+function cropFromViewport(
+  source: HTMLImageElement,
+  viewport: { w: number; h: number },
+  frame: { w: number; h: number },
   zoom: number,
   panX: number,
   panY: number,
   rotation: number,
 ): HTMLCanvasElement {
-  const sw = "naturalWidth" in source ? source.naturalWidth : source.width;
-  const sh = "naturalHeight" in source ? source.naturalHeight : source.height;
+  const sw = source.naturalWidth;
+  const sh = source.naturalHeight;
+  // The displayed image fits the viewport by HEIGHT (see <RefineView>).
+  // 1 viewport CSS pixel → (sh / viewport.h) source pixels.
+  const cssToSrc = sh / Math.max(1, viewport.h);
 
-  // Effective aspect for the crop frame.
-  let frameAspect: number;
-  if (shape === "square" || shape === "round") frameAspect = 1;
-  else if (shape === "rectangle") frameAspect = aspectRatio ?? 0.7;
-  else frameAspect = aspectRatio ?? sw / sh;
-
-  // Compute the crop rectangle in source pixels.
-  // We treat the source as fitting the frame at zoom=1 (cover).
-  const isRotated = rotation % 180 !== 0;
-  const drawW = isRotated ? sh : sw;
-  const drawH = isRotated ? sw : sh;
-
-  let cropW: number;
-  let cropH: number;
-  if (drawW / drawH > frameAspect) {
-    cropH = drawH / zoom;
-    cropW = cropH * frameAspect;
-  } else {
-    cropW = drawW / zoom;
-    cropH = cropW / frameAspect;
-  }
-
-  const cx = drawW / 2 + panX;
-  const cy = drawH / 2 + panY;
-  const sx = Math.max(0, Math.min(drawW - cropW, cx - cropW / 2));
-  const sy = Math.max(0, Math.min(drawH - cropH, cy - cropH / 2));
+  // Output canvas is sized to the frame in source pixels.
+  const outW = Math.max(1, Math.round(frame.w * cssToSrc));
+  const outH = Math.max(1, Math.round(frame.h * cssToSrc));
 
   const out = document.createElement("canvas");
-  // Render at a comfortable working size; downscaling happens at final step.
-  const targetW = Math.round(Math.max(cropW, 800));
-  const targetH = Math.round(targetW / frameAspect);
-  out.width = targetW;
-  out.height = targetH;
+  out.width = outW;
+  out.height = outH;
   const ctx = out.getContext("2d");
   if (!ctx) return out;
 
+  // Fill with black so any unmapped area (under-zoom) reads as backdrop.
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, outW, outH);
+
+  // Replay the CSS transform around the frame centre.
   ctx.save();
-  ctx.translate(targetW / 2, targetH / 2);
+  ctx.translate(outW / 2, outH / 2);
+  // Pan (CSS `translate(-pan.x, -pan.y)` in viewport pixels).
+  ctx.translate(-panX * cssToSrc, -panY * cssToSrc);
   ctx.rotate((rotation * Math.PI) / 180);
-  // After rotation, draw the original sw x sh image so that the crop
-  // window in *rotated* space aligns with sx/sy/cropW/cropH.
-  // Easiest: draw the entire source rotated, then take the centered
-  // sub-rect equal to (cropW, cropH) scaled to (targetW, targetH).
-  const scale = targetW / cropW;
-  ctx.scale(scale, scale);
-  ctx.translate(-cx, -cy);
-  ctx.drawImage(source, 0, 0, sw, sh);
+  ctx.scale(zoom, zoom);
+  // Draw the source so its centre lands on the (post-translate) origin.
+  ctx.drawImage(source, -sw / 2, -sh / 2);
   ctx.restore();
 
   return out;
@@ -202,6 +190,9 @@ export function PhotoCapture({
   const [rotation, setRotation] = useState(0);
   const dragRef = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const pinchRef = useRef<{ d: number; z: number } | null>(null);
+  // Viewport rect for the refine area, captured by <RefineView>.
+  const viewportRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
+  const frameRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
 
   // Frame aspect for overlays.
   const frameAspect =
@@ -291,7 +282,17 @@ export function PhotoCapture({
     if (!captured) return;
     setStep("saving");
     try {
-      let canvas = cropToShape(captured, shape, aspectRatio, zoom, pan.x, pan.y, rotation);
+      let canvas = cropFromViewport(
+        captured,
+        viewportRef.current,
+        frameRef.current,
+        zoom,
+        pan.x,
+        pan.y,
+        rotation,
+      );
+      // Fix 4 — never upscale. resizeToMaxDimension is a no-op when the
+      // longest edge is already <= outputMaxDimension.
       canvas = resizeToMaxDimension(canvas, outputMaxDimension);
       if (shape === "round") {
         canvas = applyCircularMask(canvas);
@@ -353,6 +354,10 @@ export function PhotoCapture({
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onWheel={onWheel}
+            onMeasure={(viewport, frame) => {
+              viewportRef.current = viewport;
+              frameRef.current = frame;
+            }}
           />
         )}
         {step === "saving" && (
@@ -392,9 +397,16 @@ export function PhotoCapture({
               Retake
             </button>
             <button
+              onClick={() => setRotation((r) => (r - 90 + 360) % 360)}
+              className="rounded-full bg-white/10 p-3 hover:bg-white/20"
+              aria-label="Rotate left 90°"
+            >
+              <RotateCcw className="h-5 w-5" />
+            </button>
+            <button
               onClick={() => setRotation((r) => (r + 90) % 360)}
               className="rounded-full bg-white/10 p-3 hover:bg-white/20"
-              aria-label="Rotate 90°"
+              aria-label="Rotate right 90°"
             >
               <RotateCw className="h-5 w-5" />
             </button>
