@@ -484,6 +484,7 @@ function ShapeOverlay({
   return (
     <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
       <div
+        data-overlay-frame
         style={{
           width: shape === "round" || shape === "square" ? `calc(100% - 2 * ${inset})` : "76%",
           aspectRatio: frameAspect,
