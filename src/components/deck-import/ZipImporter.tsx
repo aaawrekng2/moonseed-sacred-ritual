@@ -1730,6 +1730,22 @@ function ZoomModal({
             </button>
           </>
         )}
+        {/* BN Fix 1 — Edit / 4-corner crop refine */}
+        {canEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-md border px-4 py-2"
+            style={{
+              background: "transparent",
+              borderColor: "var(--accent)",
+              color: "var(--accent)",
+              fontSize: "var(--text-body-sm)",
+            }}
+          >
+            Edit
+          </button>
+        )}
         <button
           type="button"
           onClick={onBack}
