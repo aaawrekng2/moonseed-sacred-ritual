@@ -1019,9 +1019,18 @@ function Workspace({
           src={resolveSrc(zoom.imageKey)}
           context={zoom.from}
           canUseAsBack={zoom.from === "unassigned" && !hasBack}
+          canEdit={
+            // EXISTING markers have no real raw blob to refine.
+            !zoom.imageKey.startsWith("EXISTING:")
+          }
           shape={shape}
           cornerRadiusPercent={cornerRadiusPercent}
           onBack={() => setZoom(null)}
+          onEdit={() => {
+            const ctx = zoom;
+            setZoom(null);
+            setEditing({ imageKey: ctx.imageKey, previousZoom: ctx });
+          }}
           onPickCard={() => {
             const ctx = zoom;
             setZoom(null);
