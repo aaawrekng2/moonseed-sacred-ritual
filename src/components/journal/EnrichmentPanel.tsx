@@ -183,6 +183,10 @@ export function EnrichmentPanel({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Phase 9.5b — Stamp AQ. In-app PhotoCapture overlay for journal
+  // photos. The hidden file input remains as a fallback for users on
+  // desktops without a camera or who want to upload an existing image.
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   // Copy-to-clipboard transient state for the inline copy icon.
   const [copied, setCopied] = useState(false);
