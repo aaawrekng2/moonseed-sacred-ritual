@@ -527,6 +527,15 @@ function DeckEditor({
             <Camera className="h-4 w-4" />
             {deckBackUrl ? "Replace card back" : "Set card back"}
           </button>
+          <button
+            type="button"
+            onClick={() => setMode({ kind: "import", deckId })}
+            className="inline-flex items-center gap-2 rounded-md border border-gold/30 px-3 py-2 text-sm hover:bg-gold/10"
+            title="Open the bulk import workspace. Resumes saved progress if any."
+          >
+            <Plus className="h-4 w-4" />
+            Import / replace from zip
+          </button>
         </div>
 
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
