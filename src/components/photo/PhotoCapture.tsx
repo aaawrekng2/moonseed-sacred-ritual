@@ -248,6 +248,29 @@ export function PhotoCapture({
 
   useEffect(() => () => stopCamera(), [stopCamera]);
 
+  // BN Fix 1 — when an initialBlob is provided, decode it into the
+  // `captured` image once so RefineView can render it. We deliberately
+  // never start the camera in this mode.
+  useEffect(() => {
+    if (!initialBlob) return;
+    let cancelled = false;
+    const url = URL.createObjectURL(initialBlob);
+    const img = new Image();
+    img.onload = () => {
+      if (cancelled) return;
+      setCaptured(img);
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+      setRotation(0);
+      setCorners([]);
+    };
+    img.src = url;
+    return () => {
+      cancelled = true;
+      URL.revokeObjectURL(url);
+    };
+  }, [initialBlob]);
+
   // ---- Capture a still ----
   const capture = useCallback(() => {
     const v = videoRef.current;
