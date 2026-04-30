@@ -309,3 +309,69 @@ function ConfirmReversed({
     </div>
   );
 }
+
+function ReviewPhoto({
+  cardIndex,
+  src,
+  onRetake,
+  onDone,
+}: {
+  cardIndex: number;
+  src: string;
+  onRetake: () => void;
+  onDone: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[110] flex flex-col items-center justify-center p-6"
+      style={{
+        background: "color-mix(in oklab, var(--color-background) 85%, black)",
+      }}
+    >
+      <div
+        className="flex w-full max-w-sm flex-col items-center gap-5 rounded-xl border p-5"
+        style={{
+          background: "var(--surface-card)",
+          borderColor: "var(--border-subtle)",
+          color: "var(--color-foreground)",
+        }}
+      >
+        <div className="text-sm uppercase tracking-[0.25em] opacity-70">
+          {getCardName(cardIndex)}
+        </div>
+        <div className="w-56">
+          <div
+            className="aspect-[0.625] overflow-hidden rounded-lg border"
+            style={{ borderColor: "var(--border-subtle)", background: "#000" }}
+          >
+            <img src={src} alt="" className="h-full w-full object-cover" />
+          </div>
+        </div>
+        <div className="flex w-full gap-3">
+          <button
+            type="button"
+            onClick={onDone}
+            className="flex-1 rounded-md border px-4 py-2 text-sm"
+            style={{
+              borderColor: "var(--border-subtle)",
+              color: "var(--color-foreground)",
+            }}
+          >
+            Done
+          </button>
+          <button
+            type="button"
+            onClick={onRetake}
+            className="flex-1 rounded-md px-4 py-2 text-sm font-medium"
+            style={{
+              background: "var(--accent, var(--gold))",
+              color: "var(--accent-foreground, #000)",
+            }}
+          >
+            Retake
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
