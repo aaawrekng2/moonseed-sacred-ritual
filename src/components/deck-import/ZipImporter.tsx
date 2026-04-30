@@ -1,76 +1,72 @@
 /**
- * ZipImporter — bulk-import card images from a .zip (Stamp BH).
+ * ZipImporter — session-backed bulk deck import (Stamp BK).
  *
- * Drives the multi-step flow described in Prompt BH:
- *   1. Upload         — pick a .zip, extract entries client-side
- *   2. Auto-match     — score filenames against the 78 cards
- *   3a. Review grid   — high-match path (≥60 matched)
- *   3b. Wizard        — sequential picker for low-match
- *   4. Card back      — confirm/pick the deck back
- *   5. Processing     — resize/mask/encode/upload
- *   6. Summary        — results + return to deck grid
+ * Architecture (Phase BJ):
+ *   - One IndexedDB session per deck holds raw blobs + assignments +
+ *     per-image encoded WebP assets. The wizard mutates this session
+ *     freely; nothing is written to Supabase until the user taps Save.
+ *   - Encoding runs on a concurrency-capped queue the moment a user
+ *     assigns an image to a slot, so by the time they hit Save the
+ *     uploads are mostly just network I/O.
+ *   - "Re-import" / resume: opening the importer for a deck that has
+ *     existing custom_deck_cards rows pre-populates the assigned panel
+ *     with synthetic EXISTING:* markers. The user sees their existing
+ *     deck and can replace individual slots; only changed slots get
+ *     archived and re-uploaded on Save.
  *
- * The owning component (DeckEditor) renders us when its mode kind is
- * one of the import-* values. We never own the deck row itself —
- * that's created upstream so partial saves are recoverable.
+ * UI shape:
+ *   1. Upload (or resume banner if a session exists)
+ *   2. Workspace — three-tab view: Unassigned | Assigned | Skipped
+ *      Tap an image → ZoomModal → Pick a card (CardPicker) or Skip
+ *      Tap an assigned slot → unassign / replace
+ *      Card-back picker is a compact inline panel.
+ *   3. Save → atomic commit (via deck-import-commit).
+ *   4. Summary.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Upload, X, Check } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Loader2, Upload, X } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
-import { processImageBlob } from "./process";
-import {
-  matchFilenames,
-  type MatchResult,
-} from "./matcher";
 import { CardPicker } from "@/components/cards/CardPicker";
+import { matchFilenames, isCardBackFilename } from "./matcher";
+import {
+  BACK_KEY,
+  computeImageKey,
+  deleteSession,
+  getSession,
+  makeThrottledSaver,
+  saveSession,
+  type EncodedAsset,
+  type ImportImage,
+  type ImportSession,
+} from "@/lib/import-session";
+import { EncodingQueue } from "@/lib/deck-image-pipeline";
+import { commitImportSession } from "@/lib/deck-import-commit";
+import { fetchDeckCards } from "@/lib/custom-decks";
 
-const DECK_BUCKET = "custom-deck-images";
 const ZIP_MAX_BYTES = 20 * 1024 * 1024;
 const VALID_EXT = /\.(png|jpe?g|webp|gif)$/i;
-const LOW_RES_THRESHOLD = 800;
 
 type Phase =
-  | { kind: "upload" }
+  | { kind: "loading" }
+  | { kind: "upload"; resumable: boolean }
   | { kind: "extracting" }
-  | { kind: "review"; data: ExtractedDeck }
-  | { kind: "wizard"; data: ExtractedDeck }
-  | { kind: "back"; data: ExtractedDeck }
-  | {
-      kind: "processing";
-      data: ExtractedDeck;
-      done: number;
-      total: number;
-    }
+  | { kind: "workspace" }
+  | { kind: "saving"; total: number; done: number }
   | {
       kind: "summary";
-      assignedCount: number;
-      skippedCount: number;
-      lowResIds: number[];
-      failedIds: number[];
-      hasBack: boolean;
+      written: number;
+      failedCardIds: number[];
+      cardBackFailed: boolean;
     };
 
-type ExtractedDeck = {
-  /** filename → blob */
-  blobs: Map<string, Blob>;
-  /** card_id → filename */
-  assignments: Map<number, string>;
-  /** filenames not assigned to any card (the "tray") */
-  tray: string[];
-  /** filename considered the card-back (or null) */
-  cardBack: string | null;
-};
+type Tab = "unassigned" | "assigned" | "skipped";
 
-function makeBlobUrlMap(deck: ExtractedDeck): Map<string, string> {
-  const out = new Map<string, string>();
-  for (const [name, blob] of deck.blobs) {
-    out.set(name, URL.createObjectURL(blob));
-  }
-  return out;
-}
+type WorkspaceState = {
+  session: ImportSession;
+};
 
 export function ZipImporter({
   userId,
@@ -85,14 +81,63 @@ export function ZipImporter({
   shape: "rectangle" | "round";
   cornerRadiusPercent: number;
   onCancel: () => void;
-  /** Fired when user taps Done on the summary screen. */
   onDone: () => void;
 }) {
-  const [phase, setPhase] = useState<Phase>({ kind: "upload" });
+  const [phase, setPhase] = useState<Phase>({ kind: "loading" });
+  const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
+  const queueRef = useRef<EncodingQueue>(new EncodingQueue());
+  const saverRef = useRef(makeThrottledSaver(deckId));
 
+  // Bootstrap: check for existing session OR existing deck rows.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const existing = await getSession(deckId);
+        if (cancelled) return;
+        if (existing && Object.keys(existing.unassigned).length + Object.keys(existing.assigned).length > 0) {
+          setWorkspace({ session: existing });
+          setPhase({ kind: "workspace" });
+          return;
+        }
+        // No session: check for existing deck cards (re-import path).
+        const existingCards = await fetchDeckCards(deckId);
+        if (cancelled) return;
+        if (existingCards.length > 0) {
+          // Pre-populate session with synthetic markers.
+          const session = makeEmptySession(deckId);
+          for (const c of existingCards) {
+            const k = `EXISTING:${c.card_id}`;
+            session.unassigned[k] = {
+              key: k,
+              filename: `${getCardName(c.card_id)} (current)`,
+              rawBlob: new Blob(),
+              width: 0,
+              height: 0,
+              existingUrl: c.thumbnail_url || c.display_url,
+            };
+            session.assigned[String(c.card_id)] = k;
+          }
+          await saveSession(session);
+          setWorkspace({ session });
+          setPhase({ kind: "workspace" });
+          return;
+        }
+        setPhase({ kind: "upload", resumable: false });
+      } catch (err) {
+        console.error("[ZipImporter] bootstrap failed", err);
+        setPhase({ kind: "upload", resumable: false });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [deckId]);
+
+  /* ---------- Zip extraction ---------- */
   const handleFile = useCallback(async (file: File) => {
     const lower = file.name.toLowerCase();
-    if (!lower.endsWith(".zip") && file.type !== "application/zip" && file.type !== "application/x-zip-compressed") {
+    if (!lower.endsWith(".zip")) {
       toast.error("Please upload a .zip file.");
       return;
     }
@@ -103,115 +148,326 @@ export function ZipImporter({
     setPhase({ kind: "extracting" });
     try {
       const zip = await JSZip.loadAsync(file);
-      const blobs = new Map<string, Blob>();
       const entries: JSZip.JSZipObject[] = [];
       zip.forEach((_path, entry) => {
         if (!entry.dir) entries.push(entry);
       });
+      const session = makeEmptySession(deckId);
+      const rawByName = new Map<string, Blob>();
       for (const entry of entries) {
         const base = entry.name.split("/").pop() ?? entry.name;
         if (!VALID_EXT.test(base)) continue;
         const blob = await entry.async("blob");
-        blobs.set(base, blob);
+        rawByName.set(base, blob);
       }
-      if (blobs.size === 0) {
-        toast.error("No card images found in this zip. Make sure the zip contains image files.");
-        setPhase({ kind: "upload" });
+      if (rawByName.size === 0) {
+        toast.error("No card images found in this zip.");
+        setPhase({ kind: "upload", resumable: false });
         return;
       }
-      const filenames = Array.from(blobs.keys());
-      const match: MatchResult = matchFilenames(filenames);
-      const assignments = new Map<number, string>();
-      for (const [file, cardId] of match.assignments) {
-        assignments.set(cardId, file);
+      const names = Array.from(rawByName.keys());
+      const match = matchFilenames(names);
+      // Auto-assign matched cards.
+      const filenameToKey = new Map<string, string>();
+      for (const [name, blob] of rawByName) {
+        const key = await computeImageKey(name, blob);
+        filenameToKey.set(name, key);
+        const img = await makeImportImage(key, name, blob);
+        session.unassigned[key] = img;
       }
-      const data: ExtractedDeck = {
-        blobs,
-        assignments,
-        tray: match.unmatched,
-        cardBack: match.cardBackFile,
-      };
-      if (assignments.size >= 60) setPhase({ kind: "review", data });
-      else setPhase({ kind: "wizard", data });
+      for (const [filename, cardId] of match.assignments) {
+        const key = filenameToKey.get(filename);
+        if (!key) continue;
+        session.assigned[String(cardId)] = key;
+      }
+      if (match.cardBackFile) {
+        const key = filenameToKey.get(match.cardBackFile);
+        if (key) session.assigned[BACK_KEY] = key;
+      }
+      // Auto-detect any "back*"-named files even if matcher missed them.
+      if (!session.assigned[BACK_KEY]) {
+        for (const name of names) {
+          if (isCardBackFilename(name)) {
+            const k = filenameToKey.get(name);
+            if (k) {
+              session.assigned[BACK_KEY] = k;
+              break;
+            }
+          }
+        }
+      }
+      await saveSession(session);
+      setWorkspace({ session });
+      setPhase({ kind: "workspace" });
+      // Kick off encoding for assigned images upfront.
+      kickoffEncoding(session, queueRef.current, { shape, cornerRadiusPercent }, (asset) => {
+        // Update session via setter on next render.
+        setWorkspace((prev) => {
+          if (!prev) return prev;
+          const next = cloneSession(prev.session);
+          next.encoded[asset.key] = asset;
+          saverRef.current.schedule(next);
+          return { session: next };
+        });
+      });
     } catch (err) {
       console.error("Zip read failed", err);
-      toast.error("Couldn't read that zip file.");
-      setPhase({ kind: "upload" });
+      toast.error("Couldn't read that zip.");
+      setPhase({ kind: "upload", resumable: false });
     }
+  }, [deckId, shape, cornerRadiusPercent]);
+
+  /* ---------- Mutators ---------- */
+  const mutate = useCallback((mutator: (s: ImportSession) => void) => {
+    setWorkspace((prev) => {
+      if (!prev) return prev;
+      const next = cloneSession(prev.session);
+      mutator(next);
+      saverRef.current.schedule(next);
+      return { session: next };
+    });
   }, []);
 
-  if (phase.kind === "upload") {
-    return <UploadStep onFile={handleFile} onCancel={onCancel} />;
-  }
-  if (phase.kind === "extracting") {
-    return <Centered text="Reading your deck…" />;
-  }
-  if (phase.kind === "review") {
-    return (
-      <ReviewGrid
-        data={phase.data}
-        onCancel={onCancel}
-        onSwitchToWizard={() =>
-          setPhase({ kind: "wizard", data: phase.data })
+  const handleAssign = useCallback((imageKey: string, cardId: number | "BACK") => {
+    const slot = cardId === "BACK" ? BACK_KEY : String(cardId);
+    mutate((s) => {
+      // Remove image from unassigned/skipped.
+      const fromUn = s.unassigned[imageKey];
+      const fromSk = s.skipped[imageKey];
+      const img = fromUn ?? fromSk;
+      // If neither bucket has it, it's already assigned somewhere — pull
+      // from the shadow asset store.
+      const shadow = ensureAssetStore(s)[imageKey];
+      const sourceImg = img ?? shadow;
+      if (!sourceImg) return;
+      delete s.unassigned[imageKey];
+      delete s.skipped[imageKey];
+      // If slot already occupied, push displaced image back to unassigned.
+      const displaced = s.assigned[slot];
+      if (displaced && displaced !== imageKey) {
+        const displacedImg = findImage(s, displaced);
+        if (displacedImg && !displaced.startsWith("EXISTING:")) {
+          s.unassigned[displaced] = displacedImg;
         }
-        onProceed={() => setPhase({ kind: "back", data: phase.data })}
-      />
-    );
-  }
-  if (phase.kind === "wizard") {
+      }
+      // Remove imageKey from any other slot it may have occupied.
+      for (const k of Object.keys(s.assigned)) {
+        if (s.assigned[k] === imageKey) delete s.assigned[k];
+      }
+      s.assigned[slot] = imageKey;
+      // Stash in shadow asset store so findImage() can still locate it
+      // after it's been removed from unassigned/skipped.
+      ensureAssetStore(s)[imageKey] = sourceImg;
+    });
+    // Trigger encoding for this image if not already encoded.
+    setWorkspace((prev) => {
+      if (!prev) return prev;
+      const img = findImage(prev.session, imageKey);
+      if (img && !img.existingUrl && !prev.session.encoded[imageKey]) {
+        queueRef.current
+          .enqueue(imageKey, img.rawBlob, { shape, cornerRadiusPercent })
+          .then((asset) => {
+            setWorkspace((cur) => {
+              if (!cur) return cur;
+              const next = cloneSession(cur.session);
+              next.encoded[asset.key] = asset;
+              saverRef.current.schedule(next);
+              return { session: next };
+            });
+          })
+          .catch((e) => console.warn("encode failed", e));
+      }
+      return prev;
+    });
+  }, [mutate, shape, cornerRadiusPercent]);
+
+  const handleSkip = useCallback((imageKey: string) => {
+    mutate((s) => {
+      const img = s.unassigned[imageKey];
+      if (!img) return;
+      delete s.unassigned[imageKey];
+      s.skipped[imageKey] = img;
+    });
+  }, [mutate]);
+
+  const handleUnskip = useCallback((imageKey: string) => {
+    mutate((s) => {
+      const img = s.skipped[imageKey];
+      if (!img) return;
+      delete s.skipped[imageKey];
+      s.unassigned[imageKey] = img;
+    });
+  }, [mutate]);
+
+  const handleUnassign = useCallback((slot: string) => {
+    mutate((s) => {
+      const imageKey = s.assigned[slot];
+      if (!imageKey) return;
+      delete s.assigned[slot];
+      const img = findImage(s, imageKey);
+      if (img && !imageKey.startsWith("EXISTING:")) {
+        s.unassigned[imageKey] = img;
+      }
+    });
+  }, [mutate]);
+
+  const handleSave = useCallback(async () => {
+    if (!workspace) return;
+    await saverRef.current.flush();
+    const total = Object.keys(workspace.session.assigned).length;
+    setPhase({ kind: "saving", total, done: 0 });
+    try {
+      const result = await commitImportSession({
+        session: workspace.session,
+        userId,
+        deckId,
+        shape,
+        cornerRadiusPercent,
+        queue: queueRef.current,
+      });
+      setPhase({
+        kind: "summary",
+        written: result.written,
+        failedCardIds: result.failedCardIds,
+        cardBackFailed: result.cardBackFailed,
+      });
+    } catch (err) {
+      console.error("commit failed", err);
+      toast.error("Save failed. Your progress is preserved — try again.");
+      setPhase({ kind: "workspace" });
+    }
+  }, [workspace, userId, deckId, shape, cornerRadiusPercent]);
+
+  const handleCancel = useCallback(() => {
+    onCancel();
+  }, [onCancel]);
+
+  const handleDiscard = useCallback(async () => {
+    if (!confirm("Discard this import? Your in-progress changes will be lost.")) return;
+    await deleteSession(deckId);
+    setWorkspace(null);
+    setPhase({ kind: "upload", resumable: false });
+  }, [deckId]);
+
+  /* ---------- Renders ---------- */
+  if (phase.kind === "loading") return <Centered text="Checking for saved progress…" />;
+  if (phase.kind === "upload") return <UploadStep onFile={handleFile} onCancel={handleCancel} />;
+  if (phase.kind === "extracting") return <Centered text="Reading your zip…" />;
+  if (phase.kind === "saving") return <Centered text={`Saving deck… ${phase.done}/${phase.total}`} />;
+  if (phase.kind === "summary") {
     return (
-      <Wizard
-        data={phase.data}
-        onCancel={onCancel}
-        onProceed={() => setPhase({ kind: "back", data: phase.data })}
-      />
-    );
-  }
-  if (phase.kind === "back") {
-    return (
-      <CardBackStep
-        data={phase.data}
-        onCancel={onCancel}
-        onProceed={async () => {
-          // Move into processing.
-          const data = phase.data;
-          const total = data.assignments.size + (data.cardBack ? 1 : 0);
-          setPhase({ kind: "processing", data, done: 0, total });
-          await runProcessing({
-            data,
-            userId,
-            deckId,
-            shape,
-            cornerRadiusPercent,
-            onProgress: (done) =>
-              setPhase({ kind: "processing", data, done, total }),
-            onComplete: (result) =>
-              setPhase({
-                kind: "summary",
-                assignedCount: result.assignedCount,
-                skippedCount: 78 - result.assignedCount,
-                lowResIds: result.lowResIds,
-                failedIds: result.failedIds,
-                hasBack: result.hasBack,
-              }),
-          });
+      <Summary
+        written={phase.written}
+        failedCardIds={phase.failedCardIds}
+        cardBackFailed={phase.cardBackFailed}
+        onDone={async () => {
+          await deleteSession(deckId);
+          onDone();
         }}
       />
     );
   }
-  if (phase.kind === "processing") {
-    return (
-      <Centered
-        text={`Saving your deck… ${phase.done} of ${phase.total} processed`}
-      />
-    );
-  }
-  return <Summary phase={phase} onDone={onDone} />;
+  if (!workspace) return <Centered text="Loading…" />;
+  return (
+    <Workspace
+      session={workspace.session}
+      onAssign={handleAssign}
+      onSkip={handleSkip}
+      onUnskip={handleUnskip}
+      onUnassign={handleUnassign}
+      onSave={handleSave}
+      onCancel={handleCancel}
+      onDiscard={handleDiscard}
+    />
+  );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Step 1 — Upload                                                    */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/*  Helpers                                                            */
+/* ================================================================== */
+
+function makeEmptySession(deckId: string): ImportSession {
+  return {
+    deckId,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    unassigned: {},
+    assigned: {},
+    skipped: {},
+    encoded: {},
+  };
+}
+
+/** Asset store keeps raw blobs/encoded for assigned images so we can
+ *  unassign them later. Stored on session under a non-typed bucket. */
+function ensureAssetStore(s: ImportSession): Record<string, ImportImage> {
+  const anyS = s as ImportSession & { _assets?: Record<string, ImportImage> };
+  if (!anyS._assets) anyS._assets = {};
+  return anyS._assets;
+}
+
+function findImage(s: ImportSession, imageKey: string): ImportImage | null {
+  if (s.unassigned[imageKey]) return s.unassigned[imageKey];
+  if (s.skipped[imageKey]) return s.skipped[imageKey];
+  const store = (s as ImportSession & { _assets?: Record<string, ImportImage> })._assets;
+  return store?.[imageKey] ?? null;
+}
+
+function cloneSession(s: ImportSession): ImportSession {
+  // Shallow clone is fine — blobs/assets are immutable; we mutate
+  // top-level dicts only.
+  return {
+    ...s,
+    unassigned: { ...s.unassigned },
+    assigned: { ...s.assigned },
+    skipped: { ...s.skipped },
+    encoded: { ...s.encoded },
+    ...(("_assets" in s) ? { _assets: { ...(s as ImportSession & { _assets?: Record<string, ImportImage> })._assets } } : {}),
+  } as ImportSession;
+}
+
+async function makeImportImage(
+  key: string,
+  filename: string,
+  blob: Blob,
+): Promise<ImportImage> {
+  let width = 0;
+  let height = 0;
+  try {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    width = img.naturalWidth;
+    height = img.naturalHeight;
+    URL.revokeObjectURL(url);
+  } catch {
+    /* non-fatal */
+  }
+  return { key, filename, rawBlob: blob, width, height };
+}
+
+function kickoffEncoding(
+  session: ImportSession,
+  queue: EncodingQueue,
+  opts: { shape: "rectangle" | "round"; cornerRadiusPercent: number },
+  onAsset: (a: EncodedAsset) => void,
+) {
+  const seen = new Set<string>();
+  for (const slot of Object.keys(session.assigned)) {
+    const key = session.assigned[slot];
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (session.encoded[key]) continue;
+    const img = findImage(session, key);
+    if (!img || img.existingUrl) continue;
+    queue.enqueue(key, img.rawBlob, opts).then(onAsset).catch(() => {});
+  }
+}
+
+/* ================================================================== */
+/*  Upload step                                                        */
+/* ================================================================== */
 
 function UploadStep({
   onFile,
@@ -224,10 +480,7 @@ function UploadStep({
     <section className="py-8">
       <div
         className="mx-auto max-w-md rounded-xl border p-6 text-center"
-        style={{
-          background: "var(--surface-card)",
-          borderColor: "var(--border-subtle)",
-        }}
+        style={{ background: "var(--surface-card)", borderColor: "var(--border-subtle)" }}
       >
         <h2
           className="mb-2 italic"
@@ -241,24 +494,15 @@ function UploadStep({
         </h2>
         <p
           className="mb-5"
-          style={{
-            fontSize: "var(--text-body-sm)",
-            color: "var(--color-foreground)",
-            opacity: 0.85,
-          }}
+          style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", opacity: 0.85 }}
         >
-          Upload a .zip containing your card images. Up to 20MB. Filenames
-          help us auto-match — if they don't match, you'll pick each card by
-          hand.
+          Upload a .zip with your card images (up to 20MB). Filenames help us
+          auto-match — anything unmatched, you'll place by hand. You can save
+          partial progress and come back later.
         </p>
-
         <label
           className="mb-3 inline-flex cursor-pointer items-center gap-2 rounded-md border px-4 py-2"
-          style={{
-            borderColor: "var(--accent)",
-            color: "var(--accent)",
-            fontSize: "var(--text-body-sm)",
-          }}
+          style={{ borderColor: "var(--accent)", color: "var(--accent)", fontSize: "var(--text-body-sm)" }}
         >
           <Upload className="h-4 w-4" />
           Choose zip file
@@ -273,7 +517,6 @@ function UploadStep({
             }}
           />
         </label>
-
         <div>
           <button
             type="button"
@@ -297,10 +540,7 @@ function UploadStep({
 function Centered({ text }: { text: string }) {
   return (
     <section className="flex min-h-[60vh] flex-col items-center justify-center gap-3 py-10">
-      <Loader2
-        className="h-6 w-6 animate-spin"
-        style={{ color: "var(--accent)" }}
-      />
+      <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--accent)" }} />
       <p
         className="italic"
         style={{
@@ -315,217 +555,221 @@ function Centered({ text }: { text: string }) {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Step 3a — Review grid                                              */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/*  Workspace — three-tab assign/skip/save UI                          */
+/* ================================================================== */
 
-function ReviewGrid({
-  data,
+function Workspace({
+  session,
+  onAssign,
+  onSkip,
+  onUnskip,
+  onUnassign,
+  onSave,
   onCancel,
-  onSwitchToWizard,
-  onProceed,
+  onDiscard,
 }: {
-  data: ExtractedDeck;
+  session: ImportSession;
+  onAssign: (imageKey: string, cardId: number | "BACK") => void;
+  onSkip: (imageKey: string) => void;
+  onUnskip: (imageKey: string) => void;
+  onUnassign: (slot: string) => void;
+  onSave: () => void;
   onCancel: () => void;
-  onSwitchToWizard: () => void;
-  onProceed: () => void;
+  onDiscard: () => void;
 }) {
-  // Local mutable state — drag-drop swaps shift entries between
-  // assignments and tray. We seed from the immutable `data` once.
-  const [assignments, setAssignments] = useState(
-    () => new Map(data.assignments),
-  );
-  const [tray, setTray] = useState<string[]>(() => [...data.tray]);
-  const [selectedTrayName, setSelectedTrayName] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("unassigned");
+  const [zoomKey, setZoomKey] = useState<string | null>(null);
+  const [pickerForImage, setPickerForImage] = useState<string | null>(null);
+  const [pickerForBack, setPickerForBack] = useState(false);
 
-  // Object URL cache for blobs we render in the grid.
-  const blobUrls = useMemo(() => makeBlobUrlMap(data), [data]);
-  useEffect(() => {
-    return () => {
-      for (const url of blobUrls.values()) URL.revokeObjectURL(url);
+  // Build blob URL cache for raw blobs.
+  const blobUrls = useMemo(() => {
+    const map = new Map<string, string>();
+    const seen = new Set<string>();
+    const collect = (img: ImportImage) => {
+      if (seen.has(img.key)) return;
+      seen.add(img.key);
+      if (img.existingUrl) {
+        map.set(img.key, img.existingUrl);
+        return;
+      }
+      try {
+        map.set(img.key, URL.createObjectURL(img.rawBlob));
+      } catch {
+        /* */
+      }
     };
+    for (const img of Object.values(session.unassigned)) collect(img);
+    for (const img of Object.values(session.skipped)) collect(img);
+    const store = (session as ImportSession & { _assets?: Record<string, ImportImage> })._assets;
+    if (store) for (const img of Object.values(store)) collect(img);
+    return map;
+  }, [session]);
+
+  useEffect(() => () => {
+    for (const url of blobUrls.values()) {
+      if (url.startsWith("blob:")) URL.revokeObjectURL(url);
+    }
   }, [blobUrls]);
 
-  // Mirror local state back to data so the next step (back/processing) sees fresh values.
-  useEffect(() => {
-    data.assignments = assignments;
-    data.tray = tray;
-  }, [assignments, tray, data]);
-
-  const assignToCard = (filename: string, cardId: number) => {
-    setAssignments((prev) => {
-      const next = new Map(prev);
-      const previousFile = next.get(cardId) ?? null;
-      next.set(cardId, filename);
-      // Remove this filename from any other slot it occupied.
-      for (const [cid, fn] of next) {
-        if (cid !== cardId && fn === filename) next.delete(cid);
+  // Prefer encoded thumbnail for assigned items if available.
+  const thumbUrls = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const [key, asset] of Object.entries(session.encoded)) {
+      try {
+        m.set(key, URL.createObjectURL(asset.thumbnailBlob));
+      } catch {
+        /* */
       }
-      setTray((prevTray) => {
-        const t = prevTray.filter((n) => n !== filename);
-        if (previousFile && previousFile !== filename) t.push(previousFile);
-        return t;
-      });
-      return next;
-    });
-    setSelectedTrayName(null);
-  };
-
-  const matched = assignments.size;
-
-  const handleSave = async () => {
-    if (matched < 78) {
-      const ok = confirm(
-        `Save with ${matched} cards? You can photograph the rest later.`,
-      );
-      if (!ok) return;
     }
-    onProceed();
+    return m;
+  }, [session.encoded]);
+  useEffect(() => () => {
+    for (const url of thumbUrls.values()) URL.revokeObjectURL(url);
+  }, [thumbUrls]);
+
+  const resolveSrc = (key: string): string => {
+    return thumbUrls.get(key) ?? blobUrls.get(key) ?? "";
   };
+
+  const unassignedKeys = Object.keys(session.unassigned);
+  const skippedKeys = Object.keys(session.skipped);
+  const assignedSlots = Object.keys(session.assigned);
+  const numericAssigned = assignedSlots.filter((s) => s !== BACK_KEY);
+  const hasBack = !!session.assigned[BACK_KEY];
+
+  const photographedIds = useMemo(
+    () => numericAssigned.map((s) => Number(s)),
+    [numericAssigned],
+  );
+
+  const resolveImageSrcForPicker = useCallback(
+    (cardId: number) => {
+      const k = session.assigned[String(cardId)];
+      if (!k) return getCardImagePath(cardId);
+      return resolveSrc(k) || getCardImagePath(cardId);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session.assigned, thumbUrls, blobUrls],
+  );
+
+  // CardPicker: assign image to chosen card.
+  if (pickerForImage) {
+    const previewUrl = resolveSrc(pickerForImage);
+    return (
+      <>
+        {previewUrl && (
+          <div
+            className="pointer-events-none fixed left-3 top-3 z-[120] overflow-hidden rounded border shadow-lg"
+            style={{ borderColor: "var(--accent)", background: "var(--surface-card)", width: 64, height: 64 }}
+          >
+            <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+          </div>
+        )}
+        <CardPicker
+          mode="photography"
+          photographedIds={photographedIds}
+          resolveImageSrc={resolveImageSrcForPicker}
+          title="Which card is this?"
+          onCancel={() => setPickerForImage(null)}
+          onSelect={(cardId) => {
+            onAssign(pickerForImage, cardId);
+            setPickerForImage(null);
+          }}
+        />
+      </>
+    );
+  }
+
+  // CardPicker for picking the card back: reuse the same UI but treat it
+  // as a single "BACK" slot. We render an inline image grid below so we
+  // don't actually open CardPicker for back. Disregard.
 
   return (
-    <section className="py-6">
-      <div
-        className="mb-4 rounded-md border px-4 py-3"
-        style={{
-          background: "var(--surface-card)",
-          borderColor: "var(--border-subtle)",
-          fontSize: "var(--text-body-sm)",
-          color: "var(--color-foreground)",
-        }}
-      >
-        <span style={{ color: "var(--accent)", fontWeight: 600 }}>
-          {matched} of 78
-        </span>{" "}
-        auto-matched. Drag images to fix mismatches or fill empty slots.
-      </div>
-
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
-        {Array.from({ length: 78 }, (_, i) => {
-          const filename = assignments.get(i);
-          const src = filename ? blobUrls.get(filename) : null;
-          return (
-            <button
-              type="button"
-              key={i}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const name = e.dataTransfer.getData("text/plain");
-                if (name) assignToCard(name, i);
-              }}
-              onClick={() => {
-                if (selectedTrayName) assignToCard(selectedTrayName, i);
-              }}
-              className="group relative aspect-[0.625] overflow-hidden rounded border"
-              style={{
-                borderColor: src
-                  ? "var(--border-subtle)"
-                  : "var(--border-subtle)",
-                background: "var(--surface-card)",
-              }}
-              title={getCardName(i)}
-            >
-              {src ? (
-                <img
-                  src={src}
-                  alt={getCardName(i)}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <img
-                  src={getCardImagePath(i)}
-                  alt={getCardName(i)}
-                  className="h-full w-full object-cover"
-                  style={{ opacity: 0.25, filter: "grayscale(100%)" }}
-                />
-              )}
-              {src && (
-                <span
-                  className="absolute right-1 top-1 rounded-full p-0.5"
-                  style={{ background: "var(--accent)", color: "#000" }}
-                >
-                  <Check className="h-3 w-3" />
-                </span>
-              )}
-              {!src && (
-                <span
-                  className="pointer-events-none absolute inset-x-0 bottom-1 text-center"
-                  style={{
-                    fontSize: "10px",
-                    color: "var(--color-foreground)",
-                    opacity: 0.55,
-                  }}
-                >
-                  Drop image here
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {tray.length > 0 && (
-        <div
-          className="mt-4 rounded-md border p-2"
+    <section className="py-4">
+      {/* Header */}
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <h2
+          className="italic"
           style={{
-            background: "var(--surface-card)",
-            borderColor: "var(--border-subtle)",
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-heading-md)",
+            color: "var(--accent)",
           }}
         >
-          <p
-            className="mb-2 px-1"
-            style={{
-              fontSize: "var(--text-caption)",
-              color: "var(--color-foreground)",
-              opacity: 0.7,
-            }}
-          >
-            Unmatched ({tray.length})
-          </p>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {tray.map((name) => {
-              const url = blobUrls.get(name);
-              const selected = selectedTrayName === name;
-              return (
-                <button
-                  type="button"
-                  key={name}
-                  draggable
-                  onDragStart={(e) =>
-                    e.dataTransfer.setData("text/plain", name)
-                  }
-                  onClick={() =>
-                    setSelectedTrayName(selected ? null : name)
-                  }
-                  className="relative h-20 w-20 shrink-0 overflow-hidden rounded border"
-                  style={{
-                    borderColor: selected
-                      ? "var(--accent)"
-                      : "var(--border-subtle)",
-                    borderWidth: selected ? 2 : 1,
-                  }}
-                  title={name}
-                >
-                  {url && (
-                    <img
-                      src={url}
-                      alt={name}
-                      className="h-full w-full object-cover"
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+          Import workspace
+        </h2>
+        <span
+          className="ml-auto"
+          style={{
+            fontSize: "var(--text-caption)",
+            color: "var(--color-foreground)",
+            opacity: 0.7,
+          }}
+        >
+          {numericAssigned.length}/78 cards · {hasBack ? "back set" : "no back"} · {skippedKeys.length} skipped
+        </span>
+      </div>
+
+      {/* Tab chips */}
+      <div className="mb-3 flex gap-2 overflow-x-auto">
+        <Chip active={tab === "unassigned"} onClick={() => setTab("unassigned")}>
+          Unassigned ({unassignedKeys.length})
+        </Chip>
+        <Chip active={tab === "assigned"} onClick={() => setTab("assigned")}>
+          Assigned ({numericAssigned.length})
+        </Chip>
+        <Chip active={tab === "skipped"} onClick={() => setTab("skipped")}>
+          Skipped ({skippedKeys.length})
+        </Chip>
+      </div>
+
+      {/* Card-back panel — always visible at top of all tabs */}
+      <CardBackPanel
+        session={session}
+        resolveSrc={resolveSrc}
+        unassignedKeys={unassignedKeys}
+        onAssign={(k) => onAssign(k, "BACK")}
+        onClear={() => onUnassign(BACK_KEY)}
+      />
+
+      {/* Tab body */}
+      {tab === "unassigned" && (
+        <ImageGrid
+          keys={unassignedKeys}
+          session={session}
+          resolveSrc={resolveSrc}
+          emptyText="No unassigned images. Everything has a home."
+          onClick={(k) => setZoomKey(k)}
+        />
+      )}
+      {tab === "assigned" && (
+        <AssignedGrid
+          session={session}
+          resolveSrc={resolveSrc}
+          onUnassign={onUnassign}
+        />
+      )}
+      {tab === "skipped" && (
+        <ImageGrid
+          keys={skippedKeys}
+          session={session}
+          resolveSrc={resolveSrc}
+          emptyText="Nothing skipped."
+          onClick={(k) => setZoomKey(k)}
+          actionLabel="Move back to Unassigned"
+          onAction={(k) => onUnskip(k)}
+        />
       )}
 
+      {/* Footer actions */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <button
           type="button"
-          onClick={() => void handleSave()}
-          className="rounded-md px-4 py-2"
+          onClick={onSave}
+          disabled={numericAssigned.length === 0 && !hasBack}
+          className="rounded-md px-4 py-2 disabled:opacity-50"
           style={{
             background: "var(--accent)",
             color: "#000",
@@ -537,15 +781,16 @@ function ReviewGrid({
         </button>
         <button
           type="button"
-          onClick={onSwitchToWizard}
-          className="italic"
+          onClick={onDiscard}
+          className="italic underline"
           style={{
             fontFamily: "var(--font-serif)",
             fontSize: "var(--text-body-sm)",
-            color: "var(--accent)",
+            color: "var(--color-foreground)",
+            opacity: 0.6,
           }}
         >
-          Switch to wizard
+          Discard import
         </button>
         <button
           type="button"
@@ -557,315 +802,28 @@ function ReviewGrid({
             opacity: 0.7,
           }}
         >
-          Cancel
-        </button>
-      </div>
-    </section>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Step 3b — Sequential wizard                                        */
-/* ------------------------------------------------------------------ */
-
-function Wizard({
-  data,
-  onCancel,
-  onProceed,
-}: {
-  data: ExtractedDeck;
-  onCancel: () => void;
-  onProceed: () => void;
-}) {
-  // Image-first wizard — Stamp BI Fix 1.
-  // The grid shows UNASSIGNED IMAGES (not target cards). User taps an
-  // image, zoom modal shows it, then "Pick a card" opens CardPicker
-  // with already-assigned cards dimmed. Selecting a card slot binds
-  // this image to that slot.
-  const [assignments, setAssignments] = useState(
-    () => new Map(data.assignments),
-  );
-  // Unassigned image filenames currently visible in this pass.
-  const [unassigned, setUnassigned] = useState<string[]>(() => [...data.tray]);
-  // Filenames the user skipped (held until end of pass).
-  const [skipped, setSkipped] = useState<string[]>([]);
-  // Currently zoomed source image.
-  const [zoomKey, setZoomKey] = useState<string | null>(null);
-  // When non-null, CardPicker is open to assign this image.
-  const [pickerForImage, setPickerForImage] = useState<string | null>(null);
-
-  const blobUrls = useMemo(() => makeBlobUrlMap(data), [data]);
-  useEffect(
-    () => () => {
-      for (const url of blobUrls.values()) URL.revokeObjectURL(url);
-    },
-    [blobUrls],
-  );
-
-  // Mirror local state to parent envelope so downstream steps see fresh values.
-  useEffect(() => {
-    data.assignments = assignments;
-    data.tray = unassigned;
-  }, [assignments, unassigned, data]);
-
-  // Track originally-unmatched count for the progress bar.
-  const initialUnmatchedTotal = useMemo(
-    () => data.tray.length,
-    [data],
-  );
-  const assignedFromTray = initialUnmatchedTotal - unassigned.length - skipped.length;
-  const progressDenominator = Math.max(1, initialUnmatchedTotal);
-  const progressPct =
-    ((assignedFromTray + skipped.length) / progressDenominator) * 100;
-
-  const photographedIds = useMemo(
-    () => Array.from(assignments.keys()),
-    [assignments],
-  );
-
-  // CardPicker resolver: show seeker's chosen image for already-assigned slots.
-  const resolveImageSrc = useCallback(
-    (cardId: number) => {
-      const fn = assignments.get(cardId);
-      if (fn) return blobUrls.get(fn) ?? getCardImagePath(cardId);
-      return getCardImagePath(cardId);
-    },
-    [assignments, blobUrls],
-  );
-
-  // Auto-advance to card-back step when nothing's left to assign or revisit.
-  useEffect(() => {
-    if (unassigned.length === 0 && skipped.length === 0 && !pickerForImage && !zoomKey) {
-      onProceed();
-    }
-  }, [unassigned.length, skipped.length, pickerForImage, zoomKey, onProceed]);
-
-  const handleSkip = () => {
-    if (!zoomKey) return;
-    const name = zoomKey;
-    setSkipped((prev) => [...prev, name]);
-    setUnassigned((prev) => prev.filter((n) => n !== name));
-    setZoomKey(null);
-  };
-
-  const handleAssign = (cardId: number) => {
-    const filename = pickerForImage;
-    if (!filename) return;
-    setAssignments((prev) => {
-      const next = new Map(prev);
-      // If this card already had an image, push the displaced image
-      // back into unassigned so the user can re-place it.
-      const displaced = next.get(cardId);
-      next.set(cardId, filename);
-      if (displaced && displaced !== filename) {
-        setUnassigned((u) => [...u, displaced]);
-      }
-      return next;
-    });
-    setUnassigned((prev) => prev.filter((n) => n !== filename));
-    setPickerForImage(null);
-  };
-
-  const reviewSkipped = () => {
-    setUnassigned((prev) => [...prev, ...skipped]);
-    setSkipped([]);
-  };
-
-  // CardPicker is fullscreen; render it as the sole UI when active.
-  if (pickerForImage) {
-    const previewUrl = blobUrls.get(pickerForImage);
-    return (
-      <>
-        {/* Floating thumbnail of the source image so user remembers what they're placing. */}
-        {previewUrl && (
-          <div
-            className="pointer-events-none fixed left-3 top-3 z-[120] overflow-hidden rounded border shadow-lg"
-            style={{
-              borderColor: "var(--accent)",
-              background: "var(--surface-card)",
-              width: 64,
-              height: 64,
-            }}
-          >
-            <img
-              src={previewUrl}
-              alt=""
-              className="h-full w-full object-cover"
-            />
-          </div>
-        )}
-        <CardPicker
-          mode="photography"
-          photographedIds={photographedIds}
-          resolveImageSrc={resolveImageSrc}
-          title="Which card is this?"
-          onCancel={() => setPickerForImage(null)}
-          onSelect={(cardId) => handleAssign(cardId)}
-        />
-      </>
-    );
-  }
-
-  const empty = unassigned.length === 0;
-
-  return (
-    <section className="py-4">
-      {/* Header */}
-      <div
-        className="sticky top-0 z-10 -mx-4 mb-3 border-b px-4 py-3 backdrop-blur"
-        style={{
-          background:
-            "color-mix(in oklab, var(--surface-card) 92%, transparent)",
-          borderColor: "var(--border-subtle)",
-        }}
-      >
-        <h2
-          className="italic"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-heading-md)",
-            color: "var(--accent)",
-          }}
-        >
-          Importing your deck
-        </h2>
-        <p
-          className="mt-1"
-          style={{
-            fontSize: "var(--text-caption)",
-            color: "var(--color-foreground)",
-            opacity: 0.7,
-          }}
-        >
-          Tap each image and pick which card it is.
-        </p>
-        <div
-          className="mt-2 h-1 w-full overflow-hidden rounded-full"
-          style={{ background: "var(--border-subtle)" }}
-        >
-          <div
-            className="h-full"
-            style={{
-              width: `${progressPct}%`,
-              background: "var(--accent)",
-              transition: "width 200ms ease",
-            }}
-          />
-        </div>
-        <p
-          className="mt-1"
-          style={{
-            fontSize: "var(--text-caption)",
-            color: "var(--color-foreground)",
-            opacity: 0.7,
-          }}
-        >
-          {assignedFromTray} of {initialUnmatchedTotal} assigned · {skipped.length} skipped
-        </p>
-      </div>
-
-      {!empty && (
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
-          {unassigned.map((name) => {
-            const url = blobUrls.get(name);
-            return (
-              <button
-                type="button"
-                key={name}
-                onClick={() => setZoomKey(name)}
-                className="aspect-square overflow-hidden rounded border"
-                style={{
-                  borderColor: "var(--border-subtle)",
-                  background: "var(--surface-card)",
-                }}
-              >
-                {url && (
-                  <img
-                    src={url}
-                    alt={name}
-                    className="h-full w-full object-cover"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* End-of-pass: skipped images await another look */}
-      {empty && skipped.length > 0 && (
-        <div
-          className="mx-auto mt-6 max-w-md rounded-lg border p-5 text-center"
-          style={{
-            background: "var(--surface-card)",
-            borderColor: "var(--border-subtle)",
-          }}
-        >
-          <p
-            className="mb-4"
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-heading-sm)",
-              color: "var(--accent)",
-            }}
-          >
-            {skipped.length} image{skipped.length === 1 ? "" : "s"} skipped.
-            Take another pass?
-          </p>
-          <div className="flex justify-center gap-3">
-            <button
-              type="button"
-              onClick={onProceed}
-              className="rounded-md px-4 py-2"
-              style={{
-                background: "transparent",
-                color: "var(--color-foreground)",
-                fontSize: "var(--text-body-sm)",
-              }}
-            >
-              No, save deck
-            </button>
-            <button
-              type="button"
-              onClick={reviewSkipped}
-              className="rounded-md px-4 py-2 font-medium"
-              style={{
-                background: "var(--accent)",
-                color: "var(--accent-foreground, #000)",
-                fontSize: "var(--text-body-sm)",
-              }}
-            >
-              Yes, review skipped
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="mt-4 flex flex-wrap items-center gap-4">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="ml-auto"
-          style={{
-            fontSize: "var(--text-body-sm)",
-            color: "var(--color-foreground)",
-            opacity: 0.7,
-          }}
-        >
-          Cancel
+          Close (keeps progress)
         </button>
       </div>
 
+      {/* Zoom modal */}
       {zoomKey && (
         <ZoomModal
-          src={blobUrls.get(zoomKey) ?? ""}
+          src={resolveSrc(zoomKey)}
+          inSkipped={!!session.skipped[zoomKey]}
           onPickCard={() => {
             const k = zoomKey;
             setZoomKey(null);
             setPickerForImage(k);
           }}
-          onSkip={handleSkip}
+          onSkip={() => {
+            onSkip(zoomKey);
+            setZoomKey(null);
+          }}
+          onUnskip={() => {
+            onUnskip(zoomKey);
+            setZoomKey(null);
+          }}
           onBack={() => setZoomKey(null)}
         />
       )}
@@ -873,20 +831,279 @@ function Wizard({
   );
 }
 
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="whitespace-nowrap rounded-full border px-3 py-1.5"
+      style={{
+        background: active ? "var(--accent)" : "transparent",
+        color: active ? "#000" : "var(--color-foreground)",
+        borderColor: active ? "var(--accent)" : "var(--border-subtle)",
+        fontSize: "var(--text-body-sm)",
+        fontWeight: active ? 600 : 400,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ImageGrid({
+  keys,
+  session,
+  resolveSrc,
+  emptyText,
+  onClick,
+  actionLabel,
+  onAction,
+}: {
+  keys: string[];
+  session: ImportSession;
+  resolveSrc: (key: string) => string;
+  emptyText: string;
+  onClick: (key: string) => void;
+  actionLabel?: string;
+  onAction?: (key: string) => void;
+}) {
+  if (keys.length === 0) {
+    return (
+      <p
+        className="py-8 text-center"
+        style={{
+          fontSize: "var(--text-body-sm)",
+          color: "var(--color-foreground)",
+          opacity: 0.6,
+        }}
+      >
+        {emptyText}
+      </p>
+    );
+  }
+  return (
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+      {keys.map((key) => {
+        const img = session.unassigned[key] ?? session.skipped[key];
+        const src = resolveSrc(key);
+        return (
+          <div key={key} className="space-y-1">
+            <button
+              type="button"
+              onClick={() => onClick(key)}
+              className="block aspect-square w-full overflow-hidden rounded border"
+              style={{
+                borderColor: "var(--border-subtle)",
+                background: "var(--surface-card)",
+              }}
+            >
+              {src ? (
+                <img src={src} alt={img?.filename ?? ""} className="h-full w-full object-cover" />
+              ) : null}
+            </button>
+            {actionLabel && onAction && (
+              <button
+                type="button"
+                onClick={() => onAction(key)}
+                className="block w-full italic underline"
+                style={{
+                  fontSize: "var(--text-caption)",
+                  color: "var(--accent)",
+                }}
+              >
+                {actionLabel}
+              </button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AssignedGrid({
+  session,
+  resolveSrc,
+  onUnassign,
+}: {
+  session: ImportSession;
+  resolveSrc: (key: string) => string;
+  onUnassign: (slot: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+      {Array.from({ length: 78 }, (_, i) => {
+        const slot = String(i);
+        const key = session.assigned[slot];
+        const src = key ? resolveSrc(key) : "";
+        const isExisting = key?.startsWith("EXISTING:");
+        return (
+          <button
+            key={i}
+            type="button"
+            onClick={() => key && onUnassign(slot)}
+            className="relative aspect-[0.625] overflow-hidden rounded border"
+            style={{
+              borderColor: key ? "var(--accent)" : "var(--border-subtle)",
+              background: "var(--surface-card)",
+            }}
+            title={key ? `${getCardName(i)} — tap to unassign` : getCardName(i)}
+          >
+            {src ? (
+              <img src={src} alt={getCardName(i)} className="h-full w-full object-cover" />
+            ) : (
+              <img
+                src={getCardImagePath(i)}
+                alt={getCardName(i)}
+                className="h-full w-full object-cover"
+                style={{ opacity: 0.25, filter: "grayscale(100%)" }}
+              />
+            )}
+            {isExisting && (
+              <span
+                className="absolute left-1 top-1 rounded px-1 text-[9px] uppercase"
+                style={{ background: "var(--surface-card)", color: "var(--color-foreground)", opacity: 0.85 }}
+              >
+                current
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function CardBackPanel({
+  session,
+  resolveSrc,
+  unassignedKeys,
+  onAssign,
+  onClear,
+}: {
+  session: ImportSession;
+  resolveSrc: (key: string) => string;
+  unassignedKeys: string[];
+  onAssign: (key: string) => void;
+  onClear: () => void;
+}) {
+  const [picking, setPicking] = useState(false);
+  const currentKey = session.assigned[BACK_KEY];
+  const currentSrc = currentKey ? resolveSrc(currentKey) : "";
+  return (
+    <div
+      className="mb-4 flex items-center gap-3 rounded-md border p-3"
+      style={{ background: "var(--surface-card)", borderColor: "var(--border-subtle)" }}
+    >
+      <div
+        className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded border"
+        style={{ borderColor: "var(--border-subtle)" }}
+      >
+        {currentSrc ? (
+          <img src={currentSrc} alt="Card back" className="h-full w-full object-cover" />
+        ) : (
+          <span style={{ fontSize: 10, color: "var(--color-foreground)", opacity: 0.5 }}>none</span>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p
+          style={{
+            fontSize: "var(--text-body-sm)",
+            color: "var(--color-foreground)",
+          }}
+        >
+          Card back {currentKey ? "selected" : "not chosen"}
+        </p>
+        <p
+          style={{
+            fontSize: "var(--text-caption)",
+            color: "var(--color-foreground)",
+            opacity: 0.7,
+          }}
+        >
+          The image shown when cards are face-down.
+        </p>
+      </div>
+      {currentKey && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="rounded-md p-1.5 hover:opacity-80"
+          aria-label="Clear card back"
+          style={{ color: "var(--color-foreground)", opacity: 0.6 }}
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => setPicking((v) => !v)}
+        className="rounded-md border px-3 py-1.5"
+        style={{
+          borderColor: "var(--accent)",
+          color: "var(--accent)",
+          fontSize: "var(--text-body-sm)",
+        }}
+      >
+        {currentKey ? "Replace" : "Pick"}
+      </button>
+      {picking && (
+        <div
+          className="absolute left-0 right-0 z-30 mt-2 max-h-72 overflow-y-auto border-t p-3"
+          style={{ background: "var(--surface-card)", borderColor: "var(--border-subtle)", marginTop: 80 }}
+        >
+          {unassignedKeys.length === 0 ? (
+            <p style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", opacity: 0.7 }}>
+              No unassigned images to choose from.
+            </p>
+          ) : (
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+              {unassignedKeys.map((k) => {
+                const src = resolveSrc(k);
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => {
+                      onAssign(k);
+                      setPicking(false);
+                    }}
+                    className="aspect-square overflow-hidden rounded border"
+                    style={{ borderColor: "var(--border-subtle)" }}
+                  >
+                    {src && <img src={src} alt="" className="h-full w-full object-cover" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ZoomModal({
   src,
-  onUse,
+  inSkipped,
   onPickCard,
   onSkip,
+  onUnskip,
   onBack,
 }: {
   src: string;
-  /** Legacy single-action use (CardBackStep). */
-  onUse?: () => void;
-  /** Image-first wizard: open CardPicker to pick which card. */
-  onPickCard?: () => void;
-  /** Image-first wizard: skip this image for now. */
-  onSkip?: () => void;
+  inSkipped: boolean;
+  onPickCard: () => void;
+  onSkip: () => void;
+  onUnskip: () => void;
   onBack: () => void;
 }) {
   return (
@@ -894,393 +1111,68 @@ function ZoomModal({
       className="fixed inset-0 z-[120] flex flex-col items-center justify-center p-4"
       style={{ background: "var(--surface-overlay, rgba(0,0,0,0.85))" }}
     >
-      <img
-        src={src}
-        alt=""
-        style={{ maxHeight: "80vh", maxWidth: "100%" }}
-        className="rounded"
-      />
+      <img src={src} alt="" style={{ maxHeight: "78vh", maxWidth: "100%" }} className="rounded" />
       <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
         <button
           type="button"
           onClick={onBack}
           className="rounded-md px-4 py-2"
-          style={{
-            background: "transparent",
-            color: "var(--color-foreground)",
-            fontSize: "var(--text-body-sm)",
-          }}
+          style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
         >
           Back
         </button>
-        {onSkip && (
+        {inSkipped ? (
+          <button
+            type="button"
+            onClick={onUnskip}
+            className="rounded-md px-4 py-2"
+            style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+          >
+            Move to Unassigned
+          </button>
+        ) : (
           <button
             type="button"
             onClick={onSkip}
             className="rounded-md px-4 py-2"
-            style={{
-              background: "transparent",
-              color: "var(--color-foreground)",
-              fontSize: "var(--text-body-sm)",
-            }}
+            style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
           >
             Skip
           </button>
         )}
-        {onPickCard && (
-          <button
-            type="button"
-            onClick={onPickCard}
-            className="rounded-md px-4 py-2 font-medium"
-            style={{
-              background: "var(--accent)",
-              color: "var(--accent-foreground, #000)",
-              fontSize: "var(--text-body-sm)",
-            }}
-          >
-            Pick a card
-          </button>
-        )}
-        {onUse && (
-          <button
-            type="button"
-            onClick={onUse}
-            className="rounded-md px-4 py-2 font-medium"
-            style={{
-              background: "var(--accent)",
-              color: "var(--accent-foreground, #000)",
-              fontSize: "var(--text-body-sm)",
-            }}
-          >
-            Use this
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onPickCard}
+          className="rounded-md px-4 py-2 font-medium"
+          style={{
+            background: "var(--accent)",
+            color: "var(--accent-foreground, #000)",
+            fontSize: "var(--text-body-sm)",
+          }}
+        >
+          Pick a card
+        </button>
       </div>
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Step 4 — Card back                                                 */
-/* ------------------------------------------------------------------ */
-
-function CardBackStep({
-  data,
-  onCancel,
-  onProceed,
-}: {
-  data: ExtractedDeck;
-  onCancel: () => void;
-  onProceed: () => void;
-}) {
-  const [picking, setPicking] = useState(false);
-  const [zoom, setZoom] = useState<string | null>(null);
-
-  const blobUrls = useMemo(() => makeBlobUrlMap(data), [data]);
-  useEffect(
-    () => () => {
-      for (const url of blobUrls.values()) URL.revokeObjectURL(url);
-    },
-    [blobUrls],
-  );
-
-  // Pool of images NOT currently assigned to any card.
-  const assignedFiles = new Set(data.assignments.values());
-  const pool = Array.from(data.blobs.keys()).filter(
-    (n) => !assignedFiles.has(n),
-  );
-
-  if (data.cardBack && !picking) {
-    const url = blobUrls.get(data.cardBack);
-    return (
-      <section className="flex flex-col items-center py-8">
-        <h2
-          className="mb-4 italic"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-heading-md)",
-            color: "var(--accent)",
-          }}
-        >
-          Is this your card back?
-        </h2>
-        {url && (
-          <img
-            src={url}
-            alt="Candidate card back"
-            style={{ maxHeight: "50vh" }}
-            className="rounded"
-          />
-        )}
-        <div className="mt-5 flex gap-3">
-          <button
-            type="button"
-            onClick={() => setPicking(true)}
-            className="rounded-md px-4 py-2"
-            style={{
-              background: "transparent",
-              color: "var(--color-foreground)",
-              fontSize: "var(--text-body-sm)",
-            }}
-          >
-            No, pick another
-          </button>
-          <button
-            type="button"
-            onClick={onProceed}
-            className="rounded-md px-4 py-2 font-medium"
-            style={{
-              background: "var(--accent)",
-              color: "#000",
-              fontSize: "var(--text-body-sm)",
-            }}
-          >
-            Yes, use this
-          </button>
-        </div>
-      </section>
-    );
-  }
-
-  return (
-    <section className="py-6">
-      <h2
-        className="mb-3 italic"
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontSize: "var(--text-heading-sm)",
-          color: "var(--accent)",
-        }}
-      >
-        Choose card back
-      </h2>
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
-        {pool.map((name) => {
-          const url = blobUrls.get(name);
-          return (
-            <button
-              type="button"
-              key={name}
-              onClick={() => setZoom(name)}
-              className="aspect-square overflow-hidden rounded border"
-              style={{
-                borderColor:
-                  data.cardBack === name
-                    ? "var(--accent)"
-                    : "var(--border-subtle)",
-                borderWidth: data.cardBack === name ? 2 : 1,
-                background: "var(--surface-card)",
-              }}
-            >
-              {url && (
-                <img src={url} alt={name} className="h-full w-full object-cover" />
-              )}
-            </button>
-          );
-        })}
-      </div>
-      <div className="mt-4 flex gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            data.cardBack = null;
-            onProceed();
-          }}
-          className="italic"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-body-sm)",
-            color: "var(--color-foreground)",
-            opacity: 0.7,
-          }}
-        >
-          Skip card back
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="ml-auto"
-          style={{
-            fontSize: "var(--text-body-sm)",
-            color: "var(--color-foreground)",
-            opacity: 0.7,
-          }}
-        >
-          Cancel
-        </button>
-      </div>
-
-      {zoom && (
-        <ZoomModal
-          src={blobUrls.get(zoom) ?? ""}
-          onUse={() => {
-            data.cardBack = zoom;
-            setZoom(null);
-            onProceed();
-          }}
-          onBack={() => setZoom(null)}
-        />
-      )}
-    </section>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/*  Step 5 — Processing                                                */
-/* ------------------------------------------------------------------ */
-
-type ProcessResult = {
-  assignedCount: number;
-  lowResIds: number[];
-  failedIds: number[];
-  hasBack: boolean;
-};
-
-async function runProcessing(args: {
-  data: ExtractedDeck;
-  userId: string;
-  deckId: string;
-  shape: "rectangle" | "round";
-  cornerRadiusPercent: number;
-  onProgress: (done: number) => void;
-  onComplete: (result: ProcessResult) => void;
-}): Promise<void> {
-  const { data, userId, deckId, shape, cornerRadiusPercent, onProgress, onComplete } = args;
-  const lowResIds: number[] = [];
-  const failedIds: number[] = [];
-  let done = 0;
-  let assignedCount = 0;
-
-  // Process card slots serially.
-  for (const [cardId, filename] of data.assignments) {
-    const blob = data.blobs.get(filename);
-    if (!blob) {
-      failedIds.push(cardId);
-      done++;
-      onProgress(done);
-      continue;
-    }
-    try {
-      const processed = await processImageBlob(blob, shape, cornerRadiusPercent);
-      if (processed.sourceLongestEdge < LOW_RES_THRESHOLD) lowResIds.push(cardId);
-
-      const ts = Date.now();
-      const displayPath = `${userId}/${deckId}/card-${cardId}-${ts}.webp`;
-      const thumbPath = `${userId}/${deckId}/card-${cardId}-${ts}-thumb.webp`;
-
-      const upDisplay = await supabase.storage
-        .from(DECK_BUCKET)
-        .upload(displayPath, processed.display, {
-          contentType: "image/webp",
-          upsert: true,
-        });
-      if (upDisplay.error) throw upDisplay.error;
-      const upThumb = await supabase.storage
-        .from(DECK_BUCKET)
-        .upload(thumbPath, processed.thumbnail, {
-          contentType: "image/webp",
-          upsert: true,
-        });
-      if (upThumb.error) throw upThumb.error;
-
-      const year = 60 * 60 * 24 * 365;
-      const [{ data: dispSigned }, { data: thumbSigned }] = await Promise.all([
-        supabase.storage.from(DECK_BUCKET).createSignedUrl(displayPath, year),
-        supabase.storage.from(DECK_BUCKET).createSignedUrl(thumbPath, year),
-      ]);
-
-      // Replace any existing row.
-      await supabase
-        .from("custom_deck_cards")
-        .delete()
-        .eq("deck_id", deckId)
-        .eq("card_id", cardId);
-      const ins = await supabase.from("custom_deck_cards").insert({
-        deck_id: deckId,
-        user_id: userId,
-        card_id: cardId,
-        display_url: dispSigned?.signedUrl ?? "",
-        thumbnail_url: thumbSigned?.signedUrl ?? "",
-        display_path: displayPath,
-        thumbnail_path: thumbPath,
-      });
-      if (ins.error) throw ins.error;
-      assignedCount++;
-    } catch (err) {
-      console.error(`Failed to process card ${cardId}`, err);
-      failedIds.push(cardId);
-    }
-    done++;
-    onProgress(done);
-  }
-
-  // Card back (if any).
-  let hasBack = false;
-  if (data.cardBack) {
-    const blob = data.blobs.get(data.cardBack);
-    if (blob) {
-      try {
-        const processed = await processImageBlob(blob, shape, cornerRadiusPercent);
-        const ts = Date.now();
-        const path = `${userId}/${deckId}/back-${ts}.webp`;
-        const thumbPath = `${userId}/${deckId}/back-${ts}-thumb.webp`;
-        await supabase.storage
-          .from(DECK_BUCKET)
-          .upload(path, processed.display, {
-            contentType: "image/webp",
-            upsert: true,
-          });
-        await supabase.storage
-          .from(DECK_BUCKET)
-          .upload(thumbPath, processed.thumbnail, {
-            contentType: "image/webp",
-            upsert: true,
-          });
-        const year = 60 * 60 * 24 * 365;
-        const [{ data: backSigned }, { data: backThumbSigned }] =
-          await Promise.all([
-            supabase.storage.from(DECK_BUCKET).createSignedUrl(path, year),
-            supabase.storage.from(DECK_BUCKET).createSignedUrl(thumbPath, year),
-          ]);
-        await supabase
-          .from("custom_decks")
-          .update({
-            card_back_url: backSigned?.signedUrl ?? null,
-            card_back_thumb_url: backThumbSigned?.signedUrl ?? null,
-          })
-          .eq("id", deckId);
-        hasBack = true;
-      } catch (err) {
-        console.error("Card-back processing failed", err);
-      }
-    }
-    done++;
-    onProgress(done);
-  }
-
-  if (assignedCount >= 78 && hasBack) {
-    await supabase
-      .from("custom_decks")
-      .update({ is_complete: true })
-      .eq("id", deckId);
-  }
-
-  onComplete({ assignedCount, lowResIds, failedIds, hasBack });
-}
-
-/* ------------------------------------------------------------------ */
-/*  Step 6 — Summary                                                   */
-/* ------------------------------------------------------------------ */
+/* ================================================================== */
+/*  Summary                                                            */
+/* ================================================================== */
 
 function Summary({
-  phase,
+  written,
+  failedCardIds,
+  cardBackFailed,
   onDone,
 }: {
-  phase: Extract<Phase, { kind: "summary" }>;
+  written: number;
+  failedCardIds: number[];
+  cardBackFailed: boolean;
   onDone: () => void;
 }) {
-  const { assignedCount, skippedCount, lowResIds, failedIds } = phase;
-  const [showLowRes, setShowLowRes] = useState(false);
+  const ok = failedCardIds.length === 0 && !cardBackFailed;
   return (
     <section className="mx-auto max-w-md py-10 text-center">
       <h2
@@ -1288,112 +1180,35 @@ function Summary({
         style={{
           fontFamily: "var(--font-serif)",
           fontSize: "var(--text-heading-md)",
-          color: "var(--accent)",
+          color: ok ? "var(--accent)" : "var(--color-foreground)",
         }}
       >
-        Imported — {assignedCount} of 78 cards
+        {ok ? "Deck saved" : "Saved with issues"}
       </h2>
-
-      <div
-        className="space-y-3"
-        style={{
-          fontSize: "var(--text-body)",
-          color: "var(--color-foreground)",
-        }}
+      <p
+        className="mb-2"
+        style={{ fontSize: "var(--text-body)", color: "var(--color-foreground)" }}
       >
-        {skippedCount > 0 && (
-          <p>
-            {skippedCount} skipped — photograph them anytime to complete the deck.
-          </p>
-        )}
-        {lowResIds.length > 0 && (
-          <p>
-            {lowResIds.length} low-resolution images flagged. They're saved at
-            original size — you may want to retake those.
-            <br />
-            <button
-              type="button"
-              onClick={() => setShowLowRes(true)}
-              className="mt-1 underline"
-              style={{
-                fontSize: "var(--text-caption)",
-                color: "var(--accent)",
-              }}
-            >
-              See which
-            </button>
-          </p>
-        )}
-        {failedIds.length > 0 && (
-          <p>
-            {failedIds.length} cards failed to process:{" "}
-            {failedIds.map((id) => getCardName(id)).join(", ")}
-          </p>
-        )}
-      </div>
-
+        {written} card{written === 1 ? "" : "s"} written.
+      </p>
+      {failedCardIds.length > 0 && (
+        <p style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", opacity: 0.85 }}>
+          Failed: {failedCardIds.map((id) => getCardName(id)).join(", ")}.
+        </p>
+      )}
+      {cardBackFailed && (
+        <p style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", opacity: 0.85 }}>
+          Card back failed to save.
+        </p>
+      )}
       <button
         type="button"
         onClick={onDone}
         className="mt-6 rounded-md px-5 py-2 font-medium"
-        style={{
-          background: "var(--accent)",
-          color: "#000",
-          fontSize: "var(--text-body-sm)",
-        }}
+        style={{ background: "var(--accent)", color: "#000", fontSize: "var(--text-body-sm)" }}
       >
         Done
       </button>
-
-      {showLowRes && (
-        <div
-          className="fixed inset-0 z-[120] flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.7)" }}
-          onClick={() => setShowLowRes(false)}
-        >
-          <div
-            className="max-h-[70vh] w-full max-w-sm overflow-y-auto rounded-lg border p-4 text-left"
-            style={{
-              background: "var(--surface-card)",
-              borderColor: "var(--border-subtle)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <h3
-                className="italic"
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontSize: "var(--text-heading-sm)",
-                  color: "var(--accent)",
-                }}
-              >
-                Low-resolution cards
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowLowRes(false)}
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <ul className="space-y-1">
-              {lowResIds.map((id) => (
-                <li
-                  key={id}
-                  style={{
-                    fontSize: "var(--text-body-sm)",
-                    color: "var(--color-foreground)",
-                  }}
-                >
-                  {getCardName(id)}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      )}
     </section>
   );
 }
