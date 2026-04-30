@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 import { generateOrientations } from "@/lib/tarot-mechanics";
+import { useActiveDeck } from "@/lib/active-deck";
 
 type Search = { spread?: string; question?: string };
 
@@ -31,6 +32,9 @@ function DrawPage() {
   const [picks, setPicks] = useState<
     { id: number; cardIndex: number; isReversed: boolean }[] | null
   >(null);
+  // Phase 9.5b — track how the picks were produced so we can persist
+  // `entry_mode` ('digital' | 'manual') alongside the saved reading.
+  const [entryMode, setEntryMode] = useState<"digital" | "manual">("digital");
   // "reveal" = cards already flipped on the tabletop, jump straight to
   // the placeholder reading. "cast" = render the classic spread layout
   // with cards face-down, let the user reveal them there.
@@ -56,6 +60,11 @@ function DrawPage() {
   // Phase 9.55 — opt-in reversed cards. Default false (upright-only) so
   // beginners are never thrown into reversal complexity unprompted.
   const [allowReversed, setAllowReversed] = useState(false);
+  // Phase 9.5b — the seeker's currently active custom deck (if any).
+  // Threaded into saved readings as `deck_id` so historical readings
+  // always render with the artwork they were created from (Stamp AV).
+  const { activeDeck } = useActiveDeck();
+  const activeDeckId = activeDeck?.id ?? null;
 
   useEffect(() => {
     if (!user) {
@@ -95,7 +104,14 @@ function DrawPage() {
   // floating QuestionPanel only belongs to the select/cast phases.
   if (picks && phase === "reading") {
     return (
-      <ReadingScreen spread={spread} picks={picks} onExit={exit} question={question || undefined} />
+      <ReadingScreen
+        spread={spread}
+        picks={picks}
+        onExit={exit}
+        question={question || undefined}
+        entryMode={entryMode}
+        deckId={activeDeckId}
+      />
     );
   }
 
@@ -108,20 +124,31 @@ function DrawPage() {
           onExit={exit}
           onContinue={() => setPhase("reading")}
           question={question || undefined}
+          entryMode={entryMode}
+          deckId={activeDeckId}
         />
       ) : (
         <Tabletop
           spread={spread}
           onExit={exit}
-          onComplete={(p, mode) => {
+          allowReversed={allowReversed}
+          onComplete={(p, mode, meta) => {
             // Phase 9.55 — assign orientation per card based on the
             // seeker's preference. `generateOrientations` returns
             // all-false when reversals are disabled, so this is safe to
             // call unconditionally.
-            const orientations = generateOrientations(p.length, allowReversed);
+            // For manually-entered readings the seeker has already
+            // declared each card's orientation (via the picker's
+            // 'Reversed?' toggle), so we honor `pick.isReversed`
+            // verbatim and skip the random generator.
+            const isManual = meta?.entryMode === "manual";
+            const orientations = isManual
+              ? p.map((pp) => pp.isReversed ?? false)
+              : generateOrientations(p.length, allowReversed);
             setPicks(
               p.map((pick, i) => ({ ...pick, isReversed: orientations[i] })),
             );
+            setEntryMode(isManual ? "manual" : "digital");
             setPhase(mode === "cast" ? "cast" : "reading");
             // Reaching reveal/cast counts as today's practice. Fire-and-forget.
             void recordDraw();

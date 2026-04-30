@@ -10,6 +10,17 @@ import type { CSSProperties, ReactNode } from "react";
 import { getCardImagePath } from "@/lib/tarot";
 import type { SharePick } from "../share-types";
 
+/*
+ * Phase 9.5b — Stamp AW (premium gate on share imagery).
+ *
+ * Share cards intentionally use the default Rider-Waite artwork
+ * (`getCardImagePath`) rather than the seeker's active custom deck.
+ * This is the "free tier" path; once Phase 10 (Stripe + Premium)
+ * lights up, premium users will swap to their photographed deck via
+ * the active-deck context. Until then everyone falls back to default
+ * imagery, satisfying the spec's deliberate viral hook.
+ */
+
 export const SHARE_CARD_W = 1080;
 export const SHARE_CARD_H = 1920;
 

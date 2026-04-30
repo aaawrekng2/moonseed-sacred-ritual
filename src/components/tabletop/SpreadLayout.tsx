@@ -30,6 +30,13 @@ type Props = {
    * inline reading so it can be saved with the row and sent to the AI.
    */
   question?: string;
+  /**
+   * Phase 9.5b. How the picks were produced ('digital' or 'manual') and
+   * which custom deck was active at the moment of casting. Both are
+   * persisted on the saved reading row by {@link InlineReading}.
+   */
+  entryMode?: "digital" | "manual";
+  deckId?: string | null;
 };
 
 /**
@@ -38,7 +45,14 @@ type Props = {
  * flips them all face-up simultaneously; once revealed the user can
  * continue into the reading.
  */
-export function SpreadLayout({ spread, picks, onExit, question }: Props) {
+export function SpreadLayout({
+  spread,
+  picks,
+  onExit,
+  question,
+  entryMode,
+  deckId,
+}: Props) {
   const meta = SPREAD_META[spread];
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const { showLabels } = useShowLabels();
@@ -157,6 +171,8 @@ export function SpreadLayout({ spread, picks, onExit, question }: Props) {
             onExit={onExit}
             onCopyTextChange={setCopyText}
             question={question}
+            entryMode={entryMode}
+            deckId={deckId}
           />
         </div>
       ) : (

@@ -90,3 +90,13 @@ export function useActiveDeckImage(): (
     [imageMap],
   );
 }
+
+/**
+ * The active deck's photographed card-back URL, or null when the
+ * seeker has no active custom deck (or hasn't photographed a back yet).
+ * Pair with {@link CardBack} to render the themed default when null.
+ */
+export function useActiveCardBackUrl(): string | null {
+  const { imageMap } = useActiveDeck();
+  return imageMap.back ?? null;
+}

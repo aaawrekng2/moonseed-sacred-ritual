@@ -213,9 +213,15 @@ type TabletopProps = {
    *    and the spread layout screen should let the user reveal them there.
    */
   onComplete: (
-    picks: { id: number; cardIndex: number }[],
+    picks: { id: number; cardIndex: number; isReversed?: boolean }[],
     mode: "reveal" | "cast",
+    meta?: { entryMode?: "digital" | "manual" },
   ) => void;
+  /**
+   * When true, the manual CardPicker offers a 'Reversed?' confirmation
+   * step (Stamp AU). Mirrors the seeker's `allow_reversed_cards` pref.
+   */
+  allowReversed?: boolean;
 };
 
 type CardState = ScatterCard & {
@@ -363,7 +369,12 @@ type DragAction =
       toY: number;
     };
 
-export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
+export function Tabletop({
+  spread,
+  onExit,
+  onComplete,
+  allowReversed = false,
+}: TabletopProps) {
   const meta = SPREAD_META[spread];
   const required = meta.count;
   const usesSlots = spreadUsesSlots(spread);
@@ -372,7 +383,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // cards from a 78-card grid (used for logging a physical reading).
   const [manualOpen, setManualOpen] = useState(false);
   const [manualPicks, setManualPicks] = useState<
-    { id: number; cardIndex: number }[]
+    { id: number; cardIndex: number; isReversed?: boolean }[]
   >([]);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -1200,6 +1211,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
       onComplete(
         picks.map((p) => ({ id: p.id, cardIndex: deckMapping[p.id] })),
         "cast",
+        { entryMode: "digital" },
       );
     }, 1500);
     return () => window.clearTimeout(timer);
@@ -1228,22 +1240,22 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
           <CardPicker
             mode="manual-entry"
             excludeCardIds={manualPicks.map((p) => p.cardIndex)}
-            showReversedToggle={false}
+            showReversedToggle={allowReversed}
             title={`Pick card ${manualPicks.length + 1} of ${required}`}
             onCancel={() => {
               setManualOpen(false);
               setManualPicks([]);
             }}
-            onSelect={(cardIndex) => {
+            onSelect={(cardIndex, isReversed) => {
               const next = [
                 ...manualPicks,
-                { id: 1000 + manualPicks.length, cardIndex },
+                { id: 1000 + manualPicks.length, cardIndex, isReversed },
               ];
               if (next.length >= required) {
                 setManualOpen(false);
                 setManualPicks([]);
                 clearTabletopSession(spread);
-                onComplete(next, "reveal");
+                onComplete(next, "reveal", { entryMode: "manual" });
               } else {
                 setManualPicks(next);
               }
