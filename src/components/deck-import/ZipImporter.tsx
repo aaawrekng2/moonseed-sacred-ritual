@@ -571,20 +571,51 @@ function Workspace({
   onSave,
   onCancel,
   onDiscard,
+  shape,
+  cornerRadiusPercent,
 }: {
   session: ImportSession;
   onAssign: (imageKey: string, cardId: number | "BACK") => void;
   onSkip: (imageKey: string) => void;
   onUnskip: (imageKey: string) => void;
   onUnassign: (slot: string) => void;
-  onSave: () => void;
+  onSave: (deleteSessionAfter: boolean) => void;
   onCancel: () => void;
   onDiscard: () => void;
+  shape: "rectangle" | "round";
+  cornerRadiusPercent: number;
 }) {
   const [tab, setTab] = useState<Tab>("unassigned");
-  const [zoomKey, setZoomKey] = useState<string | null>(null);
-  const [pickerForImage, setPickerForImage] = useState<string | null>(null);
-  const [pickerForBack, setPickerForBack] = useState(false);
+  // Zoom modal context: which image, opened from which filter view.
+  const [zoom, setZoom] = useState<
+    | null
+    | {
+        imageKey: string;
+        from: "unassigned" | "assigned" | "skipped";
+        // For 'assigned', the slot it currently occupies (for reassign defaults).
+        slot?: string;
+      }
+  >(null);
+  // CardPicker for assignment / reassignment. preserves zoom context so
+  // hitting Back returns to the same zoom modal (BL Fix 5).
+  const [picker, setPicker] = useState<
+    | null
+    | {
+        imageKey: string;
+        previousZoom: NonNullable<typeof zoom>;
+      }
+  >(null);
+  // Card-back picker modal (BL Fix 4 — banner tap).
+  const [showBackPicker, setShowBackPicker] = useState(false);
+  // Save confirmation dialog (BL Fix 6).
+  const [saveDialog, setSaveDialog] = useState<
+    | null
+    | {
+        kind: "empty" | "skipped-only" | "unassigned-present" | "skipped-and-unassigned";
+        skippedCount: number;
+        unassignedCount: number;
+      }
+  >(null);
 
   // Build blob URL cache for raw blobs.
   const blobUrls = useMemo(() => {
