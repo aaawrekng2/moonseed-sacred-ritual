@@ -899,6 +899,9 @@ function Workspace({
         <Chip active={tab === "skipped"} onClick={() => setTab("skipped")}>
           Skipped ({skippedKeys.length})
         </Chip>
+        <Chip active={tab === "default"} onClick={() => setTab("default")}>
+          Default ({defaultCount})
+        </Chip>
       </div>
 
       {/* Card-back banner (BL Fix 4 — State A only). */}
