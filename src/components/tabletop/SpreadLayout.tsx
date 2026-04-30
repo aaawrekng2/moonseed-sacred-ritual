@@ -303,6 +303,7 @@ function CardFace({
   emergeDelayMs?: number;
 }) {
   const interactive = !revealed && !!onTap;
+  const cardImg = useActiveDeckImage();
   return (
     <div
       className="cast-card-emerge"
@@ -342,7 +343,7 @@ function CardFace({
               animation begins — otherwise the first reveal shows a blank
               front while the image is still fetching. */}
           <img
-            src={getCardImagePath(pick.cardIndex)}
+            src={cardImg(pick.cardIndex)}
             alt={getCardName(pick.cardIndex)}
             className="h-full w-full object-cover"
             loading="eager"
