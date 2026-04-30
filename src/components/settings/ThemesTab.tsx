@@ -2061,6 +2061,7 @@ function UnsavedChangesGuard() {
       font_size: prefs.heading_font_size ?? DEFAULT_FONT_SIZE,
       card_back: getStoredCardBack(),
       resting_opacity: prefs.resting_opacity ?? DEFAULT_RESTING_OPACITY,
+      theme_key: getStoredCommunityTheme() ?? undefined,
     }),
     [prefs],
   );
