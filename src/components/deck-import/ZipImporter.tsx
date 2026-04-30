@@ -953,6 +953,23 @@ function Workspace({
           onAction={(k) => onUnskip(k)}
         />
       )}
+      {tab === "default" && (
+        <DefaultGrid
+          customizedCardIds={customizedCardIds}
+          session={session}
+          resolveSrc={resolveSrc}
+          defaultCount={defaultCount}
+          onPickDefault={(cardId) => {
+            if (unassignedKeys.length === 0) {
+              toast(
+                "All your imported images are assigned. Upload more images or photograph a card to fill this slot.",
+              );
+              return;
+            }
+            setDefaultPickerCardId(cardId);
+          }}
+        />
+      )}
 
       {/* Footer actions */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
