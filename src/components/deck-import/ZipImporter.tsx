@@ -24,7 +24,7 @@
  *   4. Summary.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Upload, X } from "lucide-react";
+import { Loader2, RotateCcw, Upload, X } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -311,7 +311,7 @@ export function ZipImporter({
     });
   }, [mutate]);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (deleteSessionAfter: boolean) => {
     if (!workspace) return;
     await saverRef.current.flush();
     const total = Object.keys(workspace.session.assigned).length;
@@ -324,6 +324,7 @@ export function ZipImporter({
         shape,
         cornerRadiusPercent,
         queue: queueRef.current,
+        deleteSessionAfter,
       });
       setPhase({
         kind: "summary",
@@ -378,6 +379,8 @@ export function ZipImporter({
       onSave={handleSave}
       onCancel={handleCancel}
       onDiscard={handleDiscard}
+      shape={shape}
+      cornerRadiusPercent={cornerRadiusPercent}
     />
   );
 }
@@ -568,20 +571,51 @@ function Workspace({
   onSave,
   onCancel,
   onDiscard,
+  shape,
+  cornerRadiusPercent,
 }: {
   session: ImportSession;
   onAssign: (imageKey: string, cardId: number | "BACK") => void;
   onSkip: (imageKey: string) => void;
   onUnskip: (imageKey: string) => void;
   onUnassign: (slot: string) => void;
-  onSave: () => void;
+  onSave: (deleteSessionAfter: boolean) => void;
   onCancel: () => void;
   onDiscard: () => void;
+  shape: "rectangle" | "round";
+  cornerRadiusPercent: number;
 }) {
   const [tab, setTab] = useState<Tab>("unassigned");
-  const [zoomKey, setZoomKey] = useState<string | null>(null);
-  const [pickerForImage, setPickerForImage] = useState<string | null>(null);
-  const [pickerForBack, setPickerForBack] = useState(false);
+  // Zoom modal context: which image, opened from which filter view.
+  const [zoom, setZoom] = useState<
+    | null
+    | {
+        imageKey: string;
+        from: "unassigned" | "assigned" | "skipped";
+        // For 'assigned', the slot it currently occupies (for reassign defaults).
+        slot?: string;
+      }
+  >(null);
+  // CardPicker for assignment / reassignment. preserves zoom context so
+  // hitting Back returns to the same zoom modal (BL Fix 5).
+  const [picker, setPicker] = useState<
+    | null
+    | {
+        imageKey: string;
+        previousZoom: NonNullable<typeof zoom>;
+      }
+  >(null);
+  // Card-back picker modal (BL Fix 4 — banner tap).
+  const [showBackPicker, setShowBackPicker] = useState(false);
+  // Save confirmation dialog (BL Fix 6).
+  const [saveDialog, setSaveDialog] = useState<
+    | null
+    | {
+        kind: "empty" | "skipped-only" | "unassigned-present" | "skipped-and-unassigned";
+        skippedCount: number;
+        unassignedCount: number;
+      }
+  >(null);
 
   // Build blob URL cache for raw blobs.
   const blobUrls = useMemo(() => {
@@ -654,37 +688,90 @@ function Workspace({
     [session.assigned, thumbUrls, blobUrls],
   );
 
-  // CardPicker: assign image to chosen card.
-  if (pickerForImage) {
-    const previewUrl = resolveSrc(pickerForImage);
+  // BL Fix 11 — auto-switch tab when current view empties after action.
+  const autoSwitch = useCallback(
+    (justActedFrom: Tab, postAssigned: number, postUnassigned: number, postSkipped: number) => {
+      const empty = (n: number) => n === 0;
+      if (justActedFrom === "unassigned" && empty(postUnassigned)) {
+        if (!empty(postAssigned)) setTab("assigned");
+        else if (!empty(postSkipped)) setTab("skipped");
+      } else if (justActedFrom === "assigned" && empty(postAssigned)) {
+        setTab("unassigned");
+      } else if (justActedFrom === "skipped" && empty(postSkipped)) {
+        if (!empty(postUnassigned)) setTab("unassigned");
+        else if (!empty(postAssigned)) setTab("assigned");
+      }
+    },
+    [],
+  );
+
+  // BL Fix 5 — CardPicker overlay (assign / reassign).
+  if (picker) {
+    const ctx = picker;
     return (
-      <>
-        {previewUrl && (
-          <div
-            className="pointer-events-none fixed left-3 top-3 z-[120] overflow-hidden rounded border shadow-lg"
-            style={{ borderColor: "var(--accent)", background: "var(--surface-card)", width: 64, height: 64 }}
-          >
-            <img src={previewUrl} alt="" className="h-full w-full object-cover" />
-          </div>
-        )}
-        <CardPicker
-          mode="photography"
-          photographedIds={photographedIds}
-          resolveImageSrc={resolveImageSrcForPicker}
-          title="Which card is this?"
-          onCancel={() => setPickerForImage(null)}
-          onSelect={(cardId) => {
-            onAssign(pickerForImage, cardId);
-            setPickerForImage(null);
-          }}
-        />
-      </>
+      <CardPicker
+        mode="photography"
+        photographedIds={photographedIds}
+        resolveImageSrc={resolveImageSrcForPicker}
+        title="Which card is this?"
+        onCancel={() => {
+          // Return to the prior zoom modal.
+          setPicker(null);
+          setZoom(ctx.previousZoom);
+        }}
+        onSelect={(cardId) => {
+          onAssign(ctx.imageKey, cardId);
+          setPicker(null);
+          // After assignment the image is in 'assigned'; close any zoom.
+          setZoom(null);
+          // Auto-switch if we just emptied the source view.
+          const fromTab = ctx.previousZoom.from;
+          // Compute post-counts (best-effort; counts are slightly stale
+          // but autoSwitch handles the obvious empty case).
+          const postUn = fromTab === "unassigned" ? unassignedKeys.length - 1 : unassignedKeys.length;
+          const postSk = fromTab === "skipped" ? skippedKeys.length - 1 : skippedKeys.length;
+          const postAs = numericAssigned.length + 1;
+          autoSwitch(fromTab, postAs, postUn, postSk);
+        }}
+      />
     );
   }
 
-  // CardPicker for picking the card back: reuse the same UI but treat it
-  // as a single "BACK" slot. We render an inline image grid below so we
-  // don't actually open CardPicker for back. Disregard.
+  const handleSaveTap = () => {
+    const skippedCount = skippedKeys.length;
+    // Count "real" unassigned (exclude existing markers — those just
+    // mean the user hasn't replaced a previously-imported card).
+    const realUnassigned = Object.values(session.unassigned).filter(
+      (img) => !img.existingUrl,
+    ).length;
+    const assignedCount = numericAssigned.length + (hasBack ? 1 : 0);
+
+    if (assignedCount === 0) {
+      setSaveDialog({ kind: "empty", skippedCount, unassignedCount: realUnassigned });
+      return;
+    }
+    if (realUnassigned > 0 && skippedCount > 0) {
+      setSaveDialog({
+        kind: "skipped-and-unassigned",
+        skippedCount,
+        unassignedCount: realUnassigned,
+      });
+      return;
+    }
+    if (realUnassigned > 0) {
+      setSaveDialog({
+        kind: "unassigned-present",
+        skippedCount,
+        unassignedCount: realUnassigned,
+      });
+      return;
+    }
+    if (skippedCount > 0) {
+      setSaveDialog({ kind: "skipped-only", skippedCount, unassignedCount: 0 });
+      return;
+    }
+    onSave(true);
+  };
 
   return (
     <section className="py-4">
@@ -725,14 +812,23 @@ function Workspace({
         </Chip>
       </div>
 
-      {/* Card-back panel — always visible at top of all tabs */}
-      <CardBackPanel
-        session={session}
-        resolveSrc={resolveSrc}
-        unassignedKeys={unassignedKeys}
-        onAssign={(k) => onAssign(k, "BACK")}
-        onClear={() => onUnassign(BACK_KEY)}
-      />
+      {/* Card-back banner (BL Fix 4 — State A only). */}
+      {!hasBack && (
+        <button
+          type="button"
+          onClick={() => setShowBackPicker(true)}
+          className="mb-4 block w-full rounded-md border px-3 py-2 text-left italic"
+          style={{
+            background: "var(--accent-faint, color-mix(in oklab, var(--accent) 12%, transparent))",
+            borderColor: "var(--border-subtle)",
+            color: "var(--accent)",
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-body-sm)",
+          }}
+        >
+          Card back not chosen — tap to pick one
+        </button>
+      )}
 
       {/* Tab body */}
       {tab === "unassigned" && (
@@ -740,14 +836,17 @@ function Workspace({
           keys={unassignedKeys}
           session={session}
           resolveSrc={resolveSrc}
-          emptyText="No unassigned images. Everything has a home."
-          onClick={(k) => setZoomKey(k)}
+          emptyText="All images placed. Tap Assigned to review, or save to finish."
+          variant="unassigned"
+          onClick={(k) => setZoom({ imageKey: k, from: "unassigned" })}
         />
       )}
       {tab === "assigned" && (
         <AssignedGrid
           session={session}
           resolveSrc={resolveSrc}
+          hasBack={hasBack}
+          onTap={(slot, key) => setZoom({ imageKey: key, from: "assigned", slot })}
           onUnassign={onUnassign}
         />
       )}
@@ -757,8 +856,8 @@ function Workspace({
           session={session}
           resolveSrc={resolveSrc}
           emptyText="Nothing skipped."
-          onClick={(k) => setZoomKey(k)}
-          actionLabel="Move back to Unassigned"
+          variant="skipped"
+          onClick={(k) => setZoom({ imageKey: k, from: "skipped" })}
           onAction={(k) => onUnskip(k)}
         />
       )}
@@ -767,9 +866,8 @@ function Workspace({
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <button
           type="button"
-          onClick={onSave}
-          disabled={numericAssigned.length === 0 && !hasBack}
-          className="rounded-md px-4 py-2 disabled:opacity-50"
+          onClick={handleSaveTap}
+          className="rounded-md px-4 py-2"
           style={{
             background: "var(--accent)",
             color: "#000",
@@ -806,25 +904,66 @@ function Workspace({
         </button>
       </div>
 
-      {/* Zoom modal */}
-      {zoomKey && (
+      {/* Zoom modal (BL Fix 1, 3, 4) */}
+      {zoom && (
         <ZoomModal
-          src={resolveSrc(zoomKey)}
-          inSkipped={!!session.skipped[zoomKey]}
+          src={resolveSrc(zoom.imageKey)}
+          context={zoom.from}
+          canUseAsBack={zoom.from === "unassigned" && !hasBack}
+          onBack={() => setZoom(null)}
           onPickCard={() => {
-            const k = zoomKey;
-            setZoomKey(null);
-            setPickerForImage(k);
+            const ctx = zoom;
+            setZoom(null);
+            setPicker({ imageKey: ctx.imageKey, previousZoom: ctx });
+          }}
+          onReassign={() => {
+            const ctx = zoom;
+            setZoom(null);
+            setPicker({ imageKey: ctx.imageKey, previousZoom: ctx });
+          }}
+          onUseAsBack={() => {
+            const ctx = zoom;
+            onAssign(ctx.imageKey, "BACK");
+            setZoom(null);
+            const postUn = unassignedKeys.length - 1;
+            autoSwitch("unassigned", numericAssigned.length, postUn, skippedKeys.length);
           }}
           onSkip={() => {
-            onSkip(zoomKey);
-            setZoomKey(null);
+            const ctx = zoom;
+            onSkip(ctx.imageKey);
+            setZoom(null);
+            const postUn = unassignedKeys.length - 1;
+            autoSwitch("unassigned", numericAssigned.length, postUn, skippedKeys.length + 1);
           }}
-          onUnskip={() => {
-            onUnskip(zoomKey);
-            setZoomKey(null);
+        />
+      )}
+
+      {/* Card-back picker modal (BL Fix 4 banner tap) */}
+      {showBackPicker && (
+        <CardBackPickerModal
+          unassignedKeys={unassignedKeys}
+          resolveSrc={resolveSrc}
+          onPick={(k) => {
+            onAssign(k, "BACK");
+            setShowBackPicker(false);
           }}
-          onBack={() => setZoomKey(null)}
+          onCancel={() => setShowBackPicker(false)}
+        />
+      )}
+
+      {/* Save confirmation dialog (BL Fix 6) */}
+      {saveDialog && (
+        <SaveConfirmDialog
+          info={saveDialog}
+          onCancel={() => setSaveDialog(null)}
+          onSaveAndFinish={() => {
+            setSaveDialog(null);
+            onSave(true);
+          }}
+          onSaveContinueLater={() => {
+            setSaveDialog(null);
+            onSave(false);
+          }}
         />
       )}
     </section>
@@ -864,7 +1003,7 @@ function ImageGrid({
   resolveSrc,
   emptyText,
   onClick,
-  actionLabel,
+  variant,
   onAction,
 }: {
   keys: string[];
@@ -872,17 +1011,18 @@ function ImageGrid({
   resolveSrc: (key: string) => string;
   emptyText: string;
   onClick: (key: string) => void;
-  actionLabel?: string;
+  variant?: "unassigned" | "skipped";
   onAction?: (key: string) => void;
 }) {
   if (keys.length === 0) {
     return (
       <p
-        className="py-8 text-center"
+        className="py-8 text-center italic"
         style={{
+          fontFamily: "var(--font-serif)",
           fontSize: "var(--text-body-sm)",
           color: "var(--color-foreground)",
-          opacity: 0.6,
+          opacity: 0.7,
         }}
       >
         {emptyText}
@@ -895,7 +1035,7 @@ function ImageGrid({
         const img = session.unassigned[key] ?? session.skipped[key];
         const src = resolveSrc(key);
         return (
-          <div key={key} className="space-y-1">
+          <div key={key} className="relative">
             <button
               type="button"
               onClick={() => onClick(key)}
@@ -909,18 +1049,17 @@ function ImageGrid({
                 <img src={src} alt={img?.filename ?? ""} className="h-full w-full object-cover" />
               ) : null}
             </button>
-            {actionLabel && onAction && (
-              <button
-                type="button"
-                onClick={() => onAction(key)}
-                className="block w-full italic underline"
-                style={{
-                  fontSize: "var(--text-caption)",
-                  color: "var(--accent)",
+            {variant === "skipped" && onAction && (
+              <ThumbnailIconButton
+                aria-label="Move back to unassigned"
+                title="Move back to unassigned"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAction(key);
                 }}
               >
-                {actionLabel}
-              </button>
+                <RotateCcw className="h-3.5 w-3.5" />
+              </ThumbnailIconButton>
             )}
           </div>
         );
@@ -932,150 +1071,195 @@ function ImageGrid({
 function AssignedGrid({
   session,
   resolveSrc,
+  hasBack,
+  onTap,
   onUnassign,
 }: {
   session: ImportSession;
   resolveSrc: (key: string) => string;
+  hasBack: boolean;
+  onTap: (slot: string, key: string) => void;
   onUnassign: (slot: string) => void;
 }) {
+  const backKey = session.assigned[BACK_KEY];
+  const backSrc = backKey ? resolveSrc(backKey) : "";
   return (
     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+      {hasBack && backKey && (
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => onTap(BACK_KEY, backKey)}
+            className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
+            style={{
+              borderColor: "var(--accent)",
+              background: "var(--surface-card)",
+            }}
+            title="Card Back — tap to view"
+          >
+            {backSrc && (
+              <img src={backSrc} alt="Card Back" className="h-full w-full object-cover" />
+            )}
+            <span
+              className="absolute inset-x-0 bottom-0 px-1 py-0.5 text-center text-[9px] uppercase tracking-wider"
+              style={{ background: "rgba(0,0,0,0.55)", color: "#fff" }}
+            >
+              Card Back
+            </span>
+          </button>
+          <ThumbnailIconButton
+            aria-label="Unassign card back"
+            title="Unassign"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUnassign(BACK_KEY);
+            }}
+          >
+            <X className="h-3.5 w-3.5" />
+          </ThumbnailIconButton>
+        </div>
+      )}
       {Array.from({ length: 78 }, (_, i) => {
         const slot = String(i);
         const key = session.assigned[slot];
         const src = key ? resolveSrc(key) : "";
         const isExisting = key?.startsWith("EXISTING:");
         return (
-          <button
-            key={i}
-            type="button"
-            onClick={() => key && onUnassign(slot)}
-            className="relative aspect-[0.625] overflow-hidden rounded border"
-            style={{
-              borderColor: key ? "var(--accent)" : "var(--border-subtle)",
-              background: "var(--surface-card)",
-            }}
-            title={key ? `${getCardName(i)} — tap to unassign` : getCardName(i)}
-          >
-            {src ? (
-              <img src={src} alt={getCardName(i)} className="h-full w-full object-cover" />
-            ) : (
-              <img
-                src={getCardImagePath(i)}
-                alt={getCardName(i)}
-                className="h-full w-full object-cover"
-                style={{ opacity: 0.25, filter: "grayscale(100%)" }}
-              />
-            )}
-            {isExisting && (
-              <span
-                className="absolute left-1 top-1 rounded px-1 text-[9px] uppercase"
-                style={{ background: "var(--surface-card)", color: "var(--color-foreground)", opacity: 0.85 }}
+          <div key={i} className="relative">
+            <button
+              type="button"
+              onClick={() => key && onTap(slot, key)}
+              disabled={!key}
+              className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
+              style={{
+                borderColor: key ? "var(--accent)" : "var(--border-subtle)",
+                background: "var(--surface-card)",
+              }}
+              title={getCardName(i)}
+            >
+              {src ? (
+                <img src={src} alt={getCardName(i)} className="h-full w-full object-cover" />
+              ) : (
+                <img
+                  src={getCardImagePath(i)}
+                  alt={getCardName(i)}
+                  className="h-full w-full object-cover"
+                  style={{ opacity: 0.25, filter: "grayscale(100%)" }}
+                />
+              )}
+              {isExisting && (
+                <span
+                  className="absolute left-1 top-1 rounded px-1 text-[9px] uppercase"
+                  style={{ background: "var(--surface-card)", color: "var(--color-foreground)", opacity: 0.85 }}
+                >
+                  current
+                </span>
+              )}
+            </button>
+            {key && (
+              <ThumbnailIconButton
+                aria-label={`Unassign ${getCardName(i)}`}
+                title="Unassign"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUnassign(slot);
+                }}
               >
-                current
-              </span>
+                <X className="h-3.5 w-3.5" />
+              </ThumbnailIconButton>
             )}
-          </button>
+          </div>
         );
       })}
     </div>
   );
 }
 
-function CardBackPanel({
-  session,
-  resolveSrc,
-  unassignedKeys,
-  onAssign,
-  onClear,
+/** Small overlay icon button shown in the top-right of a thumbnail. */
+function ThumbnailIconButton({
+  children,
+  onClick,
+  ...rest
 }: {
-  session: ImportSession;
-  resolveSrc: (key: string) => string;
+  children: React.ReactNode;
+  onClick: (e: React.MouseEvent) => void;
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="absolute right-1 top-1 flex items-center justify-center rounded-full border"
+      style={{
+        width: 28,
+        height: 28,
+        background: "color-mix(in oklab, var(--surface-card) 85%, transparent)",
+        borderColor: "var(--border-subtle)",
+        color: "var(--color-foreground)",
+      }}
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+}
+
+function CardBackPickerModal({
+  unassignedKeys,
+  resolveSrc,
+  onPick,
+  onCancel,
+}: {
   unassignedKeys: string[];
-  onAssign: (key: string) => void;
-  onClear: () => void;
+  resolveSrc: (key: string) => string;
+  onPick: (key: string) => void;
+  onCancel: () => void;
 }) {
-  const [picking, setPicking] = useState(false);
-  const currentKey = session.assigned[BACK_KEY];
-  const currentSrc = currentKey ? resolveSrc(currentKey) : "";
   return (
     <div
-      className="mb-4 flex items-center gap-3 rounded-md border p-3"
-      style={{ background: "var(--surface-card)", borderColor: "var(--border-subtle)" }}
+      className="fixed inset-0 z-[125] flex items-center justify-center p-4"
+      style={{ background: "var(--surface-overlay, rgba(0,0,0,0.85))" }}
+      onClick={onCancel}
     >
       <div
-        className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded border"
-        style={{ borderColor: "var(--border-subtle)" }}
-      >
-        {currentSrc ? (
-          <img src={currentSrc} alt="Card back" className="h-full w-full object-cover" />
-        ) : (
-          <span style={{ fontSize: 10, color: "var(--color-foreground)", opacity: 0.5 }}>none</span>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p
-          style={{
-            fontSize: "var(--text-body-sm)",
-            color: "var(--color-foreground)",
-          }}
-        >
-          Card back {currentKey ? "selected" : "not chosen"}
-        </p>
-        <p
-          style={{
-            fontSize: "var(--text-caption)",
-            color: "var(--color-foreground)",
-            opacity: 0.7,
-          }}
-        >
-          The image shown when cards are face-down.
-        </p>
-      </div>
-      {currentKey && (
-        <button
-          type="button"
-          onClick={onClear}
-          className="rounded-md p-1.5 hover:opacity-80"
-          aria-label="Clear card back"
-          style={{ color: "var(--color-foreground)", opacity: 0.6 }}
-        >
-          <X className="h-4 w-4" />
-        </button>
-      )}
-      <button
-        type="button"
-        onClick={() => setPicking((v) => !v)}
-        className="rounded-md border px-3 py-1.5"
+        onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[80vh] w-full max-w-lg flex-col gap-3 rounded-xl border p-4"
         style={{
-          borderColor: "var(--accent)",
-          color: "var(--accent)",
-          fontSize: "var(--text-body-sm)",
+          background: "var(--surface-card)",
+          borderColor: "var(--border-subtle)",
         }}
       >
-        {currentKey ? "Replace" : "Pick"}
-      </button>
-      {picking && (
-        <div
-          className="absolute left-0 right-0 z-30 mt-2 max-h-72 overflow-y-auto border-t p-3"
-          style={{ background: "var(--surface-card)", borderColor: "var(--border-subtle)", marginTop: 80 }}
+        <h3
+          className="italic"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-heading-sm)",
+            color: "var(--accent)",
+          }}
         >
+          Pick a card back
+        </h3>
+        <div className="flex-1 overflow-y-auto">
           {unassignedKeys.length === 0 ? (
-            <p style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", opacity: 0.7 }}>
+            <p
+              className="italic"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground)",
+                opacity: 0.7,
+              }}
+            >
               No unassigned images to choose from.
             </p>
           ) : (
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {unassignedKeys.map((k) => {
                 const src = resolveSrc(k);
                 return (
                   <button
                     key={k}
                     type="button"
-                    onClick={() => {
-                      onAssign(k);
-                      setPicking(false);
-                    }}
+                    onClick={() => onPick(k)}
                     className="aspect-square overflow-hidden rounded border"
                     style={{ borderColor: "var(--border-subtle)" }}
                   >
@@ -1086,33 +1270,171 @@ function CardBackPanel({
             </div>
           )}
         </div>
-      )}
+        <button
+          type="button"
+          onClick={onCancel}
+          className="self-end rounded-md px-4 py-2"
+          style={{
+            color: "var(--color-foreground)",
+            fontSize: "var(--text-body-sm)",
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SaveConfirmDialog({
+  info,
+  onCancel,
+  onSaveAndFinish,
+  onSaveContinueLater,
+}: {
+  info: {
+    kind: "empty" | "skipped-only" | "unassigned-present" | "skipped-and-unassigned";
+    skippedCount: number;
+    unassignedCount: number;
+  };
+  onCancel: () => void;
+  onSaveAndFinish: () => void;
+  onSaveContinueLater: () => void;
+}) {
+  let title = "Save";
+  let body = "";
+  let showContinueLater = false;
+
+  if (info.kind === "empty") {
+    title = "Save?";
+    body = "Nothing assigned yet. Save anyway?";
+  } else if (info.kind === "skipped-only") {
+    title = "Save?";
+    body = `${info.skippedCount} image${info.skippedCount === 1 ? "" : "s"} skipped will be discarded. Save?`;
+  } else if (info.kind === "unassigned-present") {
+    title = "Some images aren't placed yet";
+    body = `${info.unassignedCount} image${info.unassignedCount === 1 ? "" : "s"} still unassigned. Keep them for later or discard?`;
+    showContinueLater = true;
+  } else if (info.kind === "skipped-and-unassigned") {
+    title = "Some images aren't placed yet";
+    body = `${info.unassignedCount} unassigned and ${info.skippedCount} skipped. Continue later or finish now?`;
+    showContinueLater = true;
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[125] flex items-center justify-center p-4"
+      style={{ background: "var(--surface-overlay, rgba(0,0,0,0.85))" }}
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex w-full max-w-sm flex-col gap-4 rounded-xl border p-5"
+        style={{
+          background: "var(--surface-card)",
+          borderColor: "var(--border-subtle)",
+        }}
+      >
+        <h3
+          className="italic"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-heading-sm)",
+            color: "var(--accent)",
+          }}
+        >
+          {title}
+        </h3>
+        <p style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)" }}>
+          {body}
+        </p>
+        <div className="flex flex-col gap-2">
+          {showContinueLater && (
+            <button
+              type="button"
+              onClick={onSaveContinueLater}
+              className="rounded-md px-4 py-2 font-medium"
+              style={{
+                background: "var(--accent)",
+                color: "var(--accent-foreground, #000)",
+                fontSize: "var(--text-body-sm)",
+              }}
+            >
+              Save and continue later
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onSaveAndFinish}
+            className="rounded-md px-4 py-2 font-medium"
+            style={{
+              background: showContinueLater
+                ? "transparent"
+                : "var(--accent)",
+              color: showContinueLater
+                ? "var(--color-foreground)"
+                : "var(--accent-foreground, #000)",
+              fontSize: "var(--text-body-sm)",
+              borderWidth: showContinueLater ? 1 : 0,
+              borderStyle: "solid",
+              borderColor: "var(--border-subtle)",
+            }}
+          >
+            {showContinueLater ? "Save and finish" : "Save"}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md px-4 py-2"
+            style={{
+              color: "var(--color-foreground)",
+              fontSize: "var(--text-body-sm)",
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
 function ZoomModal({
   src,
-  inSkipped,
+  context,
+  canUseAsBack,
   onPickCard,
+  onReassign,
+  onUseAsBack,
   onSkip,
-  onUnskip,
   onBack,
 }: {
   src: string;
-  inSkipped: boolean;
+  context: "unassigned" | "assigned" | "skipped";
+  canUseAsBack: boolean;
   onPickCard: () => void;
+  onReassign: () => void;
+  onUseAsBack: () => void;
   onSkip: () => void;
-  onUnskip: () => void;
   onBack: () => void;
 }) {
   return (
     <div
       className="fixed inset-0 z-[120] flex flex-col items-center justify-center p-4"
       style={{ background: "var(--surface-overlay, rgba(0,0,0,0.85))" }}
+      onClick={onBack}
     >
-      <img src={src} alt="" style={{ maxHeight: "78vh", maxWidth: "100%" }} className="rounded" />
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+      <img
+        src={src}
+        alt=""
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxHeight: "78vh", maxWidth: "100%" }}
+        className="rounded"
+      />
+      <div
+        className="mt-4 flex flex-wrap items-center justify-center gap-3"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           type="button"
           onClick={onBack}
@@ -1121,37 +1443,72 @@ function ZoomModal({
         >
           Back
         </button>
-        {inSkipped ? (
+        {context === "unassigned" && (
+          <>
+            <button
+              type="button"
+              onClick={onSkip}
+              className="rounded-md px-4 py-2"
+              style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+            >
+              Skip
+            </button>
+            {canUseAsBack && (
+              <button
+                type="button"
+                onClick={onUseAsBack}
+                className="rounded-md border px-4 py-2"
+                style={{
+                  borderColor: "var(--border-subtle)",
+                  color: "var(--color-foreground)",
+                  fontSize: "var(--text-body-sm)",
+                }}
+              >
+                Use as card back
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onPickCard}
+              className="rounded-md px-4 py-2 font-medium"
+              style={{
+                background: "var(--accent)",
+                color: "var(--accent-foreground, #000)",
+                fontSize: "var(--text-body-sm)",
+              }}
+            >
+              Pick a card
+            </button>
+          </>
+        )}
+        {context === "assigned" && (
           <button
             type="button"
-            onClick={onUnskip}
-            className="rounded-md px-4 py-2"
-            style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+            onClick={onReassign}
+            className="rounded-md px-4 py-2 font-medium"
+            style={{
+              background: "var(--accent)",
+              color: "var(--accent-foreground, #000)",
+              fontSize: "var(--text-body-sm)",
+            }}
           >
-            Move to Unassigned
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onSkip}
-            className="rounded-md px-4 py-2"
-            style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
-          >
-            Skip
+            Reassign to different card
           </button>
         )}
-        <button
-          type="button"
-          onClick={onPickCard}
-          className="rounded-md px-4 py-2 font-medium"
-          style={{
-            background: "var(--accent)",
-            color: "var(--accent-foreground, #000)",
-            fontSize: "var(--text-body-sm)",
-          }}
-        >
-          Pick a card
-        </button>
+        {context === "skipped" && (
+          <button
+            type="button"
+            onClick={onPickCard}
+            className="rounded-md px-4 py-2 font-medium"
+            style={{
+              background: "var(--accent)",
+              color: "var(--accent-foreground, #000)",
+              fontSize: "var(--text-body-sm)",
+            }}
+          >
+            Pick a card
+          </button>
+        )}
       </div>
     </div>
   );

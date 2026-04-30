@@ -31,6 +31,8 @@ import { PhotoCapture } from "@/components/photo/PhotoCapture";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
 import { ZipImporter } from "@/components/deck-import/ZipImporter";
+import { deleteSession, getSession } from "@/lib/import-session";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/settings/decks")({
@@ -196,7 +198,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         onClick={onCreate}
         className="inline-flex items-center gap-2 rounded-md border border-gold/40 px-3 py-2 text-sm hover:bg-gold/10"
       >
-        <Plus className="h-4 w-4" /> Photograph your first deck
+        <Plus className="h-4 w-4" /> Create your first deck
       </button>
     </div>
   );
@@ -230,43 +232,50 @@ function DeckRow({
 
   return (
     <li className="flex items-center gap-3 rounded-lg border border-gold/15 bg-card p-3">
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gold/15 bg-cosmos">
-        {deck.card_back_thumb_url ? (
-          <img src={deck.card_back_thumb_url} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <Camera className="h-5 w-5 opacity-40" />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate font-medium">{deck.name}</p>
-          {deck.is_active && (
-            <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-gold">
-              <Star className="h-3 w-3" /> Active
-            </span>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground">
-          {count === null ? "…" : `${count}/78 photographed`} · {deck.shape}
-        </p>
-      </div>
       <button
         type="button"
-        onClick={onToggleActive}
+        onClick={onEdit}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        aria-label={`Edit ${deck.name}`}
+      >
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gold/15 bg-cosmos">
+          {deck.card_back_thumb_url ? (
+            <img src={deck.card_back_thumb_url} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <Camera className="h-5 w-5 opacity-40" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate font-medium">{deck.name}</p>
+            {deck.is_active && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-gold">
+                <Star className="h-3 w-3" /> Active
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {count === null ? "…" : `${count}/78 customized`} · {deck.shape}
+          </p>
+        </div>
+      </button>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onToggleActive(); }}
         className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
       >
         {deck.is_active ? "Deactivate" : "Set active"}
       </button>
       <button
         type="button"
-        onClick={onEdit}
+        onClick={(e) => { e.stopPropagation(); onEdit(); }}
         className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
       >
         Edit
       </button>
       <button
         type="button"
-        onClick={onDelete}
+        onClick={(e) => { e.stopPropagation(); onDelete(); }}
         className="rounded-md border border-destructive/40 p-1.5 text-destructive hover:bg-destructive/10"
         aria-label="Delete deck"
       >
@@ -310,6 +319,15 @@ function DeckEditor({
   );
   // Grid-view "Retake / Done" review modal — Stamp BI Fix 2.
   const [reviewingCardId, setReviewingCardId] = useState<number | null>(null);
+  // BL Fix 8 — resume-prompt state
+  const [resumePrompt, setResumePrompt] = useState<
+    | null
+    | {
+        assigned: number;
+        unassigned: number;
+        skipped: number;
+      }
+  >(null);
 
   const reloadCards = useCallback(async (deckId: string) => {
     const list = await fetchDeckCards(deckId);
@@ -319,6 +337,42 @@ function DeckEditor({
   useEffect(() => {
     if (existing) void reloadCards(existing.id);
   }, [existing, reloadCards]);
+
+  // BL Fix 8 — check for in-progress import session on existing-deck mount.
+  useEffect(() => {
+    if (!existing) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const session = await getSession(existing.id);
+        if (cancelled || !session) return;
+        const ageMs = Date.now() - (session.updatedAt ?? session.createdAt ?? 0);
+        if (ageMs > 30 * 24 * 60 * 60 * 1000) {
+          await deleteSession(existing.id);
+          return;
+        }
+        // Count slots that aren't synthetic existing markers.
+        const assignedCount = Object.values(session.assigned).filter(
+          (k) => !String(k).startsWith("EXISTING:"),
+        ).length;
+        const unassignedCount = Object.values(session.unassigned).filter(
+          (img) => !img.existingUrl,
+        ).length;
+        const skippedCount = Object.keys(session.skipped).length;
+        if (assignedCount + unassignedCount + skippedCount === 0) return;
+        setResumePrompt({
+          assigned: assignedCount,
+          unassigned: unassignedCount,
+          skipped: skippedCount,
+        });
+      } catch (err) {
+        console.warn("[settings.decks] session check failed", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [existing]);
 
   const photographedIds = useMemo(() => cards.map((c) => c.card_id), [cards]);
 
@@ -659,6 +713,82 @@ function DeckEditor({
             </div>
           );
         })()}
+
+        {resumePrompt && (
+          <div
+            className="fixed inset-0 z-[115] flex items-center justify-center p-6"
+            style={{
+              background:
+                "var(--surface-overlay, color-mix(in oklab, var(--color-background) 80%, black))",
+            }}
+          >
+            <div
+              className="flex w-full max-w-sm flex-col gap-4 rounded-xl border"
+              style={{
+                background: "var(--surface-card)",
+                borderColor: "var(--border-subtle)",
+                color: "var(--color-foreground)",
+                padding: "var(--space-5, 1.25rem)",
+                borderRadius: "var(--radius-lg, 0.75rem)",
+              }}
+            >
+              <h3
+                className="italic"
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "var(--text-heading-sm)",
+                  color: "var(--accent)",
+                }}
+              >
+                Resume your import?
+              </h3>
+              <p
+                style={{
+                  fontSize: "var(--text-body-sm)",
+                  color: "var(--color-foreground)",
+                }}
+              >
+                You have an in-progress import for this deck (
+                {resumePrompt.assigned} assigned, {resumePrompt.unassigned}{" "}
+                unassigned, {resumePrompt.skipped} skipped).
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResumePrompt(null);
+                    setMode({ kind: "import", deckId });
+                  }}
+                  className="rounded-md px-4 py-2 font-medium"
+                  style={{
+                    background: "var(--accent)",
+                    color: "var(--accent-foreground, #000)",
+                    fontSize: "var(--text-body-sm)",
+                  }}
+                >
+                  Resume
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!existing) return;
+                    await deleteSession(existing.id);
+                    setResumePrompt(null);
+                    toast("Import session discarded");
+                  }}
+                  className="rounded-md px-4 py-2"
+                  style={{
+                    color: "var(--color-foreground)",
+                    fontSize: "var(--text-body-sm)",
+                    background: "transparent",
+                  }}
+                >
+                  Discard and start over
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
     );
   }
