@@ -62,7 +62,7 @@ type Phase =
       cardBackFailed: boolean;
     };
 
-type Tab = "unassigned" | "assigned" | "skipped";
+type Tab = "unassigned" | "assigned" | "skipped" | "default";
 
 type WorkspaceState = {
   session: ImportSession;
@@ -595,6 +595,7 @@ function Workspace({
   onSkip,
   onUnskip,
   onUnassign,
+  onUpdateRawBlob,
   onSave,
   onCancel,
   onDiscard,
@@ -606,6 +607,7 @@ function Workspace({
   onSkip: (imageKey: string) => void;
   onUnskip: (imageKey: string) => void;
   onUnassign: (slot: string) => void;
+  onUpdateRawBlob: (imageKey: string, blob: Blob, dims: { width: number; height: number }) => void;
   onSave: (deleteSessionAfter: boolean) => void;
   onCancel: () => void;
   onDiscard: () => void;
@@ -634,6 +636,16 @@ function Workspace({
   >(null);
   // Card-back picker modal (BL Fix 4 — banner tap).
   const [showBackPicker, setShowBackPicker] = useState(false);
+  // BN Fix 1 — Edit / 4-corner crop refine overlay.
+  const [editing, setEditing] = useState<
+    | null
+    | {
+        imageKey: string;
+        previousZoom: NonNullable<typeof zoom>;
+      }
+  >(null);
+  // BN Fix 2 — inline picker for assigning to a default slot.
+  const [defaultPickerCardId, setDefaultPickerCardId] = useState<number | null>(null);
   // Save confirmation dialog (BL Fix 6).
   const [saveDialog, setSaveDialog] = useState<
     | null
