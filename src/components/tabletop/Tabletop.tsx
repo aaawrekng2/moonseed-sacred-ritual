@@ -9,7 +9,7 @@ import {
 import { Undo2, Redo2, X } from "lucide-react";
 import { Hand } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
-import { CardPicker } from "@/components/cards/CardPicker";
+import { ManualEntryBuilder } from "@/components/tabletop/ManualEntryBuilder";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { getCardName } from "@/lib/tarot";
@@ -382,9 +382,6 @@ export function Tabletop({
   // AU — Manual card entry. Bypass the scatter and let the seeker pick
   // cards from a 78-card grid (used for logging a physical reading).
   const [manualOpen, setManualOpen] = useState(false);
-  const [manualPicks, setManualPicks] = useState<
-    { id: number; cardIndex: number; isReversed?: boolean }[]
-  >([]);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
