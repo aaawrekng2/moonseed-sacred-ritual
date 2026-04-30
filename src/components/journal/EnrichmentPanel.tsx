@@ -428,40 +428,54 @@ export function EnrichmentPanel({
     try {
       // Compress before upload — keeps the bucket lean and uploads fast.
       const compressed = await compressImage(file, 1200, 0.8);
-      const path = `${reading.user_id}/${reading.id}/${crypto.randomUUID()}.jpg`;
-      const { error: upErr } = await supabase.storage
-        .from("reading-photos")
-        .upload(path, compressed, {
-          cacheControl: "3600",
-          upsert: false,
-          contentType: "image/jpeg",
-        });
-      if (upErr) throw upErr;
-      const { data: row, error: insErr } = await supabase
-        .from("reading_photos")
-        .insert({
-          reading_id: reading.id,
-          user_id: reading.user_id,
-          storage_path: path,
-        })
-        .select("id,storage_path,caption,created_at")
-        .single();
-      if (insErr) throw insErr;
-      const { data: signed } = await supabase.storage
-        .from("reading-photos")
-        .createSignedUrl(path, 60 * 60);
-      const newRow = row as EnrichmentPhoto;
-      const nextPhotos = [...photos, newRow];
-      setPhotos(nextPhotos);
-      if (signed?.signedUrl) {
-        setPhotoUrls((prev) => ({ ...prev, [newRow.id]: signed.signedUrl }));
-      }
-      onPhotoCountChange(reading.id, nextPhotos.length);
+      await persistPhotoBlob(compressed, "image/jpeg", "jpg");
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setUploading(false);
     }
+  };
+
+  /**
+   * Persist a freshly captured/compressed photo blob to the
+   * `reading-photos` bucket and append a row to `reading_photos`.
+   * Shared by the file picker and the in-app PhotoCapture (Stamp AQ)
+   * so both paths produce identical journal entries.
+   */
+  const persistPhotoBlob = async (
+    blob: Blob,
+    contentType: string,
+    extension: string,
+  ) => {
+    const path = `${reading.user_id}/${reading.id}/${crypto.randomUUID()}.${extension}`;
+    const { error: upErr } = await supabase.storage
+      .from("reading-photos")
+      .upload(path, blob, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType,
+      });
+    if (upErr) throw upErr;
+    const { data: row, error: insErr } = await supabase
+      .from("reading_photos")
+      .insert({
+        reading_id: reading.id,
+        user_id: reading.user_id,
+        storage_path: path,
+      })
+      .select("id,storage_path,caption,created_at")
+      .single();
+    if (insErr) throw insErr;
+    const { data: signed } = await supabase.storage
+      .from("reading-photos")
+      .createSignedUrl(path, 60 * 60);
+    const newRow = row as EnrichmentPhoto;
+    const nextPhotos = [...photos, newRow];
+    setPhotos(nextPhotos);
+    if (signed?.signedUrl) {
+      setPhotoUrls((prev) => ({ ...prev, [newRow.id]: signed.signedUrl }));
+    }
+    onPhotoCountChange(reading.id, nextPhotos.length);
   };
 
   const removePhoto = async (photo: EnrichmentPhoto) => {
