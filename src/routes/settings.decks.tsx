@@ -462,12 +462,22 @@ function DeckEditor({
               <input
                 type="range"
                 min={0}
-                max={15}
+                max={30}
                 value={cornerRadius}
                 onChange={(e) => setCornerRadius(Number(e.target.value))}
                 className="mt-2 block w-full"
                 aria-label="Corner radius slider"
               />
+              <CornerRadiusPreview cornerRadiusPercent={cornerRadius} />
+            </div>
+          )}
+
+          {shape === "round" && (
+            <div className="text-center">
+              <RoundShapePreview />
+              <p className="mt-2 text-xs text-muted-foreground italic">
+                Round decks always use a circular mask.
+              </p>
             </div>
           )}
 
