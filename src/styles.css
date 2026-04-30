@@ -46,7 +46,7 @@
   --color-muted-foreground-weak: var(--muted-foreground-weak);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
-  --color-border: var(--border);
+  --color-border: var(--border-default);
   --color-gold: var(--gold);
   --color-mystic: var(--mystic);
 }
@@ -75,11 +75,13 @@
   --gold-foreground:           oklch(0.18 0.04 280);
   --mystic:                    oklch(0.45 0.18 295);
   --mystic-foreground:         oklch(0.78 0.16 295);
+  /* BT — atmosphere overlay tokenized. Themes set --atmosphere-overlay
+     via applyCommunityTheme; Daybreak/Nightfall leave it unset and the
+     fallback `transparent` produces a clean flat gradient. */
   --gradient-cosmos:
-    radial-gradient(ellipse at 15% 10%, oklch(0.36 0.14 295 / 0.65), transparent 50%),
-    radial-gradient(ellipse at 85% 90%, oklch(0.30 0.10 270 / 0.50), transparent 45%),
-    radial-gradient(ellipse at 60% 40%, oklch(0.22 0.08 285 / 0.30), transparent 40%),
-    linear-gradient(160deg, oklch(0.12 0.05 282), oklch(0.18 0.04 278) 60%, oklch(0.20 0.05 285));
+    radial-gradient(ellipse at 15% 10%, var(--atmosphere-overlay, transparent), transparent 50%),
+    radial-gradient(ellipse at 85% 90%, var(--atmosphere-overlay, transparent), transparent 45%),
+    linear-gradient(160deg, var(--bg-gradient-left), var(--bg-gradient-right));
   --gradient-gold:             linear-gradient(135deg, oklch(0.85 0.14 82), oklch(0.72 0.14 60));
   --shadow-glow:               0 0 40px oklch(0.80 0.13 80 / 0.25);
   --tabletop-max-width:         1280px;
@@ -284,8 +286,8 @@ code, pre, kbd {
 
 .bg-cosmos {
   background:
-    radial-gradient(ellipse at 15% 10%, oklch(0.36 0.14 295 / 0.55), transparent 50%),
-    radial-gradient(ellipse at 85% 90%, oklch(0.30 0.10 270 / 0.40), transparent 45%),
+    radial-gradient(ellipse at 15% 10%, var(--atmosphere-overlay, transparent), transparent 50%),
+    radial-gradient(ellipse at 85% 90%, var(--atmosphere-overlay, transparent), transparent 45%),
     linear-gradient(to right, var(--bg-gradient-left), var(--bg-gradient-right));
 }
 .bg-gold-gradient { background-image: var(--gradient-gold); }

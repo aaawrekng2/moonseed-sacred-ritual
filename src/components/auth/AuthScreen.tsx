@@ -167,7 +167,7 @@ export function AuthScreen({
           <button
             type="button"
             onClick={onClose}
-            className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-white/10 transition-colors focus:outline-none"
+            className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-foreground/10 transition-colors focus:outline-none"
             style={{ color: "var(--gold)", opacity: 0.6 }}
           >
             <X size={14} strokeWidth={1.5} />

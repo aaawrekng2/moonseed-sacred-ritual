@@ -32,6 +32,14 @@ export type CommunityTheme = {
   // Accent — primary actions, focus rings, selection. NOT body text.
   accent: string;
   accentForeground: string;
+
+  /**
+   * Optional radial atmosphere overlay color. Themes that want a "glow"
+   * set this to an 8-digit RGBA hex (saturated mid-luminance hue with
+   * low alpha baked in). Themes that want a clean flat look (Daybreak,
+   * Nightfall) leave it undefined.
+   */
+  atmosphereOverlay?: string;
 };
 
 export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
@@ -44,6 +52,7 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#f5f3ff", foregroundMuted: "#c4b8e8",
     accent: "#f59e0b", accentForeground: "#1e1b4b",
+    atmosphereOverlay: "#5b21b66b",
   },
   {
     key: "midnight-oracle", name: "Midnight Oracle",
@@ -54,6 +63,7 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#ede9fe", foregroundMuted: "#a78bfa",
     accent: "#a78bfa", accentForeground: "#0a0a0f",
+    atmosphereOverlay: "#4c1d9540",
   },
   {
     key: "blood-moon", name: "Blood Moon",
@@ -64,6 +74,7 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#fff5f0", foregroundMuted: "#fca5a5",
     accent: "#fb7185", accentForeground: "#1a0000",
+    atmosphereOverlay: "#7f1d1d66",
   },
   {
     key: "citrine-dawn", name: "Citrine Dawn",
@@ -74,6 +85,7 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#fefce8", foregroundMuted: "#fde68a",
     accent: "#facc15", accentForeground: "#1a1308",
+    atmosphereOverlay: "#a162074d",
   },
   {
     key: "cups-tide", name: "Cups & Tide",
@@ -84,6 +96,7 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#ecfeff", foregroundMuted: "#a5f3fc",
     accent: "#67e8f9", accentForeground: "#001a2c",
+    atmosphereOverlay: "#0e74904d",
   },
   {
     key: "wands-ember", name: "Wands & Ember",
@@ -94,6 +107,7 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#fff7ed", foregroundMuted: "#fed7aa",
     accent: "#fb923c", accentForeground: "#1c0a0a",
+    atmosphereOverlay: "#9a34124d",
   },
   {
     key: "pentacles-moss", name: "Pentacles & Moss",
@@ -104,6 +118,7 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#ecfdf5", foregroundMuted: "#86efac",
     accent: "#34d399", accentForeground: "#0a1a14",
+    atmosphereOverlay: "#1665344d",
   },
   {
     key: "peacocks-tail", name: "Peacock\u2019s Tail",
@@ -114,10 +129,11 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#faf5ff", foregroundMuted: "#d8b4fe",
     accent: "#c084fc", accentForeground: "#0d0a1f",
+    atmosphereOverlay: "#6b21a866",
   },
   {
     key: "nightfall", name: "Nightfall",
-    tagline: "Apple\u2019s dark. Quiet. Distraction-free.",
+    tagline: "Stillness, after sundown.",
     recommendedFont: "Raleway",
     bgLeft: "#000000", bgRight: "#1d1d1f",
     surface: "#1c1c1e", surfaceElevated: "#2c2c2e",
@@ -127,7 +143,7 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
   },
   {
     key: "daybreak", name: "Daybreak",
-    tagline: "Apple\u2019s light. Plain Jane. The reading without weather.",
+    tagline: "Daylight clarity. Nothing in the way.",
     recommendedFont: "Raleway",
     bgLeft: "#ffffff", bgRight: "#f5f5f7",
     surface: "#ffffff", surfaceElevated: "#fbfbfd",

@@ -767,7 +767,7 @@ function ReadingCard({
     <button
       type="button"
       onClick={() => onOpen(reading.id)}
-      className="block w-full rounded-2xl px-4 py-4 text-left transition-colors hover:bg-white/[0.02]"
+      className="block w-full rounded-2xl px-4 py-4 text-left transition-colors hover:bg-foreground/[0.04]"
       style={{
         border: "1px solid color-mix(in oklab, var(--gold) 8%, transparent)",
         background: "color-mix(in oklab, oklch(0.10 0.03 280) 30%, transparent)",
@@ -979,7 +979,7 @@ function NotesView({
           <button
             type="button"
             onClick={() => onOpen(r.id)}
-            className="block w-full rounded-xl px-4 py-3 text-left transition-colors hover:bg-white/[0.02]"
+            className="block w-full rounded-xl px-4 py-3 text-left transition-colors hover:bg-foreground/[0.04]"
           >
             <div className="flex items-baseline gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
               <span style={{ opacity: "var(--ro-plus-20)" }}>
