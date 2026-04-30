@@ -44,7 +44,6 @@ const DIMENSION_PRESETS: { label: string; w: number; h: number }[] = [
   { label: "Standard", w: 2.75, h: 4.75 },
   { label: "Large Oracle", w: 3.5, h: 5 },
   { label: "Pocket", w: 2.5, h: 3.5 },
-  { label: "Square", w: 3.5, h: 3.5 },
 ];
 
 const CORNER_PRESETS: { label: string; value: number }[] = [
@@ -299,12 +298,6 @@ function DeckEditor({
   const [name, setName] = useState(existing?.name ?? "My Deck");
   const [shape, setShape] = useState<CustomDeck["shape"]>(existing?.shape ?? "rectangle");
   const [cornerRadius, setCornerRadius] = useState(existing?.corner_radius_percent ?? 4);
-  const [widthInches, setWidthInches] = useState<number>(
-    existing?.width_inches ?? 2.75,
-  );
-  const [heightInches, setHeightInches] = useState<number>(
-    existing?.height_inches ?? 4.75,
-  );
   const [mode, setMode] = useState<EditorMode>(
     existing ? { kind: "grid", deckId: existing.id } : { kind: "details" },
   );
@@ -325,12 +318,7 @@ function DeckEditor({
 
   const photographedIds = useMemo(() => cards.map((c) => c.card_id), [cards]);
 
-  const aspectRatio =
-    shape === "square" || shape === "round"
-      ? 1
-      : widthInches > 0 && heightInches > 0
-        ? widthInches / heightInches
-        : 0.625;
+  const aspectRatio = shape === "round" ? 1 : 0.625;
 
   // ---------- Step 1: deck details ----------
   if (mode.kind === "details") {
@@ -354,6 +342,7 @@ function DeckEditor({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onFocus={(e) => e.target.select()}
               className="mt-1 block w-full rounded-md border border-gold/20 bg-cosmos px-3 py-2 text-sm"
               maxLength={60}
             />
@@ -361,8 +350,8 @@ function DeckEditor({
 
           <div>
             <span className="text-sm font-medium">Card shape</span>
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              {(["rectangle", "square", "round"] as const).map((s) => (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {(["rectangle", "round"] as const).map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -379,69 +368,6 @@ function DeckEditor({
               ))}
             </div>
           </div>
-
-          {shape === "rectangle" && (
-            <div>
-              <span className="text-sm font-medium">Card dimensions</span>
-              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {DIMENSION_PRESETS.map((p) => {
-                  const active =
-                    Math.abs(widthInches - p.w) < 0.01 &&
-                    Math.abs(heightInches - p.h) < 0.01;
-                  return (
-                    <button
-                      key={p.label}
-                      type="button"
-                      onClick={() => {
-                        setWidthInches(p.w);
-                        setHeightInches(p.h);
-                      }}
-                      className={cn(
-                        "rounded-md border px-2 py-2 text-xs",
-                        active
-                          ? "border-gold bg-gold/10 text-gold"
-                          : "border-gold/20 text-muted-foreground hover:bg-gold/5",
-                      )}
-                    >
-                      <div className="font-medium">{p.label}</div>
-                      <div className="text-[10px] opacity-70">
-                        {p.w}″ × {p.h}″
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <label className="flex flex-1 items-center gap-1 text-xs">
-                  <span className="text-muted-foreground">W</span>
-                  <input
-                    type="number"
-                    step="0.05"
-                    value={widthInches}
-                    onChange={(e) => setWidthInches(Number(e.target.value))}
-                    className="w-full rounded-md border border-gold/20 bg-cosmos px-2 py-1 text-xs"
-                  />
-                </label>
-                <label className="flex flex-1 items-center gap-1 text-xs">
-                  <span className="text-muted-foreground">H</span>
-                  <input
-                    type="number"
-                    step="0.05"
-                    value={heightInches}
-                    onChange={(e) => setHeightInches(Number(e.target.value))}
-                    className="w-full rounded-md border border-gold/20 bg-cosmos px-2 py-1 text-xs"
-                  />
-                </label>
-              </div>
-              {widthInches > 0 && heightInches > 0 && (
-                <p className="mt-1.5 text-[11px] text-muted-foreground">
-                  Ratio: {(widthInches / heightInches).toFixed(2)}{" "}
-                  ({widthInches / heightInches >= 1 ? "landscape" : "portrait"})
-                  {" — only the proportion matters; absolute size is for reference."}
-                </p>
-              )}
-            </div>
-          )}
 
           {shape !== "round" && (
             <div>
@@ -493,8 +419,6 @@ function DeckEditor({
                     name: name.trim(),
                     shape,
                     corner_radius_percent: cornerRadius,
-                    width_inches: shape === "rectangle" ? widthInches : null,
-                    height_inches: shape === "rectangle" ? heightInches : null,
                   })
                   .select("*")
                   .single();
