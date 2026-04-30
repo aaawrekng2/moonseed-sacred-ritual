@@ -241,6 +241,8 @@ export function InlineReading({
                 lens_id: lensId,
                 mode: "reveal",
                 question: question || null,
+                entry_mode: entryMode ?? "digital",
+                deck_id: deckId ?? null,
               });
         const { data, error } = await query
           .select("id,user_id,note,is_favorite,tags")
