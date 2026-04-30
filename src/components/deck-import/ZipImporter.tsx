@@ -402,7 +402,10 @@ export function ZipImporter({
   return (
     <div
       className="fixed inset-0 z-[100] flex flex-col overflow-y-auto"
-      style={{ background: "var(--color-background)" }}
+      style={{
+        background: "var(--color-background)",
+        overscrollBehavior: "contain",
+      }}
     >
       <div className="mx-auto w-full max-w-5xl px-4">{body}</div>
     </div>
