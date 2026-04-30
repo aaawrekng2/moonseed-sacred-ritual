@@ -311,7 +311,7 @@ export function ZipImporter({
     });
   }, [mutate]);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (deleteSessionAfter: boolean) => {
     if (!workspace) return;
     await saverRef.current.flush();
     const total = Object.keys(workspace.session.assigned).length;
@@ -324,6 +324,7 @@ export function ZipImporter({
         shape,
         cornerRadiusPercent,
         queue: queueRef.current,
+        deleteSessionAfter,
       });
       setPhase({
         kind: "summary",
