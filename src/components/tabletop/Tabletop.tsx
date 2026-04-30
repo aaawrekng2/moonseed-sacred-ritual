@@ -368,6 +368,13 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const required = meta.count;
   const usesSlots = spreadUsesSlots(spread);
 
+  // AU — Manual card entry. Bypass the scatter and let the seeker pick
+  // cards from a 78-card grid (used for logging a physical reading).
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualPicks, setManualPicks] = useState<
+    { id: number; cardIndex: number }[]
+  >([]);
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [viewportW, setViewportW] = useState<number | null>(null);
