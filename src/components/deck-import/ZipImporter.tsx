@@ -235,29 +235,29 @@ export function ZipImporter({
       const fromUn = s.unassigned[imageKey];
       const fromSk = s.skipped[imageKey];
       const img = fromUn ?? fromSk;
-      if (!img) return;
+      // If neither bucket has it, it's already assigned somewhere — pull
+      // from the shadow asset store.
+      const shadow = ensureAssetStore(s)[imageKey];
+      const sourceImg = img ?? shadow;
+      if (!sourceImg) return;
       delete s.unassigned[imageKey];
       delete s.skipped[imageKey];
       // If slot already occupied, push displaced image back to unassigned.
       const displaced = s.assigned[slot];
       if (displaced && displaced !== imageKey) {
         const displacedImg = findImage(s, displaced);
-        if (displacedImg) s.unassigned[displaced] = displacedImg;
+        if (displacedImg && !displaced.startsWith("EXISTING:")) {
+          s.unassigned[displaced] = displacedImg;
+        }
       }
       // Remove imageKey from any other slot it may have occupied.
       for (const k of Object.keys(s.assigned)) {
         if (s.assigned[k] === imageKey) delete s.assigned[k];
       }
       s.assigned[slot] = imageKey;
-      // Make sure the assigned image is still referenced somewhere
-      // findImage relies on encoded/synthetic; for newly-encoded we
-      // also need it findable for re-display, so put a copy in unassigned-shadow?
-      // Simpler: keep raw blobs in a side-store on the session itself.
-      // Workaround: store a shadow record so findImage works after assignment.
-      s.unassigned[imageKey] = img; // shadow; UI filters this out below
-      delete s.unassigned[imageKey]; // actually no — we need a separate map
-      // Use a dedicated `_assets` field instead. (See imageStore helpers.)
-      ensureAssetStore(s)[imageKey] = img;
+      // Stash in shadow asset store so findImage() can still locate it
+      // after it's been removed from unassigned/skipped.
+      ensureAssetStore(s)[imageKey] = sourceImg;
     });
     // Trigger encoding for this image if not already encoded.
     setWorkspace((prev) => {
