@@ -7,6 +7,7 @@
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Camera,
   Check,
@@ -15,6 +16,7 @@ import {
   Star,
   Trash2,
   X,
+  Upload,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,6 +57,8 @@ const CORNER_PRESETS: { label: string; value: number }[] = [
   { label: "Heavy", value: 10 },
   { label: "Custom", value: 7 },
 ];
+
+const SAMPLE_PREVIEW_CARD_ID = 17; // The Star — generally pretty
 
 type WizardState =
   | { kind: "list" }
@@ -117,7 +121,9 @@ function DecksPage() {
         existing={view.kind === "edit" ? view.deck : null}
         onClose={async (saved) => {
           setView({ kind: "list" });
-          if (saved) await Promise.all([load(), refreshActiveDeck()]);
+          // Always refresh on return — Save inside the editor may have
+          // mutated rows even when 'saved' is false.
+          await Promise.all([load(), refreshActiveDeck()]);
         }}
       />
     );
