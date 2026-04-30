@@ -695,7 +695,7 @@ function DeckEditor({
                 style={{
                   fontFamily: "var(--font-serif)",
                   fontSize: "var(--text-heading-sm)",
-                  color: "var(--accent)",
+                  color: "var(--color-foreground)",
                 }}
               >
                 Resume your import?
@@ -1109,7 +1109,7 @@ function PerCardReviewModal({
           style={{
             fontFamily: "var(--font-serif)",
             fontSize: "var(--text-heading-sm)",
-            color: "var(--accent)",
+            color: "var(--color-foreground)",
           }}
         >
           {getCardName(cardId)}
