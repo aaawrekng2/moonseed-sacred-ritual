@@ -191,7 +191,7 @@ function DecksPage() {
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="rounded-lg border border-dashed border-gold/20 p-8 text-center">
+    <div className="rounded-lg border border-dashed border-border/60 p-8 text-center">
       <p className="mb-3 text-sm text-muted-foreground">
         No custom decks yet. The app uses the Rider-Waite deck by default.
       </p>
@@ -233,14 +233,14 @@ function DeckRow({
   }, [deck.id]);
 
   return (
-    <li className="flex items-center gap-3 rounded-lg border border-gold/15 bg-card p-3">
+    <li className="flex items-center gap-3 rounded-lg border border-border/60 bg-card p-3">
       <button
         type="button"
         onClick={onEdit}
         className="flex min-w-0 flex-1 items-center gap-3 text-left"
         aria-label={`Edit ${deck.name}`}
       >
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-gold/15 bg-cosmos">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-cosmos">
           {deck.card_back_thumb_url ? (
             <img src={deck.card_back_thumb_url} alt="" className="h-full w-full object-cover" />
           ) : (
@@ -404,7 +404,7 @@ function DeckEditor({
               value={name}
               onChange={(e) => setName(e.target.value)}
               onFocus={(e) => e.target.select()}
-              className="mt-1 block w-full rounded-md border border-gold/20 bg-cosmos px-3 py-2 text-sm"
+              className="mt-1 block w-full rounded-md border border-border/60 bg-cosmos px-3 py-2 text-sm"
               maxLength={60}
             />
           </label>
@@ -421,7 +421,7 @@ function DeckEditor({
                     "rounded-md border px-3 py-2 text-sm capitalize",
                     shape === s
                       ? "border-gold bg-gold/10 text-gold"
-                      : "border-gold/20 text-muted-foreground hover:bg-gold/5",
+                      : "border-border/60 text-muted-foreground hover:bg-gold/5",
                   )}
                 >
                   {s}
@@ -447,7 +447,7 @@ function DeckEditor({
                         "rounded-md border px-2 py-2 text-xs",
                         active
                           ? "border-gold bg-gold/10 text-gold"
-                          : "border-gold/20 text-muted-foreground hover:bg-gold/5",
+                          : "border-border/60 text-muted-foreground hover:bg-gold/5",
                       )}
                     >
                       {p.label}
@@ -540,7 +540,8 @@ function DeckEditor({
               style={{
                 fontFamily: "var(--font-serif)",
                 fontSize: "var(--text-body-sm)",
-                color: "var(--accent)",
+                color: "var(--color-foreground)",
+                opacity: 0.85,
                 background: "none",
                 border: "none",
                 padding: 0,
@@ -619,7 +620,7 @@ function DeckEditor({
                     setMode({ kind: "capture", deckId, cardId: i });
                   }
                 }}
-                className="group relative aspect-[2/3] overflow-hidden rounded border border-gold/15 bg-cosmos"
+                className="group relative aspect-[2/3] overflow-hidden rounded border border-border/60 bg-cosmos"
                 title={getCardName(i)}
               >
                 <img
@@ -694,7 +695,7 @@ function DeckEditor({
                 style={{
                   fontFamily: "var(--font-serif)",
                   fontSize: "var(--text-heading-sm)",
-                  color: "var(--accent)",
+                  color: "var(--color-foreground)",
                 }}
               >
                 Resume your import?
@@ -1108,7 +1109,7 @@ function PerCardReviewModal({
           style={{
             fontFamily: "var(--font-serif)",
             fontSize: "var(--text-heading-sm)",
-            color: "var(--accent)",
+            color: "var(--color-foreground)",
           }}
         >
           {getCardName(cardId)}

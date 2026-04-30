@@ -143,10 +143,9 @@ export function AuthScreen({
       <div
         className="w-full max-w-sm rounded-2xl px-6 py-6 flex flex-col gap-4"
         style={{
-          background:
-            "linear-gradient(180deg, rgba(14,10,40,0.98) 0%, rgba(10,7,30,0.98) 100%)",
-          border:
-            "1px solid color-mix(in oklab, var(--gold) 25%, transparent)",
+          background: "var(--surface-elevated)",
+          color: "var(--color-foreground)",
+          border: "1px solid var(--border-default)",
         }}
       >
         {/* Header */}
