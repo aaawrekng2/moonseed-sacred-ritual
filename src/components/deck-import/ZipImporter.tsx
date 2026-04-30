@@ -928,7 +928,7 @@ function Workspace({
           style={{
             fontFamily: "var(--font-serif)",
             fontSize: "var(--text-heading-md)",
-            color: "var(--accent)",
+            color: "var(--color-foreground)",
           }}
         >
           Import workspace
