@@ -65,12 +65,16 @@ export function InlineReading({
   onExit,
   onCopyTextChange,
   question,
+  entryMode,
+  deckId,
 }: {
   spread: SpreadMode;
   picks: Pick[];
   onExit: () => void;
   onCopyTextChange?: (text: string | null) => void;
   question?: string;
+  entryMode?: "digital" | "manual";
+  deckId?: string | null;
 }) {
   const meta = SPREAD_META[spread];
   const { isOracle } = useOracleMode();
@@ -237,6 +241,8 @@ export function InlineReading({
                 lens_id: lensId,
                 mode: "reveal",
                 question: question || null,
+                entry_mode: entryMode ?? "digital",
+                deck_id: deckId ?? null,
               });
         const { data, error } = await query
           .select("id,user_id,note,is_favorite,tags")
