@@ -299,7 +299,7 @@ export function FloatingMenu() {
           )}
 
           {occupied.length > 0 && (
-            <MenuButton onClick={cycleSanctuary} ariaLabel="Cycle sanctuaries">
+            <MenuButton onClick={cycleSanctuary} ariaLabel="Cycle saved themes">
               <Wand2 size={17} strokeWidth={1.5} />
             </MenuButton>
           )}

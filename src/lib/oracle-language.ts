@@ -24,7 +24,7 @@ export const LANG = {
   overwriteTheme:      { plain: "Overwrite",        oracle: "Overwrite This Sanctuary" },
   eraseTheme:          { plain: "Delete",           oracle: "Release This Sanctuary" },
   savedThemes:         { plain: "Your Saved Themes", oracle: "Your Sanctuaries" },
-  communityThemes:     { plain: "Themes",           oracle: "Celestial Palettes" },
+  communityThemes:     { plain: "Themes",           oracle: "Themes" },
   swipeToExplore:      { plain: "Swipe to explore", oracle: "Swipe to explore" },
   yourIcon:            { plain: "Your Icon",        oracle: "Your Sigil" },
   // Settings → Profile
@@ -55,7 +55,7 @@ export const LANG = {
   settings:            { plain: "Settings",         oracle: "The Inner Sanctum" },
   profile:             { plain: "Profile",          oracle: "The Seeker" },
   preferences:         { plain: "Preferences",      oracle: "The Way" },
-  data:                { plain: "Data",             oracle: "The Archive" },
+  data:                { plain: "Your Data",        oracle: "The Archive" },
   // Tabletop "Clarity" UI density levels
   clarity:             { plain: "Clarity",          oracle: "The Clarity" },
   claritySeen:         { plain: "Seen",             oracle: "Seen" },

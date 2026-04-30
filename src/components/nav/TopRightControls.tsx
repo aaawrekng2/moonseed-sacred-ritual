@@ -240,7 +240,7 @@ export function TopRightControls({
   const currentLabel =
     occupied.find((t) => t.slot === activeSlot)?.name ??
     occupied[0]?.name ??
-    "Sanctuary";
+    "Theme";
 
   return (
     <div
@@ -261,8 +261,8 @@ export function TopRightControls({
           labelFont="var(--font-serif)"
           labelStyle="italic-gold"
           onClick={cycleSanctuary}
-          ariaLabel={`Cycle saved sanctuaries (current: ${currentLabel})`}
-          title={`Sanctuary: ${currentLabel}`}
+          ariaLabel={`Cycle saved themes (current: ${currentLabel})`}
+          title={`Saved theme: ${currentLabel}`}
         />
       )}
 
