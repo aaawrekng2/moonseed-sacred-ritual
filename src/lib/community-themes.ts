@@ -11,94 +11,129 @@ export type CommunityTheme = {
   key: string;
   name: string;
   tagline: string;
+  recommendedFont?: ThemeFont;
+
+  // Page background (gradient)
   bgLeft: string;
   bgRight: string;
+
+  // Surfaces — cards, forms, dialogs, popups sit on these.
+  surface: string;
+  surfaceElevated: string;
+
+  // Borders
+  borderSubtle: string;
+  borderDefault: string;
+
+  // Text
+  foreground: string;
+  foregroundMuted: string;
+
+  // Accent — primary actions, focus rings, selection. NOT body text.
   accent: string;
-  /** BQ — recommended heading font (informational; tap doesn't change font). */
-  recommendedFont?: ThemeFont;
+  accentForeground: string;
 };
 
 export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
   {
-    key: "mystic-default",
-    name: "Mystic",
+    key: "mystic-default", name: "Mystic",
     tagline: "Where every reading begins.",
-    bgLeft: "#1e1b4b",
-    bgRight: "#2d1b69",
-    accent: "#f59e0b",
     recommendedFont: "Cormorant Garamond",
+    bgLeft: "#1e1b4b", bgRight: "#2d1b69",
+    surface: "#252056", surfaceElevated: "#2d2664",
+    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
+    foreground: "#f5f3ff", foregroundMuted: "#c4b8e8",
+    accent: "#f59e0b", accentForeground: "#1e1b4b",
   },
   {
-    key: "midnight-oracle",
-    name: "Midnight Oracle",
+    key: "midnight-oracle", name: "Midnight Oracle",
     tagline: "The dark night. Where the unconscious speaks.",
-    bgLeft: "#0a0a0f",
-    bgRight: "#1e0a3c",
-    accent: "#a78bfa",
     recommendedFont: "Cinzel",
+    bgLeft: "#0a0a0f", bgRight: "#1e0a3c",
+    surface: "#16162e", surfaceElevated: "#1e1e3d",
+    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
+    foreground: "#ede9fe", foregroundMuted: "#a78bfa",
+    accent: "#a78bfa", accentForeground: "#0a0a0f",
   },
   {
-    key: "blood-moon",
-    name: "Blood Moon",
+    key: "blood-moon", name: "Blood Moon",
     tagline: "Transformation. The reading that changes everything.",
-    bgLeft: "#1a0000",
-    bgRight: "#5c0000",
-    accent: "#ef4444",
     recommendedFont: "Cinzel",
+    bgLeft: "#1a0000", bgRight: "#5c0000",
+    surface: "#330505", surfaceElevated: "#421010",
+    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
+    foreground: "#fff5f0", foregroundMuted: "#fca5a5",
+    accent: "#fb7185", accentForeground: "#1a0000",
   },
   {
-    key: "citrine-dawn",
-    name: "Citrine Dawn",
+    key: "citrine-dawn", name: "Citrine Dawn",
     tagline: "Awakening. The first light of new understanding.",
-    bgLeft: "#1a1308",
-    bgRight: "#3d2c0a",
-    accent: "#facc15",
     recommendedFont: "Playfair Display",
+    bgLeft: "#1a1308", bgRight: "#3d2c0a",
+    surface: "#2a1f0c", surfaceElevated: "#372a14",
+    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
+    foreground: "#fefce8", foregroundMuted: "#fde68a",
+    accent: "#facc15", accentForeground: "#1a1308",
   },
   {
-    key: "cups-tide",
-    name: "Cups & Tide",
+    key: "cups-tide", name: "Cups & Tide",
     tagline: "Water. Emotion. The deep currents of the heart.",
-    bgLeft: "#001a2c",
-    bgRight: "#042234",
-    accent: "#67e8f9",
     recommendedFont: "Playfair Display",
+    bgLeft: "#001a2c", bgRight: "#042234",
+    surface: "#0a2a3f", surfaceElevated: "#10374f",
+    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
+    foreground: "#ecfeff", foregroundMuted: "#a5f3fc",
+    accent: "#67e8f9", accentForeground: "#001a2c",
   },
   {
-    key: "wands-ember",
-    name: "Wands & Ember",
+    key: "wands-ember", name: "Wands & Ember",
     tagline: "Fire. Will. The spark that moves you.",
-    bgLeft: "#1c0a0a",
-    bgRight: "#3d1408",
-    accent: "#fb923c",
     recommendedFont: "Cinzel",
+    bgLeft: "#1c0a0a", bgRight: "#3d1408",
+    surface: "#2a1410", surfaceElevated: "#3a1d18",
+    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
+    foreground: "#fff7ed", foregroundMuted: "#fed7aa",
+    accent: "#fb923c", accentForeground: "#1c0a0a",
   },
   {
-    key: "pentacles-moss",
-    name: "Pentacles & Moss",
+    key: "pentacles-moss", name: "Pentacles & Moss",
     tagline: "Earth. Patience. The slow work of building.",
-    bgLeft: "#0a1a14",
-    bgRight: "#16352b",
-    accent: "#34d399",
     recommendedFont: "Lora",
+    bgLeft: "#0a1a14", bgRight: "#16352b",
+    surface: "#102a20", surfaceElevated: "#173a2c",
+    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
+    foreground: "#ecfdf5", foregroundMuted: "#86efac",
+    accent: "#34d399", accentForeground: "#0a1a14",
   },
   {
-    key: "peacocks-tail",
-    name: "Peacock\u2019s Tail",
+    key: "peacocks-tail", name: "Peacock\u2019s Tail",
     tagline: "The shimmering threshold. All colors before unity.",
-    bgLeft: "#0d0a1f",
-    bgRight: "#2a0a3d",
-    accent: "#c084fc",
     recommendedFont: "Playfair Display",
+    bgLeft: "#0d0a1f", bgRight: "#2a0a3d",
+    surface: "#1a1430", surfaceElevated: "#241a3f",
+    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
+    foreground: "#faf5ff", foregroundMuted: "#d8b4fe",
+    accent: "#c084fc", accentForeground: "#0d0a1f",
   },
   {
-    key: "clear-sky",
-    name: "Clear Sky",
-    tagline: "Quiet defaults. The reading without weather.",
-    bgLeft: "#111827",
-    bgRight: "#1f2937",
-    accent: "#60a5fa",
+    key: "nightfall", name: "Nightfall",
+    tagline: "Apple\u2019s dark. Quiet. Distraction-free.",
     recommendedFont: "Raleway",
+    bgLeft: "#000000", bgRight: "#1d1d1f",
+    surface: "#1c1c1e", surfaceElevated: "#2c2c2e",
+    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
+    foreground: "#f5f5f7", foregroundMuted: "#aeaeb2",
+    accent: "#0a84ff", accentForeground: "#ffffff",
+  },
+  {
+    key: "daybreak", name: "Daybreak",
+    tagline: "Apple\u2019s light. Plain Jane. The reading without weather.",
+    recommendedFont: "Raleway",
+    bgLeft: "#ffffff", bgRight: "#f5f5f7",
+    surface: "#ffffff", surfaceElevated: "#fbfbfd",
+    borderSubtle: "#0000000f", borderDefault: "#0000001f",
+    foreground: "#1d1d1f", foregroundMuted: "#6e6e73",
+    accent: "#0066cc", accentForeground: "#ffffff",
   },
 ];
 

@@ -93,6 +93,7 @@ import {
   setStoredCommunityTheme,
   resolveCommunityTheme,
 } from "@/lib/community-themes";
+import { applyCommunityTheme } from "@/lib/theme-apply";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 import {
   ThemeDirtyProvider,
@@ -351,16 +352,12 @@ function ResetToDefaultsButton() {
   const reset = async () => {
     setStoredCardBack(DEFAULT_CARD_BACK);
     applyAccentTheme("default");
-    if (typeof document !== "undefined") {
-      document.documentElement.style.setProperty(
-        "--bg-gradient-left",
-        DEFAULT_BG_LEFT,
-      );
-      document.documentElement.style.setProperty(
-        "--bg-gradient-right",
-        DEFAULT_BG_RIGHT,
-      );
-    }
+    // BS — restore the Mystic default community theme's full token set
+    // so surfaces/foreground/etc. all return to baseline, not just the
+    // gradient stops.
+    const mystic = COMMUNITY_THEMES.find((t) => t.key === "mystic-default");
+    if (mystic) applyCommunityTheme(mystic);
+    setStoredCommunityTheme(null);
     setOpacity(DEFAULT_RESTING_OPACITY);
     applyHeadingFont(DEFAULT_THEME_FONT);
     applyHeadingFontSize(DEFAULT_FONT_SIZE);
@@ -697,9 +694,7 @@ function TheFieldSection() {
   const leftValue = prefs.bg_gradient_from ?? DEFAULT_BG_LEFT;
   const rightValue = prefs.bg_gradient_to ?? DEFAULT_BG_RIGHT;
 
-  const [openSwatch, setOpenSwatch] = useState<
-    "signature" | "past" | "future" | null
-  >(null);
+  const [openSwatch, setOpenSwatch] = useState<"signature" | null>(null);
 
   // Push the resolved accent into the live --gold/--primary tokens on
   // mount + whenever it changes, so other gold-themed UI picks it up
@@ -744,53 +739,20 @@ function TheFieldSection() {
     setOpenSwatch(null);
   };
 
-  const applyGradient = async (left: string, right: string) => {
-    if (!isHex(left) || !isHex(right)) return;
-    document.documentElement.style.setProperty("--bg-gradient-left", left);
-    document.documentElement.style.setProperty("--bg-gradient-right", right);
-    markDirty();
-    await updateUserPreferences(user.id, {
-      bg_gradient_from: left.toLowerCase(),
-      bg_gradient_to: right.toLowerCase(),
-    });
-    setPrefs({
-      ...prefs,
-      bg_gradient_from: left.toLowerCase(),
-      bg_gradient_to: right.toLowerCase(),
-    });
-    setOpenSwatch(null);
-  };
-
   return (
     <SettingsSection
-      title="Colors & Background"
-      description="Cast your color into the space — and the horizon it lives within."
+      title="Accent Color"
+      description="Cast your color into the space. Background comes from the theme you choose."
     >
       <div className="space-y-5">
-        {/* Three swatches in a row */}
-        <div className="grid grid-cols-3 gap-3">
+        {/* Single swatch — only accent is user-customizable. Background is set by the chosen theme. */}
+        <div className="flex justify-center">
           <FieldSwatch
             label="Accent Color"
             value={accentValue}
             isOpen={openSwatch === "signature"}
             onToggle={() =>
               setOpenSwatch(openSwatch === "signature" ? null : "signature")
-            }
-          />
-          <FieldSwatch
-            label="Left Color"
-            value={leftValue}
-            isOpen={openSwatch === "past"}
-            onToggle={() =>
-              setOpenSwatch(openSwatch === "past" ? null : "past")
-            }
-          />
-          <FieldSwatch
-            label="Right Color"
-            value={rightValue}
-            isOpen={openSwatch === "future"}
-            onToggle={() =>
-              setOpenSwatch(openSwatch === "future" ? null : "future")
             }
           />
         </div>
@@ -811,22 +773,6 @@ function TheFieldSection() {
             initial={accentValue}
             onApply={applyAccent}
             onCancel={() => setOpenSwatch(null)}
-          />
-        )}
-        {openSwatch === "past" && (
-          <FieldPicker
-            initial={leftValue}
-            onApply={(hex) => applyGradient(hex, rightValue)}
-            onCancel={() => setOpenSwatch(null)}
-            onReset={() => applyGradient(DEFAULT_BG_LEFT, rightValue)}
-          />
-        )}
-        {openSwatch === "future" && (
-          <FieldPicker
-            initial={rightValue}
-            onApply={(hex) => applyGradient(leftValue, hex)}
-            onCancel={() => setOpenSwatch(null)}
-            onReset={() => applyGradient(leftValue, DEFAULT_BG_RIGHT)}
           />
         )}
       </div>
@@ -1430,31 +1376,23 @@ function CommunityThemesSection() {
   }, []);
 
   const apply = async (theme: (typeof COMMUNITY_THEMES)[number]) => {
-    document.documentElement.style.setProperty(
-      "--bg-gradient-left",
-      theme.bgLeft,
-    );
-    document.documentElement.style.setProperty(
-      "--bg-gradient-right",
-      theme.bgRight,
-    );
-    document.documentElement.style.setProperty("--gold", theme.accent);
-    document.documentElement.style.setProperty("--primary", theme.accent);
-    document.documentElement.style.setProperty("--ring", `${theme.accent}99`);
+    applyCommunityTheme(theme);
 
     setStoredCommunityTheme(theme.key);
     setActiveKey(theme.key);
     markDirty();
 
     await updateUserPreferences(user.id, {
-      bg_gradient_from: theme.bgLeft.toLowerCase(),
-      bg_gradient_to: theme.bgRight.toLowerCase(),
       accent_color: theme.accent.toLowerCase(),
+      // BS — clear any custom background override so the next session
+      // loads cleanly from the chosen theme's tokens.
+      bg_gradient_from: null,
+      bg_gradient_to: null,
     });
     setPrefs({
       ...prefs,
-      bg_gradient_from: theme.bgLeft.toLowerCase(),
-      bg_gradient_to: theme.bgRight.toLowerCase(),
+      bg_gradient_from: null,
+      bg_gradient_to: null,
       accent_color: theme.accent.toLowerCase(),
     });
     dispatchActiveThemeChanged({
@@ -1587,6 +1525,7 @@ function SavedThemesSection() {
   const captureCurrent = (
     overrideName?: string,
   ): Omit<SavedTheme, "slot"> => {
+    const communityKey = getStoredCommunityTheme();
     return {
       name: (overrideName ?? "My Theme").trim().slice(0, 20) || "My Theme",
       bg_left: prefs.bg_gradient_from ?? DEFAULT_BG_LEFT,
@@ -1596,6 +1535,9 @@ function SavedThemesSection() {
       font_size: prefs.heading_font_size ?? DEFAULT_FONT_SIZE,
       card_back: getStoredCardBack(),
       resting_opacity: prefs.resting_opacity ?? DEFAULT_RESTING_OPACITY,
+      // BS — record which community theme was active so applySanctuary
+      // can restore the full token set on load.
+      theme_key: communityKey ?? undefined,
     };
   };
 
@@ -1636,16 +1578,14 @@ function SavedThemesSection() {
   };
 
   const handleLoad = async (theme: SavedTheme) => {
-    if (theme.bg_left && theme.bg_right) {
-      document.documentElement.style.setProperty(
-        "--bg-gradient-left",
-        theme.bg_left,
-      );
-      document.documentElement.style.setProperty(
-        "--bg-gradient-right",
-        theme.bg_right,
-      );
-    }
+    // BS — resolve the saved theme's community-theme key (if any) and
+    // apply the full token set (surfaces, borders, foreground, etc.).
+    const community =
+      (theme.theme_key &&
+        COMMUNITY_THEMES.find((t) => t.key === theme.theme_key)) ||
+      COMMUNITY_THEMES.find((t) => t.key === "mystic-default");
+    if (community) applyCommunityTheme(community);
+    // Re-apply the user's custom accent on top of the community tokens.
     if (theme.accent) {
       document.documentElement.style.setProperty("--gold", theme.accent);
       document.documentElement.style.setProperty("--primary", theme.accent);
