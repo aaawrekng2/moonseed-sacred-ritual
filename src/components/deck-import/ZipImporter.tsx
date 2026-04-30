@@ -24,7 +24,7 @@
  *   4. Summary.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, RotateCcw, Upload, X } from "lucide-react";
+import { AlertTriangle, Loader2, RotateCcw, Upload, X } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -361,12 +361,13 @@ export function ZipImporter({
   }, [deckId]);
 
   /* ---------- Renders ---------- */
-  if (phase.kind === "loading") return <Centered text="Checking for saved progress…" />;
-  if (phase.kind === "upload") return <UploadStep onFile={handleFile} onCancel={handleCancel} />;
-  if (phase.kind === "extracting") return <Centered text="Reading your zip…" />;
-  if (phase.kind === "saving") return <Centered text={`Saving deck… ${phase.done}/${phase.total}`} />;
-  if (phase.kind === "summary") {
-    return (
+  let body: React.ReactNode;
+  if (phase.kind === "loading") body = <Centered text="Checking for saved progress…" />;
+  else if (phase.kind === "upload") body = <UploadStep onFile={handleFile} onCancel={handleCancel} />;
+  else if (phase.kind === "extracting") body = <Centered text="Reading your zip…" />;
+  else if (phase.kind === "saving") body = <Centered text={`Saving deck… ${phase.done}/${phase.total}`} />;
+  else if (phase.kind === "summary") {
+    body = (
       <Summary
         written={phase.written}
         failedCardIds={phase.failedCardIds}
@@ -379,21 +380,32 @@ export function ZipImporter({
         }}
       />
     );
-  }
-  if (!workspace) return <Centered text="Loading…" />;
+  } else if (!workspace) body = <Centered text="Loading…" />;
+  else
+    body = (
+      <Workspace
+        session={workspace.session}
+        onAssign={handleAssign}
+        onSkip={handleSkip}
+        onUnskip={handleUnskip}
+        onUnassign={handleUnassign}
+        onSave={handleSave}
+        onCancel={handleCancel}
+        onDiscard={handleDiscard}
+        shape={shape}
+        cornerRadiusPercent={cornerRadiusPercent}
+      />
+    );
+
+  // BM Fix 1.1 — full-screen takeover so the deck grid view never bleeds
+  // through behind the wizard.
   return (
-    <Workspace
-      session={workspace.session}
-      onAssign={handleAssign}
-      onSkip={handleSkip}
-      onUnskip={handleUnskip}
-      onUnassign={handleUnassign}
-      onSave={handleSave}
-      onCancel={handleCancel}
-      onDiscard={handleDiscard}
-      shape={shape}
-      cornerRadiusPercent={cornerRadiusPercent}
-    />
+    <div
+      className="fixed inset-0 z-[100] flex flex-col overflow-y-auto"
+      style={{ background: "var(--color-background)" }}
+    >
+      <div className="mx-auto w-full max-w-5xl px-4">{body}</div>
+    </div>
   );
 }
 
@@ -922,6 +934,8 @@ function Workspace({
           src={resolveSrc(zoom.imageKey)}
           context={zoom.from}
           canUseAsBack={zoom.from === "unassigned" && !hasBack}
+          shape={shape}
+          cornerRadiusPercent={cornerRadiusPercent}
           onBack={() => setZoom(null)}
           onPickCard={() => {
             const ctx = zoom;
@@ -946,6 +960,19 @@ function Workspace({
             setZoom(null);
             const postUn = unassignedKeys.length - 1;
             autoSwitch("unassigned", numericAssigned.length, postUn, skippedKeys.length + 1);
+          }}
+          onSendBackToUnassigned={() => {
+            const ctx = zoom;
+            if (ctx.from === "assigned" && ctx.slot) {
+              onUnassign(ctx.slot);
+              const postAs = numericAssigned.length - 1;
+              autoSwitch("assigned", postAs, unassignedKeys.length + 1, skippedKeys.length);
+            } else if (ctx.from === "skipped") {
+              onUnskip(ctx.imageKey);
+              const postSk = skippedKeys.length - 1;
+              autoSwitch("skipped", numericAssigned.length, unassignedKeys.length + 1, postSk);
+            }
+            setZoom(null);
           }}
         />
       )}
@@ -1415,55 +1442,71 @@ function ZoomModal({
   src,
   context,
   canUseAsBack,
+  shape,
+  cornerRadiusPercent,
   onPickCard,
   onReassign,
   onUseAsBack,
   onSkip,
   onBack,
+  onSendBackToUnassigned,
 }: {
   src: string;
   context: "unassigned" | "assigned" | "skipped";
   canUseAsBack: boolean;
+  shape: "rectangle" | "round";
+  cornerRadiusPercent: number;
   onPickCard: () => void;
   onReassign: () => void;
   onUseAsBack: () => void;
   onSkip: () => void;
   onBack: () => void;
+  onSendBackToUnassigned: () => void;
 }) {
+  const imgStyle: React.CSSProperties =
+    shape === "round"
+      ? { clipPath: "circle(50%)", maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }
+      : {
+          maxWidth: "100%",
+          maxHeight: "100%",
+          objectFit: "contain",
+          borderRadius: `${(cornerRadiusPercent / 100) * 200}px`,
+        };
   return (
     <div
       className="fixed inset-0 z-[120] flex flex-col items-center justify-center p-4"
       style={{ background: "var(--surface-overlay, rgba(0,0,0,0.85))" }}
       onClick={onBack}
     >
-      <img
-        src={src}
-        alt=""
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxHeight: "78vh", maxWidth: "100%" }}
-        className="rounded"
-      />
       <div
-        className="mt-4 flex flex-wrap items-center justify-center gap-3"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: "min(85vw, 600px)",
+          maxHeight: "70vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <img src={src} alt="" style={imgStyle} />
+      </div>
+      <div
+        className="mt-4 flex flex-col items-center justify-center gap-2 sm:flex-row sm:flex-wrap"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-md px-4 py-2"
-          style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
-        >
-          Back
-        </button>
         {context === "unassigned" && (
           <>
             <button
               type="button"
-              onClick={onSkip}
-              className="rounded-md px-4 py-2"
-              style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+              onClick={onPickCard}
+              className="rounded-md px-4 py-2 font-medium"
+              style={{
+                background: "var(--accent)",
+                color: "var(--accent-foreground, #000)",
+                fontSize: "var(--text-body-sm)",
+              }}
             >
-              Skip
+              Assign to a card
             </button>
             {canUseAsBack && (
               <button
@@ -1481,6 +1524,42 @@ function ZoomModal({
             )}
             <button
               type="button"
+              onClick={onSkip}
+              className="rounded-md px-4 py-2"
+              style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+            >
+              Skip
+            </button>
+          </>
+        )}
+        {context === "assigned" && (
+          <>
+            <button
+              type="button"
+              onClick={onReassign}
+              className="rounded-md px-4 py-2 font-medium"
+              style={{
+                background: "var(--accent)",
+                color: "var(--accent-foreground, #000)",
+                fontSize: "var(--text-body-sm)",
+              }}
+            >
+              Reassign to different card
+            </button>
+            <button
+              type="button"
+              onClick={onSendBackToUnassigned}
+              className="rounded-md px-4 py-2"
+              style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+            >
+              Send back to unassigned
+            </button>
+          </>
+        )}
+        {context === "skipped" && (
+          <>
+            <button
+              type="button"
               onClick={onPickCard}
               className="rounded-md px-4 py-2 font-medium"
               style={{
@@ -1489,38 +1568,26 @@ function ZoomModal({
                 fontSize: "var(--text-body-sm)",
               }}
             >
-              Pick a card
+              Assign to a card
+            </button>
+            <button
+              type="button"
+              onClick={onSendBackToUnassigned}
+              className="rounded-md px-4 py-2"
+              style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+            >
+              Send back to unassigned
             </button>
           </>
         )}
-        {context === "assigned" && (
-          <button
-            type="button"
-            onClick={onReassign}
-            className="rounded-md px-4 py-2 font-medium"
-            style={{
-              background: "var(--accent)",
-              color: "var(--accent-foreground, #000)",
-              fontSize: "var(--text-body-sm)",
-            }}
-          >
-            Reassign to different card
-          </button>
-        )}
-        {context === "skipped" && (
-          <button
-            type="button"
-            onClick={onPickCard}
-            className="rounded-md px-4 py-2 font-medium"
-            style={{
-              background: "var(--accent)",
-              color: "var(--accent-foreground, #000)",
-              fontSize: "var(--text-body-sm)",
-            }}
-          >
-            Pick a card
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded-md px-4 py-2"
+          style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+        >
+          Back
+        </button>
       </div>
     </div>
   );
