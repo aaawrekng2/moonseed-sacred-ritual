@@ -365,6 +365,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   const meta = SPREAD_META[spread];
   const required = meta.count;
   const usesSlots = spreadUsesSlots(spread);
+  const cardImg = useActiveDeckImage();
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -2480,7 +2481,7 @@ function CardSlot({
                 left the front blank for the first reveal. The back covers it
                 until the rotation completes (backface-visibility: hidden). */}
             <img
-              src={getCardImagePath(faceIndex)}
+              src={cardImg(faceIndex)}
               alt={getCardName(faceIndex)}
               className="h-full w-full object-cover"
               loading="eager"
