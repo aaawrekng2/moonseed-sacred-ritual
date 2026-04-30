@@ -560,7 +560,7 @@ function CardStrip({
         >
           {picks[i] && (
             <img
-              src={getCardImagePath(picks[i].cardIndex)}
+              src={cardImg(picks[i].cardIndex)}
               alt={getCardName(picks[i].cardIndex)}
               className="h-full w-full object-cover"
               loading="eager"
@@ -607,14 +607,14 @@ function CardStrip({
               <div className="absolute inset-0 flex items-center justify-center">
                 {picks[0] && (
                   <div className="reading-card-frame overflow-hidden rounded-[6px] border border-white/10 bg-card" style={{ width: cw, height: ch }}>
-                    <img src={getCardImagePath(picks[0].cardIndex)} alt={getCardName(picks[0].cardIndex)} className="h-full w-full object-cover" loading="eager" style={{ transform: picks[0].isReversed ? "rotate(180deg)" : undefined, transition: "transform 600ms ease-out" }} />
+                    <img src={cardImg(picks[0].cardIndex)} alt={getCardName(picks[0].cardIndex)} className="h-full w-full object-cover" loading="eager" style={{ transform: picks[0].isReversed ? "rotate(180deg)" : undefined, transition: "transform 600ms ease-out" }} />
                   </div>
                 )}
               </div>
               <div className="absolute inset-0 flex items-center justify-center" style={{ transform: "rotate(90deg)" }}>
                 {picks[1] && (
                   <div className="reading-card-frame overflow-hidden rounded-[6px] border border-white/10 bg-card" style={{ width: cw, height: ch }}>
-                    <img src={getCardImagePath(picks[1].cardIndex)} alt={getCardName(picks[1].cardIndex)} className="h-full w-full object-cover" loading="eager" style={{ transform: picks[1].isReversed ? "rotate(180deg)" : undefined, transition: "transform 600ms ease-out" }} />
+                    <img src={cardImg(picks[1].cardIndex)} alt={getCardName(picks[1].cardIndex)} className="h-full w-full object-cover" loading="eager" style={{ transform: picks[1].isReversed ? "rotate(180deg)" : undefined, transition: "transform 600ms ease-out" }} />
                   </div>
                 )}
               </div>
@@ -693,7 +693,7 @@ function CardStrip({
             }}
           >
             <img
-              src={getCardImagePath(pick.cardIndex)}
+              src={cardImg(pick.cardIndex)}
               alt={getCardName(pick.cardIndex)}
               className="h-full w-full object-cover"
               loading="eager"
