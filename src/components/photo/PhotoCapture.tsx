@@ -536,15 +536,12 @@ export function PhotoCapture({
                 setZoom(1);
                 setPan({ x: 0, y: 0 });
                 setRotation(0);
-                const vp = viewportRef.current;
-                if (vp.w && vp.h) {
-                  setCorners([
-                    { x: vp.w * 0.1, y: vp.h * 0.1 },
-                    { x: vp.w * 0.9, y: vp.h * 0.1 },
-                    { x: vp.w * 0.9, y: vp.h * 0.9 },
-                    { x: vp.w * 0.1, y: vp.h * 0.9 },
-                  ]);
-                }
+                setCorners([
+                  { x: 0.1, y: 0.1 },
+                  { x: 0.9, y: 0.1 },
+                  { x: 0.9, y: 0.9 },
+                  { x: 0.1, y: 0.9 },
+                ]);
               }}
               className="rounded-full bg-white/10 p-3 hover:bg-white/20"
               aria-label="Reset"
