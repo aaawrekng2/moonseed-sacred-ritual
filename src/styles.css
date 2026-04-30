@@ -1485,3 +1485,14 @@ button:focus-visible .moon-rung-glow {
   .journal-filter-btn:hover { background: var(--accent-faint, oklch(1 0 0 / 0.06)); }
   .journal-filter-btn__icon { width: 20px; height: 20px; }
 }
+
+/*
+ * BV — Theme-aware modal scrim. On dark themes (light foreground)
+ * this lightens the area behind a modal; on Daybreak (dark foreground)
+ * it darkens. Always provides separation between modal and page.
+ */
+.modal-scrim {
+  background: color-mix(in oklch, var(--color-foreground) 8%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
