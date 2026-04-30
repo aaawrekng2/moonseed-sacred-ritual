@@ -1814,3 +1814,75 @@ function Summary({
     </section>
   );
 }
+
+/* ================================================================== */
+/*  DefaultGrid — BN Fix 2 (Default chip view)                         */
+/* ================================================================== */
+
+function DefaultGrid({
+  customizedCardIds,
+  session,
+  resolveSrc,
+  defaultCount,
+  onPickDefault,
+}: {
+  customizedCardIds: Set<number>;
+  session: ImportSession;
+  resolveSrc: (key: string) => string;
+  defaultCount: number;
+  onPickDefault: (cardId: number) => void;
+}) {
+  return (
+    <div>
+      <p
+        className="mb-3"
+        style={{
+          fontSize: "var(--text-body-sm)",
+          color: "var(--color-foreground)",
+          opacity: 0.85,
+        }}
+      >
+        {defaultCount} card{defaultCount === 1 ? "" : "s"} will use the default
+        image after save. Tap a card to assign one of your images.
+      </p>
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+        {Array.from({ length: 78 }, (_, i) => {
+          const customized = customizedCardIds.has(i);
+          const key = customized ? session.assigned[String(i)] : undefined;
+          const src = key ? resolveSrc(key) : "";
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                if (!customized) onPickDefault(i);
+              }}
+              disabled={customized}
+              className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
+              style={{
+                borderColor: customized ? "var(--accent)" : "var(--border-subtle)",
+                background: "var(--surface-card)",
+              }}
+              title={getCardName(i)}
+            >
+              {customized && src ? (
+                <img
+                  src={src}
+                  alt={getCardName(i)}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <img
+                  src={getCardImagePath(i)}
+                  alt={getCardName(i)}
+                  className="h-full w-full object-cover"
+                  style={{ opacity: 0.65 }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
