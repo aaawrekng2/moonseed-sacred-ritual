@@ -713,6 +713,82 @@ function DeckEditor({
             </div>
           );
         })()}
+
+        {resumePrompt && (
+          <div
+            className="fixed inset-0 z-[115] flex items-center justify-center p-6"
+            style={{
+              background:
+                "var(--surface-overlay, color-mix(in oklab, var(--color-background) 80%, black))",
+            }}
+          >
+            <div
+              className="flex w-full max-w-sm flex-col gap-4 rounded-xl border"
+              style={{
+                background: "var(--surface-card)",
+                borderColor: "var(--border-subtle)",
+                color: "var(--color-foreground)",
+                padding: "var(--space-5, 1.25rem)",
+                borderRadius: "var(--radius-lg, 0.75rem)",
+              }}
+            >
+              <h3
+                className="italic"
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "var(--text-heading-sm)",
+                  color: "var(--accent)",
+                }}
+              >
+                Resume your import?
+              </h3>
+              <p
+                style={{
+                  fontSize: "var(--text-body-sm)",
+                  color: "var(--color-foreground)",
+                }}
+              >
+                You have an in-progress import for this deck (
+                {resumePrompt.assigned} assigned, {resumePrompt.unassigned}{" "}
+                unassigned, {resumePrompt.skipped} skipped).
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResumePrompt(null);
+                    setMode({ kind: "import", deckId });
+                  }}
+                  className="rounded-md px-4 py-2 font-medium"
+                  style={{
+                    background: "var(--accent)",
+                    color: "var(--accent-foreground, #000)",
+                    fontSize: "var(--text-body-sm)",
+                  }}
+                >
+                  Resume
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!existing) return;
+                    await deleteSession(existing.id);
+                    setResumePrompt(null);
+                    toast("Import session discarded");
+                  }}
+                  className="rounded-md px-4 py-2"
+                  style={{
+                    color: "var(--color-foreground)",
+                    fontSize: "var(--text-body-sm)",
+                    background: "transparent",
+                  }}
+                >
+                  Discard and start over
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
     );
   }
