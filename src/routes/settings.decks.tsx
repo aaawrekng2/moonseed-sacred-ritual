@@ -351,13 +351,14 @@ function DeckEditor({
           await deleteSession(existing.id);
           return;
         }
-        // Count slots that aren't synthetic existing markers.
-        const assignedCount = Object.values(session.assigned).filter(
-          (k) => !String(k).startsWith("EXISTING:"),
+        // BLa Fix C — EXISTING:* markers only appear in session.assigned
+        // now (Fix B), so unassigned/skipped counts are clean. Filter
+        // EXISTING:* out of assigned so we only prompt when there's real
+        // user work in progress.
+        const assignedCount = Object.entries(session.assigned).filter(
+          ([, k]) => !String(k).startsWith("EXISTING:"),
         ).length;
-        const unassignedCount = Object.values(session.unassigned).filter(
-          (img) => !img.existingUrl,
-        ).length;
+        const unassignedCount = Object.keys(session.unassigned).length;
         const skippedCount = Object.keys(session.skipped).length;
         if (assignedCount + unassignedCount + skippedCount === 0) return;
         setResumePrompt({
