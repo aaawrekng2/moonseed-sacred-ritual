@@ -878,10 +878,17 @@ function Wizard({
 function ZoomModal({
   src,
   onUse,
+  onPickCard,
+  onSkip,
   onBack,
 }: {
   src: string;
-  onUse: () => void;
+  /** Legacy single-action use (CardBackStep). */
+  onUse?: () => void;
+  /** Image-first wizard: open CardPicker to pick which card. */
+  onPickCard?: () => void;
+  /** Image-first wizard: skip this image for now. */
+  onSkip?: () => void;
   onBack: () => void;
 }) {
   return (
@@ -895,7 +902,7 @@ function ZoomModal({
         style={{ maxHeight: "80vh", maxWidth: "100%" }}
         className="rounded"
       />
-      <div className="mt-4 flex gap-3">
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
         <button
           type="button"
           onClick={onBack}
@@ -908,18 +915,48 @@ function ZoomModal({
         >
           Back
         </button>
-        <button
-          type="button"
-          onClick={onUse}
-          className="rounded-md px-4 py-2 font-medium"
-          style={{
-            background: "var(--accent)",
-            color: "#000",
-            fontSize: "var(--text-body-sm)",
-          }}
-        >
-          Use this
-        </button>
+        {onSkip && (
+          <button
+            type="button"
+            onClick={onSkip}
+            className="rounded-md px-4 py-2"
+            style={{
+              background: "transparent",
+              color: "var(--color-foreground)",
+              fontSize: "var(--text-body-sm)",
+            }}
+          >
+            Skip
+          </button>
+        )}
+        {onPickCard && (
+          <button
+            type="button"
+            onClick={onPickCard}
+            className="rounded-md px-4 py-2 font-medium"
+            style={{
+              background: "var(--accent)",
+              color: "var(--accent-foreground, #000)",
+              fontSize: "var(--text-body-sm)",
+            }}
+          >
+            Pick a card
+          </button>
+        )}
+        {onUse && (
+          <button
+            type="button"
+            onClick={onUse}
+            className="rounded-md px-4 py-2 font-medium"
+            style={{
+              background: "var(--accent)",
+              color: "var(--accent-foreground, #000)",
+              fontSize: "var(--text-body-sm)",
+            }}
+          >
+            Use this
+          </button>
+        )}
       </div>
     </div>
   );
