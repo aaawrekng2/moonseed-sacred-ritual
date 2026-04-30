@@ -439,6 +439,47 @@ function DeckEditor({
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Continue → photograph cards
           </button>
+
+          {/* Bulk import entry — Stamp BH. Creates the deck row first so a
+              cancelled import still leaves a recoverable empty deck. */}
+          <div className="pt-2">
+            <button
+              type="button"
+              disabled={saving || !name.trim()}
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  const { data, error } = await supabase
+                    .from("custom_decks")
+                    .insert({
+                      user_id: userId,
+                      name: name.trim(),
+                      shape,
+                      corner_radius_percent: cornerRadius,
+                    })
+                    .select("*")
+                    .single();
+                  if (error) throw error;
+                  setMode({ kind: "import", deckId: (data as CustomDeck).id });
+                } catch (err) {
+                  alert(`Couldn't create deck: ${(err as Error).message}`);
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              className="italic underline disabled:opacity-50"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--accent)",
+                background: "none",
+                border: "none",
+                padding: 0,
+              }}
+            >
+              Already have your deck digitized? Import from zip
+            </button>
+          </div>
         </div>
       </section>
     );
