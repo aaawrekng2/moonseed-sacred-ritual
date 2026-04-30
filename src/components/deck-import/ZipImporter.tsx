@@ -15,14 +15,13 @@
  * that's created upstream so partial saves are recoverable.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Upload, X, Check, ImageIcon } from "lucide-react";
+import { Loader2, Upload, X, Check } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
 import { processImageBlob } from "./process";
 import {
-  canonicalOrder,
   matchFilenames,
   type MatchResult,
 } from "./matcher";
@@ -609,8 +608,7 @@ function Wizard({
     data.tray = unassigned;
   }, [assignments, unassigned, data]);
 
-  const totalToReview = unassigned.length + skipped.length + (pickerForImage ? 1 : 0) + (zoomKey ? 1 : 0);
-  // Simpler: track originally-unmatched count for the progress bar.
+  // Track originally-unmatched count for the progress bar.
   const initialUnmatchedTotal = useMemo(
     () => data.tray.length,
     [data],
