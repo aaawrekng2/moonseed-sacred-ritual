@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { GuideSelector } from "@/components/guides/GuideSelector";
+import { SettingsSection } from "@/components/settings/sections";
 
 /**
  * /settings/guides — manage guides directly from Settings, without
@@ -17,12 +18,16 @@ export const Route = createFileRoute("/settings/guides")({
 function SettingsGuidesPage() {
   const navigate = useNavigate();
   return (
-    <div className="pb-12">
+    <SettingsSection
+      title="Guides"
+      description="Choose the voice that reads your cards."
+    >
       <GuideSelector
+        isEmbedded
         onContinue={() => void navigate({ to: "/draw" })}
         onSkip={() => void navigate({ to: "/settings/profile" })}
         ctaLabel="Begin a Reading"
       />
-    </div>
+    </SettingsSection>
   );
 }

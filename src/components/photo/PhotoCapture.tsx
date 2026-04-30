@@ -135,6 +135,19 @@ function cropFromCorners(
   const minY = Math.max(0, Math.min(...corners.map((c) => c.y)));
   const maxX = Math.min(1, Math.max(...corners.map((c) => c.x)));
   const maxY = Math.min(1, Math.max(...corners.map((c) => c.y)));
+  // BQ Fix 4C — defensive logging + degenerate guard.
+  const cropWf = (maxX - minX) * sw;
+  const cropHf = (maxY - minY) * sh;
+  console.log("[cropFromCorners]", {
+    naturalWidth: sw,
+    naturalHeight: sh,
+    corners,
+    bbox: { minX, minY, maxX, maxY },
+    cropPx: { x: minX * sw, y: minY * sh, w: cropWf, h: cropHf },
+  });
+  if (cropWf < 1 || cropHf < 1 || !isFinite(cropWf) || !isFinite(cropHf)) {
+    throw new Error(`cropFromCorners: degenerate crop box ${cropWf}×${cropHf}`);
+  }
   const sx = Math.round(minX * sw);
   const sy = Math.round(minY * sh);
   const sWidth = Math.max(1, Math.round((maxX - minX) * sw));
@@ -164,7 +177,12 @@ function imageToScreen(
   const cy = viewport.h / 2;
   const ix = (imgPt.x - 0.5) * imgDims.w;
   const iy = (imgPt.y - 0.5) * imgDims.h;
-  const baseScale = viewport.h / Math.max(1, imgDims.h);
+  // BQ Fix 1B — image is rendered with object-fit: contain, so baseScale
+  // is the smaller of the two fit ratios.
+  const baseScale = Math.min(
+    viewport.w / Math.max(1, imgDims.w),
+    viewport.h / Math.max(1, imgDims.h),
+  );
   const totalScale = baseScale * zoom;
   const r = (rotationDeg * Math.PI) / 180;
   const cos = Math.cos(r);
@@ -187,7 +205,10 @@ function screenToImage(
 ): { x: number; y: number } {
   const cx = viewport.w / 2;
   const cy = viewport.h / 2;
-  const baseScale = viewport.h / Math.max(1, imgDims.h);
+  const baseScale = Math.min(
+    viewport.w / Math.max(1, imgDims.w),
+    viewport.h / Math.max(1, imgDims.h),
+  );
   const totalScale = baseScale * zoom;
   const sx = scrPt.x - cx + pan.x;
   const sy = scrPt.y - cy + pan.y;
@@ -682,10 +703,11 @@ function RefineView({
           position: "absolute",
           top: "50%",
           left: "50%",
-          maxWidth: "none",
-          maxHeight: "none",
+          maxWidth: "100%",
+          maxHeight: "100%",
           width: "auto",
-          height: "100%",
+          height: "auto",
+          objectFit: "contain",
           transform: `translate(-50%, -50%) translate(${-pan.x}px, ${-pan.y}px) rotate(${rotation}deg) scale(${zoom})`,
           transformOrigin: "center center",
         }}

@@ -113,8 +113,12 @@ export async function commitImportSession(args: {
   } = args;
   const opts: ProcessOpts = { shape, cornerRadiusPercent };
 
+  // BQ Fix 4B — diagnostic timing.
+  console.time("commit_total");
   // 1. Drain any in-flight encoding.
+  console.time("commit_drain");
   if (queue) await queue.drain();
+  console.timeEnd("commit_drain");
 
   // Build the work list. Skip 'EXISTING:*' assignments — those represent
   // existing custom_deck_cards rows that don't need to be re-uploaded.
@@ -158,11 +162,14 @@ export async function commitImportSession(args: {
   let written = 0;
 
   for (const w of work) {
+    const tag = `commit_card_${w.cardId}`;
+    console.time(tag);
     try {
       const asset = await resolveEncoded(session, w.imageKey, opts);
       if (!asset) {
         if (w.cardId === "BACK") cardBackFailed = true;
         else failedCardIds.push(w.cardId);
+        console.timeEnd(tag);
         continue;
       }
       const uploaded = await uploadAsset(asset, userId, deckId, w.cardId);
@@ -194,13 +201,16 @@ export async function commitImportSession(args: {
       if (w.cardId === "BACK") cardBackFailed = true;
       else failedCardIds.push(w.cardId);
     }
+    console.timeEnd(tag);
   }
 
   if (failedCardIds.length === 0 && !cardBackFailed) {
     if (deleteSessionAfter) await deleteSession(deckId);
+    console.timeEnd("commit_total");
     return { ok: true, failedCardIds, cardBackFailed, written };
   }
 
   // Partial failure — keep the session so the user can retry.
+  console.timeEnd("commit_total");
   return { ok: false, failedCardIds, cardBackFailed, written };
 }

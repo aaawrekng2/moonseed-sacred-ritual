@@ -84,14 +84,25 @@ async function encode(
   size: number,
   quality: number,
 ): Promise<Blob> {
+  // BQ Fix 4A — phase-level diagnostic timing.
+  const tag = `encode_${size}_${Date.now().toString(36)}`;
+  console.time(tag);
+  console.time(`${tag}_decode`);
   const { img, url } = await blobToImage(rawBlob);
+  console.timeEnd(`${tag}_decode`);
   try {
+    console.time(`${tag}_canvas`);
     let canvas = drawScaled(img, size);
     if (opts.shape === "round") canvas = applyCircularMask(canvas);
     else canvas = applyRoundedCorners(canvas, opts.cornerRadiusPercent);
-    return await canvasToWebp(canvas, quality);
+    console.timeEnd(`${tag}_canvas`);
+    console.time(`${tag}_webp`);
+    const out = await canvasToWebp(canvas, quality);
+    console.timeEnd(`${tag}_webp`);
+    return out;
   } finally {
     URL.revokeObjectURL(url);
+    console.timeEnd(tag);
   }
 }
 
