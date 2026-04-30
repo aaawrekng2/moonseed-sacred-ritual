@@ -308,6 +308,8 @@ function DeckEditor({
   const [deckBackUrl, setDeckBackUrl] = useState<string | null>(
     existing?.card_back_url ?? null,
   );
+  // Grid-view "Retake / Done" review modal — Stamp BI Fix 2.
+  const [reviewingCardId, setReviewingCardId] = useState<number | null>(null);
 
   const reloadCards = useCallback(async (deckId: string) => {
     const list = await fetchDeckCards(deckId);
@@ -534,7 +536,13 @@ function DeckEditor({
               <button
                 key={i}
                 type="button"
-                onClick={() => setMode({ kind: "capture", deckId, cardId: i })}
+                onClick={() => {
+                  if (photo) {
+                    setReviewingCardId(i);
+                  } else {
+                    setMode({ kind: "capture", deckId, cardId: i });
+                  }
+                }}
                 className="group relative aspect-[2/3] overflow-hidden rounded border border-gold/15 bg-cosmos"
                 title={getCardName(i)}
               >
@@ -565,6 +573,83 @@ function DeckEditor({
             );
           })}
         </div>
+
+        {reviewingCardId !== null && (() => {
+          const photo = photographedMap.get(reviewingCardId);
+          if (!photo) return null;
+          const cardId = reviewingCardId;
+          return (
+            <div
+              className="fixed inset-0 z-[110] flex items-center justify-center p-6"
+              style={{
+                background: "var(--surface-overlay, color-mix(in oklab, var(--color-background) 80%, black))",
+              }}
+              onClick={() => setReviewingCardId(null)}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="flex w-full max-w-sm flex-col items-center gap-4 rounded-xl border p-5"
+                style={{
+                  background: "var(--surface-card)",
+                  borderColor: "var(--border-subtle)",
+                  color: "var(--color-foreground)",
+                  padding: "var(--space-5, 1.25rem)",
+                  borderRadius: "var(--radius-lg, 0.75rem)",
+                }}
+              >
+                <h3
+                  className="italic"
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "var(--text-heading-sm)",
+                    color: "var(--accent)",
+                  }}
+                >
+                  {getCardName(cardId)}
+                </h3>
+                <img
+                  src={photo.display_url}
+                  alt={getCardName(cardId)}
+                  style={{
+                    maxHeight: "60vh",
+                    maxWidth: "100%",
+                    borderRadius:
+                      shape === "round"
+                        ? "9999px"
+                        : `${cornerRadius}%`,
+                  }}
+                />
+                <div className="flex w-full gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setReviewingCardId(null)}
+                    className="flex-1 rounded-md px-4 py-2 text-sm"
+                    style={{
+                      color: "var(--color-foreground)",
+                      background: "transparent",
+                    }}
+                  >
+                    Done
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode({ kind: "capture", deckId, cardId });
+                      setReviewingCardId(null);
+                    }}
+                    className="flex-1 rounded-md px-4 py-2 text-sm font-medium"
+                    style={{
+                      background: "var(--accent)",
+                      color: "var(--accent-foreground, #000)",
+                    }}
+                  >
+                    Retake
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </section>
     );
   }
