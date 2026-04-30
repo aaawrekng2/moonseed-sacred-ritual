@@ -26,6 +26,7 @@ import {
   matchFilenames,
   type MatchResult,
 } from "./matcher";
+import { CardPicker } from "@/components/cards/CardPicker";
 
 const DECK_BUCKET = "custom-deck-images";
 const ZIP_MAX_BYTES = 20 * 1024 * 1024;
