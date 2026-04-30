@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
-import { getCardImagePath, getCardName } from "@/lib/tarot";
+import { getCardName } from "@/lib/tarot";
+import { useActiveDeckImage } from "@/lib/active-deck";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { cn } from "@/lib/utils";
@@ -302,6 +303,7 @@ function CardFace({
   emergeDelayMs?: number;
 }) {
   const interactive = !revealed && !!onTap;
+  const cardImg = useActiveDeckImage();
   return (
     <div
       className="cast-card-emerge"
@@ -341,7 +343,7 @@ function CardFace({
               animation begins — otherwise the first reveal shows a blank
               front while the image is still fetching. */}
           <img
-            src={getCardImagePath(pick.cardIndex)}
+            src={cardImg(pick.cardIndex)}
             alt={getCardName(pick.cardIndex)}
             className="h-full w-full object-cover"
             loading="eager"

@@ -10,7 +10,8 @@ import { Undo2, Redo2, X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
-import { getCardImagePath, getCardName } from "@/lib/tarot";
+import { getCardName } from "@/lib/tarot";
+import { useActiveDeckImage } from "@/lib/active-deck";
 import { SPREAD_META, spreadUsesSlots, type SpreadMode } from "@/lib/spreads";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
@@ -1863,6 +1864,7 @@ function CardSlot({
   containerElRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const isSelected = card.selectionOrder !== null;
+  const cardImg = useActiveDeckImage();
   // When the card landed in the slot via a physical drag-drop we skip
   // the FLIP-style flight animation entirely — the user just placed it
   // there, animating it from the scatter coords (where it would re-mount
@@ -2479,7 +2481,7 @@ function CardSlot({
                 left the front blank for the first reveal. The back covers it
                 until the rotation completes (backface-visibility: hidden). */}
             <img
-              src={getCardImagePath(faceIndex)}
+              src={cardImg(faceIndex)}
               alt={getCardName(faceIndex)}
               className="h-full w-full object-cover"
               loading="eager"
