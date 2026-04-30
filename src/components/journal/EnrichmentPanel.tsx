@@ -649,6 +649,33 @@ export function EnrichmentPanel({
         </p>
       )}
 
+      {/* Phase 9.5b — Stamp AQ. Shared in-app camera (PhotoCapture).
+          The seeker can also tap "upload a file instead" inside the
+          overlay's empty-camera state to fall back to the file picker. */}
+      {cameraOpen && (
+        <PhotoCapture
+          shape="free"
+          outputMaxDimension={1600}
+          outputQuality={0.85}
+          guideText="Capture this reading"
+          onCancel={() => setCameraOpen(false)}
+          onCapture={async (blob) => {
+            setCameraOpen(false);
+            setUploadError(null);
+            setUploading(true);
+            try {
+              await persistPhotoBlob(blob, "image/webp", "webp");
+            } catch (err) {
+              setUploadError(
+                err instanceof Error ? err.message : "Upload failed.",
+              );
+            } finally {
+              setUploading(false);
+            }
+          }}
+        />
+      )}
+
       {/* Note editor */}
       {openSection === "note" && (
         <div className="mt-4 flex flex-col gap-2">
