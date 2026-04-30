@@ -522,6 +522,7 @@ function CardStrip({
   spread: SpreadMode;
 }) {
   const { level } = useUIDensity();
+  const cardImg = useActiveDeckImage();
   const showLabels = level === 1; // Glimpse + Veiled hide the labels
   const labelOpacity = level === 1 ? 0.7 : 0;
   const [vp, setVp] = useState(() =>
