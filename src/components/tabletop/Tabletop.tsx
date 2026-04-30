@@ -1864,6 +1864,7 @@ function CardSlot({
   containerElRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const isSelected = card.selectionOrder !== null;
+  const cardImg = useActiveDeckImage();
   // When the card landed in the slot via a physical drag-drop we skip
   // the FLIP-style flight animation entirely — the user just placed it
   // there, animating it from the scatter coords (where it would re-mount
