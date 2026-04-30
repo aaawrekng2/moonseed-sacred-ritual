@@ -1917,7 +1917,7 @@ function SavedThemesSection() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Overwrite this sanctuary{" "}
+              Overwrite this theme{" "}
               {overwriteSlot != null
                 ? `— ${slots.find((s) => s.slot === overwriteSlot)?.theme?.name}`
                 : ""}
@@ -1956,7 +1956,7 @@ function SavedThemesSection() {
                 }
               }}
             >
-              Overwrite this sanctuary
+              Overwrite this theme
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1970,7 +1970,7 @@ function SavedThemesSection() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Erase this sanctuary?
+              Delete this saved theme?
             </AlertDialogTitle>
             <AlertDialogDescription>
               {deleteTarget?.name ? `"${deleteTarget.name}" ` : ""}
@@ -2271,9 +2271,7 @@ function UnsavedChangesGuard() {
               onClick={cancel}
               className="flex w-full items-center justify-between gap-3 border-b border-border/40 px-1 py-3 text-left text-sm text-foreground transition hover:text-gold"
             >
-              <span>
-                {isOracle ? "Return to the altar" : "Return to Settings"}
-              </span>
+              <span>Return to Settings</span>
               <X className="h-4 w-4 text-muted-foreground" />
             </button>
 
@@ -2283,11 +2281,7 @@ function UnsavedChangesGuard() {
                 onClick={() => void saveToActive()}
                 className="flex w-full items-center justify-between gap-3 border-b border-border/40 px-1 py-3 text-left text-sm text-foreground transition hover:text-gold"
               >
-                <span>
-                  {isOracle
-                    ? `Save to ${activeTheme.name}`
-                    : "Save to current theme"}
-                </span>
+                <span>Save to current theme</span>
                 <Save className="h-4 w-4 text-muted-foreground" />
               </button>
             )}
@@ -2298,9 +2292,7 @@ function UnsavedChangesGuard() {
                 onClick={() => setNameMode(true)}
                 className="flex w-full items-center justify-between gap-3 border-b border-border/40 px-1 py-3 text-left text-sm text-foreground transition hover:text-gold"
               >
-                <span>
-                  {isOracle ? "Preserve as new sanctuary" : "Save as new theme"}
-                </span>
+                <span>Save as new theme</span>
                 <Plus className="h-4 w-4 text-muted-foreground" />
               </button>
             ) : (
@@ -2309,9 +2301,7 @@ function UnsavedChangesGuard() {
                 onClick={replaceFlow}
                 className="flex w-full items-center justify-between gap-3 border-b border-border/40 px-1 py-3 text-left text-sm text-foreground transition hover:text-gold"
               >
-                <span>
-                  {isOracle ? "Replace a sanctuary" : "Replace a saved theme"}
-                </span>
+                <span>Replace a saved theme</span>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </button>
             )}
@@ -2322,7 +2312,7 @@ function UnsavedChangesGuard() {
               className="flex w-full flex-col items-start gap-1 px-1 py-3 text-left transition hover:text-gold"
             >
               <span className="text-sm text-foreground">
-                Leave without saving to a sanctuary
+                Leave without saving as a theme
               </span>
               <span className="text-[11px] text-muted-foreground">
                 Your current look stays, but won't be preserved
@@ -2332,7 +2322,7 @@ function UnsavedChangesGuard() {
         ) : (
           <div className="space-y-3">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-              Name this {isOracle ? "sanctuary" : "theme"}
+              Name this theme
             </Label>
             <Input
               autoFocus
