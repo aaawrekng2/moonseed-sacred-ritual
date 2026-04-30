@@ -16,6 +16,7 @@ import {
 } from "@/components/journal/EnrichmentPanel";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
+import { HorizontalScroll } from "@/components/HorizontalScroll";
 
 export const Route = createFileRoute("/journal")({
   head: () => ({
@@ -591,8 +592,10 @@ function JournalPage() {
         )}
       </div>
 
-      {/* View tabs — icons only on mobile (< sm), label-only at sm+ */}
-      <div className="mt-5 flex items-center gap-5">
+      {/* View tabs — icons only on mobile (< sm), label-only at sm+.
+          BO Fix 1 — wrapped in HorizontalScroll so the row gets edge
+          fades + chevron affordance when the six tabs overflow. */}
+      <HorizontalScroll className="mt-5" contentClassName="items-center gap-5">
         {(
           [
             ["readings", "Readings", BookOpen],
@@ -610,7 +613,7 @@ function JournalPage() {
               type="button"
               onClick={() => setView(key)}
               aria-label={label}
-              className="font-display text-[13px] italic text-gold transition-opacity"
+              className="shrink-0 font-display text-[13px] italic text-gold transition-opacity"
               style={{
                 opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-10)",
                 borderBottom: active
@@ -632,7 +635,7 @@ function JournalPage() {
             </button>
           );
         })}
-      </div>
+      </HorizontalScroll>
         <div className="h-3" />
       </div>
 
