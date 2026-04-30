@@ -1380,31 +1380,23 @@ function CommunityThemesSection() {
   }, []);
 
   const apply = async (theme: (typeof COMMUNITY_THEMES)[number]) => {
-    document.documentElement.style.setProperty(
-      "--bg-gradient-left",
-      theme.bgLeft,
-    );
-    document.documentElement.style.setProperty(
-      "--bg-gradient-right",
-      theme.bgRight,
-    );
-    document.documentElement.style.setProperty("--gold", theme.accent);
-    document.documentElement.style.setProperty("--primary", theme.accent);
-    document.documentElement.style.setProperty("--ring", `${theme.accent}99`);
+    applyCommunityTheme(theme);
 
     setStoredCommunityTheme(theme.key);
     setActiveKey(theme.key);
     markDirty();
 
     await updateUserPreferences(user.id, {
-      bg_gradient_from: theme.bgLeft.toLowerCase(),
-      bg_gradient_to: theme.bgRight.toLowerCase(),
       accent_color: theme.accent.toLowerCase(),
+      // BS — clear any custom background override so the next session
+      // loads cleanly from the chosen theme's tokens.
+      bg_gradient_from: null,
+      bg_gradient_to: null,
     });
     setPrefs({
       ...prefs,
-      bg_gradient_from: theme.bgLeft.toLowerCase(),
-      bg_gradient_to: theme.bgRight.toLowerCase(),
+      bg_gradient_from: null,
+      bg_gradient_to: null,
       accent_color: theme.accent.toLowerCase(),
     });
     dispatchActiveThemeChanged({
