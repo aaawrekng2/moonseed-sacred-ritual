@@ -934,6 +934,8 @@ function Workspace({
           src={resolveSrc(zoom.imageKey)}
           context={zoom.from}
           canUseAsBack={zoom.from === "unassigned" && !hasBack}
+          shape={shape}
+          cornerRadiusPercent={cornerRadiusPercent}
           onBack={() => setZoom(null)}
           onPickCard={() => {
             const ctx = zoom;
@@ -958,6 +960,19 @@ function Workspace({
             setZoom(null);
             const postUn = unassignedKeys.length - 1;
             autoSwitch("unassigned", numericAssigned.length, postUn, skippedKeys.length + 1);
+          }}
+          onSendBackToUnassigned={() => {
+            const ctx = zoom;
+            if (ctx.from === "assigned" && ctx.slot) {
+              onUnassign(ctx.slot);
+              const postAs = numericAssigned.length - 1;
+              autoSwitch("assigned", postAs, unassignedKeys.length + 1, skippedKeys.length);
+            } else if (ctx.from === "skipped") {
+              onUnskip(ctx.imageKey);
+              const postSk = skippedKeys.length - 1;
+              autoSwitch("skipped", numericAssigned.length, unassignedKeys.length + 1, postSk);
+            }
+            setZoom(null);
           }}
         />
       )}
