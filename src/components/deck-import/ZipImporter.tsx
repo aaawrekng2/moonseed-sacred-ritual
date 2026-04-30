@@ -619,7 +619,6 @@ function Wizard({
     if (target !== null) return;
     if (pass === 1 && skipped.length > 0) {
       setPass(2);
-      setSkipped((prev) => [...prev]); // keep, but we'll let pass 2 try again
       return;
     }
     onProceed();
