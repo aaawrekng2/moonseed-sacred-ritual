@@ -99,7 +99,7 @@
   /*  exceed full opacity. Use either inline style="opacity: var(--ro-  */
   /*  plus-20)" or arbitrary Tailwind opacity-[var(--ro-plus-20)].       */
   /* ---------------------------------------------------------------- */
-  --resting-opacity: 0.50;
+  --resting-opacity: 0.85;
   --ro-plus-0:  clamp(0, var(--resting-opacity), 1);
   --ro-plus-10: clamp(0, calc(var(--resting-opacity) + 0.10), 1);
   --ro-plus-20: clamp(0, calc(var(--resting-opacity) + 0.20), 1);
@@ -218,10 +218,18 @@ html, body {
   font-size: calc(16px * var(--heading-scale, 1));
 }
 
-/* Force serif font globally across all elements. Specific overrides
-   below preserve the display font for icon labels and monospace for
-   code blocks. */
+/* BP Fix 2 — body uses sans for readability; headings + decorative
+   surfaces stay serif via the targeted rule below. */
 *, *::before, *::after {
+  font-family: var(--font-sans), -apple-system, 'Segoe UI', system-ui, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6,
+.font-display,
+[class*="font-display"],
+.clarity-label,
+.reading-card-art,
+.guide-name {
   font-family: var(--font-serif), 'Cormorant Garamond', Georgia, serif;
 }
 
