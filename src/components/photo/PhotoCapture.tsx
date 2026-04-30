@@ -529,12 +529,30 @@ function ShapeOverlay({
           width: shape === "round" || shape === "square" ? `calc(100% - 2 * ${inset})` : "76%",
           aspectRatio: frameAspect,
           maxHeight: `calc(100% - 2 * ${inset})`,
-          border: "2px solid rgba(255,255,255,0.85)",
+          border: shape === "round" ? "2px solid rgba(255,255,255,0.85)" : "1px solid rgba(255,255,255,0.25)",
           borderRadius: radius,
           boxShadow: "0 0 0 9999px rgba(0,0,0,0.45)",
+          position: "relative",
         }}
-      />
+      >
+        {shape !== "round" && <CornerBrackets />}
+      </div>
     </div>
+  );
+}
+
+function CornerBrackets() {
+  const arm = 22; // px
+  const thickness = 2;
+  const color = "rgba(255,255,255,0.95)";
+  const base: React.CSSProperties = { position: "absolute", width: arm, height: arm };
+  return (
+    <>
+      <span style={{ ...base, top: -1, left: -1, borderTop: `${thickness}px solid ${color}`, borderLeft: `${thickness}px solid ${color}` }} />
+      <span style={{ ...base, top: -1, right: -1, borderTop: `${thickness}px solid ${color}`, borderRight: `${thickness}px solid ${color}` }} />
+      <span style={{ ...base, bottom: -1, left: -1, borderBottom: `${thickness}px solid ${color}`, borderLeft: `${thickness}px solid ${color}` }} />
+      <span style={{ ...base, bottom: -1, right: -1, borderBottom: `${thickness}px solid ${color}`, borderRight: `${thickness}px solid ${color}` }} />
+    </>
   );
 }
 
