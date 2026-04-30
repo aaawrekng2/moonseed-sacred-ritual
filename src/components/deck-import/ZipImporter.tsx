@@ -361,12 +361,13 @@ export function ZipImporter({
   }, [deckId]);
 
   /* ---------- Renders ---------- */
-  if (phase.kind === "loading") return <Centered text="Checking for saved progress…" />;
-  if (phase.kind === "upload") return <UploadStep onFile={handleFile} onCancel={handleCancel} />;
-  if (phase.kind === "extracting") return <Centered text="Reading your zip…" />;
-  if (phase.kind === "saving") return <Centered text={`Saving deck… ${phase.done}/${phase.total}`} />;
-  if (phase.kind === "summary") {
-    return (
+  let body: React.ReactNode;
+  if (phase.kind === "loading") body = <Centered text="Checking for saved progress…" />;
+  else if (phase.kind === "upload") body = <UploadStep onFile={handleFile} onCancel={handleCancel} />;
+  else if (phase.kind === "extracting") body = <Centered text="Reading your zip…" />;
+  else if (phase.kind === "saving") body = <Centered text={`Saving deck… ${phase.done}/${phase.total}`} />;
+  else if (phase.kind === "summary") {
+    body = (
       <Summary
         written={phase.written}
         failedCardIds={phase.failedCardIds}
@@ -379,21 +380,32 @@ export function ZipImporter({
         }}
       />
     );
-  }
-  if (!workspace) return <Centered text="Loading…" />;
+  } else if (!workspace) body = <Centered text="Loading…" />;
+  else
+    body = (
+      <Workspace
+        session={workspace.session}
+        onAssign={handleAssign}
+        onSkip={handleSkip}
+        onUnskip={handleUnskip}
+        onUnassign={handleUnassign}
+        onSave={handleSave}
+        onCancel={handleCancel}
+        onDiscard={handleDiscard}
+        shape={shape}
+        cornerRadiusPercent={cornerRadiusPercent}
+      />
+    );
+
+  // BM Fix 1.1 — full-screen takeover so the deck grid view never bleeds
+  // through behind the wizard.
   return (
-    <Workspace
-      session={workspace.session}
-      onAssign={handleAssign}
-      onSkip={handleSkip}
-      onUnskip={handleUnskip}
-      onUnassign={handleUnassign}
-      onSave={handleSave}
-      onCancel={handleCancel}
-      onDiscard={handleDiscard}
-      shape={shape}
-      cornerRadiusPercent={cornerRadiusPercent}
-    />
+    <div
+      className="fixed inset-0 z-[100] flex flex-col overflow-y-auto"
+      style={{ background: "var(--color-background)" }}
+    >
+      <div className="mx-auto w-full max-w-5xl px-4">{body}</div>
+    </div>
   );
 }
 
