@@ -18,7 +18,7 @@ import { getCardImagePath as getDefaultCardImagePath } from "@/lib/tarot";
 export type CustomDeck = {
   id: string;
   name: string;
-  shape: "rectangle" | "square" | "round";
+  shape: "rectangle" | "round";
   width_inches: number | null;
   height_inches: number | null;
   corner_radius_percent: number;
