@@ -1980,7 +1980,7 @@ function FiltersPanel({
           className="self-start font-display text-[12px] uppercase tracking-[0.15em] underline-offset-2 hover:underline"
           style={{ color: "#d4a843", opacity: 1, fontWeight: 700 }}
         >
-          Clear all
+          CLEAR FILTERS
         </button>
       )}
     </div>

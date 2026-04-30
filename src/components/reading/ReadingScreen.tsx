@@ -44,6 +44,7 @@ import {
 import { SeekerQuestion } from "@/components/reading/ReadingParts";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
+import { ShareBuilder } from "@/components/share/ShareBuilder";
 
 type Pick = { id: number; cardIndex: number; isReversed?: boolean };
 
@@ -350,6 +351,10 @@ export function ReadingScreen({
     [],
   );
 
+  // Single share trigger per screen — opened from the EnrichmentPanel
+  // Share2 icon (Phase BE).
+  const [shareOpen, setShareOpen] = useState(false);
+
   return (
     <main
       className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_50%_25%,rgba(60,40,90,0.35),transparent_70%)]"
@@ -493,6 +498,7 @@ export function ReadingScreen({
                 onTagLibraryChange={handleEnrichTagLibraryChange}
                 onPhotoCountChange={handleEnrichPhotoCountChange}
                 copyText={copyText ?? undefined}
+                onShare={() => setShareOpen(true)}
               />
             )}
           {(savedReading || (state.kind === "loaded" && state.readingId)) && (
@@ -516,6 +522,23 @@ export function ReadingScreen({
           </>
         )}
       </div>
+      {state.kind === "loaded" && (
+        <ShareBuilder
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+          context={{
+            question,
+            spread,
+            picks,
+            positionLabels,
+            interpretation: state.interpretation,
+            guideName: getGuideById(guideId).name,
+            isOracle,
+          }}
+          defaultLevel="reading"
+          availableLevels={["pull", "reading", "position"]}
+        />
+      )}
     </main>
   );
 }
