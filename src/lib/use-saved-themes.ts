@@ -45,6 +45,13 @@ export type SavedTheme = {
   font_size?: number;
   card_back?: CardBackId;
   resting_opacity?: number;
+  /**
+   * BS — references the COMMUNITY_THEMES entry the saved theme was
+   * derived from. Used by applySanctuary to restore the full token set
+   * (surfaces, borders, foreground, etc.) — not just gradient + accent.
+   * Optional for backward compatibility with pre-BS saved themes.
+   */
+  theme_key?: string;
 };
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
@@ -92,6 +99,7 @@ function parseSavedThemes(raw: unknown): SavedTheme[] {
           ? (r.card_back as CardBackId)
           : undefined,
       resting_opacity: clampOpacity(r.resting_opacity),
+      theme_key: typeof r.theme_key === "string" ? r.theme_key : undefined,
     });
   }
   out.sort((a, b) => a.slot - b.slot);
