@@ -36,6 +36,7 @@ import { ZipImporter } from "@/components/deck-import/ZipImporter";
 import { deleteSession, getSession } from "@/lib/import-session";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { SettingsSection } from "@/components/settings/sections";
 
 export const Route = createFileRoute("/settings/decks")({
   head: () => ({ meta: [{ title: "My Decks — Moonseed" }] }),
@@ -132,32 +133,27 @@ function DecksPage() {
   const overLimit = decks.length >= FREE_DECK_LIMIT;
 
   return (
-    <section className="py-6">
-      <header className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">My Decks</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Photograph your physical deck so the app shows your art instead of the default.
-          </p>
-        </div>
-        <button
-          type="button"
-          disabled={overLimit}
-          onClick={() => setView({ kind: "create" })}
-          className={cn(
-            "inline-flex items-center gap-2 rounded-md border border-gold/40 px-3 py-2 text-sm",
-            overLimit
-              ? "cursor-not-allowed opacity-40"
-              : "hover:bg-gold/10",
-          )}
-          title={overLimit ? `Free tier limited to ${FREE_DECK_LIMIT} decks` : undefined}
-        >
-          <Plus className="h-4 w-4" /> New deck
-        </button>
-      </header>
+    <SettingsSection
+      title="My Decks"
+      description="Customize tarot decks with your own card images. The app uses Rider-Waite by default."
+    >
+      <button
+        type="button"
+        disabled={overLimit}
+        onClick={() => setView({ kind: "create" })}
+        className={cn(
+          "inline-flex items-center gap-2 rounded-md border border-gold/40 px-3 py-2 text-sm",
+          overLimit
+            ? "cursor-not-allowed opacity-40"
+            : "hover:bg-gold/10",
+        )}
+        title={overLimit ? `Free tier limited to ${FREE_DECK_LIMIT} decks` : undefined}
+      >
+        <Plus className="h-4 w-4" /> New deck
+      </button>
 
       {overLimit && (
-        <div className="mb-4 rounded-md border border-gold/30 bg-gold/5 p-3 text-sm">
+        <div className="rounded-md border border-gold/30 bg-gold/5 p-3 text-sm">
           You've reached the free tier limit of {FREE_DECK_LIMIT} decks. Delete one to add another, or upgrade for unlimited decks.
         </div>
       )}
@@ -185,11 +181,11 @@ function DecksPage() {
       <button
         type="button"
         onClick={() => navigate({ to: "/settings/profile" })}
-        className="mt-6 text-xs text-muted-foreground underline"
+        className="text-xs text-muted-foreground underline"
       >
         Back to settings
       </button>
-    </section>
+    </SettingsSection>
   );
 }
 
