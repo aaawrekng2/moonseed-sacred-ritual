@@ -198,7 +198,7 @@ function Index() {
 
       {/* Spread icons — sit just above bottom nav. Extra top padding
           gives the spread labels breathing room over the gateway. */}
-      <section className="pb-24 pt-6">
+      <section className="pb-24 pt-12 sm:pt-16">
         {isAnonymous && !nudgeDismissed && (
           <div
             className="flex items-center justify-center gap-3 px-5 py-2.5"
