@@ -24,7 +24,7 @@
  *   4. Summary.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Upload, X } from "lucide-react";
+import { Loader2, RotateCcw, Upload, X } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
