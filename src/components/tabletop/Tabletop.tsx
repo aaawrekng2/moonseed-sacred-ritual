@@ -213,9 +213,15 @@ type TabletopProps = {
    *    and the spread layout screen should let the user reveal them there.
    */
   onComplete: (
-    picks: { id: number; cardIndex: number }[],
+    picks: { id: number; cardIndex: number; isReversed?: boolean }[],
     mode: "reveal" | "cast",
+    meta?: { entryMode?: "digital" | "manual" },
   ) => void;
+  /**
+   * When true, the manual CardPicker offers a 'Reversed?' confirmation
+   * step (Stamp AU). Mirrors the seeker's `allow_reversed_cards` pref.
+   */
+  allowReversed?: boolean;
 };
 
 type CardState = ScatterCard & {
@@ -363,7 +369,12 @@ type DragAction =
       toY: number;
     };
 
-export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
+export function Tabletop({
+  spread,
+  onExit,
+  onComplete,
+  allowReversed = false,
+}: TabletopProps) {
   const meta = SPREAD_META[spread];
   const required = meta.count;
   const usesSlots = spreadUsesSlots(spread);
@@ -372,7 +383,7 @@ export function Tabletop({ spread, onExit, onComplete }: TabletopProps) {
   // cards from a 78-card grid (used for logging a physical reading).
   const [manualOpen, setManualOpen] = useState(false);
   const [manualPicks, setManualPicks] = useState<
-    { id: number; cardIndex: number }[]
+    { id: number; cardIndex: number; isReversed?: boolean }[]
   >([]);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
