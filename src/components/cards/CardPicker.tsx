@@ -31,6 +31,13 @@ export type CardPickerProps = {
   onCancel: () => void;
   /** Optional title shown in the header. */
   title?: string;
+  /**
+   * When true, render filling its parent (absolute inset-0) instead of
+   * the default full-viewport fixed overlay. Used by ManualEntryBuilder
+   * so the picker sits inside a bottom sheet and the spread stays
+   * visible above it.
+   */
+  embedded?: boolean;
 };
 
 type Suit = "All" | "Major Arcana" | "Wands" | "Cups" | "Swords" | "Pentacles";
@@ -52,6 +59,7 @@ export function CardPicker({
   onSelect,
   onCancel,
   title,
+  embedded = false,
 }: CardPickerProps) {
   const [query, setQuery] = useState("");
   const [suit, setSuit] = useState<Suit>("All");
@@ -90,12 +98,18 @@ export function CardPicker({
         onBack={() => setPendingId(null)}
         onConfirm={() => onSelect(pendingId, pendingReversed)}
         resolveImageSrc={resolveImageSrc}
+        embedded={embedded}
       />
     );
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-[var(--color-background)] text-[var(--color-foreground)]">
+    <div
+      className={cn(
+        "flex flex-col bg-[var(--color-background)] text-[var(--color-foreground)]",
+        embedded ? "absolute inset-0" : "fixed inset-0 z-[100]",
+      )}
+    >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/10 p-3">
         <button
@@ -147,6 +161,7 @@ export function CardPicker({
             const isExcluded = mode === "manual-entry" && excluded.has(idx);
             const isShot = mode === "photography" && photographed.has(idx);
             const src = resolveImageSrc ? resolveImageSrc(idx) : getCardImagePath(idx);
+            const dimDefault = mode === "photography" && !isShot;
             return (
               <button
                 key={idx}
@@ -164,10 +179,20 @@ export function CardPicker({
                     alt=""
                     loading="lazy"
                     className="h-full w-full object-cover"
+                    style={
+                      dimDefault
+                        ? { opacity: 0.3, filter: "grayscale(100%)" }
+                        : undefined
+                    }
                   />
                   {isShot && (
                     <div className="absolute right-1 top-1 rounded-full bg-emerald-500/90 p-1 text-white">
                       <Check className="h-3 w-3" />
+                    </div>
+                  )}
+                  {dimDefault && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-1 text-center text-[10px] uppercase tracking-wider text-white/80">
+                      Tap to photograph
                     </div>
                   )}
                   {isExcluded && (
@@ -200,6 +225,7 @@ function ConfirmReversed({
   onBack,
   onConfirm,
   resolveImageSrc,
+  embedded = false,
 }: {
   cardIndex: number;
   isReversed: boolean;
@@ -207,10 +233,16 @@ function ConfirmReversed({
   onBack: () => void;
   onConfirm: () => void;
   resolveImageSrc?: (cardIndex: number) => string;
+  embedded?: boolean;
 }) {
   const src = resolveImageSrc ? resolveImageSrc(cardIndex) : getCardImagePath(cardIndex);
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-[var(--color-background)] text-[var(--color-foreground)]">
+    <div
+      className={cn(
+        "flex flex-col bg-[var(--color-background)] text-[var(--color-foreground)]",
+        embedded ? "absolute inset-0" : "fixed inset-0 z-[100]",
+      )}
+    >
       <div className="flex items-center justify-between border-b border-white/10 p-3">
         <button onClick={onBack} className="rounded-full p-2 hover:bg-white/10" aria-label="Back">
           <ChevronLeft className="h-5 w-5" />
