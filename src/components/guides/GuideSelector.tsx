@@ -35,6 +35,7 @@ export function GuideSelector({
   onContinue,
   onSkip,
   ctaLabel,
+  isEmbedded = false,
 }: {
   /** Called when the user taps Begin Reading. */
   onContinue: () => void;
@@ -42,6 +43,12 @@ export function GuideSelector({
   onSkip: () => void;
   /** Override the default CTA label (e.g. "Read for me"). */
   ctaLabel?: string;
+  /**
+   * BQ Fix 2A — when true, hide the inner page header (title + X) and
+   * render as a normal in-flow block, since the parent SettingsSection
+   * already provides the title/back affordances.
+   */
+  isEmbedded?: boolean;
 }) {
   const { user } = useAuth();
   const { isOracle } = useOracleMode();
@@ -144,12 +151,21 @@ export function GuideSelector({
 
   return (
     <main
-      className="fixed inset-0 z-50 flex flex-col bg-cosmos"
-      style={{
-        paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)",
-        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
-      }}
+      className={
+        isEmbedded
+          ? "flex flex-col"
+          : "fixed inset-0 z-50 flex flex-col bg-cosmos"
+      }
+      style={
+        isEmbedded
+          ? undefined
+          : {
+              paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)",
+              paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+            }
+      }
     >
+      {!isEmbedded && (
       <header
         className="flex items-start justify-between px-6 pb-4"
         style={{ opacity: peekOpacity, transition: "opacity 400ms ease" }}
@@ -176,6 +192,7 @@ export function GuideSelector({
           <X className="h-5 w-5" strokeWidth={1.5} />
         </button>
       </header>
+      )}
 
       <div className="flex-1 overflow-y-auto px-2">
         {/* Guide carousel */}
