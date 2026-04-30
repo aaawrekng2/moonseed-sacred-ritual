@@ -6,10 +6,10 @@
  */
 export const LANG = {
   // Settings → Themes
-  themes:              { plain: "Themes",           oracle: "The Atmosphere" },
+  themes:              { plain: "Theme",            oracle: "The Atmosphere" },
   cardBack:            { plain: "Card Back",        oracle: "The Veil" },
-  yourSignature:       { plain: "Custom Accent Color", oracle: "Your Signature" },
-  backgroundGradient:  { plain: "Background",       oracle: "The Horizon" },
+  yourSignature:       { plain: "Accent Color",     oracle: "Your Signature" },
+  backgroundGradient:  { plain: "Colors & Background", oracle: "The Horizon" },
   leftColor:           { plain: "Left Color",       oracle: "The Past" },
   rightColor:          { plain: "Right Color",      oracle: "The Future" },
   headingFont:         { plain: "Heading Font",     oracle: "The Voice" },
@@ -22,9 +22,9 @@ export const LANG = {
   saveTheme:           { plain: "Save Theme",       oracle: "Preserve This Moment" },
   loadTheme:           { plain: "Load",             oracle: "Return Here" },
   overwriteTheme:      { plain: "Overwrite",        oracle: "Overwrite This Sanctuary" },
-  eraseTheme:          { plain: "Erase",            oracle: "Release This Sanctuary" },
-  savedThemes:         { plain: "Saved Themes",     oracle: "Your Sanctuaries" },
-  communityThemes:     { plain: "Community Themes", oracle: "Celestial Palettes" },
+  eraseTheme:          { plain: "Delete",           oracle: "Release This Sanctuary" },
+  savedThemes:         { plain: "Your Saved Themes", oracle: "Your Sanctuaries" },
+  communityThemes:     { plain: "Themes",           oracle: "Celestial Palettes" },
   swipeToExplore:      { plain: "Swipe to explore", oracle: "Swipe to explore" },
   yourIcon:            { plain: "Your Icon",        oracle: "Your Sigil" },
   // Settings → Profile
@@ -33,14 +33,14 @@ export const LANG = {
   updateIntention:     { plain: "Update Intention", oracle: "Recast Your Intention" },
   saveProfile:         { plain: "Save Profile",     oracle: "Seal Your Profile" },
   // Settings → Blueprint
-  blueprint:           { plain: "Blueprint",        oracle: "Cosmic Blueprint" },
+  blueprint:           { plain: "Astrology Profile", oracle: "Cosmic Blueprint" },
   dateOfBirth:         { plain: "Date of Birth",    oracle: "The Day You Arrived" },
   timeOfBirth:         { plain: "Time of Birth",    oracle: "The Hour You Arrived" },
   placeOfBirth:        { plain: "Place of Birth",   oracle: "Where You Were Grounded" },
-  saveBlueprint:       { plain: "Save Blueprint",   oracle: "Seal Your Blueprint" },
+  saveBlueprint:       { plain: "Save Astrology Profile", oracle: "Seal Your Blueprint" },
   // Settings → Preferences
   defaultSpread:       { plain: "Default Spread",   oracle: "Your Opening Spread" },
-  moonFeatures:        { plain: "Moon Features",    oracle: "Lunar Awareness" },
+  moonFeatures:        { plain: "Moon Phase Display", oracle: "Lunar Awareness" },
   // Draw screen
   drawWhisper:         { plain: "Draw",             oracle: "Draw" },
   // Tabletop confirmations
