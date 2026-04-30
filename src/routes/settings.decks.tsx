@@ -628,6 +628,24 @@ function DeckEditor({
     );
   }
 
+  // ---------- Step 3d: bulk zip import (Stamp BH) ----------
+  if (mode.kind === "import") {
+    const deckId = mode.deckId;
+    return (
+      <ZipImporter
+        userId={userId}
+        deckId={deckId}
+        shape={shape === "round" ? "round" : "rectangle"}
+        cornerRadiusPercent={cornerRadius}
+        onCancel={() => setMode({ kind: "grid", deckId })}
+        onDone={async () => {
+          await reloadCards(deckId);
+          setMode({ kind: "grid", deckId });
+        }}
+      />
+    );
+  }
+
   return null;
 }
 
