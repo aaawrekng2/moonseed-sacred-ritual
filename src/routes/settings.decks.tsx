@@ -632,7 +632,7 @@ function DeckEditor({
                   className={cn(
                     "h-full w-full object-cover",
                   )}
-                  style={{ opacity: photo ? 1 : 0.65 }}
+                  style={{ opacity: photo ? 1 : 0.4 }}
                   loading="lazy"
                 />
                 {photo && (
@@ -712,6 +712,16 @@ function DeckEditor({
                 You have an in-progress import for this deck (
                 {resumePrompt.assigned} assigned, {resumePrompt.unassigned}{" "}
                 unassigned, {resumePrompt.skipped} skipped).
+              </p>
+              <p
+                style={{
+                  fontSize: "var(--text-caption)",
+                  color: "var(--color-foreground)",
+                  opacity: 0.6,
+                  fontStyle: "italic",
+                }}
+              >
+                Available on this device only
               </p>
               <div className="flex flex-col gap-2">
                 <button

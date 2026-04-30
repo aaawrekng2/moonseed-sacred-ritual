@@ -30,6 +30,13 @@ export type PhotoCaptureProps = {
   outputQuality?: number;
   /** Optional helper text under the camera. */
   guideText?: string;
+  /**
+   * BN Fix 1 — when set, skip the camera step and land directly on the
+   * 4-corner refine view using this blob as the source image. Used by
+   * the deck-import wizard's "Edit" action so existing imported images
+   * can be re-cropped without re-photographing.
+   */
+  initialBlob?: Blob | null;
   onCapture: (
     blob: Blob,
     dimensions: { width: number; height: number },
@@ -181,12 +188,13 @@ export function PhotoCapture({
   outputMaxDimension,
   outputQuality = 0.85,
   guideText,
+  initialBlob,
   onCapture,
   onCancel,
 }: PhotoCaptureProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [step, setStep] = useState<Step>("camera");
+  const [step, setStep] = useState<Step>(initialBlob ? "refine" : "camera");
   const [error, setError] = useState<string | null>(null);
   const [captured, setCaptured] = useState<HTMLImageElement | null>(null);
 
@@ -239,6 +247,29 @@ export function PhotoCapture({
   }, [step, startCamera, stopCamera]);
 
   useEffect(() => () => stopCamera(), [stopCamera]);
+
+  // BN Fix 1 — when an initialBlob is provided, decode it into the
+  // `captured` image once so RefineView can render it. We deliberately
+  // never start the camera in this mode.
+  useEffect(() => {
+    if (!initialBlob) return;
+    let cancelled = false;
+    const url = URL.createObjectURL(initialBlob);
+    const img = new Image();
+    img.onload = () => {
+      if (cancelled) return;
+      setCaptured(img);
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+      setRotation(0);
+      setCorners([]);
+    };
+    img.src = url;
+    return () => {
+      cancelled = true;
+      URL.revokeObjectURL(url);
+    };
+  }, [initialBlob]);
 
   // ---- Capture a still ----
   const capture = useCallback(() => {
@@ -367,7 +398,7 @@ export function PhotoCapture({
   return (
     <div
       className="fixed inset-0 z-[100] flex flex-col bg-black text-white"
-      style={{ touchAction: "none" }}
+      style={{ touchAction: "none", overscrollBehavior: "contain" }}
     >
       {/* Top bar */}
       <div className="flex items-center justify-between p-4">
@@ -453,7 +484,7 @@ export function PhotoCapture({
         )}
         {step === "refine" && (
           <>
-            <button
+            {!initialBlob && <button
               onClick={() => {
                 setCaptured(null);
                 setStep("camera");
@@ -461,7 +492,7 @@ export function PhotoCapture({
               className="rounded-full bg-white/10 px-4 py-2 text-sm hover:bg-white/20"
             >
               Retake
-            </button>
+            </button>}
             <button
               onClick={() => setRotation((r) => (r - 90 + 360) % 360)}
               className="rounded-full bg-white/10 p-3 hover:bg-white/20"

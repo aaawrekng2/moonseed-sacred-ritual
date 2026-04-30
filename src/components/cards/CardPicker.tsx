@@ -114,6 +114,7 @@ export function CardPicker({
         "flex flex-col bg-[var(--color-background)] text-[var(--color-foreground)]",
         embedded ? "absolute inset-0" : "fixed inset-0 z-[100]",
       )}
+      style={{ overscrollBehavior: "contain" }}
     >
       {reviewingCardId !== null && (
         <ReviewPhoto

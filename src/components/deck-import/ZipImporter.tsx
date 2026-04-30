@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
 import { CardPicker } from "@/components/cards/CardPicker";
+import { PhotoCapture } from "@/components/photo/PhotoCapture";
 import { matchFilenames, isCardBackFilename } from "./matcher";
 import {
   BACK_KEY,
@@ -62,7 +63,7 @@ type Phase =
       cardBackFailed: boolean;
     };
 
-type Tab = "unassigned" | "assigned" | "skipped";
+type Tab = "unassigned" | "assigned" | "skipped" | "default";
 
 type WorkspaceState = {
   session: ImportSession;
@@ -320,6 +321,41 @@ export function ZipImporter({
     });
   }, [mutate]);
 
+  // BN Fix 1 — replace the raw blob for an image (used by the Edit /
+  // 4-corner crop refine flow). Updates dimensions, drops any cached
+  // encoded asset, and re-enqueues encoding.
+  const handleUpdateRawBlob = useCallback(
+    (imageKey: string, blob: Blob, dims: { width: number; height: number }) => {
+      mutate((s) => {
+        const update = (img: ImportImage | undefined) => {
+          if (!img) return;
+          img.rawBlob = blob;
+          img.width = dims.width;
+          img.height = dims.height;
+        };
+        update(s.unassigned[imageKey]);
+        update(s.skipped[imageKey]);
+        const store = ensureAssetStore(s);
+        update(store[imageKey]);
+        delete s.encoded[imageKey];
+      });
+      // Re-enqueue encoding with the fresh blob.
+      queueRef.current
+        .enqueue(imageKey, blob, { shape, cornerRadiusPercent })
+        .then((asset) => {
+          setWorkspace((cur) => {
+            if (!cur) return cur;
+            const next = cloneSession(cur.session);
+            next.encoded[asset.key] = asset;
+            saverRef.current.schedule(next);
+            return { session: next };
+          });
+        })
+        .catch((e) => console.warn("re-encode failed", e));
+    },
+    [mutate, shape, cornerRadiusPercent],
+  );
+
   const handleSave = useCallback(async (deleteSessionAfter: boolean) => {
     if (!workspace) return;
     setSessionDeletedOnSave(deleteSessionAfter);
@@ -389,6 +425,7 @@ export function ZipImporter({
         onSkip={handleSkip}
         onUnskip={handleUnskip}
         onUnassign={handleUnassign}
+        onUpdateRawBlob={handleUpdateRawBlob}
         onSave={handleSave}
         onCancel={handleCancel}
         onDiscard={handleDiscard}
@@ -402,7 +439,10 @@ export function ZipImporter({
   return (
     <div
       className="fixed inset-0 z-[100] flex flex-col overflow-y-auto"
-      style={{ background: "var(--color-background)" }}
+      style={{
+        background: "var(--color-background)",
+        overscrollBehavior: "contain",
+      }}
     >
       <div className="mx-auto w-full max-w-5xl px-4">{body}</div>
     </div>
@@ -592,6 +632,7 @@ function Workspace({
   onSkip,
   onUnskip,
   onUnassign,
+  onUpdateRawBlob,
   onSave,
   onCancel,
   onDiscard,
@@ -603,6 +644,7 @@ function Workspace({
   onSkip: (imageKey: string) => void;
   onUnskip: (imageKey: string) => void;
   onUnassign: (slot: string) => void;
+  onUpdateRawBlob: (imageKey: string, blob: Blob, dims: { width: number; height: number }) => void;
   onSave: (deleteSessionAfter: boolean) => void;
   onCancel: () => void;
   onDiscard: () => void;
@@ -631,6 +673,16 @@ function Workspace({
   >(null);
   // Card-back picker modal (BL Fix 4 — banner tap).
   const [showBackPicker, setShowBackPicker] = useState(false);
+  // BN Fix 1 — Edit / 4-corner crop refine overlay.
+  const [editing, setEditing] = useState<
+    | null
+    | {
+        imageKey: string;
+        previousZoom: NonNullable<typeof zoom>;
+      }
+  >(null);
+  // BN Fix 2 — inline picker for assigning to a default slot.
+  const [defaultPickerCardId, setDefaultPickerCardId] = useState<number | null>(null);
   // Save confirmation dialog (BL Fix 6).
   const [saveDialog, setSaveDialog] = useState<
     | null
@@ -696,6 +748,19 @@ function Workspace({
   const assignedSlots = Object.keys(session.assigned);
   const numericAssigned = assignedSlots.filter((s) => s !== BACK_KEY);
   const hasBack = !!session.assigned[BACK_KEY];
+
+  // BN Fix 2 — set of card_ids that will be customized (non-default)
+  // after save. Defined here so both the chip count and the Default
+  // tab render share one source of truth.
+  const customizedCardIds = useMemo(() => {
+    const set = new Set<number>();
+    for (const slot of Object.keys(session.assigned)) {
+      if (slot === BACK_KEY) continue;
+      set.add(Number(slot));
+    }
+    return set;
+  }, [session.assigned]);
+  const defaultCount = 78 - customizedCardIds.size;
 
   const photographedIds = useMemo(
     () => numericAssigned.map((s) => Number(s)),
@@ -834,6 +899,9 @@ function Workspace({
         <Chip active={tab === "skipped"} onClick={() => setTab("skipped")}>
           Skipped ({skippedKeys.length})
         </Chip>
+        <Chip active={tab === "default"} onClick={() => setTab("default")}>
+          Default ({defaultCount})
+        </Chip>
       </div>
 
       {/* Card-back banner (BL Fix 4 — State A only). */}
@@ -885,6 +953,23 @@ function Workspace({
           onAction={(k) => onUnskip(k)}
         />
       )}
+      {tab === "default" && (
+        <DefaultGrid
+          customizedCardIds={customizedCardIds}
+          session={session}
+          resolveSrc={resolveSrc}
+          defaultCount={defaultCount}
+          onPickDefault={(cardId: number) => {
+            if (unassignedKeys.length === 0) {
+              toast(
+                "All your imported images are assigned. Upload more images or photograph a card to fill this slot.",
+              );
+              return;
+            }
+            setDefaultPickerCardId(cardId);
+          }}
+        />
+      )}
 
       {/* Footer actions */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -934,9 +1019,18 @@ function Workspace({
           src={resolveSrc(zoom.imageKey)}
           context={zoom.from}
           canUseAsBack={zoom.from === "unassigned" && !hasBack}
+          canEdit={
+            // EXISTING markers have no real raw blob to refine.
+            !zoom.imageKey.startsWith("EXISTING:")
+          }
           shape={shape}
           cornerRadiusPercent={cornerRadiusPercent}
           onBack={() => setZoom(null)}
+          onEdit={() => {
+            const ctx = zoom;
+            setZoom(null);
+            setEditing({ imageKey: ctx.imageKey, previousZoom: ctx });
+          }}
           onPickCard={() => {
             const ctx = zoom;
             setZoom(null);
@@ -1003,6 +1097,51 @@ function Workspace({
             setSaveDialog(null);
             onSave(false);
           }}
+        />
+      )}
+
+      {/* BN Fix 1 — Edit / 4-corner crop refine overlay */}
+      {editing && (() => {
+        const img = findImage(session, editing.imageKey);
+        if (!img || img.existingUrl) {
+          // Can't refine an EXISTING:* synthetic — close.
+          setEditing(null);
+          return null;
+        }
+        const ctx = editing;
+        return (
+          <div className="fixed inset-0 z-[140]">
+            <PhotoCapture
+              shape={shape === "round" ? "round" : "rectangle"}
+              cornerRadiusPercent={cornerRadiusPercent}
+              outputMaxDimension={1536}
+              initialBlob={img.rawBlob}
+              guideText="Drag the corners to refine the crop"
+              onCancel={() => {
+                setEditing(null);
+                setZoom(ctx.previousZoom);
+              }}
+              onCapture={(blob, dims) => {
+                onUpdateRawBlob(ctx.imageKey, blob, dims);
+                setEditing(null);
+                setZoom(ctx.previousZoom);
+              }}
+            />
+          </div>
+        );
+      })()}
+
+      {/* BN Fix 2 — inline picker for assigning to a default slot */}
+      {defaultPickerCardId !== null && (
+        <CardBackPickerModal
+          unassignedKeys={unassignedKeys}
+          resolveSrc={resolveSrc}
+          onPick={(k) => {
+            const cardId = defaultPickerCardId;
+            setDefaultPickerCardId(null);
+            if (cardId !== null) onAssign(k, cardId);
+          }}
+          onCancel={() => setDefaultPickerCardId(null)}
         />
       )}
     </section>
@@ -1442,6 +1581,7 @@ function ZoomModal({
   src,
   context,
   canUseAsBack,
+  canEdit,
   shape,
   cornerRadiusPercent,
   onPickCard,
@@ -1449,11 +1589,13 @@ function ZoomModal({
   onUseAsBack,
   onSkip,
   onBack,
+  onEdit,
   onSendBackToUnassigned,
 }: {
   src: string;
   context: "unassigned" | "assigned" | "skipped";
   canUseAsBack: boolean;
+  canEdit: boolean;
   shape: "rectangle" | "round";
   cornerRadiusPercent: number;
   onPickCard: () => void;
@@ -1461,15 +1603,25 @@ function ZoomModal({
   onUseAsBack: () => void;
   onSkip: () => void;
   onBack: () => void;
+  onEdit: () => void;
   onSendBackToUnassigned: () => void;
 }) {
   const imgStyle: React.CSSProperties =
     shape === "round"
-      ? { clipPath: "circle(50%)", maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }
-      : {
-          maxWidth: "100%",
-          maxHeight: "100%",
+      ? {
+          clipPath: "circle(50%)",
+          width: "100%",
+          height: "auto",
+          maxHeight: "70vh",
           objectFit: "contain",
+          display: "block",
+        }
+      : {
+          width: "100%",
+          height: "auto",
+          maxHeight: "70vh",
+          objectFit: "contain",
+          display: "block",
           borderRadius: `${(cornerRadiusPercent / 100) * 200}px`,
         };
   return (
@@ -1481,11 +1633,9 @@ function ZoomModal({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
+          width: "min(85vw, 600px)",
           maxWidth: "min(85vw, 600px)",
           maxHeight: "70vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
         }}
       >
         <img src={src} alt="" style={imgStyle} />
@@ -1580,6 +1730,22 @@ function ZoomModal({
             </button>
           </>
         )}
+        {/* BN Fix 1 — Edit / 4-corner crop refine */}
+        {canEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="rounded-md border px-4 py-2"
+            style={{
+              background: "transparent",
+              borderColor: "var(--accent)",
+              color: "var(--accent)",
+              fontSize: "var(--text-body-sm)",
+            }}
+          >
+            Edit
+          </button>
+        )}
         <button
           type="button"
           onClick={onBack}
@@ -1646,5 +1812,77 @@ function Summary({
         Done
       </button>
     </section>
+  );
+}
+
+/* ================================================================== */
+/*  DefaultGrid — BN Fix 2 (Default chip view)                         */
+/* ================================================================== */
+
+function DefaultGrid({
+  customizedCardIds,
+  session,
+  resolveSrc,
+  defaultCount,
+  onPickDefault,
+}: {
+  customizedCardIds: Set<number>;
+  session: ImportSession;
+  resolveSrc: (key: string) => string;
+  defaultCount: number;
+  onPickDefault: (cardId: number) => void;
+}) {
+  return (
+    <div>
+      <p
+        className="mb-3"
+        style={{
+          fontSize: "var(--text-body-sm)",
+          color: "var(--color-foreground)",
+          opacity: 0.85,
+        }}
+      >
+        {defaultCount} card{defaultCount === 1 ? "" : "s"} will use the default
+        image after save. Tap a card to assign one of your images.
+      </p>
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+        {Array.from({ length: 78 }, (_, i) => {
+          const customized = customizedCardIds.has(i);
+          const key = customized ? session.assigned[String(i)] : undefined;
+          const src = key ? resolveSrc(key) : "";
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => {
+                if (!customized) onPickDefault(i);
+              }}
+              disabled={customized}
+              className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
+              style={{
+                borderColor: customized ? "var(--accent)" : "var(--border-subtle)",
+                background: "var(--surface-card)",
+              }}
+              title={getCardName(i)}
+            >
+              {customized && src ? (
+                <img
+                  src={src}
+                  alt={getCardName(i)}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <img
+                  src={getCardImagePath(i)}
+                  alt={getCardName(i)}
+                  className="h-full w-full object-cover"
+                  style={{ opacity: 0.65 }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
