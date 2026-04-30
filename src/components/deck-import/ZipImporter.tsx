@@ -749,6 +749,19 @@ function Workspace({
   const numericAssigned = assignedSlots.filter((s) => s !== BACK_KEY);
   const hasBack = !!session.assigned[BACK_KEY];
 
+  // BN Fix 2 — set of card_ids that will be customized (non-default)
+  // after save. Defined here so both the chip count and the Default
+  // tab render share one source of truth.
+  const customizedCardIds = useMemo(() => {
+    const set = new Set<number>();
+    for (const slot of Object.keys(session.assigned)) {
+      if (slot === BACK_KEY) continue;
+      set.add(Number(slot));
+    }
+    return set;
+  }, [session.assigned]);
+  const defaultCount = 78 - customizedCardIds.size;
+
   const photographedIds = useMemo(
     () => numericAssigned.map((s) => Number(s)),
     [numericAssigned],
