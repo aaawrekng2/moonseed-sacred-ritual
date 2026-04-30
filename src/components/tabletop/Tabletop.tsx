@@ -7,7 +7,9 @@ import {
   useState,
 } from "react";
 import { Undo2, Redo2, X } from "lucide-react";
+import { Hand } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
+import { CardPicker } from "@/components/cards/CardPicker";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { getCardName } from "@/lib/tarot";
