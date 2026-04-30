@@ -1003,7 +1003,7 @@ function ImageGrid({
   resolveSrc,
   emptyText,
   onClick,
-  actionLabel,
+  variant,
   onAction,
 }: {
   keys: string[];
@@ -1011,17 +1011,18 @@ function ImageGrid({
   resolveSrc: (key: string) => string;
   emptyText: string;
   onClick: (key: string) => void;
-  actionLabel?: string;
+  variant?: "unassigned" | "skipped";
   onAction?: (key: string) => void;
 }) {
   if (keys.length === 0) {
     return (
       <p
-        className="py-8 text-center"
+        className="py-8 text-center italic"
         style={{
+          fontFamily: "var(--font-serif)",
           fontSize: "var(--text-body-sm)",
           color: "var(--color-foreground)",
-          opacity: 0.6,
+          opacity: 0.7,
         }}
       >
         {emptyText}
@@ -1034,7 +1035,7 @@ function ImageGrid({
         const img = session.unassigned[key] ?? session.skipped[key];
         const src = resolveSrc(key);
         return (
-          <div key={key} className="space-y-1">
+          <div key={key} className="relative">
             <button
               type="button"
               onClick={() => onClick(key)}
@@ -1048,18 +1049,17 @@ function ImageGrid({
                 <img src={src} alt={img?.filename ?? ""} className="h-full w-full object-cover" />
               ) : null}
             </button>
-            {actionLabel && onAction && (
-              <button
-                type="button"
-                onClick={() => onAction(key)}
-                className="block w-full italic underline"
-                style={{
-                  fontSize: "var(--text-caption)",
-                  color: "var(--accent)",
+            {variant === "skipped" && onAction && (
+              <ThumbnailIconButton
+                aria-label="Move back to unassigned"
+                title="Move back to unassigned"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAction(key);
                 }}
               >
-                {actionLabel}
-              </button>
+                <RotateCcw className="h-3.5 w-3.5" />
+              </ThumbnailIconButton>
             )}
           </div>
         );
@@ -1071,150 +1071,195 @@ function ImageGrid({
 function AssignedGrid({
   session,
   resolveSrc,
+  hasBack,
+  onTap,
   onUnassign,
 }: {
   session: ImportSession;
   resolveSrc: (key: string) => string;
+  hasBack: boolean;
+  onTap: (slot: string, key: string) => void;
   onUnassign: (slot: string) => void;
 }) {
+  const backKey = session.assigned[BACK_KEY];
+  const backSrc = backKey ? resolveSrc(backKey) : "";
   return (
     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
+      {hasBack && backKey && (
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => onTap(BACK_KEY, backKey)}
+            className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
+            style={{
+              borderColor: "var(--accent)",
+              background: "var(--surface-card)",
+            }}
+            title="Card Back — tap to view"
+          >
+            {backSrc && (
+              <img src={backSrc} alt="Card Back" className="h-full w-full object-cover" />
+            )}
+            <span
+              className="absolute inset-x-0 bottom-0 px-1 py-0.5 text-center text-[9px] uppercase tracking-wider"
+              style={{ background: "rgba(0,0,0,0.55)", color: "#fff" }}
+            >
+              Card Back
+            </span>
+          </button>
+          <ThumbnailIconButton
+            aria-label="Unassign card back"
+            title="Unassign"
+            onClick={(e) => {
+              e.stopPropagation();
+              onUnassign(BACK_KEY);
+            }}
+          >
+            <X className="h-3.5 w-3.5" />
+          </ThumbnailIconButton>
+        </div>
+      )}
       {Array.from({ length: 78 }, (_, i) => {
         const slot = String(i);
         const key = session.assigned[slot];
         const src = key ? resolveSrc(key) : "";
         const isExisting = key?.startsWith("EXISTING:");
         return (
-          <button
-            key={i}
-            type="button"
-            onClick={() => key && onUnassign(slot)}
-            className="relative aspect-[0.625] overflow-hidden rounded border"
-            style={{
-              borderColor: key ? "var(--accent)" : "var(--border-subtle)",
-              background: "var(--surface-card)",
-            }}
-            title={key ? `${getCardName(i)} — tap to unassign` : getCardName(i)}
-          >
-            {src ? (
-              <img src={src} alt={getCardName(i)} className="h-full w-full object-cover" />
-            ) : (
-              <img
-                src={getCardImagePath(i)}
-                alt={getCardName(i)}
-                className="h-full w-full object-cover"
-                style={{ opacity: 0.25, filter: "grayscale(100%)" }}
-              />
-            )}
-            {isExisting && (
-              <span
-                className="absolute left-1 top-1 rounded px-1 text-[9px] uppercase"
-                style={{ background: "var(--surface-card)", color: "var(--color-foreground)", opacity: 0.85 }}
+          <div key={i} className="relative">
+            <button
+              type="button"
+              onClick={() => key && onTap(slot, key)}
+              disabled={!key}
+              className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
+              style={{
+                borderColor: key ? "var(--accent)" : "var(--border-subtle)",
+                background: "var(--surface-card)",
+              }}
+              title={getCardName(i)}
+            >
+              {src ? (
+                <img src={src} alt={getCardName(i)} className="h-full w-full object-cover" />
+              ) : (
+                <img
+                  src={getCardImagePath(i)}
+                  alt={getCardName(i)}
+                  className="h-full w-full object-cover"
+                  style={{ opacity: 0.25, filter: "grayscale(100%)" }}
+                />
+              )}
+              {isExisting && (
+                <span
+                  className="absolute left-1 top-1 rounded px-1 text-[9px] uppercase"
+                  style={{ background: "var(--surface-card)", color: "var(--color-foreground)", opacity: 0.85 }}
+                >
+                  current
+                </span>
+              )}
+            </button>
+            {key && (
+              <ThumbnailIconButton
+                aria-label={`Unassign ${getCardName(i)}`}
+                title="Unassign"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUnassign(slot);
+                }}
               >
-                current
-              </span>
+                <X className="h-3.5 w-3.5" />
+              </ThumbnailIconButton>
             )}
-          </button>
+          </div>
         );
       })}
     </div>
   );
 }
 
-function CardBackPanel({
-  session,
-  resolveSrc,
-  unassignedKeys,
-  onAssign,
-  onClear,
+/** Small overlay icon button shown in the top-right of a thumbnail. */
+function ThumbnailIconButton({
+  children,
+  onClick,
+  ...rest
 }: {
-  session: ImportSession;
-  resolveSrc: (key: string) => string;
+  children: React.ReactNode;
+  onClick: (e: React.MouseEvent) => void;
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="absolute right-1 top-1 flex items-center justify-center rounded-full border"
+      style={{
+        width: 28,
+        height: 28,
+        background: "color-mix(in oklab, var(--surface-card) 85%, transparent)",
+        borderColor: "var(--border-subtle)",
+        color: "var(--color-foreground)",
+      }}
+      {...rest}
+    >
+      {children}
+    </button>
+  );
+}
+
+function CardBackPickerModal({
+  unassignedKeys,
+  resolveSrc,
+  onPick,
+  onCancel,
+}: {
   unassignedKeys: string[];
-  onAssign: (key: string) => void;
-  onClear: () => void;
+  resolveSrc: (key: string) => string;
+  onPick: (key: string) => void;
+  onCancel: () => void;
 }) {
-  const [picking, setPicking] = useState(false);
-  const currentKey = session.assigned[BACK_KEY];
-  const currentSrc = currentKey ? resolveSrc(currentKey) : "";
   return (
     <div
-      className="mb-4 flex items-center gap-3 rounded-md border p-3"
-      style={{ background: "var(--surface-card)", borderColor: "var(--border-subtle)" }}
+      className="fixed inset-0 z-[125] flex items-center justify-center p-4"
+      style={{ background: "var(--surface-overlay, rgba(0,0,0,0.85))" }}
+      onClick={onCancel}
     >
       <div
-        className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded border"
-        style={{ borderColor: "var(--border-subtle)" }}
-      >
-        {currentSrc ? (
-          <img src={currentSrc} alt="Card back" className="h-full w-full object-cover" />
-        ) : (
-          <span style={{ fontSize: 10, color: "var(--color-foreground)", opacity: 0.5 }}>none</span>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p
-          style={{
-            fontSize: "var(--text-body-sm)",
-            color: "var(--color-foreground)",
-          }}
-        >
-          Card back {currentKey ? "selected" : "not chosen"}
-        </p>
-        <p
-          style={{
-            fontSize: "var(--text-caption)",
-            color: "var(--color-foreground)",
-            opacity: 0.7,
-          }}
-        >
-          The image shown when cards are face-down.
-        </p>
-      </div>
-      {currentKey && (
-        <button
-          type="button"
-          onClick={onClear}
-          className="rounded-md p-1.5 hover:opacity-80"
-          aria-label="Clear card back"
-          style={{ color: "var(--color-foreground)", opacity: 0.6 }}
-        >
-          <X className="h-4 w-4" />
-        </button>
-      )}
-      <button
-        type="button"
-        onClick={() => setPicking((v) => !v)}
-        className="rounded-md border px-3 py-1.5"
+        onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[80vh] w-full max-w-lg flex-col gap-3 rounded-xl border p-4"
         style={{
-          borderColor: "var(--accent)",
-          color: "var(--accent)",
-          fontSize: "var(--text-body-sm)",
+          background: "var(--surface-card)",
+          borderColor: "var(--border-subtle)",
         }}
       >
-        {currentKey ? "Replace" : "Pick"}
-      </button>
-      {picking && (
-        <div
-          className="absolute left-0 right-0 z-30 mt-2 max-h-72 overflow-y-auto border-t p-3"
-          style={{ background: "var(--surface-card)", borderColor: "var(--border-subtle)", marginTop: 80 }}
+        <h3
+          className="italic"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-heading-sm)",
+            color: "var(--accent)",
+          }}
         >
+          Pick a card back
+        </h3>
+        <div className="flex-1 overflow-y-auto">
           {unassignedKeys.length === 0 ? (
-            <p style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", opacity: 0.7 }}>
+            <p
+              className="italic"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground)",
+                opacity: 0.7,
+              }}
+            >
               No unassigned images to choose from.
             </p>
           ) : (
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {unassignedKeys.map((k) => {
                 const src = resolveSrc(k);
                 return (
                   <button
                     key={k}
                     type="button"
-                    onClick={() => {
-                      onAssign(k);
-                      setPicking(false);
-                    }}
+                    onClick={() => onPick(k)}
                     className="aspect-square overflow-hidden rounded border"
                     style={{ borderColor: "var(--border-subtle)" }}
                   >
@@ -1225,33 +1270,171 @@ function CardBackPanel({
             </div>
           )}
         </div>
-      )}
+        <button
+          type="button"
+          onClick={onCancel}
+          className="self-end rounded-md px-4 py-2"
+          style={{
+            color: "var(--color-foreground)",
+            fontSize: "var(--text-body-sm)",
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function SaveConfirmDialog({
+  info,
+  onCancel,
+  onSaveAndFinish,
+  onSaveContinueLater,
+}: {
+  info: {
+    kind: "empty" | "skipped-only" | "unassigned-present" | "skipped-and-unassigned";
+    skippedCount: number;
+    unassignedCount: number;
+  };
+  onCancel: () => void;
+  onSaveAndFinish: () => void;
+  onSaveContinueLater: () => void;
+}) {
+  let title = "Save";
+  let body = "";
+  let showContinueLater = false;
+
+  if (info.kind === "empty") {
+    title = "Save?";
+    body = "Nothing assigned yet. Save anyway?";
+  } else if (info.kind === "skipped-only") {
+    title = "Save?";
+    body = `${info.skippedCount} image${info.skippedCount === 1 ? "" : "s"} skipped will be discarded. Save?`;
+  } else if (info.kind === "unassigned-present") {
+    title = "Some images aren't placed yet";
+    body = `${info.unassignedCount} image${info.unassignedCount === 1 ? "" : "s"} still unassigned. Keep them for later or discard?`;
+    showContinueLater = true;
+  } else if (info.kind === "skipped-and-unassigned") {
+    title = "Some images aren't placed yet";
+    body = `${info.unassignedCount} unassigned and ${info.skippedCount} skipped. Continue later or finish now?`;
+    showContinueLater = true;
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[125] flex items-center justify-center p-4"
+      style={{ background: "var(--surface-overlay, rgba(0,0,0,0.85))" }}
+      onClick={onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex w-full max-w-sm flex-col gap-4 rounded-xl border p-5"
+        style={{
+          background: "var(--surface-card)",
+          borderColor: "var(--border-subtle)",
+        }}
+      >
+        <h3
+          className="italic"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-heading-sm)",
+            color: "var(--accent)",
+          }}
+        >
+          {title}
+        </h3>
+        <p style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)" }}>
+          {body}
+        </p>
+        <div className="flex flex-col gap-2">
+          {showContinueLater && (
+            <button
+              type="button"
+              onClick={onSaveContinueLater}
+              className="rounded-md px-4 py-2 font-medium"
+              style={{
+                background: "var(--accent)",
+                color: "var(--accent-foreground, #000)",
+                fontSize: "var(--text-body-sm)",
+              }}
+            >
+              Save and continue later
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onSaveAndFinish}
+            className="rounded-md px-4 py-2 font-medium"
+            style={{
+              background: showContinueLater
+                ? "transparent"
+                : "var(--accent)",
+              color: showContinueLater
+                ? "var(--color-foreground)"
+                : "var(--accent-foreground, #000)",
+              fontSize: "var(--text-body-sm)",
+              borderWidth: showContinueLater ? 1 : 0,
+              borderStyle: "solid",
+              borderColor: "var(--border-subtle)",
+            }}
+          >
+            {showContinueLater ? "Save and finish" : "Save"}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md px-4 py-2"
+            style={{
+              color: "var(--color-foreground)",
+              fontSize: "var(--text-body-sm)",
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
 function ZoomModal({
   src,
-  inSkipped,
+  context,
+  canUseAsBack,
   onPickCard,
+  onReassign,
+  onUseAsBack,
   onSkip,
-  onUnskip,
   onBack,
 }: {
   src: string;
-  inSkipped: boolean;
+  context: "unassigned" | "assigned" | "skipped";
+  canUseAsBack: boolean;
   onPickCard: () => void;
+  onReassign: () => void;
+  onUseAsBack: () => void;
   onSkip: () => void;
-  onUnskip: () => void;
   onBack: () => void;
 }) {
   return (
     <div
       className="fixed inset-0 z-[120] flex flex-col items-center justify-center p-4"
       style={{ background: "var(--surface-overlay, rgba(0,0,0,0.85))" }}
+      onClick={onBack}
     >
-      <img src={src} alt="" style={{ maxHeight: "78vh", maxWidth: "100%" }} className="rounded" />
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+      <img
+        src={src}
+        alt=""
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxHeight: "78vh", maxWidth: "100%" }}
+        className="rounded"
+      />
+      <div
+        className="mt-4 flex flex-wrap items-center justify-center gap-3"
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           type="button"
           onClick={onBack}
@@ -1260,37 +1443,72 @@ function ZoomModal({
         >
           Back
         </button>
-        {inSkipped ? (
+        {context === "unassigned" && (
+          <>
+            <button
+              type="button"
+              onClick={onSkip}
+              className="rounded-md px-4 py-2"
+              style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+            >
+              Skip
+            </button>
+            {canUseAsBack && (
+              <button
+                type="button"
+                onClick={onUseAsBack}
+                className="rounded-md border px-4 py-2"
+                style={{
+                  borderColor: "var(--border-subtle)",
+                  color: "var(--color-foreground)",
+                  fontSize: "var(--text-body-sm)",
+                }}
+              >
+                Use as card back
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onPickCard}
+              className="rounded-md px-4 py-2 font-medium"
+              style={{
+                background: "var(--accent)",
+                color: "var(--accent-foreground, #000)",
+                fontSize: "var(--text-body-sm)",
+              }}
+            >
+              Pick a card
+            </button>
+          </>
+        )}
+        {context === "assigned" && (
           <button
             type="button"
-            onClick={onUnskip}
-            className="rounded-md px-4 py-2"
-            style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+            onClick={onReassign}
+            className="rounded-md px-4 py-2 font-medium"
+            style={{
+              background: "var(--accent)",
+              color: "var(--accent-foreground, #000)",
+              fontSize: "var(--text-body-sm)",
+            }}
           >
-            Move to Unassigned
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onSkip}
-            className="rounded-md px-4 py-2"
-            style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
-          >
-            Skip
+            Reassign to different card
           </button>
         )}
-        <button
-          type="button"
-          onClick={onPickCard}
-          className="rounded-md px-4 py-2 font-medium"
-          style={{
-            background: "var(--accent)",
-            color: "var(--accent-foreground, #000)",
-            fontSize: "var(--text-body-sm)",
-          }}
-        >
-          Pick a card
-        </button>
+        {context === "skipped" && (
+          <button
+            type="button"
+            onClick={onPickCard}
+            className="rounded-md px-4 py-2 font-medium"
+            style={{
+              background: "var(--accent)",
+              color: "var(--accent-foreground, #000)",
+              fontSize: "var(--text-body-sm)",
+            }}
+          >
+            Pick a card
+          </button>
+        )}
       </div>
     </div>
   );
