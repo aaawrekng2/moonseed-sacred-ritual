@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
 import { CardPicker } from "@/components/cards/CardPicker";
+import { PhotoCapture } from "@/components/photo/PhotoCapture";
 import { matchFilenames, isCardBackFilename } from "./matcher";
 import {
   BACK_KEY,
