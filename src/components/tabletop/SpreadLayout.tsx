@@ -690,7 +690,7 @@ export function ManualSpreadSlots({
         "relative rounded-[10px] transition active:scale-[0.98]",
         pick
           ? "border border-gold/40 overflow-hidden bg-card"
-          : "border-2 border-dashed border-white/25 bg-white/[0.02] hover:border-gold/50 hover:bg-gold/5",
+          : "border-2 border-dashed border-foreground/25 bg-foreground/[0.04] hover:border-gold/50 hover:bg-gold/5",
       )}
       style={{
         width: sizing.w,
@@ -708,7 +708,7 @@ export function ManualSpreadSlots({
           style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
         />
       ) : (
-        <span className="absolute inset-0 flex items-center justify-center text-[18px] font-light text-white/50">+</span>
+        <span className="absolute inset-0 flex items-center justify-center text-[18px] font-light text-foreground/50">+</span>
       )}
     </button>
   );

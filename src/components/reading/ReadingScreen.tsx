@@ -590,7 +590,7 @@ function CardStrip({
     const card = (i: number) => (
       <div key={picks[i]?.id ?? i} className="flex flex-col items-center gap-1">
         <div
-          className="reading-card-frame overflow-hidden rounded-[6px] border border-white/10 bg-card"
+          className="reading-card-frame overflow-hidden rounded-[6px] border border-border/40 bg-card"
           style={{ width: cw, height: ch, boxShadow: "0 4px 14px rgba(0,0,0,0.45)" }}
         >
           {picks[i] && (

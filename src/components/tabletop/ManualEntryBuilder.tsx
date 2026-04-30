@@ -50,11 +50,11 @@ export function ManualEntryBuilder({ spread, allowReversed, onCancel, onComplete
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col bg-cosmos text-foreground">
-      <header className="flex items-center justify-between border-b border-white/5 px-4 py-3">
+      <header className="flex items-center justify-between border-b border-border/40 px-4 py-3">
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-full p-2 hover:bg-white/10"
+          className="rounded-full p-2 hover:bg-foreground/10"
           aria-label="Cancel"
         >
           <X className="h-5 w-5" />
@@ -92,7 +92,7 @@ export function ManualEntryBuilder({ spread, allowReversed, onCancel, onComplete
             "rounded-full px-6 py-2.5 text-sm font-medium transition",
             allFilled
               ? "bg-gold text-cosmos hover:bg-gold/90"
-              : "cursor-not-allowed bg-white/10 text-white/40",
+              : "cursor-not-allowed bg-foreground/10 text-foreground/40",
           )}
         >
           Done · view reading

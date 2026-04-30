@@ -156,7 +156,7 @@ export function QuestionPanel({
           <button
             type="button"
             onClick={commit}
-            className="flex items-center justify-center rounded-full w-6 h-6 hover:bg-white/10 transition-colors focus:outline-none"
+            className="flex items-center justify-center rounded-full w-6 h-6 hover:bg-foreground/10 transition-colors focus:outline-none"
             aria-label="Close question"
             style={{ color: "var(--gold)", opacity: 0.6 }}
           >

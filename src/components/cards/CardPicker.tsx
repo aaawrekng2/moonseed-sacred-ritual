@@ -133,11 +133,11 @@ export function CardPicker({
         />
       )}
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/10 p-3">
+      <div className="flex items-center justify-between border-b border-border/40 p-3">
         {onCancel ? (
           <button
             onClick={onCancel}
-            className="rounded-full p-2 hover:bg-white/10"
+            className="rounded-full p-2 hover:bg-foreground/10"
             aria-label="Back"
             style={{ width: 40, height: 40 }}
           >
@@ -153,14 +153,14 @@ export function CardPicker({
       </div>
 
       {/* Search + filters */}
-      <div className="space-y-2 border-b border-white/10 p-3">
+      <div className="space-y-2 border-b border-border/40 p-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search 78 cards…"
-            className="w-full rounded-md border border-white/10 bg-white/5 px-9 py-2 text-sm outline-none focus:border-white/30"
+            className="w-full rounded-md border border-border/40 bg-foreground/5 px-9 py-2 text-sm outline-none focus:border-foreground/30"
           />
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -171,8 +171,8 @@ export function CardPicker({
               className={cn(
                 "rounded-full border px-3 py-1 text-xs",
                 suit === s
-                  ? "border-white/60 bg-white/15"
-                  : "border-white/15 bg-transparent hover:bg-white/5",
+                  ? "border-foreground/60 bg-foreground/15"
+                  : "border-foreground/15 bg-transparent hover:bg-foreground/5",
               )}
             >
               {s}
@@ -195,7 +195,7 @@ export function CardPicker({
                 disabled={isExcluded}
                 onClick={() => handleTap(idx)}
                 className={cn(
-                  "group relative flex flex-col items-stretch overflow-hidden rounded-lg border border-white/10 bg-white/5 text-left transition active:scale-[0.98]",
+                  "group relative flex flex-col items-stretch overflow-hidden rounded-lg border border-border/40 bg-foreground/5 text-left transition active:scale-[0.98]",
                   isExcluded && "cursor-not-allowed opacity-30",
                 )}
                 style={{ touchAction: "manipulation" }}
@@ -270,8 +270,8 @@ function ConfirmReversed({
         embedded ? "absolute inset-0" : "fixed inset-0 z-[100]",
       )}
     >
-      <div className="flex items-center justify-between border-b border-white/10 p-3">
-        <button onClick={onBack} className="rounded-full p-2 hover:bg-white/10" aria-label="Back">
+      <div className="flex items-center justify-between border-b border-border/40 p-3">
+        <button onClick={onBack} className="rounded-full p-2 hover:bg-foreground/10" aria-label="Back">
           <ChevronLeft className="h-5 w-5" />
         </button>
         <div className="text-sm uppercase tracking-[0.25em] opacity-70">{getCardName(cardIndex)}</div>
@@ -279,7 +279,7 @@ function ConfirmReversed({
       </div>
       <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
         <div className="w-44">
-          <div className="aspect-[0.625] overflow-hidden rounded-xl border border-white/10 bg-black shadow-xl">
+          <div className="aspect-[0.625] overflow-hidden rounded-xl border border-border/40 bg-black shadow-xl">
             <img
               src={src}
               alt=""
@@ -300,13 +300,13 @@ function ConfirmReversed({
         <div className="flex gap-3">
           <button
             onClick={onBack}
-            className="rounded-full border border-white/15 px-5 py-2 text-sm hover:bg-white/5"
+            className="rounded-full border border-foreground/15 px-5 py-2 text-sm hover:bg-foreground/5"
           >
             Back
           </button>
           <button
             onClick={onConfirm}
-            className="rounded-full bg-white px-5 py-2 text-sm font-medium text-black hover:bg-white/90"
+            className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-accent-foreground hover:bg-accent/90"
           >
             Confirm
           </button>
