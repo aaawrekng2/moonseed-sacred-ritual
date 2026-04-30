@@ -632,7 +632,7 @@ function DeckEditor({
                   className={cn(
                     "h-full w-full object-cover",
                   )}
-                  style={{ opacity: photo ? 1 : 0.65 }}
+                  style={{ opacity: photo ? 1 : 0.4 }}
                   loading="lazy"
                 />
                 {photo && (
