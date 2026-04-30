@@ -484,7 +484,7 @@ export function PhotoCapture({
         )}
         {step === "refine" && (
           <>
-            <button
+            {!initialBlob && <button
               onClick={() => {
                 setCaptured(null);
                 setStep("camera");
@@ -492,7 +492,7 @@ export function PhotoCapture({
               className="rounded-full bg-white/10 px-4 py-2 text-sm hover:bg-white/20"
             >
               Retake
-            </button>
+            </button>}
             <button
               onClick={() => setRotation((r) => (r - 90 + 360) % 360)}
               className="rounded-full bg-white/10 p-3 hover:bg-white/20"
