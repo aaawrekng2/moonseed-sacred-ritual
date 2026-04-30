@@ -15,17 +15,17 @@
  * that's created upstream so partial saves are recoverable.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Upload, X, Check, ImageIcon } from "lucide-react";
+import { Loader2, Upload, X, Check } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
 import { processImageBlob } from "./process";
 import {
-  canonicalOrder,
   matchFilenames,
   type MatchResult,
 } from "./matcher";
+import { CardPicker } from "@/components/cards/CardPicker";
 
 const DECK_BUCKET = "custom-deck-images";
 const ZIP_MAX_BYTES = 20 * 1024 * 1024;
@@ -577,13 +577,22 @@ function Wizard({
   onCancel: () => void;
   onProceed: () => void;
 }) {
+  // Image-first wizard — Stamp BI Fix 1.
+  // The grid shows UNASSIGNED IMAGES (not target cards). User taps an
+  // image, zoom modal shows it, then "Pick a card" opens CardPicker
+  // with already-assigned cards dimmed. Selecting a card slot binds
+  // this image to that slot.
   const [assignments, setAssignments] = useState(
     () => new Map(data.assignments),
   );
-  const [available, setAvailable] = useState<string[]>(() => [...data.tray]);
-  const [skipped, setSkipped] = useState<number[]>([]);
-  const [pass, setPass] = useState<1 | 2>(1);
-  const [zoom, setZoom] = useState<string | null>(null);
+  // Unassigned image filenames currently visible in this pass.
+  const [unassigned, setUnassigned] = useState<string[]>(() => [...data.tray]);
+  // Filenames the user skipped (held until end of pass).
+  const [skipped, setSkipped] = useState<string[]>([]);
+  // Currently zoomed source image.
+  const [zoomKey, setZoomKey] = useState<string | null>(null);
+  // When non-null, CardPicker is open to assign this image.
+  const [pickerForImage, setPickerForImage] = useState<string | null>(null);
 
   const blobUrls = useMemo(() => makeBlobUrlMap(data), [data]);
   useEffect(
@@ -593,69 +602,111 @@ function Wizard({
     [blobUrls],
   );
 
-  // Mirror local state to parent envelope.
+  // Mirror local state to parent envelope so downstream steps see fresh values.
   useEffect(() => {
     data.assignments = assignments;
-    data.tray = available;
-  }, [assignments, available, data]);
+    data.tray = unassigned;
+  }, [assignments, unassigned, data]);
 
-  const order = useMemo(() => canonicalOrder(), []);
+  // Track originally-unmatched count for the progress bar.
+  const initialUnmatchedTotal = useMemo(
+    () => data.tray.length,
+    [data],
+  );
+  const assignedFromTray = initialUnmatchedTotal - unassigned.length - skipped.length;
+  const progressDenominator = Math.max(1, initialUnmatchedTotal);
+  const progressPct =
+    ((assignedFromTray + skipped.length) / progressDenominator) * 100;
 
-  // Compute next target card.
-  const target = useMemo(() => {
-    if (pass === 1) {
-      for (const id of order) {
-        if (!assignments.has(id) && !skipped.includes(id)) return id;
-      }
-      return null;
-    }
-    // Pass 2: revisit previously skipped cards.
-    for (const id of skipped) if (!assignments.has(id)) return id;
-    return null;
-  }, [pass, order, assignments, skipped]);
+  const photographedIds = useMemo(
+    () => Array.from(assignments.keys()),
+    [assignments],
+  );
 
-  // Auto-advance to pass 2 / proceed when no target left in current pass.
+  // CardPicker resolver: show seeker's chosen image for already-assigned slots.
+  const resolveImageSrc = useCallback(
+    (cardId: number) => {
+      const fn = assignments.get(cardId);
+      if (fn) return blobUrls.get(fn) ?? getCardImagePath(cardId);
+      return getCardImagePath(cardId);
+    },
+    [assignments, blobUrls],
+  );
+
+  // Auto-advance to card-back step when nothing's left to assign or revisit.
   useEffect(() => {
-    if (target !== null) return;
-    if (pass === 1 && skipped.length > 0) {
-      setPass(2);
-      return;
+    if (unassigned.length === 0 && skipped.length === 0 && !pickerForImage && !zoomKey) {
+      onProceed();
     }
-    onProceed();
-  }, [target, pass, skipped.length, onProceed]);
+  }, [unassigned.length, skipped.length, pickerForImage, zoomKey, onProceed]);
 
-  const assignedCount = assignments.size;
+  const handleSkip = () => {
+    if (!zoomKey) return;
+    const name = zoomKey;
+    setSkipped((prev) => [...prev, name]);
+    setUnassigned((prev) => prev.filter((n) => n !== name));
+    setZoomKey(null);
+  };
 
-  const useImage = (filename: string) => {
-    if (target === null) return;
+  const handleAssign = (cardId: number) => {
+    const filename = pickerForImage;
+    if (!filename) return;
     setAssignments((prev) => {
       const next = new Map(prev);
-      next.set(target, filename);
+      // If this card already had an image, push the displaced image
+      // back into unassigned so the user can re-place it.
+      const displaced = next.get(cardId);
+      next.set(cardId, filename);
+      if (displaced && displaced !== filename) {
+        setUnassigned((u) => [...u, displaced]);
+      }
       return next;
     });
-    setAvailable((prev) => prev.filter((n) => n !== filename));
-    // If we had skipped this card on pass 1, drop from skipped list.
-    setSkipped((prev) => prev.filter((id) => id !== target));
-    setZoom(null);
+    setUnassigned((prev) => prev.filter((n) => n !== filename));
+    setPickerForImage(null);
   };
 
-  const skipCurrent = () => {
-    if (target === null) return;
-    setSkipped((prev) => (prev.includes(target) ? prev : [...prev, target]));
+  const reviewSkipped = () => {
+    setUnassigned((prev) => [...prev, ...skipped]);
+    setSkipped([]);
   };
 
-  const skipAllRemaining = () => {
-    const remainingCount = 78 - assignments.size;
-    if (
-      !confirm(
-        `Save deck with ${assignments.size} cards? ${remainingCount} will be empty.`,
-      )
-    )
-      return;
-    onProceed();
-  };
+  // CardPicker is fullscreen; render it as the sole UI when active.
+  if (pickerForImage) {
+    const previewUrl = blobUrls.get(pickerForImage);
+    return (
+      <>
+        {/* Floating thumbnail of the source image so user remembers what they're placing. */}
+        {previewUrl && (
+          <div
+            className="pointer-events-none fixed left-3 top-3 z-[120] overflow-hidden rounded border shadow-lg"
+            style={{
+              borderColor: "var(--accent)",
+              background: "var(--surface-card)",
+              width: 64,
+              height: 64,
+            }}
+          >
+            <img
+              src={previewUrl}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </div>
+        )}
+        <CardPicker
+          mode="photography"
+          photographedIds={photographedIds}
+          resolveImageSrc={resolveImageSrc}
+          title="Which card is this?"
+          onCancel={() => setPickerForImage(null)}
+          onSelect={(cardId) => handleAssign(cardId)}
+        />
+      </>
+    );
+  }
 
-  if (target === null) return <Centered text="Wrapping up…" />;
+  const empty = unassigned.length === 0;
 
   return (
     <section className="py-4">
@@ -663,45 +714,31 @@ function Wizard({
       <div
         className="sticky top-0 z-10 -mx-4 mb-3 border-b px-4 py-3 backdrop-blur"
         style={{
-          background: "color-mix(in oklab, var(--surface-card) 92%, transparent)",
+          background:
+            "color-mix(in oklab, var(--surface-card) 92%, transparent)",
           borderColor: "var(--border-subtle)",
         }}
       >
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-10 w-7 shrink-0 items-center justify-center rounded border"
-            style={{
-              borderColor: "var(--accent)",
-              color: "var(--accent)",
-              opacity: 0.7,
-            }}
-          >
-            <ImageIcon className="h-3.5 w-3.5" />
-          </div>
-          <div className="min-w-0">
-            <p
-              className="italic"
-              style={{
-                fontSize: "var(--text-caption)",
-                color: "var(--color-foreground)",
-                opacity: 0.6,
-              }}
-            >
-              Now choosing
-            </p>
-            <p
-              className="truncate italic"
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: "var(--text-heading-sm)",
-                color: "var(--accent)",
-              }}
-            >
-              {getCardName(target)}
-            </p>
-          </div>
-        </div>
-
+        <h2
+          className="italic"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-heading-md)",
+            color: "var(--accent)",
+          }}
+        >
+          Importing your deck
+        </h2>
+        <p
+          className="mt-1"
+          style={{
+            fontSize: "var(--text-caption)",
+            color: "var(--color-foreground)",
+            opacity: 0.7,
+          }}
+        >
+          Tap each image and pick which card it is.
+        </p>
         <div
           className="mt-2 h-1 w-full overflow-hidden rounded-full"
           style={{ background: "var(--border-subtle)" }}
@@ -709,7 +746,7 @@ function Wizard({
           <div
             className="h-full"
             style={{
-              width: `${(assignedCount / 78) * 100}%`,
+              width: `${progressPct}%`,
               background: "var(--accent)",
               transition: "width 200ms ease",
             }}
@@ -723,64 +760,89 @@ function Wizard({
             opacity: 0.7,
           }}
         >
-          {assignedCount} of 78 assigned · {skipped.length} skipped
+          {assignedFromTray} of {initialUnmatchedTotal} assigned · {skipped.length} skipped
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
-        {available.map((name) => {
-          const url = blobUrls.get(name);
-          return (
-            <button
-              type="button"
-              key={name}
-              onClick={() => setZoom(name)}
-              className="aspect-square overflow-hidden rounded border"
-              style={{
-                borderColor: "var(--border-subtle)",
-                background: "var(--surface-card)",
-              }}
-            >
-              {url && (
-                <img
-                  src={url}
-                  alt={name}
-                  className="h-full w-full object-cover"
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {!empty && (
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+          {unassigned.map((name) => {
+            const url = blobUrls.get(name);
+            return (
+              <button
+                type="button"
+                key={name}
+                onClick={() => setZoomKey(name)}
+                className="aspect-square overflow-hidden rounded border"
+                style={{
+                  borderColor: "var(--border-subtle)",
+                  background: "var(--surface-card)",
+                }}
+              >
+                {url && (
+                  <img
+                    src={url}
+                    alt={name}
+                    className="h-full w-full object-cover"
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
-      <div className="mt-4 flex flex-wrap items-center gap-4">
-        <button
-          type="button"
-          onClick={skipCurrent}
-          className="italic"
+      {/* End-of-pass: skipped images await another look */}
+      {empty && skipped.length > 0 && (
+        <div
+          className="mx-auto mt-6 max-w-md rounded-lg border p-5 text-center"
           style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-body-sm)",
-            color: "var(--accent)",
+            background: "var(--surface-card)",
+            borderColor: "var(--border-subtle)",
           }}
         >
-          Skip this card
-        </button>
-        {pass === 2 && (
-          <button
-            type="button"
-            onClick={skipAllRemaining}
-            className="italic"
+          <p
+            className="mb-4"
             style={{
               fontFamily: "var(--font-serif)",
-              fontSize: "var(--text-body-sm)",
-              color: "var(--color-foreground)",
-              opacity: 0.7,
+              fontStyle: "italic",
+              fontSize: "var(--text-heading-sm)",
+              color: "var(--accent)",
             }}
           >
-            Skip all remaining
-          </button>
-        )}
+            {skipped.length} image{skipped.length === 1 ? "" : "s"} skipped.
+            Take another pass?
+          </p>
+          <div className="flex justify-center gap-3">
+            <button
+              type="button"
+              onClick={onProceed}
+              className="rounded-md px-4 py-2"
+              style={{
+                background: "transparent",
+                color: "var(--color-foreground)",
+                fontSize: "var(--text-body-sm)",
+              }}
+            >
+              No, save deck
+            </button>
+            <button
+              type="button"
+              onClick={reviewSkipped}
+              className="rounded-md px-4 py-2 font-medium"
+              style={{
+                background: "var(--accent)",
+                color: "var(--accent-foreground, #000)",
+                fontSize: "var(--text-body-sm)",
+              }}
+            >
+              Yes, review skipped
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap items-center gap-4">
         <button
           type="button"
           onClick={onCancel}
@@ -795,11 +857,16 @@ function Wizard({
         </button>
       </div>
 
-      {zoom && (
+      {zoomKey && (
         <ZoomModal
-          src={blobUrls.get(zoom) ?? ""}
-          onUse={() => useImage(zoom)}
-          onBack={() => setZoom(null)}
+          src={blobUrls.get(zoomKey) ?? ""}
+          onPickCard={() => {
+            const k = zoomKey;
+            setZoomKey(null);
+            setPickerForImage(k);
+          }}
+          onSkip={handleSkip}
+          onBack={() => setZoomKey(null)}
         />
       )}
     </section>
@@ -809,10 +876,17 @@ function Wizard({
 function ZoomModal({
   src,
   onUse,
+  onPickCard,
+  onSkip,
   onBack,
 }: {
   src: string;
-  onUse: () => void;
+  /** Legacy single-action use (CardBackStep). */
+  onUse?: () => void;
+  /** Image-first wizard: open CardPicker to pick which card. */
+  onPickCard?: () => void;
+  /** Image-first wizard: skip this image for now. */
+  onSkip?: () => void;
   onBack: () => void;
 }) {
   return (
@@ -826,7 +900,7 @@ function ZoomModal({
         style={{ maxHeight: "80vh", maxWidth: "100%" }}
         className="rounded"
       />
-      <div className="mt-4 flex gap-3">
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
         <button
           type="button"
           onClick={onBack}
@@ -839,18 +913,48 @@ function ZoomModal({
         >
           Back
         </button>
-        <button
-          type="button"
-          onClick={onUse}
-          className="rounded-md px-4 py-2 font-medium"
-          style={{
-            background: "var(--accent)",
-            color: "#000",
-            fontSize: "var(--text-body-sm)",
-          }}
-        >
-          Use this
-        </button>
+        {onSkip && (
+          <button
+            type="button"
+            onClick={onSkip}
+            className="rounded-md px-4 py-2"
+            style={{
+              background: "transparent",
+              color: "var(--color-foreground)",
+              fontSize: "var(--text-body-sm)",
+            }}
+          >
+            Skip
+          </button>
+        )}
+        {onPickCard && (
+          <button
+            type="button"
+            onClick={onPickCard}
+            className="rounded-md px-4 py-2 font-medium"
+            style={{
+              background: "var(--accent)",
+              color: "var(--accent-foreground, #000)",
+              fontSize: "var(--text-body-sm)",
+            }}
+          >
+            Pick a card
+          </button>
+        )}
+        {onUse && (
+          <button
+            type="button"
+            onClick={onUse}
+            className="rounded-md px-4 py-2 font-medium"
+            style={{
+              background: "var(--accent)",
+              color: "var(--accent-foreground, #000)",
+              fontSize: "var(--text-body-sm)",
+            }}
+          >
+            Use this
+          </button>
+        )}
       </div>
     </div>
   );
