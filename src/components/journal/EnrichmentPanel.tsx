@@ -603,7 +603,7 @@ export function EnrichmentPanel({
           <IconAction
             label="Add photo"
             active={hasPhotos}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setCameraOpen(true)}
             disabled={uploading}
           >
             {uploading ? (
