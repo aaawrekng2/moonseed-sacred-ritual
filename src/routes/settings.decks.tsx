@@ -540,7 +540,8 @@ function DeckEditor({
               style={{
                 fontFamily: "var(--font-serif)",
                 fontSize: "var(--text-body-sm)",
-                color: "var(--accent)",
+                color: "var(--color-foreground)",
+                opacity: 0.85,
                 background: "none",
                 border: "none",
                 padding: 0,
