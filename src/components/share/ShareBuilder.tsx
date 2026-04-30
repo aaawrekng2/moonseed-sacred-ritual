@@ -603,9 +603,10 @@ export function ShareBuilder({
               position: "fixed",
               top: 0,
               left: 0,
-              // Translate fully off-screen rather than display:none so
-              // images, fonts, and gradients still resolve at capture time.
-              transform: "translate(-200vw, -200vh)",
+              // Clip to a zero-size box rather than translating off-screen
+              // — some mobile browsers don't fully clip the translated
+              // element and the gradient bleeds through behind the dialog.
+              clipPath: "inset(100%)",
               pointerEvents: "none",
               zIndex: -1,
               // Hard-lock portrait dimensions — no auto, no flex, no shrink.
@@ -616,7 +617,7 @@ export function ShareBuilder({
               minHeight: SHARE_CARD_H,
               maxHeight: SHARE_CARD_H,
               overflow: "hidden",
-              contain: "layout size paint",
+              contain: "strict",
               isolation: "isolate",
             }}
           >
