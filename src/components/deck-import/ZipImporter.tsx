@@ -1581,6 +1581,7 @@ function ZoomModal({
   src,
   context,
   canUseAsBack,
+  canEdit,
   shape,
   cornerRadiusPercent,
   onPickCard,
@@ -1588,11 +1589,13 @@ function ZoomModal({
   onUseAsBack,
   onSkip,
   onBack,
+  onEdit,
   onSendBackToUnassigned,
 }: {
   src: string;
   context: "unassigned" | "assigned" | "skipped";
   canUseAsBack: boolean;
+  canEdit: boolean;
   shape: "rectangle" | "round";
   cornerRadiusPercent: number;
   onPickCard: () => void;
@@ -1600,6 +1603,7 @@ function ZoomModal({
   onUseAsBack: () => void;
   onSkip: () => void;
   onBack: () => void;
+  onEdit: () => void;
   onSendBackToUnassigned: () => void;
 }) {
   const imgStyle: React.CSSProperties =
