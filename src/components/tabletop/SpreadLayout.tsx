@@ -655,3 +655,130 @@ function CelticCross({
     </div>
   );
 }
+
+/* ====================================================================== */
+/*  ManualSpreadSlots — reuses the same per-spread layout maths so the     */
+/*  empty positions in manual-entry mode appear in IDENTICAL locations    */
+/*  to the cards that will eventually show up in the reading screen       */
+/*  (Phase 9.5b Fix 5).                                                   */
+/* ====================================================================== */
+
+type ManualSlotPick = { cardIndex: number; isReversed: boolean } | null;
+
+export function ManualSpreadSlots({
+  spread,
+  picks,
+  onSlotTap,
+  showLabels = true,
+}: {
+  spread: SpreadMode;
+  picks: ManualSlotPick[];
+  onSlotTap: (slotIndex: number) => void;
+  showLabels?: boolean;
+}) {
+  const meta = SPREAD_META[spread];
+  const labels = meta.positions ?? meta.positionsShort ?? [];
+  const sizing = useMemo(() => spreadSizing(spread), [spread]);
+  const cardImg = useActiveDeckImage();
+
+  const Slot = ({ pick, slotIndex, rotated }: { pick: ManualSlotPick; slotIndex: number; rotated?: boolean }) => (
+    <button
+      type="button"
+      onClick={() => onSlotTap(slotIndex)}
+      aria-label={pick ? `Replace ${getCardName(pick.cardIndex)}` : `Pick card for ${labels[slotIndex] ?? `position ${slotIndex + 1}`}`}
+      className={cn(
+        "relative rounded-[10px] transition active:scale-[0.98]",
+        pick
+          ? "border border-gold/40 overflow-hidden bg-card"
+          : "border-2 border-dashed border-white/25 bg-white/[0.02] hover:border-gold/50 hover:bg-gold/5",
+      )}
+      style={{
+        width: sizing.w,
+        height: sizing.h,
+        transform: rotated ? "rotate(90deg)" : undefined,
+        transformOrigin: "center center",
+        boxShadow: pick ? "0 6px 18px rgba(0,0,0,0.5)" : undefined,
+      }}
+    >
+      {pick ? (
+        <img
+          src={cardImg(pick.cardIndex)}
+          alt={getCardName(pick.cardIndex)}
+          className="h-full w-full object-cover"
+          style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
+        />
+      ) : (
+        <span className="absolute inset-0 flex items-center justify-center text-[18px] font-light text-white/50">+</span>
+      )}
+    </button>
+  );
+
+  if (spread === "celtic") {
+    const colGap = Math.round(sizing.w * 0.35);
+    const rowGap = Math.round(sizing.h * 0.18);
+    const cellWithLabel = (i: number, label: string, rotated = false) => (
+      <div className="flex flex-col items-center gap-1.5">
+        <Slot pick={picks[i] ?? null} slotIndex={i} rotated={rotated} />
+        {showLabels && <PositionLabel>{label}</PositionLabel>}
+      </div>
+    );
+    return (
+      <div className="flex items-center" style={{ gap: colGap * 1.4 }}>
+        <div className="flex items-center" style={{ gap: colGap }}>
+          {cellWithLabel(3, labels[3] ?? "Past")}
+          <div className="flex flex-col items-center" style={{ gap: rowGap }}>
+            {cellWithLabel(5, labels[5] ?? "Future")}
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="relative flex items-center justify-center" style={{ width: sizing.w, height: sizing.h }}>
+                <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 10 }}>
+                  <Slot pick={picks[0] ?? null} slotIndex={0} />
+                </div>
+                <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 11 }}>
+                  <Slot pick={picks[1] ?? null} slotIndex={1} rotated />
+                </div>
+              </div>
+              {showLabels && (
+                <PositionLabel>
+                  {labels[0] ?? "Present"}
+                  <span style={{ opacity: 0.4, margin: "0 4px" }}>·</span>
+                  {labels[1] ?? "Obstacle"}
+                </PositionLabel>
+              )}
+            </div>
+            {cellWithLabel(2, labels[2] ?? "Root")}
+          </div>
+          {cellWithLabel(4, labels[4] ?? "Potential")}
+        </div>
+        <div className="flex flex-col" style={{ gap: rowGap * 0.6 }}>
+          {[6, 7, 8, 9].map((i) => (
+            <div key={i} className="flex flex-col items-center gap-1.5">
+              <Slot pick={picks[i] ?? null} slotIndex={i} />
+              {showLabels && <PositionLabel>{labels[i] ?? `Slot ${i + 1}`}</PositionLabel>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (spread === "three") {
+    return (
+      <div className="flex items-start gap-6">
+        {picks.map((pick, i) => (
+          <div key={i} className="flex flex-col items-center gap-2">
+            <Slot pick={pick} slotIndex={i} />
+            {showLabels && <PositionLabel>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // single / daily / yes_no
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <Slot pick={picks[0] ?? null} slotIndex={0} />
+      {showLabels && labels[0] && <PositionLabel>{labels[0]}</PositionLabel>}
+    </div>
+  );
+}
