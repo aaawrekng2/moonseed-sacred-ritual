@@ -65,12 +65,16 @@ export function InlineReading({
   onExit,
   onCopyTextChange,
   question,
+  entryMode,
+  deckId,
 }: {
   spread: SpreadMode;
   picks: Pick[];
   onExit: () => void;
   onCopyTextChange?: (text: string | null) => void;
   question?: string;
+  entryMode?: "digital" | "manual";
+  deckId?: string | null;
 }) {
   const meta = SPREAD_META[spread];
   const { isOracle } = useOracleMode();
