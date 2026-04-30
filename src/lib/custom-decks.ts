@@ -37,6 +37,8 @@ export type CustomDeckCard = {
   thumbnail_url: string;
   display_path: string;
   thumbnail_path: string;
+  source?: "photographed" | "imported" | "default";
+  archived_at?: string | null;
 };
 
 /** Per-card override map: card index (0..77) -> image URL. */
@@ -77,7 +79,8 @@ export async function fetchDeckCards(deckId: string): Promise<CustomDeckCard[]> 
   const { data, error } = await supabase
     .from("custom_deck_cards")
     .select("*")
-    .eq("deck_id", deckId);
+    .eq("deck_id", deckId)
+    .is("archived_at", null);
   if (error) throw error;
   return (data ?? []) as CustomDeckCard[];
 }
@@ -86,6 +89,10 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   const cards = await fetchDeckCards(deckId);
   const map: DeckImageMap = { display: {}, thumbnail: {}, back: null };
   for (const c of cards) {
+    // Source-aware resolution (BJ Fix 2): rows with source='default'
+    // intentionally fall through to the deck's default fallback so the
+    // sync resolver in resolveCardImage() picks up the Rider-Waite art.
+    if (c.source === "default") continue;
     map.display[c.card_id] = c.display_url;
     map.thumbnail[c.card_id] = c.thumbnail_url;
   }
