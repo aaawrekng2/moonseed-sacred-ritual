@@ -500,7 +500,7 @@ function BlueprintSectionInner({
 
   return (
     <SettingsSection
-      title="Your Cosmic Blueprint"
+      title="Astrology Profile"
       description="Your birth details personalize your AI interpretations with astrological context."
     >
       <div className="space-y-5">
