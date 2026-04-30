@@ -417,8 +417,6 @@ function DeckEditor({
                   <input
                     type="number"
                     step="0.05"
-                    min={1}
-                    max={8}
                     value={widthInches}
                     onChange={(e) => setWidthInches(Number(e.target.value))}
                     className="w-full rounded-md border border-gold/20 bg-cosmos px-2 py-1 text-xs"
@@ -429,14 +427,19 @@ function DeckEditor({
                   <input
                     type="number"
                     step="0.05"
-                    min={1}
-                    max={10}
                     value={heightInches}
                     onChange={(e) => setHeightInches(Number(e.target.value))}
                     className="w-full rounded-md border border-gold/20 bg-cosmos px-2 py-1 text-xs"
                   />
                 </label>
               </div>
+              {widthInches > 0 && heightInches > 0 && (
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  Ratio: {(widthInches / heightInches).toFixed(2)}{" "}
+                  ({widthInches / heightInches >= 1 ? "landscape" : "portrait"})
+                  {" — only the proportion matters; absolute size is for reference."}
+                </p>
+              )}
             </div>
           )}
 
