@@ -398,7 +398,7 @@ export function PhotoCapture({
   return (
     <div
       className="fixed inset-0 z-[100] flex flex-col bg-black text-white"
-      style={{ touchAction: "none" }}
+      style={{ touchAction: "none", overscrollBehavior: "contain" }}
     >
       {/* Top bar */}
       <div className="flex items-center justify-between p-4">
