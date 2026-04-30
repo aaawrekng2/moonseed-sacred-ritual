@@ -103,24 +103,12 @@ export function ShareCardFooter({
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 32,
-          opacity: 0.85,
+          fontSize: "var(--text-caption)",
           letterSpacing: "0.04em",
-          color: accent,
+          opacity: 0.6,
         }}
       >
-        {guideName}
-      </div>
-      <div
-        style={{
-          fontFamily: "var(--font-sans)",
-          fontSize: 22,
-          letterSpacing: "0.32em",
-          textTransform: "uppercase",
-          opacity: 0.55,
-        }}
-      >
-        moonseed.com
+        Moonseed.com
       </div>
     </div>
   );
