@@ -1176,7 +1176,7 @@ function ThreadsView({
                 "rounded-full border px-3 py-1 font-display text-[11px] uppercase tracking-[0.2em] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-gold/40",
                 active
                   ? "border-gold/60 bg-gold/10 text-gold"
-                  : "border-gold/20 text-muted-foreground hover:text-gold",
+                  : "border-border/60 text-muted-foreground hover:text-gold",
                 disabled && "opacity-30 cursor-not-allowed",
               )}
             >

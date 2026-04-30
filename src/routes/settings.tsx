@@ -161,7 +161,7 @@ function SettingsLayout() {
       >
         <div className="mx-auto w-full max-w-5xl px-4">
           {/* Mobile tab bar: horizontally scrollable underline. */}
-          <div className="-mx-4 mb-6 border-b border-gold/10 md:hidden">
+          <div className="-mx-4 mb-6 border-b border-border/40 md:hidden">
             <div
               ref={tabBarRef}
               role="tablist"

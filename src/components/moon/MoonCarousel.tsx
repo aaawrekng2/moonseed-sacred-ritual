@@ -837,7 +837,7 @@ function AdjacentCard({
           ? "border-2 border-gold bg-card/60 shadow-[0_0_18px_-4px_rgba(212,175,55,0.6)] backdrop-blur-sm"
           : expanded
             ? "border border-gold/25 bg-card/50 shadow-[0_4px_20px_-12px_rgba(212,175,55,0.35)] backdrop-blur-sm"
-            : "border border-transparent hover:border-gold/15 hover:bg-card/30 hover:opacity-100 active:scale-95",
+            : "border border-transparent hover:border-border/60 hover:bg-card/30 hover:opacity-100 active:scale-95",
       )}
     >
       {/* Stable wrapper — content updates in place on swipe, no remount. */}
@@ -1009,7 +1009,7 @@ function MoonSkeleton({ label }: { label?: string } = {}) {
               >
                 {isCenter && <div className="h-3 w-12 rounded bg-muted/30" />}
                 <div
-                  className={cn("rounded-full bg-muted/30", isCenter && "border border-gold/20")}
+                  className={cn("rounded-full bg-muted/30", isCenter && "border border-border/60")}
                   style={{ width: iconSize, height: iconSize }}
                 />
                 <div className={cn("rounded bg-muted/30", isCenter ? "h-3 w-20" : "h-2 w-12")} />
