@@ -713,6 +713,16 @@ function DeckEditor({
                 {resumePrompt.assigned} assigned, {resumePrompt.unassigned}{" "}
                 unassigned, {resumePrompt.skipped} skipped).
               </p>
+              <p
+                style={{
+                  fontSize: "var(--text-caption)",
+                  color: "var(--color-foreground)",
+                  opacity: 0.6,
+                  fontStyle: "italic",
+                }}
+              >
+                Available on this device only
+              </p>
               <div className="flex flex-col gap-2">
                 <button
                   type="button"
