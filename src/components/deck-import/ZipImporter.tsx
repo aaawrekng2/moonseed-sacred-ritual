@@ -555,7 +555,7 @@ function UploadStep({
           style={{
             fontFamily: "var(--font-serif)",
             fontSize: "var(--text-heading-md)",
-            color: "var(--accent)",
+            color: "var(--color-foreground)",
           }}
         >
           Import deck from zip
@@ -570,7 +570,12 @@ function UploadStep({
         </p>
         <label
           className="mb-3 inline-flex cursor-pointer items-center gap-2 rounded-md border px-4 py-2"
-          style={{ borderColor: "var(--accent)", color: "var(--accent)", fontSize: "var(--text-body-sm)" }}
+          style={{
+            borderColor: "var(--accent)",
+            background: "var(--accent)",
+            color: "var(--accent-foreground)",
+            fontSize: "var(--text-body-sm)",
+          }}
         >
           <Upload className="h-4 w-4" />
           Choose zip file
