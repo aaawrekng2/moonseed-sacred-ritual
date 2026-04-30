@@ -10,12 +10,13 @@
  * "a gentle invitation, not a form" (per the Phase 6 spec).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, CheckCheck, Copy, Heart, Loader2, Pencil, Plus, Share2, Tag as TagIcon, X } from "lucide-react";
+import { Camera, CameraOff, CheckCheck, Copy, Heart, Loader2, Pencil, Plus, Share2, Tag as TagIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { PhotoCapture } from "@/components/photo/PhotoCapture";
 
 /* ---------- Types ---------- */
 
