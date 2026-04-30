@@ -85,6 +85,10 @@ export function ZipImporter({
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
+  // BLa Fix A — track whether the user's chosen save path requested
+  // session deletion, so the Summary's Done button doesn't unconditionally
+  // wipe sessions that 'Save and continue later' wanted to preserve.
+  const [sessionDeletedOnSave, setSessionDeletedOnSave] = useState(true);
   const queueRef = useRef<EncodingQueue>(new EncodingQueue());
   const saverRef = useRef(makeThrottledSaver(deckId));
 
@@ -104,11 +108,16 @@ export function ZipImporter({
         const existingCards = await fetchDeckCards(deckId);
         if (cancelled) return;
         if (existingCards.length > 0) {
-          // Pre-populate session with synthetic markers.
+          // Pre-populate session with synthetic markers (BLa Fix B).
+          // Existing cards are tracked ONLY in session.assigned. Their
+          // image data lives in the shadow asset store so the workspace
+          // renderer can resolve them via findImage() / blobUrls without
+          // polluting the Unassigned bucket.
           const session = makeEmptySession(deckId);
+          const assets = ensureAssetStore(session);
           for (const c of existingCards) {
             const k = `EXISTING:${c.card_id}`;
-            session.unassigned[k] = {
+            assets[k] = {
               key: k,
               filename: `${getCardName(c.card_id)} (current)`,
               rawBlob: new Blob(),
@@ -313,6 +322,7 @@ export function ZipImporter({
 
   const handleSave = useCallback(async (deleteSessionAfter: boolean) => {
     if (!workspace) return;
+    setSessionDeletedOnSave(deleteSessionAfter);
     await saverRef.current.flush();
     const total = Object.keys(workspace.session.assigned).length;
     setPhase({ kind: "saving", total, done: 0 });
@@ -362,7 +372,9 @@ export function ZipImporter({
         failedCardIds={phase.failedCardIds}
         cardBackFailed={phase.cardBackFailed}
         onDone={async () => {
-          await deleteSession(deckId);
+          if (sessionDeletedOnSave) {
+            await deleteSession(deckId);
+          }
           onDone();
         }}
       />
