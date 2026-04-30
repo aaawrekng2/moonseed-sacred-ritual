@@ -284,6 +284,12 @@ function DeckEditor({
   const [name, setName] = useState(existing?.name ?? "My Deck");
   const [shape, setShape] = useState<CustomDeck["shape"]>(existing?.shape ?? "rectangle");
   const [cornerRadius, setCornerRadius] = useState(existing?.corner_radius_percent ?? 4);
+  const [widthInches, setWidthInches] = useState<number>(
+    existing?.width_inches ?? 2.75,
+  );
+  const [heightInches, setHeightInches] = useState<number>(
+    existing?.height_inches ?? 4.75,
+  );
   const [mode, setMode] = useState<EditorMode>(
     existing ? { kind: "grid", deckId: existing.id } : { kind: "details" },
   );
@@ -304,7 +310,12 @@ function DeckEditor({
 
   const photographedIds = useMemo(() => cards.map((c) => c.card_id), [cards]);
 
-  const aspectRatio = shape === "square" || shape === "round" ? 1 : 0.625; // standard tarot ~63x88mm
+  const aspectRatio =
+    shape === "square" || shape === "round"
+      ? 1
+      : widthInches > 0 && heightInches > 0
+        ? widthInches / heightInches
+        : 0.625;
 
   // ---------- Step 1: deck details ----------
   if (mode.kind === "details") {
@@ -354,20 +365,101 @@ function DeckEditor({
             </div>
           </div>
 
+          {shape === "rectangle" && (
+            <div>
+              <span className="text-sm font-medium">Card dimensions</span>
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {DIMENSION_PRESETS.map((p) => {
+                  const active =
+                    Math.abs(widthInches - p.w) < 0.01 &&
+                    Math.abs(heightInches - p.h) < 0.01;
+                  return (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => {
+                        setWidthInches(p.w);
+                        setHeightInches(p.h);
+                      }}
+                      className={cn(
+                        "rounded-md border px-2 py-2 text-xs",
+                        active
+                          ? "border-gold bg-gold/10 text-gold"
+                          : "border-gold/20 text-muted-foreground hover:bg-gold/5",
+                      )}
+                    >
+                      <div className="font-medium">{p.label}</div>
+                      <div className="text-[10px] opacity-70">
+                        {p.w}″ × {p.h}″
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <label className="flex flex-1 items-center gap-1 text-xs">
+                  <span className="text-muted-foreground">W</span>
+                  <input
+                    type="number"
+                    step="0.05"
+                    min={1}
+                    max={8}
+                    value={widthInches}
+                    onChange={(e) => setWidthInches(Number(e.target.value))}
+                    className="w-full rounded-md border border-gold/20 bg-cosmos px-2 py-1 text-xs"
+                  />
+                </label>
+                <label className="flex flex-1 items-center gap-1 text-xs">
+                  <span className="text-muted-foreground">H</span>
+                  <input
+                    type="number"
+                    step="0.05"
+                    min={1}
+                    max={10}
+                    value={heightInches}
+                    onChange={(e) => setHeightInches(Number(e.target.value))}
+                    className="w-full rounded-md border border-gold/20 bg-cosmos px-2 py-1 text-xs"
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+
           {shape !== "round" && (
-            <label className="block">
+            <div>
               <span className="text-sm font-medium">
-                Corner radius: {cornerRadius}%
+                Corner radius — {cornerRadius}%
               </span>
+              <div className="mt-2 grid grid-cols-4 gap-2">
+                {CORNER_PRESETS.map((p) => {
+                  const active = cornerRadius === p.value;
+                  return (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => setCornerRadius(p.value)}
+                      className={cn(
+                        "rounded-md border px-2 py-2 text-xs",
+                        active
+                          ? "border-gold bg-gold/10 text-gold"
+                          : "border-gold/20 text-muted-foreground hover:bg-gold/5",
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
               <input
                 type="range"
                 min={0}
-                max={30}
+                max={15}
                 value={cornerRadius}
                 onChange={(e) => setCornerRadius(Number(e.target.value))}
                 className="mt-2 block w-full"
+                aria-label="Corner radius slider"
               />
-            </label>
+            </div>
           )}
 
           <button
@@ -383,6 +475,8 @@ function DeckEditor({
                     name: name.trim(),
                     shape,
                     corner_radius_percent: cornerRadius,
+                    width_inches: shape === "rectangle" ? widthInches : null,
+                    height_inches: shape === "rectangle" ? heightInches : null,
                   })
                   .select("*")
                   .single();
