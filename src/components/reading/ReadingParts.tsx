@@ -39,7 +39,7 @@ import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
 import type { ShareLevel } from "@/components/share/share-types";
 
-type Pick = { id: number; cardIndex: number };
+type Pick = { id: number; cardIndex: number; isReversed?: boolean };
 
 type LoadState =
   | { kind: "idle" }
@@ -231,6 +231,7 @@ export function InlineReading({
                 user_id: uid,
                 spread_type: spread,
                 card_ids: picks.map((p) => p.cardIndex),
+                card_orientations: picks.map((p) => p.isReversed ?? false),
                 interpretation: interpretationText,
                 guide_id: guideId,
                 lens_id: lensId,

@@ -57,8 +57,9 @@ export function getShareColor(id: string | null | undefined): ShareColor {
   return SHARE_COLORS.find((c) => c.id === id) ?? SHARE_COLORS[0];
 }
 
-/** A drawn card in the reading. */
-export type SharePick = { id: number; cardIndex: number };
+/** A drawn card in the reading. `isReversed` is optional for backwards
+ * compatibility with older saved readings — treat missing as upright. */
+export type SharePick = { id: number; cardIndex: number; isReversed?: boolean };
 
 /** The full data envelope a share level needs. */
 export type ShareContext = {

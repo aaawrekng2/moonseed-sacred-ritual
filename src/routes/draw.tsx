@@ -9,6 +9,7 @@ import { QuestionPanel } from "@/components/draw/QuestionPanel";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
+import { generateOrientations } from "@/lib/tarot-mechanics";
 
 type Search = { spread?: string; question?: string };
 
@@ -27,7 +28,9 @@ function DrawPage() {
   const spread: SpreadMode = isValidSpreadMode(search.spread) ? search.spread : "daily";
   const { recordDraw } = useStreak();
 
-  const [picks, setPicks] = useState<{ id: number; cardIndex: number }[] | null>(null);
+  const [picks, setPicks] = useState<
+    { id: number; cardIndex: number; isReversed: boolean }[] | null
+  >(null);
   // "reveal" = cards already flipped on the tabletop, jump straight to
   // the placeholder reading. "cast" = render the classic spread layout
   // with cards face-down, let the user reveal them there.
@@ -50,6 +53,9 @@ function DrawPage() {
   const [showQuestionPrompt, setShowQuestionPrompt] = useState(false);
   const [questionOpen, setQuestionOpen] = useState(false);
   const [sessionDismissed, setSessionDismissed] = useState(false);
+  // Phase 9.55 — opt-in reversed cards. Default false (upright-only) so
+  // beginners are never thrown into reversal complexity unprompted.
+  const [allowReversed, setAllowReversed] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -63,7 +69,7 @@ function DrawPage() {
     void (async () => {
       const { data } = await supabase
         .from("user_preferences")
-        .select("show_question_prompt")
+        .select("show_question_prompt, allow_reversed_cards")
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
@@ -73,6 +79,7 @@ function DrawPage() {
       const enabled = data?.show_question_prompt === true;
       setShowQuestionPrompt(enabled);
       setQuestionOpen(enabled);
+      setAllowReversed(data?.allow_reversed_cards === true);
       setPrefsLoaded(true);
     })();
     return () => {
@@ -107,7 +114,14 @@ function DrawPage() {
           spread={spread}
           onExit={exit}
           onComplete={(p, mode) => {
-            setPicks(p);
+            // Phase 9.55 — assign orientation per card based on the
+            // seeker's preference. `generateOrientations` returns
+            // all-false when reversals are disabled, so this is safe to
+            // call unconditionally.
+            const orientations = generateOrientations(p.length, allowReversed);
+            setPicks(
+              p.map((pick, i) => ({ ...pick, isReversed: orientations[i] })),
+            );
             setPhase(mode === "cast" ? "cast" : "reading");
             // Reaching reveal/cast counts as today's practice. Fire-and-forget.
             void recordDraw();

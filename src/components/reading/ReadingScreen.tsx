@@ -44,7 +44,7 @@ import { SeekerQuestion } from "@/components/reading/ReadingParts";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 
-type Pick = { id: number; cardIndex: number };
+type Pick = { id: number; cardIndex: number; isReversed?: boolean };
 
 type Props = {
   spread: SpreadMode;
@@ -249,6 +249,7 @@ export function ReadingScreen({ spread, picks, onExit, question }: Props) {
                 user_id: uid,
                 spread_type: spread,
                 card_ids: picks.map((p) => p.cardIndex),
+                card_orientations: picks.map((p) => p.isReversed ?? false),
                 interpretation: interpretationText,
                 guide_id: guideId,
                 lens_id: lensId,
@@ -561,6 +562,10 @@ function CardStrip({
               alt={getCardName(picks[i].cardIndex)}
               className="h-full w-full object-cover"
               loading="eager"
+              style={{
+                transform: picks[i].isReversed ? "rotate(180deg)" : undefined,
+                transition: "transform 600ms ease-out",
+              }}
             />
           )}
         </div>
@@ -600,14 +605,14 @@ function CardStrip({
               <div className="absolute inset-0 flex items-center justify-center">
                 {picks[0] && (
                   <div className="reading-card-frame overflow-hidden rounded-[6px] border border-white/10 bg-card" style={{ width: cw, height: ch }}>
-                    <img src={getCardImagePath(picks[0].cardIndex)} alt={getCardName(picks[0].cardIndex)} className="h-full w-full object-cover" loading="eager" />
+                    <img src={getCardImagePath(picks[0].cardIndex)} alt={getCardName(picks[0].cardIndex)} className="h-full w-full object-cover" loading="eager" style={{ transform: picks[0].isReversed ? "rotate(180deg)" : undefined, transition: "transform 600ms ease-out" }} />
                   </div>
                 )}
               </div>
               <div className="absolute inset-0 flex items-center justify-center" style={{ transform: "rotate(90deg)" }}>
                 {picks[1] && (
                   <div className="reading-card-frame overflow-hidden rounded-[6px] border border-white/10 bg-card" style={{ width: cw, height: ch }}>
-                    <img src={getCardImagePath(picks[1].cardIndex)} alt={getCardName(picks[1].cardIndex)} className="h-full w-full object-cover" loading="eager" />
+                    <img src={getCardImagePath(picks[1].cardIndex)} alt={getCardName(picks[1].cardIndex)} className="h-full w-full object-cover" loading="eager" style={{ transform: picks[1].isReversed ? "rotate(180deg)" : undefined, transition: "transform 600ms ease-out" }} />
                   </div>
                 )}
               </div>
@@ -690,6 +695,10 @@ function CardStrip({
               alt={getCardName(pick.cardIndex)}
               className="h-full w-full object-cover"
               loading="eager"
+              style={{
+                transform: pick.isReversed ? "rotate(180deg)" : undefined,
+                transition: "transform 600ms ease-out",
+              }}
             />
           </div>
           <span

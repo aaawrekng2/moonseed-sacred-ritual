@@ -31,6 +31,10 @@ const InterpretInput = z.object({
       z.object({
         id: z.number().int(),
         cardIndex: z.number().int().min(0).max(77),
+        // Phase 9.55 — optional so older clients keep working. Missing
+        // means upright. The server stores the parallel array on the
+        // readings row and threads orientation into the AI prompt.
+        isReversed: z.boolean().optional(),
       }),
     )
     .min(1)
@@ -114,9 +118,11 @@ export const interpretReading = createServerFn({ method: "POST" })
       // 2. Build the user prompt from the picks + spread metadata.
       const positionLabels: string[] =
         meta.positions ?? data.picks.map((_, i) => `Card ${i + 1}`);
-      const lines = data.picks.map(
-        (p, i) => `- ${positionLabels[i] ?? `Card ${i + 1}`}: ${getCardName(p.cardIndex)}`,
-      );
+      const lines = data.picks.map((p, i) => {
+        const name = getCardName(p.cardIndex);
+        const label = positionLabels[i] ?? `Card ${i + 1}`;
+        return `- ${label}: ${p.isReversed ? `${name} (reversed)` : name}`;
+      });
       const userPrompt = `Spread: ${meta.label}\nCards drawn:\n${lines.join("\n")}\n\nPlease interpret this reading.`;
       const userPromptWithQuestion = data.question
         ? `${userPrompt}\n\nThe seeker's question: "${data.question}"`
@@ -129,6 +135,15 @@ export const interpretReading = createServerFn({ method: "POST" })
         lensId: data.lensId,
         facetIds: data.facetIds ?? [],
       });
+
+      // Phase 9.55 — when any drawn card is reversed, prepend a brief
+      // instruction so the model interprets reversal as nuance rather
+      // than negation. We only add this when reversals are present so
+      // upright-only readings stay token-clean.
+      const hasReversed = data.picks.some((p) => p.isReversed);
+      const systemPromptWithReversal = hasReversed
+        ? `${systemPrompt}\n\nWhen a card is marked (reversed), interpret it with awareness of reversal — its energy may be blocked, internalized, delayed, or expressed as its shadow. Reversed does not mean negative; it means nuanced.`
+        : systemPrompt;
 
       // ---- Memory context (Phase 7) -----------------------------------
       // If the user has memory_ai_permission enabled and a non-expired
@@ -212,7 +227,7 @@ export const interpretReading = createServerFn({ method: "POST" })
             body: JSON.stringify({
               model,
               max_tokens: maxTokens,
-              system: systemPrompt,
+              system: systemPromptWithReversal,
               messages: [{ role: "user", content: userPromptWithMemory }],
             }),
           });
@@ -307,6 +322,7 @@ export const interpretReading = createServerFn({ method: "POST" })
             user_id: userId,
             spread_type: spread,
             card_ids: data.picks.map((p) => p.cardIndex),
+            card_orientations: data.picks.map((p) => p.isReversed ?? false),
             interpretation: JSON.stringify(interpretation),
             question: data.question ?? null,
           })

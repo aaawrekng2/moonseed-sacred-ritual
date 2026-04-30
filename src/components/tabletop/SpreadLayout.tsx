@@ -11,7 +11,7 @@ import {
   useRegisterCopyText,
 } from "@/lib/floating-menu-context";
 
-type Pick = { id: number; cardIndex: number };
+type Pick = { id: number; cardIndex: number; isReversed?: boolean };
 
 type Props = {
   spread: SpreadMode;
@@ -345,6 +345,10 @@ function CardFace({
             alt={getCardName(pick.cardIndex)}
             className="h-full w-full object-cover"
             loading="eager"
+            style={{
+              transform: pick.isReversed ? "rotate(180deg)" : undefined,
+              transition: "transform 600ms ease-out",
+            }}
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).style.display = "none";
             }}

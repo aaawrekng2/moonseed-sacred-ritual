@@ -79,7 +79,7 @@ export const interpretDeepReading = createServerFn({ method: "POST" })
       const { data: readingRow, error: readErr } = await supabase
         .from("readings")
         .select(
-          "id, user_id, spread_type, card_ids, question, interpretation, moon_phase, guide_id, lens_id, is_deep_reading, deep_reading_lenses",
+          "id, user_id, spread_type, card_ids, card_orientations, question, interpretation, moon_phase, guide_id, lens_id, is_deep_reading, deep_reading_lenses",
         )
         .eq("id", data.reading_id)
         .maybeSingle();
@@ -199,18 +199,21 @@ export const interpretDeepReading = createServerFn({ method: "POST" })
       const positionLabels =
         meta.positions ??
         (readingRow.card_ids ?? []).map((_: number, i: number) => `Card ${i + 1}`);
+      const orientations = (readingRow.card_orientations ?? []) as boolean[];
       const cardLines = (readingRow.card_ids ?? [])
-        .map(
-          (cid: number, i: number) =>
-            `- ${positionLabels[i] ?? `Card ${i + 1}`}: ${getCardName(cid)}`,
-        )
+        .map((cid: number, i: number) => {
+          const name = getCardName(cid);
+          const label = positionLabels[i] ?? `Card ${i + 1}`;
+          return `- ${label}: ${orientations[i] ? `${name} (reversed)` : name}`;
+        })
         .join("\n");
+      const hasReversed = orientations.some((o) => o === true);
 
       const systemPrompt = `${buildGuideSystemPrompt({
         guideId: data.guideId ?? readingRow.guide_id ?? undefined,
         lensId: data.lensId ?? readingRow.lens_id ?? undefined,
         facetIds: data.facetIds ?? [],
-      })}
+      })}${hasReversed ? "\n\nWhen a card is marked (reversed), interpret it with awareness of reversal — its energy may be blocked, internalized, delayed, or expressed as its shadow. Reversed does not mean negative; it means nuanced." : ""}
 
 You are conducting a Deep Reading — a layered, reflective exploration that
 goes beneath the surface interpretation already given. Speak with depth,
