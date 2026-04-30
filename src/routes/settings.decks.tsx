@@ -319,6 +319,15 @@ function DeckEditor({
   );
   // Grid-view "Retake / Done" review modal — Stamp BI Fix 2.
   const [reviewingCardId, setReviewingCardId] = useState<number | null>(null);
+  // BL Fix 8 — resume-prompt state
+  const [resumePrompt, setResumePrompt] = useState<
+    | null
+    | {
+        assigned: number;
+        unassigned: number;
+        skipped: number;
+      }
+  >(null);
 
   const reloadCards = useCallback(async (deckId: string) => {
     const list = await fetchDeckCards(deckId);
@@ -328,6 +337,42 @@ function DeckEditor({
   useEffect(() => {
     if (existing) void reloadCards(existing.id);
   }, [existing, reloadCards]);
+
+  // BL Fix 8 — check for in-progress import session on existing-deck mount.
+  useEffect(() => {
+    if (!existing) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const session = await getSession(existing.id);
+        if (cancelled || !session) return;
+        const ageMs = Date.now() - (session.updatedAt ?? session.createdAt ?? 0);
+        if (ageMs > 30 * 24 * 60 * 60 * 1000) {
+          await deleteSession(existing.id);
+          return;
+        }
+        // Count slots that aren't synthetic existing markers.
+        const assignedCount = Object.values(session.assigned).filter(
+          (k) => !String(k).startsWith("EXISTING:"),
+        ).length;
+        const unassignedCount = Object.values(session.unassigned).filter(
+          (img) => !img.existingUrl,
+        ).length;
+        const skippedCount = Object.keys(session.skipped).length;
+        if (assignedCount + unassignedCount + skippedCount === 0) return;
+        setResumePrompt({
+          assigned: assignedCount,
+          unassigned: unassignedCount,
+          skipped: skippedCount,
+        });
+      } catch (err) {
+        console.warn("[settings.decks] session check failed", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [existing]);
 
   const photographedIds = useMemo(() => cards.map((c) => c.card_id), [cards]);
 
