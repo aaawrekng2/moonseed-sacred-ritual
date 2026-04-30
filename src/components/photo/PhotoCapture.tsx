@@ -1,18 +1,17 @@
 /**
- * PhotoCapture — shared camera + crop + WebP save pipeline (Stamp AQ).
+ * PhotoCapture — shared camera + 4-corner crop + WebP save (Stamp BA).
  *
- * Mode-based component used wherever the app needs a user-supplied
- * photo: deck card photography, deck card backs, and (eventually)
- * journal reading photos. The output is always WebP for size + quality.
+ * Phase 9.5b Fix 2 — the fixed overlay rectangle has been replaced by a
+ * 4-corner drag crop, modelled on Apple Notes / Adobe Scan / Office Lens.
  *
- * Three-step flow:
- *   1. Camera capture (getUserMedia, with shape-aware overlay)
- *   2. Refine (pan / zoom / rotate; aspect locked unless shape='free')
- *   3. Save (apply rounded / circular alpha mask, resize, encode WebP)
- *
- * The component does not upload anything — it just hands the caller a
- * Blob and the final dimensions via `onCapture`. Storage is the
- * caller's responsibility.
+ *   1. Camera step: full-frame capture, no overlay constraints.
+ *   2. Refine step: captured photo shown full-screen with 4 draggable
+ *      corner handles (initial 10% inset). User pans/zooms/rotates the
+ *      photo with one or two fingers and drags handles to the actual
+ *      card corners.
+ *   3. Save step: app crops to the bounding box of the 4 corners (in
+ *      source-image pixel space, after replaying the on-screen
+ *      transform), then applies the deck's shape mask and encodes WebP.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Loader2, RotateCcw, RotateCw, Undo2, X } from "lucide-react";
@@ -21,7 +20,7 @@ export type PhotoCaptureShape = "rectangle" | "square" | "round" | "free";
 
 export type PhotoCaptureProps = {
   shape: PhotoCaptureShape;
-  /** Aspect ratio (width / height) for shape='rectangle'. Ignored otherwise. */
+  /** Aspect ratio metadata only — no longer used to constrain the crop. */
   aspectRatio?: number;
   /** Corner radius as % of shorter side, applied for rectangle/square. */
   cornerRadiusPercent?: number;
@@ -39,6 +38,7 @@ export type PhotoCaptureProps = {
 };
 
 type Step = "camera" | "refine" | "saving";
+type Corner = { x: number; y: number }; // viewport CSS pixels
 
 // ---------- Canvas helpers ----------
 
@@ -114,33 +114,40 @@ function resizeToMaxDimension(
 }
 
 /**
- * WYSIWYG crop. Replays the on-screen transform (translate → rotate →
- * scale) onto an output canvas sized to the visible crop frame, so what
- * the user saw inside the overlay is exactly what gets saved.
+ * Crop using the bounding box of 4 viewport-space corners.
  *
- * The viewer fits the source so its HEIGHT matches the viewport height
- * (CSS: height: 100%, width: auto). `viewerScale` converts viewport CSS
- * pixels to source pixels. Pan, rotation and zoom are then applied
- * around the viewport centre, mirroring the CSS transform string.
+ * The displayed image fits the viewport by HEIGHT (CSS: height: 100%,
+ * width: auto), then has a CSS transform applied:
+ *   translate(-50%, -50%) translate(-pan.x, -pan.y) rotate(rot) scale(zoom)
+ *
+ * To save, we set the output canvas to the bounding box (in source
+ * pixels), then replay the transform so the underlying image lands in
+ * the same place relative to the bounding box that the user saw.
  */
-function cropFromViewport(
+function cropFromCorners(
   source: HTMLImageElement,
   viewport: { w: number; h: number },
-  frame: { w: number; h: number },
+  corners: Corner[],
   zoom: number,
   panX: number,
   panY: number,
   rotation: number,
 ): HTMLCanvasElement {
-  const sw = source.naturalWidth;
   const sh = source.naturalHeight;
-  // The displayed image fits the viewport by HEIGHT (see <RefineView>).
-  // 1 viewport CSS pixel → (sh / viewport.h) source pixels.
   const cssToSrc = sh / Math.max(1, viewport.h);
 
-  // Output canvas is sized to the frame in source pixels.
-  const outW = Math.max(1, Math.round(frame.w * cssToSrc));
-  const outH = Math.max(1, Math.round(frame.h * cssToSrc));
+  const minX = Math.min(...corners.map((c) => c.x));
+  const minY = Math.min(...corners.map((c) => c.y));
+  const maxX = Math.max(...corners.map((c) => c.x));
+  const maxY = Math.max(...corners.map((c) => c.y));
+  const cropCssW = Math.max(1, maxX - minX);
+  const cropCssH = Math.max(1, maxY - minY);
+  // Centre of the crop bbox relative to the viewport centre, in CSS px.
+  const cropCx = (minX + maxX) / 2 - viewport.w / 2;
+  const cropCy = (minY + maxY) / 2 - viewport.h / 2;
+
+  const outW = Math.max(1, Math.round(cropCssW * cssToSrc));
+  const outH = Math.max(1, Math.round(cropCssH * cssToSrc));
 
   const out = document.createElement("canvas");
   out.width = outW;
@@ -148,19 +155,19 @@ function cropFromViewport(
   const ctx = out.getContext("2d");
   if (!ctx) return out;
 
-  // Fill with black so any unmapped area (under-zoom) reads as backdrop.
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, outW, outH);
 
-  // Replay the CSS transform around the frame centre.
   ctx.save();
+  // Move origin to the crop centre, then shift it back so it ends up
+  // where the viewport centre would be relative to the bbox.
   ctx.translate(outW / 2, outH / 2);
-  // Pan (CSS `translate(-pan.x, -pan.y)` in viewport pixels).
+  ctx.translate(-cropCx * cssToSrc, -cropCy * cssToSrc);
+  // Now origin is at the (virtual) viewport centre. Replay transform.
   ctx.translate(-panX * cssToSrc, -panY * cssToSrc);
   ctx.rotate((rotation * Math.PI) / 180);
   ctx.scale(zoom, zoom);
-  // Draw the source so its centre lands on the (post-translate) origin.
-  ctx.drawImage(source, -sw / 2, -sh / 2);
+  ctx.drawImage(source, -source.naturalWidth / 2, -source.naturalHeight / 2);
   ctx.restore();
 
   return out;
@@ -170,7 +177,6 @@ function cropFromViewport(
 
 export function PhotoCapture({
   shape,
-  aspectRatio,
   cornerRadiusPercent = 0,
   outputMaxDimension,
   outputQuality = 0.85,
@@ -188,22 +194,15 @@ export function PhotoCapture({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [rotation, setRotation] = useState(0);
+  // Corners in viewport CSS pixels. Initialised to ~10% inset once the
+  // viewport is measured in <RefineView>.
+  const [corners, setCorners] = useState<Corner[]>([]);
+  const [draggingCorner, setDraggingCorner] = useState<number | null>(null);
+
   const dragRef = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
-  // Multi-touch pinch + rotate state. We track up to two active pointers
-  // and derive scale/rotation deltas from their changing distance/angle.
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const gestureRef = useRef<{ d: number; a: number; z: number; r: number } | null>(null);
-  // Viewport rect for the refine area, captured by <RefineView>.
   const viewportRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
-  const frameRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
-
-  // Frame aspect for overlays.
-  const frameAspect =
-    shape === "square" || shape === "round"
-      ? 1
-      : shape === "rectangle"
-        ? (aspectRatio ?? 0.7)
-        : (aspectRatio ?? 0.75);
 
   // ---- Camera lifecycle ----
   const startCamera = useCallback(async () => {
@@ -255,14 +254,16 @@ export function PhotoCapture({
       setZoom(1);
       setPan({ x: 0, y: 0 });
       setRotation(0);
+      setCorners([]); // reset; <RefineView> will seed once measured
       setStep("refine");
     };
     img.src = c.toDataURL("image/png");
     stopCamera();
   }, [stopCamera]);
 
-  // ---- Refine gestures ----
+  // ---- Refine gestures (image pan/zoom/rotate) ----
   const onPointerDown = (e: React.PointerEvent) => {
+    if (draggingCorner !== null) return; // corner drag handled separately
     (e.target as Element).setPointerCapture?.(e.pointerId);
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointersRef.current.size === 2) {
@@ -281,6 +282,7 @@ export function PhotoCapture({
     }
   };
   const onPointerMove = (e: React.PointerEvent) => {
+    if (draggingCorner !== null) return;
     if (!pointersRef.current.has(e.pointerId)) return;
     pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointersRef.current.size >= 2 && gestureRef.current) {
@@ -317,22 +319,45 @@ export function PhotoCapture({
     setZoom((z) => Math.min(5, Math.max(1, z * (e.deltaY < 0 ? 1.1 : 1 / 1.1))));
   };
 
+  // ---- Corner drag ----
+  const onCornerPointerDown = (idx: number) => (e: React.PointerEvent) => {
+    e.stopPropagation();
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    setDraggingCorner(idx);
+  };
+  const onCornerPointerMove = (e: React.PointerEvent) => {
+    if (draggingCorner === null) return;
+    e.stopPropagation();
+    const vp = viewportRef.current;
+    // Translate clientX/Y into viewport-local coords. We store the
+    // viewport rect's top-left in a ref via <RefineView>'s onMeasure.
+    const rect = viewportRectRef.current;
+    if (!rect) return;
+    const x = Math.max(0, Math.min(vp.w, e.clientX - rect.left));
+    const y = Math.max(0, Math.min(vp.h, e.clientY - rect.top));
+    setCorners((prev) => prev.map((c, i) => (i === draggingCorner ? { x, y } : c)));
+  };
+  const onCornerPointerUp = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    setDraggingCorner(null);
+  };
+
+  const viewportRectRef = useRef<{ left: number; top: number } | null>(null);
+
   // ---- Save ----
   const save = useCallback(async () => {
-    if (!captured) return;
+    if (!captured || corners.length !== 4) return;
     setStep("saving");
     try {
-      let canvas = cropFromViewport(
+      let canvas = cropFromCorners(
         captured,
         viewportRef.current,
-        frameRef.current,
+        corners,
         zoom,
         pan.x,
         pan.y,
         rotation,
       );
-      // Fix 4 — never upscale. resizeToMaxDimension is a no-op when the
-      // longest edge is already <= outputMaxDimension.
       canvas = resizeToMaxDimension(canvas, outputMaxDimension);
       if (shape === "round") {
         canvas = applyCircularMask(canvas);
@@ -345,7 +370,7 @@ export function PhotoCapture({
       setError(e instanceof Error ? e.message : "Couldn't save the photo.");
       setStep("refine");
     }
-  }, [captured, shape, aspectRatio, zoom, pan, rotation, outputMaxDimension, outputQuality, cornerRadiusPercent, onCapture]);
+  }, [captured, corners, shape, zoom, pan, rotation, outputMaxDimension, outputQuality, cornerRadiusPercent, onCapture]);
 
   // ---- Render ----
 
@@ -367,7 +392,7 @@ export function PhotoCapture({
           <X className="h-5 w-5" />
         </button>
         <div className="text-xs uppercase tracking-[0.3em] opacity-60">
-          {step === "camera" ? "Frame" : step === "refine" ? "Adjust" : "Saving"}
+          {step === "camera" ? "Photograph" : step === "refine" ? "Drag corners to card edges" : "Saving"}
         </div>
         <div className="w-9" />
       </div>
@@ -375,28 +400,34 @@ export function PhotoCapture({
       {/* Body */}
       <div className="relative flex-1 overflow-hidden">
         {step === "camera" && (
-          <CameraView
-            videoRef={videoRef}
-            shape={shape}
-            frameAspect={frameAspect}
-            error={error}
-          />
+          <CameraView videoRef={videoRef} error={error} />
         )}
         {step === "refine" && captured && (
           <RefineView
             image={captured}
-            shape={shape}
-            frameAspect={frameAspect}
             zoom={zoom}
             pan={pan}
             rotation={rotation}
+            corners={corners}
+            draggingCorner={draggingCorner}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onWheel={onWheel}
-            onMeasure={(viewport, frame) => {
+            onCornerPointerDown={onCornerPointerDown}
+            onCornerPointerMove={onCornerPointerMove}
+            onCornerPointerUp={onCornerPointerUp}
+            onMeasure={(viewport, rect) => {
               viewportRef.current = viewport;
-              frameRef.current = frame;
+              viewportRectRef.current = rect;
+              if (corners.length !== 4) {
+                setCorners([
+                  { x: viewport.w * 0.1, y: viewport.h * 0.1 },
+                  { x: viewport.w * 0.9, y: viewport.h * 0.1 },
+                  { x: viewport.w * 0.9, y: viewport.h * 0.9 },
+                  { x: viewport.w * 0.1, y: viewport.h * 0.9 },
+                ]);
+              }
             }}
           />
         )}
@@ -408,7 +439,12 @@ export function PhotoCapture({
 
         {guideText && step === "camera" && !error && (
           <div className="pointer-events-none absolute inset-x-0 bottom-32 text-center text-sm opacity-80">
-            {guideText}
+            {guideText ?? "Photograph your card. Try to fill the frame."}
+          </div>
+        )}
+        {step === "camera" && !guideText && !error && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-32 text-center text-sm opacity-80">
+            Photograph your card. Try to fill the frame.
           </div>
         )}
       </div>
@@ -455,6 +491,15 @@ export function PhotoCapture({
                 setZoom(1);
                 setPan({ x: 0, y: 0 });
                 setRotation(0);
+                const vp = viewportRef.current;
+                if (vp.w && vp.h) {
+                  setCorners([
+                    { x: vp.w * 0.1, y: vp.h * 0.1 },
+                    { x: vp.w * 0.9, y: vp.h * 0.1 },
+                    { x: vp.w * 0.9, y: vp.h * 0.9 },
+                    { x: vp.w * 0.1, y: vp.h * 0.9 },
+                  ]);
+                }
               }}
               className="rounded-full bg-white/10 p-3 hover:bg-white/20"
               aria-label="Reset"
@@ -476,13 +521,9 @@ export function PhotoCapture({
 
 function CameraView({
   videoRef,
-  shape,
-  frameAspect,
   error,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
-  shape: PhotoCaptureShape;
-  frameAspect: number;
   error: string | null;
 }) {
   if (error) {
@@ -500,88 +541,42 @@ function CameraView({
         muted
         className="h-full w-full object-cover"
       />
-      <ShapeOverlay shape={shape} frameAspect={frameAspect} />
     </div>
-  );
-}
-
-function ShapeOverlay({
-  shape,
-  frameAspect,
-}: {
-  shape: PhotoCaptureShape;
-  frameAspect: number;
-}) {
-  if (shape === "free") return null;
-  // Inset frame as percentage of viewport.
-  const inset = "12%";
-  const radius =
-    shape === "round"
-      ? "50%"
-      : shape === "square"
-        ? "8%"
-        : "4%";
-  return (
-    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-      <div
-        data-overlay-frame
-        style={{
-          width: shape === "round" || shape === "square" ? `calc(100% - 2 * ${inset})` : "76%",
-          aspectRatio: frameAspect,
-          maxHeight: `calc(100% - 2 * ${inset})`,
-          border: shape === "round" ? "2px solid rgba(255,255,255,0.85)" : "1px solid rgba(255,255,255,0.25)",
-          borderRadius: radius,
-          boxShadow: "0 0 0 9999px rgba(0,0,0,0.45)",
-          position: "relative",
-        }}
-      >
-        {shape !== "round" && <CornerBrackets />}
-      </div>
-    </div>
-  );
-}
-
-function CornerBrackets() {
-  const arm = 22; // px
-  const thickness = 2;
-  const color = "rgba(255,255,255,0.95)";
-  const base: React.CSSProperties = { position: "absolute", width: arm, height: arm };
-  return (
-    <>
-      <span style={{ ...base, top: -1, left: -1, borderTop: `${thickness}px solid ${color}`, borderLeft: `${thickness}px solid ${color}` }} />
-      <span style={{ ...base, top: -1, right: -1, borderTop: `${thickness}px solid ${color}`, borderRight: `${thickness}px solid ${color}` }} />
-      <span style={{ ...base, bottom: -1, left: -1, borderBottom: `${thickness}px solid ${color}`, borderLeft: `${thickness}px solid ${color}` }} />
-      <span style={{ ...base, bottom: -1, right: -1, borderBottom: `${thickness}px solid ${color}`, borderRight: `${thickness}px solid ${color}` }} />
-    </>
   );
 }
 
 function RefineView({
   image,
-  shape,
-  frameAspect,
   zoom,
   pan,
   rotation,
+  corners,
+  draggingCorner,
   onPointerDown,
   onPointerMove,
   onPointerUp,
   onWheel,
+  onCornerPointerDown,
+  onCornerPointerMove,
+  onCornerPointerUp,
   onMeasure,
 }: {
   image: HTMLImageElement;
-  shape: PhotoCaptureShape;
-  frameAspect: number;
   zoom: number;
   pan: { x: number; y: number };
   rotation: number;
+  corners: Corner[];
+  draggingCorner: number | null;
   onPointerDown: (e: React.PointerEvent) => void;
   onPointerMove: (e: React.PointerEvent) => void;
   onPointerUp: (e: React.PointerEvent) => void;
   onWheel: (e: React.WheelEvent) => void;
+  onCornerPointerDown: (idx: number) => (e: React.PointerEvent) => void;
+  onCornerPointerMove: (e: React.PointerEvent) => void;
+  onCornerPointerUp: (e: React.PointerEvent) => void;
   onMeasure: (
     viewport: { w: number; h: number },
-    frame: { w: number; h: number },
+    rect: { left: number; top: number },
   ) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -590,28 +585,41 @@ function RefineView({
     if (!el) return;
     const measure = () => {
       const r = el.getBoundingClientRect();
-      // Frame is 76% wide for rectangle, otherwise sized to fit with 12% inset.
-      // Mirror ShapeOverlay logic by reading the rendered overlay's rect.
-      const overlay = el.querySelector("[data-overlay-frame]") as HTMLElement | null;
-      const fr = overlay?.getBoundingClientRect();
-      onMeasure(
-        { w: r.width, h: r.height },
-        fr ? { w: fr.width, h: fr.height } : { w: r.width, h: r.height },
-      );
+      onMeasure({ w: r.width, h: r.height }, { left: r.left, top: r.top });
     };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    return () => ro.disconnect();
-  }, [onMeasure, frameAspect, shape]);
+    window.addEventListener("scroll", measure, true);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("scroll", measure, true);
+    };
+  }, [onMeasure]);
+
+  // Build SVG polygon path for the crop boundary.
+  const polyPoints =
+    corners.length === 4
+      ? corners.map((c) => `${c.x},${c.y}`).join(" ")
+      : "";
+
   return (
     <div
       ref={wrapRef}
       className="relative h-full w-full select-none overflow-hidden"
       onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerMove={(e) => {
+        onPointerMove(e);
+        onCornerPointerMove(e);
+      }}
+      onPointerUp={(e) => {
+        onPointerUp(e);
+        onCornerPointerUp(e);
+      }}
+      onPointerCancel={(e) => {
+        onPointerUp(e);
+        onCornerPointerUp(e);
+      }}
       onWheel={onWheel}
       style={{ touchAction: "none" }}
     >
@@ -631,7 +639,71 @@ function RefineView({
           transformOrigin: "center center",
         }}
       />
-      <ShapeOverlay shape={shape === "free" ? "rectangle" : shape} frameAspect={frameAspect} />
+
+      {/* Dim outside the polygon + draw the crop boundary. */}
+      {corners.length === 4 && (
+        <>
+          <svg
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+              <mask id="crop-cutout">
+                <rect width="100%" height="100%" fill="white" />
+                <polygon points={polyPoints} fill="black" />
+              </mask>
+            </defs>
+            <rect
+              width="100%"
+              height="100%"
+              fill="rgba(0,0,0,0.55)"
+              mask="url(#crop-cutout)"
+            />
+            <polygon
+              points={polyPoints}
+              fill="none"
+              stroke="rgba(255,255,255,0.95)"
+              strokeWidth={2}
+            />
+          </svg>
+
+          {/* Corner handles */}
+          {corners.map((c, i) => (
+            <div
+              key={i}
+              onPointerDown={onCornerPointerDown(i)}
+              role="slider"
+              aria-label={`Corner ${i + 1}`}
+              style={{
+                position: "absolute",
+                left: c.x - 22,
+                top: c.y - 22,
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                touchAction: "none",
+                cursor: "grab",
+                zIndex: 30,
+              }}
+            >
+              <span
+                style={{
+                  width: draggingCorner === i ? 22 : 18,
+                  height: draggingCorner === i ? 22 : 18,
+                  borderRadius: "50%",
+                  background: "var(--gold, #d4af37)",
+                  border: "2px solid white",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.6)",
+                  transition: "width 120ms, height 120ms",
+                }}
+              />
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }
