@@ -1465,11 +1465,20 @@ function ZoomModal({
 }) {
   const imgStyle: React.CSSProperties =
     shape === "round"
-      ? { clipPath: "circle(50%)", maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }
-      : {
-          maxWidth: "100%",
-          maxHeight: "100%",
+      ? {
+          clipPath: "circle(50%)",
+          width: "100%",
+          height: "auto",
+          maxHeight: "70vh",
           objectFit: "contain",
+          display: "block",
+        }
+      : {
+          width: "100%",
+          height: "auto",
+          maxHeight: "70vh",
+          objectFit: "contain",
+          display: "block",
           borderRadius: `${(cornerRadiusPercent / 100) * 200}px`,
         };
   return (
@@ -1481,11 +1490,9 @@ function ZoomModal({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
+          width: "min(85vw, 600px)",
           maxWidth: "min(85vw, 600px)",
           maxHeight: "70vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
         }}
       >
         <img src={src} alt="" style={imgStyle} />
