@@ -144,6 +144,7 @@ export function ManualEntryBuilder({ spread, allowReversed, onCancel, onComplete
           {pickerSlot !== null && (
             <CardPicker
               mode="manual-entry"
+              embedded
               excludeCardIds={placedIds}
               showReversedToggle={allowReversed}
               title={
