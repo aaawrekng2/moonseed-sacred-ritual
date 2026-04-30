@@ -30,6 +30,13 @@ export type PhotoCaptureProps = {
   outputQuality?: number;
   /** Optional helper text under the camera. */
   guideText?: string;
+  /**
+   * BN Fix 1 — when set, skip the camera step and land directly on the
+   * 4-corner refine view using this blob as the source image. Used by
+   * the deck-import wizard's "Edit" action so existing imported images
+   * can be re-cropped without re-photographing.
+   */
+  initialBlob?: Blob | null;
   onCapture: (
     blob: Blob,
     dimensions: { width: number; height: number },
@@ -181,12 +188,13 @@ export function PhotoCapture({
   outputMaxDimension,
   outputQuality = 0.85,
   guideText,
+  initialBlob,
   onCapture,
   onCancel,
 }: PhotoCaptureProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const [step, setStep] = useState<Step>("camera");
+  const [step, setStep] = useState<Step>(initialBlob ? "refine" : "camera");
   const [error, setError] = useState<string | null>(null);
   const [captured, setCaptured] = useState<HTMLImageElement | null>(null);
 
