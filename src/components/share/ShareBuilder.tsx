@@ -43,6 +43,8 @@ import { useShareColor } from "./use-share-color";
 import { useLastShareLevel } from "./use-last-share-level";
 import { useShareCaptureOptions } from "./use-share-capture-options";
 import { useRegisterShareBuilderClose } from "@/lib/floating-menu-context";
+import { useFloatingMenu } from "@/lib/floating-menu-context";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   trackShareCancel,
   trackShareDownload,
@@ -140,6 +142,15 @@ export function ShareBuilder({
   // the builder instead of the screen-level close handler — so tapping
   // X never accidentally kills the underlying reading.
   useRegisterShareBuilderClose(open ? () => onOpenChange(false) : null);
+
+  // Hide the global floating pop-down menu while the share builder is
+  // open on mobile — the menu otherwise sits on top of the preview.
+  const isMobile = useIsMobile();
+  const { setHidden } = useFloatingMenu();
+  useEffect(() => {
+    setHidden(open && isMobile);
+    return () => setHidden(false);
+  }, [open, isMobile, setHidden]);
 
   // Auto-prune levels whose required extras aren't supplied.
   const enabledLevels = useMemo<ShareLevel[]>(() => {
