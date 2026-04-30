@@ -211,8 +211,8 @@ function SettingsLayout() {
               style={{
                 marginTop: "calc(var(--topbar-pad) * -1)",
                 marginBottom: "calc(var(--topbar-pad) * -1)",
-                background: "oklch(0.13 0.04 280)",
-                borderRight: "1px solid oklch(0.30 0.04 285 / 0.25)",
+                background: "var(--surface-card)",
+                borderRight: "1px solid var(--border-subtle)",
                 minHeight: "100dvh",
               }}
             >
@@ -226,8 +226,8 @@ function SettingsLayout() {
                     className={cn(
                       "flex items-center gap-3 px-6 py-2.5 text-sm font-normal transition-colors duration-150",
                       active
-                        ? "bg-[oklch(0.82_0.14_82_/_0.10)] text-foreground"
-                        : "text-muted-foreground hover:bg-[oklch(0.82_0.14_82_/_0.05)] hover:text-foreground/80",
+                        ? "bg-accent/10 text-foreground"
+                        : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground/80",
                     )}
                   >
                     {/*

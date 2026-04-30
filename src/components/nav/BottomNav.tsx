@@ -50,9 +50,10 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-[color:var(--border)] backdrop-blur-xl"
+      className="fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur-xl"
       style={{
-        background: "linear-gradient(to top, rgba(10,8,22,0.85), rgba(10,8,22,0.55))",
+        background: "color-mix(in oklch, var(--surface-elevated) 90%, transparent)",
+        borderTopColor: "var(--border-default)",
       }}
     >
       <ul
