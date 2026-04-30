@@ -46,6 +46,7 @@ import {
 import { EncodingQueue } from "@/lib/deck-image-pipeline";
 import { commitImportSession } from "@/lib/deck-import-commit";
 import { fetchDeckCards } from "@/lib/custom-decks";
+import { HorizontalScroll } from "@/components/HorizontalScroll";
 
 const ZIP_MAX_BYTES = 20 * 1024 * 1024;
 const VALID_EXT = /\.(png|jpe?g|webp|gif)$/i;
@@ -888,8 +889,13 @@ function Workspace({
         </span>
       </div>
 
-      {/* Tab chips */}
-      <div className="mb-3 flex gap-2 overflow-x-auto">
+      {/* Tab chips — BO Fix 1: HorizontalScroll wraps the row so the
+          off-screen Default chip gets an edge fade + chevron affordance. */}
+      <HorizontalScroll
+        className="mb-3"
+        contentClassName="gap-2"
+        fadeColor="var(--color-background)"
+      >
         <Chip active={tab === "unassigned"} onClick={() => setTab("unassigned")}>
           Unassigned ({unassignedKeys.length})
         </Chip>
@@ -902,7 +908,7 @@ function Workspace({
         <Chip active={tab === "default"} onClick={() => setTab("default")}>
           Default ({defaultCount})
         </Chip>
-      </div>
+      </HorizontalScroll>
 
       {/* Card-back banner (BL Fix 4 — State A only). */}
       {!hasBack && (
