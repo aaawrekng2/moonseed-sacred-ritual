@@ -534,7 +534,7 @@ function CreateCustomGuideDialog({
       role="dialog"
       aria-modal="true"
       aria-label="Create custom guide"
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      className="modal-scrim fixed inset-0 z-[60] flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
@@ -755,7 +755,7 @@ function EditCustomGuideDialog({
       role="dialog"
       aria-modal="true"
       aria-label="Edit custom guide"
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      className="modal-scrim fixed inset-0 z-[60] flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div
@@ -960,7 +960,7 @@ function DeleteGuideConfirm({
       role="dialog"
       aria-modal="true"
       aria-label="Confirm delete guide"
-      className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      className="modal-scrim fixed inset-0 z-[70] flex items-center justify-center p-4"
       onClick={onCancel}
     >
       <div
