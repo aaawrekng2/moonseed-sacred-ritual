@@ -16,6 +16,7 @@ import { useFloatingMenu } from "@/lib/floating-menu-context";
 import { PremiumModal } from "@/components/premium/PremiumModal";
 import { DevOverlay } from "@/components/dev/DevOverlay";
 import { TimezoneMismatchDialog } from "@/components/settings/TimezoneMismatchDialog";
+import { ActiveDeckProvider } from "@/lib/active-deck";
 
 /**
  * Read the persisted resting opacity from localStorage and apply it to
@@ -217,6 +218,7 @@ function RootComponent() {
   return (
     <OracleModeProvider>
       <FloatingMenuProvider>
+        <ActiveDeckProvider>
         {/*
           Desktop max-width frame: on screens wider than the breakpoint
           the entire app is constrained to ~430px and centered, so the
@@ -241,6 +243,7 @@ function RootComponent() {
             featureName={premiumFeature}
           />
         </div>
+        </ActiveDeckProvider>
       </FloatingMenuProvider>
     </OracleModeProvider>
   );
