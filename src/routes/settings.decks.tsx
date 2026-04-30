@@ -39,6 +39,21 @@ export const Route = createFileRoute("/settings/decks")({
 
 const DECK_BUCKET = "custom-deck-images";
 
+/** Common physical tarot deck sizes (inches). */
+const DIMENSION_PRESETS: { label: string; w: number; h: number }[] = [
+  { label: "Standard", w: 2.75, h: 4.75 },
+  { label: "Large Oracle", w: 3.5, h: 5 },
+  { label: "Pocket", w: 2.5, h: 3.5 },
+  { label: "Square", w: 3.5, h: 3.5 },
+];
+
+const CORNER_PRESETS: { label: string; value: number }[] = [
+  { label: "Sharp", value: 0 },
+  { label: "Slight", value: 4 },
+  { label: "Heavy", value: 10 },
+  { label: "Custom", value: 7 },
+];
+
 type WizardState =
   | { kind: "list" }
   | { kind: "create" }
