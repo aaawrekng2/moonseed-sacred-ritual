@@ -31,6 +31,13 @@ export type CardPickerProps = {
   onCancel: () => void;
   /** Optional title shown in the header. */
   title?: string;
+  /**
+   * When true, render filling its parent (absolute inset-0) instead of
+   * the default full-viewport fixed overlay. Used by ManualEntryBuilder
+   * so the picker sits inside a bottom sheet and the spread stays
+   * visible above it.
+   */
+  embedded?: boolean;
 };
 
 type Suit = "All" | "Major Arcana" | "Wands" | "Cups" | "Swords" | "Pentacles";
@@ -52,6 +59,7 @@ export function CardPicker({
   onSelect,
   onCancel,
   title,
+  embedded = false,
 }: CardPickerProps) {
   const [query, setQuery] = useState("");
   const [suit, setSuit] = useState<Suit>("All");
@@ -90,12 +98,18 @@ export function CardPicker({
         onBack={() => setPendingId(null)}
         onConfirm={() => onSelect(pendingId, pendingReversed)}
         resolveImageSrc={resolveImageSrc}
+        embedded={embedded}
       />
     );
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-[var(--color-background)] text-[var(--color-foreground)]">
+    <div
+      className={cn(
+        "flex flex-col bg-[var(--color-background)] text-[var(--color-foreground)]",
+        embedded ? "absolute inset-0" : "fixed inset-0 z-[100]",
+      )}
+    >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/10 p-3">
         <button
