@@ -189,7 +189,10 @@ export function PhotoCapture({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [rotation, setRotation] = useState(0);
   const dragRef = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
-  const pinchRef = useRef<{ d: number; z: number } | null>(null);
+  // Multi-touch pinch + rotate state. We track up to two active pointers
+  // and derive scale/rotation deltas from their changing distance/angle.
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const gestureRef = useRef<{ d: number; a: number; z: number; r: number } | null>(null);
   // Viewport rect for the refine area, captured by <RefineView>.
   const viewportRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
   const frameRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
@@ -261,16 +264,53 @@ export function PhotoCapture({
   // ---- Refine gestures ----
   const onPointerDown = (e: React.PointerEvent) => {
     (e.target as Element).setPointerCapture?.(e.pointerId);
-    dragRef.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 2) {
+      const [p1, p2] = Array.from(pointersRef.current.values());
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      gestureRef.current = {
+        d: Math.hypot(dx, dy),
+        a: (Math.atan2(dy, dx) * 180) / Math.PI,
+        z: zoom,
+        r: rotation,
+      };
+      dragRef.current = null;
+    } else if (pointersRef.current.size === 1) {
+      dragRef.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
+    }
   };
   const onPointerMove = (e: React.PointerEvent) => {
+    if (!pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size >= 2 && gestureRef.current) {
+      const [p1, p2] = Array.from(pointersRef.current.values());
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      const d = Math.hypot(dx, dy);
+      const a = (Math.atan2(dy, dx) * 180) / Math.PI;
+      const g = gestureRef.current;
+      const nextZoom = Math.min(5, Math.max(1, g.z * (d / Math.max(1, g.d))));
+      let da = a - g.a;
+      if (da > 180) da -= 360;
+      if (da < -180) da += 360;
+      setZoom(nextZoom);
+      setRotation(((g.r + da) % 360 + 360) % 360);
+      return;
+    }
     if (!dragRef.current) return;
     const dx = e.clientX - dragRef.current.x;
     const dy = e.clientY - dragRef.current.y;
     setPan({ x: dragRef.current.px - dx / zoom, y: dragRef.current.py - dy / zoom });
   };
-  const onPointerUp = () => {
-    dragRef.current = null;
+  const onPointerUp = (e: React.PointerEvent) => {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) gestureRef.current = null;
+    if (pointersRef.current.size === 0) dragRef.current = null;
+    else if (pointersRef.current.size === 1) {
+      const [p] = Array.from(pointersRef.current.values());
+      dragRef.current = { x: p.x, y: p.y, px: pan.x, py: pan.y };
+    }
   };
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -489,12 +529,30 @@ function ShapeOverlay({
           width: shape === "round" || shape === "square" ? `calc(100% - 2 * ${inset})` : "76%",
           aspectRatio: frameAspect,
           maxHeight: `calc(100% - 2 * ${inset})`,
-          border: "2px solid rgba(255,255,255,0.85)",
+          border: shape === "round" ? "2px solid rgba(255,255,255,0.85)" : "1px solid rgba(255,255,255,0.25)",
           borderRadius: radius,
           boxShadow: "0 0 0 9999px rgba(0,0,0,0.45)",
+          position: "relative",
         }}
-      />
+      >
+        {shape !== "round" && <CornerBrackets />}
+      </div>
     </div>
+  );
+}
+
+function CornerBrackets() {
+  const arm = 22; // px
+  const thickness = 2;
+  const color = "rgba(255,255,255,0.95)";
+  const base: React.CSSProperties = { position: "absolute", width: arm, height: arm };
+  return (
+    <>
+      <span style={{ ...base, top: -1, left: -1, borderTop: `${thickness}px solid ${color}`, borderLeft: `${thickness}px solid ${color}` }} />
+      <span style={{ ...base, top: -1, right: -1, borderTop: `${thickness}px solid ${color}`, borderRight: `${thickness}px solid ${color}` }} />
+      <span style={{ ...base, bottom: -1, left: -1, borderBottom: `${thickness}px solid ${color}`, borderLeft: `${thickness}px solid ${color}` }} />
+      <span style={{ ...base, bottom: -1, right: -1, borderBottom: `${thickness}px solid ${color}`, borderRight: `${thickness}px solid ${color}` }} />
+    </>
   );
 }
 
