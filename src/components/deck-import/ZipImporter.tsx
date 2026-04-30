@@ -46,6 +46,7 @@ import {
 import { EncodingQueue } from "@/lib/deck-image-pipeline";
 import { commitImportSession } from "@/lib/deck-import-commit";
 import { fetchDeckCards } from "@/lib/custom-decks";
+import { HorizontalScroll } from "@/components/HorizontalScroll";
 
 const ZIP_MAX_BYTES = 20 * 1024 * 1024;
 const VALID_EXT = /\.(png|jpe?g|webp|gif)$/i;
@@ -743,6 +744,57 @@ function Workspace({
     return thumbUrls.get(key) ?? blobUrls.get(key) ?? "";
   };
 
+  // BO Fix 4 — high-res source resolution for the ZoomModal. The grid
+  // continues to use thumbnail-quality (resolveSrc above); only the
+  // zoom popup pulls the 1536px display blob / displayUrl so it doesn't
+  // look pixelated when scaled up. Returned object URLs are revoked
+  // by the caller via a useEffect cleanup keyed on the image key.
+  const resolveZoomSrc = useCallback(
+    (key: string): { src: string; revoke: boolean } => {
+      if (!key) return { src: "", revoke: false };
+      if (key.startsWith("EXISTING:")) {
+        const img = findImage(session, key);
+        return { src: img?.existingUrl ?? "", revoke: false };
+      }
+      const encoded = session.encoded[key];
+      if (encoded?.displayBlob) {
+        try {
+          return { src: URL.createObjectURL(encoded.displayBlob), revoke: true };
+        } catch {
+          /* fall through */
+        }
+      }
+      const img = findImage(session, key);
+      if (img?.existingUrl) return { src: img.existingUrl, revoke: false };
+      if (img?.rawBlob && img.rawBlob.size > 0) {
+        try {
+          return { src: URL.createObjectURL(img.rawBlob), revoke: true };
+        } catch {
+          /* */
+        }
+      }
+      // Last resort — fall back to the thumbnail.
+      return { src: resolveSrc(key), revoke: false };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session],
+  );
+
+  // Memoize the high-res zoom URL for the lifetime of the open modal
+  // and revoke it when the modal closes or the image changes.
+  const [zoomSrc, setZoomSrc] = useState("");
+  useEffect(() => {
+    if (!zoom) {
+      setZoomSrc("");
+      return;
+    }
+    const { src, revoke } = resolveZoomSrc(zoom.imageKey);
+    setZoomSrc(src);
+    return () => {
+      if (revoke && src.startsWith("blob:")) URL.revokeObjectURL(src);
+    };
+  }, [zoom, resolveZoomSrc]);
+
   const unassignedKeys = Object.keys(session.unassigned);
   const skippedKeys = Object.keys(session.skipped);
   const assignedSlots = Object.keys(session.assigned);
@@ -888,8 +940,13 @@ function Workspace({
         </span>
       </div>
 
-      {/* Tab chips */}
-      <div className="mb-3 flex gap-2 overflow-x-auto">
+      {/* Tab chips — BO Fix 1: HorizontalScroll wraps the row so the
+          off-screen Default chip gets an edge fade + chevron affordance. */}
+      <HorizontalScroll
+        className="mb-3"
+        contentClassName="gap-2"
+        fadeColor="var(--color-background)"
+      >
         <Chip active={tab === "unassigned"} onClick={() => setTab("unassigned")}>
           Unassigned ({unassignedKeys.length})
         </Chip>
@@ -902,7 +959,7 @@ function Workspace({
         <Chip active={tab === "default"} onClick={() => setTab("default")}>
           Default ({defaultCount})
         </Chip>
-      </div>
+      </HorizontalScroll>
 
       {/* Card-back banner (BL Fix 4 — State A only). */}
       {!hasBack && (
@@ -1016,7 +1073,7 @@ function Workspace({
       {/* Zoom modal (BL Fix 1, 3, 4) */}
       {zoom && (
         <ZoomModal
-          src={resolveSrc(zoom.imageKey)}
+          src={zoomSrc || resolveSrc(zoom.imageKey)}
           context={zoom.from}
           canUseAsBack={zoom.from === "unassigned" && !hasBack}
           canEdit={

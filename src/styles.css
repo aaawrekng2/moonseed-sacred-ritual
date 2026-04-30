@@ -207,6 +207,7 @@ html, body {
   height: 100%;
   height: 100dvh;
   overflow: hidden;
+  overscroll-behavior-y: none; /* BO Fix 3 — disable browser pull-to-refresh app-wide. */
   position: fixed;
   width: 100%;
   background: oklch(0.14 0.04 280);
@@ -233,6 +234,9 @@ html, body {
 code, pre, kbd {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
+
+/* BO Fix 1 — hide webkit scrollbar on HorizontalScroll content. */
+.horizontal-scroll-content::-webkit-scrollbar { display: none; }
 
 #root {
   height: 100%;
