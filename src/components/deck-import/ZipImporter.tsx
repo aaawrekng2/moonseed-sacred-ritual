@@ -959,7 +959,7 @@ function Workspace({
           session={session}
           resolveSrc={resolveSrc}
           defaultCount={defaultCount}
-          onPickDefault={(cardId) => {
+          onPickDefault={(cardId: number) => {
             if (unassignedKeys.length === 0) {
               toast(
                 "All your imported images are assigned. Upload more images or photograph a card to fill this slot.",
