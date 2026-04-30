@@ -545,7 +545,7 @@ function DeckEditor({
     const { deckId, cardId } = mode;
     return (
       <PhotoCapture
-        shape={shape === "round" ? "round" : shape === "square" ? "square" : "rectangle"}
+        shape={shape === "round" ? "round" : "rectangle"}
         aspectRatio={aspectRatio}
         cornerRadiusPercent={cornerRadius}
         outputMaxDimension={900}
@@ -570,7 +570,7 @@ function DeckEditor({
     const deckId = mode.deckId;
     return (
       <PhotoCapture
-        shape={shape === "round" ? "round" : shape === "square" ? "square" : "rectangle"}
+        shape={shape === "round" ? "round" : "rectangle"}
         aspectRatio={aspectRatio}
         cornerRadiusPercent={cornerRadius}
         outputMaxDimension={900}
