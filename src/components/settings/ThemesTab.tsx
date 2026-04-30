@@ -1527,6 +1527,14 @@ function CommunityThemesSection() {
                   <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
                     {theme.tagline}
                   </p>
+                  {theme.recommendedFont && (
+                    <p
+                      className="mt-1 italic text-[10px] leading-snug text-foreground/60"
+                      style={{ fontSize: "var(--text-caption)" }}
+                    >
+                      Pairs with {theme.recommendedFont}
+                    </p>
+                  )}
                 </div>
               </div>
             </button>
