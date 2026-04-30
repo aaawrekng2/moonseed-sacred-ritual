@@ -1099,6 +1099,51 @@ function Workspace({
           }}
         />
       )}
+
+      {/* BN Fix 1 — Edit / 4-corner crop refine overlay */}
+      {editing && (() => {
+        const img = findImage(session, editing.imageKey);
+        if (!img || img.existingUrl) {
+          // Can't refine an EXISTING:* synthetic — close.
+          setEditing(null);
+          return null;
+        }
+        const ctx = editing;
+        return (
+          <div className="fixed inset-0 z-[140]">
+            <PhotoCapture
+              shape={shape === "round" ? "round" : "rectangle"}
+              cornerRadiusPercent={cornerRadiusPercent}
+              outputMaxDimension={1536}
+              initialBlob={img.rawBlob}
+              guideText="Drag the corners to refine the crop"
+              onCancel={() => {
+                setEditing(null);
+                setZoom(ctx.previousZoom);
+              }}
+              onCapture={(blob, dims) => {
+                onUpdateRawBlob(ctx.imageKey, blob, dims);
+                setEditing(null);
+                setZoom(ctx.previousZoom);
+              }}
+            />
+          </div>
+        );
+      })()}
+
+      {/* BN Fix 2 — inline picker for assigning to a default slot */}
+      {defaultPickerCardId !== null && (
+        <CardBackPickerModal
+          unassignedKeys={unassignedKeys}
+          resolveSrc={resolveSrc}
+          onPick={(k) => {
+            const cardId = defaultPickerCardId;
+            setDefaultPickerCardId(null);
+            if (cardId !== null) onAssign(k, cardId);
+          }}
+          onCancel={() => setDefaultPickerCardId(null)}
+        />
+      )}
     </section>
   );
 }
