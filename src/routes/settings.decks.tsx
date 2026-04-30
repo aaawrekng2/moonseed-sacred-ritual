@@ -560,7 +560,7 @@ function DeckEditor({
           <div>
             <h1 className="text-2xl font-semibold">{name}</h1>
             <p className="text-sm text-muted-foreground">
-              {photographedIds.length}/78 cards photographed
+              {photographedIds.length}/78 cards customized
             </p>
           </div>
           <button
@@ -568,7 +568,7 @@ function DeckEditor({
             onClick={() => onClose(true)}
             className="rounded-md border border-gold/30 px-3 py-1.5 text-sm hover:bg-gold/10"
           >
-            Done
+            Back to decks
           </button>
         </header>
 
@@ -576,7 +576,7 @@ function DeckEditor({
           <button
             type="button"
             onClick={() => setMode({ kind: "picker", deckId })}
-            className="inline-flex items-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-3 py-2 text-sm hover:bg-gold/20"
+            className="inline-flex items-center gap-2 rounded-md border border-gold/30 px-3 py-2 text-sm hover:bg-gold/10"
           >
             <Camera className="h-4 w-4" /> Photograph a card
           </button>
@@ -594,7 +594,7 @@ function DeckEditor({
             className="inline-flex items-center gap-2 rounded-md border border-gold/30 px-3 py-2 text-sm hover:bg-gold/10"
             title="Open the bulk import workspace. Resumes saved progress if any."
           >
-            <Plus className="h-4 w-4" />
+            <Upload className="h-4 w-4" />
             Import / replace from zip
           </button>
         </div>
@@ -622,11 +622,7 @@ function DeckEditor({
                   className={cn(
                     "h-full w-full object-cover",
                   )}
-                  style={
-                    !photo
-                      ? { opacity: 0.3, filter: "grayscale(100%)" }
-                      : undefined
-                  }
+                  style={{ opacity: photo ? 1 : 0.65 }}
                   loading="lazy"
                 />
                 {photo && (
@@ -636,7 +632,7 @@ function DeckEditor({
                 )}
                 {!photo && (
                   <span className="pointer-events-none absolute inset-x-0 bottom-1 text-center text-[8px] uppercase tracking-wider text-white/70">
-                    Tap to photograph
+                    Tap to add
                   </span>
                 )}
               </button>
@@ -649,79 +645,27 @@ function DeckEditor({
           if (!photo) return null;
           const cardId = reviewingCardId;
           return (
-            <div
-              className="fixed inset-0 z-[110] flex items-center justify-center p-6"
-              style={{
-                background: "var(--surface-overlay, color-mix(in oklab, var(--color-background) 80%, black))",
+            <PerCardReviewModal
+              userId={userId}
+              deckId={deckId}
+              cardId={cardId}
+              photo={photo}
+              shape={shape}
+              cornerRadius={cornerRadius}
+              onClose={() => setReviewingCardId(null)}
+              onRetake={() => {
+                setMode({ kind: "capture", deckId, cardId });
+                setReviewingCardId(null);
               }}
-              onClick={() => setReviewingCardId(null)}
-            >
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="flex w-full max-w-sm flex-col items-center gap-4 rounded-xl border p-5"
-                style={{
-                  background: "var(--surface-card)",
-                  borderColor: "var(--border-subtle)",
-                  color: "var(--color-foreground)",
-                  padding: "var(--space-5, 1.25rem)",
-                  borderRadius: "var(--radius-lg, 0.75rem)",
-                }}
-              >
-                <h3
-                  className="italic"
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontSize: "var(--text-heading-sm)",
-                    color: "var(--accent)",
-                  }}
-                >
-                  {getCardName(cardId)}
-                </h3>
-                <img
-                  src={photo.display_url}
-                  alt={getCardName(cardId)}
-                  style={{
-                    maxHeight: "60vh",
-                    maxWidth: "100%",
-                    borderRadius:
-                      shape === "round"
-                        ? "9999px"
-                        : `${cornerRadius}%`,
-                  }}
-                />
-                <div className="flex w-full gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setReviewingCardId(null)}
-                    className="flex-1 rounded-md px-4 py-2 text-sm"
-                    style={{
-                      color: "var(--color-foreground)",
-                      background: "transparent",
-                    }}
-                  >
-                    Done
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode({ kind: "capture", deckId, cardId });
-                      setReviewingCardId(null);
-                    }}
-                    className="flex-1 rounded-md px-4 py-2 text-sm font-medium"
-                    style={{
-                      background: "var(--accent)",
-                      color: "var(--accent-foreground, #000)",
-                    }}
-                  >
-                    Retake
-                  </button>
-                </div>
-              </div>
-            </div>
+              onChanged={async () => {
+                await reloadCards(deckId);
+                setReviewingCardId(null);
+              }}
+            />
           );
         })()}
 
-        {resumePrompt && (
+        {resumePrompt && createPortal(
           <div
             className="fixed inset-0 z-[115] flex items-center justify-center p-6"
             style={{
@@ -794,7 +738,8 @@ function DeckEditor({
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body,
         )}
       </section>
     );
