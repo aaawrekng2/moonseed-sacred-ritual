@@ -688,37 +688,90 @@ function Workspace({
     [session.assigned, thumbUrls, blobUrls],
   );
 
-  // CardPicker: assign image to chosen card.
-  if (pickerForImage) {
-    const previewUrl = resolveSrc(pickerForImage);
+  // BL Fix 11 — auto-switch tab when current view empties after action.
+  const autoSwitch = useCallback(
+    (justActedFrom: Tab, postAssigned: number, postUnassigned: number, postSkipped: number) => {
+      const empty = (n: number) => n === 0;
+      if (justActedFrom === "unassigned" && empty(postUnassigned)) {
+        if (!empty(postAssigned)) setTab("assigned");
+        else if (!empty(postSkipped)) setTab("skipped");
+      } else if (justActedFrom === "assigned" && empty(postAssigned)) {
+        setTab("unassigned");
+      } else if (justActedFrom === "skipped" && empty(postSkipped)) {
+        if (!empty(postUnassigned)) setTab("unassigned");
+        else if (!empty(postAssigned)) setTab("assigned");
+      }
+    },
+    [],
+  );
+
+  // BL Fix 5 — CardPicker overlay (assign / reassign).
+  if (picker) {
+    const ctx = picker;
     return (
-      <>
-        {previewUrl && (
-          <div
-            className="pointer-events-none fixed left-3 top-3 z-[120] overflow-hidden rounded border shadow-lg"
-            style={{ borderColor: "var(--accent)", background: "var(--surface-card)", width: 64, height: 64 }}
-          >
-            <img src={previewUrl} alt="" className="h-full w-full object-cover" />
-          </div>
-        )}
-        <CardPicker
-          mode="photography"
-          photographedIds={photographedIds}
-          resolveImageSrc={resolveImageSrcForPicker}
-          title="Which card is this?"
-          onCancel={() => setPickerForImage(null)}
-          onSelect={(cardId) => {
-            onAssign(pickerForImage, cardId);
-            setPickerForImage(null);
-          }}
-        />
-      </>
+      <CardPicker
+        mode="photography"
+        photographedIds={photographedIds}
+        resolveImageSrc={resolveImageSrcForPicker}
+        title="Which card is this?"
+        onCancel={() => {
+          // Return to the prior zoom modal.
+          setPicker(null);
+          setZoom(ctx.previousZoom);
+        }}
+        onSelect={(cardId) => {
+          onAssign(ctx.imageKey, cardId);
+          setPicker(null);
+          // After assignment the image is in 'assigned'; close any zoom.
+          setZoom(null);
+          // Auto-switch if we just emptied the source view.
+          const fromTab = ctx.previousZoom.from;
+          // Compute post-counts (best-effort; counts are slightly stale
+          // but autoSwitch handles the obvious empty case).
+          const postUn = fromTab === "unassigned" ? unassignedKeys.length - 1 : unassignedKeys.length;
+          const postSk = fromTab === "skipped" ? skippedKeys.length - 1 : skippedKeys.length;
+          const postAs = numericAssigned.length + 1;
+          autoSwitch(fromTab, postAs, postUn, postSk);
+        }}
+      />
     );
   }
 
-  // CardPicker for picking the card back: reuse the same UI but treat it
-  // as a single "BACK" slot. We render an inline image grid below so we
-  // don't actually open CardPicker for back. Disregard.
+  const handleSaveTap = () => {
+    const skippedCount = skippedKeys.length;
+    // Count "real" unassigned (exclude existing markers — those just
+    // mean the user hasn't replaced a previously-imported card).
+    const realUnassigned = Object.values(session.unassigned).filter(
+      (img) => !img.existingUrl,
+    ).length;
+    const assignedCount = numericAssigned.length + (hasBack ? 1 : 0);
+
+    if (assignedCount === 0) {
+      setSaveDialog({ kind: "empty", skippedCount, unassignedCount: realUnassigned });
+      return;
+    }
+    if (realUnassigned > 0 && skippedCount > 0) {
+      setSaveDialog({
+        kind: "skipped-and-unassigned",
+        skippedCount,
+        unassignedCount: realUnassigned,
+      });
+      return;
+    }
+    if (realUnassigned > 0) {
+      setSaveDialog({
+        kind: "unassigned-present",
+        skippedCount,
+        unassignedCount: realUnassigned,
+      });
+      return;
+    }
+    if (skippedCount > 0) {
+      setSaveDialog({ kind: "skipped-only", skippedCount, unassignedCount: 0 });
+      return;
+    }
+    onSave(true);
+  };
 
   return (
     <section className="py-4">
@@ -759,14 +812,23 @@ function Workspace({
         </Chip>
       </div>
 
-      {/* Card-back panel — always visible at top of all tabs */}
-      <CardBackPanel
-        session={session}
-        resolveSrc={resolveSrc}
-        unassignedKeys={unassignedKeys}
-        onAssign={(k) => onAssign(k, "BACK")}
-        onClear={() => onUnassign(BACK_KEY)}
-      />
+      {/* Card-back banner (BL Fix 4 — State A only). */}
+      {!hasBack && (
+        <button
+          type="button"
+          onClick={() => setShowBackPicker(true)}
+          className="mb-4 block w-full rounded-md border px-3 py-2 text-left italic"
+          style={{
+            background: "var(--accent-faint, color-mix(in oklab, var(--accent) 12%, transparent))",
+            borderColor: "var(--border-subtle)",
+            color: "var(--accent)",
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-body-sm)",
+          }}
+        >
+          Card back not chosen — tap to pick one
+        </button>
+      )}
 
       {/* Tab body */}
       {tab === "unassigned" && (
@@ -774,14 +836,17 @@ function Workspace({
           keys={unassignedKeys}
           session={session}
           resolveSrc={resolveSrc}
-          emptyText="No unassigned images. Everything has a home."
-          onClick={(k) => setZoomKey(k)}
+          emptyText="All images placed. Tap Assigned to review, or save to finish."
+          variant="unassigned"
+          onClick={(k) => setZoom({ imageKey: k, from: "unassigned" })}
         />
       )}
       {tab === "assigned" && (
         <AssignedGrid
           session={session}
           resolveSrc={resolveSrc}
+          hasBack={hasBack}
+          onTap={(slot, key) => setZoom({ imageKey: key, from: "assigned", slot })}
           onUnassign={onUnassign}
         />
       )}
@@ -791,8 +856,8 @@ function Workspace({
           session={session}
           resolveSrc={resolveSrc}
           emptyText="Nothing skipped."
-          onClick={(k) => setZoomKey(k)}
-          actionLabel="Move back to Unassigned"
+          variant="skipped"
+          onClick={(k) => setZoom({ imageKey: k, from: "skipped" })}
           onAction={(k) => onUnskip(k)}
         />
       )}
@@ -801,9 +866,8 @@ function Workspace({
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <button
           type="button"
-          onClick={onSave}
-          disabled={numericAssigned.length === 0 && !hasBack}
-          className="rounded-md px-4 py-2 disabled:opacity-50"
+          onClick={handleSaveTap}
+          className="rounded-md px-4 py-2"
           style={{
             background: "var(--accent)",
             color: "#000",
@@ -840,25 +904,66 @@ function Workspace({
         </button>
       </div>
 
-      {/* Zoom modal */}
-      {zoomKey && (
+      {/* Zoom modal (BL Fix 1, 3, 4) */}
+      {zoom && (
         <ZoomModal
-          src={resolveSrc(zoomKey)}
-          inSkipped={!!session.skipped[zoomKey]}
+          src={resolveSrc(zoom.imageKey)}
+          context={zoom.from}
+          canUseAsBack={zoom.from === "unassigned" && !hasBack}
+          onBack={() => setZoom(null)}
           onPickCard={() => {
-            const k = zoomKey;
-            setZoomKey(null);
-            setPickerForImage(k);
+            const ctx = zoom;
+            setZoom(null);
+            setPicker({ imageKey: ctx.imageKey, previousZoom: ctx });
+          }}
+          onReassign={() => {
+            const ctx = zoom;
+            setZoom(null);
+            setPicker({ imageKey: ctx.imageKey, previousZoom: ctx });
+          }}
+          onUseAsBack={() => {
+            const ctx = zoom;
+            onAssign(ctx.imageKey, "BACK");
+            setZoom(null);
+            const postUn = unassignedKeys.length - 1;
+            autoSwitch("unassigned", numericAssigned.length, postUn, skippedKeys.length);
           }}
           onSkip={() => {
-            onSkip(zoomKey);
-            setZoomKey(null);
+            const ctx = zoom;
+            onSkip(ctx.imageKey);
+            setZoom(null);
+            const postUn = unassignedKeys.length - 1;
+            autoSwitch("unassigned", numericAssigned.length, postUn, skippedKeys.length + 1);
           }}
-          onUnskip={() => {
-            onUnskip(zoomKey);
-            setZoomKey(null);
+        />
+      )}
+
+      {/* Card-back picker modal (BL Fix 4 banner tap) */}
+      {showBackPicker && (
+        <CardBackPickerModal
+          unassignedKeys={unassignedKeys}
+          resolveSrc={resolveSrc}
+          onPick={(k) => {
+            onAssign(k, "BACK");
+            setShowBackPicker(false);
           }}
-          onBack={() => setZoomKey(null)}
+          onCancel={() => setShowBackPicker(false)}
+        />
+      )}
+
+      {/* Save confirmation dialog (BL Fix 6) */}
+      {saveDialog && (
+        <SaveConfirmDialog
+          info={saveDialog}
+          onCancel={() => setSaveDialog(null)}
+          onSaveAndFinish={() => {
+            setSaveDialog(null);
+            onSave(true);
+          }}
+          onSaveContinueLater={() => {
+            setSaveDialog(null);
+            onSave(false);
+          }}
         />
       )}
     </section>
