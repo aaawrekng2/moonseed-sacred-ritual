@@ -42,7 +42,7 @@ type Corner = { x: number; y: number }; // viewport CSS pixels
 
 // ---------- Canvas helpers ----------
 
-function applyRoundedCorners(
+export function applyRoundedCorners(
   src: HTMLCanvasElement,
   cornerRadiusPercent: number,
 ): HTMLCanvasElement {
