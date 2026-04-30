@@ -97,8 +97,20 @@ export async function commitImportSession(args: {
   shape: "rectangle" | "round";
   cornerRadiusPercent: number;
   queue?: EncodingQueue;
+  /** When true, delete the IndexedDB session after a successful (or
+   *  fully-attempted) commit. Defaults to true to preserve old
+   *  behavior. The wizard passes false for "Save and continue later". */
+  deleteSessionAfter?: boolean;
 }): Promise<CommitResult> {
-  const { session, userId, deckId, shape, cornerRadiusPercent, queue } = args;
+  const {
+    session,
+    userId,
+    deckId,
+    shape,
+    cornerRadiusPercent,
+    queue,
+    deleteSessionAfter = true,
+  } = args;
   const opts: ProcessOpts = { shape, cornerRadiusPercent };
 
   // 1. Drain any in-flight encoding.
@@ -185,7 +197,7 @@ export async function commitImportSession(args: {
   }
 
   if (failedCardIds.length === 0 && !cardBackFailed) {
-    await deleteSession(deckId);
+    if (deleteSessionAfter) await deleteSession(deckId);
     return { ok: true, failedCardIds, cardBackFailed, written };
   }
 

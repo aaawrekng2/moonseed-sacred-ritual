@@ -133,17 +133,22 @@ export function CardPicker({
       )}
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/10 p-3">
-        <button
-          onClick={onCancel}
-          className="rounded-full p-2 hover:bg-white/10"
-          aria-label="Close"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        {onCancel ? (
+          <button
+            onClick={onCancel}
+            className="rounded-full p-2 hover:bg-white/10"
+            aria-label="Back"
+            style={{ width: 40, height: 40 }}
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+        ) : (
+          <div style={{ width: 40, height: 40 }} />
+        )}
         <div className="text-sm uppercase tracking-[0.25em] opacity-70">
           {title ?? (mode === "photography" ? "Choose card" : "Pick card")}
         </div>
-        <div className="w-9" />
+        <div style={{ width: 40, height: 40 }} />
       </div>
 
       {/* Search + filters */}
