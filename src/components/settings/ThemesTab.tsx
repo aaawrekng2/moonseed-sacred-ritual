@@ -1529,6 +1529,7 @@ function SavedThemesSection() {
   const captureCurrent = (
     overrideName?: string,
   ): Omit<SavedTheme, "slot"> => {
+    const communityKey = getStoredCommunityTheme();
     return {
       name: (overrideName ?? "My Theme").trim().slice(0, 20) || "My Theme",
       bg_left: prefs.bg_gradient_from ?? DEFAULT_BG_LEFT,
@@ -1538,6 +1539,9 @@ function SavedThemesSection() {
       font_size: prefs.heading_font_size ?? DEFAULT_FONT_SIZE,
       card_back: getStoredCardBack(),
       resting_opacity: prefs.resting_opacity ?? DEFAULT_RESTING_OPACITY,
+      // BS — record which community theme was active so applySanctuary
+      // can restore the full token set on load.
+      theme_key: communityKey ?? undefined,
     };
   };
 
@@ -1578,16 +1582,14 @@ function SavedThemesSection() {
   };
 
   const handleLoad = async (theme: SavedTheme) => {
-    if (theme.bg_left && theme.bg_right) {
-      document.documentElement.style.setProperty(
-        "--bg-gradient-left",
-        theme.bg_left,
-      );
-      document.documentElement.style.setProperty(
-        "--bg-gradient-right",
-        theme.bg_right,
-      );
-    }
+    // BS — resolve the saved theme's community-theme key (if any) and
+    // apply the full token set (surfaces, borders, foreground, etc.).
+    const community =
+      (theme.theme_key &&
+        COMMUNITY_THEMES.find((t) => t.key === theme.theme_key)) ||
+      COMMUNITY_THEMES.find((t) => t.key === "mystic-default");
+    if (community) applyCommunityTheme(community);
+    // Re-apply the user's custom accent on top of the community tokens.
     if (theme.accent) {
       document.documentElement.style.setProperty("--gold", theme.accent);
       document.documentElement.style.setProperty("--primary", theme.accent);
