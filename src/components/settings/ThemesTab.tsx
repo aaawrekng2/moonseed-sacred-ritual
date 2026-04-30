@@ -764,34 +764,18 @@ function TheFieldSection() {
 
   return (
     <SettingsSection
-      title="Colors & Background"
-      description="Cast your color into the space — and the horizon it lives within."
+      title="Accent Color"
+      description="Cast your color into the space. Background comes from the theme you choose."
     >
       <div className="space-y-5">
-        {/* Three swatches in a row */}
-        <div className="grid grid-cols-3 gap-3">
+        {/* Single swatch — only accent is user-customizable. Background is set by the chosen theme. */}
+        <div className="flex justify-center">
           <FieldSwatch
             label="Accent Color"
             value={accentValue}
             isOpen={openSwatch === "signature"}
             onToggle={() =>
               setOpenSwatch(openSwatch === "signature" ? null : "signature")
-            }
-          />
-          <FieldSwatch
-            label="Left Color"
-            value={leftValue}
-            isOpen={openSwatch === "past"}
-            onToggle={() =>
-              setOpenSwatch(openSwatch === "past" ? null : "past")
-            }
-          />
-          <FieldSwatch
-            label="Right Color"
-            value={rightValue}
-            isOpen={openSwatch === "future"}
-            onToggle={() =>
-              setOpenSwatch(openSwatch === "future" ? null : "future")
             }
           />
         </div>
@@ -812,22 +796,6 @@ function TheFieldSection() {
             initial={accentValue}
             onApply={applyAccent}
             onCancel={() => setOpenSwatch(null)}
-          />
-        )}
-        {openSwatch === "past" && (
-          <FieldPicker
-            initial={leftValue}
-            onApply={(hex) => applyGradient(hex, rightValue)}
-            onCancel={() => setOpenSwatch(null)}
-            onReset={() => applyGradient(DEFAULT_BG_LEFT, rightValue)}
-          />
-        )}
-        {openSwatch === "future" && (
-          <FieldPicker
-            initial={rightValue}
-            onApply={(hex) => applyGradient(leftValue, hex)}
-            onCancel={() => setOpenSwatch(null)}
-            onReset={() => applyGradient(leftValue, DEFAULT_BG_RIGHT)}
           />
         )}
       </div>
