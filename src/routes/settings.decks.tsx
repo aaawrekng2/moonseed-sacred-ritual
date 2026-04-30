@@ -31,6 +31,8 @@ import { PhotoCapture } from "@/components/photo/PhotoCapture";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
 import { ZipImporter } from "@/components/deck-import/ZipImporter";
+import { deleteSession, getSession } from "@/lib/import-session";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/settings/decks")({
@@ -196,7 +198,7 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
         onClick={onCreate}
         className="inline-flex items-center gap-2 rounded-md border border-gold/40 px-3 py-2 text-sm hover:bg-gold/10"
       >
-        <Plus className="h-4 w-4" /> Photograph your first deck
+        <Plus className="h-4 w-4" /> Create your first deck
       </button>
     </div>
   );
@@ -247,7 +249,7 @@ function DeckRow({
           )}
         </div>
         <p className="text-xs text-muted-foreground">
-          {count === null ? "…" : `${count}/78 photographed`} · {deck.shape}
+          {count === null ? "…" : `${count}/78 customized`} · {deck.shape}
         </p>
       </div>
       <button
