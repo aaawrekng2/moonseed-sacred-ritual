@@ -379,6 +379,8 @@ export function ZipImporter({
       onSave={handleSave}
       onCancel={handleCancel}
       onDiscard={handleDiscard}
+      shape={shape}
+      cornerRadiusPercent={cornerRadiusPercent}
     />
   );
 }
