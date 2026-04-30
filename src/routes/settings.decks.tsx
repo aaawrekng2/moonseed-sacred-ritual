@@ -573,13 +573,22 @@ function DeckEditor({
                   alt={getCardName(i)}
                   className={cn(
                     "h-full w-full object-cover",
-                    !photo && "opacity-40",
                   )}
+                  style={
+                    !photo
+                      ? { opacity: 0.3, filter: "grayscale(100%)" }
+                      : undefined
+                  }
                   loading="lazy"
                 />
                 {photo && (
                   <span className="absolute right-1 top-1 rounded-full bg-gold/90 p-0.5 text-cosmos">
                     <Check className="h-3 w-3" />
+                  </span>
+                )}
+                {!photo && (
+                  <span className="pointer-events-none absolute inset-x-0 bottom-1 text-center text-[8px] uppercase tracking-wider text-white/70">
+                    Tap to photograph
                   </span>
                 )}
               </button>
