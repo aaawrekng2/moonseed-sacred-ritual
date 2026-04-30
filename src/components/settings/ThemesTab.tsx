@@ -245,9 +245,7 @@ function CurrentThemeBadge() {
   // Resolution order: active sanctuary → active community palette →
   // accent preset label → custom hex → "Custom".
   const sanctuary = occupied.find((t) => t.slot === activeSlot) ?? null;
-  const community = communityKey
-    ? COMMUNITY_THEMES.find((t) => t.key === communityKey) ?? null
-    : null;
+  const community = resolveCommunityTheme(communityKey);
   const accentPreset = ACCENT_PRESETS.find(
     (p) => p.value === getAccentTheme(),
   );
