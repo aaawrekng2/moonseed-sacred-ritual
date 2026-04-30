@@ -320,6 +320,41 @@ export function ZipImporter({
     });
   }, [mutate]);
 
+  // BN Fix 1 — replace the raw blob for an image (used by the Edit /
+  // 4-corner crop refine flow). Updates dimensions, drops any cached
+  // encoded asset, and re-enqueues encoding.
+  const handleUpdateRawBlob = useCallback(
+    (imageKey: string, blob: Blob, dims: { width: number; height: number }) => {
+      mutate((s) => {
+        const update = (img: ImportImage | undefined) => {
+          if (!img) return;
+          img.rawBlob = blob;
+          img.width = dims.width;
+          img.height = dims.height;
+        };
+        update(s.unassigned[imageKey]);
+        update(s.skipped[imageKey]);
+        const store = ensureAssetStore(s);
+        update(store[imageKey]);
+        delete s.encoded[imageKey];
+      });
+      // Re-enqueue encoding with the fresh blob.
+      queueRef.current
+        .enqueue(imageKey, blob, { shape, cornerRadiusPercent })
+        .then((asset) => {
+          setWorkspace((cur) => {
+            if (!cur) return cur;
+            const next = cloneSession(cur.session);
+            next.encoded[asset.key] = asset;
+            saverRef.current.schedule(next);
+            return { session: next };
+          });
+        })
+        .catch((e) => console.warn("re-encode failed", e));
+    },
+    [mutate, shape, cornerRadiusPercent],
+  );
+
   const handleSave = useCallback(async (deleteSessionAfter: boolean) => {
     if (!workspace) return;
     setSessionDeletedOnSave(deleteSessionAfter);
@@ -389,6 +424,7 @@ export function ZipImporter({
         onSkip={handleSkip}
         onUnskip={handleUnskip}
         onUnassign={handleUnassign}
+        onUpdateRawBlob={handleUpdateRawBlob}
         onSave={handleSave}
         onCancel={handleCancel}
         onDiscard={handleDiscard}
