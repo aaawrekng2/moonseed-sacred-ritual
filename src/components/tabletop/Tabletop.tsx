@@ -1240,15 +1240,16 @@ export function Tabletop({
           onComplete={(picks) => {
             setManualOpen(false);
             clearTabletopSession(spread);
-            // Fix 9 — route through SpreadLayout (cast phase) so the
-            // manual reading visuals match a digital draw exactly.
+            // Phase 9.5b Fix 6 — manual entry skips the flip animation
+            // entirely. The seeker already knows what cards they placed,
+            // so jump straight to the reading/interpretation phase.
             onComplete(
               picks.map((p) => ({
                 id: p.id,
                 cardIndex: p.cardIndex,
                 isReversed: p.isReversed,
               })),
-              "cast",
+              "reveal",
               { entryMode: "manual" },
             );
           }}
