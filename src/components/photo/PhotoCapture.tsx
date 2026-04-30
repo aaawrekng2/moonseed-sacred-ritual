@@ -45,7 +45,7 @@ export type PhotoCaptureProps = {
 };
 
 type Step = "camera" | "refine" | "saving";
-type Corner = { x: number; y: number }; // viewport CSS pixels
+type Corner = { x: number; y: number }; // BP Fix 5 — normalized image coords (0..1)
 
 // ---------- Canvas helpers ----------
 
@@ -121,63 +121,87 @@ function resizeToMaxDimension(
 }
 
 /**
- * Crop using the bounding box of 4 viewport-space corners.
- *
- * The displayed image fits the viewport by HEIGHT (CSS: height: 100%,
- * width: auto), then has a CSS transform applied:
- *   translate(-50%, -50%) translate(-pan.x, -pan.y) rotate(rot) scale(zoom)
- *
- * To save, we set the output canvas to the bounding box (in source
- * pixels), then replay the transform so the underlying image lands in
- * the same place relative to the bounding box that the user saw.
+ * BP Fix 5 — corners are stored in normalized image coordinates (0..1).
+ * Crop is just the bounding box of those normalized corners mapped into
+ * source-pixel space; pan/zoom/rotation no longer affect the output.
  */
 function cropFromCorners(
   source: HTMLImageElement,
-  viewport: { w: number; h: number },
   corners: Corner[],
-  zoom: number,
-  panX: number,
-  panY: number,
-  rotation: number,
 ): HTMLCanvasElement {
+  const sw = source.naturalWidth;
   const sh = source.naturalHeight;
-  const cssToSrc = sh / Math.max(1, viewport.h);
-
-  const minX = Math.min(...corners.map((c) => c.x));
-  const minY = Math.min(...corners.map((c) => c.y));
-  const maxX = Math.max(...corners.map((c) => c.x));
-  const maxY = Math.max(...corners.map((c) => c.y));
-  const cropCssW = Math.max(1, maxX - minX);
-  const cropCssH = Math.max(1, maxY - minY);
-  // Centre of the crop bbox relative to the viewport centre, in CSS px.
-  const cropCx = (minX + maxX) / 2 - viewport.w / 2;
-  const cropCy = (minY + maxY) / 2 - viewport.h / 2;
-
-  const outW = Math.max(1, Math.round(cropCssW * cssToSrc));
-  const outH = Math.max(1, Math.round(cropCssH * cssToSrc));
-
+  const minX = Math.max(0, Math.min(...corners.map((c) => c.x)));
+  const minY = Math.max(0, Math.min(...corners.map((c) => c.y)));
+  const maxX = Math.min(1, Math.max(...corners.map((c) => c.x)));
+  const maxY = Math.min(1, Math.max(...corners.map((c) => c.y)));
+  const sx = Math.round(minX * sw);
+  const sy = Math.round(minY * sh);
+  const sWidth = Math.max(1, Math.round((maxX - minX) * sw));
+  const sHeight = Math.max(1, Math.round((maxY - minY) * sh));
   const out = document.createElement("canvas");
-  out.width = outW;
-  out.height = outH;
+  out.width = sWidth;
+  out.height = sHeight;
   const ctx = out.getContext("2d");
   if (!ctx) return out;
-
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, outW, outH);
-
-  ctx.save();
-  // Move origin to the crop centre, then shift it back so it ends up
-  // where the viewport centre would be relative to the bbox.
-  ctx.translate(outW / 2, outH / 2);
-  ctx.translate(-cropCx * cssToSrc, -cropCy * cssToSrc);
-  // Now origin is at the (virtual) viewport centre. Replay transform.
-  ctx.translate(-panX * cssToSrc, -panY * cssToSrc);
-  ctx.rotate((rotation * Math.PI) / 180);
-  ctx.scale(zoom, zoom);
-  ctx.drawImage(source, -source.naturalWidth / 2, -source.naturalHeight / 2);
-  ctx.restore();
-
+  ctx.drawImage(source, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
   return out;
+}
+
+// BP Fix 5 — image ↔ screen coordinate transforms.
+// Image is rendered fitting viewport by HEIGHT (height:100%, width:auto)
+// then a CSS transform of translate(-pan, -pan) rotate(rot) scale(zoom)
+// is applied around the viewport center. baseScale = viewport.h / img.h.
+function imageToScreen(
+  imgPt: { x: number; y: number },
+  imgDims: { w: number; h: number },
+  viewport: { w: number; h: number },
+  pan: { x: number; y: number },
+  zoom: number,
+  rotationDeg: number,
+): { x: number; y: number } {
+  const cx = viewport.w / 2;
+  const cy = viewport.h / 2;
+  const ix = (imgPt.x - 0.5) * imgDims.w;
+  const iy = (imgPt.y - 0.5) * imgDims.h;
+  const baseScale = viewport.h / Math.max(1, imgDims.h);
+  const totalScale = baseScale * zoom;
+  const r = (rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(r);
+  const sin = Math.sin(r);
+  const rx = ix * cos - iy * sin;
+  const ry = ix * sin + iy * cos;
+  return {
+    x: cx - pan.x + rx * totalScale,
+    y: cy - pan.y + ry * totalScale,
+  };
+}
+
+function screenToImage(
+  scrPt: { x: number; y: number },
+  imgDims: { w: number; h: number },
+  viewport: { w: number; h: number },
+  pan: { x: number; y: number },
+  zoom: number,
+  rotationDeg: number,
+): { x: number; y: number } {
+  const cx = viewport.w / 2;
+  const cy = viewport.h / 2;
+  const baseScale = viewport.h / Math.max(1, imgDims.h);
+  const totalScale = baseScale * zoom;
+  const sx = scrPt.x - cx + pan.x;
+  const sy = scrPt.y - cy + pan.y;
+  const rx = sx / totalScale;
+  const ry = sy / totalScale;
+  const r = (-rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(r);
+  const sin = Math.sin(r);
+  const ix = rx * cos - ry * sin;
+  const iy = rx * sin + ry * cos;
+  return {
+    x: ix / Math.max(1, imgDims.w) + 0.5,
+    y: iy / Math.max(1, imgDims.h) + 0.5,
+  };
 }
 
 // ---------- Component ----------
@@ -202,8 +226,8 @@ export function PhotoCapture({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [rotation, setRotation] = useState(0);
-  // Corners in viewport CSS pixels. Initialised to ~10% inset once the
-  // viewport is measured in <RefineView>.
+  // BP Fix 5 — corners in normalized image coordinates (0..1).
+  // Independent of pan/zoom/rotation.
   const [corners, setCorners] = useState<Corner[]>([]);
   const [draggingCorner, setDraggingCorner] = useState<number | null>(null);
 
@@ -350,12 +374,19 @@ export function PhotoCapture({
     if (draggingCorner === null) return;
     e.stopPropagation();
     const vp = viewportRef.current;
-    // Translate clientX/Y into viewport-local coords. We store the
-    // viewport rect's top-left in a ref via <RefineView>'s onMeasure.
     const rect = viewportRectRef.current;
-    if (!rect) return;
-    const x = Math.max(0, Math.min(vp.w, e.clientX - rect.left));
-    const y = Math.max(0, Math.min(vp.h, e.clientY - rect.top));
+    if (!rect || !captured) return;
+    const imgDims = { w: captured.naturalWidth, h: captured.naturalHeight };
+    const imgPt = screenToImage(
+      { x: e.clientX - rect.left, y: e.clientY - rect.top },
+      imgDims,
+      vp,
+      pan,
+      zoom,
+      rotation,
+    );
+    const x = Math.max(0, Math.min(1, imgPt.x));
+    const y = Math.max(0, Math.min(1, imgPt.y));
     setCorners((prev) => prev.map((c, i) => (i === draggingCorner ? { x, y } : c)));
   };
   const onCornerPointerUp = (e: React.PointerEvent) => {
@@ -370,15 +401,7 @@ export function PhotoCapture({
     if (!captured || corners.length !== 4) return;
     setStep("saving");
     try {
-      let canvas = cropFromCorners(
-        captured,
-        viewportRef.current,
-        corners,
-        zoom,
-        pan.x,
-        pan.y,
-        rotation,
-      );
+      let canvas = cropFromCorners(captured, corners);
       canvas = resizeToMaxDimension(canvas, outputMaxDimension);
       if (shape === "round") {
         canvas = applyCircularMask(canvas);
@@ -391,7 +414,7 @@ export function PhotoCapture({
       setError(e instanceof Error ? e.message : "Couldn't save the photo.");
       setStep("refine");
     }
-  }, [captured, corners, shape, zoom, pan, rotation, outputMaxDimension, outputQuality, cornerRadiusPercent, onCapture]);
+  }, [captured, corners, shape, outputMaxDimension, outputQuality, cornerRadiusPercent, onCapture]);
 
   // ---- Render ----
 
@@ -442,11 +465,12 @@ export function PhotoCapture({
               viewportRef.current = viewport;
               viewportRectRef.current = rect;
               if (corners.length !== 4) {
+                // BP Fix 5 — initial 10% inset in IMAGE space.
                 setCorners([
-                  { x: viewport.w * 0.1, y: viewport.h * 0.1 },
-                  { x: viewport.w * 0.9, y: viewport.h * 0.1 },
-                  { x: viewport.w * 0.9, y: viewport.h * 0.9 },
-                  { x: viewport.w * 0.1, y: viewport.h * 0.9 },
+                  { x: 0.1, y: 0.1 },
+                  { x: 0.9, y: 0.1 },
+                  { x: 0.9, y: 0.9 },
+                  { x: 0.1, y: 0.9 },
                 ]);
               }
             }}
