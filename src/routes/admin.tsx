@@ -3569,6 +3569,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   assign_admin: "Assign admin role",
   remove_admin: "Remove admin role",
   password_reset: "Password reset",
+  set_password: "Password set",
   deactivate_user: "Deactivate user",
   reactivate_user: "Reactivate user",
   set_note: "Set note",
