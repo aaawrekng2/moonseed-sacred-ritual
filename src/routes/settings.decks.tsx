@@ -306,7 +306,11 @@ type EditorMode =
   | { kind: "picker"; deckId: string }
   | { kind: "capture"; deckId: string; cardId: number }
   | { kind: "back-capture"; deckId: string }
-  | { kind: "import"; deckId: string };
+  | { kind: "import"; deckId: string }
+  // CC G5 — Unified deck-editor workspace. Routes "Edit" straight to
+  // the ZipImporter component in edit-mode so the user lands in the
+  // 78-slot workspace without an intermediate grid view.
+  | { kind: "workspace"; deckId: string; initialPhase?: "upload" | "workspace" };
 
 function DeckEditor({
   userId,
@@ -321,7 +325,7 @@ function DeckEditor({
   const [shape, setShape] = useState<CustomDeck["shape"]>(existing?.shape ?? "rectangle");
   const [cornerRadius, setCornerRadius] = useState(existing?.corner_radius_percent ?? 4);
   const [mode, setMode] = useState<EditorMode>(
-    existing ? { kind: "grid", deckId: existing.id } : { kind: "details" },
+    existing ? { kind: "workspace", deckId: existing.id } : { kind: "details" },
   );
   const [saving, setSaving] = useState(false);
   const [cards, setCards] = useState<CustomDeckCard[]>([]);
