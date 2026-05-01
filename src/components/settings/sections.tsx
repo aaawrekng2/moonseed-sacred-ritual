@@ -214,12 +214,6 @@ function ProfileSectionInner({
             Don't remind me
           </button>
 
-          {authOpen && (
-            <AuthScreen
-              onClose={() => setAuthOpen(false)}
-              onSuccess={() => setAuthOpen(false)}
-            />
-          )}
         </div>
       ) : (
         <div className="space-y-5">
