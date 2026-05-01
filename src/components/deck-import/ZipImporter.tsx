@@ -1293,7 +1293,6 @@ function Workspace({
           cardStates={cardStates}
           onRetrySlot={onRetrySlot}
           entryMode={entryMode}
-          unassignedAvailable={unassignedKeys.length > 0}
           onTapEmpty={(cardId) => {
             if (unassignedKeys.length > 0) {
               setDefaultPickerCardId(cardId);
@@ -1594,7 +1593,6 @@ function AssignedGrid({
   cardStates,
   onRetrySlot,
   entryMode,
-  unassignedAvailable,
   onTapEmpty,
   onImportZip,
 }: {
