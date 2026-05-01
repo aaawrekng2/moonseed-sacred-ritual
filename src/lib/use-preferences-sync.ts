@@ -8,6 +8,12 @@ import {
   setStoredCardBack,
   type CardBackId,
 } from "@/lib/card-backs";
+import {
+  COMMUNITY_THEMES,
+  getStoredCommunityTheme,
+  setStoredCommunityTheme,
+} from "@/lib/community-themes";
+import { applyCommunityTheme } from "@/lib/theme-apply";
 
 const OPACITY_STORAGE_KEY = "moonseed:resting-opacity";
 const OPACITY_EVENT = "arcana:resting-opacity-changed";
@@ -58,6 +64,18 @@ export function usePreferencesSync(): void {
   const { user, loading } = useAuth();
   const hydratedRef = useRef(false);
 
+  // BZ Group 1B — Apply community theme synchronously from localStorage
+  // (or default) on first paint, even for anonymous users. The auth-
+  // dependent effect below re-applies once the server row arrives.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const stored = getStoredCommunityTheme();
+    const community =
+      (stored && COMMUNITY_THEMES.find((t) => t.key === stored)) ??
+      COMMUNITY_THEMES.find((t) => t.key === "mystic-default");
+    if (community) applyCommunityTheme(community);
+  }, []);
+
   useEffect(() => {
     if (loading || !user) return;
     let cancelled = false;
@@ -65,13 +83,26 @@ export function usePreferencesSync(): void {
     void (async () => {
       const { data } = await supabase
         .from("user_preferences")
-        .select("resting_opacity, show_labels, card_back, accent")
+        .select("resting_opacity, show_labels, card_back, accent, community_theme")
         .eq("user_id", user.id)
         .maybeSingle();
 
       if (cancelled) return;
 
       if (data) {
+        // BZ Group 1A — apply (and persist locally) the user's saved
+        // community_theme so every surface boots in the right palette,
+        // not just the Themes screen.
+        const communityKey =
+          (data as { community_theme?: string | null }).community_theme ??
+          "mystic-default";
+        const community =
+          COMMUNITY_THEMES.find((t) => t.key === communityKey) ??
+          COMMUNITY_THEMES.find((t) => t.key === "mystic-default");
+        if (community) {
+          applyCommunityTheme(community);
+          setStoredCommunityTheme(community.key);
+        }
         // Hydrate localStorage from the server row. Only update keys that
         // actually changed so we don't trigger unnecessary writes.
         if (typeof window !== "undefined") {
