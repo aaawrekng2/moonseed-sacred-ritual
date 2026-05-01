@@ -76,6 +76,7 @@ export function ZipImporter({
   deckId,
   shape,
   cornerRadiusPercent,
+  existingBackUrl,
   onCancel,
   onDone,
 }: {
@@ -83,6 +84,7 @@ export function ZipImporter({
   deckId: string;
   shape: "rectangle" | "round";
   cornerRadiusPercent: number;
+  existingBackUrl?: string | null;
   onCancel: () => void;
   onDone: () => void;
 }) {
@@ -441,6 +443,7 @@ export function ZipImporter({
         onDiscard={handleDiscard}
         shape={shape}
         cornerRadiusPercent={cornerRadiusPercent}
+        existingBackUrl={existingBackUrl ?? null}
       />
     );
 
@@ -653,6 +656,7 @@ function Workspace({
   onDiscard,
   shape,
   cornerRadiusPercent,
+  existingBackUrl,
 }: {
   session: ImportSession;
   onAssign: (imageKey: string, cardId: number | "BACK") => void;
@@ -665,6 +669,7 @@ function Workspace({
   onDiscard: () => void;
   shape: "rectangle" | "round";
   cornerRadiusPercent: number;
+  existingBackUrl?: string | null;
 }) {
   const [tab, setTab] = useState<Tab>("unassigned");
   // Zoom modal context: which image, opened from which filter view.
@@ -813,7 +818,9 @@ function Workspace({
   const skippedKeys = Object.keys(session.skipped);
   const assignedSlots = Object.keys(session.assigned);
   const numericAssigned = assignedSlots.filter((s) => s !== BACK_KEY);
-  const hasBack = !!session.assigned[BACK_KEY];
+  // CA — also recognize a card back already saved on the deck (e.g. from
+  // the camera capture flow), not just one assigned in this session.
+  const hasBack = !!session.assigned[BACK_KEY] || !!existingBackUrl;
 
   // BX — diagnostic instrumentation for the "0/78 counter never updates"
   // bug. Logs on every Workspace re-render so we can correlate UI state
