@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useConfirm } from "@/hooks/use-confirm";
 import {
   FREE_DECK_LIMIT,
   fetchDeckCards,
