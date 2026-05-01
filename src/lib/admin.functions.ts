@@ -102,9 +102,11 @@ export const listAdminUsers = createServerFn({ method: "GET" })
     const prefMap = new Map<string, any>();
     for (const p of prefs ?? []) prefMap.set((p as any).user_id, p);
 
-    // CQ — filter anonymous users out of the admin Users tab. Anonymous
-    // sessions are surfaced as a count on the Dashboard instead. Always
-    // keep admins visible even if their email is somehow missing.
+    // CR — Loosen the filter. Include any user that has an email at all
+    // (confirmed or not) so admins can see pending signup attempts.
+    // Truly anonymous sessions (no email) are still excluded and
+    // surfaced as a count on the Dashboard. Admins remain visible
+    // defensively even if email is missing.
     return allUsers
       .filter((u) => {
         if (u.email) return true;
@@ -117,6 +119,7 @@ export const listAdminUsers = createServerFn({ method: "GET" })
       return {
         user_id: u.id,
         email: u.email ?? null,
+        email_confirmed_at: (u as any).email_confirmed_at ?? null,
         is_anonymous: !u.email,
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at ?? null,
@@ -227,6 +230,11 @@ export const adminAction = createServerFn({ method: "POST" })
     // when the target is the current admin, but defend the server too.
     if (data.type === "deactivate_user" && data.targetUserId === userId) {
       throw new Error("cannot deactivate self");
+    }
+    // CR — defense-in-depth: refuse to remove your own admin role even
+    // if the UI guard is bypassed.
+    if (data.type === "remove_admin" && data.targetUserId === userId) {
+      throw new Error("Cannot remove your own admin role.");
     }
 
     switch (data.type) {

@@ -1564,7 +1564,9 @@ function UsersTab({
     const premium = users.filter((u) => u.is_premium).length;
     const supers = users.filter((u) => u.role === "super_admin").length;
     const admins = users.filter((u) => u.role === "admin").length;
-    return `${users.length} users · ${premium} premium · ${supers} super admins · ${admins} admins`;
+    const sLbl = supers === 1 ? "super admin" : "super admins";
+    const aLbl = admins === 1 ? "admin" : "admins";
+    return `${users.length} users · ${premium} premium · ${supers} ${sLbl} · ${admins} ${aLbl}`;
   }, [users]);
 
   const selectedUser = useMemo(
@@ -1724,6 +1726,7 @@ function UserListRow({
   const name = user.display_name?.trim() || null;
   const primary = name ?? user.email ?? `${user.user_id.slice(0, 8)}…`;
   const showEmailLine = !!name && !!user.email;
+  const unconfirmed = !!user.email && !user.email_confirmed_at;
   return (
     <tr
       onMouseEnter={() => setHover(true)}
@@ -1745,9 +1748,18 @@ function UserListRow({
               fontSize: "var(--text-body-sm)",
               opacity: 0.6,
               marginTop: 2,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
             }}
           >
             {user.email}
+            {unconfirmed && <UnconfirmedBadge />}
+          </div>
+        )}
+        {!showEmailLine && unconfirmed && (
+          <div style={{ marginTop: 4 }}>
+            <UnconfirmedBadge />
           </div>
         )}
       </Td>
@@ -1758,6 +1770,33 @@ function UserListRow({
       <Td>{new Date(user.created_at).toLocaleDateString()}</Td>
       <Td>{formatPremiumCell(user)}</Td>
     </tr>
+  );
+}
+
+/**
+ * CR — Tiny gold-bordered pill marking pending-confirmation accounts.
+ * Renders inline with the email both in the user list and in the
+ * detail header.
+ */
+function UnconfirmedBadge() {
+  return (
+    <span
+      style={{
+        ...serif,
+        fontStyle: "italic",
+        fontSize: "var(--text-caption)",
+        padding: "1px 8px",
+        borderRadius: 999,
+        border:
+          "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
+        color:
+          "color-mix(in oklab, var(--accent, var(--gold)) 70%, transparent)",
+        whiteSpace: "nowrap",
+        lineHeight: 1.4,
+      }}
+    >
+      Unconfirmed
+    </span>
   );
 }
 
@@ -2083,9 +2122,13 @@ function UserDetailPage({
                 fontSize: "var(--text-body-sm)",
                 opacity: 0.6,
                 marginTop: 2,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
               }}
             >
               {user.email}
+              {!user.email_confirmed_at && <UnconfirmedBadge />}
             </div>
           )}
           <div
@@ -2198,7 +2241,13 @@ function UserDetailPage({
           <DetailRow label="Auth provider" value={provider} />
           <DetailRow
             label="Email confirmed"
-            value={user.email ? "yes" : "—"}
+            value={
+              !user.email
+                ? "—"
+                : user.email_confirmed_at
+                  ? new Date(user.email_confirmed_at).toLocaleDateString()
+                  : "no"
+            }
           />
           <DetailRow label="Account status" value={accountStatus} />
           <ActionRow>
