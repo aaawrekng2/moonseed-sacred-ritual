@@ -47,6 +47,7 @@ import {
   type RestoreResult,
 } from "@/lib/backup-restore";
 import type JSZip from "jszip";
+import { ImportFlow, type ImportResult } from "@/components/import/ImportFlow";
 
 const CATEGORY_LABEL: Record<string, string> = {
   readings: "Readings",
@@ -99,6 +100,10 @@ export function DataTab() {
   const [restoreMessage, setRestoreMessage] = useState<string>("");
   const [restoreResult, setRestoreResult] = useState<RestoreResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // CS — universal CSV importer (TarotPulse + generic with column mapping)
+  const [importOpen, setImportOpen] = useState(false);
+  const [lastImport, setLastImport] = useState<ImportResult | null>(null);
 
   const resetRestore = () => {
     setRestorePhase("pick");
@@ -430,6 +435,29 @@ export function DataTab() {
       </SettingsSection>
 
       <SettingsSection
+        title="Import from another app"
+        description="Bring your reading history from any tarot journal."
+      >
+        <p className="text-xs text-muted-foreground">
+          Currently supports: TarotPulse · Generic CSV (with column mapping)
+        </p>
+        {lastImport && (
+          <div className="rounded-lg border border-border/40 bg-foreground/5 p-3 text-xs">
+            Imported {lastImport.imported.toLocaleString()} readings from{" "}
+            <strong>{lastImport.sourceFormat}</strong>.
+          </div>
+        )}
+        <Button
+          variant="ghost"
+          onClick={() => setImportOpen(true)}
+          className="w-full justify-start gap-2 sm:w-auto"
+        >
+          <FileUp className="h-4 w-4" />
+          Choose CSV file
+        </Button>
+      </SettingsSection>
+
+      <SettingsSection
         title="Local Cache"
         description="Reset locally cached settings without touching your account."
       >
@@ -464,6 +492,13 @@ export function DataTab() {
           To delete your account permanently, please contact support.
         </p>
       </SettingsSection>
+
+      {importOpen && (
+        <ImportFlow
+          onClose={() => setImportOpen(false)}
+          onImported={(r) => setLastImport(r)}
+        />
+      )}
     </div>
   );
 }
