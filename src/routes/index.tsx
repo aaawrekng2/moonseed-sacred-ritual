@@ -179,7 +179,16 @@ function Index() {
                 />
               </div>
             ) : deckLoading ? (
-              <div style={{ width: 140, height: Math.round(140 * 1.75) }} />
+              <div
+                style={{
+                  width: 140,
+                  height: Math.round(140 * 1.75),
+                  borderRadius: 12,
+                  background: "color-mix(in oklab, var(--gold) 6%, transparent)",
+                  border: "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+                }}
+                aria-label="Loading today's card"
+              />
             ) : (
               <div style={{ animation: "fade-in 400ms ease-out both" }}>
                 <CardBack id={cardBack} imageUrl={customBackUrl} width={140} neutralBorder />

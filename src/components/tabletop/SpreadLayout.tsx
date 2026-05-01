@@ -346,13 +346,18 @@ function CardFace({
         : 0.6;
   return (
     <div
+      style={{
+        display: "inline-block",
+        opacity: cardOpacity,
+        transition: "opacity 400ms ease-out",
+      }}
+    >
+    <div
       className="cast-card-emerge"
       style={{
         // Custom prop consumed by the cast-card-emerge keyframes.
         ...({ "--emerge-delay": `${emergeDelayMs ?? 0}ms` } as React.CSSProperties),
         display: "inline-block",
-        opacity: cardOpacity,
-        transition: "opacity 400ms ease-out",
       }}
     >
     <div
@@ -414,6 +419,7 @@ function CardFace({
           style={{ background: "transparent", zIndex: isNext ? 30 : 10 }}
         />
       )}
+    </div>
     </div>
     </div>
   );
