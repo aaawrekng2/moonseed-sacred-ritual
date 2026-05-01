@@ -1672,6 +1672,72 @@ function ThumbnailIconButton({
   );
 }
 
+/**
+ * CB — Linear-style save status indicator. Quiet by default, shows
+ * "Saving…" while a write is in flight, "✓ Saved" for ~2s after the
+ * last write, and a persistent "⚠ N failed — Retry" pill when any
+ * slot is in failed state.
+ */
+function SaveStatusIndicator({
+  status,
+  failedCount,
+  onRetryAllFailed,
+}: {
+  status: SaveStatus;
+  failedCount: number;
+  onRetryAllFailed: () => void;
+}) {
+  if (failedCount > 0) {
+    return (
+      <span
+        className="inline-flex items-center gap-2"
+        style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-body-sm)" }}
+      >
+        <AlertTriangle className="h-4 w-4" style={{ color: "#ef4444" }} />
+        <span style={{ color: "#ef4444" }}>{failedCount} failed</span>
+        <button
+          type="button"
+          onClick={onRetryAllFailed}
+          className="underline italic"
+          style={{ color: "var(--accent)" }}
+        >
+          Retry
+        </button>
+      </span>
+    );
+  }
+  if (status.kind === "saving") {
+    return (
+      <span
+        className="inline-flex items-center gap-2 italic"
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontSize: "var(--text-body-sm)",
+          color: "var(--color-foreground)",
+          opacity: 0.7,
+        }}
+      >
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
+      </span>
+    );
+  }
+  if (status.kind === "saved-flash") {
+    return (
+      <span
+        className="inline-flex items-center gap-2 italic transition-opacity"
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontSize: "var(--text-body-sm)",
+          color: "var(--color-foreground)",
+        }}
+      >
+        <Check className="h-3.5 w-3.5" style={{ color: "var(--accent)" }} /> Saved
+      </span>
+    );
+  }
+  return null;
+}
+
 function CardBackPickerModal({
   unassignedKeys,
   resolveSrc,
