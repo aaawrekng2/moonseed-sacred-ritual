@@ -57,13 +57,26 @@ export const listAdminUsers = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
 
-    // Pull every auth user (paged). For modest seekers (<1000) one page
-    // is plenty; expand later if growth demands.
-    const { data: usersList, error: usersErr } =
-      await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-    if (usersErr) throw new Error(usersErr.message);
+    // CQ — paginate listUsers so growth past 1000 is visible. Safety
+    // cap at 100k to avoid runaway loops.
+    const allUsers: Array<Awaited<ReturnType<typeof supabaseAdmin.auth.admin.listUsers>>["data"]["users"][number]> = [];
+    {
+      let page = 1;
+      const perPage = 1000;
+      while (true) {
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+          page,
+          perPage,
+        });
+        if (error) throw new Error(error.message);
+        allUsers.push(...data.users);
+        if (data.users.length < perPage) break;
+        page += 1;
+        if (page > 100) break;
+      }
+    }
 
-    const ids = usersList.users.map((u) => u.id);
+    const ids = allUsers.map((u) => u.id);
     const [{ data: prefs }, { data: readings }] = await Promise.all([
       supabaseAdmin
         .from("user_preferences")
@@ -89,7 +102,17 @@ export const listAdminUsers = createServerFn({ method: "GET" })
     const prefMap = new Map<string, any>();
     for (const p of prefs ?? []) prefMap.set((p as any).user_id, p);
 
-    return usersList.users.map((u) => {
+    // CQ — filter anonymous users out of the admin Users tab. Anonymous
+    // sessions are surfaced as a count on the Dashboard instead. Always
+    // keep admins visible even if their email is somehow missing.
+    return allUsers
+      .filter((u) => {
+        if (u.email) return true;
+        const p = prefMap.get(u.id);
+        if (p?.role === "admin" || p?.role === "super_admin") return true;
+        return false;
+      })
+      .map((u) => {
       const p = prefMap.get(u.id) ?? {};
       return {
         user_id: u.id,
@@ -114,13 +137,59 @@ export const listAdminUsers = createServerFn({ method: "GET" })
 
 /* ---------- adminAction (single mutation entrypoint) ---------- */
 
+/* ---------- getAnonymousSessionCounts ---------- */
+
+/**
+ * CQ — Counts of anonymous (email IS NULL) auth users for the Dashboard
+ * "Anonymous Sessions" card. Reuses the paginated listUsers loop because
+ * the admin API does not expose a server-side count for filtered users.
+ */
+export const getAnonymousSessionCounts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    const startToday = new Date();
+    startToday.setHours(0, 0, 0, 0);
+    const start30 = new Date();
+    start30.setDate(start30.getDate() - 30);
+
+    let today = 0;
+    let last30Days = 0;
+    let total = 0;
+    let page = 1;
+    const perPage = 1000;
+    while (true) {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage,
+      });
+      if (error) throw new Error(error.message);
+      for (const u of data.users) {
+        if (u.email) continue;
+        total += 1;
+        const created = u.created_at ? new Date(u.created_at).getTime() : 0;
+        if (created >= startToday.getTime()) today += 1;
+        if (created >= start30.getTime()) last30Days += 1;
+      }
+      if (data.users.length < perPage) break;
+      page += 1;
+      if (page > 100) break;
+    }
+    return { today, last30Days, total } as const;
+  });
+
+
 const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("grant_premium"), targetUserId: z.string().uuid(), months: z.number().int().positive() }),
+  z.object({ type: z.literal("extend_premium"), targetUserId: z.string().uuid(), months: z.number().int().positive() }),
   z.object({ type: z.literal("revoke_premium"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("assign_admin"), targetUserId: z.string().uuid(), role: z.enum(["admin", "super_admin"]) }),
   z.object({ type: z.literal("remove_admin"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("password_reset"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("deactivate_user"), targetUserId: z.string().uuid() }),
+  z.object({ type: z.literal("reactivate_user"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("set_note"), targetUserId: z.string().uuid(), note: z.string().nullable() }),
 ]);
 
@@ -154,6 +223,12 @@ export const adminAction = createServerFn({ method: "POST" })
       }
     }
 
+    // CQ — extra self-protection for deactivate. UI hides the button
+    // when the target is the current admin, but defend the server too.
+    if (data.type === "deactivate_user" && data.targetUserId === userId) {
+      throw new Error("cannot deactivate self");
+    }
+
     switch (data.type) {
       case "grant_premium": {
         const expires = new Date();
@@ -171,7 +246,45 @@ export const adminAction = createServerFn({ method: "POST" })
         await logAction(userId, actorEmail, "grant_premium", data.targetUserId, targetEmail, { months: data.months });
         break;
       }
+      case "extend_premium": {
+        // Extend from the existing expiration if still in the future,
+        // otherwise extend from now.
+        const { data: current } = await supabaseAdmin
+          .from("user_preferences")
+          .select("premium_expires_at")
+          .eq("user_id", data.targetUserId)
+          .maybeSingle();
+        const prev = (current as { premium_expires_at?: string | null } | null)
+          ?.premium_expires_at;
+        const base =
+          prev && new Date(prev).getTime() > Date.now()
+            ? new Date(prev)
+            : new Date();
+        base.setMonth(base.getMonth() + data.months);
+        await supabaseAdmin
+          .from("user_preferences")
+          .update({
+            is_premium: true,
+            subscription_type: "gifted",
+            premium_expires_at: base.toISOString(),
+          })
+          .eq("user_id", data.targetUserId);
+        await logAction(
+          userId,
+          actorEmail,
+          "extend_premium",
+          data.targetUserId,
+          targetEmail,
+          { months: data.months, previous_expires_at: prev ?? null, expires_at: base.toISOString() },
+        );
+        break;
+      }
       case "revoke_premium": {
+        const { data: prevRow } = await supabaseAdmin
+          .from("user_preferences")
+          .select("premium_expires_at")
+          .eq("user_id", data.targetUserId)
+          .maybeSingle();
         await supabaseAdmin
           .from("user_preferences")
           .update({
@@ -180,7 +293,11 @@ export const adminAction = createServerFn({ method: "POST" })
             premium_expires_at: null,
           })
           .eq("user_id", data.targetUserId);
-        await logAction(userId, actorEmail, "revoke_premium", data.targetUserId, targetEmail, {});
+        await logAction(userId, actorEmail, "revoke_premium", data.targetUserId, targetEmail, {
+          previous_expires_at:
+            (prevRow as { premium_expires_at?: string | null } | null)
+              ?.premium_expires_at ?? null,
+        });
         break;
       }
       case "assign_admin": {
@@ -214,6 +331,14 @@ export const adminAction = createServerFn({ method: "POST" })
           ban_duration: "876000h",
         });
         await logAction(userId, actorEmail, "deactivate_user", data.targetUserId, targetEmail, {});
+        break;
+      }
+      case "reactivate_user": {
+        // ban_duration: "none" lifts the ban.
+        await supabaseAdmin.auth.admin.updateUserById(data.targetUserId, {
+          ban_duration: "none",
+        });
+        await logAction(userId, actorEmail, "reactivate_user", data.targetUserId, targetEmail, {});
         break;
       }
       case "set_note": {

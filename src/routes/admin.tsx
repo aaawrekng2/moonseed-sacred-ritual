@@ -41,6 +41,7 @@ import { useAuth } from "@/lib/auth";
 import {
   adminAction,
   createAdminBackup,
+  getAnonymousSessionCounts,
   getBackupDownloadUrl,
   listAdminUsers,
   listDetectWeavesAlerts,
@@ -51,6 +52,8 @@ import {
   type DetectWeavesAlert,
 } from "@/lib/admin.functions";
 import { setDevMode } from "@/components/dev/DevOverlay";
+import { useConfirm } from "@/hooks/use-confirm";
+import { toast } from "sonner";
 
 /**
  * Fetch the current Supabase access token and return a headers object
@@ -464,6 +467,11 @@ function DashboardTab() {
     daily: Array<{ d: string; standard: number; deep: number }>;
     recent: Array<AdminUser>;
   } | null>(null);
+  const [anon, setAnon] = useState<{
+    today: number;
+    last30Days: number;
+    total: number;
+  } | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -575,6 +583,12 @@ function DashboardTab() {
         })),
         recent,
       });
+      try {
+        const a = await getAnonymousSessionCounts({ headers: await authHeaders() });
+        setAnon(a);
+      } catch {
+        setAnon({ today: 0, last30Days: 0, total: 0 });
+      }
     })();
   }, []);
 
@@ -701,6 +715,26 @@ function DashboardTab() {
             }
           />
         </dl>
+      </section>
+
+      <section>
+        <SectionTitle>Anonymous sessions</SectionTitle>
+        <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-3">
+          <StatCard label="Today" value={anon?.today ?? 0} />
+          <StatCard label="Last 30 days" value={anon?.last30Days ?? 0} />
+          <StatCard label="Total" value={anon?.total ?? 0} />
+        </div>
+        <p
+          className="mt-3"
+          style={{
+            ...serif,
+            fontStyle: "italic",
+            fontSize: "var(--text-caption)",
+            opacity: 0.55,
+          }}
+        >
+          Anonymous sessions are excluded from the Users tab.
+        </p>
       </section>
 
       <section>
@@ -1620,6 +1654,18 @@ function UsersTab({
       >
         {summary}
       </div>
+      <div
+        className="mt-1"
+        style={{
+          ...serif,
+          fontStyle: "italic",
+          fontSize: "var(--text-caption)",
+          color:
+            "color-mix(in oklab, var(--color-foreground) 45%, transparent)",
+        }}
+      >
+        Anonymous sessions visible on Dashboard.
+      </div>
 
       {loading ? (
         <p
@@ -1761,8 +1807,8 @@ function formatPremiumCell(user: AdminUser): React.ReactNode {
  */
 function UserDetailPage({
   user,
-  myRole: _myRole,
-  myUserId: _myUserId,
+  myRole,
+  myUserId,
   onBack,
   onNoteSaved,
 }: {
@@ -1781,6 +1827,129 @@ function UserDetailPage({
   const [noteText, setNoteText] = useState(user.admin_note ?? "");
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteSavedAt, setNoteSavedAt] = useState<number | null>(null);
+  const [grantOpen, setGrantOpen] = useState<null | "grant" | "extend">(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const confirm = useConfirm();
+
+  const isSelf = user.user_id === myUserId;
+  const isDeactivated = !!user.banned_until &&
+    new Date(user.banned_until).getTime() > Date.now();
+  const isSuperAdmin = user.role === "super_admin";
+
+  const labelOf = (email: string | null, id: string) =>
+    email ?? id.slice(0, 8);
+  const targetLabel = labelOf(user.email, user.user_id);
+
+  const runAction = async (
+    actionLabel: string,
+    payload: Record<string, unknown>,
+    successMsg: string,
+  ) => {
+    setBusyAction(actionLabel);
+    try {
+      await adminAction({
+        data: payload as never,
+        headers: await authHeaders(),
+      });
+      toast.success(successMsg);
+      onNoteSaved();
+    } catch (e) {
+      toast.error((e as Error).message ?? "Action failed");
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const onRevokePremium = async () => {
+    const ok = await confirm({
+      title: `Revoke Premium from ${targetLabel}?`,
+      description:
+        "This immediately removes Premium access. The user will revert to free features.",
+      confirmLabel: "Revoke Premium",
+      destructive: true,
+    });
+    if (!ok) return;
+    await runAction(
+      "revoke",
+      { type: "revoke_premium", targetUserId: user.user_id },
+      `Premium revoked from ${targetLabel}`,
+    );
+  };
+
+  const onPasswordReset = async () => {
+    const ok = await confirm({
+      title: `Send password reset to ${targetLabel}?`,
+      description: "A recovery email will be generated for this account.",
+      confirmLabel: "Send Reset",
+    });
+    if (!ok) return;
+    await runAction(
+      "pwreset",
+      { type: "password_reset", targetUserId: user.user_id },
+      `Password reset sent to ${targetLabel}`,
+    );
+  };
+
+  const onPromoteSuper = async () => {
+    const ok = await confirm({
+      title: `Promote ${targetLabel} to Super Admin?`,
+      description:
+        "Super admins can grant or revoke admin roles for any user. Use sparingly.",
+      confirmLabel: "Promote",
+    });
+    if (!ok) return;
+    await runAction(
+      "promote",
+      { type: "assign_admin", targetUserId: user.user_id, role: "super_admin" },
+      `${targetLabel} promoted to Super Admin`,
+    );
+  };
+
+  const onDemoteSuper = async () => {
+    const ok = await confirm({
+      title: `Demote ${targetLabel} from Super Admin?`,
+      description:
+        "This removes the super admin role and resets the user back to a regular user.",
+      confirmLabel: "Demote",
+      destructive: true,
+    });
+    if (!ok) return;
+    await runAction(
+      "demote",
+      { type: "remove_admin", targetUserId: user.user_id },
+      `${targetLabel} demoted from Super Admin`,
+    );
+  };
+
+  const onDeactivate = async () => {
+    const ok = await confirm({
+      title: `Deactivate ${targetLabel}?`,
+      description:
+        "The user will be unable to sign in until reactivated. Their data is preserved.",
+      confirmLabel: "Deactivate Account",
+      destructive: true,
+    });
+    if (!ok) return;
+    await runAction(
+      "deactivate",
+      { type: "deactivate_user", targetUserId: user.user_id },
+      `${targetLabel} deactivated`,
+    );
+  };
+
+  const onReactivate = async () => {
+    const ok = await confirm({
+      title: `Reactivate ${targetLabel}?`,
+      description: "The user will be able to sign in again.",
+      confirmLabel: "Reactivate Account",
+    });
+    if (!ok) return;
+    await runAction(
+      "reactivate",
+      { type: "reactivate_user", targetUserId: user.user_id },
+      `${targetLabel} reactivated`,
+    );
+  };
 
   useEffect(() => {
     void (async () => {
@@ -1964,7 +2133,35 @@ function UserDetailPage({
             label="Months used"
             value={String(user.premium_months_used ?? 0)}
           />
-          <ActionsPlaceholder />
+          <ActionRow>
+            {!user.is_premium && (
+              <ActionBtn
+                tone="primary"
+                disabled={busyAction !== null}
+                onClick={() => setGrantOpen("grant")}
+              >
+                Grant Premium
+              </ActionBtn>
+            )}
+            {user.is_premium && (
+              <>
+                <ActionBtn
+                  tone="secondary"
+                  disabled={busyAction !== null}
+                  onClick={() => setGrantOpen("extend")}
+                >
+                  Extend Premium
+                </ActionBtn>
+                <ActionBtn
+                  tone="destructive"
+                  disabled={busyAction !== null}
+                  onClick={() => void onRevokePremium()}
+                >
+                  Revoke Premium
+                </ActionBtn>
+              </>
+            )}
+          </ActionRow>
         </DetailPanel>
 
         <DetailPanel title="Account">
@@ -2004,7 +2201,53 @@ function UserDetailPage({
             value={user.email ? "yes" : "—"}
           />
           <DetailRow label="Account status" value={accountStatus} />
-          <ActionsPlaceholder />
+          <ActionRow>
+            {user.email && (
+              <ActionBtn
+                tone="secondary"
+                disabled={busyAction !== null}
+                onClick={() => void onPasswordReset()}
+              >
+                Send password reset
+              </ActionBtn>
+            )}
+            {myRole === "super_admin" && !isSelf && !isSuperAdmin && (
+              <ActionBtn
+                tone="primary"
+                disabled={busyAction !== null}
+                onClick={() => void onPromoteSuper()}
+              >
+                Promote to Super Admin
+              </ActionBtn>
+            )}
+            {myRole === "super_admin" && !isSelf && isSuperAdmin && (
+              <ActionBtn
+                tone="destructive"
+                disabled={busyAction !== null}
+                onClick={() => void onDemoteSuper()}
+              >
+                Demote from Super Admin
+              </ActionBtn>
+            )}
+            {!isSelf && !isDeactivated && (
+              <ActionBtn
+                tone="destructive"
+                disabled={busyAction !== null}
+                onClick={() => void onDeactivate()}
+              >
+                Deactivate account
+              </ActionBtn>
+            )}
+            {!isSelf && isDeactivated && (
+              <ActionBtn
+                tone="primary"
+                disabled={busyAction !== null}
+                onClick={() => void onReactivate()}
+              >
+                Reactivate account
+              </ActionBtn>
+            )}
+          </ActionRow>
         </DetailPanel>
 
         <DetailPanel title="Activity">
@@ -2112,6 +2355,24 @@ function UserDetailPage({
           </div>
         </DetailPanel>
       </div>
+      {grantOpen !== null && (
+        <GrantPremiumModal
+          mode={grantOpen}
+          targetLabel={targetLabel}
+          currentExpires={user.premium_expires_at}
+          onClose={() => setGrantOpen(null)}
+          onConfirm={async (months) => {
+            const type = grantOpen === "extend" ? "extend_premium" : "grant_premium";
+            const verb = grantOpen === "extend" ? "extended" : "granted";
+            setGrantOpen(null);
+            await runAction(
+              "premium",
+              { type, targetUserId: user.user_id, months },
+              `Premium ${verb} for ${targetLabel}`,
+            );
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -2179,20 +2440,191 @@ function DetailRow({
   );
 }
 
-function ActionsPlaceholder() {
+/* ---------------- CQ — User detail action UI ---------------- */
+
+function ActionRow({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="mt-3"
+    <div className="mt-4 flex flex-wrap gap-2">{children}</div>
+  );
+}
+
+function ActionBtn({
+  tone,
+  onClick,
+  disabled,
+  children,
+}: {
+  tone: "primary" | "secondary" | "destructive";
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  const colors =
+    tone === "primary"
+      ? {
+          color: "#0f1117",
+          background: "var(--accent, var(--gold))",
+          border: "1px solid var(--accent, var(--gold))",
+        }
+      : tone === "destructive"
+        ? {
+            color: "oklch(0.78 0.18 25)",
+            background: "transparent",
+            border: "1px solid oklch(0.5 0.15 25)",
+          }
+        : {
+            color: "var(--foreground)",
+            background: "transparent",
+            border: "1px solid var(--border-subtle)",
+          };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
       style={{
-        ...serif,
-        fontStyle: "italic",
-        fontSize: "var(--text-body-sm)",
-        color:
-          "color-mix(in oklab, var(--color-foreground) 45%, transparent)",
+        ...display,
+        ...colors,
+        fontSize: "var(--text-caption)",
+        letterSpacing: "0.18em",
+        textTransform: "uppercase",
+        padding: "8px 14px",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
       }}
     >
-      Actions available in CQ.
-    </div>
+      {children}
+    </button>
+  );
+}
+
+function GrantPremiumModal({
+  mode,
+  targetLabel,
+  currentExpires,
+  onClose,
+  onConfirm,
+}: {
+  mode: "grant" | "extend";
+  targetLabel: string;
+  currentExpires: string | null;
+  onClose: () => void;
+  onConfirm: (months: number) => void | Promise<void>;
+}) {
+  // Day chips per spec: 30 / 60 / 90 / 180 / 365.
+  const chips: Array<{ days: number; label: string }> = [
+    { days: 30, label: "30 days" },
+    { days: 60, label: "60 days" },
+    { days: 90, label: "90 days" },
+    { days: 180, label: "180 days" },
+    { days: 365, label: "1 year" },
+  ];
+  const [days, setDays] = useState(30);
+  const [customStr, setCustomStr] = useState("");
+
+  const effectiveDays = (() => {
+    const c = parseInt(customStr, 10);
+    if (Number.isFinite(c) && c > 0) return c;
+    return days;
+  })();
+
+  // For grant: expiry = now + days. For extend: extend from existing
+  // expiry if still in the future, otherwise from now. Mirrors server.
+  const baseTime =
+    mode === "extend" && currentExpires &&
+    new Date(currentExpires).getTime() > Date.now()
+      ? new Date(currentExpires).getTime()
+      : Date.now();
+  const expiryDate = new Date(baseTime + effectiveDays * 86_400_000);
+  // Server takes months; convert days → months (~30 day units), min 1.
+  const monthsParam = Math.max(1, Math.round(effectiveDays / 30));
+
+  return (
+    <ModalShell
+      title={`${mode === "extend" ? "Extend" : "Grant"} Premium to ${targetLabel}?`}
+      onClose={onClose}
+    >
+      <p style={{ ...serif, fontSize: "var(--text-body-sm)", opacity: 0.75 }}>
+        {mode === "extend"
+          ? "Extends Premium from the current expiration date."
+          : "Grants Premium starting today."}{" "}
+        Expires on{" "}
+        <strong style={{ color: "var(--accent, var(--gold))" }}>
+          {expiryDate.toLocaleDateString()}
+        </strong>
+        .
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {chips.map((c) => {
+          const active = !customStr && days === c.days;
+          return (
+            <button
+              key={c.days}
+              type="button"
+              onClick={() => {
+                setDays(c.days);
+                setCustomStr("");
+              }}
+              style={{
+                ...display,
+                fontSize: "var(--text-caption)",
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                padding: "8px 12px",
+                background: "none",
+                border: active
+                  ? "1px solid var(--accent, var(--gold))"
+                  : "1px solid var(--border-subtle)",
+                color: active
+                  ? "var(--accent, var(--gold))"
+                  : "color-mix(in oklab, var(--color-foreground) 60%, transparent)",
+                cursor: "pointer",
+              }}
+            >
+              {c.label}
+            </button>
+          );
+        })}
+      </div>
+      <label
+        className="mt-4 flex items-center gap-3"
+        style={{
+          ...serif,
+          fontSize: "var(--text-body-sm)",
+          color: "color-mix(in oklab, var(--color-foreground) 70%, transparent)",
+        }}
+      >
+        Custom days:
+        <input
+          type="number"
+          min={1}
+          value={customStr}
+          onChange={(e) => setCustomStr(e.target.value)}
+          placeholder="—"
+          style={{
+            ...serif,
+            width: 100,
+            padding: "6px 10px",
+            background: "rgba(0,0,0,0.25)",
+            border: "1px solid var(--border-subtle)",
+            color: "var(--foreground)",
+            fontSize: "var(--text-body-sm)",
+          }}
+        />
+      </label>
+      <div className="mt-6 flex justify-end gap-4">
+        <button type="button" onClick={onClose} style={textBtnStyle("muted")}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => void onConfirm(monthsParam)}
+          style={textBtnStyle("gold")}
+        >
+          {mode === "extend" ? "Extend Premium" : "Grant Premium"}
+        </button>
+      </div>
+    </ModalShell>
   );
 }
 
@@ -2211,6 +2643,7 @@ function BackupsTab() {
   const [rows, setRows] = useState<BackupRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const confirm = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -2245,18 +2678,20 @@ function BackupsTab() {
   };
 
   const onRestore = async (r: BackupRow) => {
-    if (
-      !window.confirm(
-        "This will overwrite current data. Are you sure?",
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: "Restore this backup?",
+      description:
+        "This will request a manual restore from the snapshot file. Live data is not overwritten by the app — a team member runs the actual restore for safety.",
+      confirmLabel: "Request Restore",
+      destructive: true,
+    });
+    if (!ok) return;
     await restoreAdminBackup({
       data: { backupId: r.id },
       headers: await authHeaders(),
     });
-    window.alert(
-      "Restore request logged. A team member will run the restore manually for safety.",
+    toast.success(
+      "Restore request logged. A team member will run the restore manually.",
     );
   };
 
@@ -2515,7 +2950,7 @@ function AuditTab() {
                 >
                   <Td>{new Date(r.created_at).toLocaleString()}</Td>
                   <Td>{r.admin_email ?? "—"}</Td>
-                  <Td>{r.action}</Td>
+                  <Td>{auditActionLabel(r.action)}</Td>
                   <Td>{r.target_email ?? "—"}</Td>
                   <Td>
                     <button
@@ -3032,6 +3467,25 @@ function RoleBadge({ role }: { role: Role }) {
       {role === "super_admin" ? "Super Admin" : "Admin"}
     </span>
   );
+}
+
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+  grant_premium: "Grant premium",
+  extend_premium: "Extend premium",
+  revoke_premium: "Revoke premium",
+  assign_admin: "Assign admin role",
+  remove_admin: "Remove admin role",
+  password_reset: "Password reset",
+  deactivate_user: "Deactivate user",
+  reactivate_user: "Reactivate user",
+  set_note: "Set note",
+  create_backup: "Create backup",
+  restore_backup_requested: "Restore requested",
+  run_detect_weaves: "Run detect weaves",
+};
+
+function auditActionLabel(action: string): string {
+  return AUDIT_ACTION_LABELS[action] ?? action;
 }
 
 function StatusBadge({
