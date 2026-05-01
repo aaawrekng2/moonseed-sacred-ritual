@@ -815,6 +815,19 @@ function Workspace({
   const numericAssigned = assignedSlots.filter((s) => s !== BACK_KEY);
   const hasBack = !!session.assigned[BACK_KEY];
 
+  // BX — diagnostic instrumentation for the "0/78 counter never updates"
+  // bug. Logs on every Workspace re-render so we can correlate UI state
+  // with the underlying session map.
+  console.log("[BX-counter]", {
+    numericAssignedLen: numericAssigned.length,
+    totalCards: 78,
+    unassignedKeys: unassignedKeys.length,
+    skippedKeys: skippedKeys.length,
+    assignedMapSize: assignedSlots.length,
+    hasBack,
+    assignedKeysSample: assignedSlots.slice(0, 5),
+  });
+
   // BN Fix 2 — set of card_ids that will be customized (non-default)
   // after save. Defined here so both the chip count and the Default
   // tab render share one source of truth.
