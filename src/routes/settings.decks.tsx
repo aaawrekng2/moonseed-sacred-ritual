@@ -65,7 +65,10 @@ const SAMPLE_PREVIEW_CARD_ID = 17; // The Star — generally pretty
 type WizardState =
   | { kind: "list" }
   | { kind: "create" }
-  | { kind: "edit"; deck: CustomDeck };
+  | { kind: "edit"; deck: CustomDeck }
+  // CC G5 — open the deck editor and force-route into the upload phase
+  // so the user sees the "Choose zip file" picker immediately.
+  | { kind: "edit-import"; deck: CustomDeck };
 
 function DecksPage() {
   const { user } = useAuth();
@@ -129,10 +132,25 @@ function DecksPage() {
       <DeckEditor
         userId={user.id}
         existing={view.kind === "edit" ? view.deck : null}
+        startInUploadPhase={false}
         onClose={async (saved) => {
           setView({ kind: "list" });
           // Always refresh on return — Save inside the editor may have
           // mutated rows even when 'saved' is false.
+          await Promise.all([load(), refreshActiveDeck()]);
+        }}
+      />
+    );
+  }
+
+  if (view.kind === "edit-import") {
+    return (
+      <DeckEditor
+        userId={user.id}
+        existing={view.deck}
+        startInUploadPhase={true}
+        onClose={async (saved) => {
+          setView({ kind: "list" });
           await Promise.all([load(), refreshActiveDeck()]);
         }}
       />
@@ -180,6 +198,7 @@ function DecksPage() {
               key={d.id}
               deck={d}
               onEdit={() => setView({ kind: "edit", deck: d })}
+              onImportZip={() => setView({ kind: "edit-import", deck: d })}
               onToggleActive={() => void handleSetActive(d)}
               onDelete={() => void handleDelete(d)}
             />
