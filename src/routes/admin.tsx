@@ -2355,6 +2355,24 @@ function UserDetailPage({
           </div>
         </DetailPanel>
       </div>
+      {grantOpen !== null && (
+        <GrantPremiumModal
+          mode={grantOpen}
+          targetLabel={targetLabel}
+          currentExpires={user.premium_expires_at}
+          onClose={() => setGrantOpen(null)}
+          onConfirm={async (months) => {
+            const type = grantOpen === "extend" ? "extend_premium" : "grant_premium";
+            const verb = grantOpen === "extend" ? "extended" : "granted";
+            setGrantOpen(null);
+            await runAction(
+              "premium",
+              { type, targetUserId: user.user_id, months },
+              `Premium ${verb} for ${targetLabel}`,
+            );
+          }}
+        />
+      )}
     </div>
   );
 }
