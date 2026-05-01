@@ -137,6 +137,50 @@ export const listAdminUsers = createServerFn({ method: "GET" })
 
 /* ---------- adminAction (single mutation entrypoint) ---------- */
 
+/* ---------- getAnonymousSessionCounts ---------- */
+
+/**
+ * CQ — Counts of anonymous (email IS NULL) auth users for the Dashboard
+ * "Anonymous Sessions" card. Reuses the paginated listUsers loop because
+ * the admin API does not expose a server-side count for filtered users.
+ */
+export const getAnonymousSessionCounts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    const startToday = new Date();
+    startToday.setHours(0, 0, 0, 0);
+    const start30 = new Date();
+    start30.setDate(start30.getDate() - 30);
+
+    let today = 0;
+    let last30Days = 0;
+    let total = 0;
+    let page = 1;
+    const perPage = 1000;
+    while (true) {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage,
+      });
+      if (error) throw new Error(error.message);
+      for (const u of data.users) {
+        if (u.email) continue;
+        total += 1;
+        const created = u.created_at ? new Date(u.created_at).getTime() : 0;
+        if (created >= startToday.getTime()) today += 1;
+        if (created >= start30.getTime()) last30Days += 1;
+      }
+      if (data.users.length < perPage) break;
+      page += 1;
+      if (page > 100) break;
+    }
+    return { today, last30Days, total } as const;
+  });
+
+
 const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("grant_premium"), targetUserId: z.string().uuid(), months: z.number().int().positive() }),
   z.object({ type: z.literal("extend_premium"), targetUserId: z.string().uuid(), months: z.number().int().positive() }),
