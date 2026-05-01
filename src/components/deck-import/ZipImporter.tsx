@@ -1716,11 +1716,17 @@ function AssignedGrid({
             <button
               type="button"
               onClick={() => {
-                if (!key) return;
+                if (!key) {
+                  // CC G5 — empty slots are tappable. Open the per-slot
+                  // assign action (or the import-zip flow if no images
+                  // are staged yet).
+                  onTapEmpty(i);
+                  return;
+                }
                 if (isFailed) onRetrySlot(slot);
                 else onTap(slot, key);
               }}
-              disabled={!key}
+              aria-label={key ? getCardName(i) : `${getCardName(i)} — empty, tap to assign`}
               className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
               style={{
                 borderColor: isFailed
