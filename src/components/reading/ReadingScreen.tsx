@@ -736,12 +736,8 @@ function CardStrip({
     h = Math.round(w * 1.75);
   }
 
-  // Position labels (Past / Present / Future) are the most important
-  // text on the reveal screen — bump them significantly so they read
-  // clearly at a glance. Keep them proportional to the card width on
-  // narrow phones so they don't overflow.
-  const labelFontSize = w < 80 ? 36 : w < 120 ? 44 : 52;
-  const labelMaxWidth = Math.max(w + 32, 110);
+  // CF — position labels use shared PositionLabel (body-lg) to match
+  // the digital cast view and prevent truncation in manual entry.
 
   return (
     <div
