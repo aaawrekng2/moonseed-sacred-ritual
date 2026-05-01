@@ -2133,7 +2133,35 @@ function UserDetailPage({
             label="Months used"
             value={String(user.premium_months_used ?? 0)}
           />
-          <ActionsPlaceholder />
+          <ActionRow>
+            {!user.is_premium && (
+              <ActionBtn
+                tone="primary"
+                disabled={busyAction !== null}
+                onClick={() => setGrantOpen("grant")}
+              >
+                Grant Premium
+              </ActionBtn>
+            )}
+            {user.is_premium && (
+              <>
+                <ActionBtn
+                  tone="secondary"
+                  disabled={busyAction !== null}
+                  onClick={() => setGrantOpen("extend")}
+                >
+                  Extend Premium
+                </ActionBtn>
+                <ActionBtn
+                  tone="destructive"
+                  disabled={busyAction !== null}
+                  onClick={() => void onRevokePremium()}
+                >
+                  Revoke Premium
+                </ActionBtn>
+              </>
+            )}
+          </ActionRow>
         </DetailPanel>
 
         <DetailPanel title="Account">
@@ -2173,7 +2201,53 @@ function UserDetailPage({
             value={user.email ? "yes" : "—"}
           />
           <DetailRow label="Account status" value={accountStatus} />
-          <ActionsPlaceholder />
+          <ActionRow>
+            {user.email && (
+              <ActionBtn
+                tone="secondary"
+                disabled={busyAction !== null}
+                onClick={() => void onPasswordReset()}
+              >
+                Send password reset
+              </ActionBtn>
+            )}
+            {myRole === "super_admin" && !isSelf && !isSuperAdmin && (
+              <ActionBtn
+                tone="primary"
+                disabled={busyAction !== null}
+                onClick={() => void onPromoteSuper()}
+              >
+                Promote to Super Admin
+              </ActionBtn>
+            )}
+            {myRole === "super_admin" && !isSelf && isSuperAdmin && (
+              <ActionBtn
+                tone="destructive"
+                disabled={busyAction !== null}
+                onClick={() => void onDemoteSuper()}
+              >
+                Demote from Super Admin
+              </ActionBtn>
+            )}
+            {!isSelf && !isDeactivated && (
+              <ActionBtn
+                tone="destructive"
+                disabled={busyAction !== null}
+                onClick={() => void onDeactivate()}
+              >
+                Deactivate account
+              </ActionBtn>
+            )}
+            {!isSelf && isDeactivated && (
+              <ActionBtn
+                tone="primary"
+                disabled={busyAction !== null}
+                onClick={() => void onReactivate()}
+              >
+                Reactivate account
+              </ActionBtn>
+            )}
+          </ActionRow>
         </DetailPanel>
 
         <DetailPanel title="Activity">
