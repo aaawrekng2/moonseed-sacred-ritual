@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { buildScatter } from "@/lib/scatter";
-import { Tabletop, adaptiveMaxRotation } from "@/components/tabletop/Tabletop";
+import { Tabletop } from "@/components/tabletop/Tabletop";
+import { adaptiveMaxRotation } from "@/components/tabletop/config";
 import type { SpreadMode } from "@/lib/spreads";
 import { SPREAD_META } from "@/lib/spreads";
 import { cn } from "@/lib/utils";

@@ -1,0 +1,171 @@
+import type { CardState, TabletopSession } from "./types";
+
+export const TABLETOP_CONFIG = {
+  CARD_ASPECT_RATIO: 1.75,
+  // Cards sit flat on the table — no rotation. The original scatter
+  // tilted each card by up to ±8°; per design the table now reads as a
+  // calm, axis-aligned spread so the eye isn't pulled around.
+  CARD_MAX_ROTATION: 0,
+  SCATTER_PADDING: 10,
+  /**
+   * Reserved vertical strip at the top of the scatter container so cards
+   * never spawn or get dragged behind the fixed top-bar icon cluster
+   * (44px tap targets + safe-area). Used both as `padding-top` on the
+   * container and as a deduction from the usable scatter height.
+   */
+  // On mobile, the floating ··· menu is much smaller than the old top bar
+  // so cards can start higher. Desktop keeps the original reserve.
+  TOP_RESERVE:
+    typeof window !== "undefined" && window.innerWidth < 768 ? 32 : 56,
+  SELECTION_GLOW_SPREAD: 6,
+  SELECTION_GLOW_OPACITY: 0.8,
+  // Slow, ceremonial flip — long enough to feel reverent without
+  // dragging. Paired with sacred-reveal-lift in styles.css.
+  REVEAL_ANIMATION_MS: 1100,
+  // Cards reveal simultaneously when the user taps Reveal — staggered
+  // entrance broke the "ceremonial all-at-once" feel of multi-card spreads.
+  REVEAL_STAGGER_MS: 0,
+  FLIGHT_MS: 420,
+  DECK_SIZE: 78,
+  /**
+   * Mobile breakpoint (CSS px). Below this the layout switches to:
+   *   - Slot rail anchored at the very bottom of the screen.
+   *   - Stir / counter / X arranged on a thinner row above it.
+   *   - Opacity slider hidden (desktop dev tool only).
+   */
+  MOBILE_BREAKPOINT: 768,
+};
+
+export function responsiveCardWidth(viewportW: number): number {
+  if (viewportW < 768) return 38;
+  if (viewportW < 1024) return 47;
+  return 58;
+}
+
+/**
+ * Per-spread slot dimensions. Slots are sized differently from the table
+ * cards because the rail must fit a fixed number of positions in one row
+ * with no horizontal scrolling, even on narrow phones (10 for Celtic).
+ *
+ * Returns the visible slot card width — height is derived from
+ * CARD_ASPECT_RATIO.
+ */
+export function responsiveSlotWidth(viewportW: number, count: number): number {
+  const isMobile = viewportW < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
+  if (count <= 3) {
+    // Three-card spread: roomy slots both layouts.
+    return isMobile ? 48 : 72;
+  }
+  if (count >= 10) {
+    // Celtic Cross: 10 slots must fit in a single non-scrolling row. Sizes
+    // chosen so 10 * (slotW + gap) stays inside common viewport widths.
+    if (isMobile) {
+      // Aim for ≤360px of rail on a 390px viewport (room for safe-area).
+      // 10 slots × 28 + 9 gaps × 4 ≈ 316px → comfortably fits.
+      return 28;
+    }
+    return 44;
+  }
+  // Fallback for any future spread with 4–9 cards.
+  return isMobile ? 38 : 56;
+}
+
+export function pickReturnSpot(
+  cards: CardState[],
+  excludeId: number,
+  geo: {
+    width: number;
+    height: number;
+    cardW: number;
+    cardH: number;
+    padding: number;
+    maxRotation: number;
+  },
+): { x: number; y: number; rotation: number } {
+  const others = cards.filter((c) => c.id !== excludeId);
+  const maxX = Math.max(0, geo.width - geo.padding * 2 - geo.cardW);
+  const maxY = Math.max(0, geo.height - geo.padding * 2 - geo.cardH);
+  const tries = 20;
+  let best: { x: number; y: number; coverage: number } | null = null;
+  for (let i = 0; i < tries; i++) {
+    const x = geo.padding + Math.random() * maxX;
+    const y = geo.padding + Math.random() * maxY;
+    let coverage = 0;
+    for (const o of others) {
+      const ow = Math.max(
+        0,
+        Math.min(x + geo.cardW, o.x + geo.cardW) - Math.max(x, o.x),
+      );
+      const oh = Math.max(
+        0,
+        Math.min(y + geo.cardH, o.y + geo.cardH) - Math.max(y, o.y),
+      );
+      coverage += ow * oh;
+    }
+    if (best === null || coverage < best.coverage) {
+      best = { x, y, coverage };
+      // Good enough — visible enough that we won't waste cycles searching.
+      if (coverage < geo.cardW * geo.cardH * 0.4) break;
+    }
+  }
+  const spot = best ?? { x: geo.padding, y: geo.padding, coverage: 0 };
+  let rotation = (Math.random() * 2 - 1) * geo.maxRotation;
+  if (Math.abs(rotation) < 1) rotation = rotation >= 0 ? 1 : -1;
+  return { x: spot.x, y: spot.y, rotation };
+}
+
+/**
+ * Adaptive max rotation: on very narrow portrait widths the rotated bounding
+ * box of a card eats meaningful horizontal real-estate, making the scatter
+ * feel cramped. Scale the tilt down smoothly so layouts stay spacious and
+ * never approach the clip boundary.
+ *
+ * Curve (linear interp on width):
+ *   ≤320px → 4°   (worst-case small phones, e.g. iPhone SE)
+ *    360px → 5°
+ *    390px → 6°
+ *    480px → 7°
+ *   ≥640px → CARD_MAX_ROTATION (8°)
+ */
+export function adaptiveMaxRotation(viewportW: number, base: number): number {
+  if (viewportW >= 640) return base;
+  if (viewportW <= 320) return Math.min(base, 4);
+  // Linear ramp from (320, 4) to (640, base).
+  const t = (viewportW - 320) / (640 - 320);
+  const value = 4 + (base - 4) * t;
+  // Round to nearest 0.5° to keep values stable across small width changes.
+  return Math.round(value * 2) / 2;
+}
+
+/**
+ * Compute the invisible hit-area inset around each card so the effective
+ * touch target reaches an Apple-HIG-friendly minimum width regardless of
+ * how small the rendered card is. Coarse pointers (touch) target 44px min;
+ * fine pointers (mouse) target ~28px and never inset more than 8px.
+ *
+ * Returns CSS pixels (positive number). The card-hit element negates this
+ * for `inset`, so a value of 12 means the hit area extends 12px on every
+ * side of the visible card.
+ */
+export function adaptiveHitInset(
+  cardW: number,
+  isCoarsePointer: boolean,
+): number {
+  const targetMin = isCoarsePointer ? 44 : 28;
+  const expansion = Math.max(0, (targetMin - cardW) / 2);
+  // Clamp so the hit area never grows so large it overlaps neighbours.
+  const cap = isCoarsePointer ? 16 : 8;
+  return Math.min(cap, Math.round(expansion));
+}
+
+const tabletopSessions = new Map<string, TabletopSession>();
+
+export function readTabletopSession(spread: string): TabletopSession | null {
+  return tabletopSessions.get(spread) ?? null;
+}
+export function writeTabletopSession(spread: string, snapshot: TabletopSession) {
+  tabletopSessions.set(spread, snapshot);
+}
+export function clearTabletopSession(spread: string) {
+  tabletopSessions.delete(spread);
+}
