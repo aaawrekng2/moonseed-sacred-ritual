@@ -10,6 +10,7 @@ import { ArrowLeft, CheckCheck, ChevronDown, ChevronRight, Copy, Share2 } from "
 import { getCardName } from "@/lib/tarot";
 import { useActiveDeckImage } from "@/lib/active-deck";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
+import { PositionLabel } from "@/components/tabletop/SpreadLayout";
 import {
   interpretReading,
   type InterpretationPayload,
