@@ -844,10 +844,38 @@ function DeckEditor({
         shape={shape === "round" ? "round" : "rectangle"}
         cornerRadiusPercent={cornerRadius}
         existingBackUrl={deckBackUrl}
-        onCancel={() => setMode({ kind: "grid", deckId })}
+        entryMode="import"
+        initialPhase="upload"
+        deckName={name}
+        onCancel={() => onClose(true)}
         onDone={async () => {
           await reloadCards(deckId);
-          setMode({ kind: "grid", deckId });
+          onClose(true);
+        }}
+      />
+    );
+  }
+
+  // ---------- CC G5: Unified deck-editor workspace ----------
+  if (mode.kind === "workspace") {
+    const deckId = mode.deckId;
+    return (
+      <ZipImporter
+        userId={userId}
+        deckId={deckId}
+        shape={shape === "round" ? "round" : "rectangle"}
+        cornerRadiusPercent={cornerRadius}
+        existingBackUrl={deckBackUrl}
+        entryMode="edit"
+        initialPhase={mode.initialPhase}
+        deckName={name}
+        onCancel={async () => {
+          await reloadCards(deckId);
+          onClose(true);
+        }}
+        onDone={async () => {
+          await reloadCards(deckId);
+          onClose(true);
         }}
       />
     );
