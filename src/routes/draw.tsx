@@ -68,9 +68,10 @@ function DrawPage() {
 
   useEffect(() => {
     if (!user) {
-      // Anonymous: default to the prompt being on.
+      // CL Group 6 — Anonymous: allow the quill icon, but do NOT
+      // auto-open the expanded box. The seeker must tap the quill.
       setShowQuestionPrompt(true);
-      setQuestionOpen(true);
+      setQuestionOpen(false);
       setPrefsLoaded(true);
       return;
     }
