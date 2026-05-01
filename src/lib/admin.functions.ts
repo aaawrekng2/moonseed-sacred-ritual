@@ -156,6 +156,12 @@ export const adminAction = createServerFn({ method: "POST" })
       }
     }
 
+    // CQ — extra self-protection for deactivate. UI hides the button
+    // when the target is the current admin, but defend the server too.
+    if (data.type === "deactivate_user" && data.targetUserId === userId) {
+      throw new Error("cannot deactivate self");
+    }
+
     switch (data.type) {
       case "grant_premium": {
         const expires = new Date();
@@ -173,7 +179,45 @@ export const adminAction = createServerFn({ method: "POST" })
         await logAction(userId, actorEmail, "grant_premium", data.targetUserId, targetEmail, { months: data.months });
         break;
       }
+      case "extend_premium": {
+        // Extend from the existing expiration if still in the future,
+        // otherwise extend from now.
+        const { data: current } = await supabaseAdmin
+          .from("user_preferences")
+          .select("premium_expires_at")
+          .eq("user_id", data.targetUserId)
+          .maybeSingle();
+        const prev = (current as { premium_expires_at?: string | null } | null)
+          ?.premium_expires_at;
+        const base =
+          prev && new Date(prev).getTime() > Date.now()
+            ? new Date(prev)
+            : new Date();
+        base.setMonth(base.getMonth() + data.months);
+        await supabaseAdmin
+          .from("user_preferences")
+          .update({
+            is_premium: true,
+            subscription_type: "gifted",
+            premium_expires_at: base.toISOString(),
+          })
+          .eq("user_id", data.targetUserId);
+        await logAction(
+          userId,
+          actorEmail,
+          "extend_premium",
+          data.targetUserId,
+          targetEmail,
+          { months: data.months, previous_expires_at: prev ?? null, expires_at: base.toISOString() },
+        );
+        break;
+      }
       case "revoke_premium": {
+        const { data: prevRow } = await supabaseAdmin
+          .from("user_preferences")
+          .select("premium_expires_at")
+          .eq("user_id", data.targetUserId)
+          .maybeSingle();
         await supabaseAdmin
           .from("user_preferences")
           .update({
@@ -182,7 +226,11 @@ export const adminAction = createServerFn({ method: "POST" })
             premium_expires_at: null,
           })
           .eq("user_id", data.targetUserId);
-        await logAction(userId, actorEmail, "revoke_premium", data.targetUserId, targetEmail, {});
+        await logAction(userId, actorEmail, "revoke_premium", data.targetUserId, targetEmail, {
+          previous_expires_at:
+            (prevRow as { premium_expires_at?: string | null } | null)
+              ?.premium_expires_at ?? null,
+        });
         break;
       }
       case "assign_admin": {
@@ -216,6 +264,14 @@ export const adminAction = createServerFn({ method: "POST" })
           ban_duration: "876000h",
         });
         await logAction(userId, actorEmail, "deactivate_user", data.targetUserId, targetEmail, {});
+        break;
+      }
+      case "reactivate_user": {
+        // ban_duration: "none" lifts the ban.
+        await supabaseAdmin.auth.admin.updateUserById(data.targetUserId, {
+          ban_duration: "none",
+        });
+        await logAction(userId, actorEmail, "reactivate_user", data.targetUserId, targetEmail, {});
         break;
       }
       case "set_note": {
