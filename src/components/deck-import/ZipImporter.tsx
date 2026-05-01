@@ -293,6 +293,8 @@ export function ZipImporter({
 
   const handleAssign = useCallback((imageKey: string, cardId: number | "BACK") => {
     const slot = cardId === "BACK" ? BACK_KEY : String(cardId);
+    let displacedSlot: string | null = null;
+    let displacedKey: string | null = null;
     mutate((s) => {
       // Remove image from unassigned/skipped.
       const fromUn = s.unassigned[imageKey];
@@ -313,15 +315,35 @@ export function ZipImporter({
           s.unassigned[displaced] = displacedImg;
         }
       }
-      // Remove imageKey from any other slot it may have occupied.
+      // Remove imageKey from any other slot it may have occupied. Track
+      // it so the autosave below can also clear that slot in Supabase.
       for (const k of Object.keys(s.assigned)) {
-        if (s.assigned[k] === imageKey) delete s.assigned[k];
+        if (s.assigned[k] === imageKey && k !== slot) {
+          displacedSlot = k;
+          displacedKey = imageKey;
+          delete s.assigned[k];
+        }
       }
       s.assigned[slot] = imageKey;
       // Stash in shadow asset store so findImage() can still locate it
       // after it's been removed from unassigned/skipped.
       ensureAssetStore(s)[imageKey] = sourceImg;
     });
+    // CB — autosave the new assignment. Skip EXISTING:* (already saved).
+    if (!imageKey.startsWith("EXISTING:")) {
+      // Read latest state inside an updater to ensure we have the image.
+      setWorkspace((cur) => {
+        if (!cur) return cur;
+        const img = findImage(cur.session, imageKey);
+        if (img) void runSave(slot, img, imageKey);
+        return cur;
+      });
+    }
+    // CB — if we displaced an image from another slot, archive that
+    // slot's row in Supabase too.
+    if (displacedSlot && displacedKey) {
+      void runRemove(displacedSlot, displacedKey);
+    }
     // Trigger encoding for this image if not already encoded.
     setWorkspace((prev) => {
       if (!prev) return prev;
@@ -342,7 +364,7 @@ export function ZipImporter({
       }
       return prev;
     });
-  }, [mutate, shape, cornerRadiusPercent]);
+  }, [mutate, shape, cornerRadiusPercent, runSave, runRemove]);
 
   const handleSkip = useCallback((imageKey: string) => {
     mutate((s) => {
@@ -363,16 +385,21 @@ export function ZipImporter({
   }, [mutate]);
 
   const handleUnassign = useCallback((slot: string) => {
+    let removedKey: string | null = null;
     mutate((s) => {
       const imageKey = s.assigned[slot];
       if (!imageKey) return;
+      removedKey = imageKey;
       delete s.assigned[slot];
       const img = findImage(s, imageKey);
       if (img && !imageKey.startsWith("EXISTING:")) {
         s.unassigned[imageKey] = img;
       }
     });
-  }, [mutate]);
+    if (removedKey) {
+      void runRemove(slot, removedKey);
+    }
+  }, [mutate, runRemove]);
 
   // BN Fix 1 — replace the raw blob for an image (used by the Edit /
   // 4-corner crop refine flow). Updates dimensions, drops any cached
