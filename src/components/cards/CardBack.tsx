@@ -42,6 +42,12 @@ const ACCENT_BG =
 
 interface Props {
   id?: CardBackId;
+  /**
+   * BX — when set, render this image as the card back (used by the
+   * active custom deck). Falls through to the procedural preset when
+   * null/undefined.
+   */
+  imageUrl?: string | null;
   width?: number;
   className?: string;
   ariaLabel?: string;
@@ -393,10 +399,36 @@ const STYLES: Record<
   verdant: SHARED_STYLE,
 };
 
-export function CardBack({ id = "celestial", width = 160, className, ariaLabel, neutralBorder }: Props) {
+export function CardBack({ id = "celestial", imageUrl, width = 160, className, ariaLabel, neutralBorder }: Props) {
   const height = Math.round(width * RATIO);
   const style = STYLES[id];
   const m = scaleMetrics(width);
+  // BX — custom deck back overrides the procedural artwork.
+  if (imageUrl) {
+    return (
+      <div
+        role="img"
+        aria-label={ariaLabel ?? "Tarot card back"}
+        className={cn("relative overflow-hidden", className)}
+        style={{
+          width,
+          height,
+          borderRadius: m.radius,
+          background: "var(--surface-card)",
+          border: `${m.border}px solid ${
+            neutralBorder ? "oklch(1 0 0 / 0.10)" : style.borderColor
+          }`,
+        }}
+      >
+        <img
+          src={imageUrl}
+          alt={ariaLabel ?? "Card back"}
+          className="h-full w-full object-cover"
+          draggable={false}
+        />
+      </div>
+    );
+  }
   const outerBorderColor = neutralBorder
     ? "oklch(1 0 0 / 0.10)"
     : style.borderColor;
