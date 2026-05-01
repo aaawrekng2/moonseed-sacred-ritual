@@ -1654,6 +1654,18 @@ function UsersTab({
       >
         {summary}
       </div>
+      <div
+        className="mt-1"
+        style={{
+          ...serif,
+          fontStyle: "italic",
+          fontSize: "var(--text-caption)",
+          color:
+            "color-mix(in oklab, var(--color-foreground) 45%, transparent)",
+        }}
+      >
+        Anonymous sessions visible on Dashboard.
+      </div>
 
       {loading ? (
         <p
