@@ -609,6 +609,12 @@ function CelticCross({
           emergeDelayMs={cell.slotIndex * 70}
         />
         {showLabels && <PositionLabel>{label}</PositionLabel>}
+        {showLabels && revealedFlags[cell.slotIndex] && (
+          <CardNameLabel
+            cardIndex={cell.pick.cardIndex}
+            isReversed={!!cell.pick.isReversed}
+          />
+        )}
       </div>
     ) : null;
 
@@ -675,6 +681,22 @@ function CelticCross({
               {labels[1] ?? "Obstacle"}
             </PositionLabel>
           )}
+          {showLabels && (revealedFlags[0] || revealedFlags[1]) && (
+            <div className="flex flex-col items-center gap-0.5">
+              {revealedFlags[0] && present.pick && (
+                <CardNameLabel
+                  cardIndex={present.pick.cardIndex}
+                  isReversed={!!present.pick.isReversed}
+                />
+              )}
+              {revealedFlags[1] && obstacle.pick && (
+                <CardNameLabel
+                  cardIndex={obstacle.pick.cardIndex}
+                  isReversed={!!obstacle.pick.isReversed}
+                />
+              )}
+            </div>
+          )}
           </div>
           {cardWithLabel(root, labels[2] ?? "Root")}
         </div>
@@ -703,6 +725,12 @@ function CelticCross({
               />
               {showLabels && (
                 <PositionLabel>{labels[6 + i] ?? `Slot ${7 + i}`}</PositionLabel>
+              )}
+              {showLabels && revealedFlags[cell.slotIndex] && (
+                <CardNameLabel
+                  cardIndex={cell.pick.cardIndex}
+                  isReversed={!!cell.pick.isReversed}
+                />
               )}
             </div>
           ) : null,
