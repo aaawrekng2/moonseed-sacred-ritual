@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { SettingsProvider } from "@/components/settings/SettingsContext";
 import { useNavigate } from "@tanstack/react-router";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
+import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { supabase } from "@/lib/supabase";
 
 /**
@@ -96,6 +97,8 @@ function tabFromPath(pathname: string): TabKey | null {
 }
 
 function SettingsLayout() {
+  // BX — settings stays portrait-only (covers all sub-routes via Outlet).
+  usePortraitOnly();
   const { user, loading: authLoading } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
