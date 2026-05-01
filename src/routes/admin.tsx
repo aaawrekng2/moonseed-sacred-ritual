@@ -1807,8 +1807,8 @@ function formatPremiumCell(user: AdminUser): React.ReactNode {
  */
 function UserDetailPage({
   user,
-  myRole: _myRole,
-  myUserId: _myUserId,
+  myRole,
+  myUserId,
   onBack,
   onNoteSaved,
 }: {
@@ -1827,6 +1827,126 @@ function UserDetailPage({
   const [noteText, setNoteText] = useState(user.admin_note ?? "");
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteSavedAt, setNoteSavedAt] = useState<number | null>(null);
+  const [grantOpen, setGrantOpen] = useState<null | "grant" | "extend">(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const confirm = useConfirm();
+
+  const isSelf = user.user_id === myUserId;
+  const isDeactivated = !!user.banned_until &&
+    new Date(user.banned_until).getTime() > Date.now();
+  const isSuperAdmin = user.role === "super_admin";
+
+  const labelOf = (email: string | null, id: string) =>
+    email ?? id.slice(0, 8);
+  const targetLabel = labelOf(user.email, user.user_id);
+
+  const runAction = async (
+    actionLabel: string,
+    payload: Parameters<typeof adminAction>[0]["data"],
+    successMsg: string,
+  ) => {
+    setBusyAction(actionLabel);
+    try {
+      await adminAction({ data: payload, headers: await authHeaders() });
+      toast.success(successMsg);
+      onNoteSaved();
+    } catch (e) {
+      toast.error((e as Error).message ?? "Action failed");
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const onRevokePremium = async () => {
+    const ok = await confirm({
+      title: `Revoke Premium from ${targetLabel}?`,
+      description:
+        "This immediately removes Premium access. The user will revert to free features.",
+      confirmLabel: "Revoke Premium",
+      destructive: true,
+    });
+    if (!ok) return;
+    await runAction(
+      "revoke",
+      { type: "revoke_premium", targetUserId: user.user_id },
+      `Premium revoked from ${targetLabel}`,
+    );
+  };
+
+  const onPasswordReset = async () => {
+    const ok = await confirm({
+      title: `Send password reset to ${targetLabel}?`,
+      description: "A recovery email will be generated for this account.",
+      confirmLabel: "Send Reset",
+    });
+    if (!ok) return;
+    await runAction(
+      "pwreset",
+      { type: "password_reset", targetUserId: user.user_id },
+      `Password reset sent to ${targetLabel}`,
+    );
+  };
+
+  const onPromoteSuper = async () => {
+    const ok = await confirm({
+      title: `Promote ${targetLabel} to Super Admin?`,
+      description:
+        "Super admins can grant or revoke admin roles for any user. Use sparingly.",
+      confirmLabel: "Promote",
+    });
+    if (!ok) return;
+    await runAction(
+      "promote",
+      { type: "assign_admin", targetUserId: user.user_id, role: "super_admin" },
+      `${targetLabel} promoted to Super Admin`,
+    );
+  };
+
+  const onDemoteSuper = async () => {
+    const ok = await confirm({
+      title: `Demote ${targetLabel} from Super Admin?`,
+      description:
+        "This removes the super admin role and resets the user back to a regular user.",
+      confirmLabel: "Demote",
+      destructive: true,
+    });
+    if (!ok) return;
+    await runAction(
+      "demote",
+      { type: "remove_admin", targetUserId: user.user_id },
+      `${targetLabel} demoted from Super Admin`,
+    );
+  };
+
+  const onDeactivate = async () => {
+    const ok = await confirm({
+      title: `Deactivate ${targetLabel}?`,
+      description:
+        "The user will be unable to sign in until reactivated. Their data is preserved.",
+      confirmLabel: "Deactivate Account",
+      destructive: true,
+    });
+    if (!ok) return;
+    await runAction(
+      "deactivate",
+      { type: "deactivate_user", targetUserId: user.user_id },
+      `${targetLabel} deactivated`,
+    );
+  };
+
+  const onReactivate = async () => {
+    const ok = await confirm({
+      title: `Reactivate ${targetLabel}?`,
+      description: "The user will be able to sign in again.",
+      confirmLabel: "Reactivate Account",
+    });
+    if (!ok) return;
+    await runAction(
+      "reactivate",
+      { type: "reactivate_user", targetUserId: user.user_id },
+      `${targetLabel} reactivated`,
+    );
+  };
 
   useEffect(() => {
     void (async () => {
