@@ -50,7 +50,6 @@ export function Tabletop({
   spread,
   onExit,
   onComplete,
-  allowReversed = false,
 }: TabletopProps) {
   const meta = SPREAD_META[spread];
   const required = meta.count;
