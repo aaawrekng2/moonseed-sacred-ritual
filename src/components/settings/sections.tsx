@@ -138,6 +138,7 @@ function ProfileSectionInner({
   };
 
   return (
+    <>
     <SettingsSection title="Your Profile">
       {isAnonymous ? (
         <div className="flex flex-col items-center gap-6 px-2 py-6 text-center">
@@ -214,12 +215,6 @@ function ProfileSectionInner({
             Don't remind me
           </button>
 
-          {authOpen && (
-            <AuthScreen
-              onClose={() => setAuthOpen(false)}
-              onSuccess={() => setAuthOpen(false)}
-            />
-          )}
         </div>
       ) : (
         <div className="space-y-5">
@@ -276,6 +271,17 @@ function ProfileSectionInner({
         </div>
       )}
     </SettingsSection>
+    {/* CO Group 1 — render AuthScreen OUTSIDE the isAnonymous branch so it
+        survives the moment signUp() succeeds and the user object flips
+        from anonymous → confirmed. Otherwise the parent unmounts the
+        modal before the "Check your email" pane can render. */}
+    {authOpen && (
+      <AuthScreen
+        onClose={() => setAuthOpen(false)}
+        onSuccess={() => setAuthOpen(false)}
+      />
+    )}
+    </>
   );
 }
 

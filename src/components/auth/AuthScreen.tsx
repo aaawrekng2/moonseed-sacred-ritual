@@ -87,12 +87,26 @@ export function AuthScreen({
         if (currentUser && isAnonymous) {
           await supabase.auth.signOut();
         }
-        const { error: signUpError } = await supabase.auth.signUp({
+        // CO Group 1 — diagnostic logs to surface which branch fires when
+        // users report not seeing the "Check your email" pane. Also note:
+        // this flow REQUIRES "Confirm email" to be enabled in Lovable
+        // Cloud auth settings. With auto-confirm ON, signUp() returns a
+        // live session and onAuthStateChange unmounts AuthScreen before
+        // signupSent can render.
+        console.log("[Auth-signup] before signUp call", { email });
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: window.location.origin },
         });
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          console.warn("[Auth-signup] signUp error:", signUpError);
+          throw signUpError;
+        }
+        console.log("[Auth-signup] after signUp success — setSignupSent(true)", {
+          hasSession: !!signUpData?.session,
+          userId: signUpData?.user?.id,
+        });
 
         // Replace the form with a confirmation pane so the seeker has
         // a clear next step instead of an empty card or a fleeting toast.
@@ -129,6 +143,7 @@ export function AuthScreen({
         onSuccess();
       }
     } catch (e: unknown) {
+      console.warn("[Auth-signup] in catch:", e);
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setLoading(false);
