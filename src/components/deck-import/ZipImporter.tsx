@@ -281,6 +281,53 @@ export function ZipImporter({
   }, [deckId, shape, cornerRadiusPercent]);
 
   /* ---------- Mutators ---------- */
+  /**
+   * CB — Per-card autosave runner. Looks up the image for the slot in
+   * the latest workspace session and calls saveCard. Updates the
+   * per-slot state map and the global status indicator. Skips
+   * EXISTING:* markers (already saved on the deck).
+   */
+  const runSave = useCallback(
+    async (slot: string, image: ImportImage, cardKey: string) => {
+      const cardId: number | "BACK" = slot === BACK_KEY ? "BACK" : Number(slot);
+      setSlotState(slot, "saving");
+      beginSave();
+      try {
+        const res = await saveCard({
+          userId,
+          deckId,
+          cardId,
+          cardKey,
+          image,
+          opts: { shape, cornerRadiusPercent },
+        });
+        setSlotState(slot, res.status === "saved" ? "saved" : "failed");
+      } catch (err) {
+        console.error("[CB-save] runSave threw", err);
+        setSlotState(slot, "failed");
+      } finally {
+        endSave();
+      }
+    },
+    [userId, deckId, shape, cornerRadiusPercent, beginSave, endSave, setSlotState],
+  );
+
+  /** CB — remove a slot's active row in Supabase (un-assign). */
+  const runRemove = useCallback(
+    async (slot: string, cardKey: string) => {
+      const cardId: number | "BACK" = slot === BACK_KEY ? "BACK" : Number(slot);
+      beginSave();
+      try {
+        const res = await removeCard({ deckId, cardId, cardKey });
+        if (res.status === "saved") setSlotState(slot, null);
+        else setSlotState(slot, "failed");
+      } finally {
+        endSave();
+      }
+    },
+    [deckId, beginSave, endSave, setSlotState],
+  );
+
   const mutate = useCallback((mutator: (s: ImportSession) => void) => {
     setWorkspace((prev) => {
       if (!prev) return prev;
@@ -434,53 +481,6 @@ export function ZipImporter({
         .catch((e) => console.warn("re-encode failed", e));
     },
     [mutate, shape, cornerRadiusPercent],
-  );
-
-  /**
-   * CB — Per-card autosave runner. Looks up the image for the slot in
-   * the latest workspace session and calls saveCard. Updates the
-   * per-slot state map and the global status indicator. Skips
-   * EXISTING:* markers (already saved on the deck).
-   */
-  const runSave = useCallback(
-    async (slot: string, image: ImportImage, cardKey: string) => {
-      const cardId: number | "BACK" = slot === BACK_KEY ? "BACK" : Number(slot);
-      setSlotState(slot, "saving");
-      beginSave();
-      try {
-        const res = await saveCard({
-          userId,
-          deckId,
-          cardId,
-          cardKey,
-          image,
-          opts: { shape, cornerRadiusPercent },
-        });
-        setSlotState(slot, res.status === "saved" ? "saved" : "failed");
-      } catch (err) {
-        console.error("[CB-save] runSave threw", err);
-        setSlotState(slot, "failed");
-      } finally {
-        endSave();
-      }
-    },
-    [userId, deckId, shape, cornerRadiusPercent, beginSave, endSave, setSlotState],
-  );
-
-  /** CB — remove a slot's active row in Supabase (un-assign). */
-  const runRemove = useCallback(
-    async (slot: string, cardKey: string) => {
-      const cardId: number | "BACK" = slot === BACK_KEY ? "BACK" : Number(slot);
-      beginSave();
-      try {
-        const res = await removeCard({ deckId, cardId, cardKey });
-        if (res.status === "saved") setSlotState(slot, null);
-        else setSlotState(slot, "failed");
-      } finally {
-        endSave();
-      }
-    },
-    [deckId, beginSave, endSave, setSlotState],
   );
 
   /** CB — retry a single failed slot. Re-reads the image from the
