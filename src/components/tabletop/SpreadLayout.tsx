@@ -649,7 +649,7 @@ function CelticCross({
 
   const cardWithLabel = (
     cell: { pick: Pick | undefined; slotIndex: number },
-    label: string,
+    _label: string,
     rotated = false,
   ) =>
     cell.pick ? (
@@ -664,15 +664,8 @@ function CelticCross({
           sizing={sizing}
           rotated={rotated}
           emergeDelayMs={cell.slotIndex * 70}
+          isRevealPhase={isRevealPhase}
         />
-        {showLabels && <PositionLabel cardWidth={sizing.w}>{label}</PositionLabel>}
-        {showLabels && revealedFlags[cell.slotIndex] && (
-          <CardNameLabel
-            cardIndex={cell.pick.cardIndex}
-            isReversed={!!cell.pick.isReversed}
-            cardWidth={sizing.w}
-          />
-        )}
       </div>
     ) : null;
 
@@ -711,6 +704,7 @@ function CelticCross({
                 onTap={() => onTap(0)}
                 sizing={sizing}
                 emergeDelayMs={0}
+                isRevealPhase={isRevealPhase}
               />
             </div>
             {obstacle.pick ? (
@@ -728,35 +722,11 @@ function CelticCross({
                   sizing={sizing}
                   rotated
                   emergeDelayMs={70}
+                  isRevealPhase={isRevealPhase}
                 />
               </div>
             ) : null}
           </div>
-          {showLabels && (
-            <PositionLabel cardWidth={sizing.w}>
-              {labels[0] ?? "Present"}
-              <span style={{ opacity: 0.4, margin: "0 4px" }}>·</span>
-              {labels[1] ?? "Obstacle"}
-            </PositionLabel>
-          )}
-          {showLabels && (revealedFlags[0] || revealedFlags[1]) && (
-            <div className="flex flex-col items-center gap-0.5">
-              {revealedFlags[0] && present.pick && (
-                <CardNameLabel
-                  cardIndex={present.pick.cardIndex}
-                  isReversed={!!present.pick.isReversed}
-                  cardWidth={sizing.w}
-                />
-              )}
-              {revealedFlags[1] && obstacle.pick && (
-                <CardNameLabel
-                  cardIndex={obstacle.pick.cardIndex}
-                  isReversed={!!obstacle.pick.isReversed}
-                  cardWidth={sizing.w}
-                />
-              )}
-            </div>
-          )}
           </div>
           {cardWithLabel(root, labels[2] ?? "Root")}
         </div>
@@ -782,17 +752,8 @@ function CelticCross({
                 onTap={() => onTap(cell.slotIndex)}
                 sizing={sizing}
                 emergeDelayMs={cell.slotIndex * 70}
+                isRevealPhase={isRevealPhase}
               />
-              {showLabels && (
-                <PositionLabel cardWidth={sizing.w}>{labels[6 + i] ?? `Slot ${7 + i}`}</PositionLabel>
-              )}
-              {showLabels && revealedFlags[cell.slotIndex] && (
-                <CardNameLabel
-                  cardIndex={cell.pick.cardIndex}
-                  isReversed={!!cell.pick.isReversed}
-                  cardWidth={sizing.w}
-                />
-              )}
             </div>
           ) : null,
         )}
