@@ -65,7 +65,10 @@ const SAMPLE_PREVIEW_CARD_ID = 17; // The Star — generally pretty
 type WizardState =
   | { kind: "list" }
   | { kind: "create" }
-  | { kind: "edit"; deck: CustomDeck };
+  | { kind: "edit"; deck: CustomDeck }
+  // CC G5 — open the deck editor and force-route into the upload phase
+  // so the user sees the "Choose zip file" picker immediately.
+  | { kind: "edit-import"; deck: CustomDeck };
 
 function DecksPage() {
   const { user } = useAuth();
@@ -129,10 +132,25 @@ function DecksPage() {
       <DeckEditor
         userId={user.id}
         existing={view.kind === "edit" ? view.deck : null}
+        startInUploadPhase={false}
         onClose={async (saved) => {
           setView({ kind: "list" });
           // Always refresh on return — Save inside the editor may have
           // mutated rows even when 'saved' is false.
+          await Promise.all([load(), refreshActiveDeck()]);
+        }}
+      />
+    );
+  }
+
+  if (view.kind === "edit-import") {
+    return (
+      <DeckEditor
+        userId={user.id}
+        existing={view.deck}
+        startInUploadPhase={true}
+        onClose={async (saved) => {
+          setView({ kind: "list" });
           await Promise.all([load(), refreshActiveDeck()]);
         }}
       />
@@ -180,6 +198,7 @@ function DecksPage() {
               key={d.id}
               deck={d}
               onEdit={() => setView({ kind: "edit", deck: d })}
+              onImportZip={() => setView({ kind: "edit-import", deck: d })}
               onToggleActive={() => void handleSetActive(d)}
               onDelete={() => void handleDelete(d)}
             />
@@ -218,11 +237,13 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 function DeckRow({
   deck,
   onEdit,
+  onImportZip,
   onToggleActive,
   onDelete,
 }: {
   deck: CustomDeck;
   onEdit: () => void;
+  onImportZip: () => void;
   onToggleActive: () => void;
   onDelete: () => void;
 }) {
@@ -286,6 +307,14 @@ function DeckRow({
       </button>
       <button
         type="button"
+        onClick={(e) => { e.stopPropagation(); onImportZip(); }}
+        className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
+        title="Import / replace from zip"
+      >
+        <Upload className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
         onClick={(e) => { e.stopPropagation(); onDelete(); }}
         className="rounded-md border border-destructive/40 p-1.5 text-destructive hover:bg-destructive/10"
         aria-label="Delete deck"
@@ -306,22 +335,34 @@ type EditorMode =
   | { kind: "picker"; deckId: string }
   | { kind: "capture"; deckId: string; cardId: number }
   | { kind: "back-capture"; deckId: string }
-  | { kind: "import"; deckId: string };
+  | { kind: "import"; deckId: string }
+  // CC G5 — Unified deck-editor workspace. Routes "Edit" straight to
+  // the ZipImporter component in edit-mode so the user lands in the
+  // 78-slot workspace without an intermediate grid view.
+  | { kind: "workspace"; deckId: string; initialPhase?: "upload" | "workspace" };
 
 function DeckEditor({
   userId,
   existing,
+  startInUploadPhase = false,
   onClose,
 }: {
   userId: string;
   existing: CustomDeck | null;
+  startInUploadPhase?: boolean;
   onClose: (saved: boolean) => void;
 }) {
   const [name, setName] = useState(existing?.name ?? "My Deck");
   const [shape, setShape] = useState<CustomDeck["shape"]>(existing?.shape ?? "rectangle");
   const [cornerRadius, setCornerRadius] = useState(existing?.corner_radius_percent ?? 4);
   const [mode, setMode] = useState<EditorMode>(
-    existing ? { kind: "grid", deckId: existing.id } : { kind: "details" },
+    existing
+      ? {
+          kind: "workspace",
+          deckId: existing.id,
+          initialPhase: startInUploadPhase ? "upload" : "workspace",
+        }
+      : { kind: "details" },
   );
   const [saving, setSaving] = useState(false);
   const [cards, setCards] = useState<CustomDeckCard[]>([]);
@@ -840,10 +881,38 @@ function DeckEditor({
         shape={shape === "round" ? "round" : "rectangle"}
         cornerRadiusPercent={cornerRadius}
         existingBackUrl={deckBackUrl}
-        onCancel={() => setMode({ kind: "grid", deckId })}
+        entryMode="import"
+        initialPhase="upload"
+        deckName={name}
+        onCancel={() => onClose(true)}
         onDone={async () => {
           await reloadCards(deckId);
-          setMode({ kind: "grid", deckId });
+          onClose(true);
+        }}
+      />
+    );
+  }
+
+  // ---------- CC G5: Unified deck-editor workspace ----------
+  if (mode.kind === "workspace") {
+    const deckId = mode.deckId;
+    return (
+      <ZipImporter
+        userId={userId}
+        deckId={deckId}
+        shape={shape === "round" ? "round" : "rectangle"}
+        cornerRadiusPercent={cornerRadius}
+        existingBackUrl={deckBackUrl}
+        entryMode="edit"
+        initialPhase={mode.initialPhase}
+        deckName={name}
+        onCancel={async () => {
+          await reloadCards(deckId);
+          onClose(true);
+        }}
+        onDone={async () => {
+          await reloadCards(deckId);
+          onClose(true);
         }}
       />
     );

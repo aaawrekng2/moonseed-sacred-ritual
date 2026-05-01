@@ -88,6 +88,9 @@ export function ZipImporter({
   existingBackUrl,
   onCancel,
   onDone,
+  entryMode = "import",
+  initialPhase,
+  deckName,
 }: {
   userId: string;
   deckId: string;
@@ -96,6 +99,15 @@ export function ZipImporter({
   existingBackUrl?: string | null;
   onCancel: () => void;
   onDone: () => void;
+  /** CC G5 — "import" (zip workflow w/ snapshot+discard) or "edit"
+   *  (no snapshot, edit-deck workspace). */
+  entryMode?: "import" | "edit";
+  /** CC G2 — when set to "upload", force the workspace to land on the
+   *  upload phase even if the deck already has saved cards. Used by
+   *  the "Import / replace from zip" entry from My Decks. */
+  initialPhase?: "upload" | "workspace";
+  /** CC G5 — used as the workspace title in edit mode. */
+  deckName?: string | null;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
@@ -151,6 +163,24 @@ export function ZipImporter({
     let cancelled = false;
     (async () => {
       try {
+        // CC G2 — "Import / replace from zip" entry forces the upload
+        // phase even when a deck already has saved cards. The user
+        // explicitly asked for the file-picker flow.
+        if (initialPhase === "upload") {
+          // Still hydrate cardStates from existing rows so the workspace
+          // (after they pick a zip) shows them as 'saved'.
+          try {
+            const existingCards = await fetchDeckCards(deckId);
+            if (cancelled) return;
+            const seeded: Record<string, CardState> = {};
+            for (const c of existingCards) seeded[String(c.card_id)] = "saved";
+            if (Object.keys(seeded).length > 0) setCardStates(seeded);
+          } catch {
+            /* non-fatal */
+          }
+          setPhase({ kind: "upload", resumable: false });
+          return;
+        }
         const existing = await getSession(deckId);
         if (cancelled) return;
         if (existing && Object.keys(existing.unassigned).length + Object.keys(existing.assigned).length > 0) {
@@ -161,7 +191,7 @@ export function ZipImporter({
         // No session: check for existing deck cards (re-import path).
         const existingCards = await fetchDeckCards(deckId);
         if (cancelled) return;
-        if (existingCards.length > 0) {
+        if (existingCards.length > 0 || entryMode === "edit") {
           // Pre-populate session with synthetic markers (BLa Fix B).
           // Existing cards are tracked ONLY in session.assigned. Their
           // image data lives in the shadow asset store so the workspace
@@ -186,9 +216,14 @@ export function ZipImporter({
           const seeded: Record<string, CardState> = {};
           for (const c of existingCards) seeded[String(c.card_id)] = "saved";
           setCardStates(seeded);
-          void captureSnapshotIfMissing(deckId).catch((e) =>
-            console.warn("[CB] snapshot capture failed", e),
-          );
+          // CC G5 — snapshots are only meaningful in import mode (the
+          // user can roll back). Edit mode treats every save as the
+          // source of truth.
+          if (entryMode === "import") {
+            void captureSnapshotIfMissing(deckId).catch((e) =>
+              console.warn("[CB] snapshot capture failed", e),
+            );
+          }
           setWorkspace({ session });
           setPhase({ kind: "workspace" });
           return;
@@ -202,7 +237,7 @@ export function ZipImporter({
     return () => {
       cancelled = true;
     };
-  }, [deckId]);
+  }, [deckId, entryMode, initialPhase]);
 
   /* ---------- Zip extraction ---------- */
   const handleFile = useCallback(async (file: File) => {
@@ -268,10 +303,13 @@ export function ZipImporter({
       }
       await saveSession(session);
       // CB — capture snapshot of current deck state before any autosave
-      // writes happen, so Discard can roll back.
-      void captureSnapshotIfMissing(deckId).catch((e) =>
-        console.warn("[CB] snapshot capture failed", e),
-      );
+      // writes happen, so Discard can roll back. CC G5 — only in import
+      // mode; edit mode has no rollback semantics.
+      if (entryMode === "import") {
+        void captureSnapshotIfMissing(deckId).catch((e) =>
+          console.warn("[CB] snapshot capture failed", e),
+        );
+      }
       setWorkspace({ session });
       setPhase({ kind: "workspace" });
       // CB — autosave the auto-matched assignments from the zip.
@@ -296,7 +334,7 @@ export function ZipImporter({
       toast.error("Couldn't read that zip.");
       setPhase({ kind: "upload", resumable: false });
     }
-  }, [deckId, shape, cornerRadiusPercent]);
+  }, [deckId, shape, cornerRadiusPercent, entryMode]);
 
   /* ---------- Mutators ---------- */
   /**
@@ -607,7 +645,14 @@ export function ZipImporter({
   );
   let body: React.ReactNode;
   if (phase.kind === "loading") body = <Centered text="Checking for saved progress…" />;
-  else if (phase.kind === "upload") body = <UploadStep onFile={handleFile} onCancel={handleCancel} />;
+  else if (phase.kind === "upload")
+    body = (
+      <UploadStep
+        onFile={handleFile}
+        onCancel={handleCancel}
+        showReplaceNotice={entryMode === "import" && Object.keys(cardStates).length > 0}
+      />
+    );
   else if (phase.kind === "extracting") body = <Centered text="Reading your zip…" />;
   else if (phase.kind === "restoring")
     body = <Centered text={`Restoring previous deck… ${phase.done}/${phase.total}`} />;
@@ -631,6 +676,9 @@ export function ZipImporter({
         failedCount={failedCount}
         onRetrySlot={handleRetrySlot}
         onRetryAllFailed={handleRetryAllFailed}
+        entryMode={entryMode}
+        deckName={deckName ?? null}
+        onSwitchToUpload={() => setPhase({ kind: "upload", resumable: false })}
       />
     );
 
@@ -739,9 +787,11 @@ function kickoffEncoding(
 function UploadStep({
   onFile,
   onCancel,
+  showReplaceNotice = false,
 }: {
   onFile: (file: File) => void;
   onCancel: () => void;
+  showReplaceNotice?: boolean;
 }) {
   return (
     <section className="py-8">
@@ -759,6 +809,19 @@ function UploadStep({
         >
           Import deck from zip
         </h2>
+        {showReplaceNotice && (
+          <p
+            className="mb-3 italic"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--accent)",
+              opacity: 0.95,
+            }}
+          >
+            Replacing existing deck. Discard import to revert.
+          </p>
+        )}
         <p
           className="mb-5"
           style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", opacity: 0.85 }}
@@ -848,6 +911,9 @@ function Workspace({
   failedCount,
   onRetrySlot,
   onRetryAllFailed,
+  entryMode,
+  deckName,
+  onSwitchToUpload,
 }: {
   session: ImportSession;
   onAssign: (imageKey: string, cardId: number | "BACK") => void;
@@ -865,8 +931,11 @@ function Workspace({
   failedCount: number;
   onRetrySlot: (slot: string) => void;
   onRetryAllFailed: () => void;
+  entryMode: "import" | "edit";
+  deckName: string | null;
+  onSwitchToUpload: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>("unassigned");
+  const [tab, setTab] = useState<Tab>(entryMode === "edit" ? "assigned" : "unassigned");
   // Zoom modal context: which image, opened from which filter view.
   const [zoom, setZoom] = useState<
     | null
@@ -1009,6 +1078,24 @@ function Workspace({
   // the camera capture flow), not just one assigned in this session.
   const hasBack = !!session.assigned[BACK_KEY] || !!existingBackUrl;
 
+  // CC G3 — Real-time counter derived from the per-card state map.
+  // BACK_KEY is a separate field on the deck record, not a card —
+  // exclude it from numerator AND denominator. Denominator is always 78.
+  const savedCount = useMemo(() => {
+    let n = 0;
+    for (const [slot, st] of Object.entries(cardStates)) {
+      if (slot === BACK_KEY) continue;
+      if (st === "saved") n += 1;
+    }
+    // Edit-mode: any assigned slot that hasn't been touched this session
+    // is also "saved" on the deck (EXISTING:* markers). Count those too
+    // when there's no per-slot state yet.
+    for (const slot of numericAssigned) {
+      if (cardStates[slot] === undefined) n += 1;
+    }
+    return Math.min(78, n);
+  }, [cardStates, numericAssigned]);
+
   // BN Fix 2 — set of card_ids that will be customized (non-default)
   // after save. Defined here so both the chip count and the Default
   // tab render share one source of truth.
@@ -1091,50 +1178,81 @@ function Workspace({
 
   return (
     <section className="py-4">
-      {/* Header */}
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <h2
-          className="italic"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-heading-md)",
-            color: "var(--color-foreground)",
-          }}
-        >
-          Import workspace
-        </h2>
-        <span
-          className="ml-auto"
+      {/* CC G1 — Sticky workspace header. Title + status indicator on
+          row 1, counter on row 2, tab chips on row 3. Stays visible
+          while the card grid scrolls. */}
+      <div
+        className="mb-3"
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 30,
+          background: "var(--color-background)",
+          paddingTop: "var(--space-2, 0.5rem)",
+          paddingBottom: "var(--space-2, 0.5rem)",
+        }}
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <h2
+            className="italic"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-heading-md)",
+              color: "var(--color-foreground)",
+            }}
+          >
+            {entryMode === "edit"
+              ? deckName?.trim() || "Edit deck"
+              : "Import workspace"}
+          </h2>
+          <div className="ml-auto">
+            <SaveStatusIndicator
+              status={status}
+              failedCount={failedCount}
+              onRetryAllFailed={onRetryAllFailed}
+            />
+          </div>
+        </div>
+        <div
+          className="mt-1"
           style={{
             fontSize: "var(--text-body-sm)",
             color: "var(--color-foreground)",
             opacity: 0.85,
           }}
         >
-          {numericAssigned.length}/78 cards · {hasBack ? "back set" : "no back"} · {skippedKeys.length} skipped
-        </span>
-      </div>
+          <span>
+            {savedCount}/78 cards · {hasBack ? "back set" : "no back"} ·{" "}
+          </span>
+          {failedCount > 0 ? (
+            <span style={{ color: "#ef4444" }}>{failedCount} failed</span>
+          ) : (
+            <span>{skippedKeys.length} skipped</span>
+          )}
+        </div>
 
-      {/* Tab chips — BO Fix 1: HorizontalScroll wraps the row so the
-          off-screen Default chip gets an edge fade + chevron affordance. */}
-      <HorizontalScroll
-        className="mb-3"
-        contentClassName="gap-2"
-        fadeColor="var(--color-background)"
-      >
-        <Chip active={tab === "unassigned"} onClick={() => setTab("unassigned")}>
-          Unassigned ({unassignedKeys.length})
-        </Chip>
-        <Chip active={tab === "assigned"} onClick={() => setTab("assigned")}>
-          Assigned ({numericAssigned.length})
-        </Chip>
-        <Chip active={tab === "skipped"} onClick={() => setTab("skipped")}>
-          Skipped ({skippedKeys.length})
-        </Chip>
-        <Chip active={tab === "default"} onClick={() => setTab("default")}>
-          Default ({defaultCount})
-        </Chip>
-      </HorizontalScroll>
+        {/* Tab chips — hidden in edit mode (Assigned only). */}
+        {entryMode === "import" ? (
+          <HorizontalScroll
+            className="mt-3"
+            contentClassName="gap-2"
+            fadeColor="var(--color-background)"
+          >
+            <Chip active={tab === "unassigned"} onClick={() => setTab("unassigned")}>
+              Unassigned ({unassignedKeys.length})
+            </Chip>
+            <Chip active={tab === "assigned"} onClick={() => setTab("assigned")}>
+              Assigned ({numericAssigned.length})
+            </Chip>
+            <Chip active={tab === "skipped"} onClick={() => setTab("skipped")}>
+              Skipped ({skippedKeys.length})
+            </Chip>
+            <Chip active={tab === "default"} onClick={() => setTab("default")}>
+              Default ({defaultCount})
+            </Chip>
+          </HorizontalScroll>
+        ) : null}
+      </div>
 
       {/* Card-back banner (BL Fix 4 — State A only). */}
       {!hasBack && (
@@ -1174,6 +1292,16 @@ function Workspace({
           onUnassign={onUnassign}
           cardStates={cardStates}
           onRetrySlot={onRetrySlot}
+          entryMode={entryMode}
+          onTapEmpty={(cardId) => {
+            if (unassignedKeys.length > 0) {
+              setDefaultPickerCardId(cardId);
+            } else {
+              // No staged images — offer to import a zip.
+              onSwitchToUpload();
+            }
+          }}
+          onImportZip={onSwitchToUpload}
         />
       )}
       {tab === "skipped" && (
@@ -1205,37 +1333,35 @@ function Workspace({
         />
       )}
 
-      {/* Footer actions */}
+      {/* CC G1/G5 — Footer: Discard (import only) on the left,
+          Done on the right. Status indicator now lives at the top. */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <SaveStatusIndicator
-          status={status}
-          failedCount={failedCount}
-          onRetryAllFailed={onRetryAllFailed}
-        />
-        <button
-          type="button"
-          onClick={onDiscard}
-          className="italic underline"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-body-sm)",
-            color: "var(--color-foreground)",
-            opacity: 0.85,
-          }}
-        >
-          Discard import
-        </button>
+        {entryMode === "import" && (
+          <button
+            type="button"
+            onClick={onDiscard}
+            className="italic underline"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              opacity: 0.85,
+            }}
+          >
+            Discard import
+          </button>
+        )}
         <button
           type="button"
           onClick={onCancel}
-          className="ml-auto"
+          className="ml-auto rounded-md px-4 py-2 font-medium"
           style={{
+            background: "var(--accent)",
+            color: "var(--accent-foreground, #000)",
             fontSize: "var(--text-body-sm)",
-            color: "var(--color-foreground)",
-            opacity: 0.85,
           }}
         >
-          Close (keeps progress)
+          Done
         </button>
       </div>
 
@@ -1466,6 +1592,9 @@ function AssignedGrid({
   onUnassign,
   cardStates,
   onRetrySlot,
+  entryMode,
+  onTapEmpty,
+  onImportZip,
 }: {
   session: ImportSession;
   resolveSrc: (key: string) => string;
@@ -1474,6 +1603,9 @@ function AssignedGrid({
   onUnassign: (slot: string) => void;
   cardStates: Record<string, CardState>;
   onRetrySlot: (slot: string) => void;
+  entryMode: "import" | "edit";
+  onTapEmpty: (cardId: number) => void;
+  onImportZip: () => void;
 }) {
   const backKey = session.assigned[BACK_KEY];
   const backSrc = backKey ? resolveSrc(backKey) : "";
@@ -1493,7 +1625,7 @@ function AssignedGrid({
   };
   const SUIT_CHIPS: { id: SuitFilter; label: string }[] = [
     { id: "all", label: "All" },
-    { id: "major", label: "Majors" },
+    { id: "major", label: "Major" },
     { id: "wands", label: "Wands" },
     { id: "cups", label: "Cups" },
     { id: "swords", label: "Swords" },
@@ -1501,16 +1633,36 @@ function AssignedGrid({
   ];
   return (
     <>
-      <div className="mb-3 flex flex-wrap gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         {SUIT_CHIPS.map((c) => (
           <Chip
             key={c.id}
             active={suitFilter === c.id}
-            onClick={() => setSuitFilter(c.id)}
+            onClick={() =>
+              // CC G4 — tapping the active chip clears back to "all".
+              setSuitFilter((prev) => (prev === c.id ? "all" : c.id))
+            }
           >
             {c.label}
           </Chip>
         ))}
+        {entryMode === "edit" && (
+          <button
+            type="button"
+            onClick={onImportZip}
+            className="ml-auto inline-flex items-center gap-1 rounded-full border px-3 py-1.5 italic"
+            style={{
+              borderColor: "var(--border-default)",
+              color: "var(--color-foreground)",
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-body-sm)",
+              background: "transparent",
+            }}
+            title="Import / replace from zip"
+          >
+            <Upload className="h-3.5 w-3.5" /> Import / replace from zip
+          </button>
+        )}
       </div>
     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
       {suitFilter === "all" && hasBack && backKey && (
@@ -1561,11 +1713,17 @@ function AssignedGrid({
             <button
               type="button"
               onClick={() => {
-                if (!key) return;
+                if (!key) {
+                  // CC G5 — empty slots are tappable. Open the per-slot
+                  // assign action (or the import-zip flow if no images
+                  // are staged yet).
+                  onTapEmpty(i);
+                  return;
+                }
                 if (isFailed) onRetrySlot(slot);
                 else onTap(slot, key);
               }}
-              disabled={!key}
+              aria-label={key ? getCardName(i) : `${getCardName(i)} — empty, tap to assign`}
               className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
               style={{
                 borderColor: isFailed
