@@ -138,6 +138,8 @@ const PHASE_GLYPHS: Record<string, string> = {
 /* ---------- Page ---------- */
 
 function JournalPage() {
+  // BX — journal stays portrait-only.
+  usePortraitOnly();
   const { user, loading: authLoading } = useAuth();
   const { isOracle } = useOracleMode();
 
