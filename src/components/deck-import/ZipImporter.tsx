@@ -63,19 +63,22 @@ type Phase =
   | { kind: "upload"; resumable: boolean }
   | { kind: "extracting" }
   | { kind: "workspace" }
-  | { kind: "saving"; total: number; done: number }
-  | {
-      kind: "summary";
-      written: number;
-      failedCardIds: number[];
-      cardBackFailed: boolean;
-    };
+  | { kind: "restoring"; done: number; total: number };
 
 type Tab = "unassigned" | "assigned" | "skipped" | "default";
 
 type WorkspaceState = {
   session: ImportSession;
 };
+
+/** Per-slot save state used by the workspace UI (Stamp CB, Group 2). */
+export type CardState = "saving" | "saved" | "failed";
+
+/** Top-level status indicator state (Stamp CB, Group 3). */
+type SaveStatus =
+  | { kind: "idle" }
+  | { kind: "saving" }
+  | { kind: "saved-flash"; until: number };
 
 export function ZipImporter({
   userId,
