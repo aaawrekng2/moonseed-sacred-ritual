@@ -5,6 +5,7 @@ import { getCardName } from "@/lib/tarot";
 import { useActiveCardBackUrl, useActiveDeckImage } from "@/lib/active-deck";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { useShowLabels } from "@/lib/use-show-labels";
+import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { cn } from "@/lib/utils";
 import { InlineReading } from "@/components/reading/ReadingParts";
 import {
@@ -54,6 +55,8 @@ export function SpreadLayout({
   deckId,
 }: Props) {
   const meta = SPREAD_META[spread];
+  // BX — Tabletop / draw stays portrait-only.
+  usePortraitOnly();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const { showLabels } = useShowLabels();
   // Once every card is face-up the inline reading flow takes over.
