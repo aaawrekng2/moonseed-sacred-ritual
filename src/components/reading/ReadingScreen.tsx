@@ -547,18 +547,28 @@ export function ReadingScreen({
 function CardNameLabelRS({
   cardIndex,
   isReversed,
+  cardWidth,
 }: {
   cardIndex: number;
   isReversed: boolean;
+  cardWidth: number;
 }) {
   return (
-    <div className="flex flex-col items-center">
+    <div
+      className="flex flex-col items-center"
+      style={{ width: cardWidth, maxWidth: cardWidth }}
+    >
       <span
         style={{
           fontSize: "var(--text-body-sm)",
           color: "var(--color-foreground)",
           textAlign: "center",
-          whiteSpace: "nowrap",
+          // CK Group 1 — wrap long card names so they never widen the
+          // column past the card itself.
+          whiteSpace: "normal",
+          wordBreak: "normal",
+          lineHeight: 1.2,
+          width: "100%",
         }}
       >
         {getCardName(cardIndex)}
@@ -658,6 +668,7 @@ function CardStrip({
           <CardNameLabelRS
             cardIndex={picks[i].cardIndex}
             isReversed={!!picks[i].isReversed}
+            cardWidth={cw}
           />
         )}
       </div>
@@ -789,6 +800,7 @@ function CardStrip({
             <CardNameLabelRS
               cardIndex={pick.cardIndex}
               isReversed={!!pick.isReversed}
+              cardWidth={w}
             />
           )}
         </div>
