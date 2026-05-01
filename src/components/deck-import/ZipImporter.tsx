@@ -409,34 +409,85 @@ export function ZipImporter({
     [mutate, shape, cornerRadiusPercent],
   );
 
-  const handleSave = useCallback(async (deleteSessionAfter: boolean) => {
-    if (!workspace) return;
-    setSessionDeletedOnSave(deleteSessionAfter);
-    await saverRef.current.flush();
-    const total = Object.keys(workspace.session.assigned).length;
-    setPhase({ kind: "saving", total, done: 0 });
-    try {
-      const result = await commitImportSession({
-        session: workspace.session,
-        userId,
-        deckId,
-        shape,
-        cornerRadiusPercent,
-        queue: queueRef.current,
-        deleteSessionAfter,
+  /**
+   * CB — Per-card autosave runner. Looks up the image for the slot in
+   * the latest workspace session and calls saveCard. Updates the
+   * per-slot state map and the global status indicator. Skips
+   * EXISTING:* markers (already saved on the deck).
+   */
+  const runSave = useCallback(
+    async (slot: string, image: ImportImage, cardKey: string) => {
+      const cardId: number | "BACK" = slot === BACK_KEY ? "BACK" : Number(slot);
+      setSlotState(slot, "saving");
+      beginSave();
+      try {
+        const res = await saveCard({
+          userId,
+          deckId,
+          cardId,
+          cardKey,
+          image,
+          opts: { shape, cornerRadiusPercent },
+        });
+        setSlotState(slot, res.status === "saved" ? "saved" : "failed");
+      } catch (err) {
+        console.error("[CB-save] runSave threw", err);
+        setSlotState(slot, "failed");
+      } finally {
+        endSave();
+      }
+    },
+    [userId, deckId, shape, cornerRadiusPercent, beginSave, endSave, setSlotState],
+  );
+
+  /** CB — remove a slot's active row in Supabase (un-assign). */
+  const runRemove = useCallback(
+    async (slot: string, cardKey: string) => {
+      const cardId: number | "BACK" = slot === BACK_KEY ? "BACK" : Number(slot);
+      beginSave();
+      try {
+        const res = await removeCard({ deckId, cardId, cardKey });
+        if (res.status === "saved") setSlotState(slot, null);
+        else setSlotState(slot, "failed");
+      } finally {
+        endSave();
+      }
+    },
+    [deckId, beginSave, endSave, setSlotState],
+  );
+
+  /** CB — retry a single failed slot. Re-reads the image from the
+   *  latest session and re-fires saveCard. */
+  const handleRetrySlot = useCallback(
+    (slot: string) => {
+      setWorkspace((cur) => {
+        if (!cur) return cur;
+        const key = cur.session.assigned[slot];
+        if (!key || key.startsWith("EXISTING:")) return cur;
+        const img = findImage(cur.session, key);
+        if (!img) return cur;
+        void runSave(slot, img, key);
+        return cur;
       });
-      setPhase({
-        kind: "summary",
-        written: result.written,
-        failedCardIds: result.failedCardIds,
-        cardBackFailed: result.cardBackFailed,
-      });
-    } catch (err) {
-      console.error("commit failed", err);
-      toast.error("Save failed. Your progress is preserved — try again.");
-      setPhase({ kind: "workspace" });
-    }
-  }, [workspace, userId, deckId, shape, cornerRadiusPercent]);
+    },
+    [runSave],
+  );
+
+  /** CB — retry every slot currently in 'failed' state. */
+  const handleRetryAllFailed = useCallback(() => {
+    setWorkspace((cur) => {
+      if (!cur) return cur;
+      for (const [slot, st] of Object.entries(cardStates)) {
+        if (st !== "failed") continue;
+        const key = cur.session.assigned[slot];
+        if (!key || key.startsWith("EXISTING:")) continue;
+        const img = findImage(cur.session, key);
+        if (!img) continue;
+        void runSave(slot, img, key);
+      }
+      return cur;
+    });
+  }, [cardStates, runSave]);
 
   const handleCancel = useCallback(() => {
     onCancel();
