@@ -28,6 +28,7 @@ import { AlertTriangle, Loader2, RotateCcw, Upload, X } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useConfirm } from "@/hooks/use-confirm";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { PhotoCapture } from "@/components/photo/PhotoCapture";
@@ -93,6 +94,7 @@ export function ZipImporter({
   const [sessionDeletedOnSave, setSessionDeletedOnSave] = useState(true);
   const queueRef = useRef<EncodingQueue>(new EncodingQueue());
   const saverRef = useRef(makeThrottledSaver(deckId));
+  const confirm = useConfirm();
 
   // Bootstrap: check for existing session OR existing deck rows.
   useEffect(() => {
@@ -391,11 +393,18 @@ export function ZipImporter({
   }, [onCancel]);
 
   const handleDiscard = useCallback(async () => {
-    if (!confirm("Discard this import? Your in-progress changes will be lost.")) return;
+    const ok = await confirm({
+      title: "Discard this import?",
+      description: "Your in-progress changes will be lost.",
+      confirmLabel: "Discard",
+      cancelLabel: "Keep editing",
+      destructive: true,
+    });
+    if (!ok) return;
     await deleteSession(deckId);
     setWorkspace(null);
     setPhase({ kind: "upload", resumable: false });
-  }, [deckId]);
+  }, [deckId, confirm]);
 
   /* ---------- Renders ---------- */
   let body: React.ReactNode;
@@ -548,7 +557,7 @@ function UploadStep({
     <section className="py-8">
       <div
         className="mx-auto max-w-md rounded-xl border p-6 text-center"
-        style={{ background: "var(--surface-card)", borderColor: "var(--border-subtle)" }}
+        style={{ background: "var(--surface-card)", borderColor: "var(--border-default)" }}
       >
         <h2
           className="mb-2 italic"
@@ -1226,8 +1235,8 @@ function Chip({
       className="whitespace-nowrap rounded-full border px-3 py-1.5"
       style={{
         background: active ? "var(--accent)" : "transparent",
-        color: active ? "#000" : "var(--color-foreground)",
-        borderColor: active ? "var(--accent)" : "var(--border-subtle)",
+        color: active ? "var(--accent-foreground)" : "var(--color-foreground)",
+        borderColor: active ? "var(--accent)" : "var(--border-default)",
         fontSize: "var(--text-body-sm)",
         fontWeight: active ? 600 : 400,
       }}
