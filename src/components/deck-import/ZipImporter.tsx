@@ -898,15 +898,7 @@ function Workspace({
   >(null);
   // BN Fix 2 — inline picker for assigning to a default slot.
   const [defaultPickerCardId, setDefaultPickerCardId] = useState<number | null>(null);
-  // Save confirmation dialog (BL Fix 6).
-  const [saveDialog, setSaveDialog] = useState<
-    | null
-    | {
-        kind: "empty" | "skipped-only" | "unassigned-present" | "skipped-and-unassigned";
-        skippedCount: number;
-        unassignedCount: number;
-      }
-  >(null);
+  // CB — saveDialog removed; per-card autosave eliminates the batch save flow.
 
   // Build blob URL cache for raw blobs.
   const blobUrls = useMemo(() => {
