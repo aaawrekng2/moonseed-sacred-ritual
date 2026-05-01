@@ -1842,12 +1842,15 @@ function UserDetailPage({
 
   const runAction = async (
     actionLabel: string,
-    payload: Parameters<typeof adminAction>[0]["data"],
+    payload: Record<string, unknown>,
     successMsg: string,
   ) => {
     setBusyAction(actionLabel);
     try {
-      await adminAction({ data: payload, headers: await authHeaders() });
+      await adminAction({
+        data: payload as never,
+        headers: await authHeaders(),
+      });
       toast.success(successMsg);
       onNoteSaved();
     } catch (e) {
