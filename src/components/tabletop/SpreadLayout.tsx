@@ -508,6 +508,7 @@ function SingleCard({
   isWrong,
   onTap,
   sizing,
+  isRevealPhase,
 }: {
   pick: Pick;
   cardBack: CardBackId;
@@ -516,6 +517,7 @@ function SingleCard({
   isWrong: boolean;
   onTap: () => void;
   sizing: Sizing;
+  isRevealPhase?: boolean;
 }) {
   const { showLabels } = useShowLabels();
   return (
@@ -529,6 +531,7 @@ function SingleCard({
         onTap={onTap}
         sizing={sizing}
         emergeDelayMs={0}
+        isRevealPhase={isRevealPhase}
       />
       {showLabels && revealed && (
         <CardNameLabel
@@ -551,6 +554,7 @@ function ThreeRow({
   onTap,
   sizing,
   showLabels,
+  isRevealPhase,
 }: {
   picks: Pick[];
   labels: string[];
@@ -561,6 +565,7 @@ function ThreeRow({
   onTap: (i: number) => void;
   sizing: Sizing;
   showLabels: boolean;
+  isRevealPhase?: boolean;
 }) {
   return (
     <div className="flex items-start gap-6">
@@ -575,6 +580,7 @@ function ThreeRow({
             onTap={() => onTap(i)}
             sizing={sizing}
             emergeDelayMs={i * 90}
+            isRevealPhase={isRevealPhase}
           />
           {showLabels && (
             <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
