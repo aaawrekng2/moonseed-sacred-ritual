@@ -212,7 +212,7 @@ html, body {
   overscroll-behavior-y: none; /* BO Fix 3 — disable browser pull-to-refresh app-wide. */
   position: fixed;
   width: 100%;
-  background: oklch(0.14 0.04 280);
+  background: var(--bg-gradient-left);
   color: var(--color-foreground);
   font-family: var(--font-sans);
   /* Base font-size that every `em`/inherited size scales from.
