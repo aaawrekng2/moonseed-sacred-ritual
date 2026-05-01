@@ -24,7 +24,7 @@
  *   4. Summary.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Loader2, RotateCcw, Upload, X } from "lucide-react";
+import { AlertTriangle, Check, Loader2, RotateCcw, Upload, X } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,9 +45,15 @@ import {
   type ImportSession,
 } from "@/lib/import-session";
 import { EncodingQueue } from "@/lib/deck-image-pipeline";
-import { commitImportSession } from "@/lib/deck-import-commit";
 import { fetchDeckCards } from "@/lib/custom-decks";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
+import { saveCard, removeCard, type SaveResult } from "@/lib/per-card-save";
+import {
+  captureSnapshotIfMissing,
+  deleteSnapshot,
+  getSnapshot,
+  restoreSnapshot,
+} from "@/lib/import-snapshot";
 
 const ZIP_MAX_BYTES = 20 * 1024 * 1024;
 const VALID_EXT = /\.(png|jpe?g|webp|gif)$/i;
@@ -57,19 +63,22 @@ type Phase =
   | { kind: "upload"; resumable: boolean }
   | { kind: "extracting" }
   | { kind: "workspace" }
-  | { kind: "saving"; total: number; done: number }
-  | {
-      kind: "summary";
-      written: number;
-      failedCardIds: number[];
-      cardBackFailed: boolean;
-    };
+  | { kind: "restoring"; done: number; total: number };
 
 type Tab = "unassigned" | "assigned" | "skipped" | "default";
 
 type WorkspaceState = {
   session: ImportSession;
 };
+
+/** Per-slot save state used by the workspace UI (Stamp CB, Group 2). */
+export type CardState = "saving" | "saved" | "failed";
+
+/** Top-level status indicator state (Stamp CB, Group 3). */
+type SaveStatus =
+  | { kind: "idle" }
+  | { kind: "saving" }
+  | { kind: "saved-flash"; until: number };
 
 export function ZipImporter({
   userId,
@@ -90,13 +99,52 @@ export function ZipImporter({
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
-  // BLa Fix A — track whether the user's chosen save path requested
-  // session deletion, so the Summary's Done button doesn't unconditionally
-  // wipe sessions that 'Save and continue later' wanted to preserve.
-  const [sessionDeletedOnSave, setSessionDeletedOnSave] = useState(true);
   const queueRef = useRef<EncodingQueue>(new EncodingQueue());
   const saverRef = useRef(makeThrottledSaver(deckId));
   const confirm = useConfirm();
+
+  // CB — per-slot save state map. Slot key matches session.assigned keys
+  // ("0".."77" or "BACK"). Missing entry = clean/empty.
+  const [cardStates, setCardStates] = useState<Record<string, CardState>>({});
+  // CB — top-right status indicator state (idle / saving / brief saved).
+  const [status, setStatus] = useState<SaveStatus>({ kind: "idle" });
+  const inflightRef = useRef(0);
+  const savedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restoreProgressRef = useRef<{ done: number; total: number }>({ done: 0, total: 0 });
+
+  const setSlotState = useCallback(
+    (slot: string, next: CardState | null) => {
+      setCardStates((prev) => {
+        const copy = { ...prev };
+        if (next === null) delete copy[slot];
+        else copy[slot] = next;
+        return copy;
+      });
+    },
+    [],
+  );
+
+  const beginSave = useCallback(() => {
+    inflightRef.current++;
+    setStatus({ kind: "saving" });
+    if (savedFlashTimer.current) {
+      clearTimeout(savedFlashTimer.current);
+      savedFlashTimer.current = null;
+    }
+  }, []);
+
+  const endSave = useCallback(() => {
+    inflightRef.current = Math.max(0, inflightRef.current - 1);
+    if (inflightRef.current === 0) {
+      const until = Date.now() + 2000;
+      setStatus({ kind: "saved-flash", until });
+      if (savedFlashTimer.current) clearTimeout(savedFlashTimer.current);
+      savedFlashTimer.current = setTimeout(() => {
+        setStatus({ kind: "idle" });
+        savedFlashTimer.current = null;
+      }, 2000);
+    }
+  }, []);
 
   // Bootstrap: check for existing session OR existing deck rows.
   useEffect(() => {
@@ -134,6 +182,13 @@ export function ZipImporter({
             session.assigned[String(c.card_id)] = k;
           }
           await saveSession(session);
+          // CB — seed states + snapshot for existing rows.
+          const seeded: Record<string, CardState> = {};
+          for (const c of existingCards) seeded[String(c.card_id)] = "saved";
+          setCardStates(seeded);
+          void captureSnapshotIfMissing(deckId).catch((e) =>
+            console.warn("[CB] snapshot capture failed", e),
+          );
           setWorkspace({ session });
           setPhase({ kind: "workspace" });
           return;
@@ -212,8 +267,19 @@ export function ZipImporter({
         }
       }
       await saveSession(session);
+      // CB — capture snapshot of current deck state before any autosave
+      // writes happen, so Discard can roll back.
+      void captureSnapshotIfMissing(deckId).catch((e) =>
+        console.warn("[CB] snapshot capture failed", e),
+      );
       setWorkspace({ session });
       setPhase({ kind: "workspace" });
+      // CB — autosave the auto-matched assignments from the zip.
+      for (const [slot, key] of Object.entries(session.assigned)) {
+        const img = findImage(session, key);
+        if (!img || img.existingUrl) continue;
+        void runSave(slot, img, key);
+      }
       // Kick off encoding for assigned images upfront.
       kickoffEncoding(session, queueRef.current, { shape, cornerRadiusPercent }, (asset) => {
         // Update session via setter on next render.
@@ -233,6 +299,53 @@ export function ZipImporter({
   }, [deckId, shape, cornerRadiusPercent]);
 
   /* ---------- Mutators ---------- */
+  /**
+   * CB — Per-card autosave runner. Looks up the image for the slot in
+   * the latest workspace session and calls saveCard. Updates the
+   * per-slot state map and the global status indicator. Skips
+   * EXISTING:* markers (already saved on the deck).
+   */
+  const runSave = useCallback(
+    async (slot: string, image: ImportImage, cardKey: string) => {
+      const cardId: number | "BACK" = slot === BACK_KEY ? "BACK" : Number(slot);
+      setSlotState(slot, "saving");
+      beginSave();
+      try {
+        const res = await saveCard({
+          userId,
+          deckId,
+          cardId,
+          cardKey,
+          image,
+          opts: { shape, cornerRadiusPercent },
+        });
+        setSlotState(slot, res.status === "saved" ? "saved" : "failed");
+      } catch (err) {
+        console.error("[CB-save] runSave threw", err);
+        setSlotState(slot, "failed");
+      } finally {
+        endSave();
+      }
+    },
+    [userId, deckId, shape, cornerRadiusPercent, beginSave, endSave, setSlotState],
+  );
+
+  /** CB — remove a slot's active row in Supabase (un-assign). */
+  const runRemove = useCallback(
+    async (slot: string, cardKey: string) => {
+      const cardId: number | "BACK" = slot === BACK_KEY ? "BACK" : Number(slot);
+      beginSave();
+      try {
+        const res = await removeCard({ deckId, cardId, cardKey });
+        if (res.status === "saved") setSlotState(slot, null);
+        else setSlotState(slot, "failed");
+      } finally {
+        endSave();
+      }
+    },
+    [deckId, beginSave, endSave, setSlotState],
+  );
+
   const mutate = useCallback((mutator: (s: ImportSession) => void) => {
     setWorkspace((prev) => {
       if (!prev) return prev;
@@ -245,6 +358,8 @@ export function ZipImporter({
 
   const handleAssign = useCallback((imageKey: string, cardId: number | "BACK") => {
     const slot = cardId === "BACK" ? BACK_KEY : String(cardId);
+    let displacedSlot: string | null = null;
+    let displacedKey: string | null = null;
     mutate((s) => {
       // Remove image from unassigned/skipped.
       const fromUn = s.unassigned[imageKey];
@@ -265,15 +380,35 @@ export function ZipImporter({
           s.unassigned[displaced] = displacedImg;
         }
       }
-      // Remove imageKey from any other slot it may have occupied.
+      // Remove imageKey from any other slot it may have occupied. Track
+      // it so the autosave below can also clear that slot in Supabase.
       for (const k of Object.keys(s.assigned)) {
-        if (s.assigned[k] === imageKey) delete s.assigned[k];
+        if (s.assigned[k] === imageKey && k !== slot) {
+          displacedSlot = k;
+          displacedKey = imageKey;
+          delete s.assigned[k];
+        }
       }
       s.assigned[slot] = imageKey;
       // Stash in shadow asset store so findImage() can still locate it
       // after it's been removed from unassigned/skipped.
       ensureAssetStore(s)[imageKey] = sourceImg;
     });
+    // CB — autosave the new assignment. Skip EXISTING:* (already saved).
+    if (!imageKey.startsWith("EXISTING:")) {
+      // Read latest state inside an updater to ensure we have the image.
+      setWorkspace((cur) => {
+        if (!cur) return cur;
+        const img = findImage(cur.session, imageKey);
+        if (img) void runSave(slot, img, imageKey);
+        return cur;
+      });
+    }
+    // CB — if we displaced an image from another slot, archive that
+    // slot's row in Supabase too.
+    if (displacedSlot && displacedKey) {
+      void runRemove(displacedSlot, displacedKey);
+    }
     // Trigger encoding for this image if not already encoded.
     setWorkspace((prev) => {
       if (!prev) return prev;
@@ -294,7 +429,7 @@ export function ZipImporter({
       }
       return prev;
     });
-  }, [mutate, shape, cornerRadiusPercent]);
+  }, [mutate, shape, cornerRadiusPercent, runSave, runRemove]);
 
   const handleSkip = useCallback((imageKey: string) => {
     mutate((s) => {
@@ -315,16 +450,21 @@ export function ZipImporter({
   }, [mutate]);
 
   const handleUnassign = useCallback((slot: string) => {
+    let removedKey: string | null = null;
     mutate((s) => {
       const imageKey = s.assigned[slot];
       if (!imageKey) return;
+      removedKey = imageKey;
       delete s.assigned[slot];
       const img = findImage(s, imageKey);
       if (img && !imageKey.startsWith("EXISTING:")) {
         s.unassigned[imageKey] = img;
       }
     });
-  }, [mutate]);
+    if (removedKey) {
+      void runRemove(slot, removedKey);
+    }
+  }, [mutate, runRemove]);
 
   // BN Fix 1 — replace the raw blob for an image (used by the Edit /
   // 4-corner crop refine flow). Updates dimensions, drops any cached
@@ -361,74 +501,117 @@ export function ZipImporter({
     [mutate, shape, cornerRadiusPercent],
   );
 
-  const handleSave = useCallback(async (deleteSessionAfter: boolean) => {
-    if (!workspace) return;
-    setSessionDeletedOnSave(deleteSessionAfter);
-    await saverRef.current.flush();
-    const total = Object.keys(workspace.session.assigned).length;
-    setPhase({ kind: "saving", total, done: 0 });
-    try {
-      const result = await commitImportSession({
-        session: workspace.session,
-        userId,
-        deckId,
-        shape,
-        cornerRadiusPercent,
-        queue: queueRef.current,
-        deleteSessionAfter,
+  /** CB — retry a single failed slot. Re-reads the image from the
+   *  latest session and re-fires saveCard. */
+  const handleRetrySlot = useCallback(
+    (slot: string) => {
+      setWorkspace((cur) => {
+        if (!cur) return cur;
+        const key = cur.session.assigned[slot];
+        if (!key || key.startsWith("EXISTING:")) return cur;
+        const img = findImage(cur.session, key);
+        if (!img) return cur;
+        void runSave(slot, img, key);
+        return cur;
       });
-      setPhase({
-        kind: "summary",
-        written: result.written,
-        failedCardIds: result.failedCardIds,
-        cardBackFailed: result.cardBackFailed,
-      });
-    } catch (err) {
-      console.error("commit failed", err);
-      toast.error("Save failed. Your progress is preserved — try again.");
-      setPhase({ kind: "workspace" });
-    }
-  }, [workspace, userId, deckId, shape, cornerRadiusPercent]);
+    },
+    [runSave],
+  );
+
+  /** CB — retry every slot currently in 'failed' state. */
+  const handleRetryAllFailed = useCallback(() => {
+    setWorkspace((cur) => {
+      if (!cur) return cur;
+      for (const [slot, st] of Object.entries(cardStates)) {
+        if (st !== "failed") continue;
+        const key = cur.session.assigned[slot];
+        if (!key || key.startsWith("EXISTING:")) continue;
+        const img = findImage(cur.session, key);
+        if (!img) continue;
+        void runSave(slot, img, key);
+      }
+      return cur;
+    });
+  }, [cardStates, runSave]);
 
   const handleCancel = useCallback(() => {
     onCancel();
   }, [onCancel]);
 
+  /**
+   * CB — Discard import now means "roll back". Per-card autosave has
+   * already written assignments to Supabase, so the snapshot we took on
+   * workspace entry is the only path back to the original deck state.
+   */
   const handleDiscard = useCallback(async () => {
     const ok = await confirm({
       title: "Discard this import?",
-      description: "Your in-progress changes will be lost.",
+      description:
+        "Your previously-saved deck will be restored. Any cards you assigned in this session will be reverted.",
       confirmLabel: "Discard",
       cancelLabel: "Keep editing",
       destructive: true,
     });
     if (!ok) return;
-    await deleteSession(deckId);
-    setWorkspace(null);
-    setPhase({ kind: "upload", resumable: false });
-  }, [deckId, confirm]);
+    const snap = await getSnapshot(deckId);
+    if (!snap) {
+      // No snapshot — fall back to the old behavior (just clear session).
+      await deleteSession(deckId);
+      setCardStates({});
+      setWorkspace(null);
+      setPhase({ kind: "upload", resumable: false });
+      onDone();
+      return;
+    }
+    setStatus({ kind: "saving" });
+    setPhase({ kind: "restoring", done: 0, total: 79 });
+    try {
+      await restoreSnapshot({
+        userId,
+        deckId,
+        snapshot: snap,
+        onProgress: (done, total) => {
+          restoreProgressRef.current = { done, total };
+          setPhase({ kind: "restoring", done, total });
+        },
+      });
+      await deleteSnapshot(deckId);
+      await deleteSession(deckId);
+      setCardStates({});
+      setWorkspace(null);
+      // Brief saved-flash so user sees confirmation, then exit.
+      const until = Date.now() + 1500;
+      setStatus({ kind: "saved-flash", until });
+      setTimeout(() => setStatus({ kind: "idle" }), 1500);
+      onDone();
+    } catch (err) {
+      console.error("[CB-restore] failed", err);
+      toast.error("Couldn't restore your previous deck. Try again.");
+      setPhase({ kind: "workspace" });
+      setStatus({ kind: "idle" });
+    }
+  }, [deckId, userId, confirm, onDone]);
+
+  /** CB — close cleanly, preserving session for resume but consuming
+   *  the snapshot so a future Discard doesn't roll back to a stale
+   *  state. */
+  const handleCleanClose = useCallback(async () => {
+    await deleteSnapshot(deckId);
+    onCancel();
+  }, [deckId, onCancel]);
 
   /* ---------- Renders ---------- */
+  const failedCount = useMemo(
+    () => Object.values(cardStates).filter((s) => s === "failed").length,
+    [cardStates],
+  );
   let body: React.ReactNode;
   if (phase.kind === "loading") body = <Centered text="Checking for saved progress…" />;
   else if (phase.kind === "upload") body = <UploadStep onFile={handleFile} onCancel={handleCancel} />;
   else if (phase.kind === "extracting") body = <Centered text="Reading your zip…" />;
-  else if (phase.kind === "saving") body = <Centered text={`Saving deck… ${phase.done}/${phase.total}`} />;
-  else if (phase.kind === "summary") {
-    body = (
-      <Summary
-        written={phase.written}
-        failedCardIds={phase.failedCardIds}
-        cardBackFailed={phase.cardBackFailed}
-        onDone={async () => {
-          if (sessionDeletedOnSave) {
-            await deleteSession(deckId);
-          }
-          onDone();
-        }}
-      />
-    );
-  } else if (!workspace) body = <Centered text="Loading…" />;
+  else if (phase.kind === "restoring")
+    body = <Centered text={`Restoring previous deck… ${phase.done}/${phase.total}`} />;
+  else if (!workspace) body = <Centered text="Loading…" />;
   else
     body = (
       <Workspace
@@ -438,12 +621,16 @@ export function ZipImporter({
         onUnskip={handleUnskip}
         onUnassign={handleUnassign}
         onUpdateRawBlob={handleUpdateRawBlob}
-        onSave={handleSave}
-        onCancel={handleCancel}
+        onCancel={handleCleanClose}
         onDiscard={handleDiscard}
         shape={shape}
         cornerRadiusPercent={cornerRadiusPercent}
         existingBackUrl={existingBackUrl ?? null}
+        cardStates={cardStates}
+        status={status}
+        failedCount={failedCount}
+        onRetrySlot={handleRetrySlot}
+        onRetryAllFailed={handleRetryAllFailed}
       />
     );
 
@@ -651,12 +838,16 @@ function Workspace({
   onUnskip,
   onUnassign,
   onUpdateRawBlob,
-  onSave,
   onCancel,
   onDiscard,
   shape,
   cornerRadiusPercent,
   existingBackUrl,
+  cardStates,
+  status,
+  failedCount,
+  onRetrySlot,
+  onRetryAllFailed,
 }: {
   session: ImportSession;
   onAssign: (imageKey: string, cardId: number | "BACK") => void;
@@ -664,12 +855,16 @@ function Workspace({
   onUnskip: (imageKey: string) => void;
   onUnassign: (slot: string) => void;
   onUpdateRawBlob: (imageKey: string, blob: Blob, dims: { width: number; height: number }) => void;
-  onSave: (deleteSessionAfter: boolean) => void;
   onCancel: () => void;
   onDiscard: () => void;
   shape: "rectangle" | "round";
   cornerRadiusPercent: number;
   existingBackUrl?: string | null;
+  cardStates: Record<string, CardState>;
+  status: SaveStatus;
+  failedCount: number;
+  onRetrySlot: (slot: string) => void;
+  onRetryAllFailed: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("unassigned");
   // Zoom modal context: which image, opened from which filter view.
@@ -703,15 +898,7 @@ function Workspace({
   >(null);
   // BN Fix 2 — inline picker for assigning to a default slot.
   const [defaultPickerCardId, setDefaultPickerCardId] = useState<number | null>(null);
-  // Save confirmation dialog (BL Fix 6).
-  const [saveDialog, setSaveDialog] = useState<
-    | null
-    | {
-        kind: "empty" | "skipped-only" | "unassigned-present" | "skipped-and-unassigned";
-        skippedCount: number;
-        unassignedCount: number;
-      }
-  >(null);
+  // CB — saveDialog removed; per-card autosave eliminates the batch save flow.
 
   // Build blob URL cache for raw blobs.
   const blobUrls = useMemo(() => {
@@ -912,41 +1099,8 @@ function Workspace({
     );
   }
 
-  const handleSaveTap = () => {
-    const skippedCount = skippedKeys.length;
-    // Count "real" unassigned (exclude existing markers — those just
-    // mean the user hasn't replaced a previously-imported card).
-    const realUnassigned = Object.values(session.unassigned).filter(
-      (img) => !img.existingUrl,
-    ).length;
-    const assignedCount = numericAssigned.length + (hasBack ? 1 : 0);
-
-    if (assignedCount === 0) {
-      setSaveDialog({ kind: "empty", skippedCount, unassignedCount: realUnassigned });
-      return;
-    }
-    if (realUnassigned > 0 && skippedCount > 0) {
-      setSaveDialog({
-        kind: "skipped-and-unassigned",
-        skippedCount,
-        unassignedCount: realUnassigned,
-      });
-      return;
-    }
-    if (realUnassigned > 0) {
-      setSaveDialog({
-        kind: "unassigned-present",
-        skippedCount,
-        unassignedCount: realUnassigned,
-      });
-      return;
-    }
-    if (skippedCount > 0) {
-      setSaveDialog({ kind: "skipped-only", skippedCount, unassignedCount: 0 });
-      return;
-    }
-    onSave(true);
-  };
+  // CB — batch Save handler removed. Per-card autosave handles writes
+  // continuously; the workspace footer now exposes Discard + Close only.
 
   return (
     <section className="py-4">
@@ -1031,6 +1185,8 @@ function Workspace({
           hasBack={hasBack}
           onTap={(slot, key) => setZoom({ imageKey: key, from: "assigned", slot })}
           onUnassign={onUnassign}
+          cardStates={cardStates}
+          onRetrySlot={onRetrySlot}
         />
       )}
       {tab === "skipped" && (
@@ -1064,19 +1220,11 @@ function Workspace({
 
       {/* Footer actions */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={handleSaveTap}
-          className="rounded-md px-4 py-2"
-          style={{
-            background: "var(--accent)",
-            color: "var(--accent-foreground)",
-            fontSize: "var(--text-body-sm)",
-            fontWeight: 600,
-          }}
-        >
-          Save deck
-        </button>
+        <SaveStatusIndicator
+          status={status}
+          failedCount={failedCount}
+          onRetryAllFailed={onRetryAllFailed}
+        />
         <button
           type="button"
           onClick={onDiscard}
@@ -1175,21 +1323,7 @@ function Workspace({
         />
       )}
 
-      {/* Save confirmation dialog (BL Fix 6) */}
-      {saveDialog && (
-        <SaveConfirmDialog
-          info={saveDialog}
-          onCancel={() => setSaveDialog(null)}
-          onSaveAndFinish={() => {
-            setSaveDialog(null);
-            onSave(true);
-          }}
-          onSaveContinueLater={() => {
-            setSaveDialog(null);
-            onSave(false);
-          }}
-        />
-      )}
+      {/* CB — batch SaveConfirmDialog removed; autosave handles writes. */}
 
       {/* BN Fix 1 — Edit / 4-corner crop refine overlay */}
       {editing && (() => {
@@ -1343,12 +1477,16 @@ function AssignedGrid({
   hasBack,
   onTap,
   onUnassign,
+  cardStates,
+  onRetrySlot,
 }: {
   session: ImportSession;
   resolveSrc: (key: string) => string;
   hasBack: boolean;
   onTap: (slot: string, key: string) => void;
   onUnassign: (slot: string) => void;
+  cardStates: Record<string, CardState>;
+  onRetrySlot: (slot: string) => void;
 }) {
   const backKey = session.assigned[BACK_KEY];
   const backSrc = backKey ? resolveSrc(backKey) : "";
@@ -1428,18 +1566,30 @@ function AssignedGrid({
         const key = session.assigned[slot];
         const src = key ? resolveSrc(key) : "";
         const isExisting = key?.startsWith("EXISTING:");
+        const slotState = cardStates[slot];
+        const isFailed = slotState === "failed";
+        const isSaving = slotState === "saving";
         return (
           <div key={i} className="relative">
             <button
               type="button"
-              onClick={() => key && onTap(slot, key)}
+              onClick={() => {
+                if (!key) return;
+                if (isFailed) onRetrySlot(slot);
+                else onTap(slot, key);
+              }}
               disabled={!key}
               className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
               style={{
-                borderColor: key ? "var(--accent)" : "var(--border-subtle)",
+                borderColor: isFailed
+                  ? "#ef4444"
+                  : key
+                    ? "var(--accent)"
+                    : "var(--border-subtle)",
+                borderWidth: isFailed ? 2 : 1,
                 background: "var(--surface-card)",
               }}
-              title={getCardName(i)}
+              title={isFailed ? `${getCardName(i)} — tap to retry save` : getCardName(i)}
             >
               {src ? (
                 <img src={src} alt={getCardName(i)} className="h-full w-full object-cover" />
@@ -1450,6 +1600,20 @@ function AssignedGrid({
                   className="h-full w-full object-cover"
                   style={{ opacity: 0.25, filter: "grayscale(100%)" }}
                 />
+              )}
+              {isSaving && (
+                <span className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.30)" }}>
+                  <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#fff" }} />
+                </span>
+              )}
+              {isFailed && (
+                <span
+                  className="absolute right-1 bottom-1 inline-flex items-center justify-center rounded-full"
+                  style={{ width: 18, height: 18, background: "#ef4444", color: "#fff" }}
+                  aria-label="Save failed"
+                >
+                  <AlertTriangle className="h-3 w-3" />
+                </span>
               )}
               {isExisting && (
                 <span
@@ -1506,6 +1670,72 @@ function ThumbnailIconButton({
       {children}
     </button>
   );
+}
+
+/**
+ * CB — Linear-style save status indicator. Quiet by default, shows
+ * "Saving…" while a write is in flight, "✓ Saved" for ~2s after the
+ * last write, and a persistent "⚠ N failed — Retry" pill when any
+ * slot is in failed state.
+ */
+function SaveStatusIndicator({
+  status,
+  failedCount,
+  onRetryAllFailed,
+}: {
+  status: SaveStatus;
+  failedCount: number;
+  onRetryAllFailed: () => void;
+}) {
+  if (failedCount > 0) {
+    return (
+      <span
+        className="inline-flex items-center gap-2"
+        style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-body-sm)" }}
+      >
+        <AlertTriangle className="h-4 w-4" style={{ color: "#ef4444" }} />
+        <span style={{ color: "#ef4444" }}>{failedCount} failed</span>
+        <button
+          type="button"
+          onClick={onRetryAllFailed}
+          className="underline italic"
+          style={{ color: "var(--accent)" }}
+        >
+          Retry
+        </button>
+      </span>
+    );
+  }
+  if (status.kind === "saving") {
+    return (
+      <span
+        className="inline-flex items-center gap-2 italic"
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontSize: "var(--text-body-sm)",
+          color: "var(--color-foreground)",
+          opacity: 0.7,
+        }}
+      >
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
+      </span>
+    );
+  }
+  if (status.kind === "saved-flash") {
+    return (
+      <span
+        className="inline-flex items-center gap-2 italic transition-opacity"
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontSize: "var(--text-body-sm)",
+          color: "var(--color-foreground)",
+        }}
+      >
+        <Check className="h-3.5 w-3.5" style={{ color: "var(--accent)" }} /> Saved
+      </span>
+    );
+  }
+  return null;
 }
 
 function CardBackPickerModal({
