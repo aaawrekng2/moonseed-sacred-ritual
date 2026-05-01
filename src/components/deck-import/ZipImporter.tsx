@@ -182,6 +182,13 @@ export function ZipImporter({
             session.assigned[String(c.card_id)] = k;
           }
           await saveSession(session);
+          // CB — seed states + snapshot for existing rows.
+          const seeded: Record<string, CardState> = {};
+          for (const c of existingCards) seeded[String(c.card_id)] = "saved";
+          setCardStates(seeded);
+          void captureSnapshotIfMissing(deckId).catch((e) =>
+            console.warn("[CB] snapshot capture failed", e),
+          );
           setWorkspace({ session });
           setPhase({ kind: "workspace" });
           return;
@@ -260,8 +267,19 @@ export function ZipImporter({
         }
       }
       await saveSession(session);
+      // CB — capture snapshot of current deck state before any autosave
+      // writes happen, so Discard can roll back.
+      void captureSnapshotIfMissing(deckId).catch((e) =>
+        console.warn("[CB] snapshot capture failed", e),
+      );
       setWorkspace({ session });
       setPhase({ kind: "workspace" });
+      // CB — autosave the auto-matched assignments from the zip.
+      for (const [slot, key] of Object.entries(session.assigned)) {
+        const img = findImage(session, key);
+        if (!img || img.existingUrl) continue;
+        void runSave(slot, img, key);
+      }
       // Kick off encoding for assigned images upfront.
       kickoffEncoding(session, queueRef.current, { shape, cornerRadiusPercent }, (asset) => {
         // Update session via setter on next render.
