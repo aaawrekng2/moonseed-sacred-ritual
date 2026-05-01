@@ -1845,20 +1845,17 @@ function FiltersPanel({
     <div className="flex flex-col gap-5">
       {/* Deep readings toggle */}
       <section>
-        <h3
-          className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2"
-          style={{ opacity: "var(--ro-plus-20)" }}
-        >
+        <h3 className="font-display text-[10px] uppercase tracking-[0.18em] mb-2 text-foreground/85">
           Depth
         </h3>
         <button
           type="button"
           onClick={() => setDeepOnly((v) => !v)}
-          className="font-display text-[13px] italic text-gold transition-opacity"
+          className="font-display text-[13px] italic transition-colors text-foreground"
           style={{
-            opacity: deepOnly ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
+            opacity: deepOnly ? 1 : 0.85,
             borderBottom: deepOnly
-              ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+              ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
               : "1px solid transparent",
             paddingBottom: 2,
           }}
@@ -1871,10 +1868,7 @@ function FiltersPanel({
       {/* Tags */}
       {topTags.length > 0 && (
         <section>
-          <h3
-            className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2"
-            style={{ opacity: "var(--ro-plus-20)" }}
-          >
+          <h3 className="font-display text-[10px] uppercase tracking-[0.18em] mb-2 text-foreground/85">
             Tags
           </h3>
           <div className="flex flex-wrap gap-x-3 gap-y-2">
@@ -1891,11 +1885,11 @@ function FiltersPanel({
                         : [...prev, t.name],
                     )
                   }
-                  className="font-display text-[13px] italic text-gold transition-opacity"
+                  className="font-display text-[13px] italic transition-colors text-foreground"
                   style={{
-                    opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
+                    opacity: active ? 1 : 0.85,
                     borderBottom: active
-                      ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                      ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
                       : "1px solid transparent",
                     paddingBottom: 2,
                   }}
@@ -1911,10 +1905,7 @@ function FiltersPanel({
 
       {activeTags.length >= 2 && (
         <section>
-          <h3
-            className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2"
-            style={{ opacity: "var(--ro-plus-20)" }}
-          >
+          <h3 className="font-display text-[10px] uppercase tracking-[0.18em] mb-2 text-foreground/85">
             Match
           </h3>
           <div className="flex items-center gap-3">
@@ -1925,11 +1916,11 @@ function FiltersPanel({
                   key={m}
                   type="button"
                   onClick={() => setTagMode(m)}
-                  className="font-display text-[12px] italic text-gold transition-opacity"
+                  className="font-display text-[12px] italic transition-colors text-foreground"
                   style={{
-                    opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-10)",
+                    opacity: active ? 1 : 0.75,
                     borderBottom: active
-                      ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                      ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
                       : "1px solid transparent",
                     paddingBottom: 2,
                   }}
@@ -1943,10 +1934,7 @@ function FiltersPanel({
       )}
 
       <section>
-        <h3
-          className="font-display text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2"
-          style={{ opacity: "var(--ro-plus-20)" }}
-        >
+        <h3 className="font-display text-[10px] uppercase tracking-[0.18em] mb-2 text-foreground/85">
           Draw type
         </h3>
         <div className="flex flex-wrap gap-x-4 gap-y-2">
@@ -1963,11 +1951,11 @@ function FiltersPanel({
                       : [...prev, k],
                   )
                 }
-                className="font-display text-[12px] italic text-gold transition-opacity"
+                className="font-display text-[12px] italic transition-colors text-foreground"
                 style={{
-                  opacity: active ? "var(--ro-plus-40)" : "var(--ro-plus-0)",
+                  opacity: active ? 1 : 0.85,
                   borderBottom: active
-                    ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                    ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
                     : "1px solid transparent",
                   paddingBottom: 2,
                 }}
