@@ -1078,6 +1078,24 @@ function Workspace({
   // the camera capture flow), not just one assigned in this session.
   const hasBack = !!session.assigned[BACK_KEY] || !!existingBackUrl;
 
+  // CC G3 — Real-time counter derived from the per-card state map.
+  // BACK_KEY is a separate field on the deck record, not a card —
+  // exclude it from numerator AND denominator. Denominator is always 78.
+  const savedCount = useMemo(() => {
+    let n = 0;
+    for (const [slot, st] of Object.entries(cardStates)) {
+      if (slot === BACK_KEY) continue;
+      if (st === "saved") n += 1;
+    }
+    // Edit-mode: any assigned slot that hasn't been touched this session
+    // is also "saved" on the deck (EXISTING:* markers). Count those too
+    // when there's no per-slot state yet.
+    for (const slot of numericAssigned) {
+      if (cardStates[slot] === undefined) n += 1;
+    }
+    return Math.min(78, n);
+  }, [cardStates, numericAssigned]);
+
   // BN Fix 2 — set of card_ids that will be customized (non-default)
   // after save. Defined here so both the chip count and the Default
   // tab render share one source of truth.
