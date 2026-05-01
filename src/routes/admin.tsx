@@ -1851,7 +1851,7 @@ function UserDetailPage({
       .split(/[\s@.]+/)
       .filter(Boolean)
       .slice(0, 2)
-      .map((s) => s[0]?.toUpperCase() ?? "")
+      .map((s: string) => s[0]?.toUpperCase() ?? "")
       .join("") || "?";
 
   const provider = user.is_anonymous
