@@ -1,28 +1,117 @@
 /**
- * Settings → Data tab.
+ * Settings → Data tab (CG).
  *
- * Three actions:
- *   1. Export — downloads readings + preferences as JSON
- *   2. Sign out — ends the Supabase session
- *   3. Clear local cache — wipes localStorage moonseed:* keys
+ * Sections:
+ *   1. Full backup — pick categories, see size estimates, download a ZIP
+ *      that includes JSON rows AND binary assets (deck images, photos)
+ *   2. Quick JSON export — readings + preferences only
+ *   3. Sign out
+ *   4. Clear local cache
  *
  * Account deletion is intentionally not exposed in-app — users contact
  * support so we can clean up across all tables atomically.
  */
-import { useState } from "react";
-import { Download, Loader2, LogOut, RotateCcw } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Archive, Download, Loader2, LogOut, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "./SettingsContext";
 import { SettingsSection } from "./sections";
 import { useConfirm } from "@/hooks/use-confirm";
+import {
+  BACKUP_CATEGORIES,
+  formatBytes,
+  type BackupCategoryId,
+} from "@/lib/backup-categories";
+import { createBackup, type BackupProgress } from "@/lib/backup-export";
 
 export function DataTab() {
   const { user } = useSettings();
   const [exporting, setExporting] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const confirm = useConfirm();
+
+  const [selected, setSelected] = useState<Set<BackupCategoryId>>(
+    () => new Set(BACKUP_CATEGORIES.map((c) => c.id)),
+  );
+  const [estimates, setEstimates] = useState<
+    Record<BackupCategoryId, { count: number; bytes: number }>
+  >({} as Record<BackupCategoryId, { count: number; bytes: number }>);
+  const [estimating, setEstimating] = useState(true);
+  const [backupRunning, setBackupRunning] = useState(false);
+  const [backupProgress, setBackupProgress] = useState<BackupProgress | null>(
+    null,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      setEstimating(true);
+      const next: Record<string, { count: number; bytes: number }> = {};
+      await Promise.all(
+        BACKUP_CATEGORIES.map(async (c) => {
+          try {
+            next[c.id] = await c.estimate(user.id);
+          } catch {
+            next[c.id] = { count: 0, bytes: 0 };
+          }
+        }),
+      );
+      if (!cancelled) {
+        setEstimates(next as Record<BackupCategoryId, { count: number; bytes: number }>);
+        setEstimating(false);
+      }
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
+
+  const totalBytes = Array.from(selected).reduce(
+    (sum, id) => sum + (estimates[id]?.bytes ?? 0),
+    0,
+  );
+
+  const toggle = (id: BackupCategoryId) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const runBackup = async () => {
+    if (selected.size === 0) {
+      toast.error("Pick at least one category");
+      return;
+    }
+    setBackupRunning(true);
+    setBackupProgress(null);
+    try {
+      const blob = await createBackup({
+        userId: user.id,
+        categories: Array.from(selected),
+        onProgress: (p) => setBackupProgress(p),
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `moonseed-backup-${new Date().toISOString().slice(0, 10)}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Backup downloaded");
+    } catch (e) {
+      console.error(e);
+      toast.error("Couldn't create backup");
+    } finally {
+      setBackupRunning(false);
+      setBackupProgress(null);
+    }
+  };
 
   const exportData = async () => {
     setExporting(true);
@@ -89,8 +178,74 @@ export function DataTab() {
   return (
     <div className="space-y-10">
       <SettingsSection
-        title="Your Data"
-        description="Everything you've created in Moonseed lives in your account."
+        title="Full backup"
+        description="Choose what to include. Custom decks and photos are bundled as image files alongside their JSON metadata."
+      >
+        <div className="space-y-3">
+          {BACKUP_CATEGORIES.map((c) => {
+            const est = estimates[c.id];
+            return (
+              <label
+                key={c.id}
+                className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/40 p-3 hover:bg-foreground/5"
+              >
+                <Checkbox
+                  checked={selected.has(c.id)}
+                  onCheckedChange={() => toggle(c.id)}
+                  className="mt-0.5"
+                />
+                <div className="flex-1">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-sm font-medium">{c.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {estimating
+                        ? "…"
+                        : est && est.count > 0
+                          ? `${est.count} · ~${formatBytes(est.bytes)}`
+                          : "empty"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{c.description}</p>
+                </div>
+              </label>
+            );
+          })}
+
+          <div className="flex items-center justify-between border-t border-border/40 pt-3 text-sm">
+            <span className="text-muted-foreground">
+              Estimated download
+            </span>
+            <span className="font-medium">
+              {estimating ? "calculating…" : `~${formatBytes(totalBytes)}`}
+            </span>
+          </div>
+
+          <Button
+            onClick={() => void runBackup()}
+            disabled={backupRunning || selected.size === 0}
+            className="w-full justify-start gap-2 sm:w-auto"
+          >
+            {backupRunning ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Archive className="h-4 w-4" />
+            )}
+            {backupRunning
+              ? backupProgress
+                ? `Packing ${backupProgress.phase} (${backupProgress.current}/${backupProgress.total})`
+                : "Preparing…"
+              : "Download backup (.zip)"}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Large backups (lots of photos or custom decks) may take a minute.
+            Keep this tab open until the download begins.
+          </p>
+        </div>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Quick JSON export"
+        description="Just readings and preferences, no images."
       >
         <div className="space-y-3">
           <Button
@@ -106,9 +261,6 @@ export function DataTab() {
             )}
             Export readings + settings
           </Button>
-          <p className="text-xs text-muted-foreground">
-            Downloads a JSON file with every reading and your full preference row.
-          </p>
         </div>
       </SettingsSection>
 
