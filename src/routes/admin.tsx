@@ -718,6 +718,26 @@ function DashboardTab() {
       </section>
 
       <section>
+        <SectionTitle>Anonymous sessions</SectionTitle>
+        <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-3">
+          <StatCard label="Today" value={anon?.today ?? 0} />
+          <StatCard label="Last 30 days" value={anon?.last30Days ?? 0} />
+          <StatCard label="Total" value={anon?.total ?? 0} />
+        </div>
+        <p
+          className="mt-3"
+          style={{
+            ...serif,
+            fontStyle: "italic",
+            fontSize: "var(--text-caption)",
+            opacity: 0.55,
+          }}
+        >
+          Anonymous sessions are excluded from the Users tab.
+        </p>
+      </section>
+
+      <section>
         <SectionTitle>Recent signups</SectionTitle>
         <div className="mt-4 overflow-x-auto">
           <table
