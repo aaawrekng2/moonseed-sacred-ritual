@@ -619,6 +619,7 @@ function CelticCross({
   onTap,
   sizing,
   showLabels,
+  isRevealPhase,
 }: {
   picks: Pick[];
   labels: string[];
@@ -629,6 +630,7 @@ function CelticCross({
   onTap: (i: number) => void;
   sizing: Sizing;
   showLabels: boolean;
+  isRevealPhase?: boolean;
 }) {
   // Spacing constants tuned to the chosen card size.
   const colGap = Math.round(sizing.w * 0.35);
