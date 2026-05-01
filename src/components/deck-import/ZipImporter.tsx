@@ -1593,6 +1593,10 @@ function AssignedGrid({
   onUnassign,
   cardStates,
   onRetrySlot,
+  entryMode,
+  unassignedAvailable,
+  onTapEmpty,
+  onImportZip,
 }: {
   session: ImportSession;
   resolveSrc: (key: string) => string;
@@ -1601,6 +1605,10 @@ function AssignedGrid({
   onUnassign: (slot: string) => void;
   cardStates: Record<string, CardState>;
   onRetrySlot: (slot: string) => void;
+  entryMode: "import" | "edit";
+  unassignedAvailable: boolean;
+  onTapEmpty: (cardId: number) => void;
+  onImportZip: () => void;
 }) {
   const backKey = session.assigned[BACK_KEY];
   const backSrc = backKey ? resolveSrc(backKey) : "";
@@ -1620,7 +1628,7 @@ function AssignedGrid({
   };
   const SUIT_CHIPS: { id: SuitFilter; label: string }[] = [
     { id: "all", label: "All" },
-    { id: "major", label: "Majors" },
+    { id: "major", label: "Major" },
     { id: "wands", label: "Wands" },
     { id: "cups", label: "Cups" },
     { id: "swords", label: "Swords" },
@@ -1628,16 +1636,36 @@ function AssignedGrid({
   ];
   return (
     <>
-      <div className="mb-3 flex flex-wrap gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         {SUIT_CHIPS.map((c) => (
           <Chip
             key={c.id}
             active={suitFilter === c.id}
-            onClick={() => setSuitFilter(c.id)}
+            onClick={() =>
+              // CC G4 — tapping the active chip clears back to "all".
+              setSuitFilter((prev) => (prev === c.id ? "all" : c.id))
+            }
           >
             {c.label}
           </Chip>
         ))}
+        {entryMode === "edit" && (
+          <button
+            type="button"
+            onClick={onImportZip}
+            className="ml-auto inline-flex items-center gap-1 rounded-full border px-3 py-1.5 italic"
+            style={{
+              borderColor: "var(--border-default)",
+              color: "var(--color-foreground)",
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-body-sm)",
+              background: "transparent",
+            }}
+            title="Import / replace from zip"
+          >
+            <Upload className="h-3.5 w-3.5" /> Import / replace from zip
+          </button>
+        )}
       </div>
     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
       {suitFilter === "all" && hasBack && backKey && (
