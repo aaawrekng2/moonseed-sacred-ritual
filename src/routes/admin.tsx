@@ -19,6 +19,7 @@ import {
   Copy,
   Download,
   Eye,
+  EyeOff,
   KeyRound,
   PencilLine,
   RotateCcw,
