@@ -218,7 +218,7 @@ export function DataTab() {
         zips: orderedZips,
         selectedCategories: Array.from(restoreSelected),
         userId: user.id,
-        effectivePremium,
+        isPremium: effectivePremium,
         onProgress: (msg) => setRestoreMessage(msg),
       });
       setRestoreResult(r);
@@ -286,7 +286,7 @@ export function DataTab() {
       const blob = await createBackup({
         userId: user.id,
         categories: Array.from(selected),
-        effectivePremium,
+        isPremium: effectivePremium,
         onProgress: (p) => setBackupProgress(p),
       });
       const url = URL.createObjectURL(blob);
