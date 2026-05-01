@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   CheckCheck,
   Clipboard,
+  Bug,
   Eye,
   EyeClosed,
   EyeOff,
@@ -20,6 +21,8 @@ import { applySanctuary } from "@/components/nav/TopRightControls";
 import { setStoredCommunityTheme } from "@/lib/community-themes";
 import { dispatchActiveThemeChanged } from "@/lib/theme-events";
 import { useAuth } from "@/lib/auth";
+import { setDevMode } from "@/components/dev/DevOverlay";
+import { supabase } from "@/lib/supabase";
 
 /**
  * Global floating ··· menu. Mounted ONCE in __root.tsx, hovers above
@@ -42,6 +45,48 @@ export function FloatingMenu() {
     useFloatingMenu();
   const { helpHandler } = useFloatingMenu();
   const { user } = useAuth();
+  // CL Group 3 — admin-only dev mode toggle, mirroring DevOverlay's
+  // user_preferences.role check. Anonymous and non-admin sessions
+  // never see the button.
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [devOn, setDevOn] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("moonseed:dev_mode") === "true";
+  });
+  useEffect(() => {
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const role = (data as { role?: string } | null)?.role;
+      setIsAdmin(role === "admin" || role === "super_admin");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onChange = (e: Event) => {
+      const detail = (e as CustomEvent<boolean>).detail;
+      setDevOn(
+        typeof detail === "boolean"
+          ? detail
+          : window.localStorage.getItem("moonseed:dev_mode") === "true",
+      );
+    };
+    window.addEventListener("moonseed:dev-mode-changed", onChange);
+    return () =>
+      window.removeEventListener("moonseed:dev-mode-changed", onChange);
+  }, []);
   const navigate = useNavigate();
   const userInitial =
     (user?.email?.[0] as string | undefined) ??
@@ -368,6 +413,25 @@ export function FloatingMenu() {
               ariaLabel="Close"
             >
               <X size={17} strokeWidth={1.5} />
+            </MenuButton>
+          )}
+
+          {isAdmin && (
+            <MenuButton
+              onClick={(e) => {
+                const next = !devOn;
+                setDevMode(next);
+                setDevOn(next);
+                showLabel(next ? "Dev on" : "Dev off", e);
+                resetTimer();
+              }}
+              ariaLabel={devOn ? "Disable dev mode" : "Enable dev mode"}
+            >
+              <Bug
+                size={17}
+                strokeWidth={1.5}
+                style={{ opacity: devOn ? 1 : 0.4 }}
+              />
             </MenuButton>
           )}
       </div>
