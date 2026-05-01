@@ -54,7 +54,7 @@ export const executeImport = createServerFn({ method: "POST" })
         mode: "personal",
         import_batch_id: batchId,
       }));
-      const { error } = await supabaseAdmin.from("readings").insert(chunk as never);
+      const { error } = await supabaseAdmin.from("readings").insert(chunk);
       if (error) {
         // Mark every row in this chunk as failed and continue.
         for (let j = 0; j < chunk.length; j++) failed.push(i + j);
@@ -65,13 +65,13 @@ export const executeImport = createServerFn({ method: "POST" })
       }
     }
 
-    await supabaseAdmin.from("import_batches" as never).insert({
+    await supabaseAdmin.from("import_batches").insert({
       id: batchId,
       user_id: userId,
       source_format: data.sourceFormat,
       row_count: imported,
       skipped_count: failed.length,
-    } as never);
+    });
 
     return { batchId, imported, failed: failed.length };
   });
@@ -89,12 +89,12 @@ export const undoImport = createServerFn({ method: "POST" })
     // Defense-in-depth: confirm the batch belongs to this caller
     // before deleting anything.
     const { data: batch, error: bErr } = await supabaseAdmin
-      .from("import_batches" as never)
+      .from("import_batches")
       .select("user_id")
       .eq("id", data.batchId)
       .maybeSingle();
     if (bErr) throw new Error(bErr.message);
-    if (!batch || (batch as { user_id: string }).user_id !== userId) {
+    if (!batch || batch.user_id !== userId) {
       throw new Error("Not your batch");
     }
 
@@ -106,7 +106,7 @@ export const undoImport = createServerFn({ method: "POST" })
     if (dErr) throw new Error(dErr.message);
 
     await supabaseAdmin
-      .from("import_batches" as never)
+      .from("import_batches")
       .delete()
       .eq("id", data.batchId)
       .eq("user_id", userId);
