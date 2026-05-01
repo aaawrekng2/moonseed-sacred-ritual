@@ -20,8 +20,8 @@
  *      Tap an image → ZoomModal → Pick a card (CardPicker) or Skip
  *      Tap an assigned slot → unassign / replace
  *      Card-back picker is a compact inline panel.
- *   3. Save → atomic commit (via deck-import-commit).
- *   4. Summary.
+ *   3. Per-card autosave (Phase CB) — every assignment writes
+ *      immediately via per-card-save; no batch commit step.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Loader2, RotateCcw, Upload, X } from "lucide-react";
@@ -1008,19 +1008,6 @@ function Workspace({
   // CA — also recognize a card back already saved on the deck (e.g. from
   // the camera capture flow), not just one assigned in this session.
   const hasBack = !!session.assigned[BACK_KEY] || !!existingBackUrl;
-
-  // BX — diagnostic instrumentation for the "0/78 counter never updates"
-  // bug. Logs on every Workspace re-render so we can correlate UI state
-  // with the underlying session map.
-  console.log("[BX-counter]", {
-    numericAssignedLen: numericAssigned.length,
-    totalCards: 78,
-    unassignedKeys: unassignedKeys.length,
-    skippedKeys: skippedKeys.length,
-    assignedMapSize: assignedSlots.length,
-    hasBack,
-    assignedKeysSample: assignedSlots.slice(0, 5),
-  });
 
   // BN Fix 2 — set of card_ids that will be customized (non-default)
   // after save. Defined here so both the chip count and the Default
