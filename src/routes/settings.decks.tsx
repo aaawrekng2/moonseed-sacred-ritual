@@ -237,11 +237,13 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 function DeckRow({
   deck,
   onEdit,
+  onImportZip,
   onToggleActive,
   onDelete,
 }: {
   deck: CustomDeck;
   onEdit: () => void;
+  onImportZip: () => void;
   onToggleActive: () => void;
   onDelete: () => void;
 }) {
@@ -302,6 +304,14 @@ function DeckRow({
         className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
       >
         Edit
+      </button>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onImportZip(); }}
+        className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
+        title="Import / replace from zip"
+      >
+        <Upload className="h-3.5 w-3.5" />
       </button>
       <button
         type="button"
