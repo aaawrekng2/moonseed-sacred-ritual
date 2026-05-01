@@ -2440,20 +2440,191 @@ function DetailRow({
   );
 }
 
-function ActionsPlaceholder() {
+/* ---------------- CQ — User detail action UI ---------------- */
+
+function ActionRow({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="mt-3"
+    <div className="mt-4 flex flex-wrap gap-2">{children}</div>
+  );
+}
+
+function ActionBtn({
+  tone,
+  onClick,
+  disabled,
+  children,
+}: {
+  tone: "primary" | "secondary" | "destructive";
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  const colors =
+    tone === "primary"
+      ? {
+          color: "#0f1117",
+          background: "var(--accent, var(--gold))",
+          border: "1px solid var(--accent, var(--gold))",
+        }
+      : tone === "destructive"
+        ? {
+            color: "oklch(0.78 0.18 25)",
+            background: "transparent",
+            border: "1px solid oklch(0.5 0.15 25)",
+          }
+        : {
+            color: "var(--foreground)",
+            background: "transparent",
+            border: "1px solid var(--border-subtle)",
+          };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
       style={{
-        ...serif,
-        fontStyle: "italic",
-        fontSize: "var(--text-body-sm)",
-        color:
-          "color-mix(in oklab, var(--color-foreground) 45%, transparent)",
+        ...display,
+        ...colors,
+        fontSize: "var(--text-caption)",
+        letterSpacing: "0.18em",
+        textTransform: "uppercase",
+        padding: "8px 14px",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
       }}
     >
-      Actions available in CQ.
-    </div>
+      {children}
+    </button>
+  );
+}
+
+function GrantPremiumModal({
+  mode,
+  targetLabel,
+  currentExpires,
+  onClose,
+  onConfirm,
+}: {
+  mode: "grant" | "extend";
+  targetLabel: string;
+  currentExpires: string | null;
+  onClose: () => void;
+  onConfirm: (months: number) => void | Promise<void>;
+}) {
+  // Day chips per spec: 30 / 60 / 90 / 180 / 365.
+  const chips: Array<{ days: number; label: string }> = [
+    { days: 30, label: "30 days" },
+    { days: 60, label: "60 days" },
+    { days: 90, label: "90 days" },
+    { days: 180, label: "180 days" },
+    { days: 365, label: "1 year" },
+  ];
+  const [days, setDays] = useState(30);
+  const [customStr, setCustomStr] = useState("");
+
+  const effectiveDays = (() => {
+    const c = parseInt(customStr, 10);
+    if (Number.isFinite(c) && c > 0) return c;
+    return days;
+  })();
+
+  // For grant: expiry = now + days. For extend: extend from existing
+  // expiry if still in the future, otherwise from now. Mirrors server.
+  const baseTime =
+    mode === "extend" && currentExpires &&
+    new Date(currentExpires).getTime() > Date.now()
+      ? new Date(currentExpires).getTime()
+      : Date.now();
+  const expiryDate = new Date(baseTime + effectiveDays * 86_400_000);
+  // Server takes months; convert days → months (~30 day units), min 1.
+  const monthsParam = Math.max(1, Math.round(effectiveDays / 30));
+
+  return (
+    <ModalShell
+      title={`${mode === "extend" ? "Extend" : "Grant"} Premium to ${targetLabel}?`}
+      onClose={onClose}
+    >
+      <p style={{ ...serif, fontSize: "var(--text-body-sm)", opacity: 0.75 }}>
+        {mode === "extend"
+          ? "Extends Premium from the current expiration date."
+          : "Grants Premium starting today."}{" "}
+        Expires on{" "}
+        <strong style={{ color: "var(--accent, var(--gold))" }}>
+          {expiryDate.toLocaleDateString()}
+        </strong>
+        .
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {chips.map((c) => {
+          const active = !customStr && days === c.days;
+          return (
+            <button
+              key={c.days}
+              type="button"
+              onClick={() => {
+                setDays(c.days);
+                setCustomStr("");
+              }}
+              style={{
+                ...display,
+                fontSize: "var(--text-caption)",
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                padding: "8px 12px",
+                background: "none",
+                border: active
+                  ? "1px solid var(--accent, var(--gold))"
+                  : "1px solid var(--border-subtle)",
+                color: active
+                  ? "var(--accent, var(--gold))"
+                  : "color-mix(in oklab, var(--color-foreground) 60%, transparent)",
+                cursor: "pointer",
+              }}
+            >
+              {c.label}
+            </button>
+          );
+        })}
+      </div>
+      <label
+        className="mt-4 flex items-center gap-3"
+        style={{
+          ...serif,
+          fontSize: "var(--text-body-sm)",
+          color: "color-mix(in oklab, var(--color-foreground) 70%, transparent)",
+        }}
+      >
+        Custom days:
+        <input
+          type="number"
+          min={1}
+          value={customStr}
+          onChange={(e) => setCustomStr(e.target.value)}
+          placeholder="—"
+          style={{
+            ...serif,
+            width: 100,
+            padding: "6px 10px",
+            background: "rgba(0,0,0,0.25)",
+            border: "1px solid var(--border-subtle)",
+            color: "var(--foreground)",
+            fontSize: "var(--text-body-sm)",
+          }}
+        />
+      </label>
+      <div className="mt-6 flex justify-end gap-4">
+        <button type="button" onClick={onClose} style={textBtnStyle("muted")}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => void onConfirm(monthsParam)}
+          style={textBtnStyle("gold")}
+        >
+          {mode === "extend" ? "Extend Premium" : "Grant Premium"}
+        </button>
+      </div>
+    </ModalShell>
   );
 }
 
