@@ -911,6 +911,9 @@ function Workspace({
   failedCount,
   onRetrySlot,
   onRetryAllFailed,
+  entryMode,
+  deckName,
+  onSwitchToUpload,
 }: {
   session: ImportSession;
   onAssign: (imageKey: string, cardId: number | "BACK") => void;
@@ -928,8 +931,11 @@ function Workspace({
   failedCount: number;
   onRetrySlot: (slot: string) => void;
   onRetryAllFailed: () => void;
+  entryMode: "import" | "edit";
+  deckName: string | null;
+  onSwitchToUpload: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>("unassigned");
+  const [tab, setTab] = useState<Tab>(entryMode === "edit" ? "assigned" : "unassigned");
   // Zoom modal context: which image, opened from which filter view.
   const [zoom, setZoom] = useState<
     | null
