@@ -39,6 +39,57 @@ export const executeImport = createServerFn({ method: "POST" })
     const failed: number[] = [];
     let imported = 0;
 
+    // CT — Sync imported tags into the normalized `user_tags` table so
+    // they appear in the Journal Filters drawer. The CS importer wrote
+    // only to `readings.tags`, leaving imported tags invisible to
+    // global filters. Run BEFORE the readings insert; if it fails we
+    // log and continue (lost tag visibility is recoverable; lost
+    // readings are not).
+    //
+    // Note: `undoImport` does NOT delete these `user_tags` rows on
+    // purpose — those tag names may already be in use elsewhere, and
+    // users may want to keep them in their tag library after removing
+    // the imported readings.
+    try {
+      const allTagNames = new Set<string>();
+      for (const r of data.readings) {
+        for (const tag of r.tags ?? []) {
+          const trimmed = tag.trim();
+          if (trimmed) allTagNames.add(trimmed);
+        }
+      }
+      if (allTagNames.size > 0) {
+        const { data: existing } = await supabaseAdmin
+          .from("user_tags")
+          .select("name")
+          .eq("user_id", userId);
+        const existingLowered = new Set(
+          (existing ?? []).map((t: { name: string }) => t.name.toLowerCase()),
+        );
+        const missing = Array.from(allTagNames).filter(
+          (name) => !existingLowered.has(name.toLowerCase()),
+        );
+        if (missing.length > 0) {
+          const { error: tagErr } = await supabaseAdmin
+            .from("user_tags")
+            .insert(
+              missing.map((name) => ({
+                user_id: userId,
+                name,
+                usage_count: 1,
+              })),
+            );
+          if (tagErr) {
+            // eslint-disable-next-line no-console
+            console.warn("[import] user_tags sync failed", tagErr.message);
+          }
+        }
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("[import] user_tags sync threw", (e as Error).message);
+    }
+
     const CHUNK = 50;
     for (let i = 0; i < data.readings.length; i += CHUNK) {
       const chunk = data.readings.slice(i, i + CHUNK).map((r) => ({
