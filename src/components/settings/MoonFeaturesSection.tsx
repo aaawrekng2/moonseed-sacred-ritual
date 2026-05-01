@@ -8,6 +8,7 @@ import { PremiumModal } from "@/components/premium/PremiumModal";
 import { useSettings, type Prefs } from "./SettingsContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { emitMoonPrefsChanged } from "@/lib/use-moon-prefs";
 
 /**
  * Moon & Lunar Features section in Settings → Preferences.
@@ -33,6 +34,19 @@ export function MoonFeaturesSection() {
     if (error) {
       toast.error("Couldn't save your preference.");
       setPrefs(prefs);
+      return;
+    }
+    // CV — broadcast home-page-relevant moon prefs so the home page
+    // updates without a refresh.
+    if ("moon_features_enabled" in patch || "moon_show_carousel" in patch) {
+      emitMoonPrefsChanged({
+        ...(typeof patch.moon_features_enabled === "boolean"
+          ? { moon_features_enabled: patch.moon_features_enabled }
+          : {}),
+        ...(typeof patch.moon_show_carousel === "boolean"
+          ? { moon_show_carousel: patch.moon_show_carousel }
+          : {}),
+      });
     }
   };
 
