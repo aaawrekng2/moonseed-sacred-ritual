@@ -2950,7 +2950,7 @@ function AuditTab() {
                 >
                   <Td>{new Date(r.created_at).toLocaleString()}</Td>
                   <Td>{r.admin_email ?? "—"}</Td>
-                  <Td>{r.action}</Td>
+                  <Td>{auditActionLabel(r.action)}</Td>
                   <Td>{r.target_email ?? "—"}</Td>
                   <Td>
                     <button
