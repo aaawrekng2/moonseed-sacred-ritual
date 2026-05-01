@@ -2122,9 +2122,13 @@ function UserDetailPage({
                 fontSize: "var(--text-body-sm)",
                 opacity: 0.6,
                 marginTop: 2,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
               }}
             >
               {user.email}
+              {!user.email_confirmed_at && <UnconfirmedBadge />}
             </div>
           )}
           <div
@@ -2237,7 +2241,13 @@ function UserDetailPage({
           <DetailRow label="Auth provider" value={provider} />
           <DetailRow
             label="Email confirmed"
-            value={user.email ? "yes" : "—"}
+            value={
+              !user.email
+                ? "—"
+                : user.email_confirmed_at
+                  ? new Date(user.email_confirmed_at).toLocaleDateString()
+                  : "no"
+            }
           />
           <DetailRow label="Account status" value={accountStatus} />
           <ActionRow>
