@@ -48,6 +48,7 @@ import {
 } from "@/lib/backup-restore";
 import type JSZip from "jszip";
 import { ImportFlow, type ImportResult } from "@/components/import/ImportFlow";
+import { usePremium } from "@/lib/premium";
 
 const CATEGORY_LABEL: Record<string, string> = {
   readings: "Readings",
@@ -72,9 +73,12 @@ export function DataTab() {
   const [signingOut, setSigningOut] = useState(false);
   const confirm = useConfirm();
 
-  // TODO: wire to Stripe in Phase 10. Until premium ships, every account
-  // is treated as free-tier so binary-asset categories stay locked.
-  const isPremium = false;
+  // CU — read real premium state. While loading, treat as premium-true
+  // for lock visuals so categories don't flash locked for premium users.
+  const { isPremium: isPremiumResolved, loading: premiumLoading } = usePremium(
+    user?.id,
+  );
+  const isPremium = premiumLoading ? true : isPremiumResolved;
 
   const [selected, setSelected] = useState<Set<BackupCategoryId>>(
     () =>
