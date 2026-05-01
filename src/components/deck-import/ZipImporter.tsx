@@ -1185,6 +1185,8 @@ function Workspace({
           hasBack={hasBack}
           onTap={(slot, key) => setZoom({ imageKey: key, from: "assigned", slot })}
           onUnassign={onUnassign}
+          cardStates={cardStates}
+          onRetrySlot={onRetrySlot}
         />
       )}
       {tab === "skipped" && (
@@ -1475,12 +1477,16 @@ function AssignedGrid({
   hasBack,
   onTap,
   onUnassign,
+  cardStates,
+  onRetrySlot,
 }: {
   session: ImportSession;
   resolveSrc: (key: string) => string;
   hasBack: boolean;
   onTap: (slot: string, key: string) => void;
   onUnassign: (slot: string) => void;
+  cardStates: Record<string, CardState>;
+  onRetrySlot: (slot: string) => void;
 }) {
   const backKey = session.assigned[BACK_KEY];
   const backSrc = backKey ? resolveSrc(backKey) : "";
