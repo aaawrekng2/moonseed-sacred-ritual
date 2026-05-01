@@ -613,6 +613,12 @@ function CardStrip({
             {positionLabels[i] ?? `Card ${i + 1}`}
           </span>
         )}
+        {showLabels && picks[i] && (
+          <CardNameLabelRS
+            cardIndex={picks[i].cardIndex}
+            isReversed={!!picks[i].isReversed}
+          />
+        )}
       </div>
     );
 
