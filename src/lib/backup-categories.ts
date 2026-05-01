@@ -15,13 +15,16 @@ export type BackupCategoryId =
   | "preferences"
   | "custom_decks"
   | "reading_photos"
-  | "patterns_threads_weaves"
-  | "tags_streaks_guides";
+  | "user_tags"
+  | "user_streaks"
+  | "custom_guides";
 
 export type BackupCategory = {
   id: BackupCategoryId;
   label: string;
   description: string;
+  /** Premium-tier feature: large binary assets. */
+  premium?: boolean;
   /** Returns { count, bytes } estimate for this category. */
   estimate: (userId: string) => Promise<{ count: number; bytes: number }>;
 };
@@ -61,6 +64,7 @@ export const BACKUP_CATEGORIES: BackupCategory[] = [
     id: "custom_decks",
     label: "Custom decks (data + images)",
     description: "Your photographed decks including all card images.",
+    premium: true,
     estimate: async (uid) => {
       const { data: decks } = await supabase
         .from("custom_decks")
@@ -80,6 +84,7 @@ export const BACKUP_CATEGORIES: BackupCategory[] = [
     id: "reading_photos",
     label: "Reading photos",
     description: "Photos you attached to readings.",
+    premium: true,
     estimate: async (uid) => {
       const c = await countRows("reading_photos", uid);
       // Rough: 400 KB per photo.
@@ -87,31 +92,30 @@ export const BACKUP_CATEGORIES: BackupCategory[] = [
     },
   },
   {
-    id: "patterns_threads_weaves",
-    label: "Patterns, threads & weaves",
-    description: "Detected symbolic structure across your readings.",
+    id: "user_tags",
+    label: "Tags",
+    description: "Your tag library.",
     estimate: async (uid) => {
-      const [p, t, w] = await Promise.all([
-        countRows("patterns", uid),
-        countRows("symbolic_threads", uid),
-        countRows("weaves", uid),
-      ]);
-      const total = p + t + w;
-      return { count: total, bytes: total * ROW_WEIGHT_BYTES };
+      const c = await countRows("user_tags", uid);
+      return { count: c, bytes: c * 800 };
     },
   },
   {
-    id: "tags_streaks_guides",
-    label: "Tags, streaks & custom guides",
-    description: "Your tag library, streak history, and custom guides.",
+    id: "user_streaks",
+    label: "Streak history",
+    description: "Your daily practice streak.",
     estimate: async (uid) => {
-      const [tags, streaks, guides] = await Promise.all([
-        countRows("user_tags", uid),
-        countRows("user_streaks", uid),
-        countRows("custom_guides", uid),
-      ]);
-      const total = tags + streaks + guides;
-      return { count: total, bytes: total * 800 };
+      const c = await countRows("user_streaks", uid);
+      return { count: c, bytes: c * 800 };
+    },
+  },
+  {
+    id: "custom_guides",
+    label: "Custom guides",
+    description: "Oracle personas you have written.",
+    estimate: async (uid) => {
+      const c = await countRows("custom_guides", uid);
+      return { count: c, bytes: c * 800 };
     },
   },
 ];
