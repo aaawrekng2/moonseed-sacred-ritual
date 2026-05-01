@@ -10,6 +10,7 @@ import { ArrowLeft, CheckCheck, ChevronDown, ChevronRight, Copy, Share2 } from "
 import { getCardName } from "@/lib/tarot";
 import { useActiveDeckImage } from "@/lib/active-deck";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
+import { PositionLabel } from "@/components/tabletop/SpreadLayout";
 import {
   interpretReading,
   type InterpretationPayload,
@@ -735,16 +736,12 @@ function CardStrip({
     h = Math.round(w * 1.75);
   }
 
-  // Position labels (Past / Present / Future) are the most important
-  // text on the reveal screen — bump them significantly so they read
-  // clearly at a glance. Keep them proportional to the card width on
-  // narrow phones so they don't overflow.
-  const labelFontSize = w < 80 ? 36 : w < 120 ? 44 : 52;
-  const labelMaxWidth = Math.max(w + 32, 110);
+  // CF — position labels use shared PositionLabel (body-lg) to match
+  // the digital cast view and prevent truncation in manual entry.
 
   return (
     <div
-      className="reading-cards-nudge flex flex-nowrap items-end justify-center"
+      className="reading-cards-nudge flex flex-nowrap items-start justify-center"
       style={{
         columnGap: `${horizGap}px`,
       }}
@@ -775,26 +772,19 @@ function CardStrip({
               }}
             />
           </div>
-          <span
-            className="font-display italic"
-            style={{
-              fontSize: `calc(${labelFontSize}px * var(--heading-scale, 1))`,
-              color: "var(--gold)",
-              opacity: showLabels ? labelOpacity : 0,
-              letterSpacing: "0.06em",
-              maxWidth: labelMaxWidth,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              textAlign: "center",
-              transition: "opacity 250ms ease",
-              minHeight: labelFontSize + 8,
-              marginTop: 6,
-              fontWeight: 500,
-            }}
-          >
-            {positionLabels[i] ?? `Card ${i + 1}`}
-          </span>
+          {showLabels && (
+            <div
+              style={{
+                opacity: labelOpacity,
+                marginTop: 6,
+                transition: "opacity 250ms ease",
+              }}
+            >
+              <PositionLabel>
+                {positionLabels[i] ?? `Card ${i + 1}`}
+              </PositionLabel>
+            </div>
+          )}
           {showLabels && (
             <CardNameLabelRS
               cardIndex={pick.cardIndex}

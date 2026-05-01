@@ -398,7 +398,7 @@ function CardFace({
   );
 }
 
-function PositionLabel({ children }: { children: React.ReactNode }) {
+export function PositionLabel({ children }: { children: React.ReactNode }) {
   return (
     <span
       className="font-display italic"
@@ -515,7 +515,7 @@ function ThreeRow({
   showLabels: boolean;
 }) {
   return (
-    <div className="flex items-end gap-6">
+    <div className="flex items-start gap-6">
       {picks.map((pick, i) => (
         <div key={pick.id} className="flex flex-col items-center gap-2">
           <CardFace
