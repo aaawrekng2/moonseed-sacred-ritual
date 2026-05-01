@@ -1483,12 +1483,11 @@ function UsersTab({
   const [premiumFilter, setPremiumFilter] = useState<
     "all" | "premium" | "free"
   >("all");
-  const [busy, setBusy] = useState<string | null>(null);
-  const [historyFor, setHistoryFor] = useState<AdminUser | null>(null);
-  const [premiumPanelFor, setPremiumPanelFor] = useState<AdminUser | null>(
-    null,
-  );
-  const [noteFor, setNoteFor] = useState<AdminUser | null>(null);
+  // CP — master/detail. selectedUserId === null shows the list; otherwise
+  // the detail page replaces the list within the same tab. Search and
+  // filters above are preserved across the transition because they're
+  // colocated state on this same component.
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
