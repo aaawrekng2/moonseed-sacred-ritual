@@ -353,6 +353,9 @@ export function PhotoCapture({
         r: rotation,
       };
       dragRef.current = null;
+    } else if (pointersRef.current.size === 1) {
+      // BW2 — 1-finger drag = pan. Capture start position + current pan.
+      dragRef.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
     }
   };
   const onPointerMove = (e: React.PointerEvent) => {
@@ -374,10 +377,23 @@ export function PhotoCapture({
       setRotation(((g.r + da) % 360 + 360) % 360);
       return;
     }
+    if (pointersRef.current.size === 1 && dragRef.current) {
+      // BW2 — 1-finger drag = pan. Forward transform applies
+      // translate(-pan.x, -pan.y), so dragging right increases pan.x.
+      const dx = e.clientX - dragRef.current.x;
+      const dy = e.clientY - dragRef.current.y;
+      setPan({ x: dragRef.current.px + dx, y: dragRef.current.py + dy });
+    }
   };
   const onPointerUp = (e: React.PointerEvent) => {
     pointersRef.current.delete(e.pointerId);
     if (pointersRef.current.size < 2) gestureRef.current = null;
+    if (pointersRef.current.size === 1) {
+      // BW2 — re-arm 1-finger pan from surviving pointer when
+      // transitioning down from a 2-finger zoom/rotate gesture.
+      const [p] = Array.from(pointersRef.current.values());
+      dragRef.current = { x: p.x, y: p.y, px: pan.x, py: pan.y };
+    }
     if (pointersRef.current.size === 0) dragRef.current = null;
   };
   const onWheel = (e: React.WheelEvent) => {

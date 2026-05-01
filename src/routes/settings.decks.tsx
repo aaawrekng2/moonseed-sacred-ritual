@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { useConfirm } from "@/hooks/use-confirm";
 import {
   FREE_DECK_LIMIT,
   fetchDeckCards,
@@ -73,6 +74,7 @@ function DecksPage() {
   const [decks, setDecks] = useState<CustomDeck[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<WizardState>({ kind: "list" });
+  const confirm = useConfirm();
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -97,7 +99,14 @@ function DecksPage() {
 
   const handleDelete = async (deck: CustomDeck) => {
     if (!user) return;
-    if (!confirm(`Delete deck "${deck.name}"? This removes all photographed cards.`)) return;
+    const ok = await confirm({
+      title: `Delete deck "${deck.name}"?`,
+      description: "This removes all customized cards.",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+      destructive: true,
+    });
+    if (!ok) return;
     // Try to clean storage objects (best-effort; cascade handles DB rows).
     try {
       const cards = await fetchDeckCards(deck.id);
@@ -498,7 +507,7 @@ function DeckEditor({
                 // sees their deck "exist" in the app immediately.
                 setMode({ kind: "back-capture", deckId: (data as CustomDeck).id });
               } catch (err) {
-                alert(`Couldn't create deck: ${(err as Error).message}`);
+                toast.error(`Couldn't create deck: ${(err as Error).message}`);
               } finally {
                 setSaving(false);
               }
@@ -531,7 +540,7 @@ function DeckEditor({
                   if (error) throw error;
                   setMode({ kind: "import", deckId: (data as CustomDeck).id });
                 } catch (err) {
-                  alert(`Couldn't create deck: ${(err as Error).message}`);
+                  toast.error(`Couldn't create deck: ${(err as Error).message}`);
                 } finally {
                   setSaving(false);
                 }
@@ -910,7 +919,7 @@ async function uploadDeckBack(args: {
     .from(DECK_BUCKET)
     .upload(path, blob, { contentType: "image/webp", upsert: true });
   if (error) {
-    alert(`Couldn't save card back: ${error.message}`);
+    toast.error(`Couldn't save card back: ${error.message}`);
     return null;
   }
   const { data } = await supabase.storage

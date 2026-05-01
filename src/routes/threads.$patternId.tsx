@@ -20,6 +20,7 @@ import {
   type Edge,
   type Viewport,
 } from "@xyflow/react";
+import { useConfirm } from "@/hooks/use-confirm";
 
 const VIEWPORT_STORAGE_PREFIX = "weave-viewport:";
 
@@ -86,6 +87,7 @@ function PatternChamber() {
   const { patternId } = Route.useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [pattern, setPattern] = useState<Pattern | null>(null);
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState("");
@@ -106,11 +108,15 @@ function PatternChamber() {
     return draftNote.trim() !== original;
   };
 
-  const closeNoteEditor = () => {
+  const closeNoteEditor = async () => {
     if (noteHasUnsavedChanges()) {
-      const ok = window.confirm(
-        "Discard your unsaved note changes? Your edits will be lost.",
-      );
+      const ok = await confirm({
+        title: "Discard unsaved changes?",
+        description: "Your edits to this note will be lost.",
+        confirmLabel: "Discard",
+        cancelLabel: "Keep editing",
+        destructive: true,
+      });
       if (!ok) return;
     }
     setDraftNote(pattern?.description ?? "");
