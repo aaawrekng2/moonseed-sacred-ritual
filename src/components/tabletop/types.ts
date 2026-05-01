@@ -1,7 +1,7 @@
 import type { ScatterCard } from "@/lib/scatter";
 import type { SpreadMode } from "@/lib/spreads";
 
-type TabletopProps = {
+export type TabletopProps = {
   spread: SpreadMode;
   onExit: () => void;
   /**
@@ -24,7 +24,7 @@ type TabletopProps = {
   allowReversed?: boolean;
 };
 
-type CardState = ScatterCard & {
+export type CardState = ScatterCard & {
   selectionOrder: number | null;
   revealed: boolean;
   /**
@@ -59,13 +59,7 @@ type CardState = ScatterCard & {
   isDragDrop?: boolean;
 };
 
-type TabletopSession = {
-  cards: CardState[];
-  undoStack: DragAction[];
-  redoStack: DragAction[];
-};
-
-type DragAction =
+export type DragAction =
   | { kind: "move"; cardId: number; fromX: number; fromY: number; toX: number; toY: number }
   | {
       kind: "place";
@@ -114,3 +108,9 @@ type DragAction =
       toX: number;
       toY: number;
     };
+
+export type TabletopSession = {
+  cards: CardState[];
+  undoStack: DragAction[];
+  redoStack: DragAction[];
+};
