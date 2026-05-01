@@ -424,18 +424,29 @@ export function PositionLabel({ children }: { children: React.ReactNode }) {
 function CardNameLabel({
   cardIndex,
   isReversed,
+  cardWidth,
 }: {
   cardIndex: number;
   isReversed: boolean;
+  cardWidth: number;
 }) {
   return (
-    <div className="flex flex-col items-center">
+    <div
+      className="flex flex-col items-center"
+      style={{ width: cardWidth, maxWidth: cardWidth }}
+    >
       <span
         style={{
           fontSize: "var(--text-body-sm)",
           color: "var(--color-foreground)",
           textAlign: "center",
-          whiteSpace: "nowrap",
+          // CK Group 1 — allow wrapping so long names (e.g. "King of
+          // Pentacles") don't force the column wider than the card and
+          // push Celtic Cross cards off the screen.
+          whiteSpace: "normal",
+          wordBreak: "normal",
+          lineHeight: 1.2,
+          width: "100%",
         }}
       >
         {getCardName(cardIndex)}
@@ -487,7 +498,11 @@ function SingleCard({
         emergeDelayMs={0}
       />
       {showLabels && revealed && (
-        <CardNameLabel cardIndex={pick.cardIndex} isReversed={!!pick.isReversed} />
+        <CardNameLabel
+          cardIndex={pick.cardIndex}
+          isReversed={!!pick.isReversed}
+          cardWidth={sizing.w}
+        />
       )}
     </div>
   );
@@ -535,6 +550,7 @@ function ThreeRow({
             <CardNameLabel
               cardIndex={pick.cardIndex}
               isReversed={!!pick.isReversed}
+              cardWidth={sizing.w}
             />
           )}
         </div>
@@ -613,6 +629,7 @@ function CelticCross({
           <CardNameLabel
             cardIndex={cell.pick.cardIndex}
             isReversed={!!cell.pick.isReversed}
+            cardWidth={sizing.w}
           />
         )}
       </div>
@@ -687,12 +704,14 @@ function CelticCross({
                 <CardNameLabel
                   cardIndex={present.pick.cardIndex}
                   isReversed={!!present.pick.isReversed}
+                  cardWidth={sizing.w}
                 />
               )}
               {revealedFlags[1] && obstacle.pick && (
                 <CardNameLabel
                   cardIndex={obstacle.pick.cardIndex}
                   isReversed={!!obstacle.pick.isReversed}
+                  cardWidth={sizing.w}
                 />
               )}
             </div>
@@ -730,6 +749,7 @@ function CelticCross({
                 <CardNameLabel
                   cardIndex={cell.pick.cardIndex}
                   isReversed={!!cell.pick.isReversed}
+                  cardWidth={sizing.w}
                 />
               )}
             </div>
@@ -808,6 +828,7 @@ export function ManualSpreadSlots({
           <CardNameLabel
             cardIndex={picks[i]!.cardIndex}
             isReversed={!!picks[i]!.isReversed}
+            cardWidth={sizing.w}
           />
         )}
       </div>
@@ -848,6 +869,7 @@ export function ManualSpreadSlots({
                 <CardNameLabel
                   cardIndex={picks[i]!.cardIndex}
                   isReversed={!!picks[i]!.isReversed}
+                  cardWidth={sizing.w}
                 />
               )}
             </div>
@@ -865,7 +887,11 @@ export function ManualSpreadSlots({
             <Slot pick={pick} slotIndex={i} />
             {showLabels && <PositionLabel>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
             {showLabels && pick && (
-              <CardNameLabel cardIndex={pick.cardIndex} isReversed={!!pick.isReversed} />
+              <CardNameLabel
+                cardIndex={pick.cardIndex}
+                isReversed={!!pick.isReversed}
+                cardWidth={sizing.w}
+              />
             )}
           </div>
         ))}
@@ -882,6 +908,7 @@ export function ManualSpreadSlots({
         <CardNameLabel
           cardIndex={picks[0]!.cardIndex}
           isReversed={!!picks[0]!.isReversed}
+          cardWidth={sizing.w}
         />
       )}
     </div>

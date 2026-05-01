@@ -1178,7 +1178,7 @@ export function Tabletop({
                           : isNext
                           ? undefined
                           : filled
-                            ? "1px solid rgba(212,175,55,0.35)"
+                            ? "none"
                             : "1px solid rgba(212,175,55,0.2)",
                         background: isDragHover
                           ? "rgba(212,175,55,0.18)"
