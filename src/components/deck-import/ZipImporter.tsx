@@ -88,6 +88,9 @@ export function ZipImporter({
   existingBackUrl,
   onCancel,
   onDone,
+  entryMode = "import",
+  initialPhase,
+  deckName,
 }: {
   userId: string;
   deckId: string;
@@ -96,6 +99,15 @@ export function ZipImporter({
   existingBackUrl?: string | null;
   onCancel: () => void;
   onDone: () => void;
+  /** CC G5 — "import" (zip workflow w/ snapshot+discard) or "edit"
+   *  (no snapshot, edit-deck workspace). */
+  entryMode?: "import" | "edit";
+  /** CC G2 — when set to "upload", force the workspace to land on the
+   *  upload phase even if the deck already has saved cards. Used by
+   *  the "Import / replace from zip" entry from My Decks. */
+  initialPhase?: "upload" | "workspace";
+  /** CC G5 — used as the workspace title in edit mode. */
+  deckName?: string | null;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
@@ -151,6 +163,24 @@ export function ZipImporter({
     let cancelled = false;
     (async () => {
       try {
+        // CC G2 — "Import / replace from zip" entry forces the upload
+        // phase even when a deck already has saved cards. The user
+        // explicitly asked for the file-picker flow.
+        if (initialPhase === "upload") {
+          // Still hydrate cardStates from existing rows so the workspace
+          // (after they pick a zip) shows them as 'saved'.
+          try {
+            const existingCards = await fetchDeckCards(deckId);
+            if (cancelled) return;
+            const seeded: Record<string, CardState> = {};
+            for (const c of existingCards) seeded[String(c.card_id)] = "saved";
+            if (Object.keys(seeded).length > 0) setCardStates(seeded);
+          } catch {
+            /* non-fatal */
+          }
+          setPhase({ kind: "upload", resumable: false });
+          return;
+        }
         const existing = await getSession(deckId);
         if (cancelled) return;
         if (existing && Object.keys(existing.unassigned).length + Object.keys(existing.assigned).length > 0) {
@@ -161,7 +191,7 @@ export function ZipImporter({
         // No session: check for existing deck cards (re-import path).
         const existingCards = await fetchDeckCards(deckId);
         if (cancelled) return;
-        if (existingCards.length > 0) {
+        if (existingCards.length > 0 || entryMode === "edit") {
           // Pre-populate session with synthetic markers (BLa Fix B).
           // Existing cards are tracked ONLY in session.assigned. Their
           // image data lives in the shadow asset store so the workspace
@@ -186,9 +216,14 @@ export function ZipImporter({
           const seeded: Record<string, CardState> = {};
           for (const c of existingCards) seeded[String(c.card_id)] = "saved";
           setCardStates(seeded);
-          void captureSnapshotIfMissing(deckId).catch((e) =>
-            console.warn("[CB] snapshot capture failed", e),
-          );
+          // CC G5 — snapshots are only meaningful in import mode (the
+          // user can roll back). Edit mode treats every save as the
+          // source of truth.
+          if (entryMode === "import") {
+            void captureSnapshotIfMissing(deckId).catch((e) =>
+              console.warn("[CB] snapshot capture failed", e),
+            );
+          }
           setWorkspace({ session });
           setPhase({ kind: "workspace" });
           return;
@@ -202,7 +237,7 @@ export function ZipImporter({
     return () => {
       cancelled = true;
     };
-  }, [deckId]);
+  }, [deckId, entryMode, initialPhase]);
 
   /* ---------- Zip extraction ---------- */
   const handleFile = useCallback(async (file: File) => {
@@ -268,10 +303,13 @@ export function ZipImporter({
       }
       await saveSession(session);
       // CB — capture snapshot of current deck state before any autosave
-      // writes happen, so Discard can roll back.
-      void captureSnapshotIfMissing(deckId).catch((e) =>
-        console.warn("[CB] snapshot capture failed", e),
-      );
+      // writes happen, so Discard can roll back. CC G5 — only in import
+      // mode; edit mode has no rollback semantics.
+      if (entryMode === "import") {
+        void captureSnapshotIfMissing(deckId).catch((e) =>
+          console.warn("[CB] snapshot capture failed", e),
+        );
+      }
       setWorkspace({ session });
       setPhase({ kind: "workspace" });
       // CB — autosave the auto-matched assignments from the zip.
@@ -296,7 +334,7 @@ export function ZipImporter({
       toast.error("Couldn't read that zip.");
       setPhase({ kind: "upload", resumable: false });
     }
-  }, [deckId, shape, cornerRadiusPercent]);
+  }, [deckId, shape, cornerRadiusPercent, entryMode]);
 
   /* ---------- Mutators ---------- */
   /**
@@ -607,7 +645,14 @@ export function ZipImporter({
   );
   let body: React.ReactNode;
   if (phase.kind === "loading") body = <Centered text="Checking for saved progress…" />;
-  else if (phase.kind === "upload") body = <UploadStep onFile={handleFile} onCancel={handleCancel} />;
+  else if (phase.kind === "upload")
+    body = (
+      <UploadStep
+        onFile={handleFile}
+        onCancel={handleCancel}
+        showReplaceNotice={entryMode === "import" && Object.keys(cardStates).length > 0}
+      />
+    );
   else if (phase.kind === "extracting") body = <Centered text="Reading your zip…" />;
   else if (phase.kind === "restoring")
     body = <Centered text={`Restoring previous deck… ${phase.done}/${phase.total}`} />;
@@ -631,6 +676,9 @@ export function ZipImporter({
         failedCount={failedCount}
         onRetrySlot={handleRetrySlot}
         onRetryAllFailed={handleRetryAllFailed}
+        entryMode={entryMode}
+        deckName={deckName ?? null}
+        onSwitchToUpload={() => setPhase({ kind: "upload", resumable: false })}
       />
     );
 
