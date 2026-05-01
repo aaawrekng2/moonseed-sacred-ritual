@@ -1178,50 +1178,81 @@ function Workspace({
 
   return (
     <section className="py-4">
-      {/* Header */}
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <h2
-          className="italic"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-heading-md)",
-            color: "var(--color-foreground)",
-          }}
-        >
-          Import workspace
-        </h2>
-        <span
-          className="ml-auto"
+      {/* CC G1 — Sticky workspace header. Title + status indicator on
+          row 1, counter on row 2, tab chips on row 3. Stays visible
+          while the card grid scrolls. */}
+      <div
+        className="mb-3"
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 30,
+          background: "var(--color-background)",
+          paddingTop: "var(--space-2, 0.5rem)",
+          paddingBottom: "var(--space-2, 0.5rem)",
+        }}
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <h2
+            className="italic"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-heading-md)",
+              color: "var(--color-foreground)",
+            }}
+          >
+            {entryMode === "edit"
+              ? deckName?.trim() || "Edit deck"
+              : "Import workspace"}
+          </h2>
+          <div className="ml-auto">
+            <SaveStatusIndicator
+              status={status}
+              failedCount={failedCount}
+              onRetryAllFailed={onRetryAllFailed}
+            />
+          </div>
+        </div>
+        <div
+          className="mt-1"
           style={{
             fontSize: "var(--text-body-sm)",
             color: "var(--color-foreground)",
             opacity: 0.85,
           }}
         >
-          {numericAssigned.length}/78 cards · {hasBack ? "back set" : "no back"} · {skippedKeys.length} skipped
-        </span>
-      </div>
+          <span>
+            {savedCount}/78 cards · {hasBack ? "back set" : "no back"} ·{" "}
+          </span>
+          {failedCount > 0 ? (
+            <span style={{ color: "#ef4444" }}>{failedCount} failed</span>
+          ) : (
+            <span>{skippedKeys.length} skipped</span>
+          )}
+        </div>
 
-      {/* Tab chips — BO Fix 1: HorizontalScroll wraps the row so the
-          off-screen Default chip gets an edge fade + chevron affordance. */}
-      <HorizontalScroll
-        className="mb-3"
-        contentClassName="gap-2"
-        fadeColor="var(--color-background)"
-      >
-        <Chip active={tab === "unassigned"} onClick={() => setTab("unassigned")}>
-          Unassigned ({unassignedKeys.length})
-        </Chip>
-        <Chip active={tab === "assigned"} onClick={() => setTab("assigned")}>
-          Assigned ({numericAssigned.length})
-        </Chip>
-        <Chip active={tab === "skipped"} onClick={() => setTab("skipped")}>
-          Skipped ({skippedKeys.length})
-        </Chip>
-        <Chip active={tab === "default"} onClick={() => setTab("default")}>
-          Default ({defaultCount})
-        </Chip>
-      </HorizontalScroll>
+        {/* Tab chips — hidden in edit mode (Assigned only). */}
+        {entryMode === "import" ? (
+          <HorizontalScroll
+            className="mt-3"
+            contentClassName="gap-2"
+            fadeColor="var(--color-background)"
+          >
+            <Chip active={tab === "unassigned"} onClick={() => setTab("unassigned")}>
+              Unassigned ({unassignedKeys.length})
+            </Chip>
+            <Chip active={tab === "assigned"} onClick={() => setTab("assigned")}>
+              Assigned ({numericAssigned.length})
+            </Chip>
+            <Chip active={tab === "skipped"} onClick={() => setTab("skipped")}>
+              Skipped ({skippedKeys.length})
+            </Chip>
+            <Chip active={tab === "default"} onClick={() => setTab("default")}>
+              Default ({defaultCount})
+            </Chip>
+          </HorizontalScroll>
+        ) : null}
+      </div>
 
       {/* Card-back banner (BL Fix 4 — State A only). */}
       {!hasBack && (
@@ -1261,6 +1292,17 @@ function Workspace({
           onUnassign={onUnassign}
           cardStates={cardStates}
           onRetrySlot={onRetrySlot}
+          entryMode={entryMode}
+          unassignedAvailable={unassignedKeys.length > 0}
+          onTapEmpty={(cardId) => {
+            if (unassignedKeys.length > 0) {
+              setDefaultPickerCardId(cardId);
+            } else {
+              // No staged images — offer to import a zip.
+              onSwitchToUpload();
+            }
+          }}
+          onImportZip={onSwitchToUpload}
         />
       )}
       {tab === "skipped" && (
@@ -1292,37 +1334,35 @@ function Workspace({
         />
       )}
 
-      {/* Footer actions */}
+      {/* CC G1/G5 — Footer: Discard (import only) on the left,
+          Done on the right. Status indicator now lives at the top. */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <SaveStatusIndicator
-          status={status}
-          failedCount={failedCount}
-          onRetryAllFailed={onRetryAllFailed}
-        />
-        <button
-          type="button"
-          onClick={onDiscard}
-          className="italic underline"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-body-sm)",
-            color: "var(--color-foreground)",
-            opacity: 0.85,
-          }}
-        >
-          Discard import
-        </button>
+        {entryMode === "import" && (
+          <button
+            type="button"
+            onClick={onDiscard}
+            className="italic underline"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              opacity: 0.85,
+            }}
+          >
+            Discard import
+          </button>
+        )}
         <button
           type="button"
           onClick={onCancel}
-          className="ml-auto"
+          className="ml-auto rounded-md px-4 py-2 font-medium"
           style={{
+            background: "var(--accent)",
+            color: "var(--accent-foreground, #000)",
             fontSize: "var(--text-body-sm)",
-            color: "var(--color-foreground)",
-            opacity: 0.85,
           }}
         >
-          Close (keeps progress)
+          Done
         </button>
       </div>
 
