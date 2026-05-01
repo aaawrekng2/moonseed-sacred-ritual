@@ -16,6 +16,12 @@ import type { BackupCategoryId } from "./backup-categories";
 const DECK_BUCKET = "custom-deck-images";
 const PHOTO_BUCKET = "reading-photos";
 
+/**
+ * Bumped on any breaking change to the on-disk backup format.
+ * Restore (CJ) will refuse archives with an unknown schema_version.
+ */
+export const BACKUP_SCHEMA_VERSION = 1;
+
 export type BackupProgress = {
   phase: string;
   current: number;
@@ -25,6 +31,7 @@ export type BackupProgress = {
 type Opts = {
   userId: string;
   categories: BackupCategoryId[];
+  isPremium: boolean;
   onProgress?: (p: BackupProgress) => void;
 };
 
@@ -46,15 +53,29 @@ function safeName(s: string): string {
   return s.replace(/[^a-z0-9._-]+/gi, "_").slice(0, 80);
 }
 
+/**
+ * Derive a storage path inside DECK_BUCKET from a public URL like
+ * `https://<project>.supabase.co/storage/v1/object/public/custom-deck-images/<path>`.
+ * Returns null if the URL doesn't point at the deck bucket.
+ */
+function deriveDeckStoragePath(url: string): string | null {
+  const marker = `/storage/v1/object/public/${DECK_BUCKET}/`;
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  const path = url.slice(idx + marker.length).split("?")[0];
+  return path || null;
+}
+
 export async function createBackup({
   userId,
   categories,
+  isPremium,
   onProgress,
 }: Opts): Promise<Blob> {
   const zip = new JSZip();
   const manifest: Record<string, unknown> = {
     app: "Moonseed",
-    version: "CG",
+    schema_version: BACKUP_SCHEMA_VERSION,
     exported_at: new Date().toISOString(),
     user_id: userId,
     categories: categories,
@@ -96,7 +117,7 @@ export async function createBackup({
     tick("Preferences");
   }
 
-  if (categories.includes("custom_decks")) {
+  if (categories.includes("custom_decks") && isPremium) {
     const folder = zip.folder("custom_decks")!;
     const { data: decks } = await supabase
       .from("custom_decks")
@@ -106,6 +127,19 @@ export async function createBackup({
     let fileCount = 0;
     for (const deck of decks ?? []) {
       const deckFolder = folder.folder(safeName(`${deck.name}_${deck.id}`))!;
+      // Card back image — the deck's identity. Stored as a public URL on
+      // the row; derive the bucket path and pull the binary.
+      if (deck.card_back_url) {
+        const backPath = deriveDeckStoragePath(deck.card_back_url);
+        if (backPath) {
+          const blob = await fetchBlob(DECK_BUCKET, backPath);
+          if (blob) {
+            const ext = backPath.split(".").pop() || "webp";
+            deckFolder.file(`back.${ext}`, blob);
+            fileCount += 1;
+          }
+        }
+      }
       const { data: cards } = await supabase
         .from("custom_deck_cards")
         .select("*")
@@ -129,7 +163,7 @@ export async function createBackup({
     tick("Custom decks");
   }
 
-  if (categories.includes("reading_photos")) {
+  if (categories.includes("reading_photos") && isPremium) {
     const folder = zip.folder("reading_photos")!;
     const { data: photos } = await supabase
       .from("reading_photos")
@@ -151,44 +185,43 @@ export async function createBackup({
     tick("Reading photos");
   }
 
-  if (categories.includes("patterns_threads_weaves")) {
-    const folder = zip.folder("patterns_threads_weaves")!;
-    const [{ data: patterns }, { data: threads }, { data: weaves }] =
-      await Promise.all([
-        supabase.from("patterns").select("*").eq("user_id", userId),
-        supabase.from("symbolic_threads").select("*").eq("user_id", userId),
-        supabase.from("weaves").select("*").eq("user_id", userId),
-      ]);
-    folder.file("patterns.json", JSON.stringify(patterns ?? [], null, 2));
-    folder.file("threads.json", JSON.stringify(threads ?? [], null, 2));
-    folder.file("weaves.json", JSON.stringify(weaves ?? [], null, 2));
-    contents.patterns_threads_weaves = {
-      rows:
-        (patterns?.length ?? 0) +
-        (threads?.length ?? 0) +
-        (weaves?.length ?? 0),
-    };
-    tick("Patterns, threads & weaves");
+  if (categories.includes("user_tags")) {
+    const { data } = await supabase
+      .from("user_tags")
+      .select("*")
+      .eq("user_id", userId);
+    zip.folder("user_tags")?.file(
+      "tags.json",
+      JSON.stringify(data ?? [], null, 2),
+    );
+    contents.user_tags = { rows: data?.length ?? 0 };
+    tick("Tags");
   }
 
-  if (categories.includes("tags_streaks_guides")) {
-    const folder = zip.folder("tags_streaks_guides")!;
-    const [{ data: tags }, { data: streaks }, { data: guides }] =
-      await Promise.all([
-        supabase.from("user_tags").select("*").eq("user_id", userId),
-        supabase.from("user_streaks").select("*").eq("user_id", userId),
-        supabase.from("custom_guides").select("*").eq("user_id", userId),
-      ]);
-    folder.file("tags.json", JSON.stringify(tags ?? [], null, 2));
-    folder.file("streaks.json", JSON.stringify(streaks ?? [], null, 2));
-    folder.file("guides.json", JSON.stringify(guides ?? [], null, 2));
-    contents.tags_streaks_guides = {
-      rows:
-        (tags?.length ?? 0) +
-        (streaks?.length ?? 0) +
-        (guides?.length ?? 0),
-    };
-    tick("Tags, streaks & guides");
+  if (categories.includes("user_streaks")) {
+    const { data } = await supabase
+      .from("user_streaks")
+      .select("*")
+      .eq("user_id", userId);
+    zip.folder("user_streaks")?.file(
+      "streaks.json",
+      JSON.stringify(data ?? [], null, 2),
+    );
+    contents.user_streaks = { rows: data?.length ?? 0 };
+    tick("Streak history");
+  }
+
+  if (categories.includes("custom_guides")) {
+    const { data } = await supabase
+      .from("custom_guides")
+      .select("*")
+      .eq("user_id", userId);
+    zip.folder("custom_guides")?.file(
+      "guides.json",
+      JSON.stringify(data ?? [], null, 2),
+    );
+    contents.custom_guides = { rows: data?.length ?? 0 };
+    tick("Custom guides");
   }
 
   zip.file("manifest.json", JSON.stringify(manifest, null, 2));
