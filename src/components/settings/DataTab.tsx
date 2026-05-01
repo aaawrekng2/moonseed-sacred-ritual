@@ -80,6 +80,20 @@ export function DataTab() {
   // don't briefly flash locked for premium users.
   const effectivePremium = premiumLoading || isPremium;
 
+  // CU — when premium state resolves to false, drop premium categories
+  // from the seeded selection so a free user doesn't have them queued.
+  useEffect(() => {
+    if (premiumLoading) return;
+    if (isPremium) return;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of PREMIUM_CATEGORY_IDS) {
+        next.delete(id as BackupCategoryId);
+      }
+      return next;
+    });
+  }, [premiumLoading, isPremium]);
+
   const [selected, setSelected] = useState<Set<BackupCategoryId>>(
     () =>
       new Set(
