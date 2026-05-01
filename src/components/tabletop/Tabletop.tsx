@@ -1167,7 +1167,10 @@ export function Tabletop({
                       }}
                       className={cn(
                         isNext && "slot-next-frame",
-                        filled && !isNext && "slot-filled-static",
+                        // CL Group 2 — 'slot-filled-static' removed.
+                        // Filled slots should be visually invisible
+                        // behind the placed card; the gold glow used
+                        // to persist per-slot.
                       )}
                       style={{
                         width: slotW,
@@ -1189,6 +1192,8 @@ export function Tabletop({
                             : "rgba(212,175,55,0.03)",
                         boxShadow: isDragHover
                           ? "0 0 18px var(--gold), 0 0 32px rgba(212,175,55,0.6)"
+                          : filled
+                          ? "none"
                           : undefined,
                         transition: isNext
                           ? undefined

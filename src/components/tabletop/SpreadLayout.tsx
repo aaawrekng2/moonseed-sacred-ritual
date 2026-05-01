@@ -398,7 +398,13 @@ function CardFace({
   );
 }
 
-export function PositionLabel({ children }: { children: React.ReactNode }) {
+export function PositionLabel({
+  children,
+  cardWidth,
+}: {
+  children: React.ReactNode;
+  cardWidth?: number;
+}) {
   return (
     <span
       className="font-display italic"
@@ -407,7 +413,13 @@ export function PositionLabel({ children }: { children: React.ReactNode }) {
         color: "var(--gold)",
         opacity: 0.75,
         letterSpacing: "0.05em",
-        whiteSpace: "nowrap",
+        // CL Group 1 — allow wrapping so long labels (e.g. "Hopes &
+        // Fears", "Final Outcome") don't force the column wider than
+        // the card and push Celtic Cross off the screen.
+        textAlign: "center",
+        lineHeight: 1.2,
+        display: "inline-block",
+        ...(cardWidth ? { maxWidth: cardWidth } : {}),
       }}
     >
       {children}
@@ -544,7 +556,7 @@ function ThreeRow({
             emergeDelayMs={i * 90}
           />
           {showLabels && (
-            <PositionLabel>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
+            <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
           )}
           {showLabels && revealedFlags[i] && (
             <CardNameLabel
@@ -624,7 +636,7 @@ function CelticCross({
           rotated={rotated}
           emergeDelayMs={cell.slotIndex * 70}
         />
-        {showLabels && <PositionLabel>{label}</PositionLabel>}
+        {showLabels && <PositionLabel cardWidth={sizing.w}>{label}</PositionLabel>}
         {showLabels && revealedFlags[cell.slotIndex] && (
           <CardNameLabel
             cardIndex={cell.pick.cardIndex}
@@ -692,7 +704,7 @@ function CelticCross({
             ) : null}
           </div>
           {showLabels && (
-            <PositionLabel>
+            <PositionLabel cardWidth={sizing.w}>
               {labels[0] ?? "Present"}
               <span style={{ opacity: 0.4, margin: "0 4px" }}>·</span>
               {labels[1] ?? "Obstacle"}
@@ -743,7 +755,7 @@ function CelticCross({
                 emergeDelayMs={cell.slotIndex * 70}
               />
               {showLabels && (
-                <PositionLabel>{labels[6 + i] ?? `Slot ${7 + i}`}</PositionLabel>
+                <PositionLabel cardWidth={sizing.w}>{labels[6 + i] ?? `Slot ${7 + i}`}</PositionLabel>
               )}
               {showLabels && revealedFlags[cell.slotIndex] && (
                 <CardNameLabel
@@ -823,7 +835,7 @@ export function ManualSpreadSlots({
     const cellWithLabel = (i: number, label: string, rotated = false) => (
       <div className="flex flex-col items-center gap-1.5">
         <Slot pick={picks[i] ?? null} slotIndex={i} rotated={rotated} />
-        {showLabels && <PositionLabel>{label}</PositionLabel>}
+        {showLabels && <PositionLabel cardWidth={sizing.w}>{label}</PositionLabel>}
         {showLabels && picks[i] && (
           <CardNameLabel
             cardIndex={picks[i]!.cardIndex}
@@ -849,7 +861,7 @@ export function ManualSpreadSlots({
                 </div>
               </div>
               {showLabels && (
-                <PositionLabel>
+                <PositionLabel cardWidth={sizing.w}>
                   {labels[0] ?? "Present"}
                   <span style={{ opacity: 0.4, margin: "0 4px" }}>·</span>
                   {labels[1] ?? "Obstacle"}
@@ -864,7 +876,7 @@ export function ManualSpreadSlots({
           {[6, 7, 8, 9].map((i) => (
             <div key={i} className="flex flex-col items-center gap-1.5">
               <Slot pick={picks[i] ?? null} slotIndex={i} />
-              {showLabels && <PositionLabel>{labels[i] ?? `Slot ${i + 1}`}</PositionLabel>}
+              {showLabels && <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Slot ${i + 1}`}</PositionLabel>}
               {showLabels && picks[i] && (
                 <CardNameLabel
                   cardIndex={picks[i]!.cardIndex}
@@ -885,7 +897,7 @@ export function ManualSpreadSlots({
         {picks.map((pick, i) => (
           <div key={i} className="flex flex-col items-center gap-2">
             <Slot pick={pick} slotIndex={i} />
-            {showLabels && <PositionLabel>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
+            {showLabels && <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
             {showLabels && pick && (
               <CardNameLabel
                 cardIndex={pick.cardIndex}
@@ -903,7 +915,7 @@ export function ManualSpreadSlots({
   return (
     <div className="flex flex-col items-center gap-3">
       <Slot pick={picks[0] ?? null} slotIndex={0} />
-      {showLabels && labels[0] && <PositionLabel>{labels[0]}</PositionLabel>}
+      {showLabels && labels[0] && <PositionLabel cardWidth={sizing.w}>{labels[0]}</PositionLabel>}
       {showLabels && picks[0] && (
         <CardNameLabel
           cardIndex={picks[0]!.cardIndex}
