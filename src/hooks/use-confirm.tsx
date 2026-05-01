@@ -38,9 +38,14 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     return new Promise<boolean>((resolve) => setState({ opts, resolve }));
   }, []);
 
+  // CL Group 4 — functional setState so a double-call (e.g. Radix
+  // onOpenChange firing alongside an onClick) cannot leave the
+  // promise unresolved or wedged on stale state.
   const close = (v: boolean) => {
-    state?.resolve(v);
-    setState(null);
+    setState((current) => {
+      if (current) current.resolve(v);
+      return null;
+    });
   };
 
   return (
