@@ -1564,7 +1564,9 @@ function UsersTab({
     const premium = users.filter((u) => u.is_premium).length;
     const supers = users.filter((u) => u.role === "super_admin").length;
     const admins = users.filter((u) => u.role === "admin").length;
-    return `${users.length} users · ${premium} premium · ${supers} super admins · ${admins} admins`;
+    const sLbl = supers === 1 ? "super admin" : "super admins";
+    const aLbl = admins === 1 ? "admin" : "admins";
+    return `${users.length} users · ${premium} premium · ${supers} ${sLbl} · ${admins} ${aLbl}`;
   }, [users]);
 
   const selectedUser = useMemo(
