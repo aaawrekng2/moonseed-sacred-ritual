@@ -1107,41 +1107,8 @@ function Workspace({
     );
   }
 
-  const handleSaveTap = () => {
-    const skippedCount = skippedKeys.length;
-    // Count "real" unassigned (exclude existing markers — those just
-    // mean the user hasn't replaced a previously-imported card).
-    const realUnassigned = Object.values(session.unassigned).filter(
-      (img) => !img.existingUrl,
-    ).length;
-    const assignedCount = numericAssigned.length + (hasBack ? 1 : 0);
-
-    if (assignedCount === 0) {
-      setSaveDialog({ kind: "empty", skippedCount, unassignedCount: realUnassigned });
-      return;
-    }
-    if (realUnassigned > 0 && skippedCount > 0) {
-      setSaveDialog({
-        kind: "skipped-and-unassigned",
-        skippedCount,
-        unassignedCount: realUnassigned,
-      });
-      return;
-    }
-    if (realUnassigned > 0) {
-      setSaveDialog({
-        kind: "unassigned-present",
-        skippedCount,
-        unassignedCount: realUnassigned,
-      });
-      return;
-    }
-    if (skippedCount > 0) {
-      setSaveDialog({ kind: "skipped-only", skippedCount, unassignedCount: 0 });
-      return;
-    }
-    onSave(true);
-  };
+  // CB — batch Save handler removed. Per-card autosave handles writes
+  // continuously; the workspace footer now exposes Discard + Close only.
 
   return (
     <section className="py-4">
