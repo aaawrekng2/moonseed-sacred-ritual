@@ -492,6 +492,13 @@ export function DataTab() {
           To delete your account permanently, please contact support.
         </p>
       </SettingsSection>
+
+      {importOpen && (
+        <ImportFlow
+          onClose={() => setImportOpen(false)}
+          onImported={(r) => setLastImport(r)}
+        />
+      )}
     </div>
   );
 }
