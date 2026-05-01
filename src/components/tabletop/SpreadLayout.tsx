@@ -318,6 +318,7 @@ function CardFace({
   isWrong,
   onTap,
   emergeDelayMs,
+  isRevealPhase,
 }: {
   pick: Pick;
   cardBack: CardBackId;
@@ -328,11 +329,21 @@ function CardFace({
   isWrong?: boolean;
   onTap?: () => void;
   emergeDelayMs?: number;
+  isRevealPhase?: boolean;
 }) {
   const interactive = !revealed && !!onTap;
   const cardImg = useActiveDeckImage();
   // BX — when a custom deck is active, render its photographed back.
   const customBackUrl = useActiveCardBackUrl();
+  // CM Group 2 — focus dim during the reveal phase only. Next-to-flip
+  // stays full opacity, already-flipped fade to 0.8, others to 0.6.
+  const cardOpacity = !isRevealPhase
+    ? 1
+    : isNext
+      ? 1
+      : revealed
+        ? 0.8
+        : 0.6;
   return (
     <div
       className="cast-card-emerge"
@@ -340,6 +351,8 @@ function CardFace({
         // Custom prop consumed by the cast-card-emerge keyframes.
         ...({ "--emerge-delay": `${emergeDelayMs ?? 0}ms` } as React.CSSProperties),
         display: "inline-block",
+        opacity: cardOpacity,
+        transition: "opacity 400ms ease-out",
       }}
     >
     <div
