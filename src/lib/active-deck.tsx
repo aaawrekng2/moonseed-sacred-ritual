@@ -28,7 +28,7 @@ type Ctx = {
 const ActiveDeckCtx = createContext<Ctx>({
   activeDeck: null,
   imageMap: EMPTY_DECK_IMAGE_MAP,
-  loading: false,
+  loading: true,
   refresh: async () => {},
 });
 
@@ -36,12 +36,13 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [activeDeck, setActiveDeck] = useState<CustomDeck | null>(null);
   const [imageMap, setImageMap] = useState<DeckImageMap>(EMPTY_DECK_IMAGE_MAP);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     if (!user) {
       setActiveDeck(null);
       setImageMap(EMPTY_DECK_IMAGE_MAP);
+      setLoading(false);
       return;
     }
     setLoading(true);
