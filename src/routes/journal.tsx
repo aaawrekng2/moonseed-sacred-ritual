@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpen, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import { getGuideById } from "@/lib/guides";
