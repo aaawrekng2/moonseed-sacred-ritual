@@ -815,6 +815,19 @@ function Workspace({
   const numericAssigned = assignedSlots.filter((s) => s !== BACK_KEY);
   const hasBack = !!session.assigned[BACK_KEY];
 
+  // BX — diagnostic instrumentation for the "0/78 counter never updates"
+  // bug. Logs on every Workspace re-render so we can correlate UI state
+  // with the underlying session map.
+  console.log("[BX-counter]", {
+    numericAssignedLen: numericAssigned.length,
+    totalCards: 78,
+    unassignedKeys: unassignedKeys.length,
+    skippedKeys: skippedKeys.length,
+    assignedMapSize: assignedSlots.length,
+    hasBack,
+    assignedKeysSample: assignedSlots.slice(0, 5),
+  });
+
   // BN Fix 2 — set of card_ids that will be customized (non-default)
   // after save. Defined here so both the chip count and the Default
   // tab render share one source of truth.
@@ -1332,9 +1345,43 @@ function AssignedGrid({
 }) {
   const backKey = session.assigned[BACK_KEY];
   const backSrc = backKey ? resolveSrc(backKey) : "";
+  // BX — sub-filter by suit. Standard tarot ordering:
+  // Majors 0-21, Wands 22-35, Cups 36-49, Swords 50-63, Pentacles 64-77.
+  type SuitFilter = "all" | "major" | "wands" | "cups" | "swords" | "pentacles";
+  const [suitFilter, setSuitFilter] = useState<SuitFilter>("all");
+  const inFilter = (i: number): boolean => {
+    switch (suitFilter) {
+      case "all": return true;
+      case "major": return i >= 0 && i <= 21;
+      case "wands": return i >= 22 && i <= 35;
+      case "cups": return i >= 36 && i <= 49;
+      case "swords": return i >= 50 && i <= 63;
+      case "pentacles": return i >= 64 && i <= 77;
+    }
+  };
+  const SUIT_CHIPS: { id: SuitFilter; label: string }[] = [
+    { id: "all", label: "All" },
+    { id: "major", label: "Majors" },
+    { id: "wands", label: "Wands" },
+    { id: "cups", label: "Cups" },
+    { id: "swords", label: "Swords" },
+    { id: "pentacles", label: "Pentacles" },
+  ];
   return (
+    <>
+      <div className="mb-3 flex flex-wrap gap-2">
+        {SUIT_CHIPS.map((c) => (
+          <Chip
+            key={c.id}
+            active={suitFilter === c.id}
+            onClick={() => setSuitFilter(c.id)}
+          >
+            {c.label}
+          </Chip>
+        ))}
+      </div>
     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
-      {hasBack && backKey && (
+      {suitFilter === "all" && hasBack && backKey && (
         <div className="relative">
           <button
             type="button"
@@ -1369,6 +1416,7 @@ function AssignedGrid({
         </div>
       )}
       {Array.from({ length: 78 }, (_, i) => {
+        if (!inFilter(i)) return null;
         const slot = String(i);
         const key = session.assigned[slot];
         const src = key ? resolveSrc(key) : "";
@@ -1421,6 +1469,7 @@ function AssignedGrid({
         );
       })}
     </div>
+    </>
   );
 }
 

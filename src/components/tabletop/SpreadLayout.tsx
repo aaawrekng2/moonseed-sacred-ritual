@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { getCardName } from "@/lib/tarot";
-import { useActiveDeckImage } from "@/lib/active-deck";
+import { useActiveCardBackUrl, useActiveDeckImage } from "@/lib/active-deck";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { useShowLabels } from "@/lib/use-show-labels";
+import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { cn } from "@/lib/utils";
 import { InlineReading } from "@/components/reading/ReadingParts";
 import {
@@ -54,6 +55,8 @@ export function SpreadLayout({
   deckId,
 }: Props) {
   const meta = SPREAD_META[spread];
+  // BX — Tabletop / draw stays portrait-only.
+  usePortraitOnly();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const { showLabels } = useShowLabels();
   // Once every card is face-up the inline reading flow takes over.
@@ -320,6 +323,8 @@ function CardFace({
 }) {
   const interactive = !revealed && !!onTap;
   const cardImg = useActiveDeckImage();
+  // BX — when a custom deck is active, render its photographed back.
+  const customBackUrl = useActiveCardBackUrl();
   return (
     <div
       className="cast-card-emerge"
@@ -352,7 +357,7 @@ function CardFace({
         }}
       >
         <div className="flip-face back">
-          <CardBack id={cardBack} width={sizing.w} className="h-full w-full" />
+          <CardBack id={cardBack} imageUrl={customBackUrl} width={sizing.w} className="h-full w-full" />
         </div>
         <div className="flip-face front overflow-hidden rounded-[10px] border border-gold/40 bg-card">
           {/* Always render the face image so it's preloaded before the flip

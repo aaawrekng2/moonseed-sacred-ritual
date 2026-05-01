@@ -5,6 +5,7 @@ import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
 import { useBgGradient } from "@/lib/use-bg-gradient";
+import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { useStreak } from "@/lib/use-streak";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
@@ -43,6 +44,8 @@ export const Route = createFileRoute("/")({
 function Index() {
   // Initialize gradient + opacity systems on first mount.
   useBgGradient();
+  // BX — Home / moon carousel stays portrait.
+  usePortraitOnly();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [todayCard, setTodayCard] = useState<number | null>(null);
   const navigate = useNavigate();

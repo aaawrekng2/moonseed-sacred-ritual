@@ -118,15 +118,6 @@ export function ReadingScreen({
   // Register screen-specific affordances with the global floating menu.
   useRegisterCloseHandler(onExit);
 
-  // Allow landscape on the Reading screen ONLY (matches prior behaviour).
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    document.body.setAttribute("data-allow-landscape", "true");
-    return () => {
-      document.body.removeAttribute("data-allow-landscape");
-    };
-  }, []);
-
   const beginReading = useCallback(() => {
     if (state.kind !== "idle" && state.kind !== "error") return;
     setState({ kind: "loading" });

@@ -167,6 +167,10 @@ export async function commitImportSession(args: {
     try {
       const asset = await resolveEncoded(session, w.imageKey, opts);
       if (!asset) {
+        console.error("[BX-save] FAIL no-asset", {
+          cardId: w.cardId,
+          imageKey: w.imageKey,
+        });
         if (w.cardId === "BACK") cardBackFailed = true;
         else failedCardIds.push(w.cardId);
         console.timeEnd(tag);
@@ -196,8 +200,18 @@ export async function commitImportSession(args: {
         if (error) throw error;
       }
       written++;
+      console.log("[BX-save] OK", {
+        cardId: w.cardId,
+        imageKey: w.imageKey,
+        written,
+      });
     } catch (err) {
-      console.error("[deck-import-commit] failed", w, err);
+      console.error("[BX-save] FAIL", {
+        cardId: w.cardId,
+        imageKey: w.imageKey,
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      });
       if (w.cardId === "BACK") cardBackFailed = true;
       else failedCardIds.push(w.cardId);
     }
