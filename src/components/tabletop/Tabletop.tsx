@@ -695,6 +695,24 @@ export function Tabletop({
       let cursor = 0;
       return prev.map((c) => {
         if (c.selectionOrder !== null) return c; // never disturb a pick
+        // CM Group 3 — preserve unpicked cards' positions through trivial
+        // resize ticks. Only re-place a card if it has been pushed
+        // off-screen by the new container size; otherwise leave it
+        // exactly where the user last saw it. This stops the inconsistent
+        // ~half-the-cards-shift behaviour when the slot rail collapses.
+        if (size) {
+          const minVisibleW = cardW * 0.3;
+          const minVisibleH = cardH * 0.3;
+          const usableH = Math.max(1, size.h - TABLETOP_CONFIG.TOP_RESERVE);
+          const offRight = c.x > size.w - minVisibleW;
+          const offBottom =
+            c.y > usableH - minVisibleH + TABLETOP_CONFIG.TOP_RESERVE;
+          const offLeft = c.x < -cardW + minVisibleW;
+          const offTop =
+            c.y < TABLETOP_CONFIG.TOP_RESERVE - cardH + minVisibleH;
+          const isOffScreen = offRight || offBottom || offLeft || offTop;
+          if (!isOffScreen) return c;
+        }
         const next = initialScatter[cursor++ % initialScatter.length];
         // Geometry has changed (resize). Refresh both the live position
         // AND the stored "home" — this card has never been placed yet, so
