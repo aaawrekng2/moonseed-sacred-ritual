@@ -473,6 +473,7 @@ function SingleCard({
   onTap: () => void;
   sizing: Sizing;
 }) {
+  const { showLabels } = useShowLabels();
   return (
     <div className="flex flex-col items-center gap-3">
       <CardFace
@@ -485,6 +486,9 @@ function SingleCard({
         sizing={sizing}
         emergeDelayMs={0}
       />
+      {showLabels && revealed && (
+        <CardNameLabel cardIndex={pick.cardIndex} isReversed={!!pick.isReversed} />
+      )}
     </div>
   );
 }
@@ -526,6 +530,12 @@ function ThreeRow({
           />
           {showLabels && (
             <PositionLabel>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
+          )}
+          {showLabels && revealedFlags[i] && (
+            <CardNameLabel
+              cardIndex={pick.cardIndex}
+              isReversed={!!pick.isReversed}
+            />
           )}
         </div>
       ))}
