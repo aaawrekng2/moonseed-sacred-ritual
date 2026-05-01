@@ -804,6 +804,12 @@ export function ManualSpreadSlots({
       <div className="flex flex-col items-center gap-1.5">
         <Slot pick={picks[i] ?? null} slotIndex={i} rotated={rotated} />
         {showLabels && <PositionLabel>{label}</PositionLabel>}
+        {showLabels && picks[i] && (
+          <CardNameLabel
+            cardIndex={picks[i]!.cardIndex}
+            isReversed={!!picks[i]!.isReversed}
+          />
+        )}
       </div>
     );
     return (
@@ -838,6 +844,12 @@ export function ManualSpreadSlots({
             <div key={i} className="flex flex-col items-center gap-1.5">
               <Slot pick={picks[i] ?? null} slotIndex={i} />
               {showLabels && <PositionLabel>{labels[i] ?? `Slot ${i + 1}`}</PositionLabel>}
+              {showLabels && picks[i] && (
+                <CardNameLabel
+                  cardIndex={picks[i]!.cardIndex}
+                  isReversed={!!picks[i]!.isReversed}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -852,6 +864,9 @@ export function ManualSpreadSlots({
           <div key={i} className="flex flex-col items-center gap-2">
             <Slot pick={pick} slotIndex={i} />
             {showLabels && <PositionLabel>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
+            {showLabels && pick && (
+              <CardNameLabel cardIndex={pick.cardIndex} isReversed={!!pick.isReversed} />
+            )}
           </div>
         ))}
       </div>
@@ -863,6 +878,12 @@ export function ManualSpreadSlots({
     <div className="flex flex-col items-center gap-3">
       <Slot pick={picks[0] ?? null} slotIndex={0} />
       {showLabels && labels[0] && <PositionLabel>{labels[0]}</PositionLabel>}
+      {showLabels && picks[0] && (
+        <CardNameLabel
+          cardIndex={picks[0]!.cardIndex}
+          isReversed={!!picks[0]!.isReversed}
+        />
+      )}
     </div>
   );
 }
