@@ -1226,19 +1226,11 @@ function Workspace({
 
       {/* Footer actions */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={handleSaveTap}
-          className="rounded-md px-4 py-2"
-          style={{
-            background: "var(--accent)",
-            color: "var(--accent-foreground)",
-            fontSize: "var(--text-body-sm)",
-            fontWeight: 600,
-          }}
-        >
-          Save deck
-        </button>
+        <SaveStatusIndicator
+          status={status}
+          failedCount={failedCount}
+          onRetryAllFailed={onRetryAllFailed}
+        />
         <button
           type="button"
           onClick={onDiscard}
@@ -1337,21 +1329,7 @@ function Workspace({
         />
       )}
 
-      {/* Save confirmation dialog (BL Fix 6) */}
-      {saveDialog && (
-        <SaveConfirmDialog
-          info={saveDialog}
-          onCancel={() => setSaveDialog(null)}
-          onSaveAndFinish={() => {
-            setSaveDialog(null);
-            onSave(true);
-          }}
-          onSaveContinueLater={() => {
-            setSaveDialog(null);
-            onSave(false);
-          }}
-        />
-      )}
+      {/* CB — batch SaveConfirmDialog removed; autosave handles writes. */}
 
       {/* BN Fix 1 — Edit / 4-corner crop refine overlay */}
       {editing && (() => {
