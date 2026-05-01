@@ -174,7 +174,7 @@ function Index() {
                 loading="eager"
               />
             ) : (
-              <CardBack id={cardBack} width={140} neutralBorder />
+              <CardBack id={cardBack} imageUrl={customBackUrl} width={140} neutralBorder />
             )}
           </button>
           <div
