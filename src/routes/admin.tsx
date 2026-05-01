@@ -3469,6 +3469,25 @@ function RoleBadge({ role }: { role: Role }) {
   );
 }
 
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+  grant_premium: "Grant premium",
+  extend_premium: "Extend premium",
+  revoke_premium: "Revoke premium",
+  assign_admin: "Assign admin role",
+  remove_admin: "Remove admin role",
+  password_reset: "Password reset",
+  deactivate_user: "Deactivate user",
+  reactivate_user: "Reactivate user",
+  set_note: "Set note",
+  create_backup: "Create backup",
+  restore_backup_requested: "Restore requested",
+  run_detect_weaves: "Run detect weaves",
+};
+
+function auditActionLabel(action: string): string {
+  return AUDIT_ACTION_LABELS[action] ?? action;
+}
+
 function StatusBadge({
   status,
 }: {
