@@ -57,13 +57,26 @@ export const listAdminUsers = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     await assertAdmin(supabase, userId);
 
-    // Pull every auth user (paged). For modest seekers (<1000) one page
-    // is plenty; expand later if growth demands.
-    const { data: usersList, error: usersErr } =
-      await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-    if (usersErr) throw new Error(usersErr.message);
+    // CQ — paginate listUsers so growth past 1000 is visible. Safety
+    // cap at 100k to avoid runaway loops.
+    const allUsers: Array<Awaited<ReturnType<typeof supabaseAdmin.auth.admin.listUsers>>["data"]["users"][number]> = [];
+    {
+      let page = 1;
+      const perPage = 1000;
+      while (true) {
+        const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+          page,
+          perPage,
+        });
+        if (error) throw new Error(error.message);
+        allUsers.push(...data.users);
+        if (data.users.length < perPage) break;
+        page += 1;
+        if (page > 100) break;
+      }
+    }
 
-    const ids = usersList.users.map((u) => u.id);
+    const ids = allUsers.map((u) => u.id);
     const [{ data: prefs }, { data: readings }] = await Promise.all([
       supabaseAdmin
         .from("user_preferences")
@@ -89,7 +102,17 @@ export const listAdminUsers = createServerFn({ method: "GET" })
     const prefMap = new Map<string, any>();
     for (const p of prefs ?? []) prefMap.set((p as any).user_id, p);
 
-    return usersList.users.map((u) => {
+    // CQ — filter anonymous users out of the admin Users tab. Anonymous
+    // sessions are surfaced as a count on the Dashboard instead. Always
+    // keep admins visible even if their email is somehow missing.
+    return allUsers
+      .filter((u) => {
+        if (u.email) return true;
+        const p = prefMap.get(u.id);
+        if (p?.role === "admin" || p?.role === "super_admin") return true;
+        return false;
+      })
+      .map((u) => {
       const p = prefMap.get(u.id) ?? {};
       return {
         user_id: u.id,
