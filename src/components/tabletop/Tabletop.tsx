@@ -50,7 +50,6 @@ export function Tabletop({
   spread,
   onExit,
   onComplete,
-  allowReversed = false,
 }: TabletopProps) {
   const meta = SPREAD_META[spread];
   const required = meta.count;
@@ -913,7 +912,6 @@ export function Tabletop({
       // never bleed through behind the manual entry UI.
       <ManualEntryBuilder
         spread={spread}
-        allowReversed={allowReversed}
         onCancel={() => setManualOpen(false)}
         onComplete={(picks) => {
           setManualOpen(false);

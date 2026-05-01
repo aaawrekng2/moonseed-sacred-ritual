@@ -8,6 +8,7 @@ import { useBgGradient } from "@/lib/use-bg-gradient";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { useStreak } from "@/lib/use-streak";
+import { useActiveCardBackUrl } from "@/lib/active-deck";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
@@ -48,6 +49,10 @@ function Index() {
   usePortraitOnly();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [todayCard, setTodayCard] = useState<number | null>(null);
+  // CE — propagate the active custom deck's photographed card back to
+  // the home gateway. Hook returns null when no active deck or no back
+  // photographed; CardBack falls back to the themed default.
+  const customBackUrl = useActiveCardBackUrl();
   const navigate = useNavigate();
   const { currentStreak } = useStreak();
   const { user } = useAuth();
@@ -169,7 +174,7 @@ function Index() {
                 loading="eager"
               />
             ) : (
-              <CardBack id={cardBack} width={140} neutralBorder />
+              <CardBack id={cardBack} imageUrl={customBackUrl} width={140} neutralBorder />
             )}
           </button>
           <div

@@ -131,7 +131,6 @@ function DrawPage() {
         <Tabletop
           spread={spread}
           onExit={exit}
-          allowReversed={allowReversed}
           onComplete={(p, mode, meta) => {
             // Phase 9.55 — assign orientation per card based on the
             // seeker's preference. `generateOrientations` returns

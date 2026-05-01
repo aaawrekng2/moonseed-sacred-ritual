@@ -538,6 +538,46 @@ export function ReadingScreen({
 /*  Card strip — uses Clarity to show/hide position labels under cards.   */
 /* ---------------------------------------------------------------------- */
 
+/**
+ * CE Group 4 — card name + reversed indicator under each revealed card
+ * on the reading screen card strip. Mirrors SpreadLayout's CardNameLabel
+ * so identification is consistent across the reveal → reading transition.
+ */
+function CardNameLabelRS({
+  cardIndex,
+  isReversed,
+}: {
+  cardIndex: number;
+  isReversed: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center">
+      <span
+        style={{
+          fontSize: "var(--text-body-sm)",
+          color: "var(--color-foreground)",
+          textAlign: "center",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {getCardName(cardIndex)}
+      </span>
+      {isReversed && (
+        <span
+          style={{
+            fontSize: "var(--text-caption)",
+            color: "var(--foreground-muted)",
+            fontStyle: "italic",
+            textAlign: "center",
+          }}
+        >
+          reversed
+        </span>
+      )}
+    </div>
+  );
+}
+
 function CardStrip({
   picks,
   positionLabels,
@@ -612,6 +652,12 @@ function CardStrip({
           >
             {positionLabels[i] ?? `Card ${i + 1}`}
           </span>
+        )}
+        {showLabels && picks[i] && (
+          <CardNameLabelRS
+            cardIndex={picks[i].cardIndex}
+            isReversed={!!picks[i].isReversed}
+          />
         )}
       </div>
     );
@@ -749,6 +795,12 @@ function CardStrip({
           >
             {positionLabels[i] ?? `Card ${i + 1}`}
           </span>
+          {showLabels && (
+            <CardNameLabelRS
+              cardIndex={pick.cardIndex}
+              isReversed={!!pick.isReversed}
+            />
+          )}
         </div>
       ))}
     </div>

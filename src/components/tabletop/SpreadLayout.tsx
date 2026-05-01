@@ -415,6 +415,47 @@ function PositionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * CE Group 4 — under each revealed card, surface the card name (and a
+ * muted italic "reversed" line when applicable). Position labels alone
+ * required users to recognize 78 cards by image; the card name removes
+ * that burden without competing visually with the gold position label.
+ */
+function CardNameLabel({
+  cardIndex,
+  isReversed,
+}: {
+  cardIndex: number;
+  isReversed: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center">
+      <span
+        style={{
+          fontSize: "var(--text-body-sm)",
+          color: "var(--color-foreground)",
+          textAlign: "center",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {getCardName(cardIndex)}
+      </span>
+      {isReversed && (
+        <span
+          style={{
+            fontSize: "var(--text-caption)",
+            color: "var(--foreground-muted)",
+            fontStyle: "italic",
+            textAlign: "center",
+          }}
+        >
+          reversed
+        </span>
+      )}
+    </div>
+  );
+}
+
 function SingleCard({
   pick,
   cardBack,
@@ -432,6 +473,7 @@ function SingleCard({
   onTap: () => void;
   sizing: Sizing;
 }) {
+  const { showLabels } = useShowLabels();
   return (
     <div className="flex flex-col items-center gap-3">
       <CardFace
@@ -444,6 +486,9 @@ function SingleCard({
         sizing={sizing}
         emergeDelayMs={0}
       />
+      {showLabels && revealed && (
+        <CardNameLabel cardIndex={pick.cardIndex} isReversed={!!pick.isReversed} />
+      )}
     </div>
   );
 }
@@ -485,6 +530,12 @@ function ThreeRow({
           />
           {showLabels && (
             <PositionLabel>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
+          )}
+          {showLabels && revealedFlags[i] && (
+            <CardNameLabel
+              cardIndex={pick.cardIndex}
+              isReversed={!!pick.isReversed}
+            />
           )}
         </div>
       ))}
@@ -558,6 +609,12 @@ function CelticCross({
           emergeDelayMs={cell.slotIndex * 70}
         />
         {showLabels && <PositionLabel>{label}</PositionLabel>}
+        {showLabels && revealedFlags[cell.slotIndex] && (
+          <CardNameLabel
+            cardIndex={cell.pick.cardIndex}
+            isReversed={!!cell.pick.isReversed}
+          />
+        )}
       </div>
     ) : null;
 
@@ -624,6 +681,22 @@ function CelticCross({
               {labels[1] ?? "Obstacle"}
             </PositionLabel>
           )}
+          {showLabels && (revealedFlags[0] || revealedFlags[1]) && (
+            <div className="flex flex-col items-center gap-0.5">
+              {revealedFlags[0] && present.pick && (
+                <CardNameLabel
+                  cardIndex={present.pick.cardIndex}
+                  isReversed={!!present.pick.isReversed}
+                />
+              )}
+              {revealedFlags[1] && obstacle.pick && (
+                <CardNameLabel
+                  cardIndex={obstacle.pick.cardIndex}
+                  isReversed={!!obstacle.pick.isReversed}
+                />
+              )}
+            </div>
+          )}
           </div>
           {cardWithLabel(root, labels[2] ?? "Root")}
         </div>
@@ -652,6 +725,12 @@ function CelticCross({
               />
               {showLabels && (
                 <PositionLabel>{labels[6 + i] ?? `Slot ${7 + i}`}</PositionLabel>
+              )}
+              {showLabels && revealedFlags[cell.slotIndex] && (
+                <CardNameLabel
+                  cardIndex={cell.pick.cardIndex}
+                  isReversed={!!cell.pick.isReversed}
+                />
               )}
             </div>
           ) : null,
@@ -725,6 +804,12 @@ export function ManualSpreadSlots({
       <div className="flex flex-col items-center gap-1.5">
         <Slot pick={picks[i] ?? null} slotIndex={i} rotated={rotated} />
         {showLabels && <PositionLabel>{label}</PositionLabel>}
+        {showLabels && picks[i] && (
+          <CardNameLabel
+            cardIndex={picks[i]!.cardIndex}
+            isReversed={!!picks[i]!.isReversed}
+          />
+        )}
       </div>
     );
     return (
@@ -759,6 +844,12 @@ export function ManualSpreadSlots({
             <div key={i} className="flex flex-col items-center gap-1.5">
               <Slot pick={picks[i] ?? null} slotIndex={i} />
               {showLabels && <PositionLabel>{labels[i] ?? `Slot ${i + 1}`}</PositionLabel>}
+              {showLabels && picks[i] && (
+                <CardNameLabel
+                  cardIndex={picks[i]!.cardIndex}
+                  isReversed={!!picks[i]!.isReversed}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -773,6 +864,9 @@ export function ManualSpreadSlots({
           <div key={i} className="flex flex-col items-center gap-2">
             <Slot pick={pick} slotIndex={i} />
             {showLabels && <PositionLabel>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
+            {showLabels && pick && (
+              <CardNameLabel cardIndex={pick.cardIndex} isReversed={!!pick.isReversed} />
+            )}
           </div>
         ))}
       </div>
@@ -784,6 +878,12 @@ export function ManualSpreadSlots({
     <div className="flex flex-col items-center gap-3">
       <Slot pick={picks[0] ?? null} slotIndex={0} />
       {showLabels && labels[0] && <PositionLabel>{labels[0]}</PositionLabel>}
+      {showLabels && picks[0] && (
+        <CardNameLabel
+          cardIndex={picks[0]!.cardIndex}
+          isReversed={!!picks[0]!.isReversed}
+        />
+      )}
     </div>
   );
 }
