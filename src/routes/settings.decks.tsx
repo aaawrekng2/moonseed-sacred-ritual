@@ -334,17 +334,25 @@ type EditorMode =
 function DeckEditor({
   userId,
   existing,
+  startInUploadPhase = false,
   onClose,
 }: {
   userId: string;
   existing: CustomDeck | null;
+  startInUploadPhase?: boolean;
   onClose: (saved: boolean) => void;
 }) {
   const [name, setName] = useState(existing?.name ?? "My Deck");
   const [shape, setShape] = useState<CustomDeck["shape"]>(existing?.shape ?? "rectangle");
   const [cornerRadius, setCornerRadius] = useState(existing?.corner_radius_percent ?? 4);
   const [mode, setMode] = useState<EditorMode>(
-    existing ? { kind: "workspace", deckId: existing.id } : { kind: "details" },
+    existing
+      ? {
+          kind: "workspace",
+          deckId: existing.id,
+          initialPhase: startInUploadPhase ? "upload" : "workspace",
+        }
+      : { kind: "details" },
   );
   const [saving, setSaving] = useState(false);
   const [cards, setCards] = useState<CustomDeckCard[]>([]);
