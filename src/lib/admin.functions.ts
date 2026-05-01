@@ -116,11 +116,13 @@ export const listAdminUsers = createServerFn({ method: "GET" })
 
 const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("grant_premium"), targetUserId: z.string().uuid(), months: z.number().int().positive() }),
+  z.object({ type: z.literal("extend_premium"), targetUserId: z.string().uuid(), months: z.number().int().positive() }),
   z.object({ type: z.literal("revoke_premium"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("assign_admin"), targetUserId: z.string().uuid(), role: z.enum(["admin", "super_admin"]) }),
   z.object({ type: z.literal("remove_admin"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("password_reset"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("deactivate_user"), targetUserId: z.string().uuid() }),
+  z.object({ type: z.literal("reactivate_user"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("set_note"), targetUserId: z.string().uuid(), note: z.string().nullable() }),
 ]);
 
