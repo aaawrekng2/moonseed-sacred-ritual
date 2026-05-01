@@ -1566,18 +1566,30 @@ function AssignedGrid({
         const key = session.assigned[slot];
         const src = key ? resolveSrc(key) : "";
         const isExisting = key?.startsWith("EXISTING:");
+        const slotState = cardStates[slot];
+        const isFailed = slotState === "failed";
+        const isSaving = slotState === "saving";
         return (
           <div key={i} className="relative">
             <button
               type="button"
-              onClick={() => key && onTap(slot, key)}
+              onClick={() => {
+                if (!key) return;
+                if (isFailed) onRetrySlot(slot);
+                else onTap(slot, key);
+              }}
               disabled={!key}
               className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
               style={{
-                borderColor: key ? "var(--accent)" : "var(--border-subtle)",
+                borderColor: isFailed
+                  ? "#ef4444"
+                  : key
+                    ? "var(--accent)"
+                    : "var(--border-subtle)",
+                borderWidth: isFailed ? 2 : 1,
                 background: "var(--surface-card)",
               }}
-              title={getCardName(i)}
+              title={isFailed ? `${getCardName(i)} — tap to retry save` : getCardName(i)}
             >
               {src ? (
                 <img src={src} alt={getCardName(i)} className="h-full w-full object-cover" />
@@ -1588,6 +1600,20 @@ function AssignedGrid({
                   className="h-full w-full object-cover"
                   style={{ opacity: 0.25, filter: "grayscale(100%)" }}
                 />
+              )}
+              {isSaving && (
+                <span className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.30)" }}>
+                  <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#fff" }} />
+                </span>
+              )}
+              {isFailed && (
+                <span
+                  className="absolute right-1 bottom-1 inline-flex items-center justify-center rounded-full"
+                  style={{ width: 18, height: 18, background: "#ef4444", color: "#fff" }}
+                  aria-label="Save failed"
+                >
+                  <AlertTriangle className="h-3 w-3" />
+                </span>
               )}
               {isExisting && (
                 <span
