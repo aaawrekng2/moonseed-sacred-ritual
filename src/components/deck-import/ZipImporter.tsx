@@ -1606,7 +1606,6 @@ function AssignedGrid({
   cardStates: Record<string, CardState>;
   onRetrySlot: (slot: string) => void;
   entryMode: "import" | "edit";
-  unassignedAvailable: boolean;
   onTapEmpty: (cardId: number) => void;
   onImportZip: () => void;
 }) {
