@@ -73,17 +73,18 @@ export function DataTab() {
   const [signingOut, setSigningOut] = useState(false);
   const confirm = useConfirm();
 
-  // CU — read real premium state. While loading, treat as premium-true
-  // for lock visuals so categories don't flash locked for premium users.
-  const { isPremium: isPremiumResolved, loading: premiumLoading } = usePremium(
-    user?.id,
-  );
-  const isPremium = premiumLoading ? true : isPremiumResolved;
+  // CU — read real premium state. While loading, suppress lock UI so
+  // premium users don't see categories briefly flash locked.
+  const { isPremium, loading: premiumLoading } = usePremium(user?.id);
+  // `effectivePremium` is what gating logic uses: while loading we treat
+  // the user as premium so premium categories appear unlocked and remain
+  // selectable until the real value resolves.
+  const effectivePremium = premiumLoading || isPremium;
 
   const [selected, setSelected] = useState<Set<BackupCategoryId>>(
     () =>
       new Set(
-        BACKUP_CATEGORIES.filter((c) => isPremium || !c.premium).map(
+        BACKUP_CATEGORIES.filter((c) => effectivePremium || !c.premium).map(
           (c) => c.id,
         ),
       ),
