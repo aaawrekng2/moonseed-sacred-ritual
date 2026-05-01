@@ -49,6 +49,10 @@ function Index() {
   usePortraitOnly();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [todayCard, setTodayCard] = useState<number | null>(null);
+  // CE — propagate the active custom deck's photographed card back to
+  // the home gateway. Hook returns null when no active deck or no back
+  // photographed; CardBack falls back to the themed default.
+  const customBackUrl = useActiveCardBackUrl();
   const navigate = useNavigate();
   const { currentStreak } = useStreak();
   const { user } = useAuth();
