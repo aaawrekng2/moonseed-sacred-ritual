@@ -1868,6 +1868,7 @@ function UserDetailPage({
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteSavedAt, setNoteSavedAt] = useState<number | null>(null);
   const [grantOpen, setGrantOpen] = useState<null | "grant" | "extend">(null);
+  const [setPwOpen, setSetPwOpen] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const confirm = useConfirm();
 
@@ -2259,6 +2260,15 @@ function UserDetailPage({
                 onClick={() => void onPasswordReset()}
               >
                 Send password reset
+              </ActionBtn>
+            )}
+            {!isSelf && (
+              <ActionBtn
+                tone="secondary"
+                disabled={busyAction !== null}
+                onClick={() => setSetPwOpen(true)}
+              >
+                Set password
               </ActionBtn>
             )}
             {myRole === "super_admin" && !isSelf && !isSuperAdmin && (
