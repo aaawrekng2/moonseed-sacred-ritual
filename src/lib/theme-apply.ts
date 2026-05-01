@@ -40,6 +40,7 @@ export function applyCommunityTheme(theme: CommunityTheme) {
   root.style.setProperty("--gold", theme.accent);
   root.style.setProperty("--accent-color", theme.accent);
   root.style.setProperty("--primary", theme.accent);
+  root.style.setProperty("--accent", theme.accent);
   root.style.setProperty("--accent-foreground", theme.accentForeground);
   root.style.setProperty("--gold-foreground", theme.accentForeground);
   root.style.setProperty("--ring", `${theme.accent}99`);
