@@ -41,6 +41,7 @@ import { useAuth } from "@/lib/auth";
 import {
   adminAction,
   createAdminBackup,
+  getAnonymousSessionCounts,
   getBackupDownloadUrl,
   listAdminUsers,
   listDetectWeavesAlerts,
@@ -51,6 +52,8 @@ import {
   type DetectWeavesAlert,
 } from "@/lib/admin.functions";
 import { setDevMode } from "@/components/dev/DevOverlay";
+import { useConfirm } from "@/hooks/use-confirm";
+import { toast } from "sonner";
 
 /**
  * Fetch the current Supabase access token and return a headers object
