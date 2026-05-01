@@ -19,6 +19,7 @@ import {
   Copy,
   Download,
   Eye,
+  EyeOff,
   KeyRound,
   PencilLine,
   RotateCcw,
@@ -1867,6 +1868,7 @@ function UserDetailPage({
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteSavedAt, setNoteSavedAt] = useState<number | null>(null);
   const [grantOpen, setGrantOpen] = useState<null | "grant" | "extend">(null);
+  const [setPwOpen, setSetPwOpen] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const confirm = useConfirm();
 
@@ -2260,6 +2262,15 @@ function UserDetailPage({
                 Send password reset
               </ActionBtn>
             )}
+            {!isSelf && (
+              <ActionBtn
+                tone="secondary"
+                disabled={busyAction !== null}
+                onClick={() => setSetPwOpen(true)}
+              >
+                Set password
+              </ActionBtn>
+            )}
             {myRole === "super_admin" && !isSelf && !isSuperAdmin && (
               <ActionBtn
                 tone="primary"
@@ -2419,6 +2430,39 @@ function UserDetailPage({
               { type, targetUserId: user.user_id, months },
               `Premium ${verb} for ${targetLabel}`,
             );
+          }}
+        />
+      )}
+      {setPwOpen && (
+        <SetPasswordModal
+          targetEmail={user.email ?? targetLabel}
+          onClose={() => setSetPwOpen(false)}
+          onConfirm={async (newPassword) => {
+            // CW — Submit directly so we can keep the modal open on
+            // error and surface the message inline. Mirrors runAction's
+            // toast behavior on success.
+            setBusyAction("setpw");
+            try {
+              await adminAction({
+                data: {
+                  type: "set_password",
+                  targetUserId: user.user_id,
+                  newPassword,
+                } as never,
+                headers: await authHeaders(),
+              });
+              toast.success(`Password set for ${targetLabel}`);
+              setSetPwOpen(false);
+              onNoteSaved();
+              return { ok: true } as const;
+            } catch (e) {
+              return {
+                ok: false,
+                error: (e as Error).message ?? "Failed to set password",
+              } as const;
+            } finally {
+              setBusyAction(null);
+            }
           }}
         />
       )}
@@ -2671,6 +2715,153 @@ function GrantPremiumModal({
           style={textBtnStyle("gold")}
         >
           {mode === "extend" ? "Extend Premium" : "Grant Premium"}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
+/**
+ * CW — Set Password modal. Super admin types a new password and
+ * confirms; on success the parent clears the input from React state
+ * and closes the modal. Memory hygiene: the password lives only in
+ * this component's local state and is wiped on unmount/close.
+ */
+function SetPasswordModal({
+  targetEmail,
+  onClose,
+  onConfirm,
+}: {
+  targetEmail: string;
+  onClose: () => void;
+  onConfirm: (
+    newPassword: string,
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
+}) {
+  const [pw, setPw] = useState("");
+  const [show, setShow] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async () => {
+    if (!pw || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    const res = await onConfirm(pw);
+    if (res.ok) {
+      // Clear from memory immediately on success.
+      setPw("");
+    } else {
+      setError(res.error);
+    }
+    setSubmitting(false);
+  };
+
+  const handleClose = () => {
+    setPw("");
+    setError(null);
+    onClose();
+  };
+
+  return (
+    <ModalShell
+      title={`Set password for ${targetEmail}?`}
+      onClose={handleClose}
+    >
+      <p style={{ ...serif, fontSize: "var(--text-body-sm)", opacity: 0.75 }}>
+        You are about to directly set this user&rsquo;s password. The user
+        will not be notified. Make sure you have a way to communicate the
+        new password to them.
+      </p>
+      <div
+        className="mt-4"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          background: "rgba(0,0,0,0.25)",
+          border: "1px solid var(--border-subtle)",
+          padding: "6px 10px",
+        }}
+      >
+        <input
+          type={show ? "text" : "password"}
+          value={pw}
+          onChange={(e) => setPw(e.target.value)}
+          autoFocus
+          autoComplete="new-password"
+          placeholder="New password"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void submit();
+          }}
+          style={{
+            ...serif,
+            flex: 1,
+            background: "transparent",
+            border: "none",
+            outline: "none",
+            color: "var(--foreground)",
+            fontSize: "var(--text-body-sm)",
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => setShow((s) => !s)}
+          aria-label={show ? "Hide password" : "Show password"}
+          style={{
+            background: "none",
+            border: "none",
+            color: "color-mix(in oklab, var(--color-foreground) 70%, transparent)",
+            cursor: "pointer",
+            padding: 4,
+            display: "inline-flex",
+          }}
+        >
+          {show ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+      <p
+        className="mt-2"
+        style={{
+          ...serif,
+          fontSize: "var(--text-caption)",
+          opacity: 0.55,
+        }}
+      >
+        Any password is accepted. No complexity requirements.
+      </p>
+      {error && (
+        <p
+          className="mt-3"
+          style={{
+            ...serif,
+            fontSize: "var(--text-body-sm)",
+            color: "oklch(0.7 0.18 25)",
+          }}
+        >
+          {error}
+        </p>
+      )}
+      <div className="mt-6 flex justify-end gap-4">
+        <button
+          type="button"
+          onClick={handleClose}
+          style={textBtnStyle("muted")}
+          disabled={submitting}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={() => void submit()}
+          style={{
+            ...textBtnStyle("gold"),
+            opacity: !pw || submitting ? 0.4 : 1,
+            cursor: !pw || submitting ? "not-allowed" : "pointer",
+          }}
+          disabled={!pw || submitting}
+        >
+          {submitting ? "Setting…" : "Set password"}
         </button>
       </div>
     </ModalShell>
@@ -3525,6 +3716,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   assign_admin: "Assign admin role",
   remove_admin: "Remove admin role",
   password_reset: "Password reset",
+  set_password: "Password set",
   deactivate_user: "Deactivate user",
   reactivate_user: "Reactivate user",
   set_note: "Set note",

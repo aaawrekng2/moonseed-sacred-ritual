@@ -191,6 +191,11 @@ const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("assign_admin"), targetUserId: z.string().uuid(), role: z.enum(["admin", "super_admin"]) }),
   z.object({ type: z.literal("remove_admin"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("password_reset"), targetUserId: z.string().uuid() }),
+  z.object({
+    type: z.literal("set_password"),
+    targetUserId: z.string().uuid(),
+    newPassword: z.string().min(1),
+  }),
   z.object({ type: z.literal("deactivate_user"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("reactivate_user"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("set_note"), targetUserId: z.string().uuid(), note: z.string().nullable() }),
@@ -331,6 +336,30 @@ export const adminAction = createServerFn({ method: "POST" })
           email: targetEmail,
         });
         await logAction(userId, actorEmail, "password_reset", data.targetUserId, targetEmail, {});
+        break;
+      }
+      case "set_password": {
+        // CW — Self-protection: admin cannot change own password via this tool.
+        if (data.targetUserId === userId) {
+          throw new Error(
+            "Cannot set your own password through admin actions. Use Settings.",
+          );
+        }
+        const { error } = await supabaseAdmin.auth.admin.updateUserById(
+          data.targetUserId,
+          { password: data.newPassword },
+        );
+        if (error) throw new Error(error.message);
+        // CW — never log the actual password; record only its length so
+        // the audit log proves the action without exposing the credential.
+        await logAction(
+          userId,
+          actorEmail,
+          "set_password",
+          data.targetUserId,
+          targetEmail,
+          { password_length: data.newPassword.length },
+        );
         break;
       }
       case "deactivate_user": {
