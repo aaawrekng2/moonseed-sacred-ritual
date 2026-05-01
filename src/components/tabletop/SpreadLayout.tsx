@@ -236,6 +236,11 @@ function SpreadContent({
   // Pick a card width that fits the spread + viewport. Celtic Cross has
   // the densest layout so it gets the smallest cards.
   const sizing = useMemo(() => spreadSizing(spread), [spread]);
+  // CM Group 2 — reveal phase = all slots filled but not every card flipped.
+  const required = picks.length;
+  const revealedCount = revealedFlags.filter(Boolean).length;
+  const isRevealPhase =
+    required > 0 && revealedCount < required && picks.length === required;
 
   if (spread === "celtic") {
     return (
@@ -249,6 +254,7 @@ function SpreadContent({
         onTap={onTap}
         sizing={sizing}
         showLabels={showLabels}
+        isRevealPhase={isRevealPhase}
       />
     );
   }
@@ -264,6 +270,7 @@ function SpreadContent({
         onTap={onTap}
         sizing={sizing}
         showLabels={showLabels}
+        isRevealPhase={isRevealPhase}
       />
     );
   }
@@ -277,6 +284,7 @@ function SpreadContent({
       isWrong={wrongIndex === 0}
       onTap={() => onTap(0)}
       sizing={sizing}
+      isRevealPhase={isRevealPhase}
     />
   );
 }
