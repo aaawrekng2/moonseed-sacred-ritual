@@ -1659,6 +1659,543 @@ function UsersTab({
   );
 }
 
+/* ---------------- CP — Users master/detail helpers ---------------- */
+
+/**
+ * Slim list row. Whole row is clickable and selects the user via the
+ * parent's `onSelect` callback. Hover gets a subtle gold tint; the
+ * inline action icons that used to live here are gone — they belong on
+ * the detail page (CQ adds them).
+ */
+function UserListRow({
+  user,
+  onSelect,
+}: {
+  user: AdminUser;
+  onSelect: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  const name = user.display_name?.trim() || null;
+  const primary = name ?? user.email ?? `${user.user_id.slice(0, 8)}…`;
+  const showEmailLine = !!name && !!user.email;
+  return (
+    <tr
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onClick={onSelect}
+      style={{
+        borderBottom: "1px solid var(--border-subtle)",
+        cursor: "pointer",
+        background: hover
+          ? "color-mix(in oklab, var(--accent, var(--gold)) 7%, transparent)"
+          : "transparent",
+      }}
+    >
+      <Td>
+        <div style={{ ...serif, fontSize: "var(--text-body)" }}>{primary}</div>
+        {showEmailLine && (
+          <div
+            style={{
+              fontSize: "var(--text-body-sm)",
+              opacity: 0.6,
+              marginTop: 2,
+            }}
+          >
+            {user.email}
+          </div>
+        )}
+      </Td>
+      <Td>
+        <RoleBadge role={user.role} />
+      </Td>
+      <Td>{formatActivity(user.reading_count, user.last_reading)}</Td>
+      <Td>{new Date(user.created_at).toLocaleDateString()}</Td>
+      <Td>{formatPremiumCell(user)}</Td>
+    </tr>
+  );
+}
+
+function formatActivity(count: number, last: string | null): string {
+  if (count === 0 && !last) return "No activity";
+  return `${count} reading${count === 1 ? "" : "s"} · ${formatRelative(last)}`;
+}
+
+function formatRelative(iso: string | null): string {
+  if (!iso) return "never";
+  const ms = Date.now() - new Date(iso).getTime();
+  const sec = Math.max(1, Math.floor(ms / 1000));
+  if (sec < 60) return "just now";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const d = Math.floor(hr / 24);
+  if (d < 7) return `${d}d ago`;
+  const w = Math.floor(d / 7);
+  if (w < 5) return `${w}w ago`;
+  const mo = Math.floor(d / 30);
+  if (mo < 12) return `${mo}mo ago`;
+  const yr = Math.floor(d / 365);
+  return `${yr}y ago`;
+}
+
+function formatPremiumCell(user: AdminUser): React.ReactNode {
+  if (!user.is_premium) return <span style={{ opacity: 0.4 }}>—</span>;
+  const exp = user.premium_expires_at
+    ? new Date(user.premium_expires_at)
+    : null;
+  if (!exp) return <Badge>Yes</Badge>;
+  const daysLeft = Math.max(
+    0,
+    Math.ceil((exp.getTime() - Date.now()) / 86_400_000),
+  );
+  return <Badge>Yes · {daysLeft}d</Badge>;
+}
+
+/**
+ * CP — Read-only user detail page. Replaces the list when a row is
+ * selected. Header band + four stacked panels. Notes panel is the only
+ * editable surface; CQ adds the action modals (gift/extend/revoke
+ * premium, role changes, password reset, deactivate) into the panels
+ * that currently say "Actions available in CQ".
+ */
+function UserDetailPage({
+  user,
+  myRole: _myRole,
+  myUserId: _myUserId,
+  onBack,
+  onNoteSaved,
+}: {
+  user: AdminUser;
+  myRole: Role;
+  myUserId: string;
+  onBack: () => void;
+  onNoteSaved: () => void;
+}) {
+  const [readings, setReadings] = useState<
+    Array<{ id: string; spread_type: string; created_at: string }>
+  >([]);
+  const [deckCount, setDeckCount] = useState<number | null>(null);
+  const [photoCount, setPhotoCount] = useState<number | null>(null);
+  const [tagCount, setTagCount] = useState<number | null>(null);
+  const [noteText, setNoteText] = useState(user.admin_note ?? "");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteSavedAt, setNoteSavedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const [readingsRes, allReadingsRes, decksRes] = await Promise.all([
+        supabase
+          .from("readings")
+          .select("id, spread_type, created_at")
+          .eq("user_id", user.user_id)
+          .order("created_at", { ascending: false })
+          .limit(5),
+        supabase
+          .from("readings")
+          .select("id, tags")
+          .eq("user_id", user.user_id),
+        supabase
+          .from("custom_decks")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.user_id),
+      ]);
+      setReadings((readingsRes.data ?? []) as typeof readings);
+      setDeckCount(decksRes.count ?? 0);
+
+      const readingIds = (allReadingsRes.data ?? []).map(
+        (r) => (r as { id: string }).id,
+      );
+      const tagSet = new Set<string>();
+      for (const r of (allReadingsRes.data ?? []) as Array<{
+        tags?: string[] | null;
+      }>) {
+        for (const t of r.tags ?? []) tagSet.add(t);
+      }
+      setTagCount(tagSet.size);
+
+      if (readingIds.length === 0) {
+        setPhotoCount(0);
+      } else {
+        const photosRes = await supabase
+          .from("reading_photos")
+          .select("id", { count: "exact", head: true })
+          .in("reading_id", readingIds);
+        setPhotoCount(photosRes.count ?? 0);
+      }
+    })();
+  }, [user.user_id]);
+
+  const saveNote = async () => {
+    const trimmed = noteText.trim();
+    const next = trimmed.length ? trimmed : null;
+    if ((next ?? "") === (user.admin_note ?? "")) return;
+    setNoteSaving(true);
+    try {
+      const headers = await authHeaders();
+      await adminAction({
+        data: { type: "set_note", targetUserId: user.user_id, note: next },
+        headers,
+      });
+      setNoteSavedAt(Date.now());
+      onNoteSaved();
+    } catch (e) {
+      window.alert(`Couldn't save note: ${(e as Error).message}`);
+    } finally {
+      setNoteSaving(false);
+    }
+  };
+
+  const initials =
+    (user.display_name || user.email || user.user_id)
+      .split(/[\s@.]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((s) => s[0]?.toUpperCase() ?? "")
+      .join("") || "?";
+
+  const provider = user.is_anonymous
+    ? "anonymous"
+    : user.email
+      ? "email"
+      : "unknown";
+  const accountStatus = user.banned_until ? "Deactivated" : "Active";
+
+  return (
+    <div>
+      {/* Header band */}
+      <div className="flex items-start gap-4">
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Back to users"
+          style={{
+            ...iconBtnStyle,
+            color: "var(--accent, var(--gold))",
+            padding: 8,
+            marginTop: 4,
+          }}
+        >
+          <ArrowLeft size={16} strokeWidth={1.5} />
+        </button>
+        <div
+          aria-hidden
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 999,
+            display: "grid",
+            placeItems: "center",
+            background:
+              "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)",
+            color: "var(--accent, var(--gold))",
+            ...display,
+            fontSize: 18,
+            letterSpacing: "0.1em",
+          }}
+        >
+          {initials}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div
+            style={{
+              ...display,
+              fontSize: "var(--text-body-lg)",
+              color: "var(--foreground)",
+            }}
+          >
+            {user.display_name?.trim() ||
+              user.email ||
+              user.user_id.slice(0, 8)}
+          </div>
+          {user.email && (
+            <div
+              style={{
+                fontSize: "var(--text-body-sm)",
+                opacity: 0.6,
+                marginTop: 2,
+              }}
+            >
+              {user.email}
+            </div>
+          )}
+          <div
+            className="mt-2 flex flex-wrap items-center gap-3"
+            style={{
+              fontSize: "var(--text-caption)",
+              color:
+                "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+              ...display,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+            }}
+          >
+            <RoleBadge role={user.role} />
+            <span>
+              Joined {new Date(user.created_at).toLocaleDateString()}
+            </span>
+            <span>· Last active {formatRelative(user.last_reading)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Panels */}
+      <div className="mt-8 grid gap-6">
+        <DetailPanel title="Subscription">
+          <DetailRow
+            label="Status"
+            value={subscriptionStatusLabel(user)}
+          />
+          {user.is_premium && user.premium_expires_at && (
+            <DetailRow
+              label="Expires"
+              value={(() => {
+                const exp = new Date(user.premium_expires_at);
+                const days = Math.ceil(
+                  (exp.getTime() - Date.now()) / 86_400_000,
+                );
+                if (days < 0)
+                  return `Expired on ${exp.toLocaleDateString()}`;
+                return `${exp.toLocaleDateString()} · ${days} day${days === 1 ? "" : "s"} left`;
+              })()}
+            />
+          )}
+          <DetailRow
+            label="Months used"
+            value={String(user.premium_months_used ?? 0)}
+          />
+          <ActionsPlaceholder />
+        </DetailPanel>
+
+        <DetailPanel title="Account">
+          <DetailRow
+            label="User ID"
+            value={
+              <span className="inline-flex items-center gap-2">
+                <code
+                  style={{
+                    fontFamily:
+                      "ui-monospace, SFMono-Regular, Menlo, monospace",
+                    fontSize: "var(--text-body-sm)",
+                  }}
+                >
+                  {user.user_id}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(user.user_id);
+                  }}
+                  aria-label="Copy user ID"
+                  title="Copy user ID"
+                  style={{
+                    ...iconBtnStyle,
+                    color: "var(--accent, var(--gold))",
+                  }}
+                >
+                  <Copy size={12} strokeWidth={1.5} />
+                </button>
+              </span>
+            }
+          />
+          <DetailRow label="Auth provider" value={provider} />
+          <DetailRow
+            label="Email confirmed"
+            value={user.email ? "yes" : "—"}
+          />
+          <DetailRow label="Account status" value={accountStatus} />
+          <ActionsPlaceholder />
+        </DetailPanel>
+
+        <DetailPanel title="Activity">
+          <DetailRow
+            label="Total readings"
+            value={String(user.reading_count)}
+          />
+          <DetailRow
+            label="Custom decks"
+            value={deckCount === null ? "…" : String(deckCount)}
+          />
+          <DetailRow
+            label="Reading photos"
+            value={photoCount === null ? "…" : String(photoCount)}
+          />
+          <DetailRow
+            label="Tags"
+            value={tagCount === null ? "…" : String(tagCount)}
+          />
+          <div className="mt-4">
+            <div
+              style={{
+                ...display,
+                fontSize: "var(--text-caption)",
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color:
+                  "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+                marginBottom: 8,
+              }}
+            >
+              Last 5 readings
+            </div>
+            {readings.length === 0 ? (
+              <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>
+                No readings yet.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {readings.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex items-baseline justify-between"
+                    style={{
+                      borderBottom: "1px solid var(--border-subtle)",
+                      paddingBottom: 6,
+                    }}
+                  >
+                    <span
+                      style={{
+                        ...serif,
+                        fontSize: "var(--text-body-sm)",
+                      }}
+                    >
+                      {r.spread_type}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "var(--text-caption)",
+                        color:
+                          "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+                      }}
+                    >
+                      {new Date(r.created_at).toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </DetailPanel>
+
+        <DetailPanel title="Notes">
+          <textarea
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            onBlur={() => void saveNote()}
+            rows={4}
+            placeholder="Internal note about this seeker (saves on blur)…"
+            className="w-full bg-transparent p-2"
+            style={{
+              ...serif,
+              fontSize: "var(--text-body)",
+              color: "var(--foreground)",
+              border: "1px solid var(--border-subtle)",
+              outline: "none",
+              resize: "vertical",
+            }}
+          />
+          <div
+            className="mt-2"
+            style={{
+              ...serif,
+              fontStyle: "italic",
+              fontSize: "var(--text-caption)",
+              color:
+                "color-mix(in oklab, var(--color-foreground) 50%, transparent)",
+            }}
+          >
+            {noteSaving
+              ? "Saving…"
+              : noteSavedAt
+                ? "Saved."
+                : "Saves automatically when you click away."}
+          </div>
+        </DetailPanel>
+      </div>
+    </div>
+  );
+}
+
+function subscriptionStatusLabel(u: AdminUser): string {
+  if (u.role === "super_admin") return "Super Admin";
+  if (u.is_premium) return "Premium";
+  return "Free";
+}
+
+function DetailPanel({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      style={{
+        background: "var(--surface-card, transparent)",
+        border: "1px solid var(--border-subtle)",
+        padding: 20,
+        borderRadius: 4,
+      }}
+    >
+      <SectionTitle>{title}</SectionTitle>
+      <div className="mt-4 flex flex-col gap-2">{children}</div>
+    </section>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-baseline gap-3">
+      <div
+        style={{
+          ...display,
+          fontSize: "var(--text-caption)",
+          letterSpacing: "0.16em",
+          textTransform: "uppercase",
+          color:
+            "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+          minWidth: 140,
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          ...serif,
+          fontSize: "var(--text-body-sm)",
+          color: "var(--foreground)",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function ActionsPlaceholder() {
+  return (
+    <div
+      className="mt-3"
+      style={{
+        ...serif,
+        fontStyle: "italic",
+        fontSize: "var(--text-body-sm)",
+        color:
+          "color-mix(in oklab, var(--color-foreground) 45%, transparent)",
+      }}
+    >
+      Actions available in CQ.
+    </div>
+  );
+}
+
 /* ---------------- Backups tab ---------------- */
 
 type BackupRow = {
