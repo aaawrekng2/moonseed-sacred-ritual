@@ -1383,6 +1383,7 @@ function CommunityThemesSection() {
     markDirty();
 
     await updateUserPreferences(user.id, {
+      community_theme: theme.key,
       accent_color: theme.accent.toLowerCase(),
       // BS — clear any custom background override so the next session
       // loads cleanly from the chosen theme's tokens.
