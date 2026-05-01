@@ -378,11 +378,12 @@ export function PhotoCapture({
       return;
     }
     if (pointersRef.current.size === 1 && dragRef.current) {
-      // BW2 — 1-finger drag = pan. Forward transform applies
-      // translate(-pan.x, -pan.y), so dragging right increases pan.x.
+      // BX — 1-finger drag = pan, direct manipulation (image follows
+      // finger). The image transform applies translate(-pan), so we
+      // SUBTRACT the finger delta from pan.
       const dx = e.clientX - dragRef.current.x;
       const dy = e.clientY - dragRef.current.y;
-      setPan({ x: dragRef.current.px + dx, y: dragRef.current.py + dy });
+      setPan({ x: dragRef.current.px - dx, y: dragRef.current.py - dy });
     }
   };
   const onPointerUp = (e: React.PointerEvent) => {
