@@ -12,6 +12,7 @@ import { useActiveCardBackUrl, useActiveDeck } from "@/lib/active-deck";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
+import { useMoonPrefs } from "@/lib/use-moon-prefs";
 import {
   useAutoRememberQuestion,
   useRememberScope,
@@ -61,6 +62,35 @@ function Index() {
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
   const isAnonymous = !user?.email;
+  // CV — Live moon prefs so the master toggle / carousel sub-toggle
+  // actually control rendering on the home page.
+  const moon = useMoonPrefs();
+  const showMoonCarousel =
+    moon.loaded && moon.moon_features_enabled && moon.moon_show_carousel;
+  // CV — mobile-aware sizing for the gateway card. Uses the same
+  // matchMedia pattern as MoonCarousel so the layout updates live on
+  // resize/rotation rather than freezing at the mount value.
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia
+      ? window.matchMedia("(max-width: 639px)").matches
+      : false,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia("(max-width: 639px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    setIsMobile(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  // CV — Group 2: mobile gateway card 30% larger (140 → 182). Group 4:
+  // when the carousel is hidden on desktop, hero-size the card (280)
+  // so it commands the empty space. Mobile keeps 182 either way —
+  // hero-doubling on mobile would overflow the screen.
+  const cardWidth = showMoonCarousel
+    ? (isMobile ? 182 : 140)
+    : (isMobile ? 182 : 280);
+  const cardHeight = Math.round(cardWidth * 1.75);
   const [nudgeDismissed, setNudgeDismissed] = useState(true);
   // Hydrate dismissed state on the client only to avoid SSR mismatch.
   useEffect(() => {
@@ -144,9 +174,14 @@ function Index() {
       }}
     >
       {/* Moon strip — close to top */}
-      <header className="px-2 pt-1">
-        <MoonCarousel />
-      </header>
+      {/* CV — Gated on master toggle + carousel sub-toggle. While prefs
+          are loading, render nothing (avoids flash-then-hide). The
+          entire <header> wrapper collapses so no phantom whitespace. */}
+      {showMoonCarousel && (
+        <header className="px-2 pt-1">
+          <MoonCarousel />
+        </header>
+      )}
 
       {/* Gateway card — centered in the remaining vertical space now
           that the question prompt has moved to the draw table.
@@ -171,8 +206,8 @@ function Index() {
                   src={getCardImagePath(todayCard)}
                   alt={getCardName(todayCard)}
                   style={{
-                    width: 140,
-                    height: Math.round(140 * 1.75),
+                    width: cardWidth,
+                    height: cardHeight,
                     objectFit: "cover",
                   }}
                   loading="eager"
@@ -181,8 +216,8 @@ function Index() {
             ) : deckLoading ? (
               <div
                 style={{
-                  width: 140,
-                  height: Math.round(140 * 1.75),
+                  width: cardWidth,
+                  height: cardHeight,
                   borderRadius: 12,
                   background: "color-mix(in oklab, var(--gold) 6%, transparent)",
                   border: "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
@@ -191,7 +226,7 @@ function Index() {
               />
             ) : (
               <div style={{ animation: "fade-in 400ms ease-out both" }}>
-                <CardBack id={cardBack} imageUrl={customBackUrl} width={140} neutralBorder />
+                <CardBack id={cardBack} imageUrl={customBackUrl} width={cardWidth} neutralBorder />
               </div>
             )}
           </button>
@@ -199,7 +234,9 @@ function Index() {
             style={{
               position: "absolute",
               bottom: "12px",
-              left: "-40px",
+              // CV — flame offset scales with the card so the hero
+              // treatment doesn't pull the streak in too tight.
+              left: cardWidth >= 240 ? "-56px" : "-40px",
               display: "flex",
               alignItems: "center",
               gap: "4px",
@@ -224,7 +261,8 @@ function Index() {
 
       {/* Spread icons — sit just above bottom nav. Extra top padding
           gives the spread labels breathing room over the gateway. */}
-      <section className="pb-24 pt-12 sm:pt-16">
+      {/* CV — Mobile spread row lowered (pt-16) for breathing room above. */}
+      <section className="pb-24 pt-16 sm:pt-16">
         {isAnonymous && !nudgeDismissed && (
           <div
             className="flex items-center justify-center gap-3 px-5 py-2.5"

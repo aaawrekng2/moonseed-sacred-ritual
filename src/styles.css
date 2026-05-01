@@ -400,7 +400,8 @@ code, pre, kbd {
 .gateway-card-frame {
   /* Neutral, subtle edge — no signature/accent color tint. */
   border: 1px solid oklch(0.30 0.01 270 / 0.55);
-  box-shadow: 0 6px 30px oklch(0 0 0 / 0.45);
+  /* CV — slightly darker drop shadow for more grounded presence. */
+  box-shadow: 0 8px 36px oklch(0 0 0 / 0.6);
 }
 
 /* Tabletop card flip — 3D transform */
