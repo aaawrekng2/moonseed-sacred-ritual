@@ -618,7 +618,7 @@ function CelticCross({
   wrongIndex,
   onTap,
   sizing,
-  showLabels,
+  showLabels: _showLabels,
   isRevealPhase,
 }: {
   picks: Pick[];
@@ -737,7 +737,7 @@ function CelticCross({
 
       {/* Staff column on the right */}
       <div className="flex flex-col" style={{ gap: rowGap * 0.6 }}>
-        {staff.map((cell, i) =>
+        {staff.map((cell) =>
           cell.pick ? (
             <div
               key={cell.pick.id}
