@@ -493,41 +493,80 @@ export function ZipImporter({
     onCancel();
   }, [onCancel]);
 
+  /**
+   * CB — Discard import now means "roll back". Per-card autosave has
+   * already written assignments to Supabase, so the snapshot we took on
+   * workspace entry is the only path back to the original deck state.
+   */
   const handleDiscard = useCallback(async () => {
     const ok = await confirm({
       title: "Discard this import?",
-      description: "Your in-progress changes will be lost.",
+      description:
+        "Your previously-saved deck will be restored. Any cards you assigned in this session will be reverted.",
       confirmLabel: "Discard",
       cancelLabel: "Keep editing",
       destructive: true,
     });
     if (!ok) return;
-    await deleteSession(deckId);
-    setWorkspace(null);
-    setPhase({ kind: "upload", resumable: false });
-  }, [deckId, confirm]);
+    const snap = await getSnapshot(deckId);
+    if (!snap) {
+      // No snapshot — fall back to the old behavior (just clear session).
+      await deleteSession(deckId);
+      setCardStates({});
+      setWorkspace(null);
+      setPhase({ kind: "upload", resumable: false });
+      onDone();
+      return;
+    }
+    setStatus({ kind: "saving" });
+    setPhase({ kind: "restoring", done: 0, total: 79 });
+    try {
+      await restoreSnapshot({
+        userId,
+        deckId,
+        snapshot: snap,
+        onProgress: (done, total) => {
+          restoreProgressRef.current = { done, total };
+          setPhase({ kind: "restoring", done, total });
+        },
+      });
+      await deleteSnapshot(deckId);
+      await deleteSession(deckId);
+      setCardStates({});
+      setWorkspace(null);
+      // Brief saved-flash so user sees confirmation, then exit.
+      const until = Date.now() + 1500;
+      setStatus({ kind: "saved-flash", until });
+      setTimeout(() => setStatus({ kind: "idle" }), 1500);
+      onDone();
+    } catch (err) {
+      console.error("[CB-restore] failed", err);
+      toast.error("Couldn't restore your previous deck. Try again.");
+      setPhase({ kind: "workspace" });
+      setStatus({ kind: "idle" });
+    }
+  }, [deckId, userId, confirm, onDone]);
+
+  /** CB — close cleanly, preserving session for resume but consuming
+   *  the snapshot so a future Discard doesn't roll back to a stale
+   *  state. */
+  const handleCleanClose = useCallback(async () => {
+    await deleteSnapshot(deckId);
+    onCancel();
+  }, [deckId, onCancel]);
 
   /* ---------- Renders ---------- */
+  const failedCount = useMemo(
+    () => Object.values(cardStates).filter((s) => s === "failed").length,
+    [cardStates],
+  );
   let body: React.ReactNode;
   if (phase.kind === "loading") body = <Centered text="Checking for saved progress…" />;
   else if (phase.kind === "upload") body = <UploadStep onFile={handleFile} onCancel={handleCancel} />;
   else if (phase.kind === "extracting") body = <Centered text="Reading your zip…" />;
-  else if (phase.kind === "saving") body = <Centered text={`Saving deck… ${phase.done}/${phase.total}`} />;
-  else if (phase.kind === "summary") {
-    body = (
-      <Summary
-        written={phase.written}
-        failedCardIds={phase.failedCardIds}
-        cardBackFailed={phase.cardBackFailed}
-        onDone={async () => {
-          if (sessionDeletedOnSave) {
-            await deleteSession(deckId);
-          }
-          onDone();
-        }}
-      />
-    );
-  } else if (!workspace) body = <Centered text="Loading…" />;
+  else if (phase.kind === "restoring")
+    body = <Centered text={`Restoring previous deck… ${phase.done}/${phase.total}`} />;
+  else if (!workspace) body = <Centered text="Loading…" />;
   else
     body = (
       <Workspace
@@ -537,12 +576,16 @@ export function ZipImporter({
         onUnskip={handleUnskip}
         onUnassign={handleUnassign}
         onUpdateRawBlob={handleUpdateRawBlob}
-        onSave={handleSave}
-        onCancel={handleCancel}
+        onCancel={handleCleanClose}
         onDiscard={handleDiscard}
         shape={shape}
         cornerRadiusPercent={cornerRadiusPercent}
         existingBackUrl={existingBackUrl ?? null}
+        cardStates={cardStates}
+        status={status}
+        failedCount={failedCount}
+        onRetrySlot={handleRetrySlot}
+        onRetryAllFailed={handleRetryAllFailed}
       />
     );
 
