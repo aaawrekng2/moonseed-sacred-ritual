@@ -958,9 +958,9 @@ function Workspace({
         <span
           className="ml-auto"
           style={{
-            fontSize: "var(--text-caption)",
+            fontSize: "var(--text-body-sm)",
             color: "var(--color-foreground)",
-            opacity: 0.7,
+            opacity: 0.85,
           }}
         >
           {numericAssigned.length}/78 cards · {hasBack ? "back set" : "no back"} · {skippedKeys.length} skipped
@@ -996,8 +996,8 @@ function Workspace({
           className="mb-4 block w-full rounded-md border px-3 py-2 text-left italic"
           style={{
             background: "var(--accent-faint, color-mix(in oklab, var(--accent) 12%, transparent))",
-            borderColor: "var(--border-subtle)",
-            color: "var(--accent)",
+            borderColor: "var(--border-default)",
+            color: "var(--color-foreground)",
             fontFamily: "var(--font-serif)",
             fontSize: "var(--text-body-sm)",
           }}
@@ -1063,7 +1063,7 @@ function Workspace({
           className="rounded-md px-4 py-2"
           style={{
             background: "var(--accent)",
-            color: "#000",
+            color: "var(--accent-foreground)",
             fontSize: "var(--text-body-sm)",
             fontWeight: 600,
           }}
@@ -1078,7 +1078,7 @@ function Workspace({
             fontFamily: "var(--font-serif)",
             fontSize: "var(--text-body-sm)",
             color: "var(--color-foreground)",
-            opacity: 0.6,
+            opacity: 0.85,
           }}
         >
           Discard import
@@ -1090,7 +1090,7 @@ function Workspace({
           style={{
             fontSize: "var(--text-body-sm)",
             color: "var(--color-foreground)",
-            opacity: 0.7,
+            opacity: 0.85,
           }}
         >
           Close (keeps progress)
