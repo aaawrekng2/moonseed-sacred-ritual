@@ -1284,7 +1284,7 @@ function ImageGrid({
           fontFamily: "var(--font-serif)",
           fontSize: "var(--text-body-sm)",
           color: "var(--color-foreground)",
-          opacity: 0.7,
+          opacity: 0.85,
         }}
       >
         {emptyText}
