@@ -838,12 +838,16 @@ function Workspace({
   onUnskip,
   onUnassign,
   onUpdateRawBlob,
-  onSave,
   onCancel,
   onDiscard,
   shape,
   cornerRadiusPercent,
   existingBackUrl,
+  cardStates,
+  status,
+  failedCount,
+  onRetrySlot,
+  onRetryAllFailed,
 }: {
   session: ImportSession;
   onAssign: (imageKey: string, cardId: number | "BACK") => void;
@@ -851,12 +855,16 @@ function Workspace({
   onUnskip: (imageKey: string) => void;
   onUnassign: (slot: string) => void;
   onUpdateRawBlob: (imageKey: string, blob: Blob, dims: { width: number; height: number }) => void;
-  onSave: (deleteSessionAfter: boolean) => void;
   onCancel: () => void;
   onDiscard: () => void;
   shape: "rectangle" | "round";
   cornerRadiusPercent: number;
   existingBackUrl?: string | null;
+  cardStates: Record<string, CardState>;
+  status: SaveStatus;
+  failedCount: number;
+  onRetrySlot: (slot: string) => void;
+  onRetryAllFailed: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("unassigned");
   // Zoom modal context: which image, opened from which filter view.
