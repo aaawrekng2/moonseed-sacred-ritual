@@ -342,14 +342,11 @@ function ActiveState({
   const nextBillingPlaceholder = "—";
   const amountPlaceholder = "—";
 
-  const handleCancel = () => {
+  const handleCancel = async () => {
     console.log("[Subscriptions] Cancellation requested by user");
     setConfirming(false);
-    if (typeof window !== "undefined") {
-      window.alert(
-        "Cancellation requested — we will be in touch.",
-      );
-    }
+    const { toast } = await import("sonner");
+    toast.success("Cancellation requested — we will be in touch.");
   };
 
   return (

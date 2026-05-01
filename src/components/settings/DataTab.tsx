@@ -16,11 +16,13 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings } from "./SettingsContext";
 import { SettingsSection } from "./sections";
+import { useConfirm } from "@/hooks/use-confirm";
 
 export function DataTab() {
   const { user } = useSettings();
   const [exporting, setExporting] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const confirm = useConfirm();
 
   const exportData = async () => {
     setExporting(true);
@@ -68,9 +70,16 @@ export function DataTab() {
     window.location.href = "/";
   };
 
-  const clearLocal = () => {
+  const clearLocal = async () => {
     if (typeof window === "undefined") return;
-    if (!window.confirm("Clear all locally cached Moonseed settings?")) return;
+    const ok = await confirm({
+      title: "Clear cached settings?",
+      description: "All locally cached Moonseed settings on this device will be removed. Your account data is unaffected.",
+      confirmLabel: "Clear",
+      cancelLabel: "Cancel",
+      destructive: true,
+    });
+    if (!ok) return;
     Object.keys(localStorage)
       .filter((k) => k.startsWith("moonseed:") || k.startsWith("arcana:"))
       .forEach((k) => localStorage.removeItem(k));
