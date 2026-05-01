@@ -1533,17 +1533,27 @@ function UsersTab({
     return `${users.length} users · ${premium} premium · ${supers} super admins · ${admins} admins`;
   }, [users]);
 
-  const runAction = async (label: string, fn: () => Promise<unknown>) => {
-    setBusy(label);
-    try {
-      await fn();
-      await load();
-    } catch (e) {
-      window.alert(`${label} failed: ${(e as Error).message}`);
-    } finally {
-      setBusy(null);
-    }
-  };
+  const selectedUser = useMemo(
+    () =>
+      selectedUserId
+        ? users.find((u) => u.user_id === selectedUserId) ?? null
+        : null,
+    [users, selectedUserId],
+  );
+
+  // CP — detail view replaces the list within the same tab. Filters
+  // and search remain in state so returning restores them automatically.
+  if (selectedUser) {
+    return (
+      <UserDetailPage
+        user={selectedUser}
+        myRole={myRole}
+        myUserId={myUserId}
+        onBack={() => setSelectedUserId(null)}
+        onNoteSaved={() => void load()}
+      />
+    );
+  }
 
   return (
     <div>
