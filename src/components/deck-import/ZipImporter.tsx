@@ -20,8 +20,8 @@
  *      Tap an image → ZoomModal → Pick a card (CardPicker) or Skip
  *      Tap an assigned slot → unassign / replace
  *      Card-back picker is a compact inline panel.
- *   3. Save → atomic commit (via deck-import-commit).
- *   4. Summary.
+ *   3. Per-card autosave (Phase CB) — every assignment writes
+ *      immediately via per-card-save; no batch commit step.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Loader2, RotateCcw, Upload, X } from "lucide-react";
@@ -1009,19 +1009,6 @@ function Workspace({
   // the camera capture flow), not just one assigned in this session.
   const hasBack = !!session.assigned[BACK_KEY] || !!existingBackUrl;
 
-  // BX — diagnostic instrumentation for the "0/78 counter never updates"
-  // bug. Logs on every Workspace re-render so we can correlate UI state
-  // with the underlying session map.
-  console.log("[BX-counter]", {
-    numericAssignedLen: numericAssigned.length,
-    totalCards: 78,
-    unassignedKeys: unassignedKeys.length,
-    skippedKeys: skippedKeys.length,
-    assignedMapSize: assignedSlots.length,
-    hasBack,
-    assignedKeysSample: assignedSlots.slice(0, 5),
-  });
-
   // BN Fix 2 — set of card_ids that will be customized (non-default)
   // after save. Defined here so both the chip count and the Default
   // tab render share one source of truth.
@@ -1821,119 +1808,6 @@ function CardBackPickerModal({
   );
 }
 
-function SaveConfirmDialog({
-  info,
-  onCancel,
-  onSaveAndFinish,
-  onSaveContinueLater,
-}: {
-  info: {
-    kind: "empty" | "skipped-only" | "unassigned-present" | "skipped-and-unassigned";
-    skippedCount: number;
-    unassignedCount: number;
-  };
-  onCancel: () => void;
-  onSaveAndFinish: () => void;
-  onSaveContinueLater: () => void;
-}) {
-  let title = "Save";
-  let body = "";
-  let showContinueLater = false;
-
-  if (info.kind === "empty") {
-    title = "Save?";
-    body = "Nothing assigned yet. Save anyway?";
-  } else if (info.kind === "skipped-only") {
-    title = "Save?";
-    body = `${info.skippedCount} image${info.skippedCount === 1 ? "" : "s"} skipped will be discarded. Save?`;
-  } else if (info.kind === "unassigned-present") {
-    title = "Some images aren't placed yet";
-    body = `${info.unassignedCount} image${info.unassignedCount === 1 ? "" : "s"} still unassigned. Keep them for later or discard?`;
-    showContinueLater = true;
-  } else if (info.kind === "skipped-and-unassigned") {
-    title = "Some images aren't placed yet";
-    body = `${info.unassignedCount} unassigned and ${info.skippedCount} skipped. Continue later or finish now?`;
-    showContinueLater = true;
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-[125] flex items-center justify-center p-4"
-      style={{ background: "var(--surface-overlay, rgba(0,0,0,0.85))" }}
-      onClick={onCancel}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="flex w-full max-w-sm flex-col gap-4 rounded-xl border p-5"
-        style={{
-          background: "var(--surface-card)",
-          borderColor: "var(--border-subtle)",
-        }}
-      >
-        <h3
-          className="italic"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-heading-sm)",
-            color: "var(--color-foreground)",
-          }}
-        >
-          {title}
-        </h3>
-        <p style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)" }}>
-          {body}
-        </p>
-        <div className="flex flex-col gap-2">
-          {showContinueLater && (
-            <button
-              type="button"
-              onClick={onSaveContinueLater}
-              className="rounded-md px-4 py-2 font-medium"
-              style={{
-                background: "var(--accent)",
-                color: "var(--accent-foreground, #000)",
-                fontSize: "var(--text-body-sm)",
-              }}
-            >
-              Save and continue later
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onSaveAndFinish}
-            className="rounded-md px-4 py-2 font-medium"
-            style={{
-              background: showContinueLater
-                ? "transparent"
-                : "var(--accent)",
-              color: showContinueLater
-                ? "var(--color-foreground)"
-                : "var(--accent-foreground, #000)",
-              fontSize: "var(--text-body-sm)",
-              borderWidth: showContinueLater ? 1 : 0,
-              borderStyle: "solid",
-              borderColor: "var(--border-subtle)",
-            }}
-          >
-            {showContinueLater ? "Save and finish" : "Save"}
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-md px-4 py-2"
-            style={{
-              color: "var(--color-foreground)",
-              fontSize: "var(--text-body-sm)",
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function ZoomModal({
   src,
   context,
@@ -2113,62 +1987,6 @@ function ZoomModal({
         </button>
       </div>
     </div>
-  );
-}
-
-/* ================================================================== */
-/*  Summary                                                            */
-/* ================================================================== */
-
-function Summary({
-  written,
-  failedCardIds,
-  cardBackFailed,
-  onDone,
-}: {
-  written: number;
-  failedCardIds: number[];
-  cardBackFailed: boolean;
-  onDone: () => void;
-}) {
-  const ok = failedCardIds.length === 0 && !cardBackFailed;
-  return (
-    <section className="mx-auto max-w-md py-10 text-center">
-      <h2
-        className="mb-4 italic"
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontSize: "var(--text-heading-md)",
-          color: ok ? "var(--accent)" : "var(--color-foreground)",
-        }}
-      >
-        {ok ? "Deck saved" : "Saved with issues"}
-      </h2>
-      <p
-        className="mb-2"
-        style={{ fontSize: "var(--text-body)", color: "var(--color-foreground)" }}
-      >
-        {written} card{written === 1 ? "" : "s"} written.
-      </p>
-      {failedCardIds.length > 0 && (
-        <p style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", opacity: 0.85 }}>
-          Failed: {failedCardIds.map((id) => getCardName(id)).join(", ")}.
-        </p>
-      )}
-      {cardBackFailed && (
-        <p style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", opacity: 0.85 }}>
-          Card back failed to save.
-        </p>
-      )}
-      <button
-        type="button"
-        onClick={onDone}
-        className="mt-6 rounded-md px-5 py-2 font-medium"
-        style={{ background: "var(--accent)", color: "#000", fontSize: "var(--text-body-sm)" }}
-      >
-        Done
-      </button>
-    </section>
   );
 }
 
