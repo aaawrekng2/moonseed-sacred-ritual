@@ -912,7 +912,6 @@ export function Tabletop({
       // never bleed through behind the manual entry UI.
       <ManualEntryBuilder
         spread={spread}
-        allowReversed={allowReversed}
         onCancel={() => setManualOpen(false)}
         onComplete={(picks) => {
           setManualOpen(false);
