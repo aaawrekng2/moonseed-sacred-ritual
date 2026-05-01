@@ -415,6 +415,47 @@ function PositionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * CE Group 4 — under each revealed card, surface the card name (and a
+ * muted italic "reversed" line when applicable). Position labels alone
+ * required users to recognize 78 cards by image; the card name removes
+ * that burden without competing visually with the gold position label.
+ */
+function CardNameLabel({
+  cardIndex,
+  isReversed,
+}: {
+  cardIndex: number;
+  isReversed: boolean;
+}) {
+  return (
+    <div className="flex flex-col items-center">
+      <span
+        style={{
+          fontSize: "var(--text-body-sm)",
+          color: "var(--color-foreground)",
+          textAlign: "center",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {getCardName(cardIndex)}
+      </span>
+      {isReversed && (
+        <span
+          style={{
+            fontSize: "var(--text-caption)",
+            color: "var(--foreground-muted)",
+            fontStyle: "italic",
+            textAlign: "center",
+          }}
+        >
+          reversed
+        </span>
+      )}
+    </div>
+  );
+}
+
 function SingleCard({
   pick,
   cardBack,
