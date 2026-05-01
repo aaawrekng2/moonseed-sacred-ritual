@@ -3449,10 +3449,6 @@ function DateField({
 }
 
 function RoleBadge({ role }: { role: Role }) {
-  return RoleBadgeImpl(role);
-}
-
-function RoleBadgeImpl(role: Role) {
   if (role === "user") return <span style={{ opacity: 0.4 }}>—</span>;
   return (
     <span
