@@ -1,19 +1,15 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import { Undo2, Redo2, X } from "lucide-react";
 import { Hand } from "lucide-react";
-import { CardBack } from "@/components/cards/CardBack";
 import { ManualEntryBuilder } from "@/components/tabletop/ManualEntryBuilder";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
-import { getCardName } from "@/lib/tarot";
-import { useActiveCardBackUrl, useActiveDeckImage } from "@/lib/active-deck";
 import { SPREAD_META, spreadUsesSlots, type SpreadMode } from "@/lib/spreads";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
