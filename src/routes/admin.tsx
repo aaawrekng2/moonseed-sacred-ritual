@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   CalendarDays,
+  Copy,
   Download,
   Eye,
   KeyRound,
