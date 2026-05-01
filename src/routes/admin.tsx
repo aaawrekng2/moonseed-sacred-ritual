@@ -467,6 +467,11 @@ function DashboardTab() {
     daily: Array<{ d: string; standard: number; deep: number }>;
     recent: Array<AdminUser>;
   } | null>(null);
+  const [anon, setAnon] = useState<{
+    today: number;
+    last30Days: number;
+    total: number;
+  } | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -578,6 +583,12 @@ function DashboardTab() {
         })),
         recent,
       });
+      try {
+        const a = await getAnonymousSessionCounts({ headers: await authHeaders() });
+        setAnon(a);
+      } catch {
+        setAnon({ today: 0, last30Days: 0, total: 0 });
+      }
     })();
   }, []);
 
