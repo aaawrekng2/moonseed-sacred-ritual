@@ -839,6 +839,7 @@ function DeckEditor({
         deckId={deckId}
         shape={shape === "round" ? "round" : "rectangle"}
         cornerRadiusPercent={cornerRadius}
+        existingBackUrl={deckBackUrl}
         onCancel={() => setMode({ kind: "grid", deckId })}
         onDone={async () => {
           await reloadCards(deckId);
