@@ -13,7 +13,7 @@ import { ManualEntryBuilder } from "@/components/tabletop/ManualEntryBuilder";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { getCardName } from "@/lib/tarot";
-import { useActiveDeckImage } from "@/lib/active-deck";
+import { useActiveCardBackUrl, useActiveDeckImage } from "@/lib/active-deck";
 import { SPREAD_META, spreadUsesSlots, type SpreadMode } from "@/lib/spreads";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
@@ -1931,6 +1931,8 @@ function CardSlot({
 }) {
   const isSelected = card.selectionOrder !== null;
   const cardImg = useActiveDeckImage();
+  // BX — render custom deck back when an active deck has one.
+  const customBackUrl = useActiveCardBackUrl();
   // When the card landed in the slot via a physical drag-drop we skip
   // the FLIP-style flight animation entirely — the user just placed it
   // there, animating it from the scatter coords (where it would re-mount
@@ -2539,7 +2541,7 @@ function CardSlot({
           )}
         >
           <div className="flip-face back">
-            <CardBack id={cardBack} width={cardW} className="h-full w-full" />
+            <CardBack id={cardBack} imageUrl={customBackUrl} width={cardW} className="h-full w-full" />
           </div>
           <div className="flip-face front overflow-hidden rounded-[10px] border border-gold/40 bg-card">
             {/* Always render the face image so it's loaded and decoded before
