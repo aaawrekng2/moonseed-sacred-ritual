@@ -17,11 +17,6 @@ export type TabletopProps = {
     mode: "reveal" | "cast",
     meta?: { entryMode?: "digital" | "manual" },
   ) => void;
-  /**
-   * When true, the manual CardPicker offers a 'Reversed?' confirmation
-   * step (Stamp AU). Mirrors the seeker's `allow_reversed_cards` pref.
-   */
-  allowReversed?: boolean;
 };
 
 export type CardState = ScatterCard & {
