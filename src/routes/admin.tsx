@@ -2245,6 +2245,7 @@ function BackupsTab() {
   const [rows, setRows] = useState<BackupRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const confirm = useConfirm();
 
   const load = async () => {
     setLoading(true);
@@ -2279,18 +2280,20 @@ function BackupsTab() {
   };
 
   const onRestore = async (r: BackupRow) => {
-    if (
-      !window.confirm(
-        "This will overwrite current data. Are you sure?",
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: "Restore this backup?",
+      description:
+        "This will request a manual restore from the snapshot file. Live data is not overwritten by the app — a team member runs the actual restore for safety.",
+      confirmLabel: "Request Restore",
+      destructive: true,
+    });
+    if (!ok) return;
     await restoreAdminBackup({
       data: { backupId: r.id },
       headers: await authHeaders(),
     });
-    window.alert(
-      "Restore request logged. A team member will run the restore manually for safety.",
+    toast.success(
+      "Restore request logged. A team member will run the restore manually.",
     );
   };
 
