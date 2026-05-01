@@ -2433,6 +2433,39 @@ function UserDetailPage({
           }}
         />
       )}
+      {setPwOpen && (
+        <SetPasswordModal
+          targetEmail={user.email ?? targetLabel}
+          onClose={() => setSetPwOpen(false)}
+          onConfirm={async (newPassword) => {
+            // CW — Submit directly so we can keep the modal open on
+            // error and surface the message inline. Mirrors runAction's
+            // toast behavior on success.
+            setBusyAction("setpw");
+            try {
+              await adminAction({
+                data: {
+                  type: "set_password",
+                  targetUserId: user.user_id,
+                  newPassword,
+                } as never,
+                headers: await authHeaders(),
+              });
+              toast.success(`Password set for ${targetLabel}`);
+              setSetPwOpen(false);
+              onNoteSaved();
+              return { ok: true } as const;
+            } catch (e) {
+              return {
+                ok: false,
+                error: (e as Error).message ?? "Failed to set password",
+              } as const;
+            } finally {
+              setBusyAction(null);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
