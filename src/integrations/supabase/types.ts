@@ -322,6 +322,33 @@ export type Database = {
         }
         Relationships: []
       }
+      import_batches: {
+        Row: {
+          created_at: string
+          id: string
+          row_count: number
+          skipped_count: number
+          source_format: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          row_count?: number
+          skipped_count?: number
+          source_format: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          row_count?: number
+          skipped_count?: number
+          source_format?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       memory_snapshots: {
         Row: {
           active_patterns_summary: string | null
@@ -452,6 +479,7 @@ export type Database = {
           entry_mode: string
           guide_id: string | null
           id: string
+          import_batch_id: string | null
           interpretation: string | null
           is_deep_reading: boolean
           is_favorite: boolean
@@ -476,6 +504,7 @@ export type Database = {
           entry_mode?: string
           guide_id?: string | null
           id?: string
+          import_batch_id?: string | null
           interpretation?: string | null
           is_deep_reading?: boolean
           is_favorite?: boolean
@@ -500,6 +529,7 @@ export type Database = {
           entry_mode?: string
           guide_id?: string | null
           id?: string
+          import_batch_id?: string | null
           interpretation?: string | null
           is_deep_reading?: boolean
           is_favorite?: boolean
