@@ -1,18 +1,18 @@
 /**
- * Settings → Data tab (CG).
+ * Settings → Data tab (CI).
  *
  * Sections:
  *   1. Full backup — pick categories, see size estimates, download a ZIP
- *      that includes JSON rows AND binary assets (deck images, photos)
- *   2. Quick JSON export — readings + preferences only
- *   3. Sign out
- *   4. Clear local cache
+ *      that includes JSON rows AND (premium-only) binary assets
+ *      (deck images, photos)
+ *   2. Sign out
+ *   3. Clear local cache
  *
  * Account deletion is intentionally not exposed in-app — users contact
  * support so we can clean up across all tables atomically.
  */
 import { useEffect, useState } from "react";
-import { Archive, Download, Loader2, LogOut, RotateCcw } from "lucide-react";
+import { Archive, Loader2, Lock, LogOut, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,12 +29,20 @@ import { createBackup, type BackupProgress } from "@/lib/backup-export";
 
 export function DataTab() {
   const { user } = useSettings();
-  const [exporting, setExporting] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const confirm = useConfirm();
 
+  // TODO: wire to Stripe in Phase 10. Until premium ships, every account
+  // is treated as free-tier so binary-asset categories stay locked.
+  const isPremium = false;
+
   const [selected, setSelected] = useState<Set<BackupCategoryId>>(
-    () => new Set(BACKUP_CATEGORIES.map((c) => c.id)),
+    () =>
+      new Set(
+        BACKUP_CATEGORIES.filter((c) => isPremium || !c.premium).map(
+          (c) => c.id,
+        ),
+      ),
   );
   const [estimates, setEstimates] = useState<
     Record<BackupCategoryId, { count: number; bytes: number }>
@@ -71,11 +79,17 @@ export function DataTab() {
   }, [user.id]);
 
   const totalBytes = Array.from(selected).reduce(
-    (sum, id) => sum + (estimates[id]?.bytes ?? 0),
+    (sum, id) => {
+      const cat = BACKUP_CATEGORIES.find((c) => c.id === id);
+      if (cat?.premium && !isPremium) return sum;
+      return sum + (estimates[id]?.bytes ?? 0);
+    },
     0,
   );
 
   const toggle = (id: BackupCategoryId) => {
+    const cat = BACKUP_CATEGORIES.find((c) => c.id === id);
+    if (cat?.premium && !isPremium) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -95,6 +109,7 @@ export function DataTab() {
       const blob = await createBackup({
         userId: user.id,
         categories: Array.from(selected),
+        isPremium,
         onProgress: (p) => setBackupProgress(p),
       });
       const url = URL.createObjectURL(blob);
@@ -110,41 +125,6 @@ export function DataTab() {
     } finally {
       setBackupRunning(false);
       setBackupProgress(null);
-    }
-  };
-
-  const exportData = async () => {
-    setExporting(true);
-    try {
-      const [{ data: readings }, { data: prefs }] = await Promise.all([
-        supabase.from("readings").select("*").eq("user_id", user.id),
-        supabase
-          .from("user_preferences")
-          .select("*")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-      ]);
-      const payload = {
-        app: "Moonseed",
-        exported_at: new Date().toISOString(),
-        user_id: user.id,
-        preferences: prefs,
-        readings: readings ?? [],
-      };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], {
-        type: "application/json",
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `moonseed-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Export downloaded");
-    } catch {
-      toast.error("Couldn't export your data");
-    } finally {
-      setExporting(false);
     }
   };
 
@@ -184,25 +164,39 @@ export function DataTab() {
         <div className="space-y-3">
           {BACKUP_CATEGORIES.map((c) => {
             const est = estimates[c.id];
+            const locked = c.premium && !isPremium;
             return (
               <label
                 key={c.id}
-                className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/40 p-3 hover:bg-foreground/5"
+                className={`flex items-start gap-3 rounded-lg border border-border/40 p-3 ${
+                  locked
+                    ? "cursor-not-allowed opacity-70"
+                    : "cursor-pointer hover:bg-foreground/5"
+                }`}
               >
                 <Checkbox
                   checked={selected.has(c.id)}
                   onCheckedChange={() => toggle(c.id)}
+                  disabled={locked}
                   className="mt-0.5"
                 />
                 <div className="flex-1">
                   <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-sm font-medium">{c.label}</span>
+                    <span className="flex items-center gap-1.5 text-sm font-medium">
+                      {locked && (
+                        <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                      {c.label}
+                    </span>
                     <span className="text-xs text-muted-foreground">
                       {estimating
                         ? "…"
                         : est && est.count > 0
                           ? `${est.count} · ~${formatBytes(est.bytes)}`
                           : "empty"}
+                      {locked && (
+                        <span className="ml-2 italic">Premium</span>
+                      )}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">{c.description}</p>
@@ -240,27 +234,6 @@ export function DataTab() {
             Large backups (lots of photos or custom decks) may take a minute.
             Keep this tab open until the download begins.
           </p>
-        </div>
-      </SettingsSection>
-
-      <SettingsSection
-        title="Quick JSON export"
-        description="Just readings and preferences, no images."
-      >
-        <div className="space-y-3">
-          <Button
-            variant="outline"
-            onClick={() => void exportData()}
-            disabled={exporting}
-            className="w-full justify-start gap-2 sm:w-auto"
-          >
-            {exporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            Export readings + settings
-          </Button>
         </div>
       </SettingsSection>
 
