@@ -501,7 +501,7 @@ export function MoonCarousel() {
           it never clips and the chevrons never shift vertically. */}
       <div
         className="relative flex items-start justify-center gap-1 sm:gap-2 touch-pan-y overflow-visible px-7 sm:px-0"
-        style={{ height: 240 }}
+        style={{ height: isMobile ? 192 : 240 }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
