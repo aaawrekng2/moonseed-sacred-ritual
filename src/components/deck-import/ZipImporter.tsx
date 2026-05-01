@@ -787,9 +787,11 @@ function kickoffEncoding(
 function UploadStep({
   onFile,
   onCancel,
+  showReplaceNotice = false,
 }: {
   onFile: (file: File) => void;
   onCancel: () => void;
+  showReplaceNotice?: boolean;
 }) {
   return (
     <section className="py-8">
@@ -807,6 +809,19 @@ function UploadStep({
         >
           Import deck from zip
         </h2>
+        {showReplaceNotice && (
+          <p
+            className="mb-3 italic"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--accent)",
+              opacity: 0.95,
+            }}
+          >
+            Replacing existing deck. Discard import to revert.
+          </p>
+        )}
         <p
           className="mb-5"
           style={{ fontSize: "var(--text-body-sm)", color: "var(--color-foreground)", opacity: 0.85 }}
