@@ -166,20 +166,24 @@ function Index() {
             }
           >
             {todayCard !== null ? (
-              <img
-                src={getCardImagePath(todayCard)}
-                alt={getCardName(todayCard)}
-                style={{
-                  width: 140,
-                  height: Math.round(140 * 1.75),
-                  objectFit: "cover",
-                }}
-                loading="eager"
-              />
+              <div style={{ animation: "fade-in 400ms ease-out both" }}>
+                <img
+                  src={getCardImagePath(todayCard)}
+                  alt={getCardName(todayCard)}
+                  style={{
+                    width: 140,
+                    height: Math.round(140 * 1.75),
+                    objectFit: "cover",
+                  }}
+                  loading="eager"
+                />
+              </div>
             ) : deckLoading ? (
               <div style={{ width: 140, height: Math.round(140 * 1.75) }} />
             ) : (
-              <CardBack id={cardBack} imageUrl={customBackUrl} width={140} neutralBorder />
+              <div style={{ animation: "fade-in 400ms ease-out both" }}>
+                <CardBack id={cardBack} imageUrl={customBackUrl} width={140} neutralBorder />
+              </div>
             )}
           </button>
           <div
