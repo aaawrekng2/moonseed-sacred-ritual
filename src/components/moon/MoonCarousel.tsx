@@ -763,6 +763,21 @@ function CenterCard({
   enterDir: "left" | "right";
   onToggle: () => void;
 }) {
+  // CV — Mobile center-card icon scales 20% smaller alongside the
+  // overall carousel height reduction so proportions stay balanced.
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia
+      ? window.matchMedia("(max-width: 639px)").matches
+      : false,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia("(max-width: 639px)");
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    setIsMobile(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
   return (
     <button
       type="button"
@@ -786,7 +801,7 @@ function CenterCard({
         {/* No keyed remount here — the wrapper stays mounted across day
             changes so swipes update content in place without a visual cut. */}
         <div className="flex flex-col items-center gap-2 text-center">
-          <MoonPhaseIcon phase={info.phase} size={72} illumination={info.illumination} />
+          <MoonPhaseIcon phase={info.phase} size={isMobile ? 58 : 72} illumination={info.illumination} />
           <p className="whitespace-nowrap text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {formatShortDate(info.date, timeZone)}
           </p>
