@@ -629,6 +629,7 @@ function CelticCross({
           <CardNameLabel
             cardIndex={cell.pick.cardIndex}
             isReversed={!!cell.pick.isReversed}
+            cardWidth={sizing.w}
           />
         )}
       </div>
@@ -703,12 +704,14 @@ function CelticCross({
                 <CardNameLabel
                   cardIndex={present.pick.cardIndex}
                   isReversed={!!present.pick.isReversed}
+                  cardWidth={sizing.w}
                 />
               )}
               {revealedFlags[1] && obstacle.pick && (
                 <CardNameLabel
                   cardIndex={obstacle.pick.cardIndex}
                   isReversed={!!obstacle.pick.isReversed}
+                  cardWidth={sizing.w}
                 />
               )}
             </div>
@@ -746,6 +749,7 @@ function CelticCross({
                 <CardNameLabel
                   cardIndex={cell.pick.cardIndex}
                   isReversed={!!cell.pick.isReversed}
+                  cardWidth={sizing.w}
                 />
               )}
             </div>
@@ -824,6 +828,7 @@ export function ManualSpreadSlots({
           <CardNameLabel
             cardIndex={picks[i]!.cardIndex}
             isReversed={!!picks[i]!.isReversed}
+            cardWidth={sizing.w}
           />
         )}
       </div>
@@ -864,6 +869,7 @@ export function ManualSpreadSlots({
                 <CardNameLabel
                   cardIndex={picks[i]!.cardIndex}
                   isReversed={!!picks[i]!.isReversed}
+                  cardWidth={sizing.w}
                 />
               )}
             </div>
@@ -881,7 +887,11 @@ export function ManualSpreadSlots({
             <Slot pick={pick} slotIndex={i} />
             {showLabels && <PositionLabel>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
             {showLabels && pick && (
-              <CardNameLabel cardIndex={pick.cardIndex} isReversed={!!pick.isReversed} />
+              <CardNameLabel
+                cardIndex={pick.cardIndex}
+                isReversed={!!pick.isReversed}
+                cardWidth={sizing.w}
+              />
             )}
           </div>
         ))}
@@ -898,6 +908,7 @@ export function ManualSpreadSlots({
         <CardNameLabel
           cardIndex={picks[0]!.cardIndex}
           isReversed={!!picks[0]!.isReversed}
+          cardWidth={sizing.w}
         />
       )}
     </div>
