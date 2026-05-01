@@ -99,13 +99,52 @@ export function ZipImporter({
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
-  // BLa Fix A — track whether the user's chosen save path requested
-  // session deletion, so the Summary's Done button doesn't unconditionally
-  // wipe sessions that 'Save and continue later' wanted to preserve.
-  const [sessionDeletedOnSave, setSessionDeletedOnSave] = useState(true);
   const queueRef = useRef<EncodingQueue>(new EncodingQueue());
   const saverRef = useRef(makeThrottledSaver(deckId));
   const confirm = useConfirm();
+
+  // CB — per-slot save state map. Slot key matches session.assigned keys
+  // ("0".."77" or "BACK"). Missing entry = clean/empty.
+  const [cardStates, setCardStates] = useState<Record<string, CardState>>({});
+  // CB — top-right status indicator state (idle / saving / brief saved).
+  const [status, setStatus] = useState<SaveStatus>({ kind: "idle" });
+  const inflightRef = useRef(0);
+  const savedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restoreProgressRef = useRef<{ done: number; total: number }>({ done: 0, total: 0 });
+
+  const setSlotState = useCallback(
+    (slot: string, next: CardState | null) => {
+      setCardStates((prev) => {
+        const copy = { ...prev };
+        if (next === null) delete copy[slot];
+        else copy[slot] = next;
+        return copy;
+      });
+    },
+    [],
+  );
+
+  const beginSave = useCallback(() => {
+    inflightRef.current++;
+    setStatus({ kind: "saving" });
+    if (savedFlashTimer.current) {
+      clearTimeout(savedFlashTimer.current);
+      savedFlashTimer.current = null;
+    }
+  }, []);
+
+  const endSave = useCallback(() => {
+    inflightRef.current = Math.max(0, inflightRef.current - 1);
+    if (inflightRef.current === 0) {
+      const until = Date.now() + 2000;
+      setStatus({ kind: "saved-flash", until });
+      if (savedFlashTimer.current) clearTimeout(savedFlashTimer.current);
+      savedFlashTimer.current = setTimeout(() => {
+        setStatus({ kind: "idle" });
+        savedFlashTimer.current = null;
+      }, 2000);
+    }
+  }, []);
 
   // Bootstrap: check for existing session OR existing deck rows.
   useEffect(() => {
