@@ -24,7 +24,7 @@
  *   4. Summary.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Loader2, RotateCcw, Upload, X } from "lucide-react";
+import { AlertTriangle, Check, Loader2, RotateCcw, Upload, X } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,9 +45,15 @@ import {
   type ImportSession,
 } from "@/lib/import-session";
 import { EncodingQueue } from "@/lib/deck-image-pipeline";
-import { commitImportSession } from "@/lib/deck-import-commit";
 import { fetchDeckCards } from "@/lib/custom-decks";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
+import { saveCard, removeCard, type SaveResult } from "@/lib/per-card-save";
+import {
+  captureSnapshotIfMissing,
+  deleteSnapshot,
+  getSnapshot,
+  restoreSnapshot,
+} from "@/lib/import-snapshot";
 
 const ZIP_MAX_BYTES = 20 * 1024 * 1024;
 const VALID_EXT = /\.(png|jpe?g|webp|gif)$/i;
