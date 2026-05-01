@@ -15,22 +15,25 @@ import { CardPicker } from "@/components/cards/CardPicker";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { ManualSpreadSlots } from "@/components/tabletop/SpreadLayout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { useActiveDeckImage } from "@/lib/active-deck";
 import { cn } from "@/lib/utils";
 
 export type ManualPick = { id: number; cardIndex: number; isReversed: boolean };
 
 type Props = {
   spread: SpreadMode;
-  allowReversed: boolean;
   onCancel: () => void;
   /** Fires once every slot has a card and the seeker hits Done. */
   onComplete: (picks: ManualPick[]) => void;
 };
 
-export function ManualEntryBuilder({ spread, allowReversed, onCancel, onComplete }: Props) {
+export function ManualEntryBuilder({ spread, onCancel, onComplete }: Props) {
   const meta = SPREAD_META[spread];
   const required = meta.count;
   const labels = meta.positions ?? [];
+  // CE Group 2 — manual entry honors the seeker's active custom deck
+  // imagery instead of always rendering Rider-Waite defaults.
+  const cardImg = useActiveDeckImage();
 
   const [picks, setPicks] = useState<(ManualPick | null)[]>(
     Array.from({ length: required }, () => null),
@@ -113,8 +116,13 @@ export function ManualEntryBuilder({ spread, allowReversed, onCancel, onComplete
             <CardPicker
               mode="manual-entry"
               embedded
+              resolveImageSrc={(cardIndex) => cardImg(cardIndex, "thumbnail")}
               excludeCardIds={placedIds}
-              showReversedToggle={allowReversed}
+              // CE Group 3 — manual entry logs a physical reading where
+              // reversal is part of what happened. Always offer the
+              // toggle regardless of the digital allow_reversed_cards
+              // preference (which only governs digital randomization).
+              showReversedToggle={true}
               title={
                 labels[pickerSlot]
                   ? `Pick — ${labels[pickerSlot]}`
