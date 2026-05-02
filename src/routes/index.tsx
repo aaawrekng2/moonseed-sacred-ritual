@@ -83,14 +83,31 @@ function Index() {
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
   }, []);
-  // CV — Group 2: mobile gateway card 30% larger (140 → 182). Group 4:
-  // when the carousel is hidden on desktop, hero-size the card (280)
-  // so it commands the empty space. Mobile keeps 182 either way —
-  // hero-doubling on mobile would overflow the screen.
+  // CX — track viewport width so mobile hero (90vw) re-measures on
+  // rotation/resize. Default to 360 on SSR so layout is stable.
+  const [viewportW, setViewportW] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth : 400,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onResize = () => setViewportW(window.innerWidth);
+    onResize();
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
+  // CX — Hero card sizing.
+  // Carousel visible: 140 desktop / 182 mobile (unchanged from CV).
+  // Carousel hidden: 360 desktop hero / 90vw mobile hero.
   const cardWidth = showMoonCarousel
     ? (isMobile ? 182 : 140)
-    : (isMobile ? 182 : 280);
+    : (isMobile ? Math.round(viewportW * 0.9) : 360);
   const cardHeight = Math.round(cardWidth * 1.75);
+  // CX — Streak under-card only in mobile hero mode.
+  const streakUnderCard = isMobile && !showMoonCarousel;
   const [nudgeDismissed, setNudgeDismissed] = useState(true);
   // Hydrate dismissed state on the client only to avoid SSR mismatch.
   useEffect(() => {
