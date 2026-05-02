@@ -287,6 +287,41 @@ export const detectThreads = createServerFn({ method: "POST" })
 /* ---------- Pattern detection helper ---------- */
 
 /**
+ * DL-6 — Build a short, evocative 1–3 word name for a Story (pattern).
+ * Combines a key word from the thread's title/summary with the
+ * dominant card name (with leading "The" stripped). Falls back to the
+ * card name alone, or "Recurring Symbols" when no card data exists.
+ */
+function buildShortName(t: {
+  title?: string | null;
+  summary?: string | null;
+  card_ids?: number[] | null;
+}): string {
+  const dominantCardId = t.card_ids?.[0] ?? null;
+  const cardName =
+    typeof dominantCardId === "number" ? getCardName(dominantCardId) : null;
+  const text = (t.title || t.summary || "").toLowerCase();
+  const stopwords = new Set([
+    "the", "a", "an", "and", "or", "as", "in", "of", "to",
+    "across", "multiple", "reading", "readings", "appears",
+    "force", "with", "this", "that", "your", "you", "for",
+    "from", "into", "over", "under", "than", "then", "them",
+    "their", "there", "have", "has", "had", "been", "being",
+  ]);
+  const words = text
+    .split(/[\s,.;:!?]+/)
+    .filter((w) => w.length > 3 && !stopwords.has(w));
+  const keyWord = words[0] ?? null;
+  const cardCore = cardName ? cardName.replace(/^The\s+/i, "") : null;
+  if (keyWord && cardCore) {
+    const cap = keyWord.charAt(0).toUpperCase() + keyWord.slice(1);
+    return `${cap} ${cardCore}`.slice(0, 60);
+  }
+  if (cardCore) return cardCore;
+  return "Recurring Symbols";
+}
+
+/**
  * Group threads that share 2+ overlapping card_ids into patterns.
  * Creates an emerging pattern when 3+ threads cluster; extends an
  * existing pattern when threads already in it overlap with new ones.
