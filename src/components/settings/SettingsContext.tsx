@@ -66,7 +66,7 @@ const DEFAULT_PREFS: Prefs = {
   bg_gradient_to: null,
   heading_font: null,
   heading_font_size: null,
-  resting_opacity: 50,
+  resting_opacity: 100,
 };
 
 type SettingsCtx = {
@@ -146,7 +146,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         bg_gradient_to: n("bg_gradient_to"),
         heading_font: n("heading_font"),
         heading_font_size: num("heading_font_size", null),
-        resting_opacity: (num("resting_opacity", 50) as number) ?? 50,
+        resting_opacity: 100,
       });
     })();
     return () => {
