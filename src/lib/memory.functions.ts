@@ -346,7 +346,7 @@ async function detectAndUpdatePatterns(
       const cluster = [t, ...peers];
       const cardSet = new Set<number>();
       for (const c of cluster) for (const cid of c.card_ids ?? []) cardSet.add(cid);
-      const seedTitle = (t.title || t.summary || "Recurring symbols").slice(0, 60);
+      const seedTitle = buildShortName(t);
       clusters.push({
         threadIds: cluster.map((c) => c.id),
         cardIds: Array.from(cardSet),
