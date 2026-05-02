@@ -202,9 +202,14 @@ function Index() {
     };
   }, [dayEpoch, effectiveTz]);
 
+  // CZ Group 1 — tighter gateway padding when carousel is visible so the
+  // larger gateway card no longer pushes the spread icons offscreen.
+  const gatewayTopPadding = showMoonCarousel
+    ? (isMobile ? "pt-2" : "pt-4")
+    : (isMobile ? "pt-10" : "pt-14");
   return (
     <main
-      className="relative flex h-[100dvh] flex-col overflow-hidden bg-cosmos"
+      className="relative flex min-h-[100dvh] flex-col overflow-y-auto bg-cosmos"
       style={{
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 4px)",
       }}
@@ -223,7 +228,7 @@ function Index() {
           that the question prompt has moved to the draw table.
           Extra top padding pushes the gateway down so it doesn't crowd
           the moon carousel above. */}
-      <section className="flex flex-1 flex-col items-center justify-center px-6 pt-10 sm:pt-14">
+      <section className={`flex flex-1 flex-col items-center justify-center px-6 ${gatewayTopPadding}`}>
         <div
           style={{
             position: "relative",

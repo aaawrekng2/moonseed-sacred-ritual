@@ -8,6 +8,8 @@ import { useShowLabels } from "@/lib/use-show-labels";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { cn } from "@/lib/utils";
 import { InlineReading } from "@/components/reading/ReadingParts";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { CardZoomModal } from "./CardZoomModal";
 import {
   useRegisterCloseHandler,
   useRegisterCopyText,
@@ -59,6 +61,16 @@ export function SpreadLayout({
   usePortraitOnly();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const { showLabels } = useShowLabels();
+  // CZ Group 2 — on mobile, suppress the under-card position labels
+  // (Past/Present/Future, Celtic Cross labels). The bottom-bar whisper
+  // still names the focused position so no information is lost.
+  const isMobile = useIsMobile();
+  const showSlotLabels = showLabels && !isMobile;
+  // CZ Group 3 — tap-to-zoom on flipped cards.
+  const [zoomedCard, setZoomedCard] = useState<{
+    cardIndex: number;
+    reversed: boolean;
+  } | null>(null);
   // Once every card is face-up the inline reading flow takes over.
   // `copyText` is hoisted from <InlineReading> so the global
   // FloatingMenu can surface a Copy icon while the reading is open.
@@ -155,7 +167,10 @@ export function SpreadLayout({
           nextIndex={nextIndex}
           wrongIndex={wrongIndex}
           onTap={handleTap}
-          showLabels={showLabels}
+          showLabels={showSlotLabels}
+          onZoom={(cardIndex, reversed) =>
+            setZoomedCard({ cardIndex, reversed })
+          }
         />
       </div>
 
@@ -208,6 +223,13 @@ export function SpreadLayout({
           )}
         </div>
       )}
+      {zoomedCard && (
+        <CardZoomModal
+          cardId={zoomedCard.cardIndex}
+          reversed={zoomedCard.reversed}
+          onClose={() => setZoomedCard(null)}
+        />
+      )}
     </main>
   );
 }
@@ -222,6 +244,7 @@ function SpreadContent({
   wrongIndex,
   onTap,
   showLabels,
+  onZoom,
 }: {
   spread: SpreadMode;
   picks: Pick[];
@@ -232,6 +255,7 @@ function SpreadContent({
   wrongIndex: number | null;
   onTap: (i: number) => void;
   showLabels: boolean;
+  onZoom: (cardIndex: number, reversed: boolean) => void;
 }) {
   // Pick a card width that fits the spread + viewport. Celtic Cross has
   // the densest layout so it gets the smallest cards.
@@ -255,6 +279,7 @@ function SpreadContent({
         sizing={sizing}
         showLabels={showLabels}
         isRevealPhase={isRevealPhase}
+        onZoom={onZoom}
       />
     );
   }
@@ -271,6 +296,7 @@ function SpreadContent({
         sizing={sizing}
         showLabels={showLabels}
         isRevealPhase={isRevealPhase}
+        onZoom={onZoom}
       />
     );
   }
@@ -285,6 +311,7 @@ function SpreadContent({
       onTap={() => onTap(0)}
       sizing={sizing}
       isRevealPhase={isRevealPhase}
+      onZoom={onZoom}
     />
   );
 }
@@ -319,6 +346,7 @@ function CardFace({
   onTap,
   emergeDelayMs,
   isRevealPhase,
+  onZoom,
 }: {
   pick: Pick;
   cardBack: CardBackId;
@@ -330,6 +358,7 @@ function CardFace({
   onTap?: () => void;
   emergeDelayMs?: number;
   isRevealPhase?: boolean;
+  onZoom?: (cardIndex: number, reversed: boolean) => void;
 }) {
   const interactive = !revealed && !!onTap;
   const cardImg = useActiveDeckImage();
@@ -417,6 +446,18 @@ function CardFace({
           // Obstacle (slot 2) overlaps the Present (slot 1) and would
           // otherwise swallow every tap meant for Present.
           style={{ background: "transparent", zIndex: isNext ? 30 : 10 }}
+        />
+      )}
+      {revealed && onZoom && (
+        <button
+          type="button"
+          aria-label={`Zoom ${getCardName(pick.cardIndex)}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onZoom(pick.cardIndex, !!pick.isReversed);
+          }}
+          className="absolute inset-0 cursor-zoom-in rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
+          style={{ background: "transparent", zIndex: 15 }}
         />
       )}
     </div>
@@ -515,6 +556,7 @@ function SingleCard({
   onTap,
   sizing,
   isRevealPhase,
+  onZoom,
 }: {
   pick: Pick;
   cardBack: CardBackId;
@@ -524,6 +566,7 @@ function SingleCard({
   onTap: () => void;
   sizing: Sizing;
   isRevealPhase?: boolean;
+  onZoom?: (cardIndex: number, reversed: boolean) => void;
 }) {
   const { showLabels } = useShowLabels();
   return (
@@ -538,6 +581,7 @@ function SingleCard({
         sizing={sizing}
         emergeDelayMs={0}
         isRevealPhase={isRevealPhase}
+        onZoom={onZoom}
       />
       {showLabels && revealed && (
         <CardNameLabel
@@ -561,6 +605,7 @@ function ThreeRow({
   sizing,
   showLabels,
   isRevealPhase,
+  onZoom,
 }: {
   picks: Pick[];
   labels: string[];
@@ -572,6 +617,7 @@ function ThreeRow({
   sizing: Sizing;
   showLabels: boolean;
   isRevealPhase?: boolean;
+  onZoom?: (cardIndex: number, reversed: boolean) => void;
 }) {
   return (
     <div className="flex items-start gap-6">
@@ -587,6 +633,7 @@ function ThreeRow({
             sizing={sizing}
             emergeDelayMs={i * 90}
             isRevealPhase={isRevealPhase}
+            onZoom={onZoom}
           />
           {showLabels && (
             <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
@@ -626,6 +673,7 @@ function CelticCross({
   sizing,
   showLabels: _showLabels,
   isRevealPhase,
+  onZoom,
 }: {
   picks: Pick[];
   labels: string[];
@@ -637,6 +685,7 @@ function CelticCross({
   sizing: Sizing;
   showLabels: boolean;
   isRevealPhase?: boolean;
+  onZoom?: (cardIndex: number, reversed: boolean) => void;
 }) {
   // Spacing constants tuned to the chosen card size.
   const colGap = Math.round(sizing.w * 0.35);
@@ -671,6 +720,7 @@ function CelticCross({
           rotated={rotated}
           emergeDelayMs={cell.slotIndex * 70}
           isRevealPhase={isRevealPhase}
+          onZoom={onZoom}
         />
       </div>
     ) : null;
@@ -711,6 +761,7 @@ function CelticCross({
                 sizing={sizing}
                 emergeDelayMs={0}
                 isRevealPhase={isRevealPhase}
+                onZoom={onZoom}
               />
             </div>
             {obstacle.pick ? (
@@ -729,6 +780,7 @@ function CelticCross({
                   rotated
                   emergeDelayMs={70}
                   isRevealPhase={isRevealPhase}
+                  onZoom={onZoom}
                 />
               </div>
             ) : null}
@@ -759,6 +811,7 @@ function CelticCross({
                 sizing={sizing}
                 emergeDelayMs={cell.slotIndex * 70}
                 isRevealPhase={isRevealPhase}
+                onZoom={onZoom}
               />
             </div>
           ) : null,
