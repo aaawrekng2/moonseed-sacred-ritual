@@ -333,9 +333,9 @@ function Index() {
       {/* Spread icons — sit just above bottom nav. Extra top padding
           gives the spread labels breathing room over the gateway. */}
       {/* DA — Extra bottom padding so spread icons don't hug the nav.
-          DB-2.2 — Reduced top padding so icons sit closer to the gateway
-          card, especially on desktop carousel-visible. */}
-      <section className="pb-32 pt-8 sm:pt-8">
+          DC-2.2 — Tight top padding pulls icons close beneath the
+          gateway card on both mobile and desktop. */}
+      <section className="pb-32 pt-2 sm:pt-4">
         {isAnonymous && !nudgeDismissed && (
           <div
             className="flex items-center justify-center gap-3 px-5 py-2.5"
