@@ -101,3 +101,48 @@ export function useActiveCardBackUrl(): string | null {
   const { imageMap } = useActiveDeck();
   return imageMap.back ?? null;
 }
+
+/**
+ * DB-3.1 — Resolve a card image for a SPECIFIC deck_id.
+ *
+ * Used when displaying a saved/historical reading: the reading's saved
+ * `deck_id` determines which deck's images render — NOT the seeker's
+ * currently-active deck. When `deckId` is null/undefined or the deck has
+ * no override for a given card, falls back to the default Rider-Waite
+ * asset path (same contract as {@link useActiveDeckImage}).
+ *
+ * Rules of Hooks: cannot be called inside `.map()`. The pattern is to
+ * extract each row into its own component (e.g. `ReadingRow`) so the
+ * hook runs at the top level of that component.
+ */
+export function useDeckImage(deckId: string | null | undefined): (
+  cardIndex: number,
+  size?: "display" | "thumbnail",
+) => string {
+  const [imageMap, setImageMap] = useState<DeckImageMap>(EMPTY_DECK_IMAGE_MAP);
+
+  useEffect(() => {
+    if (!deckId) {
+      setImageMap(EMPTY_DECK_IMAGE_MAP);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const map = await buildDeckImageMap(deckId);
+        if (!cancelled) setImageMap(map);
+      } catch {
+        if (!cancelled) setImageMap(EMPTY_DECK_IMAGE_MAP);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [deckId]);
+
+  return useCallback(
+    (cardIndex: number, size: "display" | "thumbnail" = "display") =>
+      resolveCardImage(cardIndex, imageMap, size),
+    [imageMap],
+  );
+}
