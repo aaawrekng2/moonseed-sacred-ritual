@@ -2,10 +2,10 @@ import type { CardState, TabletopSession } from "./types";
 
 export const TABLETOP_CONFIG = {
   CARD_ASPECT_RATIO: 1.75,
-  // Cards sit flat on the table — no rotation. The original scatter
-  // tilted each card by up to ±8°; per design the table now reads as a
-  // calm, axis-aligned spread so the eye isn't pulled around.
-  CARD_MAX_ROTATION: 0,
+  // Cards on the table spawn at random tilts between ±5° to give the
+  // scatter an organic, hand-tossed feel. The adaptive curve below scales
+  // this down on narrow portrait widths so cards don't visually overflow.
+  CARD_MAX_ROTATION: 5,
   SCATTER_PADDING: 10,
   /**
    * Reserved vertical strip at the top of the scatter container so cards
