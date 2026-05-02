@@ -7,6 +7,7 @@ import {
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { CheckCheck, ChevronDown, ChevronRight, Copy, Pencil } from "lucide-react";
+import { toast } from "sonner";
 import { getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import {
