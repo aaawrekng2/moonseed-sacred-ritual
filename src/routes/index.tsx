@@ -207,33 +207,27 @@ function Index() {
   // DD-2 — on mobile with carousel visible, anchor the gateway card just
   // under the carousel (no vertical centering), so the card hugs the
   // moon strip instead of floating in mid-page whitespace.
-  const isMobileWithCarousel = isMobile && showMoonCarousel;
-  const gatewayPaddingClass = showMoonCarousel
-    ? (isMobile ? "pt-2 pb-4" : "pt-4 pb-6")
-    : (isMobile ? "pt-10 pb-10" : "pt-14 pb-12");
-  const gatewayJustifyClass = isMobileWithCarousel ? "" : "justify-center";
   return (
     <main
-      className="relative min-h-[100dvh] bg-cosmos pb-20"
+      className="relative grid bg-cosmos overflow-y-auto"
       style={{
+        minHeight: "100dvh",
+        gridTemplateRows: "auto minmax(240px, 1fr) auto auto",
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 4px)",
       }}
     >
-      {/* Moon strip — close to top */}
-      {/* CV — Gated on master toggle + carousel sub-toggle. While prefs
-          are loading, render nothing (avoids flash-then-hide). The
-          entire <header> wrapper collapses so no phantom whitespace. */}
-      {showMoonCarousel && (
-        <header className="px-2 pt-1">
-          <MoonCarousel size={moon.moon_carousel_size} />
-        </header>
-      )}
+      {/* DH-1 Pane 1 — Carousel (auto-sized row). Empty when hidden. */}
+      <section className="px-2 pt-1">
+        {showMoonCarousel && <MoonCarousel size={moon.moon_carousel_size} />}
+      </section>
 
-      {/* Gateway card — centered in the remaining vertical space now
-          that the question prompt has moved to the draw table.
-          Extra top padding pushes the gateway down so it doesn't crowd
-          the moon carousel above. */}
-      <section className={`flex flex-col items-center px-6 ${gatewayJustifyClass} ${gatewayPaddingClass}`}>
+      {/* DH-1 Pane 2 — Hero card centered in remaining vertical space,
+          with explicit padding so it never hugs the carousel above or
+          the draw icons below. */}
+      <section
+        className="flex flex-col items-center justify-center px-6"
+        style={{ paddingTop: 24, paddingBottom: 24 }}
+      >
         <div
           style={{
             position: "relative",
@@ -332,12 +326,9 @@ function Index() {
         </div>
       </section>
 
-      {/* Spread icons — sit just above bottom nav. Extra top padding
-          gives the spread labels breathing room over the gateway. */}
-      {/* DA — Extra bottom padding so spread icons don't hug the nav.
-          DC-2.2 — Tight top padding pulls icons close beneath the
-          gateway card on both mobile and desktop. */}
-      <section className="px-6 py-4">
+      {/* DH-1 Pane 3 — Draw icons row. DH-4: generous py for breathing
+          room above (from hero) and below (before bottom nav). */}
+      <section className="px-6 py-6 sm:py-8">
         {isAnonymous && !nudgeDismissed && (
           <div
             className="flex items-center justify-center gap-3 px-5 py-2.5"
@@ -397,6 +388,10 @@ function Index() {
           }
         />
       </section>
+
+      {/* DH-1 Pane 4 — Spacer reserving the fixed bottom-nav height so
+          Pane 3 never sits behind the nav. */}
+      <div aria-hidden className="pointer-events-none" style={{ height: 80 }} />
     </main>
   );
 }
