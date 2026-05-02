@@ -568,7 +568,12 @@ function SingleCard({
   isRevealPhase?: boolean;
   onZoom?: (cardIndex: number, reversed: boolean) => void;
 }) {
-  const { showLabels } = useShowLabels();
+  // DD-1 — under-card name labels also hide on mobile (matches the
+  // position-label suppression at the parent level). The bottom-bar
+  // whisper still names the focused card.
+  const { showLabels: rawShowLabels } = useShowLabels();
+  const isMobile = useIsMobile();
+  const showLabels = rawShowLabels && !isMobile;
   return (
     <div className="flex flex-col items-center gap-3">
       <CardFace
