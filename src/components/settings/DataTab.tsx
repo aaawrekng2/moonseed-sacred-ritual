@@ -417,10 +417,36 @@ export function DataTab() {
             )}
             {backupRunning
               ? backupProgress
-                ? `Packing ${backupProgress.phase} (${backupProgress.current}/${backupProgress.total})`
+                ? `Packing ${backupProgress.phase} ${
+                    typeof backupProgress.pct === "number"
+                      ? `${Math.round(backupProgress.pct)}%`
+                      : `(${backupProgress.current}/${backupProgress.total})`
+                  }`
                 : "Preparing…"
               : "Download backup (.zip)"}
           </Button>
+          {backupRunning && backupProgress && (
+            <div
+              className="h-1.5 w-full overflow-hidden rounded-full"
+              style={{
+                background:
+                  "color-mix(in oklab, var(--gold) 12%, transparent)",
+              }}
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(backupProgress.pct ?? 0)}
+            >
+              <div
+                className="h-full transition-[width] duration-200 ease-out"
+                style={{
+                  width: `${Math.max(2, Math.min(100, backupProgress.pct ?? 0))}%`,
+                  background: "var(--gold)",
+                  opacity: 0.85,
+                }}
+              />
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             Large backups (lots of photos or custom decks) may take a minute.
             Keep this tab open until the download begins.
