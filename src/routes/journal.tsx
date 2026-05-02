@@ -2261,6 +2261,7 @@ function ReadingDetail({
           },
           guideName: guide.name,
           isOracle,
+          deckId: reading.deck_id ?? null,
         }}
 
         defaultLevel={reading.interpretation?.trim() ? "reading" : "pull"}
