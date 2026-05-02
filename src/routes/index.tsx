@@ -118,7 +118,7 @@ function Index() {
   // Reserve vertical space for spread icons row + bottom nav + safe areas
   // + carousel (when visible) + top padding. Numbers chosen empirically:
   //   spread icons row ≈ 110, bottom nav ≈ 64, carousel ≈ 192/240, padding ≈ 80.
-  const carouselReserve = showMoonCarousel ? (isMobile ? 173 : 240) : 0;
+  const carouselReserve = showMoonCarousel ? (isMobile ? 138 : 240) : 0;
   const reservedV = (isMobile ? 110 : 130) + 64 + carouselReserve + 80;
   const maxCardHeight = Math.max(180, viewportH - reservedV);
   const targetHeight = targetWidth * 1.75;
@@ -207,9 +207,14 @@ function Index() {
   // scrolls (overflow-y-auto on <main>) so short viewports can reveal
   // any clipped content. Note: the section drops `flex-1` so the layout
   // is natural-height instead of viewport-stretched.
+  // DD-2 — on mobile with carousel visible, anchor the gateway card just
+  // under the carousel (no vertical centering), so the card hugs the
+  // moon strip instead of floating in mid-page whitespace.
+  const isMobileWithCarousel = isMobile && showMoonCarousel;
   const gatewayPaddingClass = showMoonCarousel
     ? (isMobile ? "pt-2 pb-4" : "pt-4 pb-6")
     : (isMobile ? "pt-10 pb-10" : "pt-14 pb-12");
+  const gatewayJustifyClass = isMobileWithCarousel ? "" : "justify-center";
   return (
     <main
       className="relative min-h-[100dvh] bg-cosmos pb-20"
@@ -231,7 +236,7 @@ function Index() {
           that the question prompt has moved to the draw table.
           Extra top padding pushes the gateway down so it doesn't crowd
           the moon carousel above. */}
-      <section className={`flex flex-col items-center justify-center px-6 ${gatewayPaddingClass}`}>
+      <section className={`flex flex-col items-center px-6 ${gatewayJustifyClass} ${gatewayPaddingClass}`}>
         <div
           style={{
             position: "relative",
