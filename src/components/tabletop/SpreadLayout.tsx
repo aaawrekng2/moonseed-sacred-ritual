@@ -556,6 +556,7 @@ function SingleCard({
   onTap,
   sizing,
   isRevealPhase,
+  onZoom,
 }: {
   pick: Pick;
   cardBack: CardBackId;
@@ -565,6 +566,7 @@ function SingleCard({
   onTap: () => void;
   sizing: Sizing;
   isRevealPhase?: boolean;
+  onZoom?: (cardIndex: number, reversed: boolean) => void;
 }) {
   const { showLabels } = useShowLabels();
   return (
@@ -579,6 +581,7 @@ function SingleCard({
         sizing={sizing}
         emergeDelayMs={0}
         isRevealPhase={isRevealPhase}
+        onZoom={onZoom}
       />
       {showLabels && revealed && (
         <CardNameLabel
@@ -602,6 +605,7 @@ function ThreeRow({
   sizing,
   showLabels,
   isRevealPhase,
+  onZoom,
 }: {
   picks: Pick[];
   labels: string[];
@@ -613,6 +617,7 @@ function ThreeRow({
   sizing: Sizing;
   showLabels: boolean;
   isRevealPhase?: boolean;
+  onZoom?: (cardIndex: number, reversed: boolean) => void;
 }) {
   return (
     <div className="flex items-start gap-6">
@@ -628,6 +633,7 @@ function ThreeRow({
             sizing={sizing}
             emergeDelayMs={i * 90}
             isRevealPhase={isRevealPhase}
+            onZoom={onZoom}
           />
           {showLabels && (
             <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
@@ -667,6 +673,7 @@ function CelticCross({
   sizing,
   showLabels: _showLabels,
   isRevealPhase,
+  onZoom,
 }: {
   picks: Pick[];
   labels: string[];
@@ -678,6 +685,7 @@ function CelticCross({
   sizing: Sizing;
   showLabels: boolean;
   isRevealPhase?: boolean;
+  onZoom?: (cardIndex: number, reversed: boolean) => void;
 }) {
   // Spacing constants tuned to the chosen card size.
   const colGap = Math.round(sizing.w * 0.35);
@@ -712,6 +720,7 @@ function CelticCross({
           rotated={rotated}
           emergeDelayMs={cell.slotIndex * 70}
           isRevealPhase={isRevealPhase}
+          onZoom={onZoom}
         />
       </div>
     ) : null;
@@ -752,6 +761,7 @@ function CelticCross({
                 sizing={sizing}
                 emergeDelayMs={0}
                 isRevealPhase={isRevealPhase}
+                onZoom={onZoom}
               />
             </div>
             {obstacle.pick ? (
@@ -770,6 +780,7 @@ function CelticCross({
                   rotated
                   emergeDelayMs={70}
                   isRevealPhase={isRevealPhase}
+                  onZoom={onZoom}
                 />
               </div>
             ) : null}
@@ -800,6 +811,7 @@ function CelticCross({
                 sizing={sizing}
                 emergeDelayMs={cell.slotIndex * 70}
                 isRevealPhase={isRevealPhase}
+                onZoom={onZoom}
               />
             </div>
           ) : null,
