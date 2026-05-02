@@ -70,8 +70,15 @@ export function useShowLabels(): {
     listeners.forEach((l) => l(v));
   };
 
+  // DL-2 — Position labels are hidden on every device. The bottom-bar
+  // whisper still names the focused position so seekers don't lose the
+  // context. The setter and toggle remain so settings UI continues to
+  // function without runtime errors, but the returned `showLabels` is
+  // always false.
+  void showLabels;
+  void isMobile;
   return {
-    showLabels: showLabels && !isMobile,
+    showLabels: false,
     setShowLabels,
     toggleShowLabels: () => setShowLabels(!current),
   };
