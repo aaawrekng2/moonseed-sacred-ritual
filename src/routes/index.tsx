@@ -205,7 +205,14 @@ function Index() {
           Extra top padding pushes the gateway down so it doesn't crowd
           the moon carousel above. */}
       <section className="flex flex-1 flex-col items-center justify-center px-6 pt-10 sm:pt-14">
-        <div style={{ position: "relative", display: "inline-block" }}>
+        <div
+          style={{
+            position: "relative",
+            display: "inline-flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
           <button
             type="button"
             aria-label="Begin today's draw"
@@ -247,32 +254,52 @@ function Index() {
               </div>
             )}
           </button>
-          <div
-            style={{
-              position: "absolute",
-              bottom: "12px",
-              // CV — flame offset scales with the card so the hero
-              // treatment doesn't pull the streak in too tight.
-              left: cardWidth >= 240 ? "-56px" : "-40px",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-            }}
-            title="Your practice streak"
-            aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`}
-          >
-            <Flame size={16} style={{ color: "var(--gold)", opacity: "var(--ro-plus-20)" }} />
-            <span
-              style={{
-                fontSize: "13px",
-                color: "var(--gold)",
-                opacity: "var(--ro-plus-20)",
-                fontFamily: "var(--font-serif)",
-              }}
+          {streakUnderCard ? (
+            <div
+              className="mt-3 flex items-center justify-center gap-1"
+              title="Your practice streak"
+              aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`}
             >
-              {currentStreak}
-            </span>
-          </div>
+              <Flame size={16} style={{ color: "var(--gold)", opacity: "var(--ro-plus-20)" }} />
+              <span
+                style={{
+                  fontSize: "13px",
+                  color: "var(--gold)",
+                  opacity: "var(--ro-plus-20)",
+                  fontFamily: "var(--font-serif)",
+                }}
+              >
+                {currentStreak}
+              </span>
+            </div>
+          ) : (
+            <div
+              style={{
+                position: "absolute",
+                bottom: "12px",
+                // CV — flame offset scales with the card so the hero
+                // treatment doesn't pull the streak in too tight.
+                left: cardWidth >= 240 ? "-56px" : "-40px",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+              title="Your practice streak"
+              aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`}
+            >
+              <Flame size={16} style={{ color: "var(--gold)", opacity: "var(--ro-plus-20)" }} />
+              <span
+                style={{
+                  fontSize: "13px",
+                  color: "var(--gold)",
+                  opacity: "var(--ro-plus-20)",
+                  fontFamily: "var(--font-serif)",
+                }}
+              >
+                {currentStreak}
+              </span>
+            </div>
+          )}
         </div>
       </section>
 
