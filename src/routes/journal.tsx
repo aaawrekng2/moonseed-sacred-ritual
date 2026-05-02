@@ -1877,7 +1877,7 @@ function ReadingDetail({
                 )}
               >
                 <img
-                  src={getCardImagePath(id)}
+                  src={getImage(id)}
                   alt={getCardName(id)}
                   className="h-32 w-20 rounded-md object-cover"
                   style={{
