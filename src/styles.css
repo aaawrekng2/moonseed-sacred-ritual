@@ -1507,3 +1507,15 @@ button:focus-visible .moon-rung-glow {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
+
+/*
+ * DO-4 — Global mobile safety: prevent any descendant from creating
+ * horizontal scroll on phones. Long Story names, wide cards, or
+ * unwrapped flex rows would otherwise let the page swipe sideways.
+ */
+@media (max-width: 767px) {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+}

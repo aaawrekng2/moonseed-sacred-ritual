@@ -112,7 +112,13 @@ function ThreadsPage() {
   return (
     <div
       className="min-h-[100dvh] w-full"
-      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 80px)" }}
+      style={{
+        paddingBottom: "calc(env(safe-area-inset-bottom) + 80px)",
+        // DO-4 — lock to viewport width so long Story names or wide
+        // children never let the page swipe sideways on mobile.
+        overflowX: "hidden",
+        maxWidth: "100vw",
+      }}
     >
       <header
         className="sticky top-0 z-20 backdrop-blur-md"

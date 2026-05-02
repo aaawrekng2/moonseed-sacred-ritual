@@ -392,17 +392,30 @@ function JournalPage() {
   // DN-5 — Stories the user can filter by: every pattern referenced
   // by at least one reading they currently see. We rely on the
   // patterns map already loaded for ThreadsView so no extra query.
+  // DO-1 — Stories sorted by recency (most-recent reading.created_at)
+  // so the default top-5 chips reflect what the seeker is currently
+  // working with, not arbitrary alphabetical order.
   const allStories = useMemo(() => {
-    const seen = new Set<string>();
+    const map = new Map<
+      string,
+      { id: string; name: string; lastActiveAt: string }
+    >();
     for (const r of readings) {
-      if (r.pattern_id) seen.add(r.pattern_id);
+      if (!r.pattern_id) continue;
+      const p = patternsById[r.pattern_id];
+      if (!p) continue;
+      const existing = map.get(r.pattern_id);
+      if (!existing || r.created_at > existing.lastActiveAt) {
+        map.set(r.pattern_id, {
+          id: r.pattern_id,
+          name: p.name,
+          lastActiveAt: r.created_at,
+        });
+      }
     }
-    const out: { id: string; name: string }[] = [];
-    for (const id of seen) {
-      const p = patternsById[id];
-      if (p) out.push({ id, name: p.name });
-    }
-    return out.sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(map.values()).sort((a, b) =>
+      b.lastActiveAt.localeCompare(a.lastActiveAt),
+    );
   }, [readings, patternsById]);
   const openReading = openId
     ? readings.find((r) => r.id === openId) ?? null
@@ -2009,17 +2022,22 @@ function ReadingDetail({
                   aria-label={`Zoom ${getCardName(id)}`}
                   className="block rounded-md transition active:scale-[0.98]"
                 >
-                  <CardThumb
-                    src={getImage(id)}
-                    alt={getCardName(id)}
-                    className="h-32 w-20 rounded-md object-cover"
-                    style={{
-                      border:
-                        "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
-                      opacity: "var(--ro-plus-40)",
-                      transform: isReversed ? "rotate(180deg)" : undefined,
-                    }}
-                  />
+                   <CardThumb
+                     src={getImage(id)}
+                     alt={getCardName(id)}
+                     // DO-3 — drop fixed h-32 + object-cover; enforce
+                     // tarot 1:1.75 aspect with object-fit: contain so
+                     // the card never crops top/bottom.
+                     className="w-20 rounded-md"
+                     style={{
+                       aspectRatio: "1 / 1.75",
+                       objectFit: "contain",
+                       border:
+                         "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+                       opacity: "var(--ro-plus-40)",
+                       transform: isReversed ? "rotate(180deg)" : undefined,
+                     }}
+                   />
                 </button>
                 <span
                   className="mt-1 max-w-[90px] text-center font-display text-[10px] italic text-muted-foreground"
@@ -2283,11 +2301,15 @@ function FiltersPanel({
   setActiveDrawTypes: React.Dispatch<React.SetStateAction<DrawTypeKey[]>>;
   deepOnly: boolean;
   setDeepOnly: React.Dispatch<React.SetStateAction<boolean>>;
-  allStories: { id: string; name: string }[];
+  allStories: { id: string; name: string; lastActiveAt?: string }[];
   activeStories: string[];
   setActiveStories: React.Dispatch<React.SetStateAction<string[]>>;
   onClearAll: () => void;
 }) {
+  // DO-1 — Stories list paginates: default to 5 most-recent, with a
+  // "Show all (N)" toggle so the section never grows into a wall.
+  const [showAllStories, setShowAllStories] = useState(false);
+  const STORIES_DEFAULT_VISIBLE = 5;
   const hasAny =
     activeTags.length > 0 ||
     activeDrawTypes.length > 0 ||
@@ -2392,7 +2414,10 @@ function FiltersPanel({
             Stories
           </h3>
           <div className="flex flex-wrap gap-x-3 gap-y-2">
-            {allStories.map((s) => {
+            {(showAllStories
+              ? allStories
+              : allStories.slice(0, STORIES_DEFAULT_VISIBLE)
+            ).map((s) => {
               const active = activeStories.includes(s.id);
               return (
                 <button
@@ -2420,6 +2445,24 @@ function FiltersPanel({
               );
             })}
           </div>
+          {allStories.length > STORIES_DEFAULT_VISIBLE && (
+            <button
+              type="button"
+              onClick={() => setShowAllStories((v) => !v)}
+              className="font-display text-[11px] italic mt-2"
+              style={{
+                color: "var(--gold)",
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+              }}
+            >
+              {showAllStories
+                ? "Show fewer"
+                : `Show all (${allStories.length})`}
+            </button>
+          )}
         </section>
       )}
 
