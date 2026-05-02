@@ -40,9 +40,20 @@ export function AuthScreen({
         const { data: sessionData } = await supabase.auth.getSession();
         const uid = sessionData.session?.user?.id;
         if (!uid) return;
-        const tables = ["readings", "custom_decks", "tags"] as const;
+        const tables: Array<"readings" | "custom_decks" | "tags"> = [
+          "readings",
+          "custom_decks",
+          "tags",
+        ];
         for (const t of tables) {
-          const { count } = await supabase
+          const { count } = await (supabase as unknown as {
+            from: (t: string) => {
+              select: (
+                c: string,
+                o: { count: "exact"; head: true },
+              ) => { eq: (c: string, v: string) => Promise<{ count: number | null }> };
+            };
+          })
             .from(t)
             .select("id", { count: "exact", head: true })
             .eq("user_id", uid);
