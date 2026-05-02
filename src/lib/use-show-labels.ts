@@ -29,6 +29,23 @@ export function useShowLabels(): {
   toggleShowLabels: () => void;
 } {
   const [showLabels, setLocal] = useState(current);
+  // DK-3 — Mobile never shows position labels regardless of stored
+  // preference. The bottom-bar whisper still names the focused position
+  // so seekers retain the info without label clutter under cards.
+  const [isMobile, setIsMobile] = useState(
+    () =>
+      typeof window !== "undefined" && window.innerWidth < 768,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
 
   useEffect(() => {
     const sub = (v: boolean) => setLocal(v);
@@ -54,7 +71,7 @@ export function useShowLabels(): {
   };
 
   return {
-    showLabels,
+    showLabels: showLabels && !isMobile,
     setShowLabels,
     toggleShowLabels: () => setShowLabels(!current),
   };
