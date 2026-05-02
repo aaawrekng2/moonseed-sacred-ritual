@@ -8,17 +8,14 @@
  */
 import type { CSSProperties, ReactNode } from "react";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
+import { useDeckImage } from "@/lib/active-deck";
 import type { SharePick } from "../share-types";
 
 /*
- * Phase 9.5b — Stamp AW (premium gate on share imagery).
- *
- * Share cards intentionally use the default Rider-Waite artwork
- * (`getCardImagePath`) rather than the seeker's active custom deck.
- * This is the "free tier" path; once Phase 10 (Stripe + Premium)
- * lights up, premium users will swap to their photographed deck via
- * the active-deck context. Until then everyone falls back to default
- * imagery, satisfying the spec's deliberate viral hook.
+ * DN-7 — Share cards now render with the reading's saved deck_id, so
+ * the seeker sees the same custom artwork they actually drew with.
+ * When `deckId` is null/undefined or the deck has no override for a
+ * given card, we fall back to the default Rider-Waite asset.
  */
 
 export const SHARE_CARD_W = 1080;
