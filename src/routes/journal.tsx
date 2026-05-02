@@ -839,7 +839,7 @@ function ReadingCard({
             src={getCardImagePath(id)}
             alt={getCardName(id)}
             loading="lazy"
-            className="h-12 w-8 rounded-[3px] object-cover"
+            className="h-[110px] w-[74px] rounded-[3px] object-cover"
             style={{
               border: "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
               opacity: "var(--ro-plus-30)",
