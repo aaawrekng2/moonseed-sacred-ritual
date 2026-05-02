@@ -11,6 +11,9 @@ import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { cn, firstCardName, formatRelativeTime } from "@/lib/utils";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
+import { useDeckImage } from "@/lib/active-deck";
+import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
+import { toast } from "sonner";
 import {
   EnrichmentPanel,
   type EnrichmentTag,
@@ -67,6 +70,8 @@ type ReadingRow = {
   pattern_id: string | null;
   question: string | null;
   import_batch_id?: string | null;
+  /** DB-3.1 — saved deck for THIS reading (null = default Rider-Waite). */
+  deck_id?: string | null;
 };
 
 type TagRow = { id: string; name: string; usage_count: number };
