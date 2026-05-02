@@ -496,7 +496,9 @@ export function ShareBuilder({
         <DialogPrimitive.Content
           className="fixed left-[50%] top-[50%] z-50 flex w-full max-w-[440px] translate-x-[-50%] translate-y-[-50%] flex-col gap-0 overflow-hidden border duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
           style={{
-            background: "var(--surface-overlay)",
+            // DC-3.2 — surface-card inherits the active community theme;
+            // surface-overlay is a fixed purple-tinted oklch and ignores it.
+            background: "var(--surface-card)",
             borderColor: "var(--border-default)",
             borderRadius: 18,
             maxHeight: "calc(100vh - 32px)",
@@ -904,7 +906,7 @@ function SharePreviewModal({
         <DialogPrimitive.Content
           className="fixed left-[50%] top-[50%] z-[60] flex w-full max-w-[400px] translate-x-[-50%] translate-y-[-50%] flex-col gap-0 overflow-hidden border duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
           style={{
-            background: "var(--surface-overlay)",
+            background: "var(--surface-card)",
             borderColor: "var(--border-default)",
             borderRadius: 18,
             maxHeight: "calc(100vh - 32px)",

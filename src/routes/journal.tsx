@@ -2322,7 +2322,7 @@ function FiltersPanel({
       {/* Deep readings toggle */}
       <section>
         <h3
-          className="font-display text-[10px] uppercase tracking-[0.18em] mb-2"
+          className="font-display text-[14px] uppercase tracking-[0.18em] mb-2"
           style={{ color: "var(--accent)" }}
         >
           Depth
@@ -2348,7 +2348,7 @@ function FiltersPanel({
       {topTags.length > 0 && (
         <section>
           <h3
-            className="font-display text-[10px] uppercase tracking-[0.18em] mb-2"
+            className="font-display text-[14px] uppercase tracking-[0.18em] mb-2"
             style={{ color: "var(--accent)" }}
           >
             Tags
@@ -2419,7 +2419,7 @@ function FiltersPanel({
       {allStories.length > 0 && (
         <section>
           <h3
-            className="font-display text-[10px] uppercase tracking-[0.18em] mb-2"
+            className="font-display text-[14px] uppercase tracking-[0.18em] mb-2"
             style={{ color: "var(--accent)" }}
           >
             Stories
@@ -2479,7 +2479,7 @@ function FiltersPanel({
 
       <section>
         <h3
-          className="font-display text-[10px] uppercase tracking-[0.18em] mb-2"
+          className="font-display text-[14px] uppercase tracking-[0.18em] mb-2"
           style={{ color: "var(--accent)" }}
         >
           Draw type

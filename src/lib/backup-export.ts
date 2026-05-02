@@ -26,6 +26,8 @@ export type BackupProgress = {
   phase: string;
   current: number;
   total: number;
+  /** DC-6.3 — 0..100 fine-grained percent for the current phase. */
+  pct?: number;
 };
 
 type Opts = {
@@ -125,19 +127,27 @@ export async function createBackup({
       .eq("user_id", userId);
     folder.file("decks.json", JSON.stringify(decks ?? [], null, 2));
     let fileCount = 0;
+    // DC-6.3 — collect every image fetch task, then run in parallel
+    // batches of 8 with intra-phase progress.
+    type ImgTask = {
+      bucket: string;
+      path: string;
+      write: (blob: Blob) => void;
+    };
+    const imageTasks: ImgTask[] = [];
     for (const deck of decks ?? []) {
       const deckFolder = folder.folder(safeName(`${deck.name}_${deck.id}`))!;
-      // Card back image — the deck's identity. Stored as a public URL on
-      // the row; derive the bucket path and pull the binary.
       if (deck.card_back_url) {
         const backPath = deriveDeckStoragePath(deck.card_back_url);
         if (backPath) {
-          const blob = await fetchBlob(DECK_BUCKET, backPath);
-          if (blob) {
-            const ext = backPath.split(".").pop() || "webp";
-            deckFolder.file(`back.${ext}`, blob);
-            fileCount += 1;
-          }
+          const ext = backPath.split(".").pop() || "webp";
+          imageTasks.push({
+            bucket: DECK_BUCKET,
+            path: backPath,
+            write: (blob) => {
+              deckFolder.file(`back.${ext}`, blob);
+            },
+          });
         }
       }
       const { data: cards } = await supabase
@@ -150,13 +160,39 @@ export async function createBackup({
       for (const card of cards ?? []) {
         if (card.source === "default") continue;
         if (card.display_path) {
-          const blob = await fetchBlob(DECK_BUCKET, card.display_path);
-          if (blob) {
-            const ext = card.display_path.split(".").pop() || "jpg";
-            imgs.file(`card_${card.card_id}.${ext}`, blob);
-            fileCount += 1;
-          }
+          const ext = card.display_path.split(".").pop() || "jpg";
+          const cardId = card.card_id;
+          imageTasks.push({
+            bucket: DECK_BUCKET,
+            path: card.display_path,
+            write: (blob) => {
+              imgs.file(`card_${cardId}.${ext}`, blob);
+            },
+          });
         }
+      }
+    }
+    // Parallel batched fetch with intra-phase progress.
+    const BATCH = 8;
+    let completed = 0;
+    const totalImgs = imageTasks.length;
+    for (let i = 0; i < totalImgs; i += BATCH) {
+      const slice = imageTasks.slice(i, i + BATCH);
+      const results = await Promise.all(
+        slice.map(async (t) => ({ t, blob: await fetchBlob(t.bucket, t.path) })),
+      );
+      for (const { t, blob } of results) {
+        if (blob) {
+          t.write(blob);
+          fileCount += 1;
+        }
+        completed += 1;
+        onProgress?.({
+          phase: "Packing images",
+          current: completed,
+          total: totalImgs,
+          pct: totalImgs > 0 ? (completed / totalImgs) * 100 : 100,
+        });
       }
     }
     contents.custom_decks = { rows: decks?.length ?? 0, files: fileCount };
@@ -172,13 +208,32 @@ export async function createBackup({
     folder.file("photos.json", JSON.stringify(photos ?? [], null, 2));
     const imgs = folder.folder("images")!;
     let fileCount = 0;
-    for (const photo of photos ?? []) {
-      if (!photo.storage_path) continue;
-      const blob = await fetchBlob(PHOTO_BUCKET, photo.storage_path);
-      if (blob) {
-        const ext = photo.storage_path.split(".").pop() || "jpg";
-        imgs.file(`${photo.id}.${ext}`, blob);
-        fileCount += 1;
+    const tasks = (photos ?? []).filter((p) => !!p.storage_path);
+    const BATCH = 8;
+    let completed = 0;
+    const totalP = tasks.length;
+    for (let i = 0; i < totalP; i += BATCH) {
+      const slice = tasks.slice(i, i + BATCH);
+      const results = await Promise.all(
+        slice.map(async (photo) => ({
+          photo,
+          blob: await fetchBlob(PHOTO_BUCKET, photo.storage_path as string),
+        })),
+      );
+      for (const { photo, blob } of results) {
+        if (blob) {
+          const ext =
+            (photo.storage_path as string).split(".").pop() || "jpg";
+          imgs.file(`${photo.id}.${ext}`, blob);
+          fileCount += 1;
+        }
+        completed += 1;
+        onProgress?.({
+          phase: "Packing photos",
+          current: completed,
+          total: totalP,
+          pct: totalP > 0 ? (completed / totalP) * 100 : 100,
+        });
       }
     }
     contents.reading_photos = { rows: photos?.length ?? 0, files: fileCount };

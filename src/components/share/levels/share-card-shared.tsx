@@ -118,7 +118,7 @@ export function ShareCardFooter({
 export function ShareCardRow({
   picks,
   maxWidth = 880,
-  cardAspect = 1.6,
+  cardAspect = 1.75,
   deckId,
 }: {
   picks: SharePick[];
@@ -171,7 +171,9 @@ export function ShareCardRow({
               style={{
                 width: "100%",
                 height: "100%",
-                objectFit: "cover",
+                // DC-3.1 — contain so non–Rider-Waite custom decks
+                // (varying aspect ratios) aren't sliced mid-card.
+                objectFit: "contain",
                 display: "block",
                 transform: p.isReversed ? "rotate(180deg)" : undefined,
               }}
