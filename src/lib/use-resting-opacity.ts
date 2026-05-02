@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 
 const EVENT = "arcana:resting-opacity-changed";
-export const DEFAULT_RESTING_OPACITY = 50;
+export const DEFAULT_RESTING_OPACITY = 100;
 export const MIN_RESTING_OPACITY = 25;
 export const MAX_RESTING_OPACITY = 100;
 const STORAGE_KEY = "moonseed:resting-opacity";
@@ -45,8 +45,7 @@ export function useRestingOpacity() {
   // when navigating between routes.
   useLayoutEffect(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      const initial = stored != null ? clamp(Number(stored)) : DEFAULT_RESTING_OPACITY;
+      const initial = DEFAULT_RESTING_OPACITY;
       setValue(initial);
       writeCssVar(initial);
     }
@@ -86,8 +85,7 @@ export function useRestingOpacity() {
  */
 export function peekRestingOpacity(targetPct: number) {
   if (typeof window === "undefined") return () => {};
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  const restore = stored != null ? clamp(Number(stored)) : DEFAULT_RESTING_OPACITY;
+  const restore = DEFAULT_RESTING_OPACITY;
   emit(clamp(targetPct));
   return (transitionMs = 0) => {
     if (transitionMs > 0 && typeof document !== "undefined") {
