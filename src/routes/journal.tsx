@@ -523,7 +523,10 @@ function JournalPage() {
   // which have their own UI affordances). Drives the badge on the mobile
   // "Filter" button.
   const activeFilterCount =
-    activeTags.length + activeDrawTypes.length + (deepOnly ? 1 : 0);
+    activeTags.length +
+    activeDrawTypes.length +
+    activeStories.length +
+    (deepOnly ? 1 : 0);
 
   const filtersNode = (
     <FiltersPanel
@@ -536,10 +539,14 @@ function JournalPage() {
       setActiveDrawTypes={setActiveDrawTypes}
       deepOnly={deepOnly}
       setDeepOnly={setDeepOnly}
+      allStories={allStories}
+      activeStories={activeStories}
+      setActiveStories={setActiveStories}
       onClearAll={() => {
         setActiveTags([]);
         setActiveDrawTypes([]);
         setDeepOnly(false);
+        setActiveStories([]);
       }}
     />
   );
