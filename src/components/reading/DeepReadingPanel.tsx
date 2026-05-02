@@ -365,7 +365,10 @@ export function DeepReadingPanel({
       )}
       {revealed >= 4 && (
         <div className="deep-mirror" data-saved={mirrorSaved ? "true" : undefined}>
-          <p className="deep-mirror__label">Mirror Artifact</p>
+          <p className="deep-mirror__label">
+            Mirror Artifact
+            <HelpIcon articleId="mirror-artifact" />
+          </p>
           <p className="deep-mirror__body">
             {stripMarkdown(lenses.mirror_artifact)}
           </p>
