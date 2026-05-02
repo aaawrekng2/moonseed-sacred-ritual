@@ -865,6 +865,8 @@ function ReadingCard({
     .replace(/\s+/g, " ")
     .trim();
   const interpClean = stripMarkdown(interpFirst);
+  // DB-3.1 — render with the reading's saved deck, not the global active deck.
+  const getImage = useDeckImage(reading.deck_id ?? null);
 
   return (
     <button
