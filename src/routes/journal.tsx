@@ -392,17 +392,30 @@ function JournalPage() {
   // DN-5 — Stories the user can filter by: every pattern referenced
   // by at least one reading they currently see. We rely on the
   // patterns map already loaded for ThreadsView so no extra query.
+  // DO-1 — Stories sorted by recency (most-recent reading.created_at)
+  // so the default top-5 chips reflect what the seeker is currently
+  // working with, not arbitrary alphabetical order.
   const allStories = useMemo(() => {
-    const seen = new Set<string>();
+    const map = new Map<
+      string,
+      { id: string; name: string; lastActiveAt: string }
+    >();
     for (const r of readings) {
-      if (r.pattern_id) seen.add(r.pattern_id);
+      if (!r.pattern_id) continue;
+      const p = patternsById[r.pattern_id];
+      if (!p) continue;
+      const existing = map.get(r.pattern_id);
+      if (!existing || r.created_at > existing.lastActiveAt) {
+        map.set(r.pattern_id, {
+          id: r.pattern_id,
+          name: p.name,
+          lastActiveAt: r.created_at,
+        });
+      }
     }
-    const out: { id: string; name: string }[] = [];
-    for (const id of seen) {
-      const p = patternsById[id];
-      if (p) out.push({ id, name: p.name });
-    }
-    return out.sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(map.values()).sort((a, b) =>
+      b.lastActiveAt.localeCompare(a.lastActiveAt),
+    );
   }, [readings, patternsById]);
   const openReading = openId
     ? readings.find((r) => r.id === openId) ?? null

@@ -976,7 +976,9 @@ function SharePreviewModal({
                 width: "100%",
                 maxWidth: 280,
                 aspectRatio: `${SHARE_CARD_W} / ${SHARE_CARD_H}`,
-                background: "#000",
+                // DO-2 — preview canvas inherits the active visual theme
+                // background, matching the actual shared image.
+                background: "var(--background)",
                 borderRadius: 12,
                 border: "1px solid var(--border-default)",
                 overflow: "hidden",
