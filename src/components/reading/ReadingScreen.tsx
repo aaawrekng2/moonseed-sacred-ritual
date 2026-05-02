@@ -47,6 +47,7 @@ import { SeekerQuestion } from "@/components/reading/ReadingParts";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
+import { toast } from "sonner";
 
 type Pick = { id: number; cardIndex: number; isReversed?: boolean };
 
@@ -437,6 +438,9 @@ export function ReadingScreen({
               lensId={lensId}
               facetIds={facetIds}
               question={question}
+              entryMode={entryMode}
+              deckId={deckId}
+              onExit={onExit}
             />
           </div>
         )}
@@ -879,6 +883,9 @@ function ReadingActions({
   lensId,
   facetIds,
   question,
+  entryMode,
+  deckId,
+  onExit,
 }: {
   isOracle: boolean;
   isLoading: boolean;
@@ -889,6 +896,9 @@ function ReadingActions({
   lensId: string;
   facetIds: string[];
   question?: string;
+  entryMode?: "digital" | "manual";
+  deckId?: string | null;
+  onExit: () => void;
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -896,6 +906,7 @@ function ReadingActions({
   const [open, setOpen] = useState(false);
   const [customGuides, setCustomGuides] = useState<CustomGuide[]>([]);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const [savingClose, setSavingClose] = useState(false);
 
   // Load the user's custom guides for the dropdown.
   useEffect(() => {
@@ -947,6 +958,41 @@ function ReadingActions({
 
   const speakLabel = isOracle ? "Let Them Speak" : "Get Reading";
   const loadingLabel = isOracle ? "The cards are speaking…" : "Reading the cards…";
+
+  const onSaveAndClose = async () => {
+    if (savingClose || isLoading) return;
+    if (!user) {
+      toast.error("You need to be signed in to save.");
+      return;
+    }
+    setSavingClose(true);
+    try {
+      const { error } = await supabase.from("readings").insert({
+        user_id: user.id,
+        spread_type: spread,
+        card_ids: picks.map((p) => p.cardIndex),
+        card_orientations: picks.map((p) => p.isReversed ?? false),
+        interpretation: null,
+        guide_id: guideId,
+        lens_id: lensId,
+        mode: "reveal",
+        question: question || null,
+        entry_mode: entryMode ?? "digital",
+        deck_id: deckId ?? null,
+      });
+      if (error) {
+        toast.error("Couldn't save your reading. Try again?");
+        setSavingClose(false);
+        return;
+      }
+      toast.success(isOracle ? "Tucked away" : "Reading saved");
+      onExit();
+      void navigate({ to: "/" });
+    } catch {
+      toast.error("Couldn't save your reading. Try again?");
+      setSavingClose(false);
+    }
+  };
 
   return (
     <div className="flex w-full flex-col items-center gap-4">
@@ -1080,6 +1126,23 @@ function ReadingActions({
           {isLoading ? loadingLabel : speakLabel}
         </span>
       </button>
+      {!isLoading && (
+        <button
+          type="button"
+          onClick={onSaveAndClose}
+          disabled={savingClose}
+          className="text-sm text-gold/70 hover:text-gold underline-offset-4 hover:underline transition-colors disabled:opacity-50"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            opacity: "var(--ro-plus-15)",
+          }}
+        >
+          {savingClose
+            ? isOracle ? "Tucking away…" : "Saving…"
+            : isOracle ? "Tuck It Away" : "Save and close"}
+        </button>
+      )}
     </div>
   );
 }
