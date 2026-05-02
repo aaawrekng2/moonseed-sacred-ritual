@@ -776,6 +776,7 @@ function DashboardTab() {
       </section>
       <DetectWeavesPanel />
       <DetectWeavesAlertsPanel />
+      <DashboardMaintenanceSection />
     </div>
   );
 }
