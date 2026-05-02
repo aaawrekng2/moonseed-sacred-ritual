@@ -639,6 +639,7 @@ export function CardSlot({
               // Drives the .card-hit element's inset via a CSS variable so the
               // touch target scales with the rendered card size.
               ["--card-hit-inset" as string]: `${hitInset}px`,
+              ["--card-rotation" as string]: `${card.rotation}deg`,
             }
       }
     >
