@@ -177,7 +177,8 @@ export function ShareCardRow({
           <div
             style={{
               fontFamily: "var(--font-serif)",
-              fontSize: 28,
+              // DN-8 — bump from 28 → 38 for legibility on social thumbnails.
+              fontSize: 38,
               lineHeight: 1.2,
               textAlign: "center",
               opacity: 0.92,
