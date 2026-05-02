@@ -632,6 +632,7 @@ export function EnrichmentPanel({
               <Share2 size={18} strokeWidth={1.5} />
             </IconAction>
           )}
+          <StoryMembershipIcon readingId={reading.id} userId={reading.user_id} />
         </div>
       </div>
       <div className="mt-1 flex justify-center">
