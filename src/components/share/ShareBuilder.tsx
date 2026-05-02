@@ -30,7 +30,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { ColorChipSelector } from "./ColorChipSelector";
 import { Level1SinglePull } from "./levels/Level1SinglePull";
 import { Level2FullReading } from "./levels/Level2FullReading";
 import { Level3SpreadPosition } from "./levels/Level3SpreadPosition";
@@ -781,10 +780,11 @@ export function ShareBuilder({
               </div>
             )}
 
-            {/* Color chip */}
-            <div style={{ display: "flex", justifyContent: "center" }}>
-              <ColorChipSelector value={colorId} onChange={setColor} />
-            </div>
+            {/* DN-9 — Color swatch removed; the share preview now
+                inherits the seeker's active visual Theme (DN-6). The
+                persisted default share color still drives accent
+                highlights (gold by default) until that's also rolled
+                into the Theme system. */}
 
             {/* Actions — plain text, no pills */}
             <div
