@@ -102,7 +102,7 @@ export function DeepReadingPanel({
     try {
       const { data, error } = await supabase
         .from("readings")
-        .select("spread_type, card_ids, card_orientations, question, guide_id")
+        .select("spread_type, card_ids, card_orientations, question, guide_id, deck_id")
         .eq("id", readingId)
         .maybeSingle();
       if (error || !data) return null;
@@ -125,6 +125,7 @@ export function DeepReadingPanel({
         interpretation: { overview: "", positions: [], closing: "" },
         guideName: getGuideById(data.guide_id ?? guideId).name,
         isOracle: false,
+        deckId: (data as { deck_id?: string | null }).deck_id ?? null,
       };
       setShareCtx(ctx);
       return ctx;
