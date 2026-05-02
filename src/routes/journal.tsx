@@ -955,7 +955,7 @@ function ReadingCard({
           {reading.card_ids.map((id, idx) => (
             <img
               key={`${id}-${idx}`}
-              src={getCardImagePath(id)}
+              src={getImage(id, "thumbnail")}
               alt={getCardName(id)}
               loading="lazy"
               className="h-[110px] w-[74px] flex-shrink-0 rounded-[3px] object-cover"
@@ -972,7 +972,7 @@ function ReadingCard({
           {visible.map((id) => (
             <img
               key={id}
-              src={getCardImagePath(id)}
+              src={getImage(id, "thumbnail")}
               alt={getCardName(id)}
               loading="lazy"
               className="h-[110px] w-[74px] rounded-[3px] object-cover"
