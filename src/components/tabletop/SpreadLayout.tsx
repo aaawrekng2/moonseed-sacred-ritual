@@ -244,6 +244,7 @@ function SpreadContent({
   wrongIndex,
   onTap,
   showLabels,
+  onZoom,
 }: {
   spread: SpreadMode;
   picks: Pick[];
@@ -254,6 +255,7 @@ function SpreadContent({
   wrongIndex: number | null;
   onTap: (i: number) => void;
   showLabels: boolean;
+  onZoom: (cardIndex: number, reversed: boolean) => void;
 }) {
   // Pick a card width that fits the spread + viewport. Celtic Cross has
   // the densest layout so it gets the smallest cards.
@@ -277,6 +279,7 @@ function SpreadContent({
         sizing={sizing}
         showLabels={showLabels}
         isRevealPhase={isRevealPhase}
+        onZoom={onZoom}
       />
     );
   }
@@ -293,6 +296,7 @@ function SpreadContent({
         sizing={sizing}
         showLabels={showLabels}
         isRevealPhase={isRevealPhase}
+        onZoom={onZoom}
       />
     );
   }
@@ -307,6 +311,7 @@ function SpreadContent({
       onTap={() => onTap(0)}
       sizing={sizing}
       isRevealPhase={isRevealPhase}
+      onZoom={onZoom}
     />
   );
 }
@@ -341,6 +346,7 @@ function CardFace({
   onTap,
   emergeDelayMs,
   isRevealPhase,
+  onZoom,
 }: {
   pick: Pick;
   cardBack: CardBackId;
@@ -352,6 +358,7 @@ function CardFace({
   onTap?: () => void;
   emergeDelayMs?: number;
   isRevealPhase?: boolean;
+  onZoom?: (cardIndex: number, reversed: boolean) => void;
 }) {
   const interactive = !revealed && !!onTap;
   const cardImg = useActiveDeckImage();
@@ -439,6 +446,18 @@ function CardFace({
           // Obstacle (slot 2) overlaps the Present (slot 1) and would
           // otherwise swallow every tap meant for Present.
           style={{ background: "transparent", zIndex: isNext ? 30 : 10 }}
+        />
+      )}
+      {revealed && onZoom && (
+        <button
+          type="button"
+          aria-label={`Zoom ${getCardName(pick.cardIndex)}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onZoom(pick.cardIndex, !!pick.isReversed);
+          }}
+          className="absolute inset-0 cursor-zoom-in rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
+          style={{ background: "transparent", zIndex: 15 }}
         />
       )}
     </div>
