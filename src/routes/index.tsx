@@ -212,7 +212,7 @@ function Index() {
     : (isMobile ? "pt-10 pb-10" : "pt-14 pb-12");
   return (
     <main
-      className="relative flex min-h-[100dvh] flex-col overflow-y-auto bg-cosmos"
+      className="relative min-h-[100dvh] bg-cosmos pb-20"
       style={{
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 4px)",
       }}
