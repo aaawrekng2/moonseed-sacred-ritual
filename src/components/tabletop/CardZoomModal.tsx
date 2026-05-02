@@ -12,7 +12,7 @@
 import { X } from "lucide-react";
 import { getCardName } from "@/lib/tarot";
 import { useActiveDeckImage } from "@/lib/active-deck";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 interface CardZoomModalProps {
   cardId: number;
@@ -22,6 +22,10 @@ interface CardZoomModalProps {
 
 export function CardZoomModal({ cardId, reversed, onClose }: CardZoomModalProps) {
   const cardImg = useActiveDeckImage();
+  // DB-1.2 — viewing-only rotate. Local state, never persists; saved
+  // reading data is unaffected.
+  const [tempUpright, setTempUpright] = useState(false);
+  const showRotated = !!reversed && !tempUpright;
   // Allow Escape key to close on desktop.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -55,7 +59,8 @@ export function CardZoomModal({ cardId, reversed, onClose }: CardZoomModalProps)
         alt={getCardName(cardId)}
         className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
         style={{
-          transform: reversed ? "rotate(180deg)" : undefined,
+          transform: showRotated ? "rotate(180deg)" : undefined,
+          transition: "transform 300ms ease",
           boxShadow: "0 0 80px -10px rgba(212,175,55,0.5)",
         }}
         onClick={(e) => {
@@ -63,6 +68,25 @@ export function CardZoomModal({ cardId, reversed, onClose }: CardZoomModalProps)
           onClose();
         }}
       />
+      {reversed && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setTempUpright((v) => !v);
+          }}
+          className="absolute left-1/2 -translate-x-1/2 text-sm italic text-gold/80 hover:text-gold transition-colors"
+          style={{
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+            fontFamily: "var(--font-serif)",
+            opacity: "var(--ro-plus-15)",
+          }}
+        >
+          {tempUpright
+            ? "Show as drawn (reversed)"
+            : "Rotate (for this viewing only)"}
+        </button>
+      )}
     </div>
   );
 }
