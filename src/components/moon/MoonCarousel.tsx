@@ -655,6 +655,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                     }}
                     iconSize={centerMoonSize}
                     maxWidth={centerMaxWidth}
+                    carouselHeight={carouselHeight}
                   />
                 ) : (
                   <AdjacentCard
