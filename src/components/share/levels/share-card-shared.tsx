@@ -119,15 +119,19 @@ export function ShareCardRow({
   picks,
   maxWidth = 880,
   cardAspect = 1.6,
+  deckId,
 }: {
   picks: SharePick[];
   maxWidth?: number;
   cardAspect?: number;
+  deckId?: string | null;
 }) {
   const n = Math.max(1, picks.length);
   const gap = n > 1 ? 24 : 0;
   const cardWidth = Math.min(360, Math.floor((maxWidth - gap * (n - 1)) / n));
   const cardHeight = Math.round(cardWidth * cardAspect);
+  // DN-7 — useDeckImage gives a deck-aware resolver with default fallback.
+  const getImage = useDeckImage(deckId ?? null);
   return (
     <div
       style={{
@@ -155,11 +159,13 @@ export function ShareCardRow({
               borderRadius: 16,
               overflow: "hidden",
               boxShadow: "0 24px 48px rgba(0,0,0,0.45)",
-              background: "#0b0b14",
+              // DN-6 — inherit active theme background instead of a
+              // hardcoded cosmic dark, so themed previews match in-app.
+              background: "var(--background)",
             }}
           >
             <img
-              src={getCardImagePath(p.cardIndex)}
+              src={getImage(p.cardIndex) ?? getCardImagePath(p.cardIndex)}
               alt=""
               crossOrigin="anonymous"
               style={{
