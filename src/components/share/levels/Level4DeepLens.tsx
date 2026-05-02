@@ -66,6 +66,7 @@ export function Level4DeepLens({
           <ShareCardRow
             picks={anchorPick}
             maxWidth={variant === "anchor" ? 360 : 880}
+            deckId={ctx.deckId ?? null}
           />
         </div>
       )}
