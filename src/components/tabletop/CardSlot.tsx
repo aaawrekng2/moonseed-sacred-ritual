@@ -291,19 +291,20 @@ export function CardSlot({
       // Fire one immediate move so the card jumps to the pointer location
       // (it was sitting at its scatter slot during the hold).
       const s = dragStateRef.current;
-      // Re-measure the card NOW (not at pointerdown) so the pointer offset
-      // matches the card's actual on-screen position at the moment drag
-      // begins. This is important on mobile where the card may have shifted
-      // between pointerdown and the hold-timer firing (layout shifts,
-      // toolbar collapse, settle-in animation completing). Computing the
-      // offset against a stale rect produced the "card jumps on grab" bug.
-      const cardRect = btnRef.current?.getBoundingClientRect();
+      // DF-1 — Compute the card's logical (unrotated) screen position from
+      // its container-relative coords + the live container origin. This is
+      // rotation-independent: getBoundingClientRect() would return the
+      // rotated bounding box, which gives wrong offset math when the
+      // dragged card renders at rotate(0deg).
+      const freshRectAtStart = containerElRef.current?.getBoundingClientRect();
+      const cLeftAtStart = freshRectAtStart?.left ?? containerRect?.left ?? 0;
+      const cTopAtStart = freshRectAtStart?.top ?? containerRect?.top ?? 0;
+      const logicalCardLeft = cLeftAtStart + card.x;
+      const logicalCardTop = cTopAtStart + card.y;
       const activeClientX = s.currentClientX;
       const activeClientY = s.currentClientY;
-      if (cardRect) {
-        s.pointerOffsetX = activeClientX - cardRect.left;
-        s.pointerOffsetY = activeClientY - cardRect.top;
-      }
+      s.pointerOffsetX = activeClientX - logicalCardLeft;
+      s.pointerOffsetY = activeClientY - logicalCardTop;
       // Convert pointer position to container coords. ALWAYS re-measure
       // the container at drag start — the cached `containerRect` prop
       // can be stale on mobile (browser chrome show/hide, address-bar
