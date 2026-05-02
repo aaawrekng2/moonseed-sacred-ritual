@@ -116,12 +116,13 @@ function Index() {
   const carouselReserve = showMoonCarousel
     ? carouselHeightForSize(moon.moon_carousel_size, isMobile)
     : 0;
-  // 64 bottom-nav + 64 fixed icons row + 90 vertical breathing room.
-  // DM-1 — Reserve more vertical room (250) so the card never crowds
-  // the fixed draw-icons row even on tall viewports.
+  // 64 bottom-nav + 64 fixed icons row + breathing room.
+  // DN-1 — Bump reservation to 274 so tablets (where DM-2's nav grew
+  // slightly taller via min-height + safe-area) keep a clean gap above
+  // the fixed draw-icons row.
   const availablePaneHeight = Math.max(
     220,
-    viewportH - carouselReserve - 250,
+    viewportH - carouselReserve - 274,
   );
   const maxWidthCap = viewportW < 768 ? viewportW * 0.9 : 360;
   const heightDerivedWidth = availablePaneHeight / 1.75;

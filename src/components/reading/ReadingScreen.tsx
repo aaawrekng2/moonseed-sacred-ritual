@@ -531,6 +531,7 @@ export function ReadingScreen({
             interpretation: state.interpretation,
             guideName: getGuideById(guideId).name,
             isOracle,
+            deckId: deckId ?? null,
           }}
           defaultLevel="reading"
           availableLevels={["pull", "reading", "position"]}

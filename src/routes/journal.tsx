@@ -222,6 +222,8 @@ function JournalPage() {
   const [tagMode, setTagMode] = useState<TagMode>("all");
   const [activeDrawTypes, setActiveDrawTypes] = useState<DrawTypeKey[]>([]);
   const [deepOnly, setDeepOnly] = useState(false);
+  // DN-5 — Stories filter (multi-select pattern IDs).
+  const [activeStories, setActiveStories] = useState<string[]>([]);
   // YYYY-MM-DD selected from the calendar view; null = no date filter.
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("readings");
@@ -333,6 +335,12 @@ function JournalPage() {
           return false;
       }
       if (deepOnly && !r.is_deep_reading) return false;
+      // DN-5 — Stories filter: keep only readings attached to one of
+      // the currently-active patterns.
+      if (activeStories.length > 0) {
+        if (!r.pattern_id || !activeStories.includes(r.pattern_id))
+          return false;
+      }
       if (activeDate) {
         const d = new Date(r.created_at);
         const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -355,7 +363,17 @@ function JournalPage() {
       }
       return true;
     });
-  }, [readings, search, activeTags, tagMode, activeDrawTypes, deepOnly, activeDate, batchParam]);
+  }, [
+    readings,
+    search,
+    activeTags,
+    tagMode,
+    activeDrawTypes,
+    deepOnly,
+    activeStories,
+    activeDate,
+    batchParam,
+  ]);
 
   const galleryItems = useMemo(
     () => filtered.filter((r) => (photoCounts[r.id] ?? 0) > 0),
@@ -371,6 +389,21 @@ function JournalPage() {
   );
 
   const topTags = tags.slice(0, 8);
+  // DN-5 — Stories the user can filter by: every pattern referenced
+  // by at least one reading they currently see. We rely on the
+  // patterns map already loaded for ThreadsView so no extra query.
+  const allStories = useMemo(() => {
+    const seen = new Set<string>();
+    for (const r of readings) {
+      if (r.pattern_id) seen.add(r.pattern_id);
+    }
+    const out: { id: string; name: string }[] = [];
+    for (const id of seen) {
+      const p = patternsById[id];
+      if (p) out.push({ id, name: p.name });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  }, [readings, patternsById]);
   const openReading = openId
     ? readings.find((r) => r.id === openId) ?? null
     : null;
@@ -490,7 +523,10 @@ function JournalPage() {
   // which have their own UI affordances). Drives the badge on the mobile
   // "Filter" button.
   const activeFilterCount =
-    activeTags.length + activeDrawTypes.length + (deepOnly ? 1 : 0);
+    activeTags.length +
+    activeDrawTypes.length +
+    activeStories.length +
+    (deepOnly ? 1 : 0);
 
   const filtersNode = (
     <FiltersPanel
@@ -503,10 +539,14 @@ function JournalPage() {
       setActiveDrawTypes={setActiveDrawTypes}
       deepOnly={deepOnly}
       setDeepOnly={setDeepOnly}
+      allStories={allStories}
+      activeStories={activeStories}
+      setActiveStories={setActiveStories}
       onClearAll={() => {
         setActiveTags([]);
         setActiveDrawTypes([]);
         setDeepOnly(false);
+        setActiveStories([]);
       }}
     />
   );
@@ -800,6 +840,7 @@ function JournalPage() {
             items={filtered}
             isOracle={isOracle}
             photoCounts={photoCounts}
+            patternsById={patternsById}
             onOpen={setOpenId}
           />
         ) : view === "gallery" ? (
@@ -818,6 +859,7 @@ function JournalPage() {
             emptyPlain="Favorite a reading to see it here."
             isOracle={isOracle}
             photoCounts={photoCounts}
+            patternsById={patternsById}
             onOpen={setOpenId}
           />
         ) : view === "calendar" ? (
@@ -865,6 +907,7 @@ function ReadingsList({
   items,
   isOracle,
   photoCounts: _photoCounts,
+  patternsById,
   onOpen,
   emptyOracle,
   emptyPlain,
@@ -872,6 +915,7 @@ function ReadingsList({
   items: ReadingRow[];
   isOracle: boolean;
   photoCounts: Record<string, number>;
+  patternsById: Record<string, PatternRow>;
   onOpen: (id: string) => void;
   emptyOracle?: string;
   emptyPlain?: string;
@@ -889,7 +933,7 @@ function ReadingsList({
     <ul className="flex flex-col gap-5">
       {items.map((r) => (
         <li key={r.id}>
-          <ReadingCard reading={r} onOpen={onOpen} />
+          <ReadingCard reading={r} onOpen={onOpen} patternsById={patternsById} />
         </li>
       ))}
     </ul>
@@ -899,12 +943,15 @@ function ReadingsList({
 function ReadingCard({
   reading,
   onOpen,
+  patternsById,
 }: {
   reading: ReadingRow;
   onOpen: (id: string) => void;
+  patternsById: Record<string, PatternRow>;
 }) {
   const guide = getGuideById(reading.guide_id);
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const visible = reading.card_ids.slice(0, 5);
   const overflow = reading.card_ids.length - visible.length;
   const interpFirst = (reading.interpretation ?? "")
@@ -962,6 +1009,31 @@ function ReadingCard({
             <span>{guide.name}</span>
           </div>
         </div>
+        {reading.pattern_id && patternsById[reading.pattern_id] && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate({
+                to: "/threads",
+                search: { focus: reading.pattern_id! },
+              });
+            }}
+            aria-label="View Story"
+            title={`View Story: ${patternsById[reading.pattern_id].name}`}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              opacity: "var(--ro-plus-30)",
+              color: "var(--gold)",
+              flexShrink: 0,
+            }}
+          >
+            <Network size={16} strokeWidth={1.5} />
+          </button>
+        )}
         <Heart
           size={16}
           strokeWidth={1.5}
@@ -2197,6 +2269,9 @@ function FiltersPanel({
   setActiveDrawTypes,
   deepOnly,
   setDeepOnly,
+  allStories,
+  activeStories,
+  setActiveStories,
   onClearAll,
 }: {
   topTags: TagRow[];
@@ -2208,10 +2283,16 @@ function FiltersPanel({
   setActiveDrawTypes: React.Dispatch<React.SetStateAction<DrawTypeKey[]>>;
   deepOnly: boolean;
   setDeepOnly: React.Dispatch<React.SetStateAction<boolean>>;
+  allStories: { id: string; name: string }[];
+  activeStories: string[];
+  setActiveStories: React.Dispatch<React.SetStateAction<string[]>>;
   onClearAll: () => void;
 }) {
   const hasAny =
-    activeTags.length > 0 || activeDrawTypes.length > 0 || deepOnly;
+    activeTags.length > 0 ||
+    activeDrawTypes.length > 0 ||
+    deepOnly ||
+    activeStories.length > 0;
   return (
     <div className="flex flex-col gap-5">
       {/* Deep readings toggle */}
@@ -2297,6 +2378,44 @@ function FiltersPanel({
                   }}
                 >
                   {m === "any" ? "Any tag" : "All tags"}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* DN-5 — Stories filter (only shown when at least one Story exists). */}
+      {allStories.length > 0 && (
+        <section>
+          <h3 className="font-display text-[10px] uppercase tracking-[0.18em] mb-2 text-foreground/85">
+            Stories
+          </h3>
+          <div className="flex flex-wrap gap-x-3 gap-y-2">
+            {allStories.map((s) => {
+              const active = activeStories.includes(s.id);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() =>
+                    setActiveStories((prev) =>
+                      prev.includes(s.id)
+                        ? prev.filter((x) => x !== s.id)
+                        : [...prev, s.id],
+                    )
+                  }
+                  className="font-display text-[13px] italic transition-colors text-foreground"
+                  style={{
+                    opacity: active ? 1 : 0.85,
+                    borderBottom: active
+                      ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
+                      : "1px solid transparent",
+                    paddingBottom: 2,
+                  }}
+                >
+                  {s.name}
+                  {active && <span className="ml-1 text-[10px]">×</span>}
                 </button>
               );
             })}

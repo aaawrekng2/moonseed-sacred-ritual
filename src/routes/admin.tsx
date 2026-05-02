@@ -776,7 +776,131 @@ function DashboardTab() {
       </section>
       <DetectWeavesPanel />
       <DetectWeavesAlertsPanel />
+      <DashboardMaintenanceSection />
     </div>
+  );
+}
+
+/* ---------- Dashboard Maintenance — DN-2 ---------- */
+
+/**
+ * Surface maintenance utilities directly on the Dashboard so admins
+ * don't have to dig through the Backups tab. Currently only hosts the
+ * "Backfill Story Names" action; future maintenance tools belong here
+ * too.
+ */
+function DashboardMaintenanceSection() {
+  const [running, setRunning] = useState(false);
+  const [last, setLast] = useState<{
+    updated: number;
+    skipped: number;
+    considered: number;
+  } | null>(null);
+  return (
+    <section
+      style={{
+        marginTop: "var(--space-6)",
+        borderTop: "1px solid var(--border-subtle)",
+        paddingTop: "var(--space-5)",
+      }}
+    >
+      <h3
+        style={{
+          fontFamily: "var(--font-display)",
+          fontSize: "var(--text-heading-sm)",
+          marginBottom: "var(--space-3)",
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: "var(--gold)",
+        }}
+      >
+        Maintenance
+      </h3>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "var(--space-4)",
+          flexWrap: "wrap",
+        }}
+      >
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h4
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-body-lg)",
+              marginBottom: 4,
+            }}
+          >
+            Backfill Story Names
+          </h4>
+          <p
+            style={{
+              ...serif,
+              fontSize: "var(--text-caption)",
+              opacity: 0.6,
+              fontStyle: "italic",
+              margin: 0,
+            }}
+          >
+            Shorten existing pattern names from verbose AI sentences to 2–3
+            word evocative names.
+          </p>
+          {last && (
+            <p
+              style={{
+                ...serif,
+                fontSize: "var(--text-caption)",
+                opacity: 0.55,
+                marginTop: 6,
+              }}
+            >
+              Last run: {last.updated} updated · {last.skipped} skipped ·{" "}
+              {last.considered} considered
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          disabled={running}
+          onClick={async () => {
+            setRunning(true);
+            try {
+              const r = await backfillPatternNames({
+                headers: await authHeaders(),
+              });
+              setLast(r);
+              toast.success(
+                `Backfill complete: ${r.updated} updated, ${r.skipped} skipped, ${r.considered} considered`,
+              );
+            } catch (e) {
+              toast.error(
+                e instanceof Error ? e.message : "Backfill failed",
+              );
+            } finally {
+              setRunning(false);
+            }
+          }}
+          style={{
+            padding: "8px 16px",
+            background: "var(--gold)",
+            color: "var(--gold-foreground, #1a1409)",
+            border: "none",
+            borderRadius: "var(--radius)",
+            cursor: running ? "wait" : "pointer",
+            opacity: running ? 0.6 : 1,
+            whiteSpace: "nowrap",
+            fontFamily: "var(--font-display)",
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+            fontSize: "var(--text-caption)",
+          }}
+        >
+          {running ? "Running…" : "Run Backfill"}
+        </button>
+      </div>
+    </section>
   );
 }
 

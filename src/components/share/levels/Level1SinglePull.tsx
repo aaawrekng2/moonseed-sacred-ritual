@@ -40,7 +40,7 @@ export function Level1SinglePull({
           “{ctx.question!.trim()}”
         </div>
       )}
-      <ShareCardRow picks={ctx.picks} />
+      <ShareCardRow picks={ctx.picks} deckId={ctx.deckId ?? null} />
     </ShareCardFrame>
   );
 }

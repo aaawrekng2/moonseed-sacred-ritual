@@ -8,17 +8,14 @@
  */
 import type { CSSProperties, ReactNode } from "react";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
+import { useDeckImage } from "@/lib/active-deck";
 import type { SharePick } from "../share-types";
 
 /*
- * Phase 9.5b — Stamp AW (premium gate on share imagery).
- *
- * Share cards intentionally use the default Rider-Waite artwork
- * (`getCardImagePath`) rather than the seeker's active custom deck.
- * This is the "free tier" path; once Phase 10 (Stripe + Premium)
- * lights up, premium users will swap to their photographed deck via
- * the active-deck context. Until then everyone falls back to default
- * imagery, satisfying the spec's deliberate viral hook.
+ * DN-7 — Share cards now render with the reading's saved deck_id, so
+ * the seeker sees the same custom artwork they actually drew with.
+ * When `deckId` is null/undefined or the deck has no override for a
+ * given card, we fall back to the default Rider-Waite asset.
  */
 
 export const SHARE_CARD_W = 1080;
@@ -122,15 +119,19 @@ export function ShareCardRow({
   picks,
   maxWidth = 880,
   cardAspect = 1.6,
+  deckId,
 }: {
   picks: SharePick[];
   maxWidth?: number;
   cardAspect?: number;
+  deckId?: string | null;
 }) {
   const n = Math.max(1, picks.length);
   const gap = n > 1 ? 24 : 0;
   const cardWidth = Math.min(360, Math.floor((maxWidth - gap * (n - 1)) / n));
   const cardHeight = Math.round(cardWidth * cardAspect);
+  // DN-7 — useDeckImage gives a deck-aware resolver with default fallback.
+  const getImage = useDeckImage(deckId ?? null);
   return (
     <div
       style={{
@@ -158,11 +159,13 @@ export function ShareCardRow({
               borderRadius: 16,
               overflow: "hidden",
               boxShadow: "0 24px 48px rgba(0,0,0,0.45)",
-              background: "#0b0b14",
+              // DN-6 — inherit active theme background instead of a
+              // hardcoded cosmic dark, so themed previews match in-app.
+              background: "var(--background)",
             }}
           >
             <img
-              src={getCardImagePath(p.cardIndex)}
+              src={getImage(p.cardIndex) ?? getCardImagePath(p.cardIndex)}
               alt=""
               crossOrigin="anonymous"
               style={{
@@ -177,7 +180,8 @@ export function ShareCardRow({
           <div
             style={{
               fontFamily: "var(--font-serif)",
-              fontSize: 28,
+              // DN-8 — bump from 28 → 38 for legibility on social thumbnails.
+              fontSize: 38,
               lineHeight: 1.2,
               textAlign: "center",
               opacity: 0.92,
