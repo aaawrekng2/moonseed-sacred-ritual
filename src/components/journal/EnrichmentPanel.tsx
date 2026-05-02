@@ -1028,6 +1028,41 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
   const [suggestions, setSuggestions] = useState<PatternSuggestion[]>([]);
   const [attachingId, setAttachingId] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(() => isDismissed(readingId));
+  // DL-7 — first-tap "Connect" hint modal. Persisted via
+  // user_preferences.dismissed_hints (jsonb). When the
+  // 'connect_to_story' key is true the modal is skipped.
+  const [hintTarget, setHintTarget] = useState<PatternSuggestion | null>(null);
+  const [hintDismissForever, setHintDismissForever] = useState(false);
+  const [hintAlreadyDismissed, setHintAlreadyDismissed] = useState<boolean | null>(
+    null,
+  );
+  const [hintUserId, setHintUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user?.id ?? null;
+      if (cancelled) return;
+      setHintUserId(uid);
+      if (!uid) {
+        setHintAlreadyDismissed(true);
+        return;
+      }
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("dismissed_hints")
+        .eq("user_id", uid)
+        .maybeSingle();
+      if (cancelled) return;
+      const hints = ((data as { dismissed_hints?: Record<string, boolean> } | null)
+        ?.dismissed_hints) ?? {};
+      setHintAlreadyDismissed(hints.connect_to_story === true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1198,6 +1233,40 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
     },
     [attachingId, readingId],
   );
+
+  const onConnectTap = (s: PatternSuggestion) => {
+    if (hintAlreadyDismissed) {
+      void attach(s);
+    } else {
+      setHintDismissForever(false);
+      setHintTarget(s);
+    }
+  };
+
+  const confirmConnect = async () => {
+    const target = hintTarget;
+    if (!target) return;
+    if (hintDismissForever && hintUserId) {
+      try {
+        const { data } = await supabase
+          .from("user_preferences")
+          .select("dismissed_hints")
+          .eq("user_id", hintUserId)
+          .maybeSingle();
+        const cur = ((data as { dismissed_hints?: Record<string, boolean> } | null)
+          ?.dismissed_hints) ?? {};
+        await supabase
+          .from("user_preferences")
+          .update({ dismissed_hints: { ...cur, connect_to_story: true } })
+          .eq("user_id", hintUserId);
+        setHintAlreadyDismissed(true);
+      } catch {
+        /* non-fatal */
+      }
+    }
+    setHintTarget(null);
+    void attach(target);
+  };
 
   if (pattern) {
     return (
