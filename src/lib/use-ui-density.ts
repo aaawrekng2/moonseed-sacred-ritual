@@ -13,21 +13,19 @@ import { supabase } from "@/integrations/supabase/client";
  * components stay in sync without a context provider.
  */
 export type UIDensityLevel = 1 | 2 | 3;
+const MOST_VISIBLE_LEVEL: UIDensityLevel = 1;
 
 const STORAGE_KEY = "moonseed:ui-density";
 
 function readInitial(): UIDensityLevel {
-  if (typeof window === "undefined") return 1;
+  if (typeof window === "undefined") return MOST_VISIBLE_LEVEL;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    const n = raw === null ? 1 : Number(raw);
-    const v = (n === 1 || n === 2 || n === 3 ? n : 1) as UIDensityLevel;
     // Mirror to <html data-clarity="N"> so any CSS rule keyed off the
     // global Clarity level resolves correctly on first paint.
-    document.documentElement.setAttribute("data-clarity", String(v));
-    return v;
+    document.documentElement.setAttribute("data-clarity", String(MOST_VISIBLE_LEVEL));
+    return MOST_VISIBLE_LEVEL;
   } catch {
-    return 1;
+    return MOST_VISIBLE_LEVEL;
   }
 }
 
@@ -35,7 +33,7 @@ const listeners = new Set<(v: UIDensityLevel) => void>();
 // SSR-safe: start at the default. Real value is read from localStorage
 // inside useEffect (post-mount) to avoid hydration mismatches when the
 // server-rendered HTML is reconciled with the client tree.
-let current: UIDensityLevel = 1;
+let current: UIDensityLevel = MOST_VISIBLE_LEVEL;
 let initializedFromLocal = false;
 let hydratedFromServer = false;
 
@@ -60,7 +58,7 @@ export function useUIDensity(): {
 } {
   // Always start from the SSR-default so the first client render exactly
   // matches the server. Sync from localStorage in the effect below.
-  const [level, setLocal] = useState<UIDensityLevel>(1);
+  const [level, setLocal] = useState<UIDensityLevel>(MOST_VISIBLE_LEVEL);
 
   useEffect(() => {
     if (!initializedFromLocal) {
@@ -89,10 +87,8 @@ export function useUIDensity(): {
             .select("ui_density")
             .eq("user_id", uid)
             .maybeSingle();
-          const v = (data as { ui_density?: number } | null)?.ui_density;
-          if (v === 1 || v === 2 || v === 3) {
-            broadcast(v as UIDensityLevel);
-          }
+          const _v = (data as { ui_density?: number } | null)?.ui_density;
+          broadcast(MOST_VISIBLE_LEVEL);
         } catch {
           /* ignore */
         }
