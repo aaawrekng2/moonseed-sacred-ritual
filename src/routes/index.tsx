@@ -212,7 +212,7 @@ function Index() {
     : (isMobile ? "pt-10 pb-10" : "pt-14 pb-12");
   return (
     <main
-      className="relative flex min-h-[100dvh] flex-col overflow-y-auto bg-cosmos"
+      className="relative min-h-[100dvh] bg-cosmos pb-20"
       style={{
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 4px)",
       }}
@@ -333,9 +333,9 @@ function Index() {
       {/* Spread icons — sit just above bottom nav. Extra top padding
           gives the spread labels breathing room over the gateway. */}
       {/* DA — Extra bottom padding so spread icons don't hug the nav.
-          DB-2.2 — Reduced top padding so icons sit closer to the gateway
-          card, especially on desktop carousel-visible. */}
-      <section className="pb-32 pt-8 sm:pt-8">
+          DC-2.2 — Tight top padding pulls icons close beneath the
+          gateway card on both mobile and desktop. */}
+      <section className="pb-32 pt-2 sm:pt-4">
         {isAnonymous && !nudgeDismissed && (
           <div
             className="flex items-center justify-center gap-3 px-5 py-2.5"

@@ -36,7 +36,7 @@ export function CardZoomModal({ cardId, reversed, onClose }: CardZoomModalProps)
   }, [onClose]);
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-4 bg-black/80 backdrop-blur-sm p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -57,8 +57,10 @@ export function CardZoomModal({ cardId, reversed, onClose }: CardZoomModalProps)
       <img
         src={cardImg(cardId)}
         alt={getCardName(cardId)}
-        className="max-h-[90vh] max-w-[90vw] rounded-lg object-contain"
+        className="rounded-lg object-contain"
         style={{
+          maxHeight: reversed ? "78vh" : "85vh",
+          maxWidth: "90vw",
           transform: showRotated ? "rotate(180deg)" : undefined,
           transition: "transform 300ms ease",
           boxShadow: "0 0 80px -10px rgba(212,175,55,0.5)",
@@ -75,11 +77,14 @@ export function CardZoomModal({ cardId, reversed, onClose }: CardZoomModalProps)
             e.stopPropagation();
             setTempUpright((v) => !v);
           }}
-          className="absolute left-1/2 -translate-x-1/2 text-sm italic text-gold/80 hover:text-gold transition-colors"
+          className="text-sm italic text-gold/80 hover:text-gold transition-colors"
           style={{
-            bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)",
+            marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
             fontFamily: "var(--font-serif)",
             opacity: "var(--ro-plus-15)",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
           }}
         >
           {tempUpright
