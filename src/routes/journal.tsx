@@ -268,6 +268,7 @@ function JournalPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return readings.filter((r) => {
+      if (batchParam && r.import_batch_id !== batchParam) return false;
       if (activeTags.length > 0) {
         const rt = r.tags ?? [];
         if (tagMode === "all") {
@@ -303,7 +304,7 @@ function JournalPage() {
       }
       return true;
     });
-  }, [readings, search, activeTags, tagMode, activeDrawTypes, deepOnly, activeDate]);
+  }, [readings, search, activeTags, tagMode, activeDrawTypes, deepOnly, activeDate, batchParam]);
 
   const galleryItems = useMemo(
     () => filtered.filter((r) => (photoCounts[r.id] ?? 0) > 0),
