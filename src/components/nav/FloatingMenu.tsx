@@ -3,10 +3,8 @@ import {
   CheckCheck,
   Clipboard,
   Bug,
-  Eye,
-  EyeClosed,
-  EyeOff,
   HelpCircle,
+  Moon,
   RotateCw,
   UserRound,
   Wand2,
@@ -15,7 +13,6 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { useSavedThemes } from "@/lib/use-saved-themes";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
-import { useUIDensity } from "@/lib/use-ui-density";
 import { useFloatingMenu } from "@/lib/floating-menu-context";
 import { applySanctuary } from "@/components/nav/TopRightControls";
 import { setStoredCommunityTheme } from "@/lib/community-themes";
@@ -23,6 +20,8 @@ import { dispatchActiveThemeChanged } from "@/lib/theme-events";
 import { useAuth } from "@/lib/auth";
 import { setDevMode } from "@/components/dev/DevOverlay";
 import { supabase } from "@/lib/supabase";
+import { emitMoonPrefsChanged, useMoonPrefs } from "@/lib/use-moon-prefs";
+import { updateUserPreferences } from "@/lib/user-preferences-write";
 
 /**
  * Global floating ··· menu. Mounted ONCE in __root.tsx, hovers above
@@ -40,11 +39,11 @@ import { supabase } from "@/lib/supabase";
 export function FloatingMenu() {
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
-  const { level, cycleLevel } = useUIDensity();
   const { closeHandler, copyText, showRefresh, shareBuilderClose, hidden } =
     useFloatingMenu();
   const { helpHandler } = useFloatingMenu();
   const { user } = useAuth();
+  const moonPrefs = useMoonPrefs();
   // CL Group 3 — admin-only dev mode toggle, mirroring DevOverlay's
   // user_preferences.role check. Anonymous and non-admin sessions
   // never see the button.
@@ -115,15 +114,6 @@ export function FloatingMenu() {
     }, 500);
     return () => window.clearTimeout(t);
   }, []);
-
-  const clarityIcon =
-    level === 1 ? (
-      <Eye size={18} strokeWidth={1.5} />
-    ) : level === 2 ? (
-      <EyeOff size={18} strokeWidth={1.5} />
-    ) : (
-      <EyeClosed size={18} strokeWidth={1.5} />
-    );
 
   const openMenu = () => {
     if (holdTimer.current) window.clearTimeout(holdTimer.current);
@@ -210,6 +200,16 @@ export function FloatingMenu() {
     window.setTimeout(() => {
       if (typeof window !== "undefined") window.location.reload();
     }, 500);
+  };
+
+  const toggleMoonCarousel = (e: React.MouseEvent) => {
+    const next = !moonPrefs.moon_show_carousel;
+    emitMoonPrefsChanged({ moon_show_carousel: next });
+    if (user) {
+      void updateUserPreferences(user.id, { moon_show_carousel: next });
+    }
+    showLabel(next ? "Moon on" : "Moon off", e);
+    resetTimer();
   };
 
   const cycleSanctuary = (e: React.MouseEvent) => {
@@ -343,26 +343,22 @@ export function FloatingMenu() {
             </MenuButton>
           )}
 
+          <MenuButton
+            onClick={toggleMoonCarousel}
+            ariaLabel={moonPrefs.moon_show_carousel ? "Hide moon carousel" : "Show moon carousel"}
+          >
+            <Moon
+              size={17}
+              strokeWidth={1.5}
+              fill={moonPrefs.moon_show_carousel ? "currentColor" : "none"}
+            />
+          </MenuButton>
+
           {occupied.length > 0 && (
             <MenuButton onClick={cycleSanctuary} ariaLabel="Cycle saved themes">
               <Wand2 size={17} strokeWidth={1.5} />
             </MenuButton>
           )}
-
-          <MenuButton
-            onClick={(e) => {
-              cycleLevel();
-              const nextLabel =
-                level === 1 ? "Glimpse" : level === 2 ? "Veiled" : "Seen";
-              showLabel(nextLabel, e);
-              resetTimer();
-            }}
-            ariaLabel={`Clarity: ${
-              level === 1 ? "Seen" : level === 2 ? "Glimpse" : "Veiled"
-            }`}
-          >
-            {clarityIcon}
-          </MenuButton>
 
           <button
             type="button"
