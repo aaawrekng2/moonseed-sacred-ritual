@@ -370,6 +370,77 @@ function DevModeToggle({ userId }: { userId: string }) {
   );
 }
 
+/**
+ * DL-8 — Reset Hints. Clears the dismissed_hints jsonb on user_preferences
+ * so any one-time tooltip/popup (e.g. the Connect-to-Story hint) reappears
+ * the next time it would be shown.
+ */
+function ResetHintsRow({ userId }: { userId: string }) {
+  const [busy, setBusy] = useState(false);
+  const reset = async () => {
+    setBusy(true);
+    const { error } = await supabase
+      .from("user_preferences")
+      .update({ dismissed_hints: {} } as never)
+      .eq("user_id", userId);
+    setBusy(false);
+    if (error) {
+      toast.error("Couldn't reset hints. Please try again.");
+      return;
+    }
+    toast.success("Hints reset. They will reappear next time.");
+  };
+  return (
+    <div
+      style={{
+        marginTop: "var(--space-4, 16px)",
+        paddingTop: "var(--space-4, 16px)",
+        borderTop: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 12,
+      }}
+    >
+      <div>
+        <div style={{ fontSize: "var(--text-body-sm)", color: "var(--foreground)" }}>
+          Reset Hints
+        </div>
+        <div
+          style={{
+            fontSize: "var(--text-caption)",
+            color: "var(--foreground)",
+            opacity: 0.5,
+            marginTop: 2,
+          }}
+        >
+          Re-enable any tooltips or popups you've previously dismissed.
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => void reset()}
+        disabled={busy}
+        style={{
+          fontFamily: "var(--font-display, inherit)",
+          fontSize: 11,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: "var(--gold)",
+          background: "color-mix(in oklab, var(--gold) 12%, transparent)",
+          border: "1px solid color-mix(in oklab, var(--gold) 35%, transparent)",
+          borderRadius: 8,
+          padding: "8px 14px",
+          cursor: busy ? "default" : "pointer",
+          opacity: busy ? 0.5 : 1,
+        }}
+      >
+        Reset
+      </button>
+    </div>
+  );
+}
+
 function IntentionField({
   user,
   prefs,
