@@ -1568,6 +1568,10 @@ function ReadingDetail({
   const positions = isValidSpreadMode(reading.spread_type)
     ? SPREAD_META[reading.spread_type as SpreadMode].positions
     : undefined;
+  // CZ Group 4 — mobile gets a horizontally swipeable card strip when a
+  // reading has more cards than fit comfortably (>3). Desktop unchanged.
+  const isMobile = useIsMobile();
+  const swipeMobile = isMobile && reading.card_ids.length > 3;
   const [shareOpen, setShareOpen] = useState(false);
   const spreadModeForShare: SpreadMode = isValidSpreadMode(reading.spread_type)
     ? (reading.spread_type as SpreadMode)
@@ -1640,11 +1644,36 @@ function ReadingDetail({
             label sits on its own row, the optional "Reversed" tag is a
             separate line whose space is reserved with min-height even
             when absent. */}
-        <div className="mt-6 flex flex-wrap items-start justify-center gap-3">
+        <div
+          className={cn(
+            "mt-6 flex items-start gap-3",
+            swipeMobile
+              ? "overflow-x-auto snap-x snap-mandatory -mx-4 px-4 pb-2 justify-start"
+              : "flex-wrap justify-center",
+          )}
+          style={
+            swipeMobile
+              ? {
+                  scrollbarWidth: "none",
+                  WebkitOverflowScrolling: "touch",
+                  maskImage:
+                    "linear-gradient(to right, black 90%, transparent 100%)",
+                  WebkitMaskImage:
+                    "linear-gradient(to right, black 90%, transparent 100%)",
+                }
+              : undefined
+          }
+        >
           {reading.card_ids.map((id, idx) => {
             const isReversed = !!reading.card_orientations?.[idx];
             return (
-              <div key={`${id}-${idx}`} className="flex flex-col items-center">
+              <div
+                key={`${id}-${idx}`}
+                className={cn(
+                  "flex flex-col items-center",
+                  swipeMobile && "flex-shrink-0 snap-start",
+                )}
+              >
                 <img
                   src={getCardImagePath(id)}
                   alt={getCardName(id)}
