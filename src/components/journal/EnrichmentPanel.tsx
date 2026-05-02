@@ -1377,7 +1377,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
               </span>
               <button
                 type="button"
-                onClick={() => void attach(s)}
+                onClick={() => onConnectTap(s)}
                 disabled={busy}
                 style={{
                   background: "none",
