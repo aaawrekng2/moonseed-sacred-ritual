@@ -3,7 +3,7 @@
  *
  * A small pill in the top-left corner that surfaces three live signals:
  *   - the current app version letter (hardcoded per build)
- *   - the current Deep Reading mist level (Fog 0-4)
+ *   - (Fog level removed from pill, still tracked internally)
  *   - the seeker's resting opacity (Op 25-100%)
  *
  * Visible only when:
@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
-export const APP_VERSION_LETTER = "DL";
+export const APP_VERSION_LETTER = "DM";
 const DEV_MODE_KEY = "moonseed:dev_mode";
 const MIST_KEY = "moonseed:mist-level";
 const OPACITY_KEY = "moonseed:resting-opacity";
@@ -149,7 +149,7 @@ export function DevOverlay() {
         lineHeight: 1.4,
       }}
     >
-      v{APP_VERSION_LETTER} · Fog {mist} · Op {opacity}%
+      v{APP_VERSION_LETTER} · Op {opacity}%
     </div>
   );
 }
