@@ -389,6 +389,21 @@ function JournalPage() {
   );
 
   const topTags = tags.slice(0, 8);
+  // DN-5 — Stories the user can filter by: every pattern referenced
+  // by at least one reading they currently see. We rely on the
+  // patterns map already loaded for ThreadsView so no extra query.
+  const allStories = useMemo(() => {
+    const seen = new Set<string>();
+    for (const r of readings) {
+      if (r.pattern_id) seen.add(r.pattern_id);
+    }
+    const out: { id: string; name: string }[] = [];
+    for (const id of seen) {
+      const p = patternsById[id];
+      if (p) out.push({ id, name: p.name });
+    }
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  }, [readings, patternsById]);
   const openReading = openId
     ? readings.find((r) => r.id === openId) ?? null
     : null;
