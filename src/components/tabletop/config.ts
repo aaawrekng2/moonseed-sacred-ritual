@@ -37,10 +37,26 @@ export const TABLETOP_CONFIG = {
 };
 
 export function responsiveCardWidth(viewportW: number): number {
+  // Mobile uses a tuned static value — kept as-is to avoid regressing
+  // mobile layouts that already work well at 38px.
   if (viewportW < 768) return 38;
-  if (viewportW < 1024) return 68;
-  if (viewportW < 1440) return 88;
-  return 104;
+
+  // DF-2 — Desktop uses a density-based formula. Targets ~70% deck-area
+  // density: cards fill 70% of available scatter area, leaving 30%
+  // breathing room. Result scales naturally from small laptops
+  // (~1024px → ~58px cards) to large monitors (~2560px → ~95px cards).
+  const viewportH =
+    typeof window !== "undefined" ? window.innerHeight : 720;
+  const scatterH = viewportH * 0.6;
+  const density = 0.7;
+  const aspectRatio = TABLETOP_CONFIG.CARD_ASPECT_RATIO;
+  const deckSize = TABLETOP_CONFIG.DECK_SIZE;
+  const computed = Math.sqrt(
+    (viewportW * scatterH * density) / (deckSize * aspectRatio),
+  );
+  // Floor and ceiling so unusual viewports don't produce tiny or
+  // gigantic cards.
+  return Math.max(50, Math.min(110, Math.round(computed)));
 }
 
 /**
