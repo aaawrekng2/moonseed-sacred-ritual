@@ -910,6 +910,163 @@ function IconAction({
   );
 }
 
+/**
+ * DM-6 — Story-membership icon. Visible only when the reading belongs to
+ * one or more patterns (Stories). First tap opens a hint modal explaining
+ * what the icon means; subsequent taps (after the seeker dismisses with
+ * "don't show again") navigate directly. The hint is keyed on
+ * `dismissed_hints.story_membership_icon` and is restored by Reset Hints.
+ */
+function StoryMembershipIcon({
+  readingId,
+  userId,
+}: {
+  readingId: string;
+  userId: string;
+}) {
+  const navigate = useNavigate();
+  const [memberOf, setMemberOf] = useState<{ id: string; name: string }[]>([]);
+  const [hintDismissed, setHintDismissed] = useState(true);
+  const [hintOpen, setHintOpen] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("patterns")
+        .select("id, name, reading_ids")
+        .contains("reading_ids", [readingId]);
+      if (cancelled) return;
+      const rows = (data ?? []) as Array<{ id: string; name: string }>;
+      setMemberOf(rows.map((r) => ({ id: r.id, name: r.name })));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [readingId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("dismissed_hints")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (cancelled) return;
+      const hints =
+        ((data as { dismissed_hints?: Record<string, boolean> } | null)
+          ?.dismissed_hints) ?? {};
+      setHintDismissed(hints.story_membership_icon === true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  if (memberOf.length === 0) return null;
+
+  const goToStory = () => {
+    if (memberOf.length === 1) {
+      void navigate({
+        to: "/threads/$patternId",
+        params: { patternId: memberOf[0].id },
+      });
+    } else {
+      void navigate({ to: "/threads" });
+    }
+  };
+
+  const onTap = () => {
+    if (hintDismissed) {
+      goToStory();
+    } else {
+      setDontShowAgain(false);
+      setHintOpen(true);
+    }
+  };
+
+  const onConfirm = async () => {
+    if (dontShowAgain) {
+      try {
+        const { data } = await supabase
+          .from("user_preferences")
+          .select("dismissed_hints")
+          .eq("user_id", userId)
+          .maybeSingle();
+        const cur =
+          ((data as { dismissed_hints?: Record<string, boolean> } | null)
+            ?.dismissed_hints) ?? {};
+        await supabase
+          .from("user_preferences")
+          .update({ dismissed_hints: { ...cur, story_membership_icon: true } } as never)
+          .eq("user_id", userId);
+        setHintDismissed(true);
+      } catch {
+        /* non-fatal */
+      }
+    }
+    setHintOpen(false);
+    goToStory();
+  };
+
+  const label =
+    memberOf.length === 1
+      ? `Part of Story: ${memberOf[0].name}`
+      : `Part of ${memberOf.length} Stories`;
+
+  return (
+    <>
+      <IconAction label={label} active onClick={onTap}>
+        <Network size={18} strokeWidth={1.5} />
+      </IconAction>
+      <AlertDialog open={hintOpen} onOpenChange={setHintOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Story membership</AlertDialogTitle>
+            <AlertDialogDescription>
+              This reading is part of{" "}
+              {memberOf.length === 1
+                ? `the “${memberOf[0].name}” Story`
+                : `${memberOf.length} Stories`}
+              . Tapping this icon opens{" "}
+              {memberOf.length === 1 ? "that Story" : "the Stories index"} so
+              you can see every reading inside it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: "var(--text-body-sm)",
+              cursor: "pointer",
+            }}
+          >
+            <Checkbox
+              checked={dontShowAgain}
+              onCheckedChange={(v) => setDontShowAgain(v === true)}
+            />
+            Don't show this again
+          </label>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void onConfirm();
+              }}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
 function TextAction({
   label,
   active,
