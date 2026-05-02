@@ -1305,10 +1305,23 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
   if (suggestions.length === 0 || dismissed) return null;
 
   const busy = attachingId !== null;
-  const headline =
+  // DM-5 — Friendlier copy with a gold "Story" / "Stories" link that
+  // navigates to the Stories index. When there's a single suggestion
+  // we deep-link to that pattern's chamber; otherwise we land on the
+  // index so the seeker can choose.
+  const storyLinkProps =
     suggestions.length === 1
-      ? "This reading shares cards with a Story:"
-      : `This reading shares cards with ${suggestions.length} Stories:`;
+      ? {
+          to: "/threads/$patternId" as const,
+          params: { patternId: suggestions[0].id },
+        }
+      : { to: "/threads" as const };
+  const linkStyle = {
+    color: "var(--gold)",
+    textDecoration: "underline",
+    textUnderlineOffset: "2px",
+    fontStyle: "italic" as const,
+  };
 
   return (
     <div
@@ -1325,7 +1338,17 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
       }}
     >
       <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
-        {headline}
+        {suggestions.length === 1 ? (
+          <>
+            This reading aligns with your{" "}
+            <Link {...storyLinkProps} style={linkStyle}>Story</Link>:
+          </>
+        ) : (
+          <>
+            This reading aligns with {suggestions.length}{" "}
+            <Link {...storyLinkProps} style={linkStyle}>Stories</Link>:
+          </>
+        )}
       </span>
       <ul
         style={{
