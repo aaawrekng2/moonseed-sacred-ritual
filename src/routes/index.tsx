@@ -12,7 +12,7 @@ import { useActiveCardBackUrl, useActiveDeck, useActiveDeckImage } from "@/lib/a
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
-import { useMoonPrefs } from "@/lib/use-moon-prefs";
+import { carouselHeightForSize, useMoonPrefs } from "@/lib/use-moon-prefs";
 import {
   useAutoRememberQuestion,
   useRememberScope,
@@ -108,26 +108,20 @@ function Index() {
       window.removeEventListener("orientationchange", onResize);
     };
   }, []);
-  // CY — Refined sizing matrix.
-  //   Desktop carousel visible: 224 (CX 140 × 1.6)
-  //   Desktop carousel hidden (hero): 360 (unchanged)
-  //   Mobile carousel visible: 237 (CX 182 × 1.3)
-  //   Mobile carousel hidden (hero): 72vw (down from CX 90vw)
-  // Then we cap height by available viewport so the spread-icons row
-  // and bottom nav are never pushed offscreen (Group 2).
-  const targetWidth = showMoonCarousel
-    ? (isMobile ? 237 : 224)
-    : (isMobile ? Math.round(viewportW * 0.72) : 360);
-  // Reserve vertical space for spread icons row + bottom nav + safe areas
-  // + carousel (when visible) + top padding. Numbers chosen empirically:
-  //   spread icons row ≈ 110, bottom nav ≈ 64, carousel ≈ 192/240, padding ≈ 80.
-  const carouselReserve = showMoonCarousel ? (isMobile ? 138 : 240) : 0;
-  const reservedV = (isMobile ? 110 : 130) + 64 + carouselReserve + 80;
-  const maxCardHeight = Math.max(180, viewportH - reservedV);
-  const targetHeight = targetWidth * 1.75;
-  const cardHeight = Math.min(targetHeight, maxCardHeight);
-  const cardWidth =
-    cardHeight < targetHeight ? Math.round(cardHeight / 1.75) : Math.round(targetWidth);
+  // DG-1 — Hero grows from remaining vertical space after reserving the
+  // always-visible carousel/spread/nav bands. If even the minimum card
+  // cannot fit, the page scrolls naturally instead of clipping the row.
+  const carouselReserve = showMoonCarousel
+    ? carouselHeightForSize(moon.moon_carousel_size, isMobile)
+    : 0;
+  const availableHeight =
+    viewportH - carouselReserve - 90 - 64 - 64;
+  const maxWidthFromHeight = availableHeight / 1.75;
+  const maxWidthCap = viewportW < 768 ? viewportW * 0.9 : 360;
+  const cardWidth = Math.round(
+    Math.max(120, Math.min(maxWidthFromHeight, maxWidthCap)),
+  );
+  const cardHeight = Math.round(cardWidth * 1.75);
   // CX — Streak under-card only in mobile hero mode.
   const streakUnderCard = isMobile && !showMoonCarousel;
   const [nudgeDismissed, setNudgeDismissed] = useState(true);
@@ -231,7 +225,7 @@ function Index() {
           entire <header> wrapper collapses so no phantom whitespace. */}
       {showMoonCarousel && (
         <header className="px-2 pt-1">
-          <MoonCarousel />
+          <MoonCarousel size={moon.moon_carousel_size} />
         </header>
       )}
 
@@ -343,7 +337,7 @@ function Index() {
       {/* DA — Extra bottom padding so spread icons don't hug the nav.
           DC-2.2 — Tight top padding pulls icons close beneath the
           gateway card on both mobile and desktop. */}
-      <section className="pb-32 pt-2 sm:pt-4">
+      <section className="px-6 py-4">
         {isAnonymous && !nudgeDismissed && (
           <div
             className="flex items-center justify-center gap-3 px-5 py-2.5"
