@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpen, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,12 @@ import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export const Route = createFileRoute("/journal")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    batch:
+      typeof search.batch === "string" && search.batch.length > 0
+        ? (search.batch as string)
+        : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Journal — Moonseed" },
