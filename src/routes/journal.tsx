@@ -2022,17 +2022,22 @@ function ReadingDetail({
                   aria-label={`Zoom ${getCardName(id)}`}
                   className="block rounded-md transition active:scale-[0.98]"
                 >
-                  <CardThumb
-                    src={getImage(id)}
-                    alt={getCardName(id)}
-                    className="h-32 w-20 rounded-md object-cover"
-                    style={{
-                      border:
-                        "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
-                      opacity: "var(--ro-plus-40)",
-                      transform: isReversed ? "rotate(180deg)" : undefined,
-                    }}
-                  />
+                   <CardThumb
+                     src={getImage(id)}
+                     alt={getCardName(id)}
+                     // DO-3 — drop fixed h-32 + object-cover; enforce
+                     // tarot 1:1.75 aspect with object-fit: contain so
+                     // the card never crops top/bottom.
+                     className="w-20 rounded-md"
+                     style={{
+                       aspectRatio: "1 / 1.75",
+                       objectFit: "contain",
+                       border:
+                         "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+                       opacity: "var(--ro-plus-40)",
+                       transform: isReversed ? "rotate(180deg)" : undefined,
+                     }}
+                   />
                 </button>
                 <span
                   className="mt-1 max-w-[90px] text-center font-display text-[10px] italic text-muted-foreground"
@@ -2296,7 +2301,7 @@ function FiltersPanel({
   setActiveDrawTypes: React.Dispatch<React.SetStateAction<DrawTypeKey[]>>;
   deepOnly: boolean;
   setDeepOnly: React.Dispatch<React.SetStateAction<boolean>>;
-  allStories: { id: string; name: string }[];
+  allStories: { id: string; name: string; lastActiveAt?: string }[];
   activeStories: string[];
   setActiveStories: React.Dispatch<React.SetStateAction<string[]>>;
   onClearAll: () => void;
