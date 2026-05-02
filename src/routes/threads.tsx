@@ -17,13 +17,6 @@ import {
 } from "@xyflow/react";
 
 export const Route = createFileRoute("/threads")({
-  // DN-3 / DN-4 / DN-5 — allow ?focus=<patternId> deep-links from the
-  // journal "aligns with your Story" line and the new in-list Story
-  // icon. The page itself doesn't yet scroll to the focused pattern,
-  // but the param is whitelisted so consumers can land here cleanly.
-  validateSearch: (search: Record<string, unknown>) => ({
-    focus: typeof search.focus === "string" ? search.focus : undefined,
-  }),
   head: () => ({
     meta: [
       { title: "Stories — Moonseed" },
