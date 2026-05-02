@@ -1781,6 +1781,9 @@ function ReadingDetail({
   const isMobile = useIsMobile();
   const swipeMobile = isMobile && reading.card_ids.length > 3;
   const [shareOpen, setShareOpen] = useState(false);
+  // DD-4 — tap-to-zoom on saved-reading cards. Reuses the same modal
+  // the active draw uses (CZ Group 3) so behavior matches everywhere.
+  const [zoomedCard, setZoomedCard] = useState<{ cardId: number; reversed: boolean } | null>(null);
   // DB-3.1 — render this reading's images using its SAVED deck.
   const getImage = useDeckImage(reading.deck_id ?? null);
   // DB-3.2 — deck override picker.
@@ -1922,17 +1925,24 @@ function ReadingDetail({
                   swipeMobile && "flex-shrink-0 snap-start",
                 )}
               >
-                <img
-                  src={getImage(id)}
-                  alt={getCardName(id)}
-                  className="h-32 w-20 rounded-md object-cover"
-                  style={{
-                    border:
-                      "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
-                    opacity: "var(--ro-plus-40)",
-                    transform: isReversed ? "rotate(180deg)" : undefined,
-                  }}
-                />
+                <button
+                  type="button"
+                  onClick={() => setZoomedCard({ cardId: id, reversed: isReversed })}
+                  aria-label={`Zoom ${getCardName(id)}`}
+                  className="block rounded-md transition active:scale-[0.98]"
+                >
+                  <CardThumb
+                    src={getImage(id)}
+                    alt={getCardName(id)}
+                    className="h-32 w-20 rounded-md object-cover"
+                    style={{
+                      border:
+                        "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+                      opacity: "var(--ro-plus-40)",
+                      transform: isReversed ? "rotate(180deg)" : undefined,
+                    }}
+                  />
+                </button>
                 <span
                   className="mt-1 max-w-[90px] text-center font-display text-[10px] italic text-muted-foreground"
                   style={{ opacity: "var(--ro-plus-20)" }}
@@ -2158,6 +2168,13 @@ function ReadingDetail({
         }}
         defaultLevel={reading.interpretation?.trim() ? "reading" : "pull"}
       />
+      {zoomedCard && (
+        <CardZoomModal
+          cardId={zoomedCard.cardId}
+          reversed={zoomedCard.reversed}
+          onClose={() => setZoomedCard(null)}
+        />
+      )}
     </div>
   );
 }
