@@ -360,6 +360,18 @@ function JournalPage() {
     );
   }, []);
 
+  // DB-3.2 — Patch a reading's deck_id locally after the override picker
+  // updates the row in the database. Keeps the journal list & detail view
+  // in sync without a refetch.
+  const handleReadingDeckChange = useCallback(
+    (id: string, deckId: string | null) => {
+      setReadings((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, deck_id: deckId } : r)),
+      );
+    },
+    [],
+  );
+
   // DA — Load metadata for the optional ?batch=... filter banner.
   useEffect(() => {
     if (!batchParam || !user) {
