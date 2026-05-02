@@ -41,6 +41,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import {
   adminAction,
+  backfillPatternNames,
   createAdminBackup,
   getAnonymousSessionCounts,
   getBackupDownloadUrl,
@@ -3036,6 +3037,36 @@ function BackupsTab() {
           }}
         >
           {busy ? "Creating backup…" : "Create backup now"}
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              const r = await backfillPatternNames({ headers: await authHeaders() });
+              toast.success(`Backfilled ${r.updated} of ${r.considered} Story names.`);
+            } catch (e) {
+              window.alert(`Backfill failed: ${(e as Error).message}`);
+            } finally {
+              setBusy(false);
+            }
+          }}
+          style={{
+            ...display,
+            fontSize: "var(--text-caption)",
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            color: "var(--accent, var(--gold))",
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: busy ? "default" : "pointer",
+            opacity: busy ? 0.5 : 1,
+            marginLeft: 24,
+          }}
+        >
+          Backfill Story names
         </button>
       </div>
       {loading ? (
