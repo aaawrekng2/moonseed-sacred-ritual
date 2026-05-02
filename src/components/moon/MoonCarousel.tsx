@@ -20,6 +20,7 @@ import {
   getDayInTz,
   getTodayInTz,
 } from "@/lib/use-timezone";
+import { carouselHeightForSize, type CarouselSize } from "@/lib/use-moon-prefs";
 
 // Moonseed-native accent resolver — reads --gold from active CSS theme.
 function useMoonseedAccent(): string {
@@ -51,7 +52,7 @@ function addDaysToYmd(ymd: string, delta: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
-export function MoonCarousel() {
+export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
   const [offset, setOffset] = useState(0);
   const [expandedRel, setExpandedRel] = useState<number | null>(null);
   // Dev-only "date overlay" mode: outlines each visible day card and prints
@@ -124,6 +125,14 @@ export function MoonCarousel() {
     return () => mql.removeEventListener("change", onChange);
   }, []);
   const dayRange = isMobile ? 1 : 2;
+  const carouselHeight = carouselHeightForSize(size, isMobile);
+  const scale = carouselHeight / (isMobile ? 138 : 200);
+  const rootMinHeight = carouselHeight + 40;
+  const rowHeight = carouselHeight;
+  const centerMoonSize = Math.round((isMobile ? 42 : 72) * scale);
+  const centerMaxWidth = Math.round((isMobile ? 120 : 160) * scale);
+  const adjacentMediumSize = Math.round(44 * scale);
+  const adjacentSmallSize = Math.round(32 * scale);
 
   // True while a multi-day tween is animating. Used to suppress per-cell
   // layout transitions that would otherwise fight the position tween.
@@ -483,7 +492,7 @@ export function MoonCarousel() {
       aria-label="Moon phase calendar"
       aria-roledescription="carousel"
       className="relative animate-in fade-in slide-in-from-top-2 duration-500 pt-6 sm:pt-8"
-      style={{ minHeight: 280 }}
+      style={{ minHeight: rootMinHeight }}
     >
       {/* Screen-reader-only live status describing the currently centered day. */}
       <p className="sr-only" aria-live="polite" aria-atomic="true">
@@ -501,7 +510,7 @@ export function MoonCarousel() {
           it never clips and the chevrons never shift vertically. */}
       <div
         className="relative flex items-start justify-center gap-1 sm:gap-2 touch-pan-y overflow-visible px-7 sm:px-0"
-        style={{ height: isMobile ? 138 : 240 }}
+        style={{ height: rowHeight }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -644,6 +653,8 @@ export function MoonCarousel() {
                       }
                       selectCenter(d.relative);
                     }}
+                    iconSize={centerMoonSize}
+                    maxWidth={centerMaxWidth}
                   />
                 ) : (
                   <AdjacentCard
@@ -671,6 +682,7 @@ export function MoonCarousel() {
                       }
                     }}
                     size={absRel === 1 ? "medium" : "small"}
+                    iconSize={absRel === 1 ? adjacentMediumSize : adjacentSmallSize}
                   />
                 )}
               </div>
