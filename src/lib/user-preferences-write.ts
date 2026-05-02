@@ -12,13 +12,16 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { TablesUpdate } from "@/integrations/supabase/types";
 
-type Patch = TablesUpdate<"user_preferences">;
+type Patch = TablesUpdate<"user_preferences"> & {
+  moon_carousel_size?: "small" | "medium" | "large";
+  ui_density?: number;
+};
 
 export async function updateUserPreferences(userId: string, patch: Patch) {
   return await supabase
     .from("user_preferences")
     .upsert(
-      { user_id: userId, ...patch } as Patch & { user_id: string },
+      { user_id: userId, ...patch } as never,
       { onConflict: "user_id" },
     );
 }
