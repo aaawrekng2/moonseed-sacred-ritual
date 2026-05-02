@@ -222,6 +222,8 @@ function JournalPage() {
   const [tagMode, setTagMode] = useState<TagMode>("all");
   const [activeDrawTypes, setActiveDrawTypes] = useState<DrawTypeKey[]>([]);
   const [deepOnly, setDeepOnly] = useState(false);
+  // DN-5 — Stories filter (multi-select pattern IDs).
+  const [activeStories, setActiveStories] = useState<string[]>([]);
   // YYYY-MM-DD selected from the calendar view; null = no date filter.
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("readings");
