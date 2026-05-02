@@ -21,6 +21,7 @@ import { useActiveGuide } from "@/lib/use-active-guide";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useUIDensity } from "@/lib/use-ui-density";
 import { useAuth } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 import { getCurrentMoonPhase } from "@/lib/moon";
 import { FACETS, LENSES } from "@/lib/guides";
 import {
