@@ -8,7 +8,7 @@ import { PremiumModal } from "@/components/premium/PremiumModal";
 import { useSettings, type Prefs } from "./SettingsContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { emitMoonPrefsChanged, type CarouselSize } from "@/lib/use-moon-prefs";
+import { emitMoonPrefsChanged } from "@/lib/use-moon-prefs";
 
 /**
  * Moon & Lunar Features section in Settings → Preferences.
