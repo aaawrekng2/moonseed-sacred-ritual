@@ -15,6 +15,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getCardName } from "@/lib/tarot";
 import {
   detectWeavesForUser,
   previewWeavesForUser,
@@ -403,6 +404,121 @@ export const adminAction = createServerFn({ method: "POST" })
     }
 
     return { ok: true } as const;
+  });
+
+/* ---------- DL-6 — Backfill long Story (pattern) names ---------- */
+
+/**
+ * Build a short, evocative 1–3 word name for a Story from one of its
+ * threads. Mirrors the helper in memory.functions but lives here so the
+ * admin backfill can run independently of the runtime detector.
+ */
+function buildShortNameForBackfill(t: {
+  title?: string | null;
+  summary?: string | null;
+  card_ids?: number[] | null;
+}): string {
+  const dominantCardId = t.card_ids?.[0] ?? null;
+  const cardName =
+    typeof dominantCardId === "number" ? getCardName(dominantCardId) : null;
+  const text = (t.title || t.summary || "").toLowerCase();
+  const stopwords = new Set([
+    "the", "a", "an", "and", "or", "as", "in", "of", "to",
+    "across", "multiple", "reading", "readings", "appears",
+    "force", "with", "this", "that", "your", "you", "for",
+    "from", "into", "over", "under", "than", "then", "them",
+    "their", "there", "have", "has", "had", "been", "being",
+  ]);
+  const words = text
+    .split(/[\s,.;:!?]+/)
+    .filter((w) => w.length > 3 && !stopwords.has(w));
+  const keyWord = words[0] ?? null;
+  const cardCore = cardName ? cardName.replace(/^The\s+/i, "") : null;
+  if (keyWord && cardCore) {
+    const cap = keyWord.charAt(0).toUpperCase() + keyWord.slice(1);
+    return `${cap} ${cardCore}`.slice(0, 60);
+  }
+  if (cardCore) return cardCore;
+  return "Recurring Symbols";
+}
+
+/**
+ * Admin-only: shorten existing pattern.name values that are longer than
+ * 30 characters by reading the dominant card from the pattern's first
+ * thread. Patterns the user has manually renamed (`is_user_named`) are
+ * left untouched.
+ */
+export const backfillPatternNames = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    const { data: patternRows, error: patErr } = await supabaseAdmin
+      .from("patterns")
+      .select("id, name, thread_ids, is_user_named");
+    if (patErr) throw new Error(patErr.message);
+
+    const patterns = (patternRows ?? []) as Array<{
+      id: string;
+      name: string;
+      thread_ids: string[] | null;
+      is_user_named: boolean | null;
+    }>;
+
+    let updated = 0;
+    let skipped = 0;
+    for (const p of patterns) {
+      if (p.is_user_named) {
+        skipped += 1;
+        continue;
+      }
+      if ((p.name ?? "").length <= 30) {
+        skipped += 1;
+        continue;
+      }
+      const firstThreadId = p.thread_ids?.[0];
+      if (!firstThreadId) {
+        skipped += 1;
+        continue;
+      }
+      const { data: thread } = await supabaseAdmin
+        .from("symbolic_threads")
+        .select("title, summary, card_ids")
+        .eq("id", firstThreadId)
+        .maybeSingle();
+      if (!thread) {
+        skipped += 1;
+        continue;
+      }
+      const newName = buildShortNameForBackfill(
+        thread as {
+          title: string | null;
+          summary: string | null;
+          card_ids: number[] | null;
+        },
+      );
+      if (newName === p.name) {
+        skipped += 1;
+        continue;
+      }
+      const { error: updErr } = await supabaseAdmin
+        .from("patterns")
+        .update({ name: newName })
+        .eq("id", p.id);
+      if (updErr) throw new Error(updErr.message);
+      updated += 1;
+    }
+
+    await logAction(
+      userId,
+      null,
+      "backfill_pattern_names",
+      null,
+      null,
+      { updated, skipped, considered: patterns.length },
+    );
+    return { ok: true, updated, skipped, considered: patterns.length } as const;
   });
 
 /* ---------- createBackup ---------- */
