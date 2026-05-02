@@ -8,7 +8,7 @@ import { useBgGradient } from "@/lib/use-bg-gradient";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { useStreak } from "@/lib/use-streak";
-import { useActiveCardBackUrl, useActiveDeck } from "@/lib/active-deck";
+import { useActiveCardBackUrl, useActiveDeck, useActiveDeckImage } from "@/lib/active-deck";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
@@ -54,6 +54,9 @@ function Index() {
   // the home gateway. Hook returns null when no active deck or no back
   // photographed; CardBack falls back to the themed default.
   const customBackUrl = useActiveCardBackUrl();
+  // DF-3 — Resolve today's card front through the active custom deck
+  // (falls back to default Rider-Waite when no override exists).
+  const getActiveDeckImage = useActiveDeckImage();
   // CL Group 5 — gate the gateway card render on active-deck loading
   // so the themed default never flashes before the photographed back.
   const { loading: deckLoading } = useActiveDeck();
