@@ -77,17 +77,31 @@ export const listAdminUsers = createServerFn({ method: "GET" })
     }
 
     const ids = allUsers.map((u) => u.id);
-    const [{ data: prefs }, { data: readings }] = await Promise.all([
-      supabaseAdmin
-        .from("user_preferences")
-        .select(
-          "user_id, display_name, role, subscription_type, is_premium, premium_since, premium_expires_at, premium_months_used, admin_note",
-        )
-        .in("user_id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]),
-      supabaseAdmin
-        .from("readings")
-        .select("user_id, created_at"),
-    ]);
+    // DL-4 — Chunk the prefs IN(...) query. With ~1k users the encoded
+    // URL exceeded PostgREST limits and silently returned empty, which
+    // surfaced as blank emails (display_name null) and "0 PREMIUM /
+    // 0 ADMINS" counts on the Users tab. 200 IDs per chunk keeps each
+    // request comfortably under typical 8KB URL caps.
+    const PREF_CHUNK = 200;
+    const prefs: Array<Record<string, unknown>> = [];
+    if (ids.length === 0) {
+      // No-op — leave prefs empty.
+    } else {
+      for (let i = 0; i < ids.length; i += PREF_CHUNK) {
+        const slice = ids.slice(i, i + PREF_CHUNK);
+        const { data: chunk, error: chunkErr } = await supabaseAdmin
+          .from("user_preferences")
+          .select(
+            "user_id, display_name, role, subscription_type, is_premium, premium_since, premium_expires_at, premium_months_used, admin_note",
+          )
+          .in("user_id", slice);
+        if (chunkErr) throw new Error(chunkErr.message);
+        if (chunk) prefs.push(...(chunk as Array<Record<string, unknown>>));
+      }
+    }
+    const { data: readings } = await supabaseAdmin
+      .from("readings")
+      .select("user_id, created_at");
 
     const counts: Record<string, { n: number; last: string | null }> = {};
     for (const r of (readings ?? []) as Array<{
@@ -100,7 +114,7 @@ export const listAdminUsers = createServerFn({ method: "GET" })
       counts[r.user_id] = c;
     }
     const prefMap = new Map<string, any>();
-    for (const p of prefs ?? []) prefMap.set((p as any).user_id, p);
+    for (const p of prefs) prefMap.set((p as any).user_id, p);
 
     // CR — Loosen the filter. Include any user that has an email at all
     // (confirmed or not) so admins can see pending signup attempts.
