@@ -202,11 +202,14 @@ function Index() {
     };
   }, [dayEpoch, effectiveTz]);
 
-  // CZ Group 1 — tighter gateway padding when carousel is visible so the
-  // larger gateway card no longer pushes the spread icons offscreen.
-  const gatewayTopPadding = showMoonCarousel
-    ? (isMobile ? "pt-2" : "pt-4")
-    : (isMobile ? "pt-10" : "pt-14");
+  // DB-2.1 — Gateway padding tightens when the moon carousel is visible
+  // so the spread icons aren't pushed past the bottom nav. The page also
+  // scrolls (overflow-y-auto on <main>) so short viewports can reveal
+  // any clipped content. Note: the section drops `flex-1` so the layout
+  // is natural-height instead of viewport-stretched.
+  const gatewayPaddingClass = showMoonCarousel
+    ? (isMobile ? "pt-2 pb-4" : "pt-4 pb-6")
+    : (isMobile ? "pt-10 pb-10" : "pt-14 pb-12");
   return (
     <main
       className="relative flex min-h-[100dvh] flex-col overflow-y-auto bg-cosmos"
@@ -228,7 +231,7 @@ function Index() {
           that the question prompt has moved to the draw table.
           Extra top padding pushes the gateway down so it doesn't crowd
           the moon carousel above. */}
-      <section className={`flex flex-1 flex-col items-center justify-center px-6 ${gatewayTopPadding}`}>
+      <section className={`flex flex-col items-center justify-center px-6 ${gatewayPaddingClass}`}>
         <div
           style={{
             position: "relative",
@@ -329,8 +332,10 @@ function Index() {
 
       {/* Spread icons — sit just above bottom nav. Extra top padding
           gives the spread labels breathing room over the gateway. */}
-      {/* DA — Extra bottom padding so spread icons don't hug the nav. */}
-      <section className="pb-32 pt-16 sm:pt-16">
+      {/* DA — Extra bottom padding so spread icons don't hug the nav.
+          DB-2.2 — Reduced top padding so icons sit closer to the gateway
+          card, especially on desktop carousel-visible. */}
+      <section className="pb-32 pt-8 sm:pt-8">
         {isAnonymous && !nudgeDismissed && (
           <div
             className="flex items-center justify-center gap-3 px-5 py-2.5"
