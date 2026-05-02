@@ -4,7 +4,6 @@ import { Flame, X } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
-import { useBgGradient } from "@/lib/use-bg-gradient";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { useStreak } from "@/lib/use-streak";
@@ -44,8 +43,12 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  // Initialize gradient + opacity systems on first mount.
-  useBgGradient();
+  // DC-2.2 — Theme tokens (including --bg-gradient-left/right) are
+  // written ONLY by the pre-paint boot script in __root.tsx, by
+  // usePreferencesSync after auth, and by explicit user theme picks.
+  // useBgGradient() used to run here and silently re-applied the
+  // 'midnight' bg-preset every Home mount, clobbering the seeker's
+  // active community theme. Removed.
   // BX — Home / moon carousel stays portrait.
   usePortraitOnly();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
