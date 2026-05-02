@@ -1990,6 +1990,76 @@ function ReadingDetail({
 
         {/* Enrichment panel: note, tags, photos, favorite — with debounced
             auto-save. Lives below the interpretation per the spec. */}
+        {/* DB-3.2 — Deck override picker. */}
+        <div className="mx-auto mt-6 flex max-w-prose items-center justify-center">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setDeckMenuOpen((o) => !o)}
+              disabled={deckSaving}
+              className="rounded-full px-3 py-1 font-display text-[12px] italic text-muted-foreground transition-colors hover:text-gold disabled:opacity-50"
+              style={{
+                border:
+                  "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+                opacity: "var(--ro-plus-30)",
+              }}
+              aria-haspopup="listbox"
+              aria-expanded={deckMenuOpen}
+            >
+              Deck: {currentDeckName}
+            </button>
+            {deckMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setDeckMenuOpen(false)}
+                  aria-hidden
+                />
+                <ul
+                  role="listbox"
+                  className="absolute left-1/2 z-50 mt-2 w-56 -translate-x-1/2 overflow-hidden rounded-md py-1 shadow-lg"
+                  style={{
+                    background: "oklch(0.10 0.03 280)",
+                    border:
+                      "1px solid color-mix(in oklab, var(--gold) 22%, transparent)",
+                  }}
+                >
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => void handleSelectDeck(null)}
+                      className="flex w-full items-center justify-between px-3 py-1.5 text-left font-display text-[13px] italic text-foreground hover:bg-foreground/[0.06]"
+                    >
+                      <span>Default</span>
+                      {!reading.deck_id && (
+                        <span className="text-gold" aria-hidden>
+                          ✓
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                  {decks.map((d) => (
+                    <li key={d.id}>
+                      <button
+                        type="button"
+                        onClick={() => void handleSelectDeck(d.id)}
+                        className="flex w-full items-center justify-between px-3 py-1.5 text-left font-display text-[13px] italic text-foreground hover:bg-foreground/[0.06]"
+                      >
+                        <span className="truncate">{d.name}</span>
+                        {reading.deck_id === d.id && (
+                          <span className="text-gold" aria-hidden>
+                            ✓
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </div>
+
         <EnrichmentPanel
           reading={{
             id: reading.id,
