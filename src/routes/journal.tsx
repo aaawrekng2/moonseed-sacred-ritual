@@ -688,6 +688,43 @@ function JournalPage() {
 
       {/* Body */}
       <div className="mt-6">
+        {batchParam && (
+          <div
+            className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg px-3 py-2"
+            style={{
+              border:
+                "1px solid color-mix(in oklab, var(--gold) 25%, transparent)",
+              background:
+                "color-mix(in oklab, var(--gold) 6%, transparent)",
+            }}
+          >
+            <span
+              className="font-display text-[12px] italic text-foreground"
+              style={{ opacity: "var(--ro-plus-30)" }}
+            >
+              {batchMeta
+                ? `Showing ${filtered.length.toLocaleString()} reading${
+                    filtered.length === 1 ? "" : "s"
+                  } imported from ${batchMeta.sourceFormat} on ${new Date(
+                    batchMeta.createdAt,
+                  ).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}`
+                : "No readings found for this import."}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                void navigate({ to: "/journal", search: { batch: undefined } })
+              }
+              className="font-display text-[12px] italic text-gold transition-opacity hover:opacity-80"
+            >
+              Show all readings →
+            </button>
+          </div>
+        )}
         {!loaded ? (
           <p
             className="mt-12 text-center font-display text-sm italic text-muted-foreground"
