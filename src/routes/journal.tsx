@@ -66,6 +66,7 @@ type ReadingRow = {
   mirror_saved: boolean;
   pattern_id: string | null;
   question: string | null;
+  import_batch_id?: string | null;
 };
 
 type TagRow = { id: string; name: string; usage_count: number };
