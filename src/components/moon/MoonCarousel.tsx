@@ -655,6 +655,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                     }}
                     iconSize={centerMoonSize}
                     maxWidth={centerMaxWidth}
+                    carouselHeight={carouselHeight}
                   />
                 ) : (
                   <AdjacentCard
@@ -768,6 +769,7 @@ function CenterCard({
   onToggle,
   iconSize,
   maxWidth,
+  carouselHeight,
 }: {
   info: MoonInfo;
   moonSign: string;
@@ -778,6 +780,7 @@ function CenterCard({
   onToggle: () => void;
   iconSize: number;
   maxWidth: number;
+  carouselHeight: number;
 }) {
   // CV — Mobile center-card icon scales 20% smaller alongside the
   // overall carousel height reduction so proportions stay balanced.
@@ -794,6 +797,9 @@ function CenterCard({
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
   }, []);
+  // DH-3 — Center-cell text scales with carousel height so Small
+  // doesn't overflow the cell. Floor at 9px for legibility.
+  const baseFontPx = Math.max(9, Math.round(carouselHeight * 0.085));
   return (
     <button
       type="button"
@@ -803,7 +809,10 @@ function CenterCard({
       className="flex flex-col items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       style={{ minWidth: Math.min(120, maxWidth), maxWidth }}
     >
-      <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-gold">
+      <span
+        className="font-medium uppercase tracking-[0.3em] text-gold"
+        style={{ fontSize: `${Math.round(baseFontPx * 0.7)}px`, lineHeight: 1.15 }}
+      >
         {isToday ? "Today" : formatShortDate(info.date, timeZone)}
       </span>
       <div
@@ -816,14 +825,33 @@ function CenterCard({
       >
         {/* No keyed remount here — the wrapper stays mounted across day
             changes so swipes update content in place without a visual cut. */}
-        <div className="flex flex-col items-center gap-2 text-center">
+        <div
+          className="flex flex-col items-center text-center"
+          style={{ gap: Math.max(2, Math.round(baseFontPx * 0.25)), lineHeight: 1.15 }}
+        >
           <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
-          <p className="whitespace-nowrap text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <p
+            className="whitespace-nowrap font-medium uppercase tracking-wider text-muted-foreground"
+            style={{ fontSize: `${Math.round(baseFontPx * 1.0)}px`, lineHeight: 1.15, margin: 0 }}
+          >
             {formatShortDate(info.date, timeZone)}
           </p>
-          <p className="whitespace-nowrap font-display text-sm text-gold">{info.phase}</p>
-          <p className="whitespace-nowrap text-xs text-gold/80">{info.illumination}% illuminated</p>
-          <p className="whitespace-nowrap text-[11px] uppercase tracking-wider text-muted-foreground">
+          <p
+            className="whitespace-nowrap font-display text-gold"
+            style={{ fontSize: `${Math.round(baseFontPx * 1.1)}px`, lineHeight: 1.15, margin: 0 }}
+          >
+            {info.phase}
+          </p>
+          <p
+            className="whitespace-nowrap text-gold/80"
+            style={{ fontSize: `${Math.round(baseFontPx * 0.9)}px`, lineHeight: 1.15, margin: 0 }}
+          >
+            {info.illumination}% illuminated
+          </p>
+          <p
+            className="whitespace-nowrap uppercase tracking-wider text-muted-foreground"
+            style={{ fontSize: `${Math.round(baseFontPx * 0.85)}px`, lineHeight: 1.15, margin: 0 }}
+          >
             Moon in {moonSign}
           </p>
         </div>

@@ -33,13 +33,13 @@ const DEFAULTS: MoonPrefs = {
 
 export function carouselHeightForSize(size: CarouselSize, isMobile: boolean): number {
   if (isMobile) {
-    if (size === "small") return 90;
-    if (size === "medium") return 138;
-    return 180;
+    if (size === "small") return 70;
+    if (size === "medium") return 100;
+    return 138;
   }
-  if (size === "small") return 140;
-  if (size === "medium") return 200;
-  return 240;
+  if (size === "small") return 100;
+  if (size === "medium") return 140;
+  return 200;
 }
 
 export function emitMoonPrefsChanged(patch: Partial<MoonPrefs>) {
