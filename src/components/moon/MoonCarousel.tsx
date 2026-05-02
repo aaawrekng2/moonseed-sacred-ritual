@@ -801,7 +801,7 @@ function CenterCard({
         {/* No keyed remount here — the wrapper stays mounted across day
             changes so swipes update content in place without a visual cut. */}
         <div className="flex flex-col items-center gap-2 text-center">
-          <MoonPhaseIcon phase={info.phase} size={isMobile ? 58 : 72} illumination={info.illumination} />
+          <MoonPhaseIcon phase={info.phase} size={isMobile ? 52 : 72} illumination={info.illumination} />
           <p className="whitespace-nowrap text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {formatShortDate(info.date, timeZone)}
           </p>
