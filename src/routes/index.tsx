@@ -228,7 +228,7 @@ function Index() {
           the draw icons below. */}
       <section
         className="flex flex-col items-center justify-center px-6"
-        style={{ paddingTop: 24, paddingBottom: 24 }}
+        style={{ paddingTop: 24, paddingBottom: 24, minHeight: 0, overflow: "hidden" }}
       >
         <div
           style={{
@@ -332,16 +332,14 @@ function Index() {
     {/* DI-1 — Draw icons row, fixed-position above bottom nav (64px)
         so it's always visible regardless of carousel/hero size. */}
     <div
-      className="fixed left-0 right-0 z-30"
+      className="fixed left-0 right-0 z-30 pointer-events-none"
       style={{
         bottom: "calc(64px + env(safe-area-inset-bottom, 0px))",
         paddingTop: 12,
-        paddingBottom: 12,
-        backgroundColor: "color-mix(in oklab, var(--background) 90%, transparent)",
-        backdropFilter: "blur(8px)",
+        paddingBottom: 4,
       }}
     >
-      <section className="px-6">
+      <section className="px-6 pointer-events-auto">
         {isAnonymous && !nudgeDismissed && (
           <div
             className="flex items-center justify-center gap-3 px-5 py-2.5"
