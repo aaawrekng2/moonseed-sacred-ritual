@@ -8,7 +8,7 @@ import { PremiumModal } from "@/components/premium/PremiumModal";
 import { useSettings, type Prefs } from "./SettingsContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { emitMoonPrefsChanged } from "@/lib/use-moon-prefs";
+import { emitMoonPrefsChanged, type CarouselSize } from "@/lib/use-moon-prefs";
 
 /**
  * Moon & Lunar Features section in Settings → Preferences.
@@ -38,13 +38,22 @@ export function MoonFeaturesSection() {
     }
     // CV — broadcast home-page-relevant moon prefs so the home page
     // updates without a refresh.
-    if ("moon_features_enabled" in patch || "moon_show_carousel" in patch) {
+    if (
+      "moon_features_enabled" in patch ||
+      "moon_show_carousel" in patch ||
+      "moon_carousel_size" in patch
+    ) {
       emitMoonPrefsChanged({
         ...(typeof patch.moon_features_enabled === "boolean"
           ? { moon_features_enabled: patch.moon_features_enabled }
           : {}),
         ...(typeof patch.moon_show_carousel === "boolean"
           ? { moon_show_carousel: patch.moon_show_carousel }
+          : {}),
+        ...(patch.moon_carousel_size === "small" ||
+        patch.moon_carousel_size === "medium" ||
+        patch.moon_carousel_size === "large"
+          ? { moon_carousel_size: patch.moon_carousel_size }
           : {}),
       });
     }
@@ -90,6 +99,30 @@ export function MoonFeaturesSection() {
             disabled={savingKey === "moon_show_carousel"}
             onChange={(v) => update({ moon_show_carousel: v })}
           />
+
+          {prefs.moon_show_carousel && (
+            <div className="ml-6 flex flex-col gap-2">
+              <Label className="text-sm text-foreground/70">Carousel size</Label>
+              <div className="flex gap-2">
+                {(["small", "medium", "large"] as const).map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => update({ moon_carousel_size: size })}
+                    disabled={savingKey === "moon_carousel_size"}
+                    className={cn(
+                      "flex-1 rounded-md border px-3 py-2 text-sm capitalize transition-colors disabled:opacity-60",
+                      prefs.moon_carousel_size === size
+                        ? "border-gold/40 bg-gold/15 text-gold"
+                        : "border-foreground/20 bg-transparent text-foreground/60 hover:border-gold/30 hover:text-gold",
+                    )}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="space-y-4 rounded-xl border border-gold/40 bg-gold/[0.05] p-4 shadow-[0_0_24px_-12px_var(--gold)]">
             <div className="space-y-1">
