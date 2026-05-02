@@ -24,6 +24,51 @@ import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CardZoomModal } from "@/components/tabletop/CardZoomModal";
 
+// DD-3 — Subtle gold-tinted placeholder shown while a custom deck's
+// images are still being fetched. Prevents the brief Rider-Waite flash
+// that used to appear before the user's photographed card resolved.
+function CardThumb({
+  src,
+  alt,
+  className,
+  style,
+  loading,
+  onClick,
+}: {
+  src: string | null | undefined;
+  alt: string;
+  className?: string;
+  style?: React.CSSProperties;
+  loading?: "lazy" | "eager";
+  onClick?: () => void;
+}) {
+  if (!src) {
+    return (
+      <div
+        aria-hidden
+        className={className}
+        style={{
+          background: "color-mix(in oklab, var(--gold) 6%, transparent)",
+          border:
+            "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
+          opacity: 0.4,
+          ...(style ?? {}),
+        }}
+      />
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading={loading}
+      className={className}
+      style={style}
+      onClick={onClick}
+    />
+  );
+}
+
 export const Route = createFileRoute("/journal")({
   validateSearch: (search: Record<string, unknown>) => ({
     batch:
