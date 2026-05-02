@@ -108,18 +108,23 @@ function Index() {
       window.removeEventListener("orientationchange", onResize);
     };
   }, []);
-  // DG-1 — Hero grows from remaining vertical space after reserving the
-  // always-visible carousel/spread/nav bands. If even the minimum card
-  // cannot fit, the page scrolls naturally instead of clipping the row.
+  // DL-1 — Hero card sizes responsively from the available pane height.
+  // The pane fills remaining vertical space between carousel and the
+  // fixed draw-icons row; the card adopts the pane's height while
+  // capping width at 90vw / 360px so it never overflows. cardWidth is
+  // still computed for child elements (CardBack, flame offset).
   const carouselReserve = showMoonCarousel
     ? carouselHeightForSize(moon.moon_carousel_size, isMobile)
     : 0;
-  const availableHeight =
-    viewportH - carouselReserve - 90 - 64 - 64;
-  const maxWidthFromHeight = availableHeight / 1.75;
+  // 64 bottom-nav + 64 fixed icons row + 90 vertical breathing room.
+  const availablePaneHeight = Math.max(
+    220,
+    viewportH - carouselReserve - 64 - 64 - 90,
+  );
   const maxWidthCap = viewportW < 768 ? viewportW * 0.9 : 360;
+  const heightDerivedWidth = availablePaneHeight / 1.75;
   const cardWidth = Math.round(
-    Math.max(120, Math.min(maxWidthFromHeight, maxWidthCap)),
+    Math.max(120, Math.min(heightDerivedWidth, maxWidthCap)),
   );
   const cardHeight = Math.round(cardWidth * 1.75);
   // CX — Streak under-card only in mobile hero mode.
@@ -242,6 +247,13 @@ function Index() {
             type="button"
             aria-label="Begin today's draw"
             className="gateway-card-frame animate-breathe-glow overflow-hidden rounded-[12px] transition-transform active:scale-[0.98]"
+            style={{
+              width: cardWidth,
+              height: cardHeight,
+              maxWidth: "90vw",
+              maxHeight: "100%",
+              padding: 0,
+            }}
             onClick={() =>
               navigate({
                 to: "/draw",
@@ -250,14 +262,21 @@ function Index() {
             }
           >
             {todayCard !== null ? (
-              <div style={{ animation: "fade-in 400ms ease-out both" }}>
+              <div
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  animation: "fade-in 400ms ease-out both",
+                }}
+              >
                 <img
                   src={getActiveDeckImage(todayCard)}
                   alt={getCardName(todayCard)}
                   style={{
-                    width: cardWidth,
-                    height: cardHeight,
+                    width: "100%",
+                    height: "100%",
                     objectFit: "cover",
+                    display: "block",
                   }}
                   loading="eager"
                 />
@@ -265,8 +284,8 @@ function Index() {
             ) : deckLoading ? (
               <div
                 style={{
-                  width: cardWidth,
-                  height: cardHeight,
+                  width: "100%",
+                  height: "100%",
                   borderRadius: 12,
                   background: "color-mix(in oklab, var(--gold) 6%, transparent)",
                   border: "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
@@ -274,7 +293,13 @@ function Index() {
                 aria-label="Loading today's card"
               />
             ) : (
-              <div style={{ animation: "fade-in 400ms ease-out both" }}>
+              <div
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  animation: "fade-in 400ms ease-out both",
+                }}
+              >
                 <CardBack id={cardBack} imageUrl={customBackUrl} width={cardWidth} neutralBorder />
               </div>
             )}
