@@ -845,6 +845,26 @@ function ReadingActions({
           {isLoading ? loadingLabel : speakLabel}
         </span>
       </button>
+      {!isLoading && (
+        <button
+          type="button"
+          onClick={onSaveAndClose}
+          disabled={savingClose}
+          className="text-sm text-gold/70 hover:text-gold underline-offset-4 hover:underline transition-colors disabled:opacity-50"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            opacity: "var(--ro-plus-15)",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          {savingClose
+            ? isOracle ? "Tucking away…" : "Saving…"
+            : isOracle ? "Tuck It Away" : "Save and close"}
+        </button>
+      )}
     </div>
   );
 }
