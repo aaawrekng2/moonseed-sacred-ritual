@@ -7,10 +7,13 @@ import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import { getGuideById } from "@/lib/guides";
-import { getCardImagePath, getCardName } from "@/lib/tarot";
+import { getCardName } from "@/lib/tarot";
 import { cn, firstCardName, formatRelativeTime } from "@/lib/utils";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
+import { useDeckImage } from "@/lib/active-deck";
+import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
+import { toast } from "sonner";
 import {
   EnrichmentPanel,
   type EnrichmentTag,
@@ -67,6 +70,8 @@ type ReadingRow = {
   pattern_id: string | null;
   question: string | null;
   import_batch_id?: string | null;
+  /** DB-3.1 — saved deck for THIS reading (null = default Rider-Waite). */
+  deck_id?: string | null;
 };
 
 type TagRow = { id: string; name: string; usage_count: number };
@@ -191,7 +196,7 @@ function JournalPage() {
           supabase
             .from("readings")
             .select(
-              "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id",
+              "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id",
             )
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
@@ -354,6 +359,18 @@ function JournalPage() {
       [...next].sort((a, b) => b.usage_count - a.usage_count).slice(0, 100),
     );
   }, []);
+
+  // DB-3.2 — Patch a reading's deck_id locally after the override picker
+  // updates the row in the database. Keeps the journal list & detail view
+  // in sync without a refetch.
+  const handleReadingDeckChange = useCallback(
+    (id: string, deckId: string | null) => {
+      setReadings((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, deck_id: deckId } : r)),
+      );
+    },
+    [],
+  );
 
   // DA — Load metadata for the optional ?batch=... filter banner.
   useEffect(() => {
@@ -788,6 +805,7 @@ function JournalPage() {
           onReadingChange={handleReadingChange}
           onTagLibraryChange={handleTagLibraryChange}
           onPhotoCountChange={handlePhotoCountChange}
+          onDeckChange={handleReadingDeckChange}
         />
       )}
     </main>
@@ -847,6 +865,8 @@ function ReadingCard({
     .replace(/\s+/g, " ")
     .trim();
   const interpClean = stripMarkdown(interpFirst);
+  // DB-3.1 — render with the reading's saved deck, not the global active deck.
+  const getImage = useDeckImage(reading.deck_id ?? null);
 
   return (
     <button
@@ -935,7 +955,7 @@ function ReadingCard({
           {reading.card_ids.map((id, idx) => (
             <img
               key={`${id}-${idx}`}
-              src={getCardImagePath(id)}
+              src={getImage(id, "thumbnail")}
               alt={getCardName(id)}
               loading="lazy"
               className="h-[110px] w-[74px] flex-shrink-0 rounded-[3px] object-cover"
@@ -952,7 +972,7 @@ function ReadingCard({
           {visible.map((id) => (
             <img
               key={id}
-              src={getCardImagePath(id)}
+              src={getImage(id, "thumbnail")}
               alt={getCardName(id)}
               loading="lazy"
               className="h-[110px] w-[74px] rounded-[3px] object-cover"
@@ -1034,42 +1054,65 @@ function GalleryView({
     <div className="grid grid-cols-2 gap-1.5 md:grid-cols-3">
       {items.map((r) => {
         const photoUrl = covers[r.id];
-        // Fall back to the first card image while the signed URL is in flight.
-        const fallback = getCardImagePath(r.card_ids[0] ?? 0);
         return (
-          <button
+          <GalleryTile
             key={r.id}
-            type="button"
-            onClick={() => onOpen(r.id)}
-            className="relative aspect-square overflow-hidden rounded-md"
-            style={{
-              border:
-                "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
-            }}
-          >
-            <img
-              src={photoUrl ?? fallback}
-              alt=""
-              loading="lazy"
-              className="h-full w-full object-cover"
-              style={photoUrl ? undefined : { opacity: "var(--ro-plus-30)" }}
-            />
-            <div
-              className="absolute inset-x-0 bottom-0 flex items-center justify-between px-2 py-1.5 text-[10px] uppercase tracking-[0.14em]"
-              style={{
-                background:
-                  "linear-gradient(to top, oklch(0 0 0 / 60%), transparent)",
-                color: "var(--gold)",
-                opacity: "var(--ro-plus-20)",
-              }}
-            >
-              <span>{spreadLabel(r.spread_type)}</span>
-              <span>{relativeTime(r.created_at)}</span>
-            </div>
-          </button>
+            reading={r}
+            photoUrl={photoUrl}
+            onOpen={onOpen}
+          />
         );
       })}
     </div>
+  );
+}
+
+/**
+ * DB-3.1 — Gallery tile extracted so `useDeckImage` can resolve the
+ * fallback card image from THIS reading's saved deck (not the global
+ * active deck) without violating Rules of Hooks.
+ */
+function GalleryTile({
+  reading,
+  photoUrl,
+  onOpen,
+}: {
+  reading: ReadingRow;
+  photoUrl: string | undefined;
+  onOpen: (id: string) => void;
+}) {
+  const getImage = useDeckImage(reading.deck_id ?? null);
+  const fallback = getImage(reading.card_ids[0] ?? 0, "thumbnail");
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(reading.id)}
+      className="relative aspect-square overflow-hidden rounded-md"
+      style={{
+        border:
+          "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
+      }}
+    >
+      <img
+        src={photoUrl ?? fallback}
+        alt=""
+        loading="lazy"
+        className="h-full w-full object-cover"
+        style={photoUrl ? undefined : { opacity: "var(--ro-plus-30)" }}
+      />
+      <div
+        className="absolute inset-x-0 bottom-0 flex items-center justify-between px-2 py-1.5 text-[10px] uppercase tracking-[0.14em]"
+        style={{
+          background:
+            "linear-gradient(to top, oklch(0 0 0 / 60%), transparent)",
+          color: "var(--gold)",
+          opacity: "var(--ro-plus-20)",
+        }}
+      >
+        <span>{spreadLabel(reading.spread_type)}</span>
+        <span>{relativeTime(reading.created_at)}</span>
+      </div>
+    </button>
   );
 }
 
@@ -1667,6 +1710,7 @@ function ReadingDetail({
   onReadingChange,
   onTagLibraryChange,
   onPhotoCountChange,
+  onDeckChange,
 }: {
   reading: ReadingRow;
   onClose: () => void;
@@ -1680,6 +1724,7 @@ function ReadingDetail({
   }) => void;
   onTagLibraryChange: (next: EnrichmentTag[]) => void;
   onPhotoCountChange: (readingId: string, count: number) => void;
+  onDeckChange: (id: string, deckId: string | null) => void;
 }) {
   const guide = getGuideById(reading.guide_id);
   const positions = isValidSpreadMode(reading.spread_type)
@@ -1690,6 +1735,46 @@ function ReadingDetail({
   const isMobile = useIsMobile();
   const swipeMobile = isMobile && reading.card_ids.length > 3;
   const [shareOpen, setShareOpen] = useState(false);
+  // DB-3.1 — render this reading's images using its SAVED deck.
+  const getImage = useDeckImage(reading.deck_id ?? null);
+  // DB-3.2 — deck override picker.
+  const [decks, setDecks] = useState<CustomDeck[]>([]);
+  const [deckMenuOpen, setDeckMenuOpen] = useState(false);
+  const [deckSaving, setDeckSaving] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const rows = await fetchUserDecks(reading.user_id);
+        if (!cancelled) setDecks(rows);
+      } catch {
+        /* non-fatal */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [reading.user_id]);
+  const currentDeckName = reading.deck_id
+    ? decks.find((d) => d.id === reading.deck_id)?.name ?? "Custom deck"
+    : "Default";
+  const handleSelectDeck = async (newDeckId: string | null) => {
+    if (deckSaving) return;
+    setDeckSaving(true);
+    const { error } = await supabase
+      .from("readings")
+      .update({ deck_id: newDeckId })
+      .eq("id", reading.id)
+      .eq("user_id", reading.user_id);
+    setDeckSaving(false);
+    setDeckMenuOpen(false);
+    if (error) {
+      toast.error("Couldn't update deck.");
+      return;
+    }
+    onDeckChange(reading.id, newDeckId);
+    toast.success("Deck updated");
+  };
   const spreadModeForShare: SpreadMode = isValidSpreadMode(reading.spread_type)
     ? (reading.spread_type as SpreadMode)
     : "single";
@@ -1792,7 +1877,7 @@ function ReadingDetail({
                 )}
               >
                 <img
-                  src={getCardImagePath(id)}
+                  src={getImage(id)}
                   alt={getCardName(id)}
                   className="h-32 w-20 rounded-md object-cover"
                   style={{
@@ -1905,6 +1990,76 @@ function ReadingDetail({
 
         {/* Enrichment panel: note, tags, photos, favorite — with debounced
             auto-save. Lives below the interpretation per the spec. */}
+        {/* DB-3.2 — Deck override picker. */}
+        <div className="mx-auto mt-6 flex max-w-prose items-center justify-center">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setDeckMenuOpen((o) => !o)}
+              disabled={deckSaving}
+              className="rounded-full px-3 py-1 font-display text-[12px] italic text-muted-foreground transition-colors hover:text-gold disabled:opacity-50"
+              style={{
+                border:
+                  "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+                opacity: "var(--ro-plus-30)",
+              }}
+              aria-haspopup="listbox"
+              aria-expanded={deckMenuOpen}
+            >
+              Deck: {currentDeckName}
+            </button>
+            {deckMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setDeckMenuOpen(false)}
+                  aria-hidden
+                />
+                <ul
+                  role="listbox"
+                  className="absolute left-1/2 z-50 mt-2 w-56 -translate-x-1/2 overflow-hidden rounded-md py-1 shadow-lg"
+                  style={{
+                    background: "oklch(0.10 0.03 280)",
+                    border:
+                      "1px solid color-mix(in oklab, var(--gold) 22%, transparent)",
+                  }}
+                >
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => void handleSelectDeck(null)}
+                      className="flex w-full items-center justify-between px-3 py-1.5 text-left font-display text-[13px] italic text-foreground hover:bg-foreground/[0.06]"
+                    >
+                      <span>Default</span>
+                      {!reading.deck_id && (
+                        <span className="text-gold" aria-hidden>
+                          ✓
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                  {decks.map((d) => (
+                    <li key={d.id}>
+                      <button
+                        type="button"
+                        onClick={() => void handleSelectDeck(d.id)}
+                        className="flex w-full items-center justify-between px-3 py-1.5 text-left font-display text-[13px] italic text-foreground hover:bg-foreground/[0.06]"
+                      >
+                        <span className="truncate">{d.name}</span>
+                        {reading.deck_id === d.id && (
+                          <span className="text-gold" aria-hidden>
+                            ✓
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+        </div>
+
         <EnrichmentPanel
           reading={{
             id: reading.id,

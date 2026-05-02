@@ -307,7 +307,26 @@ export async function executeRestore(params: {
       part1,
       "readings/readings.json",
     );
-    result.perCategory.readings = await insertRowsMerge("readings", rows, userId);
+    // DB-3.3 — Cross-account safety. A backup may reference custom
+    // decks that don't exist in the importing account. Look up the
+    // importing user's deck IDs once, then null out any reading
+    // `deck_id` that doesn't resolve. Same-account restores are
+    // unaffected (every deck_id will be in the set).
+    const { data: deckRows } = await supabase
+      .from("custom_decks")
+      .select("id")
+      .eq("user_id", userId);
+    const validDeckIds = new Set<string>(
+      ((deckRows ?? []) as { id: string }[]).map((d) => d.id),
+    );
+    const safeRows = rows.map((raw) => {
+      const did = (raw as { deck_id?: unknown }).deck_id;
+      if (typeof did === "string" && did.length > 0 && !validDeckIds.has(did)) {
+        return { ...raw, deck_id: null };
+      }
+      return raw;
+    });
+    result.perCategory.readings = await insertRowsMerge("readings", safeRows, userId);
   }
 
   // ---- Preferences (overwrite) ----
