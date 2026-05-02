@@ -1028,6 +1028,41 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
   const [suggestions, setSuggestions] = useState<PatternSuggestion[]>([]);
   const [attachingId, setAttachingId] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(() => isDismissed(readingId));
+  // DL-7 — first-tap "Connect" hint modal. Persisted via
+  // user_preferences.dismissed_hints (jsonb). When the
+  // 'connect_to_story' key is true the modal is skipped.
+  const [hintTarget, setHintTarget] = useState<PatternSuggestion | null>(null);
+  const [hintDismissForever, setHintDismissForever] = useState(false);
+  const [hintAlreadyDismissed, setHintAlreadyDismissed] = useState<boolean | null>(
+    null,
+  );
+  const [hintUserId, setHintUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      const uid = sess.session?.user?.id ?? null;
+      if (cancelled) return;
+      setHintUserId(uid);
+      if (!uid) {
+        setHintAlreadyDismissed(true);
+        return;
+      }
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("dismissed_hints")
+        .eq("user_id", uid)
+        .maybeSingle();
+      if (cancelled) return;
+      const hints = ((data as { dismissed_hints?: Record<string, boolean> } | null)
+        ?.dismissed_hints) ?? {};
+      setHintAlreadyDismissed(hints.connect_to_story === true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1199,6 +1234,40 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
     [attachingId, readingId],
   );
 
+  const onConnectTap = (s: PatternSuggestion) => {
+    if (hintAlreadyDismissed) {
+      void attach(s);
+    } else {
+      setHintDismissForever(false);
+      setHintTarget(s);
+    }
+  };
+
+  const confirmConnect = async () => {
+    const target = hintTarget;
+    if (!target) return;
+    if (hintDismissForever && hintUserId) {
+      try {
+        const { data } = await supabase
+          .from("user_preferences")
+          .select("dismissed_hints")
+          .eq("user_id", hintUserId)
+          .maybeSingle();
+        const cur = ((data as { dismissed_hints?: Record<string, boolean> } | null)
+          ?.dismissed_hints) ?? {};
+        await supabase
+          .from("user_preferences")
+          .update({ dismissed_hints: { ...cur, connect_to_story: true } })
+          .eq("user_id", hintUserId);
+        setHintAlreadyDismissed(true);
+      } catch {
+        /* non-fatal */
+      }
+    }
+    setHintTarget(null);
+    void attach(target);
+  };
+
   if (pattern) {
     return (
       <div
@@ -1238,8 +1307,8 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
   const busy = attachingId !== null;
   const headline =
     suggestions.length === 1
-      ? "This reading resonates with a pattern:"
-      : `This reading resonates with ${suggestions.length} patterns:`;
+      ? "This reading shares cards with a Story:"
+      : `This reading shares cards with ${suggestions.length} Stories:`;
 
   return (
     <div
@@ -1308,7 +1377,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
               </span>
               <button
                 type="button"
-                onClick={() => void attach(s)}
+                onClick={() => onConnectTap(s)}
                 disabled={busy}
                 style={{
                   background: "none",
@@ -1369,6 +1438,91 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
       >
         Not now
       </button>
+      {hintTarget && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setHintTarget(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: 420,
+              width: "100%",
+              background: "var(--background, #14101e)",
+              border: "1px solid color-mix(in oklab, var(--gold) 25%, transparent)",
+              borderRadius: 12,
+              padding: 20,
+              fontFamily: "var(--font-serif)",
+              color: "var(--foreground)",
+              textAlign: "left",
+            }}
+          >
+            <h3 style={{ margin: 0, fontStyle: "italic", fontSize: "var(--text-heading-sm, 17px)" }}>
+              Connect this reading to a Story?
+            </h3>
+            <p style={{ marginTop: 12, fontSize: "var(--text-body-sm)", lineHeight: 1.6, opacity: 0.85 }}>
+              Connecting links this reading to the <strong style={{ color: "var(--gold)" }}>{hintTarget.name}</strong> Story.
+              Once connected, this reading appears in the Story's collection,
+              and Moonseed tracks how the Story evolves over time.
+            </p>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, fontSize: "var(--text-body-sm)" }}>
+              <input
+                type="checkbox"
+                checked={hintDismissForever}
+                onChange={(e) => setHintDismissForever(e.target.checked)}
+              />
+              Don't show this again
+            </label>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 20 }}>
+              <button
+                type="button"
+                onClick={() => setHintTarget(null)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "color-mix(in oklab, var(--foreground) 60%, transparent)",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-display, inherit)",
+                  fontSize: 12,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmConnect()}
+                style={{
+                  background: "color-mix(in oklab, var(--gold) 20%, transparent)",
+                  border: "1px solid color-mix(in oklab, var(--gold) 50%, transparent)",
+                  color: "var(--gold)",
+                  cursor: "pointer",
+                  fontFamily: "var(--font-display, inherit)",
+                  fontSize: 12,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                }}
+              >
+                Connect
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

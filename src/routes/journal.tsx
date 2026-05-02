@@ -713,7 +713,7 @@ function JournalPage() {
             ["notes", "Notes", Pencil],
             ["favorites", "Favorites", Heart],
             ["calendar", "Calendar", CalendarDays],
-            ["threads", "Threads", Network],
+            ["threads", "Stories", Network],
           ] as const
         ).map(([key, label, Icon]) => {
           const active = view === key;
@@ -1004,8 +1004,11 @@ function ReadingCard({
               src={getImage(id, "thumbnail")}
               alt={getCardName(id)}
               loading="lazy"
-              className="h-[110px] w-[74px] flex-shrink-0 rounded-[3px] object-cover"
+              className="flex-shrink-0 rounded-[3px]"
               style={{
+                width: "74px",
+                aspectRatio: "1 / 1.75",
+                objectFit: "contain",
                 border:
                   "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
                 opacity: "var(--ro-plus-30)",
@@ -1021,8 +1024,11 @@ function ReadingCard({
               src={getImage(id, "thumbnail")}
               alt={getCardName(id)}
               loading="lazy"
-              className="h-[110px] w-[74px] rounded-[3px] object-cover"
+              className="rounded-[3px]"
               style={{
+                width: "74px",
+                aspectRatio: "1 / 1.75",
+                objectFit: "contain",
                 border:
                   "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
                 opacity: "var(--ro-plus-30)",

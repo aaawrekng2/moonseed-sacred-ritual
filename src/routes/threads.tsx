@@ -19,8 +19,8 @@ import {
 export const Route = createFileRoute("/threads")({
   head: () => ({
     meta: [
-      { title: "Threads — Moonseed" },
-      { name: "description", content: "Symbolic patterns weaving across your readings." },
+      { title: "Stories — Moonseed" },
+      { name: "description", content: "Symbolic Stories weaving across your readings." },
     ],
   }),
   component: ThreadsPage,
@@ -137,17 +137,21 @@ function ThreadsPage() {
               letterSpacing: "0.02em",
             }}
           >
-            Threads
+            Stories
           </h1>
           <nav
-            aria-label="Threads views"
+            aria-label="Stories views"
             style={{
               display: "flex",
               gap: "var(--space-5, 20px)",
               marginTop: "var(--space-3, 12px)",
             }}
           >
-            {(["active", "weaves", "archive"] as View[]).map((v) => {
+            {/* DL-9 — Weaves sub-view hidden from user-facing UI. The
+                WeavesView component and weaves table remain so detection
+                still runs in the background and can be re-surfaced
+                without rebuilding. */}
+            {(["active", "archive"] as View[]).map((v) => {
               const isActive = v === view;
               return (
                 <button
@@ -190,8 +194,6 @@ function ThreadsPage() {
           <p style={{ opacity: 0.5, fontStyle: "italic" }}>Listening for threads…</p>
         ) : view === "active" ? (
           <ActiveView patterns={active} readingsByPattern={readingsByPattern} />
-        ) : view === "weaves" ? (
-          <WeavesView patterns={active} userId={user?.id} />
         ) : (
           <ArchiveView patterns={archived} readingsByPattern={readingsByPattern} />
         )}
