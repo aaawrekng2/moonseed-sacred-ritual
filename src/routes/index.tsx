@@ -88,9 +88,15 @@ function Index() {
   const [viewportW, setViewportW] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth : 400,
   );
+  const [viewportH, setViewportH] = useState(() =>
+    typeof window !== "undefined" ? window.innerHeight : 800,
+  );
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const onResize = () => setViewportW(window.innerWidth);
+    const onResize = () => {
+      setViewportW(window.innerWidth);
+      setViewportH(window.innerHeight);
+    };
     onResize();
     window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", onResize);
@@ -114,8 +120,6 @@ function Index() {
   //   spread icons row ≈ 110, bottom nav ≈ 64, carousel ≈ 192/240, padding ≈ 80.
   const carouselReserve = showMoonCarousel ? (isMobile ? 173 : 240) : 0;
   const reservedV = (isMobile ? 110 : 130) + 64 + carouselReserve + 80;
-  const viewportH =
-    typeof window !== "undefined" ? window.innerHeight : 800;
   const maxCardHeight = Math.max(180, viewportH - reservedV);
   const targetHeight = targetWidth * 1.75;
   const cardHeight = Math.min(targetHeight, maxCardHeight);
