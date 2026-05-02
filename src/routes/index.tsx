@@ -208,12 +208,14 @@ function Index() {
   // under the carousel (no vertical centering), so the card hugs the
   // moon strip instead of floating in mid-page whitespace.
   return (
+    <>
     <main
       className="relative grid bg-cosmos overflow-y-auto"
       style={{
         minHeight: "100dvh",
-        gridTemplateRows: "auto minmax(240px, 1fr) auto auto",
+        gridTemplateRows: "auto minmax(240px, 1fr)",
         paddingTop: "calc(env(safe-area-inset-top, 0px) + 4px)",
+        paddingBottom: "calc(160px + env(safe-area-inset-bottom, 0px))",
       }}
     >
       {/* DH-1 Pane 1 — Carousel (auto-sized row). Empty when hidden. */}
@@ -325,10 +327,21 @@ function Index() {
           )}
         </div>
       </section>
+    </main>
 
-      {/* DH-1 Pane 3 — Draw icons row. DH-4: generous py for breathing
-          room above (from hero) and below (before bottom nav). */}
-      <section className="px-6 py-6 sm:py-8">
+    {/* DI-1 — Draw icons row, fixed-position above bottom nav (64px)
+        so it's always visible regardless of carousel/hero size. */}
+    <div
+      className="fixed left-0 right-0 z-30"
+      style={{
+        bottom: "calc(64px + env(safe-area-inset-bottom, 0px))",
+        paddingTop: 12,
+        paddingBottom: 12,
+        backgroundColor: "color-mix(in oklab, var(--background) 90%, transparent)",
+        backdropFilter: "blur(8px)",
+      }}
+    >
+      <section className="px-6">
         {isAnonymous && !nudgeDismissed && (
           <div
             className="flex items-center justify-center gap-3 px-5 py-2.5"
@@ -388,11 +401,8 @@ function Index() {
           }
         />
       </section>
-
-      {/* DH-1 Pane 4 — Spacer reserving the fixed bottom-nav height so
-          Pane 3 never sits behind the nav. */}
-      <div aria-hidden className="pointer-events-none" style={{ height: 80 }} />
-    </main>
+    </div>
+    </>
   );
 }
 
