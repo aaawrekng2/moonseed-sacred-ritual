@@ -1054,42 +1054,65 @@ function GalleryView({
     <div className="grid grid-cols-2 gap-1.5 md:grid-cols-3">
       {items.map((r) => {
         const photoUrl = covers[r.id];
-        // Fall back to the first card image while the signed URL is in flight.
-        const fallback = getCardImagePath(r.card_ids[0] ?? 0);
         return (
-          <button
+          <GalleryTile
             key={r.id}
-            type="button"
-            onClick={() => onOpen(r.id)}
-            className="relative aspect-square overflow-hidden rounded-md"
-            style={{
-              border:
-                "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
-            }}
-          >
-            <img
-              src={photoUrl ?? fallback}
-              alt=""
-              loading="lazy"
-              className="h-full w-full object-cover"
-              style={photoUrl ? undefined : { opacity: "var(--ro-plus-30)" }}
-            />
-            <div
-              className="absolute inset-x-0 bottom-0 flex items-center justify-between px-2 py-1.5 text-[10px] uppercase tracking-[0.14em]"
-              style={{
-                background:
-                  "linear-gradient(to top, oklch(0 0 0 / 60%), transparent)",
-                color: "var(--gold)",
-                opacity: "var(--ro-plus-20)",
-              }}
-            >
-              <span>{spreadLabel(r.spread_type)}</span>
-              <span>{relativeTime(r.created_at)}</span>
-            </div>
-          </button>
+            reading={r}
+            photoUrl={photoUrl}
+            onOpen={onOpen}
+          />
         );
       })}
     </div>
+  );
+}
+
+/**
+ * DB-3.1 — Gallery tile extracted so `useDeckImage` can resolve the
+ * fallback card image from THIS reading's saved deck (not the global
+ * active deck) without violating Rules of Hooks.
+ */
+function GalleryTile({
+  reading,
+  photoUrl,
+  onOpen,
+}: {
+  reading: ReadingRow;
+  photoUrl: string | undefined;
+  onOpen: (id: string) => void;
+}) {
+  const getImage = useDeckImage(reading.deck_id ?? null);
+  const fallback = getImage(reading.card_ids[0] ?? 0, "thumbnail");
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(reading.id)}
+      className="relative aspect-square overflow-hidden rounded-md"
+      style={{
+        border:
+          "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
+      }}
+    >
+      <img
+        src={photoUrl ?? fallback}
+        alt=""
+        loading="lazy"
+        className="h-full w-full object-cover"
+        style={photoUrl ? undefined : { opacity: "var(--ro-plus-30)" }}
+      />
+      <div
+        className="absolute inset-x-0 bottom-0 flex items-center justify-between px-2 py-1.5 text-[10px] uppercase tracking-[0.14em]"
+        style={{
+          background:
+            "linear-gradient(to top, oklch(0 0 0 / 60%), transparent)",
+          color: "var(--gold)",
+          opacity: "var(--ro-plus-20)",
+        }}
+      >
+        <span>{spreadLabel(reading.spread_type)}</span>
+        <span>{relativeTime(reading.created_at)}</span>
+      </div>
+    </button>
   );
 }
 
