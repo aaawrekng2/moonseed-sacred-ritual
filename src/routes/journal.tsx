@@ -943,12 +943,15 @@ function ReadingsList({
 function ReadingCard({
   reading,
   onOpen,
+  patternsById,
 }: {
   reading: ReadingRow;
   onOpen: (id: string) => void;
+  patternsById: Record<string, PatternRow>;
 }) {
   const guide = getGuideById(reading.guide_id);
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   const visible = reading.card_ids.slice(0, 5);
   const overflow = reading.card_ids.length - visible.length;
   const interpFirst = (reading.interpretation ?? "")
@@ -1006,6 +1009,31 @@ function ReadingCard({
             <span>{guide.name}</span>
           </div>
         </div>
+        {reading.pattern_id && patternsById[reading.pattern_id] && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate({
+                to: "/threads",
+                search: { focus: reading.pattern_id! },
+              });
+            }}
+            aria-label="View Story"
+            title={`View Story: ${patternsById[reading.pattern_id].name}`}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              opacity: "var(--ro-plus-30)",
+              color: "var(--gold)",
+              flexShrink: 0,
+            }}
+          >
+            <Network size={16} strokeWidth={1.5} />
+          </button>
+        )}
         <Heart
           size={16}
           strokeWidth={1.5}
