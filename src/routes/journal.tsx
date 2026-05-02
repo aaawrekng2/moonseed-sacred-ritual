@@ -7,7 +7,7 @@ import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import { getGuideById } from "@/lib/guides";
-import { getCardImagePath, getCardName } from "@/lib/tarot";
+import { getCardName } from "@/lib/tarot";
 import { cn, firstCardName, formatRelativeTime } from "@/lib/utils";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
