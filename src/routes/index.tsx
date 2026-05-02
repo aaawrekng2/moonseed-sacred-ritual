@@ -83,14 +83,31 @@ function Index() {
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
   }, []);
-  // CV — Group 2: mobile gateway card 30% larger (140 → 182). Group 4:
-  // when the carousel is hidden on desktop, hero-size the card (280)
-  // so it commands the empty space. Mobile keeps 182 either way —
-  // hero-doubling on mobile would overflow the screen.
+  // CX — track viewport width so mobile hero (90vw) re-measures on
+  // rotation/resize. Default to 360 on SSR so layout is stable.
+  const [viewportW, setViewportW] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth : 400,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onResize = () => setViewportW(window.innerWidth);
+    onResize();
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
+  // CX — Hero card sizing.
+  // Carousel visible: 140 desktop / 182 mobile (unchanged from CV).
+  // Carousel hidden: 360 desktop hero / 90vw mobile hero.
   const cardWidth = showMoonCarousel
     ? (isMobile ? 182 : 140)
-    : (isMobile ? 182 : 280);
+    : (isMobile ? Math.round(viewportW * 0.9) : 360);
   const cardHeight = Math.round(cardWidth * 1.75);
+  // CX — Streak under-card only in mobile hero mode.
+  const streakUnderCard = isMobile && !showMoonCarousel;
   const [nudgeDismissed, setNudgeDismissed] = useState(true);
   // Hydrate dismissed state on the client only to avoid SSR mismatch.
   useEffect(() => {
@@ -188,7 +205,14 @@ function Index() {
           Extra top padding pushes the gateway down so it doesn't crowd
           the moon carousel above. */}
       <section className="flex flex-1 flex-col items-center justify-center px-6 pt-10 sm:pt-14">
-        <div style={{ position: "relative", display: "inline-block" }}>
+        <div
+          style={{
+            position: "relative",
+            display: "inline-flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
           <button
             type="button"
             aria-label="Begin today's draw"
@@ -230,32 +254,52 @@ function Index() {
               </div>
             )}
           </button>
-          <div
-            style={{
-              position: "absolute",
-              bottom: "12px",
-              // CV — flame offset scales with the card so the hero
-              // treatment doesn't pull the streak in too tight.
-              left: cardWidth >= 240 ? "-56px" : "-40px",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-            }}
-            title="Your practice streak"
-            aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`}
-          >
-            <Flame size={16} style={{ color: "var(--gold)", opacity: "var(--ro-plus-20)" }} />
-            <span
-              style={{
-                fontSize: "13px",
-                color: "var(--gold)",
-                opacity: "var(--ro-plus-20)",
-                fontFamily: "var(--font-serif)",
-              }}
+          {streakUnderCard ? (
+            <div
+              className="mt-3 flex items-center justify-center gap-1"
+              title="Your practice streak"
+              aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`}
             >
-              {currentStreak}
-            </span>
-          </div>
+              <Flame size={16} style={{ color: "var(--gold)", opacity: "var(--ro-plus-20)" }} />
+              <span
+                style={{
+                  fontSize: "13px",
+                  color: "var(--gold)",
+                  opacity: "var(--ro-plus-20)",
+                  fontFamily: "var(--font-serif)",
+                }}
+              >
+                {currentStreak}
+              </span>
+            </div>
+          ) : (
+            <div
+              style={{
+                position: "absolute",
+                bottom: "12px",
+                // CV — flame offset scales with the card so the hero
+                // treatment doesn't pull the streak in too tight.
+                left: cardWidth >= 240 ? "-56px" : "-40px",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+              title="Your practice streak"
+              aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`}
+            >
+              <Flame size={16} style={{ color: "var(--gold)", opacity: "var(--ro-plus-20)" }} />
+              <span
+                style={{
+                  fontSize: "13px",
+                  color: "var(--gold)",
+                  opacity: "var(--ro-plus-20)",
+                  fontFamily: "var(--font-serif)",
+                }}
+              >
+                {currentStreak}
+              </span>
+            </div>
+          )}
         </div>
       </section>
 
