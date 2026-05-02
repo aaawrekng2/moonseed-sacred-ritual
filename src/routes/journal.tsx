@@ -840,6 +840,7 @@ function JournalPage() {
             items={filtered}
             isOracle={isOracle}
             photoCounts={photoCounts}
+            patternsById={patternsById}
             onOpen={setOpenId}
           />
         ) : view === "gallery" ? (
@@ -858,6 +859,7 @@ function JournalPage() {
             emptyPlain="Favorite a reading to see it here."
             isOracle={isOracle}
             photoCounts={photoCounts}
+            patternsById={patternsById}
             onOpen={setOpenId}
           />
         ) : view === "calendar" ? (
@@ -905,6 +907,7 @@ function ReadingsList({
   items,
   isOracle,
   photoCounts: _photoCounts,
+  patternsById,
   onOpen,
   emptyOracle,
   emptyPlain,
@@ -912,6 +915,7 @@ function ReadingsList({
   items: ReadingRow[];
   isOracle: boolean;
   photoCounts: Record<string, number>;
+  patternsById: Record<string, PatternRow>;
   onOpen: (id: string) => void;
   emptyOracle?: string;
   emptyPlain?: string;
@@ -929,7 +933,7 @@ function ReadingsList({
     <ul className="flex flex-col gap-5">
       {items.map((r) => (
         <li key={r.id}>
-          <ReadingCard reading={r} onOpen={onOpen} />
+          <ReadingCard reading={r} onOpen={onOpen} patternsById={patternsById} />
         </li>
       ))}
     </ul>
