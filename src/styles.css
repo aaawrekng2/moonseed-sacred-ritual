@@ -1158,9 +1158,12 @@ button:focus-visible .moon-rung-glow {
 }
 @media (min-width: 1024px) {
   :root {
-    --journal-drawer-w: 300px;
+    --journal-drawer-w: 240px; /* DA — was 300px, narrower on desktop */
   }
 }
+
+/* DA — Hide scrollbar on swipeable journal thumbnail strips. */
+.journal-thumb-strip::-webkit-scrollbar { display: none; }
 
 /* ---------------------------------------------------------------- */
 /*  Phase 8 — Deep Reading mist                                       */

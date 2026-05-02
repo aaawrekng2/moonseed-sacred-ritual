@@ -26,6 +26,7 @@ export function MoonFeaturesPage() {
   const { user } = useAuth();
   const [isPremium, setIsPremium] = useState<boolean>(false);
   const [premiumSince, setPremiumSince] = useState<string | null>(null);
+  const [premiumExpiresAt, setPremiumExpiresAt] = useState<string | null>(null);
   const [subscriptionType, setSubscriptionType] = useState<string>("none");
   const [loaded, setLoaded] = useState(false);
   const [selected, setSelected] = useState<PlanKey>("12m");
@@ -36,12 +37,16 @@ export function MoonFeaturesPage() {
     void (async () => {
       const { data } = await supabase
         .from("user_preferences")
-        .select("is_premium, premium_since, subscription_type")
+        .select("is_premium, premium_since, subscription_type, premium_expires_at")
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
       setIsPremium(Boolean(data?.is_premium));
       setPremiumSince(data?.premium_since ?? null);
+      setPremiumExpiresAt(
+        (data as { premium_expires_at?: string | null } | null)
+          ?.premium_expires_at ?? null,
+      );
       const st = (data as { subscription_type?: string } | null)
         ?.subscription_type;
       setSubscriptionType(st ?? "none");
@@ -79,6 +84,7 @@ export function MoonFeaturesPage() {
       {isPremium ? (
         <ActiveState
           premiumSince={premiumSince}
+          premiumExpiresAt={premiumExpiresAt}
           subscriptionType={subscriptionType}
         />
       ) : (
@@ -302,9 +308,11 @@ function formatDate(d: Date): string {
 
 function ActiveState({
   premiumSince,
+  premiumExpiresAt,
   subscriptionType,
 }: {
   premiumSince: string | null;
+  premiumExpiresAt: string | null;
   subscriptionType: string;
 }) {
   const since = premiumSince ? new Date(premiumSince) : null;
@@ -312,6 +320,16 @@ function ActiveState({
   const [confirming, setConfirming] = useState(false);
 
   if (isGifted) {
+    const expires = premiumExpiresAt ? new Date(premiumExpiresAt) : null;
+    const expired = expires ? expires.getTime() < Date.now() : false;
+    const giftedCopy = expired
+      ? "Your gifted Premium has ended."
+      : expires
+        ? `Your Premium subscription was gifted until ${expires.toLocaleDateString(
+            "en-US",
+            { year: "numeric", month: "short", day: "numeric" },
+          )}. Thank you for being here.`
+        : "Your Premium subscription was gifted with no expiration. Thank you for being here.";
     return (
       <div className="mx-auto max-w-md text-center">
         <p
@@ -322,7 +340,7 @@ function ActiveState({
             fontStyle: "italic",
           }}
         >
-          Your Moon practice was gifted. Thank you for being here.
+          {giftedCopy}
         </p>
         {since && (
           <p

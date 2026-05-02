@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpen, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,12 @@ import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export const Route = createFileRoute("/journal")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    batch:
+      typeof search.batch === "string" && search.batch.length > 0
+        ? (search.batch as string)
+        : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Journal — Moonseed" },
@@ -60,6 +66,7 @@ type ReadingRow = {
   mirror_saved: boolean;
   pattern_id: string | null;
   question: string | null;
+  import_batch_id?: string | null;
 };
 
 type TagRow = { id: string; name: string; usage_count: number };
@@ -143,6 +150,12 @@ function JournalPage() {
   usePortraitOnly();
   const { user, loading: authLoading } = useAuth();
   const { isOracle } = useOracleMode();
+  const { batch: batchParam } = Route.useSearch();
+  const navigate = useNavigate();
+  const [batchMeta, setBatchMeta] = useState<{
+    sourceFormat: string;
+    createdAt: string;
+  } | null>(null);
 
   const [readings, setReadings] = useState<ReadingRow[]>([]);
   const [tags, setTags] = useState<TagRow[]>([]);
@@ -178,7 +191,7 @@ function JournalPage() {
           supabase
             .from("readings")
             .select(
-              "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question",
+              "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id",
             )
             .eq("user_id", user.id)
             .order("created_at", { ascending: false })
@@ -255,6 +268,7 @@ function JournalPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return readings.filter((r) => {
+      if (batchParam && r.import_batch_id !== batchParam) return false;
       if (activeTags.length > 0) {
         const rt = r.tags ?? [];
         if (tagMode === "all") {
@@ -290,7 +304,7 @@ function JournalPage() {
       }
       return true;
     });
-  }, [readings, search, activeTags, tagMode, activeDrawTypes, deepOnly, activeDate]);
+  }, [readings, search, activeTags, tagMode, activeDrawTypes, deepOnly, activeDate, batchParam]);
 
   const galleryItems = useMemo(
     () => filtered.filter((r) => (photoCounts[r.id] ?? 0) > 0),
@@ -340,6 +354,35 @@ function JournalPage() {
       [...next].sort((a, b) => b.usage_count - a.usage_count).slice(0, 100),
     );
   }, []);
+
+  // DA — Load metadata for the optional ?batch=... filter banner.
+  useEffect(() => {
+    if (!batchParam || !user) {
+      setBatchMeta(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("import_batches")
+        .select("source_format, created_at")
+        .eq("id", batchParam)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data) {
+        setBatchMeta({
+          sourceFormat: (data as { source_format: string }).source_format,
+          createdAt: (data as { created_at: string }).created_at,
+        });
+      } else {
+        setBatchMeta(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [batchParam, user]);
   const handlePhotoCountChange = useCallback(
     (readingId: string, count: number) => {
       setPhotoCounts((prev) => {
@@ -645,6 +688,43 @@ function JournalPage() {
 
       {/* Body */}
       <div className="mt-6">
+        {batchParam && (
+          <div
+            className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg px-3 py-2"
+            style={{
+              border:
+                "1px solid color-mix(in oklab, var(--gold) 25%, transparent)",
+              background:
+                "color-mix(in oklab, var(--gold) 6%, transparent)",
+            }}
+          >
+            <span
+              className="font-display text-[12px] italic text-foreground"
+              style={{ opacity: "var(--ro-plus-30)" }}
+            >
+              {batchMeta
+                ? `Showing ${filtered.length.toLocaleString()} reading${
+                    filtered.length === 1 ? "" : "s"
+                  } imported from ${batchMeta.sourceFormat} on ${new Date(
+                    batchMeta.createdAt,
+                  ).toLocaleDateString("en-US", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}`
+                : "No readings found for this import."}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                void navigate({ to: "/journal", search: { batch: undefined } })
+              }
+              className="font-display text-[12px] italic text-gold transition-opacity hover:opacity-80"
+            >
+              Show all readings →
+            </button>
+          </div>
+        )}
         {!loaded ? (
           <p
             className="mt-12 text-center font-display text-sm italic text-muted-foreground"
@@ -760,6 +840,7 @@ function ReadingCard({
   onOpen: (id: string) => void;
 }) {
   const guide = getGuideById(reading.guide_id);
+  const isMobile = useIsMobile();
   const visible = reading.card_ids.slice(0, 5);
   const overflow = reading.card_ids.length - visible.length;
   const interpFirst = (reading.interpretation ?? "")
@@ -833,29 +914,65 @@ function ReadingCard({
       </div>
 
       {/* Card thumbnails */}
-      <div className="mt-3 flex items-center gap-1.5">
-        {visible.map((id) => (
-          <img
-            key={id}
-            src={getCardImagePath(id)}
-            alt={getCardName(id)}
-            loading="lazy"
-            className="h-[110px] w-[74px] rounded-[3px] object-cover"
-            style={{
-              border: "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
-              opacity: "var(--ro-plus-30)",
-            }}
-          />
-        ))}
-        {overflow > 0 && (
-          <span
-            className="ml-1 font-display text-[11px] italic text-muted-foreground"
-            style={{ opacity: "var(--ro-plus-20)" }}
-          >
-            +{overflow} more
-          </span>
-        )}
-      </div>
+      {isMobile ? (
+        // DA — Mobile: full swipeable strip with all cards.
+        <div
+          className="journal-thumb-strip mt-3 flex items-center gap-1.5 overflow-x-auto pb-1"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            scrollbarWidth: "none",
+            WebkitOverflowScrolling: "touch",
+            maskImage:
+              reading.card_ids.length > 4
+                ? "linear-gradient(to right, black 90%, transparent 100%)"
+                : undefined,
+            WebkitMaskImage:
+              reading.card_ids.length > 4
+                ? "linear-gradient(to right, black 90%, transparent 100%)"
+                : undefined,
+          }}
+        >
+          {reading.card_ids.map((id, idx) => (
+            <img
+              key={`${id}-${idx}`}
+              src={getCardImagePath(id)}
+              alt={getCardName(id)}
+              loading="lazy"
+              className="h-[110px] w-[74px] flex-shrink-0 rounded-[3px] object-cover"
+              style={{
+                border:
+                  "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
+                opacity: "var(--ro-plus-30)",
+              }}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-3 flex items-center gap-1.5">
+          {visible.map((id) => (
+            <img
+              key={id}
+              src={getCardImagePath(id)}
+              alt={getCardName(id)}
+              loading="lazy"
+              className="h-[110px] w-[74px] rounded-[3px] object-cover"
+              style={{
+                border:
+                  "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
+                opacity: "var(--ro-plus-30)",
+              }}
+            />
+          ))}
+          {overflow > 0 && (
+            <span
+              className="ml-1 font-display text-[11px] italic text-muted-foreground"
+              style={{ opacity: "var(--ro-plus-20)" }}
+            >
+              +{overflow} more
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Interpretation excerpt */}
       {interpClean && (

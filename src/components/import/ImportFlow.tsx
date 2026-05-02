@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { X, Upload, FileUp, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/hooks/use-confirm";
 import { supabase } from "@/integrations/supabase/client";
@@ -887,6 +888,7 @@ function Step5Result({
   onClose: () => void;
 }) {
   const confirm = useConfirm();
+  const navigate = useNavigate();
   const [undoing, setUndoing] = useState(false);
   const [undone, setUndone] = useState(false);
 
@@ -952,7 +954,20 @@ function Step5Result({
 
       {!undone && (
         <div className="flex flex-wrap gap-2">
-          <Button onClick={onClose}>View imported readings</Button>
+          <Button
+            onClick={() => {
+              const batchId = result?.batchId;
+              onClose();
+              if (batchId) {
+                void navigate({
+                  to: "/journal",
+                  search: { batch: batchId },
+                });
+              }
+            }}
+          >
+            View imported readings
+          </Button>
           <Button
             variant="outline"
             onClick={() => void onUndo()}
