@@ -99,13 +99,28 @@ function Index() {
       window.removeEventListener("orientationchange", onResize);
     };
   }, []);
-  // CX — Hero card sizing.
-  // Carousel visible: 140 desktop / 182 mobile (unchanged from CV).
-  // Carousel hidden: 360 desktop hero / 90vw mobile hero.
-  const cardWidth = showMoonCarousel
-    ? (isMobile ? 182 : 140)
-    : (isMobile ? Math.round(viewportW * 0.9) : 360);
-  const cardHeight = Math.round(cardWidth * 1.75);
+  // CY — Refined sizing matrix.
+  //   Desktop carousel visible: 224 (CX 140 × 1.6)
+  //   Desktop carousel hidden (hero): 360 (unchanged)
+  //   Mobile carousel visible: 237 (CX 182 × 1.3)
+  //   Mobile carousel hidden (hero): 72vw (down from CX 90vw)
+  // Then we cap height by available viewport so the spread-icons row
+  // and bottom nav are never pushed offscreen (Group 2).
+  const targetWidth = showMoonCarousel
+    ? (isMobile ? 237 : 224)
+    : (isMobile ? Math.round(viewportW * 0.72) : 360);
+  // Reserve vertical space for spread icons row + bottom nav + safe areas
+  // + carousel (when visible) + top padding. Numbers chosen empirically:
+  //   spread icons row ≈ 110, bottom nav ≈ 64, carousel ≈ 192/240, padding ≈ 80.
+  const carouselReserve = showMoonCarousel ? (isMobile ? 173 : 240) : 0;
+  const reservedV = (isMobile ? 110 : 130) + 64 + carouselReserve + 80;
+  const viewportH =
+    typeof window !== "undefined" ? window.innerHeight : 800;
+  const maxCardHeight = Math.max(180, viewportH - reservedV);
+  const targetHeight = targetWidth * 1.75;
+  const cardHeight = Math.min(targetHeight, maxCardHeight);
+  const cardWidth =
+    cardHeight < targetHeight ? Math.round(cardHeight / 1.75) : Math.round(targetWidth);
   // CX — Streak under-card only in mobile hero mode.
   const streakUnderCard = isMobile && !showMoonCarousel;
   const [nudgeDismissed, setNudgeDismissed] = useState(true);
