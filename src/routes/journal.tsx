@@ -354,6 +354,35 @@ function JournalPage() {
       [...next].sort((a, b) => b.usage_count - a.usage_count).slice(0, 100),
     );
   }, []);
+
+  // DA — Load metadata for the optional ?batch=... filter banner.
+  useEffect(() => {
+    if (!batchParam || !user) {
+      setBatchMeta(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("import_batches")
+        .select("source_format, created_at")
+        .eq("id", batchParam)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data) {
+        setBatchMeta({
+          sourceFormat: (data as { source_format: string }).source_format,
+          createdAt: (data as { created_at: string }).created_at,
+        });
+      } else {
+        setBatchMeta(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [batchParam, user]);
   const handlePhotoCountChange = useCallback(
     (readingId: string, count: number) => {
       setPhotoCounts((prev) => {
