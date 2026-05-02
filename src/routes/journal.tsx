@@ -2306,6 +2306,10 @@ function FiltersPanel({
   setActiveStories: React.Dispatch<React.SetStateAction<string[]>>;
   onClearAll: () => void;
 }) {
+  // DO-1 — Stories list paginates: default to 5 most-recent, with a
+  // "Show all (N)" toggle so the section never grows into a wall.
+  const [showAllStories, setShowAllStories] = useState(false);
+  const STORIES_DEFAULT_VISIBLE = 5;
   const hasAny =
     activeTags.length > 0 ||
     activeDrawTypes.length > 0 ||
@@ -2410,7 +2414,10 @@ function FiltersPanel({
             Stories
           </h3>
           <div className="flex flex-wrap gap-x-3 gap-y-2">
-            {allStories.map((s) => {
+            {(showAllStories
+              ? allStories
+              : allStories.slice(0, STORIES_DEFAULT_VISIBLE)
+            ).map((s) => {
               const active = activeStories.includes(s.id);
               return (
                 <button
@@ -2438,6 +2445,24 @@ function FiltersPanel({
               );
             })}
           </div>
+          {allStories.length > STORIES_DEFAULT_VISIBLE && (
+            <button
+              type="button"
+              onClick={() => setShowAllStories((v) => !v)}
+              className="font-display text-[11px] italic mt-2"
+              style={{
+                color: "var(--gold)",
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+              }}
+            >
+              {showAllStories
+                ? "Show fewer"
+                : `Show all (${allStories.length})`}
+            </button>
+          )}
         </section>
       )}
 
