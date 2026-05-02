@@ -999,7 +999,7 @@ function ReadingCard({
           }}
         >
           {reading.card_ids.map((id, idx) => (
-            <img
+            <CardThumb
               key={`${id}-${idx}`}
               src={getImage(id, "thumbnail")}
               alt={getCardName(id)}
@@ -1016,7 +1016,7 @@ function ReadingCard({
       ) : (
         <div className="mt-3 flex items-center gap-1.5">
           {visible.map((id) => (
-            <img
+            <CardThumb
               key={id}
               src={getImage(id, "thumbnail")}
               alt={getCardName(id)}
@@ -1139,7 +1139,7 @@ function GalleryTile({
           "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
       }}
     >
-      <img
+      <CardThumb
         src={photoUrl ?? fallback}
         alt=""
         loading="lazy"
