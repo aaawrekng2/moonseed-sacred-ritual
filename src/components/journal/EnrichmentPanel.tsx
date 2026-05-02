@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { HelpIcon } from "@/components/help/HelpIcon";
 import {
   AlertDialog,
   AlertDialogAction,

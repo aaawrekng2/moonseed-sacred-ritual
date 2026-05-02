@@ -144,6 +144,7 @@ function ThreadsPage() {
             }}
           >
             Stories
+            <HelpIcon articleId="stories" size={16} />
           </h1>
           <nav
             aria-label="Stories views"
