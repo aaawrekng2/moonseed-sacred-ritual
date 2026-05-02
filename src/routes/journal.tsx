@@ -2237,6 +2237,9 @@ function FiltersPanel({
   setActiveDrawTypes,
   deepOnly,
   setDeepOnly,
+  allStories,
+  activeStories,
+  setActiveStories,
   onClearAll,
 }: {
   topTags: TagRow[];
@@ -2248,10 +2251,16 @@ function FiltersPanel({
   setActiveDrawTypes: React.Dispatch<React.SetStateAction<DrawTypeKey[]>>;
   deepOnly: boolean;
   setDeepOnly: React.Dispatch<React.SetStateAction<boolean>>;
+  allStories: { id: string; name: string }[];
+  activeStories: string[];
+  setActiveStories: React.Dispatch<React.SetStateAction<string[]>>;
   onClearAll: () => void;
 }) {
   const hasAny =
-    activeTags.length > 0 || activeDrawTypes.length > 0 || deepOnly;
+    activeTags.length > 0 ||
+    activeDrawTypes.length > 0 ||
+    deepOnly ||
+    activeStories.length > 0;
   return (
     <div className="flex flex-col gap-5">
       {/* Deep readings toggle */}
