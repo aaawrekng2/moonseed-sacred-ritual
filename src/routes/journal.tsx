@@ -760,6 +760,7 @@ function ReadingCard({
   onOpen: (id: string) => void;
 }) {
   const guide = getGuideById(reading.guide_id);
+  const isMobile = useIsMobile();
   const visible = reading.card_ids.slice(0, 5);
   const overflow = reading.card_ids.length - visible.length;
   const interpFirst = (reading.interpretation ?? "")
@@ -833,29 +834,65 @@ function ReadingCard({
       </div>
 
       {/* Card thumbnails */}
-      <div className="mt-3 flex items-center gap-1.5">
-        {visible.map((id) => (
-          <img
-            key={id}
-            src={getCardImagePath(id)}
-            alt={getCardName(id)}
-            loading="lazy"
-            className="h-[110px] w-[74px] rounded-[3px] object-cover"
-            style={{
-              border: "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
-              opacity: "var(--ro-plus-30)",
-            }}
-          />
-        ))}
-        {overflow > 0 && (
-          <span
-            className="ml-1 font-display text-[11px] italic text-muted-foreground"
-            style={{ opacity: "var(--ro-plus-20)" }}
-          >
-            +{overflow} more
-          </span>
-        )}
-      </div>
+      {isMobile ? (
+        // DA — Mobile: full swipeable strip with all cards.
+        <div
+          className="journal-thumb-strip mt-3 flex items-center gap-1.5 overflow-x-auto pb-1"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            scrollbarWidth: "none",
+            WebkitOverflowScrolling: "touch",
+            maskImage:
+              reading.card_ids.length > 4
+                ? "linear-gradient(to right, black 90%, transparent 100%)"
+                : undefined,
+            WebkitMaskImage:
+              reading.card_ids.length > 4
+                ? "linear-gradient(to right, black 90%, transparent 100%)"
+                : undefined,
+          }}
+        >
+          {reading.card_ids.map((id, idx) => (
+            <img
+              key={`${id}-${idx}`}
+              src={getCardImagePath(id)}
+              alt={getCardName(id)}
+              loading="lazy"
+              className="h-[110px] w-[74px] flex-shrink-0 rounded-[3px] object-cover"
+              style={{
+                border:
+                  "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
+                opacity: "var(--ro-plus-30)",
+              }}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-3 flex items-center gap-1.5">
+          {visible.map((id) => (
+            <img
+              key={id}
+              src={getCardImagePath(id)}
+              alt={getCardName(id)}
+              loading="lazy"
+              className="h-[110px] w-[74px] rounded-[3px] object-cover"
+              style={{
+                border:
+                  "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
+                opacity: "var(--ro-plus-30)",
+              }}
+            />
+          ))}
+          {overflow > 0 && (
+            <span
+              className="ml-1 font-display text-[11px] italic text-muted-foreground"
+              style={{ opacity: "var(--ro-plus-20)" }}
+            >
+              +{overflow} more
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Interpretation excerpt */}
       {interpClean && (
