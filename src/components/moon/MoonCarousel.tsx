@@ -501,10 +501,6 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
           : ""}
       </p>
 
-      {/* Mobile phase ladders — fixed to screen edges, visible on mobile only */}
-      <MobilePhaseLadder side="left" restingAlpha={restingAlpha} onJump={(p) => jumpToPhase(p, "previous")} />
-      <MobilePhaseLadder side="right" restingAlpha={restingAlpha} onJump={(p) => jumpToPhase(p, "next")} />
-
       {/* Fixed-height row so cards never reflow as the user swipes between
           days. The today card is the tallest element; sizing here is set so
           it never clips and the chevrons never shift vertically. */}
@@ -535,16 +531,6 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
             />
           </span>
         )}
-
-        {/* Mobile ladder — left side, visible on mobile only */}
-        <PhaseLadder
-          side="left"
-          restingAlpha={restingAlpha}
-          activePhase={viewedPhase}
-          offset={offset}
-          onJump={(p) => jumpToPhase(p, "previous")}
-          onStep={() => shift(-1)}
-        />
 
         <div
           className="relative flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl overflow-visible"
@@ -700,14 +686,6 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
           )}
         </div>
 
-        <PhaseLadder
-          side="right"
-          restingAlpha={restingAlpha}
-          activePhase={viewedPhase}
-          offset={offset}
-          onJump={(p) => jumpToPhase(p, "next")}
-          onStep={() => shift(1)}
-        />
       </div>
 
       {/* Return-to-today affordance. The previous "Swipe to browse"
@@ -819,7 +797,7 @@ function CenterCard({
         className={cn(
           "w-full rounded-2xl bg-card/60 px-3 py-4 sm:px-4 backdrop-blur-sm transition-all duration-200",
           selected
-            ? "border-2 border-gold shadow-[0_0_24px_-4px_rgba(212,175,55,0.65)]"
+            ? "border-2 border-transparent shadow-[0_0_24px_-4px_rgba(212,175,55,0.65)]"
             : "border border-gold/30 shadow-[0_8px_30px_-12px_rgba(212,175,55,0.4)]",
         )}
       >
@@ -895,7 +873,7 @@ function AdjacentCard({
         "flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-all duration-300 ease-out cursor-pointer",
         "outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         selected
-          ? "border-2 border-gold bg-card/60 shadow-[0_0_18px_-4px_rgba(212,175,55,0.6)] backdrop-blur-sm"
+          ? "border-2 border-transparent bg-card/60 shadow-[0_0_18px_-4px_rgba(212,175,55,0.6)] backdrop-blur-sm"
           : expanded
             ? "border border-gold/25 bg-card/50 shadow-[0_4px_20px_-12px_rgba(212,175,55,0.35)] backdrop-blur-sm"
             : "border border-transparent hover:border-border/60 hover:bg-card/30 hover:opacity-100 active:scale-95",
