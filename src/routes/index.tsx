@@ -117,9 +117,11 @@ function Index() {
     ? carouselHeightForSize(moon.moon_carousel_size, isMobile)
     : 0;
   // 64 bottom-nav + 64 fixed icons row + 90 vertical breathing room.
+  // DM-1 — Reserve more vertical room (250) so the card never crowds
+  // the fixed draw-icons row even on tall viewports.
   const availablePaneHeight = Math.max(
     220,
-    viewportH - carouselReserve - 64 - 64 - 90,
+    viewportH - carouselReserve - 250,
   );
   const maxWidthCap = viewportW < 768 ? viewportW * 0.9 : 360;
   const heightDerivedWidth = availablePaneHeight / 1.75;
@@ -232,7 +234,7 @@ function Index() {
           with explicit padding so it never hugs the carousel above or
           the draw icons below. */}
       <section
-        className="flex flex-col items-center justify-center px-6"
+        className="flex flex-col items-center justify-start px-6"
         style={{ paddingTop: 24, paddingBottom: 24, minHeight: 0, overflow: "hidden" }}
       >
         <div
