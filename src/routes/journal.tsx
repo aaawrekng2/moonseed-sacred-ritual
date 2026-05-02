@@ -2353,6 +2353,44 @@ function FiltersPanel({
         </section>
       )}
 
+      {/* DN-5 — Stories filter (only shown when at least one Story exists). */}
+      {allStories.length > 0 && (
+        <section>
+          <h3 className="font-display text-[10px] uppercase tracking-[0.18em] mb-2 text-foreground/85">
+            Stories
+          </h3>
+          <div className="flex flex-wrap gap-x-3 gap-y-2">
+            {allStories.map((s) => {
+              const active = activeStories.includes(s.id);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() =>
+                    setActiveStories((prev) =>
+                      prev.includes(s.id)
+                        ? prev.filter((x) => x !== s.id)
+                        : [...prev, s.id],
+                    )
+                  }
+                  className="font-display text-[13px] italic transition-colors text-foreground"
+                  style={{
+                    opacity: active ? 1 : 0.85,
+                    borderBottom: active
+                      ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
+                      : "1px solid transparent",
+                    paddingBottom: 2,
+                  }}
+                >
+                  {s.name}
+                  {active && <span className="ml-1 text-[10px]">×</span>}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <section>
         <h3 className="font-display text-[10px] uppercase tracking-[0.18em] mb-2 text-foreground/85">
           Draw type
