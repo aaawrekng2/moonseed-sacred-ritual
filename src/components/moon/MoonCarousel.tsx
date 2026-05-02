@@ -797,8 +797,8 @@ function CenterCard({
         className={cn(
           "w-full rounded-2xl bg-card/60 px-3 py-4 sm:px-4 backdrop-blur-sm transition-all duration-200",
           selected
-            ? "border-2 border-transparent shadow-[0_0_24px_-4px_rgba(212,175,55,0.65)]"
-            : "border border-gold/30 shadow-[0_8px_30px_-12px_rgba(212,175,55,0.4)]",
+            ? "shadow-[0_0_24px_-4px_rgba(212,175,55,0.65)]"
+            : "shadow-[0_8px_30px_-12px_rgba(212,175,55,0.4)]",
         )}
       >
         {/* No keyed remount here — the wrapper stays mounted across day
@@ -873,10 +873,10 @@ function AdjacentCard({
         "flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-all duration-300 ease-out cursor-pointer",
         "outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         selected
-          ? "border-2 border-transparent bg-card/60 shadow-[0_0_18px_-4px_rgba(212,175,55,0.6)] backdrop-blur-sm"
+          ? "bg-card/60 shadow-[0_0_18px_-4px_rgba(212,175,55,0.6)] backdrop-blur-sm"
           : expanded
-            ? "border border-gold/25 bg-card/50 shadow-[0_4px_20px_-12px_rgba(212,175,55,0.35)] backdrop-blur-sm"
-            : "border border-transparent hover:border-border/60 hover:bg-card/30 hover:opacity-100 active:scale-95",
+            ? "bg-card/50 shadow-[0_4px_20px_-12px_rgba(212,175,55,0.35)] backdrop-blur-sm"
+            : "hover:bg-card/30 hover:opacity-100 active:scale-95",
       )}
     >
       {/* Stable wrapper — content updates in place on swipe, no remount. */}
