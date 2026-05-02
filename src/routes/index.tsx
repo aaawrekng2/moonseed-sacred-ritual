@@ -262,7 +262,7 @@ function Index() {
             {todayCard !== null ? (
               <div style={{ animation: "fade-in 400ms ease-out both" }}>
                 <img
-                  src={getCardImagePath(todayCard)}
+                  src={getActiveDeckImage(todayCard)}
                   alt={getCardName(todayCard)}
                   style={{
                     width: cardWidth,
