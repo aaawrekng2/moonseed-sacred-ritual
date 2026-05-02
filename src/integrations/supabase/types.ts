@@ -645,6 +645,7 @@ export type Database = {
           memory_ai_permission: boolean
           moon_ai_phase: boolean
           moon_ai_sign: boolean
+          moon_carousel_size: string
           moon_features_enabled: boolean
           moon_show_carousel: boolean
           moon_void_warning: boolean
@@ -703,6 +704,7 @@ export type Database = {
           memory_ai_permission?: boolean
           moon_ai_phase?: boolean
           moon_ai_sign?: boolean
+          moon_carousel_size?: string
           moon_features_enabled?: boolean
           moon_show_carousel?: boolean
           moon_void_warning?: boolean
@@ -761,6 +763,7 @@ export type Database = {
           memory_ai_permission?: boolean
           moon_ai_phase?: boolean
           moon_ai_sign?: boolean
+          moon_carousel_size?: string
           moon_features_enabled?: boolean
           moon_show_carousel?: boolean
           moon_void_warning?: boolean

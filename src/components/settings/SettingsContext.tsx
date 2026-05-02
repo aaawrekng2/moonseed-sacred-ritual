@@ -3,6 +3,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ensureUserPreferencesRow } from "@/lib/ensure-user-preferences";
+import { DEFAULT_CAROUSEL_SIZE, type CarouselSize } from "@/lib/use-moon-prefs";
 
 /**
  * Single source of truth for the Settings page. Loads the user's
@@ -26,6 +27,7 @@ export type Prefs = {
   default_spread: string;
   moon_features_enabled: boolean;
   moon_show_carousel: boolean;
+  moon_carousel_size: CarouselSize;
   moon_ai_phase: boolean;
   moon_ai_sign: boolean;
   moon_void_warning: boolean;
@@ -52,6 +54,7 @@ const DEFAULT_PREFS: Prefs = {
   default_spread: "single",
   moon_features_enabled: true,
   moon_show_carousel: true,
+  moon_carousel_size: DEFAULT_CAROUSEL_SIZE,
   moon_ai_phase: false,
   moon_ai_sign: false,
   moon_void_warning: true,
@@ -63,7 +66,7 @@ const DEFAULT_PREFS: Prefs = {
   bg_gradient_to: null,
   heading_font: null,
   heading_font_size: null,
-  resting_opacity: 50,
+  resting_opacity: 100,
 };
 
 type SettingsCtx = {
@@ -95,7 +98,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("user_preferences")
         .select(
-          "display_name, birth_date, birth_time, birth_place, sun_sign, rising_sign, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_ai_phase, moon_ai_sign, moon_void_warning, memory_ai_permission, show_question_prompt, allow_reversed_cards, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
+          "display_name, birth_date, birth_time, birth_place, sun_sign, rising_sign, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_carousel_size, moon_ai_phase, moon_ai_sign, moon_void_warning, memory_ai_permission, show_question_prompt, allow_reversed_cards, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -126,6 +129,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         default_spread: s("default_spread", "single"),
         moon_features_enabled: b("moon_features_enabled", true),
         moon_show_carousel: b("moon_show_carousel", true),
+        moon_carousel_size:
+          d.moon_carousel_size === "small" ||
+          d.moon_carousel_size === "medium" ||
+          d.moon_carousel_size === "large"
+            ? d.moon_carousel_size
+            : DEFAULT_CAROUSEL_SIZE,
         moon_ai_phase: b("moon_ai_phase", false),
         moon_ai_sign: b("moon_ai_sign", false),
         moon_void_warning: b("moon_void_warning", true),
@@ -137,7 +146,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         bg_gradient_to: n("bg_gradient_to"),
         heading_font: n("heading_font"),
         heading_font_size: num("heading_font_size", null),
-        resting_opacity: (num("resting_opacity", 50) as number) ?? 50,
+        resting_opacity: 100,
       });
     })();
     return () => {

@@ -35,7 +35,7 @@ function readLocalPrefs(): PrefsRow {
       ? localStorage.getItem(SHOW_LABELS_STORAGE_KEY)
       : null;
   return {
-    resting_opacity: opacityRaw != null ? Number(opacityRaw) : 60,
+    resting_opacity: 100,
     show_labels: labelsRaw == null ? true : labelsRaw === "1",
     card_back: getStoredCardBack(),
     accent: "gold",
@@ -106,12 +106,12 @@ export function usePreferencesSync(): void {
         // Hydrate localStorage from the server row. Only update keys that
         // actually changed so we don't trigger unnecessary writes.
         if (typeof window !== "undefined") {
-          const opStr = String(data.resting_opacity);
+          const opStr = "100";
           if (localStorage.getItem(OPACITY_STORAGE_KEY) !== opStr) {
             localStorage.setItem(OPACITY_STORAGE_KEY, opStr);
             window.dispatchEvent(
               new CustomEvent<number>(OPACITY_EVENT, {
-                detail: data.resting_opacity,
+                detail: 100,
               }),
             );
           }

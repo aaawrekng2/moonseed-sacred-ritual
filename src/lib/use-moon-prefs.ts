@@ -14,10 +14,13 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
 export const MOON_PREFS_EVENT = "moonseed:moon-prefs-changed";
+export type CarouselSize = "small" | "medium" | "large";
+export const DEFAULT_CAROUSEL_SIZE: CarouselSize = "medium";
 
 export type MoonPrefs = {
   moon_features_enabled: boolean;
   moon_show_carousel: boolean;
+  moon_carousel_size: CarouselSize;
 };
 
 export type MoonPrefsState = MoonPrefs & { loaded: boolean };
@@ -25,7 +28,19 @@ export type MoonPrefsState = MoonPrefs & { loaded: boolean };
 const DEFAULTS: MoonPrefs = {
   moon_features_enabled: true,
   moon_show_carousel: true,
+  moon_carousel_size: DEFAULT_CAROUSEL_SIZE,
 };
+
+export function carouselHeightForSize(size: CarouselSize, isMobile: boolean): number {
+  if (isMobile) {
+    if (size === "small") return 90;
+    if (size === "medium") return 138;
+    return 180;
+  }
+  if (size === "small") return 140;
+  if (size === "medium") return 200;
+  return 240;
+}
 
 export function emitMoonPrefsChanged(patch: Partial<MoonPrefs>) {
   if (typeof window === "undefined") return;
@@ -46,7 +61,7 @@ export function useMoonPrefs(): MoonPrefsState {
     void (async () => {
       const { data } = await supabase
         .from("user_preferences")
-        .select("moon_features_enabled, moon_show_carousel")
+        .select("moon_features_enabled, moon_show_carousel, moon_carousel_size")
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
@@ -60,6 +75,12 @@ export function useMoonPrefs(): MoonPrefsState {
           typeof row.moon_show_carousel === "boolean"
             ? row.moon_show_carousel
             : DEFAULTS.moon_show_carousel,
+        moon_carousel_size:
+          row.moon_carousel_size === "small" ||
+          row.moon_carousel_size === "medium" ||
+          row.moon_carousel_size === "large"
+            ? row.moon_carousel_size
+            : DEFAULTS.moon_carousel_size,
         loaded: true,
       });
     })();

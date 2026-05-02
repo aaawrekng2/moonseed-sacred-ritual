@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Eye, EyeOff, Wand2 } from "lucide-react";
+import { Wand2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
   applyHeadingFont,
@@ -10,7 +10,6 @@ import {
 } from "@/lib/use-saved-themes";
 import { setStoredCardBack } from "@/lib/card-backs";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
-import { useUIDensity } from "@/lib/use-ui-density";
 import { dispatchActiveThemeChanged } from "@/lib/theme-events";
 import {
   COMMUNITY_THEMES,
@@ -167,14 +166,6 @@ interface Props {
   onClose?: () => void;
   /** Aria-label for the close button. */
   closeLabel?: string;
-  /**
-   * Render the built-in Clarity (Eye / EyeOff) toggle inside the cluster.
-   * Defaults to TRUE on every screen so the home, settings, and reading
-   * screens get the icon for free. Tabletop opts out (passes `false`)
-   * because it injects its own 3-level density cycler via `extraStart`
-   * — keeping both would duplicate the eye icon in the cluster.
-   */
-  includeClarity?: boolean;
 }
 
 export function TopRightControls({
@@ -183,21 +174,11 @@ export function TopRightControls({
   extraStart,
   onClose,
   closeLabel = "Close",
-  includeClarity = true,
 }: Props) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
   const { setOpacity } = useRestingOpacity();
-  // The Clarity — 3-level density cycler (Seen → Glimpse → Veiled).
-  // Persisted to localStorage + user_preferences.ui_density so the
-  // choice carries across devices. Other surfaces (e.g. spread labels)
-  // continue to read useShowLabels for now; mapping that boolean from
-  // this 3-level value is a separate follow-up.
-  const { level, cycleLevel } = useUIDensity();
-  const isVeiled = level === 3;
-  const clarityLabel =
-    level === 1 ? "Seen" : level === 2 ? "Glimpse" : "Veiled";
   // After cycling the wand we briefly show the just-loaded sanctuary
   // name inside the wand pill so the user knows which atmosphere is now
   // active. Tracked here (rather than inside ExpandingIconButton) so the
@@ -271,24 +252,6 @@ export function TopRightControls({
       )}
 
       {extraStart}
-
-      {includeClarity && (
-        <ExpandingIconButton
-          icon={
-            isVeiled ? (
-              <EyeOff size={18} strokeWidth={1.5} />
-            ) : (
-              <Eye size={18} strokeWidth={1.5} />
-            )
-          }
-          label={clarityLabel}
-          labelFont="var(--font-sans)"
-          labelStyle="muted"
-          onClick={cycleLevel}
-          ariaLabel={`The Clarity: ${clarityLabel} — tap to cycle (Seen → Glimpse → Veiled)`}
-          title={`The Clarity: ${clarityLabel}`}
-        />
-      )}
 
       <button
         type="button"

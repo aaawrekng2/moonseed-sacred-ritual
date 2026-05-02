@@ -20,6 +20,7 @@ import {
   getDayInTz,
   getTodayInTz,
 } from "@/lib/use-timezone";
+import { carouselHeightForSize, type CarouselSize } from "@/lib/use-moon-prefs";
 
 // Moonseed-native accent resolver — reads --gold from active CSS theme.
 function useMoonseedAccent(): string {
@@ -51,7 +52,7 @@ function addDaysToYmd(ymd: string, delta: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
-export function MoonCarousel() {
+export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
   const [offset, setOffset] = useState(0);
   const [expandedRel, setExpandedRel] = useState<number | null>(null);
   // Dev-only "date overlay" mode: outlines each visible day card and prints
@@ -124,6 +125,14 @@ export function MoonCarousel() {
     return () => mql.removeEventListener("change", onChange);
   }, []);
   const dayRange = isMobile ? 1 : 2;
+  const carouselHeight = carouselHeightForSize(size, isMobile);
+  const scale = carouselHeight / (isMobile ? 138 : 200);
+  const rootMinHeight = carouselHeight + 40;
+  const rowHeight = carouselHeight;
+  const centerMoonSize = Math.round((isMobile ? 42 : 72) * scale);
+  const centerMaxWidth = Math.round((isMobile ? 120 : 160) * scale);
+  const adjacentMediumSize = Math.round(44 * scale);
+  const adjacentSmallSize = Math.round(32 * scale);
 
   // True while a multi-day tween is animating. Used to suppress per-cell
   // layout transitions that would otherwise fight the position tween.
@@ -483,7 +492,7 @@ export function MoonCarousel() {
       aria-label="Moon phase calendar"
       aria-roledescription="carousel"
       className="relative animate-in fade-in slide-in-from-top-2 duration-500 pt-6 sm:pt-8"
-      style={{ minHeight: 280 }}
+      style={{ minHeight: rootMinHeight }}
     >
       {/* Screen-reader-only live status describing the currently centered day. */}
       <p className="sr-only" aria-live="polite" aria-atomic="true">
@@ -501,7 +510,7 @@ export function MoonCarousel() {
           it never clips and the chevrons never shift vertically. */}
       <div
         className="relative flex items-start justify-center gap-1 sm:gap-2 touch-pan-y overflow-visible px-7 sm:px-0"
-        style={{ height: isMobile ? 138 : 240 }}
+        style={{ height: rowHeight }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
@@ -644,6 +653,8 @@ export function MoonCarousel() {
                       }
                       selectCenter(d.relative);
                     }}
+                    iconSize={centerMoonSize}
+                    maxWidth={centerMaxWidth}
                   />
                 ) : (
                   <AdjacentCard
@@ -671,6 +682,7 @@ export function MoonCarousel() {
                       }
                     }}
                     size={absRel === 1 ? "medium" : "small"}
+                    iconSize={absRel === 1 ? adjacentMediumSize : adjacentSmallSize}
                   />
                 )}
               </div>
@@ -754,6 +766,8 @@ function CenterCard({
   timeZone,
   enterDir,
   onToggle,
+  iconSize,
+  maxWidth,
 }: {
   info: MoonInfo;
   moonSign: string;
@@ -762,6 +776,8 @@ function CenterCard({
   timeZone: string;
   enterDir: "left" | "right";
   onToggle: () => void;
+  iconSize: number;
+  maxWidth: number;
 }) {
   // CV — Mobile center-card icon scales 20% smaller alongside the
   // overall carousel height reduction so proportions stay balanced.
@@ -785,7 +801,7 @@ function CenterCard({
       aria-pressed={selected}
       aria-label={`${isToday ? "Today" : formatShortDate(info.date, timeZone)}, ${info.phase}. Tap to ${selected ? "deselect" : "select"}.`}
       className="flex flex-col items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-      style={{ minWidth: 120, maxWidth: 160 }}
+      style={{ minWidth: Math.min(120, maxWidth), maxWidth }}
     >
       <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-gold">
         {isToday ? "Today" : formatShortDate(info.date, timeZone)}
@@ -801,7 +817,7 @@ function CenterCard({
         {/* No keyed remount here — the wrapper stays mounted across day
             changes so swipes update content in place without a visual cut. */}
         <div className="flex flex-col items-center gap-2 text-center">
-          <MoonPhaseIcon phase={info.phase} size={isMobile ? 42 : 72} illumination={info.illumination} />
+          <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
           <p className="whitespace-nowrap text-xs font-medium uppercase tracking-wider text-muted-foreground">
             {formatShortDate(info.date, timeZone)}
           </p>
@@ -825,6 +841,7 @@ function AdjacentCard({
   enterDir,
   onToggle,
   size = "medium",
+  iconSize,
 }: {
   info: MoonInfo;
   sign: string;
@@ -836,8 +853,9 @@ function AdjacentCard({
   enterDir: "left" | "right";
   onToggle: () => void;
   size?: "medium" | "small";
+  iconSize?: number;
 }) {
-  const iconSize = expanded ? 52 : size === "medium" ? 44 : 32;
+  const resolvedIconSize = expanded ? Math.round((iconSize ?? 44) * 1.18) : iconSize ?? (size === "medium" ? 44 : 32);
   return (
     <button
       type="button"
@@ -857,7 +875,7 @@ function AdjacentCard({
     >
       {/* Stable wrapper — content updates in place on swipe, no remount. */}
       <div className="flex flex-col items-center gap-1">
-        <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
+        <MoonPhaseIcon phase={info.phase} size={resolvedIconSize} illumination={info.illumination} />
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
           {formatShortDate(info.date, timeZone)}
         </p>
