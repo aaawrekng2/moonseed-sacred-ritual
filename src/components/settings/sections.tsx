@@ -37,6 +37,16 @@ import {
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { supabase } from "@/integrations/supabase/client";
 import { setDevMode } from "@/components/dev/DevOverlay";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 /**
  * Settings page section components, ported from the source bundle and
@@ -357,7 +367,7 @@ function DevModeToggle({ userId }: { userId: string }) {
               marginTop: 2,
             }}
           >
-            Shows version, fog level, and resting opacity overlay.
+            Shows version and resting opacity overlay.
           </div>
         </div>
         <Switch
@@ -377,6 +387,7 @@ function DevModeToggle({ userId }: { userId: string }) {
  */
 function ResetHintsRow({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const reset = async () => {
     setBusy(true);
     const { error } = await supabase
@@ -389,6 +400,7 @@ function ResetHintsRow({ userId }: { userId: string }) {
       return;
     }
     toast.success("Hints reset. They will reappear next time.");
+    setConfirmOpen(false);
   };
   return (
     <div
@@ -419,7 +431,7 @@ function ResetHintsRow({ userId }: { userId: string }) {
       </div>
       <button
         type="button"
-        onClick={() => void reset()}
+        onClick={() => setConfirmOpen(true)}
         disabled={busy}
         style={{
           fontFamily: "var(--font-display, inherit)",
@@ -437,6 +449,30 @@ function ResetHintsRow({ userId }: { userId: string }) {
       >
         Reset
       </button>
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset all dismissed hints?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tooltips and explanatory popups you've previously dismissed will
+              reappear next time you encounter them. You can dismiss them again
+              at any point — no data is lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void reset();
+              }}
+              disabled={busy}
+            >
+              {busy ? "Resetting…" : "Reset Hints"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

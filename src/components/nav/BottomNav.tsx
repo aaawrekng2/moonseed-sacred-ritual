@@ -54,10 +54,12 @@ export function BottomNav() {
       style={{
         background: "color-mix(in oklch, var(--surface-elevated) 90%, transparent)",
         borderTopColor: "var(--border-default)",
+        minHeight: "calc(64px + env(safe-area-inset-bottom, 0px))",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }}
     >
       <ul
-        className="mx-auto flex items-end justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+8px)]"
+        className="mx-auto flex items-center justify-center px-4"
         style={{ height: 64, maxWidth: showThreads ? 380 : 320, gap: showThreads ? 36 : 48 }}
       >
         {tabs.map(({ to, label, Icon, primary }) => {
@@ -93,7 +95,6 @@ export function BottomNav() {
                 aria-label={`${label}${active ? " (current page)" : ""}`}
                 style={{
                   opacity: isThreadsTab ? undefined : tabAlpha,
-                  transform: primary ? undefined : "translateY(4px)",
                   color: active ? "var(--gold)" : undefined,
                 }}
                 className={cn(

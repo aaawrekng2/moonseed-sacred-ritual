@@ -10,11 +10,22 @@
  * "a gentle invitation, not a form" (per the Phase 6 spec).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, CameraOff, CheckCheck, Copy, Heart, Loader2, Pencil, Plus, Share2, Tag as TagIcon, X } from "lucide-react";
+import { Camera, CameraOff, CheckCheck, Copy, Heart, Loader2, Network, Pencil, Plus, Share2, Tag as TagIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { PhotoCapture } from "@/components/photo/PhotoCapture";
 
@@ -621,6 +632,7 @@ export function EnrichmentPanel({
               <Share2 size={18} strokeWidth={1.5} />
             </IconAction>
           )}
+          <StoryMembershipIcon readingId={reading.id} userId={reading.user_id} />
         </div>
       </div>
       <div className="mt-1 flex justify-center">
@@ -895,6 +907,163 @@ function IconAction({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * DM-6 — Story-membership icon. Visible only when the reading belongs to
+ * one or more patterns (Stories). First tap opens a hint modal explaining
+ * what the icon means; subsequent taps (after the seeker dismisses with
+ * "don't show again") navigate directly. The hint is keyed on
+ * `dismissed_hints.story_membership_icon` and is restored by Reset Hints.
+ */
+function StoryMembershipIcon({
+  readingId,
+  userId,
+}: {
+  readingId: string;
+  userId: string;
+}) {
+  const navigate = useNavigate();
+  const [memberOf, setMemberOf] = useState<{ id: string; name: string }[]>([]);
+  const [hintDismissed, setHintDismissed] = useState(true);
+  const [hintOpen, setHintOpen] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("patterns")
+        .select("id, name, reading_ids")
+        .contains("reading_ids", [readingId]);
+      if (cancelled) return;
+      const rows = (data ?? []) as Array<{ id: string; name: string }>;
+      setMemberOf(rows.map((r) => ({ id: r.id, name: r.name })));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [readingId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("dismissed_hints")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (cancelled) return;
+      const hints =
+        ((data as { dismissed_hints?: Record<string, boolean> } | null)
+          ?.dismissed_hints) ?? {};
+      setHintDismissed(hints.story_membership_icon === true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  if (memberOf.length === 0) return null;
+
+  const goToStory = () => {
+    if (memberOf.length === 1) {
+      void navigate({
+        to: "/threads/$patternId",
+        params: { patternId: memberOf[0].id },
+      });
+    } else {
+      void navigate({ to: "/threads" });
+    }
+  };
+
+  const onTap = () => {
+    if (hintDismissed) {
+      goToStory();
+    } else {
+      setDontShowAgain(false);
+      setHintOpen(true);
+    }
+  };
+
+  const onConfirm = async () => {
+    if (dontShowAgain) {
+      try {
+        const { data } = await supabase
+          .from("user_preferences")
+          .select("dismissed_hints")
+          .eq("user_id", userId)
+          .maybeSingle();
+        const cur =
+          ((data as { dismissed_hints?: Record<string, boolean> } | null)
+            ?.dismissed_hints) ?? {};
+        await supabase
+          .from("user_preferences")
+          .update({ dismissed_hints: { ...cur, story_membership_icon: true } } as never)
+          .eq("user_id", userId);
+        setHintDismissed(true);
+      } catch {
+        /* non-fatal */
+      }
+    }
+    setHintOpen(false);
+    goToStory();
+  };
+
+  const label =
+    memberOf.length === 1
+      ? `Part of Story: ${memberOf[0].name}`
+      : `Part of ${memberOf.length} Stories`;
+
+  return (
+    <>
+      <IconAction label={label} active onClick={onTap}>
+        <Network size={18} strokeWidth={1.5} />
+      </IconAction>
+      <AlertDialog open={hintOpen} onOpenChange={setHintOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Story membership</AlertDialogTitle>
+            <AlertDialogDescription>
+              This reading is part of{" "}
+              {memberOf.length === 1
+                ? `the “${memberOf[0].name}” Story`
+                : `${memberOf.length} Stories`}
+              . Tapping this icon opens{" "}
+              {memberOf.length === 1 ? "that Story" : "the Stories index"} so
+              you can see every reading inside it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: "var(--text-body-sm)",
+              cursor: "pointer",
+            }}
+          >
+            <Checkbox
+              checked={dontShowAgain}
+              onCheckedChange={(v) => setDontShowAgain(v === true)}
+            />
+            Don't show this again
+          </label>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void onConfirm();
+              }}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -1305,10 +1474,23 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
   if (suggestions.length === 0 || dismissed) return null;
 
   const busy = attachingId !== null;
-  const headline =
+  // DM-5 — Friendlier copy with a gold "Story" / "Stories" link that
+  // navigates to the Stories index. When there's a single suggestion
+  // we deep-link to that pattern's chamber; otherwise we land on the
+  // index so the seeker can choose.
+  const storyLinkProps =
     suggestions.length === 1
-      ? "This reading shares cards with a Story:"
-      : `This reading shares cards with ${suggestions.length} Stories:`;
+      ? {
+          to: "/threads/$patternId" as const,
+          params: { patternId: suggestions[0].id },
+        }
+      : { to: "/threads" as const };
+  const linkStyle = {
+    color: "var(--gold)",
+    textDecoration: "underline",
+    textUnderlineOffset: "2px",
+    fontStyle: "italic" as const,
+  };
 
   return (
     <div
@@ -1325,7 +1507,17 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
       }}
     >
       <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
-        {headline}
+        {suggestions.length === 1 ? (
+          <>
+            This reading aligns with your{" "}
+            <Link {...storyLinkProps} style={linkStyle}>Story</Link>:
+          </>
+        ) : (
+          <>
+            This reading aligns with {suggestions.length}{" "}
+            <Link {...storyLinkProps} style={linkStyle}>Stories</Link>:
+          </>
+        )}
       </span>
       <ul
         style={{
