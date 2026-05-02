@@ -118,21 +118,34 @@ export function useActiveCardBackUrl(): string | null {
 export function useDeckImage(deckId: string | null | undefined): (
   cardIndex: number,
   size?: "display" | "thumbnail",
-) => string {
+) => string | null {
   const [imageMap, setImageMap] = useState<DeckImageMap>(EMPTY_DECK_IMAGE_MAP);
+  // DD-3 — track in-flight custom-deck fetches so consumers can render a
+  // neutral placeholder instead of flashing the default Rider-Waite art
+  // before the user's custom card image resolves. When `deckId` is null
+  // we fall through immediately (no fetch, no flash).
+  const [isLoading, setIsLoading] = useState<boolean>(!!deckId);
 
   useEffect(() => {
     if (!deckId) {
       setImageMap(EMPTY_DECK_IMAGE_MAP);
+      setIsLoading(false);
       return;
     }
+    setIsLoading(true);
     let cancelled = false;
     void (async () => {
       try {
         const map = await buildDeckImageMap(deckId);
-        if (!cancelled) setImageMap(map);
+        if (!cancelled) {
+          setImageMap(map);
+          setIsLoading(false);
+        }
       } catch {
-        if (!cancelled) setImageMap(EMPTY_DECK_IMAGE_MAP);
+        if (!cancelled) {
+          setImageMap(EMPTY_DECK_IMAGE_MAP);
+          setIsLoading(false);
+        }
       }
     })();
     return () => {
@@ -141,8 +154,10 @@ export function useDeckImage(deckId: string | null | undefined): (
   }, [deckId]);
 
   return useCallback(
-    (cardIndex: number, size: "display" | "thumbnail" = "display") =>
-      resolveCardImage(cardIndex, imageMap, size),
-    [imageMap],
+    (cardIndex: number, size: "display" | "thumbnail" = "display") => {
+      if (deckId && isLoading) return null;
+      return resolveCardImage(cardIndex, imageMap, size);
+    },
+    [imageMap, isLoading, deckId],
   );
 }

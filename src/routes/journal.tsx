@@ -22,6 +22,52 @@ import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { CardZoomModal } from "@/components/tabletop/CardZoomModal";
+
+// DD-3 — Subtle gold-tinted placeholder shown while a custom deck's
+// images are still being fetched. Prevents the brief Rider-Waite flash
+// that used to appear before the user's photographed card resolved.
+function CardThumb({
+  src,
+  alt,
+  className,
+  style,
+  loading,
+  onClick,
+}: {
+  src: string | null | undefined;
+  alt: string;
+  className?: string;
+  style?: React.CSSProperties;
+  loading?: "lazy" | "eager";
+  onClick?: () => void;
+}) {
+  if (!src) {
+    return (
+      <div
+        aria-hidden
+        className={className}
+        style={{
+          background: "color-mix(in oklab, var(--gold) 6%, transparent)",
+          border:
+            "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
+          opacity: 0.4,
+          ...(style ?? {}),
+        }}
+      />
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading={loading}
+      className={className}
+      style={style}
+      onClick={onClick}
+    />
+  );
+}
 
 export const Route = createFileRoute("/journal")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -953,7 +999,7 @@ function ReadingCard({
           }}
         >
           {reading.card_ids.map((id, idx) => (
-            <img
+            <CardThumb
               key={`${id}-${idx}`}
               src={getImage(id, "thumbnail")}
               alt={getCardName(id)}
@@ -970,7 +1016,7 @@ function ReadingCard({
       ) : (
         <div className="mt-3 flex items-center gap-1.5">
           {visible.map((id) => (
-            <img
+            <CardThumb
               key={id}
               src={getImage(id, "thumbnail")}
               alt={getCardName(id)}
@@ -1093,7 +1139,7 @@ function GalleryTile({
           "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
       }}
     >
-      <img
+      <CardThumb
         src={photoUrl ?? fallback}
         alt=""
         loading="lazy"
@@ -1735,6 +1781,9 @@ function ReadingDetail({
   const isMobile = useIsMobile();
   const swipeMobile = isMobile && reading.card_ids.length > 3;
   const [shareOpen, setShareOpen] = useState(false);
+  // DD-4 — tap-to-zoom on saved-reading cards. Reuses the same modal
+  // the active draw uses (CZ Group 3) so behavior matches everywhere.
+  const [zoomedCard, setZoomedCard] = useState<{ cardId: number; reversed: boolean } | null>(null);
   // DB-3.1 — render this reading's images using its SAVED deck.
   const getImage = useDeckImage(reading.deck_id ?? null);
   // DB-3.2 — deck override picker.
@@ -1876,17 +1925,24 @@ function ReadingDetail({
                   swipeMobile && "flex-shrink-0 snap-start",
                 )}
               >
-                <img
-                  src={getImage(id)}
-                  alt={getCardName(id)}
-                  className="h-32 w-20 rounded-md object-cover"
-                  style={{
-                    border:
-                      "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
-                    opacity: "var(--ro-plus-40)",
-                    transform: isReversed ? "rotate(180deg)" : undefined,
-                  }}
-                />
+                <button
+                  type="button"
+                  onClick={() => setZoomedCard({ cardId: id, reversed: isReversed })}
+                  aria-label={`Zoom ${getCardName(id)}`}
+                  className="block rounded-md transition active:scale-[0.98]"
+                >
+                  <CardThumb
+                    src={getImage(id)}
+                    alt={getCardName(id)}
+                    className="h-32 w-20 rounded-md object-cover"
+                    style={{
+                      border:
+                        "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+                      opacity: "var(--ro-plus-40)",
+                      transform: isReversed ? "rotate(180deg)" : undefined,
+                    }}
+                  />
+                </button>
                 <span
                   className="mt-1 max-w-[90px] text-center font-display text-[10px] italic text-muted-foreground"
                   style={{ opacity: "var(--ro-plus-20)" }}
@@ -2112,6 +2168,13 @@ function ReadingDetail({
         }}
         defaultLevel={reading.interpretation?.trim() ? "reading" : "pull"}
       />
+      {zoomedCard && (
+        <CardZoomModal
+          cardId={zoomedCard.cardId}
+          reversed={zoomedCard.reversed}
+          onClose={() => setZoomedCard(null)}
+        />
+      )}
     </div>
   );
 }
