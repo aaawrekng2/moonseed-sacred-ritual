@@ -335,6 +335,12 @@ function JournalPage() {
           return false;
       }
       if (deepOnly && !r.is_deep_reading) return false;
+      // DN-5 — Stories filter: keep only readings attached to one of
+      // the currently-active patterns.
+      if (activeStories.length > 0) {
+        if (!r.pattern_id || !activeStories.includes(r.pattern_id))
+          return false;
+      }
       if (activeDate) {
         const d = new Date(r.created_at);
         const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -357,7 +363,17 @@ function JournalPage() {
       }
       return true;
     });
-  }, [readings, search, activeTags, tagMode, activeDrawTypes, deepOnly, activeDate, batchParam]);
+  }, [
+    readings,
+    search,
+    activeTags,
+    tagMode,
+    activeDrawTypes,
+    deepOnly,
+    activeStories,
+    activeDate,
+    batchParam,
+  ]);
 
   const galleryItems = useMemo(
     () => filtered.filter((r) => (photoCounts[r.id] ?? 0) > 0),
