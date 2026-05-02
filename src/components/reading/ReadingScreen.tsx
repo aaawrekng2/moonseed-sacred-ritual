@@ -624,7 +624,9 @@ function CardStrip({
   if (spread === "celtic") {
     // Celtic Cross: preserve the cross+staff layout. Use fixed sizing
     // that matches SpreadLayout so there is no visual jump on transition.
-    const cw = isDesktop ? 56 : 48;
+    // CY — On mobile, bump card size (was 48) so text/art is readable;
+    // the entire cross+staff block becomes horizontally swipeable.
+    const cw = isDesktop ? 56 : 72;
     const ch = Math.round(cw * 1.75);
     const colGap = Math.round(cw * 0.35);
     const rowGap = Math.round(ch * 0.18);
@@ -676,8 +678,8 @@ function CardStrip({
 
     const staff = [6, 7, 8, 9];
 
-    return (
-      <div className="reading-cards-nudge flex items-center" style={{ gap: colGap * 1.4 }}>
+    const inner = (
+      <div className="reading-cards-nudge flex items-center flex-shrink-0" style={{ gap: colGap * 1.4 }}>
         {/* Cross block */}
         <div className="flex items-center" style={{ gap: colGap }}>
           {/* Past (index 3) */}
@@ -715,6 +717,25 @@ function CardStrip({
         </div>
       </div>
     );
+    if (!isDesktop) {
+      // CY — Wrap celtic in a horizontally swipeable strip on mobile.
+      return (
+        <div
+          className="reading-cards-swipe overflow-x-auto -mx-4 px-4 flex justify-start"
+          style={{
+            scrollbarWidth: "none",
+            WebkitOverflowScrolling: "touch",
+            maskImage:
+              "linear-gradient(to right, black 92%, transparent 100%)",
+            WebkitMaskImage:
+              "linear-gradient(to right, black 92%, transparent 100%)",
+          }}
+        >
+          {inner}
+        </div>
+      );
+    }
+    return inner;
   }
 
   // All other spreads: math-driven sizing, locked for 3-card to match SpreadLayout.
@@ -750,9 +771,22 @@ function CardStrip({
   // CF — position labels use shared PositionLabel (body-lg) to match
   // the digital cast view and prevent truncation in manual entry.
 
-  return (
+  // CY — Mobile: when multi-card row would shrink cards to unreadable
+  // sizes, switch to a horizontally swipeable strip with comfortable
+  // card sizes instead.
+  const swipeMobile = !isDesktop && cardCount > 3;
+  if (swipeMobile) {
+    // Comfortable readable size on mobile — roughly the single-card
+    // baseline but trimmed so 3-4 fit visibly before scrolling.
+    w = 140;
+    h = Math.round(w * 1.75);
+  }
+  const stripInner = (
     <div
-      className="reading-cards-nudge flex flex-nowrap items-start justify-center"
+      className={cn(
+        "reading-cards-nudge flex flex-nowrap items-start",
+        swipeMobile ? "justify-start flex-shrink-0" : "justify-center",
+      )}
       style={{
         columnGap: `${horizGap}px`,
       }}
@@ -762,7 +796,10 @@ function CardStrip({
         <div
           key={pick.id}
           role="listitem"
-          className="flex flex-col items-center gap-1"
+          className={cn(
+            "flex flex-col items-center gap-1",
+            swipeMobile && "flex-shrink-0 snap-start",
+          )}
         >
           <div
             className="reading-card-frame overflow-hidden rounded-[6px] border border-border/40 bg-card"
@@ -807,6 +844,24 @@ function CardStrip({
       ))}
     </div>
   );
+  if (swipeMobile) {
+    return (
+      <div
+        className="reading-cards-swipe overflow-x-auto snap-x snap-mandatory -mx-4 px-4"
+        style={{
+          scrollbarWidth: "none",
+          WebkitOverflowScrolling: "touch",
+          maskImage:
+            "linear-gradient(to right, black 92%, transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to right, black 92%, transparent 100%)",
+        }}
+      >
+        {stripInner}
+      </div>
+    );
+  }
+  return stripInner;
 }
 
 /* ---------------------------------------------------------------------- */
