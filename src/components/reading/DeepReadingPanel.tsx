@@ -28,6 +28,7 @@ import type { ShareContext, ShareLevel } from "@/components/share/share-types";
 import type { DeepLensSelection } from "@/components/share/levels/Level4DeepLens";
 import { isValidSpreadMode, SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { getGuideById } from "@/lib/guides";
+import { HelpIcon } from "@/components/help/HelpIcon";
 import { publishMistLevel } from "@/components/dev/DevOverlay";
 
 type Props = {
@@ -102,7 +103,7 @@ export function DeepReadingPanel({
     try {
       const { data, error } = await supabase
         .from("readings")
-        .select("spread_type, card_ids, card_orientations, question, guide_id")
+        .select("spread_type, card_ids, card_orientations, question, guide_id, deck_id")
         .eq("id", readingId)
         .maybeSingle();
       if (error || !data) return null;
@@ -125,6 +126,7 @@ export function DeepReadingPanel({
         interpretation: { overview: "", positions: [], closing: "" },
         guideName: getGuideById(data.guide_id ?? guideId).name,
         isOracle: false,
+        deckId: (data as { deck_id?: string | null }).deck_id ?? null,
       };
       setShareCtx(ctx);
       return ctx;
@@ -364,7 +366,10 @@ export function DeepReadingPanel({
       )}
       {revealed >= 4 && (
         <div className="deep-mirror" data-saved={mirrorSaved ? "true" : undefined}>
-          <p className="deep-mirror__label">Mirror Artifact</p>
+          <p className="deep-mirror__label">
+            Mirror Artifact
+            <HelpIcon articleId="mirror-artifact" />
+          </p>
           <p className="deep-mirror__body">
             {stripMarkdown(lenses.mirror_artifact)}
           </p>

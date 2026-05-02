@@ -162,6 +162,20 @@ function RootShell({ children }: { children: React.ReactNode }) {
               "try{var f=localStorage.getItem('moonseed:heading-font');if(f){document.documentElement.style.setProperty('--font-serif','\"'+f+'\", ui-serif, Georgia, serif');}var s=localStorage.getItem('moonseed:heading-font-size');if(s){var n=Math.max(16,Math.min(32,Math.round(Number(s))));if(Number.isFinite(n))document.documentElement.style.setProperty('--heading-scale',String(n/22));}var b=localStorage.getItem('moonseed:body-font-size');if(b){var m=Math.max(12,Math.min(22,Math.round(Number(b))));if(Number.isFinite(m))document.documentElement.style.setProperty('--body-scale',String(m/15));}}catch(e){}",
           }}
         />
+        {/*
+          DP-2 — Pre-paint the seeker's saved community theme + accent
+          theme attribute BEFORE first paint. Without this, the app
+          flashes the stylesheet defaults (gold/Mystic) for one frame
+          on every cold load. The token map below is inlined because
+          this script runs in <head> before any JS modules. Keep in
+          sync with src/lib/community-themes.ts.
+        */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{var T={'mystic-default':{bgL:'#1e1b4b',bgR:'#2d1b69',sf:'#252056',se:'#2d2664',bs:'#ffffff14',bd:'#ffffff1f',fg:'#f5f3ff',fm:'#c4b8e8',ac:'#f59e0b',af:'#1e1b4b',ao:'#5b21b66b'},'midnight-oracle':{bgL:'#0a0a0f',bgR:'#1e0a3c',sf:'#16162e',se:'#1e1e3d',bs:'#ffffff14',bd:'#ffffff1f',fg:'#ede9fe',fm:'#a78bfa',ac:'#a78bfa',af:'#0a0a0f',ao:'#4c1d9540'},'blood-moon':{bgL:'#1a0000',bgR:'#5c0000',sf:'#330505',se:'#421010',bs:'#ffffff14',bd:'#ffffff1f',fg:'#fff5f0',fm:'#fca5a5',ac:'#fb7185',af:'#1a0000',ao:'#7f1d1d66'},'citrine-dawn':{bgL:'#1a1308',bgR:'#3d2c0a',sf:'#2a1f0c',se:'#372a14',bs:'#ffffff14',bd:'#ffffff1f',fg:'#fefce8',fm:'#fde68a',ac:'#facc15',af:'#1a1308',ao:'#a162074d'},'cups-tide':{bgL:'#001a2c',bgR:'#042234',sf:'#0a2a3f',se:'#10374f',bs:'#ffffff14',bd:'#ffffff1f',fg:'#ecfeff',fm:'#a5f3fc',ac:'#67e8f9',af:'#001a2c',ao:'#0e74904d'},'wands-ember':{bgL:'#1c0a0a',bgR:'#3d1408',sf:'#2a1410',se:'#3a1d18',bs:'#ffffff14',bd:'#ffffff1f',fg:'#fff7ed',fm:'#fed7aa',ac:'#fb923c',af:'#1c0a0a',ao:'#9a34124d'},'pentacles-moss':{bgL:'#0a1a14',bgR:'#16352b',sf:'#102a20',se:'#173a2c',bs:'#ffffff14',bd:'#ffffff1f',fg:'#ecfdf5',fm:'#86efac',ac:'#34d399',af:'#0a1a14',ao:'#1665344d'},'peacocks-tail':{bgL:'#0d0a1f',bgR:'#2a0a3d',sf:'#1a1430',se:'#241a3f',bs:'#ffffff14',bd:'#ffffff1f',fg:'#faf5ff',fm:'#d8b4fe',ac:'#c084fc',af:'#0d0a1f',ao:'#6b21a866'},'nightfall':{bgL:'#000000',bgR:'#1d1d1f',sf:'#1c1c1e',se:'#2c2c2e',bs:'#ffffff14',bd:'#ffffff1f',fg:'#f5f5f7',fm:'#aeaeb2',ac:'#0a84ff',af:'#ffffff'},'daybreak':{bgL:'#ffffff',bgR:'#f5f5f7',sf:'#ffffff',se:'#fbfbfd',bs:'#0000000f',bd:'#0000001f',fg:'#1d1d1f',fm:'#6e6e73',ac:'#0066cc',af:'#ffffff'}};var k=localStorage.getItem('moonseed:community-theme');if(!k||!T[k])k='mystic-default';var t=T[k];var r=document.documentElement;var s=r.style;s.setProperty('--bg-gradient-left',t.bgL);s.setProperty('--bg-gradient-right',t.bgR);s.setProperty('--surface-card',t.sf);s.setProperty('--surface-card-hover',t.se);s.setProperty('--surface-elevated',t.se);s.setProperty('--border-subtle',t.bs);s.setProperty('--border-default',t.bd);s.setProperty('--border',t.bd);s.setProperty('--color-foreground',t.fg);s.setProperty('--foreground',t.fg);s.setProperty('--foreground-muted',t.fm);s.setProperty('--muted-foreground',t.fm);s.setProperty('--gold',t.ac);s.setProperty('--accent-color',t.ac);s.setProperty('--primary',t.ac);s.setProperty('--accent',t.ac);s.setProperty('--accent-foreground',t.af);s.setProperty('--gold-foreground',t.af);s.setProperty('--ring',t.ac+'99');if(t.ao){s.setProperty('--atmosphere-overlay',t.ao);s.setProperty('--atmosphere-enabled','1');}else{s.setProperty('--atmosphere-enabled','0');}var a=localStorage.getItem('moonseed:accent-theme');if(a&&a!=='default')r.setAttribute('data-theme',a);}catch(e){}",
+          }}
+        />
         <HeadContent />
       </head>
       <body>

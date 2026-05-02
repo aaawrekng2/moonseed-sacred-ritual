@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { X, Eye, EyeOff, Download, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
@@ -25,6 +25,52 @@ export function AuthScreen({
   // "check your email" confirmation pane until the seeker chooses to
   // go back to sign-in. Persists for the lifetime of the modal.
   const [signupSent, setSignupSent] = useState(false);
+  // DP-6 — Skip-confirm modal: when an anonymous user with local data
+  // tries to switch to signup, intercept once with a warning. Only
+  // shown if the current session has any user-owned rows.
+  const [skipConfirmOpen, setSkipConfirmOpen] = useState(false);
+  const [hasLocalData, setHasLocalData] = useState(false);
+
+  // Detect whether the current (likely anonymous) session has any saved
+  // data that could be lost during account creation. Cheap HEAD counts.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const uid = sessionData.session?.user?.id;
+        if (!uid) return;
+        const tables: Array<"readings" | "custom_decks" | "tags"> = [
+          "readings",
+          "custom_decks",
+          "tags",
+        ];
+        for (const t of tables) {
+          const { count } = await (supabase as unknown as {
+            from: (t: string) => {
+              select: (
+                c: string,
+                o: { count: "exact"; head: true },
+              ) => { eq: (c: string, v: string) => Promise<{ count: number | null }> };
+            };
+          })
+            .from(t)
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", uid);
+          if (cancelled) return;
+          if ((count ?? 0) > 0) {
+            setHasLocalData(true);
+            return;
+          }
+        }
+      } catch {
+        // best-effort only
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const exportLocalReadings = async () => {
     try {
@@ -423,7 +469,12 @@ export function AuthScreen({
           <button
             type="button"
             onClick={() => {
-              setMode(mode === "signin" ? "signup" : "signin");
+              const nextMode = mode === "signin" ? "signup" : "signin";
+              if (nextMode === "signup" && hasLocalData) {
+                setSkipConfirmOpen(true);
+                return;
+              }
+              setMode(nextMode);
               setError(null);
               setSuccess(null);
               setConfirmPassword("");
@@ -450,6 +501,79 @@ export function AuthScreen({
         </>
         )}
       </div>
+      {skipConfirmOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center px-5"
+          style={{ background: "var(--surface-scrim)" }}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl px-6 py-6 flex flex-col gap-4"
+            style={{
+              background: "var(--surface-elevated)",
+              color: "var(--color-foreground)",
+              border: "1px solid var(--border-default)",
+            }}
+          >
+            <p
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body)",
+                color: "var(--foreground)",
+                lineHeight: 1.55,
+                opacity: 0.9,
+              }}
+            >
+              You have unsaved data on this device. If something goes wrong
+              during account creation, this data could be permanently lost.
+              Are you sure you want to continue without downloading a backup
+              first?
+            </p>
+            <div className="flex flex-col gap-2 pt-1">
+              <button
+                type="button"
+                onClick={async () => {
+                  await exportLocalReadings();
+                }}
+                className="w-full py-2.5 font-display text-[12px] uppercase tracking-[0.25em]"
+                style={{
+                  color: "var(--accent)",
+                  background: "none",
+                  border: "1px solid var(--border-default)",
+                  borderRadius: 10,
+                }}
+              >
+                Download first
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSkipConfirmOpen(false);
+                  setMode("signup");
+                  setError(null);
+                  setSuccess(null);
+                  setConfirmPassword("");
+                  setShowPassword(false);
+                  setShowConfirm(false);
+                }}
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                  color: "var(--foreground)",
+                  opacity: 0.6,
+                  background: "none",
+                  border: "none",
+                  padding: "8px 0",
+                  cursor: "pointer",
+                }}
+              >
+                Continue anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Wand2 } from "lucide-react";
+import { Wand2, HelpCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
   applyHeadingFont,
@@ -239,6 +239,22 @@ export function TopRightControls({
       }}
     >
       {extraFirst}
+      {/* DP-5 — global Help entry. Opens /help. */}
+      <button
+        type="button"
+        aria-label="Open Help"
+        title="Help"
+        onClick={() => navigate({ to: "/help" })}
+        className="flex h-11 w-11 items-center justify-center rounded-full focus:outline-none"
+        style={{
+          color: "var(--accent)",
+          opacity: "var(--ro-plus-20, 0.6)",
+          background: "none",
+          border: "none",
+        }}
+      >
+        <HelpCircle size={17} strokeWidth={1.5} />
+      </button>
       {occupied.length > 0 && (
         <ExpandingIconButton
           icon={<Wand2 size={18} strokeWidth={1.5} />}

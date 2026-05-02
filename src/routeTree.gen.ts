@@ -13,6 +13,7 @@ import { Route as ThreadsRouteImport } from './routes/threads'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScatterTestRouteImport } from './routes/scatter-test'
 import { Route as JournalRouteImport } from './routes/journal'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as DrawRouteImport } from './routes/draw'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -26,6 +27,7 @@ import { Route as SettingsGuidesRouteImport } from './routes/settings.guides'
 import { Route as SettingsDecksRouteImport } from './routes/settings.decks'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
+import { Route as HelpCategoryArticleRouteImport } from './routes/help.$category.$article'
 import { Route as ApiPublicDetectWeavesRouteImport } from './routes/api/public/detect-weaves'
 import { Route as ApiPublicDetectWeavesStatusRouteImport } from './routes/api/public/detect-weaves/status'
 
@@ -47,6 +49,11 @@ const ScatterTestRoute = ScatterTestRouteImport.update({
 const JournalRoute = JournalRouteImport.update({
   id: '/journal',
   path: '/journal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GuidesRoute = GuidesRouteImport.update({
@@ -114,6 +121,11 @@ const SettingsBlueprintRoute = SettingsBlueprintRouteImport.update({
   path: '/blueprint',
   getParentRoute: () => SettingsRoute,
 } as any)
+const HelpCategoryArticleRoute = HelpCategoryArticleRouteImport.update({
+  id: '/$category/$article',
+  path: '/$category/$article',
+  getParentRoute: () => HelpRoute,
+} as any)
 const ApiPublicDetectWeavesRoute = ApiPublicDetectWeavesRouteImport.update({
   id: '/api/public/detect-weaves',
   path: '/api/public/detect-weaves',
@@ -131,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
+  '/help': typeof HelpRouteWithChildren
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -145,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/settings/themes': typeof SettingsThemesRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
+  '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRoutesByTo {
@@ -152,6 +166,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
+  '/help': typeof HelpRouteWithChildren
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -166,6 +181,7 @@ export interface FileRoutesByTo {
   '/settings/themes': typeof SettingsThemesRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
+  '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRoutesById {
@@ -174,6 +190,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
+  '/help': typeof HelpRouteWithChildren
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -188,6 +205,7 @@ export interface FileRoutesById {
   '/settings/themes': typeof SettingsThemesRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
+  '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRouteTypes {
@@ -197,6 +215,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/draw'
     | '/guides'
+    | '/help'
     | '/journal'
     | '/scatter-test'
     | '/settings'
@@ -211,6 +230,7 @@ export interface FileRouteTypes {
     | '/settings/themes'
     | '/threads/$patternId'
     | '/api/public/detect-weaves'
+    | '/help/$category/$article'
     | '/api/public/detect-weaves/status'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -218,6 +238,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/draw'
     | '/guides'
+    | '/help'
     | '/journal'
     | '/scatter-test'
     | '/settings'
@@ -232,6 +253,7 @@ export interface FileRouteTypes {
     | '/settings/themes'
     | '/threads/$patternId'
     | '/api/public/detect-weaves'
+    | '/help/$category/$article'
     | '/api/public/detect-weaves/status'
   id:
     | '__root__'
@@ -239,6 +261,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/draw'
     | '/guides'
+    | '/help'
     | '/journal'
     | '/scatter-test'
     | '/settings'
@@ -253,6 +276,7 @@ export interface FileRouteTypes {
     | '/settings/themes'
     | '/threads/$patternId'
     | '/api/public/detect-weaves'
+    | '/help/$category/$article'
     | '/api/public/detect-weaves/status'
   fileRoutesById: FileRoutesById
 }
@@ -261,6 +285,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   DrawRoute: typeof DrawRoute
   GuidesRoute: typeof GuidesRoute
+  HelpRoute: typeof HelpRouteWithChildren
   JournalRoute: typeof JournalRoute
   ScatterTestRoute: typeof ScatterTestRoute
   SettingsRoute: typeof SettingsRouteWithChildren
@@ -296,6 +321,13 @@ declare module '@tanstack/react-router' {
       path: '/journal'
       fullPath: '/journal'
       preLoaderRoute: typeof JournalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/guides': {
@@ -389,6 +421,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsBlueprintRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/help/$category/$article': {
+      id: '/help/$category/$article'
+      path: '/$category/$article'
+      fullPath: '/help/$category/$article'
+      preLoaderRoute: typeof HelpCategoryArticleRouteImport
+      parentRoute: typeof HelpRoute
+    }
     '/api/public/detect-weaves': {
       id: '/api/public/detect-weaves'
       path: '/api/public/detect-weaves'
@@ -405,6 +444,16 @@ declare module '@tanstack/react-router' {
     }
   }
 }
+
+interface HelpRouteChildren {
+  HelpCategoryArticleRoute: typeof HelpCategoryArticleRoute
+}
+
+const HelpRouteChildren: HelpRouteChildren = {
+  HelpCategoryArticleRoute: HelpCategoryArticleRoute,
+}
+
+const HelpRouteWithChildren = HelpRoute._addFileChildren(HelpRouteChildren)
 
 interface SettingsRouteChildren {
   SettingsBlueprintRoute: typeof SettingsBlueprintRoute
@@ -461,6 +510,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   DrawRoute: DrawRoute,
   GuidesRoute: GuidesRoute,
+  HelpRoute: HelpRouteWithChildren,
   JournalRoute: JournalRoute,
   ScatterTestRoute: ScatterTestRoute,
   SettingsRoute: SettingsRouteWithChildren,

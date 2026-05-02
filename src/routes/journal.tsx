@@ -2261,7 +2261,9 @@ function ReadingDetail({
           },
           guideName: guide.name,
           isOracle,
+          deckId: reading.deck_id ?? null,
         }}
+
         defaultLevel={reading.interpretation?.trim() ? "reading" : "pull"}
       />
       {zoomedCard && (
@@ -2319,7 +2321,10 @@ function FiltersPanel({
     <div className="flex flex-col gap-5">
       {/* Deep readings toggle */}
       <section>
-        <h3 className="font-display text-[10px] uppercase tracking-[0.18em] mb-2 text-foreground/85">
+        <h3
+          className="font-display text-[10px] uppercase tracking-[0.18em] mb-2"
+          style={{ color: "var(--accent)" }}
+        >
           Depth
         </h3>
         <button
@@ -2342,7 +2347,10 @@ function FiltersPanel({
       {/* Tags */}
       {topTags.length > 0 && (
         <section>
-          <h3 className="font-display text-[10px] uppercase tracking-[0.18em] mb-2 text-foreground/85">
+          <h3
+            className="font-display text-[10px] uppercase tracking-[0.18em] mb-2"
+            style={{ color: "var(--accent)" }}
+          >
             Tags
           </h3>
           <div className="flex flex-wrap gap-x-3 gap-y-2">
@@ -2410,7 +2418,10 @@ function FiltersPanel({
       {/* DN-5 — Stories filter (only shown when at least one Story exists). */}
       {allStories.length > 0 && (
         <section>
-          <h3 className="font-display text-[10px] uppercase tracking-[0.18em] mb-2 text-foreground/85">
+          <h3
+            className="font-display text-[10px] uppercase tracking-[0.18em] mb-2"
+            style={{ color: "var(--accent)" }}
+          >
             Stories
           </h3>
           <div className="flex flex-wrap gap-x-3 gap-y-2">
@@ -2467,7 +2478,10 @@ function FiltersPanel({
       )}
 
       <section>
-        <h3 className="font-display text-[10px] uppercase tracking-[0.18em] mb-2 text-foreground/85">
+        <h3
+          className="font-display text-[10px] uppercase tracking-[0.18em] mb-2"
+          style={{ color: "var(--accent)" }}
+        >
           Draw type
         </h3>
         <div className="flex flex-wrap gap-x-4 gap-y-2">
