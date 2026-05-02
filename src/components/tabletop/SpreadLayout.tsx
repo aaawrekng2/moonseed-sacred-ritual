@@ -8,6 +8,8 @@ import { useShowLabels } from "@/lib/use-show-labels";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { cn } from "@/lib/utils";
 import { InlineReading } from "@/components/reading/ReadingParts";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { CardZoomModal } from "./CardZoomModal";
 import {
   useRegisterCloseHandler,
   useRegisterCopyText,
@@ -59,6 +61,16 @@ export function SpreadLayout({
   usePortraitOnly();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const { showLabels } = useShowLabels();
+  // CZ Group 2 — on mobile, suppress the under-card position labels
+  // (Past/Present/Future, Celtic Cross labels). The bottom-bar whisper
+  // still names the focused position so no information is lost.
+  const isMobile = useIsMobile();
+  const showSlotLabels = showLabels && !isMobile;
+  // CZ Group 3 — tap-to-zoom on flipped cards.
+  const [zoomedCard, setZoomedCard] = useState<{
+    cardIndex: number;
+    reversed: boolean;
+  } | null>(null);
   // Once every card is face-up the inline reading flow takes over.
   // `copyText` is hoisted from <InlineReading> so the global
   // FloatingMenu can surface a Copy icon while the reading is open.
@@ -155,7 +167,10 @@ export function SpreadLayout({
           nextIndex={nextIndex}
           wrongIndex={wrongIndex}
           onTap={handleTap}
-          showLabels={showLabels}
+          showLabels={showSlotLabels}
+          onZoom={(cardIndex, reversed) =>
+            setZoomedCard({ cardIndex, reversed })
+          }
         />
       </div>
 
@@ -207,6 +222,13 @@ export function SpreadLayout({
             </p>
           )}
         </div>
+      )}
+      {zoomedCard && (
+        <CardZoomModal
+          cardId={zoomedCard.cardIndex}
+          reversed={zoomedCard.reversed}
+          onClose={() => setZoomedCard(null)}
+        />
       )}
     </main>
   );
