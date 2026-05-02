@@ -1710,6 +1710,7 @@ function ReadingDetail({
   onReadingChange,
   onTagLibraryChange,
   onPhotoCountChange,
+  onDeckChange,
 }: {
   reading: ReadingRow;
   onClose: () => void;
@@ -1723,6 +1724,7 @@ function ReadingDetail({
   }) => void;
   onTagLibraryChange: (next: EnrichmentTag[]) => void;
   onPhotoCountChange: (readingId: string, count: number) => void;
+  onDeckChange: (id: string, deckId: string | null) => void;
 }) {
   const guide = getGuideById(reading.guide_id);
   const positions = isValidSpreadMode(reading.spread_type)
@@ -1733,6 +1735,46 @@ function ReadingDetail({
   const isMobile = useIsMobile();
   const swipeMobile = isMobile && reading.card_ids.length > 3;
   const [shareOpen, setShareOpen] = useState(false);
+  // DB-3.1 — render this reading's images using its SAVED deck.
+  const getImage = useDeckImage(reading.deck_id ?? null);
+  // DB-3.2 — deck override picker.
+  const [decks, setDecks] = useState<CustomDeck[]>([]);
+  const [deckMenuOpen, setDeckMenuOpen] = useState(false);
+  const [deckSaving, setDeckSaving] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const rows = await fetchUserDecks(reading.user_id);
+        if (!cancelled) setDecks(rows);
+      } catch {
+        /* non-fatal */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [reading.user_id]);
+  const currentDeckName = reading.deck_id
+    ? decks.find((d) => d.id === reading.deck_id)?.name ?? "Custom deck"
+    : "Default";
+  const handleSelectDeck = async (newDeckId: string | null) => {
+    if (deckSaving) return;
+    setDeckSaving(true);
+    const { error } = await supabase
+      .from("readings")
+      .update({ deck_id: newDeckId })
+      .eq("id", reading.id)
+      .eq("user_id", reading.user_id);
+    setDeckSaving(false);
+    setDeckMenuOpen(false);
+    if (error) {
+      toast.error("Couldn't update deck.");
+      return;
+    }
+    onDeckChange(reading.id, newDeckId);
+    toast.success("Deck updated");
+  };
   const spreadModeForShare: SpreadMode = isValidSpreadMode(reading.spread_type)
     ? (reading.spread_type as SpreadMode)
     : "single";
