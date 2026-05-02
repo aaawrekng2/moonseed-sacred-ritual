@@ -805,6 +805,7 @@ function JournalPage() {
           onReadingChange={handleReadingChange}
           onTagLibraryChange={handleTagLibraryChange}
           onPhotoCountChange={handlePhotoCountChange}
+          onDeckChange={handleReadingDeckChange}
         />
       )}
     </main>
