@@ -9,6 +9,7 @@ import {
 } from "@/lib/patterns";
 import { firstCardName, formatRelativeTime } from "@/lib/utils";
 import { BottomNav } from "@/components/nav/BottomNav";
+import { HelpIcon } from "@/components/help/HelpIcon";
 import {
   ReactFlow,
   Background,
