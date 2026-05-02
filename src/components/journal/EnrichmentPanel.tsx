@@ -1464,6 +1464,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
         >
           Story
         </Link>
+        <HelpIcon articleId="stories" />
         <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
           : {pattern.name}.
         </span>

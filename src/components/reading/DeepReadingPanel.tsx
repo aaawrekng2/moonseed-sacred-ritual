@@ -28,6 +28,7 @@ import type { ShareContext, ShareLevel } from "@/components/share/share-types";
 import type { DeepLensSelection } from "@/components/share/levels/Level4DeepLens";
 import { isValidSpreadMode, SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { getGuideById } from "@/lib/guides";
+import { HelpIcon } from "@/components/help/HelpIcon";
 import { publishMistLevel } from "@/components/dev/DevOverlay";
 
 type Props = {
