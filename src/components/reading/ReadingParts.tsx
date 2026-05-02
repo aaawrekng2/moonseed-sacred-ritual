@@ -335,6 +335,9 @@ export function InlineReading({
             lensId={lensId}
             facetIds={facetIds}
             question={question}
+            entryMode={entryMode}
+            deckId={deckId}
+            onExit={onExit}
           />
         </div>
       )}
