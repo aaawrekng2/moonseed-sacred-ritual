@@ -1253,7 +1253,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
           }
         | null;
       if (!row || cancelled) return;
-      // Already attached → show the "lives within" line.
+      // Already attached → show the "aligns with your Story" line.
       if (row.pattern_id) {
         const { data: p } = await supabase
           .from("patterns")
@@ -1449,23 +1449,23 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
         }}
       >
         <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
-          This reading lives within{" "}
+          This reading aligns with your{" "}
         </span>
         <Link
-          to="/threads/$patternId"
-          params={{ patternId: pattern.id }}
-          title={`Open the ${pattern.name} chamber`}
-          aria-label={`Open the ${pattern.name} pattern chamber`}
+          to="/threads"
+          search={{ focus: pattern.id }}
+          title={`Open the ${pattern.name} Story`}
+          aria-label={`Open the ${pattern.name} Story`}
           style={{
             color: "var(--gold)",
-            textDecoration: "none",
-            borderBottom: "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
+            textDecoration: "underline",
+            textUnderlineOffset: "2px",
           }}
         >
-          {pattern.name}
+          Story
         </Link>
         <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
-          .
+          : {pattern.name}.
         </span>
       </div>
     );
