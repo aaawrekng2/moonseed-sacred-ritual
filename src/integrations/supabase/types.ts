@@ -633,6 +633,7 @@ export type Database = {
           default_life_area: string
           default_share_color: string
           default_spread: string
+          dismissed_hints: Json
           display_name: string | null
           gifted_by: string | null
           guide_facets: string[] | null
@@ -692,6 +693,7 @@ export type Database = {
           default_life_area?: string
           default_share_color?: string
           default_spread?: string
+          dismissed_hints?: Json
           display_name?: string | null
           gifted_by?: string | null
           guide_facets?: string[] | null
@@ -751,6 +753,7 @@ export type Database = {
           default_life_area?: string
           default_share_color?: string
           default_spread?: string
+          dismissed_hints?: Json
           display_name?: string | null
           gifted_by?: string | null
           guide_facets?: string[] | null
