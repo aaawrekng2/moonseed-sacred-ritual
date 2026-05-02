@@ -33,7 +33,7 @@ export function Level2FullReading({
       accent={color.accent}
       background={`radial-gradient(ellipse at 50% 18%, ${color.glow.replace(/0\.35\)/, "0.8)")} 0%, transparent 60%), linear-gradient(180deg, color-mix(in oklab, ${color.accent} 5%, #07070d) 0%, color-mix(in oklab, ${color.accent} 4%, #14110a) 55%, color-mix(in oklab, ${color.accent} 6%, #1f1a10) 100%)`}
     >
-      <ShareCardRow picks={ctx.picks} />
+      <ShareCardRow picks={ctx.picks} deckId={ctx.deckId ?? null} />
       {showQuestion && (
         <div
           style={{
