@@ -21,7 +21,7 @@ const BASE_TABS: readonly Tab[] = [
   { to: "/settings", label: "Settings", Icon: SlidersHorizontal },
 ] as const;
 
-const THREADS_TAB: Tab = { to: "/threads", label: "Threads", Icon: Network };
+const THREADS_TAB: Tab = { to: "/threads", label: "Stories", Icon: Network };
 
 export function BottomNav() {
   const location = useLocation();

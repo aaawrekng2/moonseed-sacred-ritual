@@ -1238,8 +1238,8 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
   const busy = attachingId !== null;
   const headline =
     suggestions.length === 1
-      ? "This reading resonates with a pattern:"
-      : `This reading resonates with ${suggestions.length} patterns:`;
+      ? "This reading shares cards with a Story:"
+      : `This reading shares cards with ${suggestions.length} Stories:`;
 
   return (
     <div

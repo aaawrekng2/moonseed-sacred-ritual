@@ -19,8 +19,8 @@ import {
 export const Route = createFileRoute("/threads")({
   head: () => ({
     meta: [
-      { title: "Threads — Moonseed" },
-      { name: "description", content: "Symbolic patterns weaving across your readings." },
+      { title: "Stories — Moonseed" },
+      { name: "description", content: "Symbolic Stories weaving across your readings." },
     ],
   }),
   component: ThreadsPage,
@@ -137,10 +137,10 @@ function ThreadsPage() {
               letterSpacing: "0.02em",
             }}
           >
-            Threads
+            Stories
           </h1>
           <nav
-            aria-label="Threads views"
+            aria-label="Stories views"
             style={{
               display: "flex",
               gap: "var(--space-5, 20px)",
