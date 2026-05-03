@@ -825,7 +825,7 @@ function CardStrip({
               style={{
                 transform: pick.isReversed ? "rotate(180deg)" : undefined,
                 transition: "transform 600ms ease-out",
-                ...cornerRadiusStyle(deckRadiusPx),
+                ...cornerRadiusStyle(deckRadiusPx, w),
               }}
             />
           </div>
