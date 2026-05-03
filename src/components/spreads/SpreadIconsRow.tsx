@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { SpreadMode } from "@/lib/spreads";
 
@@ -48,11 +48,36 @@ function DiamondGlyph() {
   );
 }
 
-const SPREADS: { id: SpreadMode; label: string; Glyph: () => ReactNode }[] = [
-  { id: "single", label: "Single", Glyph: () => <StarGlyph size={14} /> },
-  { id: "three", label: "Three", Glyph: ThreeStars },
-  { id: "celtic", label: "Celtic", Glyph: CelticGlyph },
-  { id: "yes_no", label: "Yes / No", Glyph: DiamondGlyph },
+const SPREADS: {
+  id: SpreadMode;
+  label: string;
+  Glyph: () => ReactNode;
+  hint: string;
+}[] = [
+  {
+    id: "single",
+    label: "Single",
+    Glyph: () => <StarGlyph size={14} />,
+    hint: "One card. Today's whisper.",
+  },
+  {
+    id: "three",
+    label: "Three",
+    Glyph: ThreeStars,
+    hint: "Three cards. Past · present · path.",
+  },
+  {
+    id: "celtic",
+    label: "Celtic",
+    Glyph: CelticGlyph,
+    hint: "Ten cards. The full Celtic Cross.",
+  },
+  {
+    id: "yes_no",
+    label: "Yes / No",
+    Glyph: DiamondGlyph,
+    hint: "Quick directional pull.",
+  },
 ];
 
 export function SpreadIconsRow({
@@ -60,7 +85,31 @@ export function SpreadIconsRow({
 }: {
   onSelect?: (spread: SpreadMode) => void;
 }) {
+  // EE-5 — Home draw-type hint. Hovering/focusing a spread icon surfaces
+  // a single-line caption above the row so seekers preview what each
+  // draw means before tapping. On touch devices this also reveals on
+  // long-press (focus). Falls back to "" when nothing is hovered so the
+  // row maintains its vertical rhythm via min-height.
+  const [hint, setHint] = useState<string | null>(null);
   return (
+    <>
+      <div
+        aria-live="polite"
+        className="text-center"
+        style={{
+          minHeight: 18,
+          marginBottom: 4,
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-caption)",
+          letterSpacing: "0.06em",
+          color: "var(--gold)",
+          opacity: hint ? "var(--ro-plus-30)" : 0,
+          transition: "opacity 200ms ease",
+        }}
+      >
+        {hint ?? "\u00A0"}
+      </div>
     <div
       className="grid grid-cols-4 px-6 pb-4"
       style={{
@@ -70,11 +119,16 @@ export function SpreadIconsRow({
         margin: "0 auto",
       }}
     >
-      {SPREADS.map(({ id, label, Glyph }) => (
+      {SPREADS.map(({ id, label, Glyph, hint: spreadHint }) => (
         <button
           key={id}
           type="button"
           onClick={() => onSelect?.(id)}
+          onMouseEnter={() => setHint(spreadHint)}
+          onMouseLeave={() => setHint((h) => (h === spreadHint ? null : h))}
+          onFocus={() => setHint(spreadHint)}
+          onBlur={() => setHint((h) => (h === spreadHint ? null : h))}
+          aria-describedby={`spread-hint-${id}`}
           className={cn(
             "flex flex-col items-center justify-end gap-1.5 py-2 transition-colors",
             "text-muted-foreground hover:text-gold focus:text-gold focus:outline-none",
@@ -86,8 +140,12 @@ export function SpreadIconsRow({
           <span className="clarity-label font-display text-[11px] italic tracking-wide">
             {label}
           </span>
+          <span id={`spread-hint-${id}`} className="sr-only">
+            {spreadHint}
+          </span>
         </button>
       ))}
     </div>
+    </>
   );
 }
