@@ -66,6 +66,16 @@ export function ArchiveView({
     void load();
   }, [load]);
 
+  // EE-4 — Re-fetch whenever the parent re-mounts OR the window
+  // regains focus, so an archive action that happened on another tab
+  // (or before the view was first opened) is reflected immediately.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onFocus = () => void load();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [load]);
+
   const handleRestore = async (id: string) => {
     setRows((prev) => (prev ?? []).filter((r) => r.id !== id));
     const headers = await getAuthHeaders();
