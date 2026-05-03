@@ -334,26 +334,47 @@ function Index() {
               })
             }
           >
-            {todayCard !== null && !showSkeleton ? (
+            {todayCard !== null ? (
               <div
                 style={{
                   width: "100%",
                   height: "100%",
-                  animation: "fade-in 400ms ease-out both",
+                  position: "relative",
                 }}
               >
                 <img
                   src={getActiveDeckImage(todayCard)}
                   alt={getCardName(todayCard)}
+                  onLoad={() => setHeroImageLoaded(true)}
+                  onError={() => setHeroImageLoaded(true)}
                   style={{
                     width: "100%",
                     height: "100%",
                     objectFit: "contain",
                     display: "block",
+                    opacity: heroImageLoaded ? 1 : 0,
+                    transition: "opacity 300ms ease-out",
                     ...cornerRadiusStyle(heroDeckRadius, cardWidth),
                   }}
                   loading="eager"
                 />
+                {!heroImageLoaded && (
+                  <div
+                    className="hero-skeleton-shimmer"
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      borderRadius: 12,
+                      background:
+                        "color-mix(in oklab, var(--gold) 6%, transparent)",
+                      border:
+                        "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+                      overflow: "hidden",
+                      ...cornerRadiusStyle(heroDeckRadius, cardWidth),
+                    }}
+                    aria-label="Loading today's card"
+                  />
+                )}
               </div>
             ) : showSkeleton ? (
               <div
