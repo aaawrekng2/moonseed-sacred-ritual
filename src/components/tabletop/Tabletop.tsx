@@ -995,6 +995,7 @@ export function Tabletop({
           text="Already drew cards with a physical deck? Enter them here instead."
           anchorRef={manualBtnRef}
           position="bottom"
+          pointerAlign="start"
           onDismiss={() => setShowManualHint(false)}
         />
       )}

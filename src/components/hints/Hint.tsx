@@ -88,12 +88,15 @@ async function markHintHardDismissed(
 }
 
 export type HintPosition = "top" | "bottom" | "left" | "right";
+export type HintPointerAlign = "start" | "center" | "end";
 
 export type HintProps = {
   hintId: string;
   text: string;
   anchorRef: RefObject<HTMLElement | null>;
   position?: HintPosition;
+  /** EA-4 — horizontal anchoring of the pointer arrow on top/bottom hints. */
+  pointerAlign?: HintPointerAlign;
   onDismiss?: () => void;
 };
 
@@ -107,6 +110,7 @@ export function Hint({
   text,
   anchorRef,
   position = "top",
+  pointerAlign = "center",
   onDismiss,
 }: HintProps) {
   const { user } = useAuth();
@@ -176,12 +180,25 @@ export function Hint({
     close();
   };
 
+  const arrowLeft =
+    pointerAlign === "start"
+      ? "20px"
+      : pointerAlign === "end"
+        ? "calc(100% - 20px)"
+        : "50%";
+  const arrowTransform =
+    pointerAlign === "center"
+      ? "translateX(-50%) rotate(45deg)"
+      : pointerAlign === "start"
+        ? "rotate(45deg)"
+        : "translateX(-100%) rotate(45deg)";
+
   const arrow: Record<HintPosition, React.CSSProperties> = {
     top: {
       position: "absolute",
       bottom: -6,
-      left: "50%",
-      transform: "translateX(-50%) rotate(45deg)",
+      left: arrowLeft,
+      transform: arrowTransform,
       width: 12,
       height: 12,
       background: "var(--surface-card, #15131f)",
@@ -191,8 +208,8 @@ export function Hint({
     bottom: {
       position: "absolute",
       top: -6,
-      left: "50%",
-      transform: "translateX(-50%) rotate(45deg)",
+      left: arrowLeft,
+      transform: arrowTransform,
       width: 12,
       height: 12,
       background: "var(--surface-card, #15131f)",
