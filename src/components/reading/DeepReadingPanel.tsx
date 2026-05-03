@@ -427,7 +427,10 @@ function Lens({
   const clean = stripMarkdown(body);
   return (
     <section className="deep-lens">
-      <div className="deep-lens__label">{label}</div>
+      <div className="deep-lens__label">
+        {label}
+        <HelpIcon articleId="four-lenses" />
+      </div>
       <div className="deep-lens__divider" aria-hidden />
       <div className="deep-lens__body">{clean}</div>
       <div className="mt-2 flex justify-end">
