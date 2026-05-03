@@ -1378,6 +1378,7 @@ function GalleryTile({
 }) {
   const getImage = useDeckImage(reading.deck_id ?? null);
   const fallback = getImage(reading.card_ids[0] ?? 0, "thumbnail");
+  const deckRadiusPx = useDeckCornerRadius(reading.deck_id ?? null);
   return (
     <button
       type="button"
@@ -1386,6 +1387,7 @@ function GalleryTile({
       style={{
         border:
           "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
+        ...cornerRadiusStyle(deckRadiusPx),
       }}
     >
       <CardThumb
@@ -1393,7 +1395,11 @@ function GalleryTile({
         alt=""
         loading="lazy"
         className="h-full w-full object-cover"
-        style={photoUrl ? undefined : { opacity: "var(--ro-plus-30)" }}
+        style={
+          photoUrl
+            ? cornerRadiusStyle(deckRadiusPx)
+            : { opacity: "var(--ro-plus-30)", ...cornerRadiusStyle(deckRadiusPx) }
+        }
       />
       <div
         className="absolute inset-x-0 bottom-0 flex items-center justify-between px-2 py-1.5 text-[10px] uppercase tracking-[0.14em]"
