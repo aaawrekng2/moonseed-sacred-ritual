@@ -915,9 +915,10 @@ function JournalPage() {
             photoCounts={photoCounts}
             patternsById={patternsById}
             onOpen={setOpenId}
-            onArchive={(id) =>
-              setReadings((prev) => prev.filter((r) => r.id !== id))
-            }
+            onArchive={(id) => {
+              setReadings((prev) => prev.filter((r) => r.id !== id));
+              setArchiveCounter((c) => c + 1);
+            }}
           />
         ) : view === "gallery" ? (
           <GalleryView
@@ -937,9 +938,10 @@ function JournalPage() {
             photoCounts={photoCounts}
             patternsById={patternsById}
             onOpen={setOpenId}
-            onArchive={(id) =>
-              setReadings((prev) => prev.filter((r) => r.id !== id))
-            }
+            onArchive={(id) => {
+              setReadings((prev) => prev.filter((r) => r.id !== id));
+              setArchiveCounter((c) => c + 1);
+            }}
           />
         ) : view === "calendar" ? (
           <CalendarView
@@ -955,7 +957,7 @@ function JournalPage() {
           />
         ) : view === "archive" ? (
           <ArchiveView
-            key={`archive-${view}`}
+            key={`archive-${archiveCounter}`}
             onOpen={(id) => setOpenId(id)}
             onChanged={() => {
               // Restore puts a reading back in the active list — pull
