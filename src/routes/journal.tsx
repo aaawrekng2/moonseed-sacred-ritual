@@ -874,6 +874,9 @@ function JournalPage() {
             photoCounts={photoCounts}
             patternsById={patternsById}
             onOpen={setOpenId}
+            onArchive={(id) =>
+              setReadings((prev) => prev.filter((r) => r.id !== id))
+            }
           />
         ) : view === "gallery" ? (
           <GalleryView
@@ -893,6 +896,9 @@ function JournalPage() {
             photoCounts={photoCounts}
             patternsById={patternsById}
             onOpen={setOpenId}
+            onArchive={(id) =>
+              setReadings((prev) => prev.filter((r) => r.id !== id))
+            }
           />
         ) : view === "calendar" ? (
           <CalendarView
@@ -967,6 +973,7 @@ function ReadingsList({
   onOpen,
   emptyOracle,
   emptyPlain,
+  onArchive,
 }: {
   items: ReadingRow[];
   isOracle: boolean;
@@ -975,6 +982,7 @@ function ReadingsList({
   onOpen: (id: string) => void;
   emptyOracle?: string;
   emptyPlain?: string;
+  onArchive?: (id: string) => void;
 }) {
   if (items.length === 0) {
     return (
@@ -989,7 +997,12 @@ function ReadingsList({
     <ul className="flex flex-col gap-5">
       {items.map((r) => (
         <li key={r.id}>
-          <ReadingCard reading={r} onOpen={onOpen} patternsById={patternsById} />
+          <ReadingCard
+            reading={r}
+            onOpen={onOpen}
+            patternsById={patternsById}
+            onArchive={onArchive}
+          />
         </li>
       ))}
     </ul>
