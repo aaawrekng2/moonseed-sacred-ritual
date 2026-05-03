@@ -2043,6 +2043,7 @@ function ReadingDetail({
   const [zoomedCard, setZoomedCard] = useState<{ cardId: number; reversed: boolean } | null>(null);
   // DB-3.1 — render this reading's images using its SAVED deck.
   const getImage = useDeckImage(reading.deck_id ?? null);
+  const deckRadiusPx = useDeckCornerRadius(reading.deck_id ?? null);
   // DB-3.2 — deck override picker.
   const [decks, setDecks] = useState<CustomDeck[]>([]);
   const [deckMenuOpen, setDeckMenuOpen] = useState(false);
@@ -2219,6 +2220,7 @@ function ReadingDetail({
                          "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
                        opacity: "var(--ro-plus-40)",
                        transform: isReversed ? "rotate(180deg)" : undefined,
+                       ...cornerRadiusStyle(deckRadiusPx),
                      }}
                    />
                 </button>
