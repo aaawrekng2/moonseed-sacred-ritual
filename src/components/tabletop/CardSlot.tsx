@@ -716,7 +716,7 @@ export function CardSlot({
               alt={getCardName(faceIndex)}
               className="h-full w-full object-contain"
               loading="eager"
-              style={cornerRadiusStyle(deckRadiusPx)}
+              style={cornerRadiusStyle(deckRadiusPx, cardW)}
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).style.display = "none";
               }}
