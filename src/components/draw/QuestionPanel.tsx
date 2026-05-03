@@ -182,23 +182,7 @@ export function QuestionPanel({
               minHeight: 72,
             }}
           />
-          {!localValue && (
-            <div
-              className="absolute inset-0 flex items-center justify-center pointer-events-none"
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-body)",
-                lineHeight: 1.7,
-                color: "var(--foreground)",
-                opacity: 0.3,
-                textAlign: "center",
-                padding: "4px 16px",
-              }}
-            >
-              What question are you bringing to the cards?
-            </div>
-          )}
+          {/* DY-2 — subhead removed; the header alone communicates the prompt. */}
         </div>
 
         <div className="flex items-center justify-end gap-3">
