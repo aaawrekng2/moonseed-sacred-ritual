@@ -509,7 +509,8 @@ function DeckEditor({
               <input
                 type="range"
                 min={0}
-                max={30}
+                max={8}
+                step={1}
                 value={cornerRadius}
                 onChange={(e) => setCornerRadius(Number(e.target.value))}
                 className="mt-2 block w-full"
