@@ -8,7 +8,7 @@
  */
 import type { CSSProperties, ReactNode } from "react";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
-import { useDeckImage } from "@/lib/active-deck";
+import { useDeckImage, useDeckCornerRadius } from "@/lib/active-deck";
 import type { SharePick } from "../share-types";
 import type { ShareLevel } from "../share-types";
 import { getSigilForLevel, SigilWithGlow } from "../sigils";
@@ -247,6 +247,7 @@ export function ShareCardRow({
   const cardHeight = Math.round(cardWidth * cardAspect);
   // DN-7 — useDeckImage gives a deck-aware resolver with default fallback.
   const getImage = useDeckImage(deckId ?? null);
+  const deckRadiusPx = useDeckCornerRadius(deckId ?? null);
   return (
     <div
       style={{
@@ -271,7 +272,7 @@ export function ShareCardRow({
             style={{
               width: cardWidth,
               height: cardHeight,
-              borderRadius: 16,
+              borderRadius: deckRadiusPx ?? 16,
               overflow: "hidden",
               boxShadow: "0 24px 48px rgba(0,0,0,0.45)",
               // DN-6 — inherit active theme background instead of a
