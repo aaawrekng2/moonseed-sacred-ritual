@@ -1,7 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
-import { Flame, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
+import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
+import { getCurrentMoonPhase } from "@/lib/moon";
 import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -31,6 +33,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type IndexSearch = { question?: string };
 
