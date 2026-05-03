@@ -1965,7 +1965,8 @@ function ReadingDetail({
   const handleArchive = async () => {
     if (archiving) return;
     setArchiving(true);
-    const res = await archiveFn({ data: { readingId: reading.id } });
+    const headers = await getAuthHeaders();
+    const res = await archiveFn({ data: { readingId: reading.id }, headers });
     setArchiving(false);
     setArchiveConfirmOpen(false);
     if (!res.ok) {
