@@ -2127,8 +2127,28 @@ function ReadingDetail({
     toast.success("Deck updated");
   };
   const archiveFn = useServerFn(archiveReading);
+  const restoreFn = useServerFn(restoreReading);
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  // ED-2B — read-only mode when this reading is in the Archive.
+  const isArchived = reading.archived_at != null;
+  const archivedDays = reading.archived_at
+    ? daysUntilPurge(reading.archived_at)
+    : 0;
+  const [restoring, setRestoring] = useState(false);
+  const handleRestore = async () => {
+    if (restoring) return;
+    setRestoring(true);
+    const headers = await getAuthHeaders();
+    const res = await restoreFn({ data: { readingId: reading.id }, headers });
+    setRestoring(false);
+    if (!res.ok) {
+      toast.error("Couldn't restore reading.");
+      return;
+    }
+    toast.success("Reading restored.");
+    onClose();
+  };
   const handleArchive = async () => {
     if (archiving) return;
     setArchiving(true);
