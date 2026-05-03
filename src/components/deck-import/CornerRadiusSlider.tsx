@@ -11,6 +11,7 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchDeckCards, type CustomDeckCard } from "@/lib/custom-decks";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
+import { useActiveDeck } from "@/lib/active-deck";
 
 /**
  * App default corner radius (PERCENTAGE) for cards when the deck has no
@@ -35,6 +36,7 @@ export function CornerRadiusSlider({
   const [previewIdx, setPreviewIdx] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { refresh: refreshActiveDeck } = useActiveDeck();
 
   useEffect(() => {
     let cancelled = false;
@@ -73,10 +75,13 @@ export function CornerRadiusSlider({
     try {
       const { error: dbErr } = await supabase
         .from("custom_decks")
-        .update({ corner_radius_px: value })
+        .update({ corner_radius_percent: value })
         .eq("id", deckId);
       if (dbErr) throw dbErr;
       onSaved?.(value);
+      // ED-1 — refresh ActiveDeck context so radius takes effect
+      // immediately on Home, Journal, etc. without a page reload.
+      void refreshActiveDeck();
     } catch (err) {
       setError("Couldn't save. Try again.");
       // eslint-disable-next-line no-console
