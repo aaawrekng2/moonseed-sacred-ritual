@@ -394,13 +394,7 @@ function Index() {
                   }
             }
           >
-            <MoonPhaseIcon
-              phase={moonInfo.phase}
-              illumination={moonInfo.illumination}
-              size={20}
-              ringColor="rgba(212,175,55,0.35)"
-              ringWidth={1.5}
-            />
+            <MoonStreakIcon streakDays={currentStreak} size={20} />
             <span
               style={{
                 fontSize: "13px",
@@ -477,16 +471,29 @@ function Index() {
             </button>
           </div>
         )}
-        <SpreadIconsRow
-          onSelect={(spread) =>
-            navigate({
-              to: "/draw",
-              search: { spread },
-            })
-          }
-        />
+        <div ref={drawTypeRowRef}>
+          <SpreadIconsRow
+            onSelect={(spread) => {
+              setShowDrawTypeHint(false);
+              navigate({
+                to: "/draw",
+                search: { spread },
+              });
+            }}
+          />
+        </div>
       </section>
     </div>
+    {showDrawTypeHint && (
+      <Hint
+        hintId="home_draw_type_select"
+        text="Tap a draw type to begin."
+        anchorRef={drawTypeRowRef}
+        position="top"
+        pointerAlign="center"
+        onDismiss={() => setShowDrawTypeHint(false)}
+      />
+    )}
     {/* EE-8 — Streak detail modal */}
     <Dialog open={streakModalOpen} onOpenChange={setStreakModalOpen}>
       <DialogContent className="max-w-sm">
@@ -502,17 +509,17 @@ function Index() {
               gap: 10,
             }}
           >
-            <MoonPhaseIcon
-              phase={moonInfo.phase}
-              illumination={moonInfo.illumination}
-              size={28}
-              ringColor="rgba(212,175,55,0.4)"
-              ringWidth={1.5}
-            />
+            <MoonStreakIcon streakDays={currentStreak} size={80} />
             Your practice
           </DialogTitle>
           <DialogDescription className="text-center">
-            Tonight's moon: {moonInfo.phase} ({moonInfo.illumination}% lit)
+            {(() => {
+              const { element, isFull } = streakPhaseState(currentStreak);
+              if (element === "none") return "Begin your practice tonight.";
+              const phaseLabel =
+                element.charAt(0).toUpperCase() + element.slice(1);
+              return `Phase: ${phaseLabel}${isFull ? " — full" : ""}`;
+            })()}
           </DialogDescription>
         </DialogHeader>
         <div
