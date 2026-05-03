@@ -470,6 +470,7 @@ export type Database = {
       }
       readings: {
         Row: {
+          archived_at: string | null
           card_ids: number[]
           card_orientations: boolean[]
           created_at: string
@@ -495,6 +496,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          archived_at?: string | null
           card_ids: number[]
           card_orientations?: boolean[]
           created_at?: string
@@ -520,6 +522,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          archived_at?: string | null
           card_ids?: number[]
           card_orientations?: boolean[]
           created_at?: string
@@ -907,6 +910,7 @@ export type Database = {
         }
         Returns: string
       }
+      purge_archived_readings: { Args: never; Returns: number }
       seed_default_user_tags: { Args: { _user_id: string }; Returns: undefined }
       try_acquire_detect_weaves_slot: {
         Args: { _min_interval_seconds: number }
