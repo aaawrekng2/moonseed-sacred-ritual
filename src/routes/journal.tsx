@@ -449,6 +449,30 @@ function JournalPage() {
       (openOverride && openOverride.id === openId ? openOverride : null)
     : null;
 
+  // ED-2A — when an Archive row is tapped, the reading isn't in
+  // `readings` (it's filtered out by `archived_at IS NULL`). Fetch it
+  // on demand so ReadingDetail can render in read-only mode.
+  useEffect(() => {
+    if (!openId || !user) return;
+    if (readings.find((r) => r.id === openId)) return;
+    if (openOverride && openOverride.id === openId) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("readings")
+        .select(
+          "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,archived_at",
+        )
+        .eq("id", openId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!cancelled && data) setOpenOverride(data as ReadingRow);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [openId, user, readings, openOverride]);
+
   // Stable callbacks for the EnrichmentPanel — keep the Journal list and
   // tag library in sync with edits made inside the Reading Detail overlay
   // without re-fetching from the server.
