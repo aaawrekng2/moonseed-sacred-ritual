@@ -561,7 +561,8 @@ function JournalPage() {
     activeTags.length +
     activeDrawTypes.length +
     activeStories.length +
-    (deepOnly ? 1 : 0);
+    (deepOnly ? 1 : 0) +
+    (savedOnly ? 1 : 0);
 
   const filtersNode = (
     <FiltersPanel
@@ -574,6 +575,8 @@ function JournalPage() {
       setActiveDrawTypes={setActiveDrawTypes}
       deepOnly={deepOnly}
       setDeepOnly={setDeepOnly}
+      savedOnly={savedOnly}
+      setSavedOnly={setSavedOnly}
       allStories={allStories}
       activeStories={activeStories}
       setActiveStories={setActiveStories}
@@ -581,6 +584,7 @@ function JournalPage() {
         setActiveTags([]);
         setActiveDrawTypes([]);
         setDeepOnly(false);
+        setSavedOnly(false);
         setActiveStories([]);
       }}
     />
