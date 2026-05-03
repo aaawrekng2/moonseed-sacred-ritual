@@ -60,6 +60,26 @@ export function Tabletop({
   // AU — Manual card entry. Bypass the scatter and let the seeker pick
   // cards from a 78-card grid (used for logging a physical reading).
   const [manualOpen, setManualOpen] = useState(false);
+  // DY-4 — Manual-draw hint, anchored to the "Choose cards" button.
+  // Fired by an event from draw.tsx after the question modal closes.
+  const { user: authUser } = useAuth();
+  const manualBtnRef = useRef<HTMLButtonElement | null>(null);
+  const [showManualHint, setShowManualHint] = useState(false);
+  useEffect(() => {
+    const onTrigger = async () => {
+      const dismissed = await isHintHardDismissed(
+        "manual_draw_choose_cards",
+        authUser?.id ?? null,
+      );
+      if (!dismissed) {
+        window.setTimeout(() => setShowManualHint(true), 300);
+      }
+    };
+    window.addEventListener("moonseed:question-modal-closed", onTrigger);
+    return () => {
+      window.removeEventListener("moonseed:question-modal-closed", onTrigger);
+    };
+  }, [authUser]);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
