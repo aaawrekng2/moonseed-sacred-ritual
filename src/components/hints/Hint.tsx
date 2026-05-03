@@ -211,7 +211,9 @@ export function Hint({
         position: "fixed",
         top: coords?.top ?? -9999,
         left: coords?.left ?? -9999,
-        zIndex: 70,
+        // DZ-2 — sit above tabletop card surfaces, slot rail, bottom
+        // bar (z-30/40/50), but below modal dialogs (z-[60+]).
+        zIndex: 1000,
         maxWidth: "min(90vw, 320px)",
         background: "var(--surface-card, #15131f)",
         border: "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",

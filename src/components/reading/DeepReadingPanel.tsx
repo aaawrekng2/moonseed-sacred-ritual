@@ -380,7 +380,7 @@ export function DeepReadingPanel({
               className="deep-mirror__action"
               onClick={handleSaveMirror}
             >
-              {mirrorSaved ? "Mirror saved" : "Save this mirror"}
+              {mirrorSaved ? "Saved to journal" : "Save to journal"}
             </button>
             <ShareIconButton
               ariaLabel="Share mirror artifact"
