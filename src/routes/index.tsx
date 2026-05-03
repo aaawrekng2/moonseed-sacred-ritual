@@ -74,6 +74,20 @@ function Index() {
   // CL Group 5 — gate the gateway card render on active-deck loading
   // so the themed default never flashes before the photographed back.
   const { loading: deckLoading } = useActiveDeck();
+  // EE-2 — Skeleton dismissal safety net. If the active-deck loader
+  // takes longer than 1500ms (slow network, cold cache, edge fn warmup),
+  // we stop showing the shimmer placeholder and fall through to the
+  // card back so the home hero never feels "stuck loading".
+  const [skeletonTimedOut, setSkeletonTimedOut] = useState(false);
+  useEffect(() => {
+    if (!deckLoading) {
+      setSkeletonTimedOut(false);
+      return;
+    }
+    const t = window.setTimeout(() => setSkeletonTimedOut(true), 1500);
+    return () => window.clearTimeout(t);
+  }, [deckLoading]);
+  const showSkeleton = deckLoading && !skeletonTimedOut;
   const navigate = useNavigate();
   const { currentStreak, longestStreak } = useStreak();
   // EE-8 — Streak Moon glyph + modal. The glyph reflects today's actual
