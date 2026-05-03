@@ -976,12 +976,28 @@ export function Tabletop({
           physical reading they've already pulled). */}
       <button
         type="button"
+        ref={manualBtnRef}
         onClick={() => setManualOpen(true)}
-        className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+8px)] z-50 inline-flex items-center gap-1.5 rounded-full border border-gold/30 bg-cosmos/70 px-3 py-1.5 text-xs text-foreground/80 backdrop-blur hover:bg-gold/10"
-        aria-label="Pick cards manually"
+        className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+8px)] z-50 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs backdrop-blur transition-opacity hover:opacity-100 active:opacity-70"
+        style={{
+          color: "var(--color-foreground, var(--foreground))",
+          background: "color-mix(in oklab, var(--surface-card, #15131f) 60%, transparent)",
+          border: "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
+          opacity: 0.92,
+        }}
+        aria-label="Choose cards"
       >
-        <Hand className="h-3.5 w-3.5" /> Pick manually
+        <Hand className="h-3.5 w-3.5" /> Choose cards
       </button>
+      {showManualHint && (
+        <Hint
+          hintId="manual_draw_choose_cards"
+          text="Choose your own cards instead of letting fate decide."
+          anchorRef={manualBtnRef}
+          position="bottom"
+          onDismiss={() => setShowManualHint(false)}
+        />
+      )}
 
       {/* Undo / Redo moved into the upper-right cluster below so all
           tabletop chrome sits in one row at the top-right. */}
