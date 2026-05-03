@@ -33,12 +33,20 @@ const ActiveDeckCtx = createContext<Ctx>({
 });
 
 export function ActiveDeckProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [activeDeck, setActiveDeck] = useState<CustomDeck | null>(null);
   const [imageMap, setImageMap] = useState<DeckImageMap>(EMPTY_DECK_IMAGE_MAP);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    // EE-3 — While auth is still resolving, keep loading=true so the
+    // Home hero waits for the user's custom deck instead of briefly
+    // rendering the Rider-Waite default before the active-deck
+    // context catches up on PWA cold open.
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
     if (!user) {
       setActiveDeck(null);
       setImageMap(EMPTY_DECK_IMAGE_MAP);
@@ -61,7 +69,7 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, authLoading]);
 
   useEffect(() => {
     void refresh();
@@ -218,20 +226,21 @@ export function useDeckCornerRadius(deckId: string | null | undefined): number |
  * value, or override the default tarot aspect via `aspect` (W/H) for
  * non-standard card shapes (square, round, etc.).
  */
-const DEFAULT_TAROT_ASPECT = 0.583; // W / H for standard tarot proportions
+/**
+ * EE-1 — Pixel-only border-radius. Asymmetric % fallback removed because
+ * rendered card containers have varying aspect ratios (gallery
+ * aspect-square, padded slots, share canvases) that don't always match
+ * the assumed tarot aspect — producing elliptical corners. If widthPx
+ * isn't provided or is 0 (initial render before measurement), returns
+ * an empty object: no radius is applied for that frame, and subsequent
+ * renders with a measured widthPx will paint the radius cleanly.
+ */
 export function cornerRadiusStyle(
   radiusPercent: number | null,
   widthPx?: number | null,
-  aspect: number = DEFAULT_TAROT_ASPECT,
 ): { borderRadius?: string } {
   if (radiusPercent == null) return {};
-  if (typeof widthPx === "number" && widthPx > 0) {
-    const px = Math.max(0, Math.round((radiusPercent / 100) * widthPx));
-    return { borderRadius: `${px}px` };
-  }
-  if (aspect > 0 && aspect !== 1) {
-    const v = +(radiusPercent / aspect).toFixed(3);
-    return { borderRadius: `${radiusPercent}% / ${v}%` };
-  }
-  return { borderRadius: `${radiusPercent}%` };
+  if (typeof widthPx !== "number" || widthPx <= 0) return {};
+  const px = Math.max(0, Math.round((radiusPercent / 100) * widthPx));
+  return { borderRadius: `${px}px` };
 }
