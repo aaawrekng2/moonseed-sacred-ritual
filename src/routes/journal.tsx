@@ -2295,6 +2295,50 @@ function ReadingDetail({
           onShare={() => setShareOpen(true)}
         />
 
+        {/* DV — Archive (soft-delete) action. Confirmed via dialog;
+            row stays restorable from the Archive tab for 30 days. */}
+        <div className="mx-auto mt-6 flex max-w-prose justify-center">
+          <button
+            type="button"
+            onClick={() => setArchiveConfirmOpen(true)}
+            disabled={archiving}
+            className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 font-display text-[12px] italic text-muted-foreground transition-colors hover:text-gold disabled:opacity-50"
+            style={{
+              border:
+                "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
+              opacity: "var(--ro-plus-30)",
+            }}
+          >
+            <ArchiveIcon size={13} strokeWidth={1.5} aria-hidden />
+            Archive reading
+          </button>
+        </div>
+        <AlertDialog open={archiveConfirmOpen} onOpenChange={setArchiveConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Archive this reading?</AlertDialogTitle>
+              <AlertDialogDescription>
+                It will be hidden from your journal, gallery, notes,
+                favorites, calendar, and stories. You can restore it
+                from the Archive tab within 30 days, after which it&rsquo;s
+                permanently deleted.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => void handleArchive()}
+                style={{
+                  background: "var(--accent)",
+                  color: "var(--accent-foreground, #1a1a1a)",
+                }}
+              >
+                Archive
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         {/* Phase 8: surface the Deep Reading mist (or completed lenses) so
             the seeker can revisit/begin a deep reading from the journal
             detail view, mirroring the live reading screen. */}
