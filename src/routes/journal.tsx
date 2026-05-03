@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BookOpen, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
+import { Archive as ArchiveIcon, BookOpen, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -23,6 +23,19 @@ import { ShareBuilder } from "@/components/share/ShareBuilder";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CardZoomModal } from "@/components/tabletop/CardZoomModal";
+import { ArchiveView } from "@/components/journal/ArchiveView";
+import { archiveReading, daysUntilPurge } from "@/lib/readings-archive";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // DD-3 — Subtle gold-tinted placeholder shown while a custom deck's
 // images are still being fetched. Prevents the brief Rider-Waite flash
@@ -118,6 +131,8 @@ type ReadingRow = {
   import_batch_id?: string | null;
   /** DB-3.1 — saved deck for THIS reading (null = default Rider-Waite). */
   deck_id?: string | null;
+  /** DV — soft-delete timestamp; null = active reading. */
+  archived_at?: string | null;
 };
 
 type TagRow = { id: string; name: string; usage_count: number };
@@ -128,7 +143,8 @@ type ViewMode =
   | "notes"
   | "favorites"
   | "threads"
-  | "calendar";
+  | "calendar"
+  | "archive";
 
 /** Draw types the seeker can filter by. Maps to `readings.spread_type`. */
 type DrawTypeKey = "single" | "three" | "celtic" | "yes_no";
