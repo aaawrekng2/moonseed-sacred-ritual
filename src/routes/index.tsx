@@ -127,8 +127,15 @@ function Index() {
     220,
     viewportH - carouselReserve - 274,
   );
+  // DW — subtract the hero section's vertical padding (24 top + 24 bottom)
+  // from the available pane before deriving the card's width. Without this
+  // the card height (= cardWidth * 1.75) exceeds the section's content box
+  // and gets clipped by `overflow: hidden`, producing the right/bottom
+  // crop seen on first paint (especially in incognito / cold sessions
+  // where the moon carousel snaps in late and shrinks the pane further).
+  const PANE_PADDING_Y = 48;
   const maxWidthCap = viewportW < 768 ? viewportW * 0.9 : 360;
-  const heightDerivedWidth = availablePaneHeight / 1.75;
+  const heightDerivedWidth = Math.max(0, availablePaneHeight - PANE_PADDING_Y) / 1.75;
   const cardWidth = Math.round(
     Math.max(120, Math.min(heightDerivedWidth, maxWidthCap)),
   );
