@@ -199,13 +199,24 @@ export function Tabletop({
   // Always use the full ±CARD_MAX_ROTATION range so no card sits axis-aligned.
   const maxRotation = TABLETOP_CONFIG.CARD_MAX_ROTATION;
 
-  // The exit X now lives in the bottom bar (outside the scatter area), and
-  // cards are explicitly allowed to scatter beneath the upper-left opacity
-  // slider. No exclusion zones needed inside the scatter container.
-  const exclusionZones = useMemo(
-    () => [] as { x: number; y: number; w: number; h: number }[],
-    [],
-  );
+  // EA-9 — on desktop the active draw zone (position label + slot row)
+  // sits at the bottom-center of the tabletop. Carve it out of the
+  // scatter so cards never occlude it. Mobile keeps the full scatter.
+  const exclusionZones = useMemo(() => {
+    if (!size || size.w < 1024) {
+      return [] as { x: number; y: number; w: number; h: number }[];
+    }
+    const drawZoneHeight = 220;
+    const drawZoneWidth = Math.min(800, size.w * 0.8);
+    return [
+      {
+        x: (size.w - drawZoneWidth) / 2,
+        y: Math.max(0, size.h - drawZoneHeight),
+        w: drawZoneWidth,
+        h: drawZoneHeight,
+      },
+    ];
+  }, [size]);
 
   // Detect coarse pointer once (and on media-query change) so we can scale
   // the hit area appropriately. Defaults to true on first render so SSR /
