@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
-import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
-import { getCurrentMoonPhase } from "@/lib/moon";
+import { MoonStreakIcon } from "@/components/streak/MoonStreakIcon";
+import { streakPhaseState } from "@/lib/streak-phase";
+import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -74,10 +75,11 @@ function Index() {
   // CL Group 5 — gate the gateway card render on active-deck loading
   // so the themed default never flashes before the photographed back.
   const { loading: deckLoading } = useActiveDeck();
-  // EE-2 — Skeleton dismissal safety net. If the active-deck loader
-  // takes longer than 1500ms (slow network, cold cache, edge fn warmup),
-  // we stop showing the shimmer placeholder and fall through to the
-  // card back so the home hero never feels "stuck loading".
+  // EG-1 — Skeleton dismisses when the hero image actually loads (onLoad).
+  // Falls back to a 1500ms timeout only if loading hangs (slow network /
+  // cold cache). The hero <img>'s onLoad sets heroImageLoaded=true,
+  // immediately swapping skeleton for image.
+  const [heroImageLoaded, setHeroImageLoaded] = useState(false);
   const [skeletonTimedOut, setSkeletonTimedOut] = useState(false);
   useEffect(() => {
     if (!deckLoading) {
@@ -87,15 +89,14 @@ function Index() {
     const t = window.setTimeout(() => setSkeletonTimedOut(true), 1500);
     return () => window.clearTimeout(t);
   }, [deckLoading]);
-  const showSkeleton = deckLoading && !skeletonTimedOut;
   const navigate = useNavigate();
   const { currentStreak, longestStreak } = useStreak();
-  // EE-8 — Streak Moon glyph + modal. The glyph reflects today's actual
-  // moon phase (computed once per mount) so each day's streak marker
-  // visually echoes the sky. Tapping opens a modal with current/longest
-  // streak detail and a brief affordance to keep the practice going.
-  const moonInfo = useMemo(() => getCurrentMoonPhase(new Date()), []);
+  // EG-4 — Streak glyph is locked to streak progression (NOT today's
+  // sky moon phase). The MoonCarousel handles current-phase display.
   const [streakModalOpen, setStreakModalOpen] = useState(false);
+  // EG-3 — first-time onboarding hint anchored to the spread icons row.
+  const drawTypeRowRef = useRef<HTMLDivElement | null>(null);
+  const [showDrawTypeHint, setShowDrawTypeHint] = useState(false);
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
   const isAnonymous = !user?.email;
@@ -249,6 +250,33 @@ function Index() {
     };
   }, [dayEpoch, effectiveTz]);
 
+  // EG-1 — Reset image-loaded state when the underlying todayCard changes
+  // (so a new card's load is properly gated).
+  useEffect(() => {
+    setHeroImageLoaded(false);
+  }, [todayCard]);
+
+  // EG-3 — Mount the draw-type hint only when not hard-dismissed.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const dismissed = await isHintHardDismissed(
+        "home_draw_type_select",
+        user?.id ?? null,
+      );
+      if (!cancelled && !dismissed) setShowDrawTypeHint(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  // EG-1 — Show shimmer while the deck is loading (with timeout fallback)
+  // OR while we have a card but its image hasn't decoded yet.
+  const showSkeleton =
+    (deckLoading && !skeletonTimedOut) ||
+    (!!todayCard && !heroImageLoaded);
+
   // DB-2.1 — Gateway padding tightens when the moon carousel is visible
   // so the spread icons aren't pushed past the bottom nav. The page also
   // scrolls (overflow-y-auto on <main>) so short viewports can reveal
@@ -306,26 +334,47 @@ function Index() {
               })
             }
           >
-            {todayCard !== null && !showSkeleton ? (
+            {todayCard !== null ? (
               <div
                 style={{
                   width: "100%",
                   height: "100%",
-                  animation: "fade-in 400ms ease-out both",
+                  position: "relative",
                 }}
               >
                 <img
                   src={getActiveDeckImage(todayCard)}
                   alt={getCardName(todayCard)}
+                  onLoad={() => setHeroImageLoaded(true)}
+                  onError={() => setHeroImageLoaded(true)}
                   style={{
                     width: "100%",
                     height: "100%",
                     objectFit: "contain",
                     display: "block",
+                    opacity: heroImageLoaded ? 1 : 0,
+                    transition: "opacity 300ms ease-out",
                     ...cornerRadiusStyle(heroDeckRadius, cardWidth),
                   }}
                   loading="eager"
                 />
+                {!heroImageLoaded && (
+                  <div
+                    className="hero-skeleton-shimmer"
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      borderRadius: 12,
+                      background:
+                        "color-mix(in oklab, var(--gold) 6%, transparent)",
+                      border:
+                        "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+                      overflow: "hidden",
+                      ...cornerRadiusStyle(heroDeckRadius, cardWidth),
+                    }}
+                    aria-label="Loading today's card"
+                  />
+                )}
               </div>
             ) : showSkeleton ? (
               <div
@@ -396,13 +445,7 @@ function Index() {
                   }
             }
           >
-            <MoonPhaseIcon
-              phase={moonInfo.phase}
-              illumination={moonInfo.illumination}
-              size={20}
-              ringColor="rgba(212,175,55,0.35)"
-              ringWidth={1.5}
-            />
+            <MoonStreakIcon streakDays={currentStreak} size={20} />
             <span
               style={{
                 fontSize: "13px",
@@ -479,16 +522,29 @@ function Index() {
             </button>
           </div>
         )}
-        <SpreadIconsRow
-          onSelect={(spread) =>
-            navigate({
-              to: "/draw",
-              search: { spread },
-            })
-          }
-        />
+        <div ref={drawTypeRowRef}>
+          <SpreadIconsRow
+            onSelect={(spread) => {
+              setShowDrawTypeHint(false);
+              navigate({
+                to: "/draw",
+                search: { spread },
+              });
+            }}
+          />
+        </div>
       </section>
     </div>
+    {showDrawTypeHint && (
+      <Hint
+        hintId="home_draw_type_select"
+        text="Tap a draw type to begin."
+        anchorRef={drawTypeRowRef}
+        position="top"
+        pointerAlign="center"
+        onDismiss={() => setShowDrawTypeHint(false)}
+      />
+    )}
     {/* EE-8 — Streak detail modal */}
     <Dialog open={streakModalOpen} onOpenChange={setStreakModalOpen}>
       <DialogContent className="max-w-sm">
@@ -504,17 +560,17 @@ function Index() {
               gap: 10,
             }}
           >
-            <MoonPhaseIcon
-              phase={moonInfo.phase}
-              illumination={moonInfo.illumination}
-              size={28}
-              ringColor="rgba(212,175,55,0.4)"
-              ringWidth={1.5}
-            />
+            <MoonStreakIcon streakDays={currentStreak} size={80} />
             Your practice
           </DialogTitle>
           <DialogDescription className="text-center">
-            Tonight's moon: {moonInfo.phase} ({moonInfo.illumination}% lit)
+            {(() => {
+              const { element, isFull } = streakPhaseState(currentStreak);
+              if (element === "none") return "Begin your practice tonight.";
+              const phaseLabel =
+                element.charAt(0).toUpperCase() + element.slice(1);
+              return `Phase: ${phaseLabel}${isFull ? " — full" : ""}`;
+            })()}
           </DialogDescription>
         </DialogHeader>
         <div

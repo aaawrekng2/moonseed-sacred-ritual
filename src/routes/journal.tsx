@@ -227,6 +227,9 @@ function JournalPage() {
   } | null>(null);
 
   const [readings, setReadings] = useState<ReadingRow[]>([]);
+  // EG-2 — increments on every archive action so ArchiveView remounts
+  // (and re-fetches) when the user navigates to the archive tab.
+  const [archiveCounter, setArchiveCounter] = useState(0);
   const [tags, setTags] = useState<TagRow[]>([]);
   const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [patternsById, setPatternsById] = useState<Record<string, PatternRow>>({});
@@ -912,9 +915,10 @@ function JournalPage() {
             photoCounts={photoCounts}
             patternsById={patternsById}
             onOpen={setOpenId}
-            onArchive={(id) =>
-              setReadings((prev) => prev.filter((r) => r.id !== id))
-            }
+            onArchive={(id) => {
+              setReadings((prev) => prev.filter((r) => r.id !== id));
+              setArchiveCounter((c) => c + 1);
+            }}
           />
         ) : view === "gallery" ? (
           <GalleryView
@@ -934,9 +938,10 @@ function JournalPage() {
             photoCounts={photoCounts}
             patternsById={patternsById}
             onOpen={setOpenId}
-            onArchive={(id) =>
-              setReadings((prev) => prev.filter((r) => r.id !== id))
-            }
+            onArchive={(id) => {
+              setReadings((prev) => prev.filter((r) => r.id !== id));
+              setArchiveCounter((c) => c + 1);
+            }}
           />
         ) : view === "calendar" ? (
           <CalendarView
@@ -952,7 +957,7 @@ function JournalPage() {
           />
         ) : view === "archive" ? (
           <ArchiveView
-            key={`archive-${view}`}
+            key={`archive-${archiveCounter}`}
             onOpen={(id) => setOpenId(id)}
             onChanged={() => {
               // Restore puts a reading back in the active list — pull
