@@ -1101,9 +1101,7 @@ function ReadingCard({
           }}
           className={cn(
             "absolute inset-y-0 right-0 z-10 flex items-center justify-center px-4 text-gold transition-opacity",
-            isMobile
-              ? "opacity-100"
-              : "opacity-0 group-hover/reading:opacity-100 focus:opacity-100",
+            "opacity-0 group-hover/reading:opacity-100 focus:opacity-100",
           )}
           style={{
             width: REVEAL_PX,
