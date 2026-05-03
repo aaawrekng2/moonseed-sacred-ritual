@@ -2270,6 +2270,7 @@ function ReadingDetail({
           cardId={zoomedCard.cardId}
           reversed={zoomedCard.reversed}
           onClose={() => setZoomedCard(null)}
+          deckId={reading.deck_id ?? null}
         />
       )}
     </div>

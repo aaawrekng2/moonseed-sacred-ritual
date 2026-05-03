@@ -153,42 +153,10 @@ export function ShareCardFrame({
           <SigilWithGlow Sigil={Sigil} size={132} />
         </div>
       )}
-      {/* DS — Upper-right brand wordmark: ☽ moonseed in accent. */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          top: 64,
-          right: 64,
-          zIndex: 3,
-          pointerEvents: "none",
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          color: "var(--accent)",
-          opacity: 0.8,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 56,
-            lineHeight: 1,
-            fontFamily: "ui-serif, Georgia, serif",
-          }}
-        >
-          ☽
-        </span>
-        <span
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: 44,
-            letterSpacing: "0.04em",
-          }}
-        >
-          moonseed
-        </span>
-      </div>
+      {/* DT-13 — The upper-right ☽ moonseed wordmark was removed from
+          the share canvas. Sigil top-left + Moonseed.com bottom-center
+          anchor the composition; the upper-right is intentionally
+          empty for asymmetric balance. */}
       <div
         style={{
           position: "absolute",
@@ -242,11 +210,14 @@ export function ShareCardFooter({
       <div
         style={{
           fontFamily: "var(--font-serif)",
-          fontSize: 26,
+          // DT-9 — bumped from 26 → 38 and opacity 0.5 → 0.7 so the
+          // bottom Moonseed.com wordmark stays legible at thumbnail
+          // sizes without dominating the composition.
+          fontSize: 38,
           letterSpacing: "0.18em",
           textTransform: "lowercase",
           color: "var(--foreground-muted, var(--color-foreground))",
-          opacity: 0.5,
+          opacity: 0.7,
         }}
       >
         Moonseed.com

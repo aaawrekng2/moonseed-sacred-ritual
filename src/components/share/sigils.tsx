@@ -81,8 +81,12 @@ export function Level1Sigil(props: SigilProps) {
   const c = props.color ?? "var(--accent)";
   return (
     <SigilSvg {...props}>
-      <circle cx={0} cy={0} r={30} />
-      <circle cx={0} cy={0} r={5} fill={c} stroke="none" />
+      {/* The Vessel — downward triangle (water/receptivity) with a
+          horizontal mid-line and a single dot inside. Reads as
+          "a single moment, received." */}
+      <polygon points="-22,-18 22,-18 0,22" />
+      <line x1={-14} y1={-2} x2={14} y2={-2} />
+      <circle cx={0} cy={8} r={3} fill={c} stroke="none" />
     </SigilSvg>
   );
 }
@@ -91,10 +95,29 @@ export function Level2Sigil(props: SigilProps) {
   const c = props.color ?? "var(--accent)";
   return (
     <SigilSvg {...props}>
-      <circle cx={0} cy={0} r={30} />
-      <circle cx={-14} cy={0} r={3.5} fill={c} stroke="none" />
-      <circle cx={0} cy={0} r={3.5} fill={c} stroke="none" />
-      <circle cx={14} cy={0} r={3.5} fill={c} stroke="none" />
+      {/* The Wheel — outer ring with three radial spokes at 12/4/8
+          o'clock, terminating in tick marks; small inner circle at
+          the hub. Geometric, never reads as a kebab menu. */}
+      <circle cx={0} cy={0} r={28} />
+      <circle cx={0} cy={0} r={6} />
+      {[0, 1, 2].map((i) => {
+        const a = -Math.PI / 2 + (i * 2 * Math.PI) / 3;
+        const x1 = Math.cos(a) * 6;
+        const y1 = Math.sin(a) * 6;
+        const x2 = Math.cos(a) * 28;
+        const y2 = Math.sin(a) * 28;
+        const tx = Math.cos(a) * 32 - Math.sin(a) * 4;
+        const ty = Math.sin(a) * 32 + Math.cos(a) * 4;
+        const tx2 = Math.cos(a) * 32 + Math.sin(a) * 4;
+        const ty2 = Math.sin(a) * 32 - Math.cos(a) * 4;
+        return (
+          <g key={i}>
+            <line x1={x1} y1={y1} x2={x2} y2={y2} />
+            <line x1={tx} y1={ty} x2={tx2} y2={ty2} />
+          </g>
+        );
+      })}
+      <circle cx={0} cy={0} r={2} fill={c} stroke="none" />
     </SigilSvg>
   );
 }
@@ -103,9 +126,13 @@ export function Level3Sigil(props: SigilProps) {
   const c = props.color ?? "var(--accent)";
   return (
     <SigilSvg {...props}>
-      <circle cx={0} cy={0} r={26} />
-      <circle cx={0} cy={0} r={5} fill={c} stroke="none" />
-      <line x1={26} y1={0} x2={40} y2={0} />
+      {/* The Compass — circle with a single arrow extending from the
+          center outward at the top-right diagonal. A small filled dot
+          opposite the arrow anchors the origin. */}
+      <circle cx={0} cy={0} r={28} />
+      <line x1={0} y1={0} x2={20} y2={-20} />
+      <polyline points="14,-22 22,-22 22,-14" />
+      <circle cx={-14} cy={14} r={3} fill={c} stroke="none" />
     </SigilSvg>
   );
 }
@@ -114,27 +141,43 @@ export function Level4Sigil(props: SigilProps) {
   const c = props.color ?? "var(--accent)";
   return (
     <SigilSvg {...props}>
-      <circle cx={0} cy={0} r={30} />
-      <circle cx={0} cy={0} r={16} />
-      <circle cx={0} cy={0} r={4.5} fill={c} stroke="none" />
+      {/* The Eye — vesica almond (wider than tall) with a smaller
+          circle and a focused pupil dot inside. Short rays at top
+          and bottom suggest attention. */}
+      <path d="M -30 0 Q 0 -18 30 0 Q 0 18 -30 0 Z" />
+      <circle cx={0} cy={0} r={10} />
+      <circle cx={0} cy={0} r={3} fill={c} stroke="none" />
+      <line x1={0} y1={-18} x2={0} y2={-26} />
+      <line x1={0} y1={18} x2={0} y2={26} />
+      <line x1={-12} y1={-13} x2={-16} y2={-19} />
+      <line x1={12} y1={-13} x2={16} y2={-19} />
+      <line x1={-12} y1={13} x2={-16} y2={19} />
+      <line x1={12} y1={13} x2={16} y2={19} />
     </SigilSvg>
   );
 }
 
 export function Level5Sigil(props: SigilProps) {
   const c = props.color ?? "var(--accent)";
-  // Eight-point star: alternate long (24) and short (12) radii at 22.5° steps.
-  const pts: string[] = [];
-  for (let i = 0; i < 16; i += 1) {
-    const r = i % 2 === 0 ? 24 : 12;
-    const a = (i * Math.PI) / 8 - Math.PI / 2;
-    pts.push(`${(Math.cos(a) * r).toFixed(2)},${(Math.sin(a) * r).toFixed(2)}`);
+  // The Sigil Crown — outer ring binding everything; a halo of evenly-
+  // spaced dots forming the crown; an inner circle holding a solid
+  // upward-pointing triangle (alchemical fire/spirit). Most ornate
+  // of the five.
+  const dotCount = 12;
+  const haloR = 22;
+  const dots: { x: number; y: number }[] = [];
+  for (let i = 0; i < dotCount; i += 1) {
+    const a = (i * 2 * Math.PI) / dotCount - Math.PI / 2;
+    dots.push({ x: Math.cos(a) * haloR, y: Math.sin(a) * haloR });
   }
   return (
     <SigilSvg {...props}>
-      <circle cx={0} cy={0} r={32} />
-      <polygon points={pts.join(" ")} />
-      <circle cx={0} cy={0} r={3.5} fill={c} stroke="none" />
+      <circle cx={0} cy={0} r={30} />
+      <circle cx={0} cy={0} r={14} />
+      {dots.map((d, i) => (
+        <circle key={i} cx={d.x} cy={d.y} r={1.6} fill={c} stroke="none" />
+      ))}
+      <polygon points="0,-9 8,6 -8,6" fill={c} stroke="none" />
     </SigilSvg>
   );
 }
