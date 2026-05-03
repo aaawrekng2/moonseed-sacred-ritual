@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { getCardName } from "@/lib/tarot";
-import { useActiveCardBackUrl, useActiveDeckImage } from "@/lib/active-deck";
+import { useActiveCardBackUrl, useActiveDeckImage, useActiveDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
