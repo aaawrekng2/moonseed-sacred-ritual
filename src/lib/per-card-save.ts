@@ -139,6 +139,8 @@ async function doSaveCard(args: SaveCardArgs): Promise<SaveResult> {
         .update({
           card_back_url: uploaded.displayUrl,
           card_back_thumb_url: uploaded.thumbnailUrl,
+          card_back_path: uploaded.displayPath,
+          card_back_thumb_path: uploaded.thumbnailPath,
         })
         .eq("id", deckId)
         .select();
@@ -206,7 +208,12 @@ async function doRemoveCard(args: {
     if (cardId === "BACK") {
       const { error } = await supabase
         .from("custom_decks")
-        .update({ card_back_url: null, card_back_thumb_url: null })
+        .update({
+          card_back_url: null,
+          card_back_thumb_url: null,
+          card_back_path: null,
+          card_back_thumb_path: null,
+        })
         .eq("id", deckId);
       if (error) throw error;
     } else {

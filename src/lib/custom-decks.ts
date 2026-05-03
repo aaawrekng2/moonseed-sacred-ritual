@@ -122,10 +122,18 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   // Pull the deck row separately for back image.
   const { data: deck } = await supabase
     .from("custom_decks")
-    .select("card_back_url")
+    .select("card_back_url, card_back_path")
     .eq("id", deckId)
     .maybeSingle();
-  map.back = (deck?.card_back_url as string | null | undefined) ?? null;
+  const backPath = (deck as { card_back_path?: string | null } | null)?.card_back_path ?? null;
+  if (backPath) {
+    const { data: signed } = await supabase.storage
+      .from("custom-deck-images")
+      .createSignedUrl(backPath, yearSecs);
+    map.back = signed?.signedUrl ?? (deck?.card_back_url as string | null | undefined) ?? null;
+  } else {
+    map.back = (deck?.card_back_url as string | null | undefined) ?? null;
+  }
   return map;
 }
 
