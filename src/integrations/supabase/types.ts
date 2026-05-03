@@ -486,6 +486,8 @@ export type Database = {
           is_favorite: boolean
           lens_id: string | null
           mirror_saved: boolean
+          mirror_saved_at: string | null
+          mirror_significance: string | null
           mode: string
           moon_phase: string | null
           note: string | null
@@ -512,6 +514,8 @@ export type Database = {
           is_favorite?: boolean
           lens_id?: string | null
           mirror_saved?: boolean
+          mirror_saved_at?: string | null
+          mirror_significance?: string | null
           mode?: string
           moon_phase?: string | null
           note?: string | null
@@ -538,6 +542,8 @@ export type Database = {
           is_favorite?: boolean
           lens_id?: string | null
           mirror_saved?: boolean
+          mirror_saved_at?: string | null
+          mirror_significance?: string | null
           mode?: string
           moon_phase?: string | null
           note?: string | null
