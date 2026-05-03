@@ -1138,20 +1138,6 @@ function ReadingCard({
             <span style={{ opacity: "var(--ro-plus-20)" }}>
               {relativeTime(reading.created_at)}
             </span>
-            {reading.is_deep_reading && (
-              <span
-                title="Deep reading"
-                className="text-gold"
-                style={{
-                  opacity: "var(--ro-plus-50)",
-                  letterSpacing: 0,
-                  fontSize: "var(--text-body-sm)",
-                }}
-                aria-label="Deep reading"
-              >
-                ✦
-              </span>
-            )}
           </div>
           <div
             className="mt-1 flex items-center gap-2 font-display text-[12px] italic"
@@ -1166,56 +1152,60 @@ function ReadingCard({
             <span>{guide.name}</span>
           </div>
         </div>
-        {reading.pattern_id && patternsById[reading.pattern_id] && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate({
-                to: "/threads",
-                search: { focus: reading.pattern_id! },
-              });
-            }}
-            aria-label="View Story"
-            title={`View Story: ${patternsById[reading.pattern_id].name}`}
-            style={{
-              background: "none",
-              border: "none",
-              padding: 0,
-              cursor: "pointer",
-              opacity: "var(--ro-plus-30)",
-              color: "var(--gold)",
-              flexShrink: 0,
-            }}
-          >
-            <Network size={16} strokeWidth={1.5} />
-          </button>
-        )}
-        <Heart
-          size={16}
-          strokeWidth={1.5}
-          className={cn(
-            "shrink-0 transition-opacity",
-            reading.is_favorite ? "text-gold" : "text-muted-foreground",
+        {/* EA-6 — unified right-edge state cluster. */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {reading.is_favorite && (
+            <Heart
+              size={16}
+              strokeWidth={1.5}
+              fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.8 }}
+              aria-label="Favorite"
+            />
           )}
-          fill={reading.is_favorite ? "currentColor" : "none"}
-          style={{
-            opacity: reading.is_favorite
-              ? "var(--ro-plus-50)"
-              : "var(--ro-plus-10)",
-          }}
-          aria-hidden
-        />
-        {reading.mirror_saved && (
-          <Bookmark
-            size={14}
-            strokeWidth={1.5}
-            className="shrink-0 text-accent"
-            fill="currentColor"
-            style={{ opacity: 0.8, color: "var(--accent)" }}
-            aria-label="Saved reading"
-          />
-        )}
+          {reading.mirror_saved && (
+            <Bookmark
+              size={16}
+              strokeWidth={1.5}
+              fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.8 }}
+              aria-label="Bookmarked"
+            />
+          )}
+          {reading.pattern_id && patternsById[reading.pattern_id] && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate({
+                  to: "/threads",
+                  search: { focus: reading.pattern_id! },
+                });
+              }}
+              aria-label="In Story"
+              title={`View Story: ${patternsById[reading.pattern_id].name}`}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                color: "var(--accent)",
+                opacity: 0.8,
+              }}
+            >
+              <Network size={16} strokeWidth={1.5} fill="currentColor" />
+            </button>
+          )}
+          {reading.is_deep_reading && (
+            <Sparkles
+              size={16}
+              strokeWidth={1.5}
+              fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.8 }}
+              aria-label="Deep reading"
+            />
+          )}
+        </div>
       </div>
 
       {/* Card thumbnails */}
@@ -2314,9 +2304,9 @@ function ReadingDetail({
                     fontSize: "var(--text-caption)",
                     opacity: "var(--ro-plus-20)",
                   }}
-                  aria-label="Saved reading"
+                  aria-label="Bookmarked"
                 >
-                  · saved
+                  · bookmarked
                 </span>
               )}
             </div>
@@ -2611,7 +2601,7 @@ function FiltersPanel({
             paddingBottom: 2,
           }}
         >
-          Saved only
+          Bookmarked
           {savedOnly && <span className="ml-1 text-[10px]">×</span>}
         </button>
       </section>
