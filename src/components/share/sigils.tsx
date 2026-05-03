@@ -6,6 +6,7 @@
  * inherit whichever theme is active. The MoonseedMark component is
  * the matching upper-right wordmark (crescent + "moonseed").
  */
+import type { ReactElement } from "react";
 import type { ShareLevel } from "./share-types";
 
 type SigilProps = { size?: number; color?: string };
@@ -96,7 +97,7 @@ export function Level5Sigil(props: SigilProps) {
 
 export function getSigilForLevel(
   level: ShareLevel,
-): (props: SigilProps) => JSX.Element {
+): (props: SigilProps) => ReactElement {
   switch (level) {
     case "pull":
       return Level1Sigil;
