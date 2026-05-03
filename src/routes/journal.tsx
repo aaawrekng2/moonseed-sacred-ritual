@@ -26,6 +26,7 @@ import { CardZoomModal } from "@/components/tabletop/CardZoomModal";
 import { ArchiveView } from "@/components/journal/ArchiveView";
 import { archiveReading, daysUntilPurge } from "@/lib/readings-archive";
 import { useServerFn } from "@tanstack/react-start";
+import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1964,7 +1965,8 @@ function ReadingDetail({
   const handleArchive = async () => {
     if (archiving) return;
     setArchiving(true);
-    const res = await archiveFn({ data: { readingId: reading.id } });
+    const headers = await getAuthHeaders();
+    const res = await archiveFn({ data: { readingId: reading.id }, headers });
     setArchiving(false);
     setArchiveConfirmOpen(false);
     if (!res.ok) {

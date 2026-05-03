@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Archive as ArchiveIcon, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
+import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   daysUntilPurge,
@@ -50,7 +51,8 @@ export function ArchiveView({
   const deleteFn = useServerFn(deleteReadingForever);
 
   const load = useCallback(async () => {
-    const res = await fetchFn();
+    const headers = await getAuthHeaders();
+    const res = await fetchFn({ headers });
     setRows((res.readings ?? []) as ArchivedRow[]);
   }, [fetchFn]);
 
@@ -60,7 +62,8 @@ export function ArchiveView({
 
   const handleRestore = async (id: string) => {
     setRows((prev) => (prev ?? []).filter((r) => r.id !== id));
-    const res = await restoreFn({ data: { readingId: id } });
+    const headers = await getAuthHeaders();
+    const res = await restoreFn({ data: { readingId: id }, headers });
     if (!res.ok) {
       toast.error("Couldn't restore reading.");
       void load();
@@ -75,7 +78,8 @@ export function ArchiveView({
     if (!id) return;
     setPendingDelete(null);
     setRows((prev) => (prev ?? []).filter((r) => r.id !== id));
-    const res = await deleteFn({ data: { readingId: id } });
+    const headers = await getAuthHeaders();
+    const res = await deleteFn({ data: { readingId: id }, headers });
     if (!res.ok) {
       toast.error("Couldn't delete reading.");
       void load();
