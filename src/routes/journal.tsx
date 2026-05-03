@@ -2538,6 +2538,14 @@ function ReadingDetail({
           </div>
         </div>
 
+        <div
+          style={
+            isArchived
+              ? { opacity: 0.45, pointerEvents: "none" }
+              : undefined
+          }
+          aria-disabled={isArchived ? true : undefined}
+        >
         <EnrichmentPanel
           reading={{
             id: reading.id,
@@ -2561,9 +2569,11 @@ function ReadingDetail({
           copyText={reading.interpretation ?? undefined}
           onShare={() => setShareOpen(true)}
         />
+        </div>
 
         {/* DV — Archive (soft-delete) action. Confirmed via dialog;
             row stays restorable from the Archive tab for 30 days. */}
+        {!isArchived && (
         <div className="mx-auto mt-6 flex max-w-prose justify-center">
           <button
             type="button"
@@ -2580,6 +2590,7 @@ function ReadingDetail({
             Archive reading
           </button>
         </div>
+        )}
         <AlertDialog open={archiveConfirmOpen} onOpenChange={setArchiveConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
