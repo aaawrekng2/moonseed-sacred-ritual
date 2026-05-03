@@ -8,6 +8,8 @@ import {
 import { Undo2, Redo2, X } from "lucide-react";
 import { Hand } from "lucide-react";
 import { ManualEntryBuilder } from "@/components/tabletop/ManualEntryBuilder";
+import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
+import { useAuth } from "@/lib/auth";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { SPREAD_META, spreadUsesSlots, type SpreadMode } from "@/lib/spreads";
