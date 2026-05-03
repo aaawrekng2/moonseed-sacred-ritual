@@ -26,6 +26,7 @@ import { CardZoomModal } from "@/components/tabletop/CardZoomModal";
 import { ArchiveView } from "@/components/journal/ArchiveView";
 import { archiveReading, daysUntilPurge } from "@/lib/readings-archive";
 import { useServerFn } from "@tanstack/react-start";
+import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
   AlertDialog,
   AlertDialogAction,
