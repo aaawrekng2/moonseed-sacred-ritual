@@ -103,7 +103,9 @@ export function useActiveCardBackUrl(): string | null {
 }
 
 /**
- * DX — Per-deck CSS corner radius for the active deck (px), or null
+ * DX/DY — Per-deck CSS corner radius for the active deck. The stored
+ * integer is now a PERCENTAGE (0–15, 0%-15%) rather than pixels —
+ * percentage scales proportionally across all card sizes. Returns null
  * if the seeker has no override saved. Pair with {@link cornerRadiusStyle}.
  */
 export function useActiveDeckCornerRadius(): number | null {
@@ -172,7 +174,8 @@ export function useDeckImage(deckId: string | null | undefined): (
 }
 
 /**
- * DX — Resolve the per-deck CSS corner radius (px) for a SPECIFIC deck_id.
+ * DX/DY — Resolve the per-deck CSS corner radius (percentage) for a
+ * SPECIFIC deck_id.
  * Returns null when the deck has no override (or no deckId is provided),
  * letting the existing app-default border-radius rule apply.
  */
@@ -202,10 +205,13 @@ export function useDeckCornerRadius(deckId: string | null | undefined): number |
 }
 
 /**
- * DX — Inline CSS for applying a saved deck corner radius. Returns an
+ * DX/DY — Inline CSS for applying a saved deck corner radius. The value
+ * is treated as a PERCENTAGE so the curve scales proportionally with
+ * card size (8% on a 280px card ≈ 22px curve; 8% on a 50px thumb ≈ 4px).
+ * Returns an
  * empty object when `radiusPx` is null so the existing app-wide rule
- * keeps applying. Use as `style={{ ...other, ...cornerRadiusStyle(rPx) }}`.
+ * keeps applying. Use as `style={{ ...other, ...cornerRadiusStyle(r) }}`.
  */
 export function cornerRadiusStyle(radiusPx: number | null): { borderRadius?: string } {
-  return radiusPx == null ? {} : { borderRadius: `${radiusPx}px` };
+  return radiusPx == null ? {} : { borderRadius: `${radiusPx}%` };
 }
