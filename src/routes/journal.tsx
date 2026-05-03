@@ -952,6 +952,7 @@ function JournalPage() {
           />
         ) : view === "archive" ? (
           <ArchiveView
+            key={`archive-${view}`}
             onOpen={(id) => setOpenId(id)}
             onChanged={() => {
               // Restore puts a reading back in the active list — pull

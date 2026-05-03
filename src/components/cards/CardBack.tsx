@@ -1,5 +1,6 @@
 import type { CardBackId } from "@/lib/card-backs";
 import { cn } from "@/lib/utils";
+import { cornerRadiusStyle } from "@/lib/active-deck";
 
 /**
  * Card-back palette.
@@ -57,6 +58,12 @@ interface Props {
    * picker so thumbnails don't glow with the active theme color.
    */
   neutralBorder?: boolean;
+  /**
+   * EE-6 — Per-deck saved corner radius (percentage 0–15). When set,
+   * overrides the procedural `m.radius` so the card back matches the
+   * face cards' radius (Home gateway, slot rail).
+   */
+  cornerRadiusPercent?: number | null;
 }
 
 const RATIO = 1.75;
@@ -399,10 +406,13 @@ const STYLES: Record<
   verdant: SHARED_STYLE,
 };
 
-export function CardBack({ id = "celestial", imageUrl, width = 160, className, ariaLabel, neutralBorder }: Props) {
+export function CardBack({ id = "celestial", imageUrl, width = 160, className, ariaLabel, neutralBorder, cornerRadiusPercent }: Props) {
   const height = Math.round(width * RATIO);
   const style = STYLES[id];
   const m = scaleMetrics(width);
+  const radiusOverride = cornerRadiusStyle(cornerRadiusPercent ?? null, width);
+  const effectiveRadius =
+    radiusOverride.borderRadius ?? `${m.radius}px`;
   // BX — custom deck back overrides the procedural artwork.
   if (imageUrl) {
     return (
@@ -413,7 +423,7 @@ export function CardBack({ id = "celestial", imageUrl, width = 160, className, a
         style={{
           width,
           height,
-          borderRadius: m.radius,
+          borderRadius: effectiveRadius,
           background: "var(--surface-card)",
           border: `${m.border}px solid ${
             neutralBorder ? "oklch(1 0 0 / 0.10)" : style.borderColor
@@ -443,7 +453,7 @@ export function CardBack({ id = "celestial", imageUrl, width = 160, className, a
       style={{
         width,
         height,
-        borderRadius: m.radius,
+        borderRadius: effectiveRadius,
         background: style.bg,
         border: `${m.border}px solid ${outerBorderColor}`,
         // Inner double-ring scales with card size for a proportional look.
