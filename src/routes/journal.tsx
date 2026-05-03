@@ -1013,10 +1013,12 @@ function ReadingCard({
   reading,
   onOpen,
   patternsById,
+  onArchive,
 }: {
   reading: ReadingRow;
   onOpen: (id: string) => void;
   patternsById: Record<string, PatternRow>;
+  onArchive?: (id: string) => void;
 }) {
   const guide = getGuideById(reading.guide_id);
   const isMobile = useIsMobile();
@@ -1029,15 +1031,89 @@ function ReadingCard({
   const interpClean = stripMarkdown(interpFirst);
   // DB-3.1 — render with the reading's saved deck, not the global active deck.
   const getImage = useDeckImage(reading.deck_id ?? null);
+  const archiveFn = useServerFn(archiveReading);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [swipeX, setSwipeX] = useState(0);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const REVEAL_PX = 88;
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (!isMobile || !onArchive) return;
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!touchStart.current) return;
+    const t = e.touches[0];
+    const dx = t.clientX - touchStart.current.x;
+    const dy = t.clientY - touchStart.current.y;
+    if (Math.abs(dy) > Math.abs(dx)) return; // vertical scroll wins
+    const next = Math.max(-REVEAL_PX, Math.min(0, dx));
+    setSwipeX(next);
+  };
+  const onTouchEnd = () => {
+    touchStart.current = null;
+    if (swipeX <= -REVEAL_PX * 0.6) {
+      setSwipeX(-REVEAL_PX);
+    } else {
+      setSwipeX(0);
+    }
+  };
+  const doArchive = async () => {
+    if (archiving || !onArchive) return;
+    setArchiving(true);
+    const headers = await getAuthHeaders();
+    const res = await archiveFn({ data: { readingId: reading.id }, headers });
+    setArchiving(false);
+    setConfirmOpen(false);
+    setSwipeX(0);
+    if (!res.ok) {
+      toast.error("Couldn't archive reading.");
+      return;
+    }
+    toast.success("Reading archived. Restore from Archive within 30 days.");
+    onArchive(reading.id);
+  };
 
   return (
-    <button
+    <div
+      className="group/reading relative overflow-hidden rounded-2xl"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {onArchive && (
+        <button
+          type="button"
+          aria-label="Archive reading"
+          onClick={(e) => {
+            e.stopPropagation();
+            setConfirmOpen(true);
+          }}
+          className={cn(
+            "absolute inset-y-0 right-0 z-10 flex items-center justify-center px-4 text-gold transition-opacity",
+            isMobile
+              ? "opacity-100"
+              : "opacity-0 group-hover/reading:opacity-100 focus:opacity-100",
+          )}
+          style={{
+            width: REVEAL_PX,
+            background:
+              "color-mix(in oklab, var(--gold) 14%, transparent)",
+          }}
+          tabIndex={isMobile ? -1 : 0}
+        >
+          <ArchiveIcon size={18} strokeWidth={1.5} />
+        </button>
+      )}
+      <button
       type="button"
       onClick={() => onOpen(reading.id)}
-      className="block w-full rounded-2xl px-4 py-4 text-left transition-colors hover:bg-foreground/[0.04]"
+      className="relative z-0 block w-full rounded-2xl px-4 py-4 text-left transition-[transform,background-color] hover:bg-foreground/[0.04]"
       style={{
         border: "1px solid color-mix(in oklab, var(--gold) 8%, transparent)",
         background: "color-mix(in oklab, oklch(0.10 0.03 280) 30%, transparent)",
+        transform: `translateX(${swipeX}px)`,
       }}
     >
       {/* Header row */}
