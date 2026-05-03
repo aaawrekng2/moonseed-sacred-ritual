@@ -8,7 +8,7 @@
  */
 import type { CSSProperties, ReactNode } from "react";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
-import { useDeckImage, useDeckCornerRadius } from "@/lib/active-deck";
+import { useDeckImage, useDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
 import type { SharePick } from "../share-types";
 import type { ShareLevel } from "../share-types";
 import { getSigilForLevel, SigilWithGlow } from "../sigils";
@@ -272,12 +272,16 @@ export function ShareCardRow({
             style={{
               width: cardWidth,
               height: cardHeight,
-              borderRadius: deckRadiusPx != null ? `${deckRadiusPx}%` : 16,
               overflow: "hidden",
               boxShadow: "0 24px 48px rgba(0,0,0,0.45)",
               // DN-6 — inherit active theme background instead of a
               // hardcoded cosmic dark, so themed previews match in-app.
               background: "var(--background)",
+              // EC-3 — use cornerRadiusStyle with cardWidth for true
+              // circular corners (matches the rest of the app).
+              ...(deckRadiusPx != null
+                ? cornerRadiusStyle(deckRadiusPx, cardWidth)
+                : { borderRadius: 16 }),
             }}
           >
             <img
