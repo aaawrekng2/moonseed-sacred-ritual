@@ -365,6 +365,7 @@ Now go beneath. Produce the four-lens deep reading as JSON.`;
 const SaveMirrorInput = z.object({
   reading_id: z.string().uuid(),
   saved: z.boolean(),
+  significance: z.string().trim().max(500).nullable().optional(),
 });
 
 export const setMirrorSaved = createServerFn({ method: "POST" })
@@ -373,9 +374,22 @@ export const setMirrorSaved = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ ok: boolean }> => {
     try {
       const { supabase, userId } = context;
+      const patch: {
+        mirror_saved: boolean;
+        mirror_saved_at: string | null;
+        mirror_significance?: string | null;
+      } = {
+        mirror_saved: data.saved,
+        mirror_saved_at: data.saved ? new Date().toISOString() : null,
+      };
+      if (data.significance !== undefined) {
+        patch.mirror_significance = data.saved ? (data.significance ?? null) : null;
+      } else if (!data.saved) {
+        patch.mirror_significance = null;
+      }
       const { error } = await supabase
         .from("readings")
-        .update({ mirror_saved: data.saved })
+        .update(patch)
         .eq("id", data.reading_id)
         .eq("user_id", userId);
       return { ok: !error };
