@@ -347,52 +347,59 @@ function Index() {
               </div>
             )}
           </button>
-          {streakUnderCard ? (
-            <div
-              className="mt-3 flex items-center justify-center gap-1"
-              title="Your practice streak"
-              aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`}
-            >
-              <Flame size={16} style={{ color: "var(--gold)", opacity: "var(--ro-plus-20)" }} />
-              <span
-                style={{
-                  fontSize: "13px",
-                  color: "var(--gold)",
-                  opacity: "var(--ro-plus-20)",
-                  fontFamily: "var(--font-serif)",
-                }}
-              >
-                {currentStreak}
-              </span>
-            </div>
-          ) : (
-            <div
+          {/* EE-8 — Streak Moon glyph. Replaces the prior Flame icon
+              with today's actual moon phase, tying the streak marker
+              to the sky. Tappable: opens a modal with detail. */}
+          <button
+            type="button"
+            onClick={() => setStreakModalOpen(true)}
+            aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}. Open streak detail.`}
+            title="Your practice streak"
+            style={
+              streakUnderCard
+                ? {
+                    marginTop: 12,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                  }
+                : {
+                    position: "absolute",
+                    bottom: "8px",
+                    left: cardWidth >= 240 ? "-60px" : "-44px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                  }
+            }
+          >
+            <MoonPhaseIcon
+              phase={moonInfo.phase}
+              illumination={moonInfo.illumination}
+              size={20}
+              ringColor="rgba(212,175,55,0.35)"
+              ringWidth={1.5}
+            />
+            <span
               style={{
-                position: "absolute",
-                bottom: "12px",
-                // CV — flame offset scales with the card so the hero
-                // treatment doesn't pull the streak in too tight.
-                left: cardWidth >= 240 ? "-56px" : "-40px",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
+                fontSize: "13px",
+                color: "var(--gold)",
+                opacity: "var(--ro-plus-20)",
+                fontFamily: "var(--font-serif)",
               }}
-              title="Your practice streak"
-              aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`}
             >
-              <Flame size={16} style={{ color: "var(--gold)", opacity: "var(--ro-plus-20)" }} />
-              <span
-                style={{
-                  fontSize: "13px",
-                  color: "var(--gold)",
-                  opacity: "var(--ro-plus-20)",
-                  fontFamily: "var(--font-serif)",
-                }}
-              >
-                {currentStreak}
-              </span>
-            </div>
-          )}
+              {currentStreak}
+            </span>
+          </button>
         </div>
       </section>
     </main>
