@@ -2147,10 +2147,6 @@ function ReadingDetail({
       return;
     }
     toast.success("Reading restored.");
-    // ED-2B — let parent refresh active readings + archive list.
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("moonseed:archive-changed"));
-    }
     onClose();
   };
   const handleArchive = async () => {
