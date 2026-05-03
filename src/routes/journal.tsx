@@ -355,6 +355,7 @@ function JournalPage() {
           return false;
       }
       if (deepOnly && !r.is_deep_reading) return false;
+      if (savedOnly && !r.mirror_saved) return false;
       // DN-5 — Stories filter: keep only readings attached to one of
       // the currently-active patterns.
       if (activeStories.length > 0) {
@@ -390,6 +391,7 @@ function JournalPage() {
     tagMode,
     activeDrawTypes,
     deepOnly,
+    savedOnly,
     activeStories,
     activeDate,
     batchParam,
