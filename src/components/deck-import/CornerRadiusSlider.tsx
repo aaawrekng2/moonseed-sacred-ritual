@@ -13,11 +13,11 @@ import { fetchDeckCards, type CustomDeckCard } from "@/lib/custom-decks";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 
 /**
- * App default corner radius for cards when the deck has no
- * `corner_radius_px` override. Matches the existing render-side default
- * used in CardSlot/SpreadLayout where no per-deck radius is set.
+ * App default corner radius (PERCENTAGE) for cards when the deck has no
+ * `corner_radius_px` override. The column name kept the legacy `_px`
+ * suffix per DY-1A but the value is now a percentage (0–15).
  */
-export const APP_DEFAULT_CARD_RADIUS_PX = 12;
+export const APP_DEFAULT_CARD_RADIUS_PCT = 4;
 
 export function CornerRadiusSlider({
   deckId,
@@ -30,7 +30,7 @@ export function CornerRadiusSlider({
   /** Notify parent so subsequent renders use the new value immediately. */
   onSaved?: (next: number) => void;
 }) {
-  const [value, setValue] = useState<number>(initial ?? APP_DEFAULT_CARD_RADIUS_PX);
+  const [value, setValue] = useState<number>(initial ?? APP_DEFAULT_CARD_RADIUS_PCT);
   const [cards, setCards] = useState<CustomDeckCard[]>([]);
   const [previewIdx, setPreviewIdx] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -126,7 +126,7 @@ export function CornerRadiusSlider({
             style={{
               width: "min(60vw, 200px)",
               aspectRatio: "1 / 1.75",
-              borderRadius: `${value}px`,
+              borderRadius: `${value}%`,
               borderColor: "var(--border-subtle)",
               background: "var(--cosmos, #0a0a14)",
             }}
@@ -135,7 +135,7 @@ export function CornerRadiusSlider({
               src={preview.src}
               alt={getCardName(preview.cardId)}
               className="h-full w-full object-cover"
-              style={{ borderRadius: `${value}px` }}
+              style={{ borderRadius: `${value}%` }}
               loading="lazy"
               onError={(e) => {
                 // Fallback to default art if a saved URL is broken.
@@ -166,7 +166,7 @@ export function CornerRadiusSlider({
             opacity: 0.6,
           }}
         >
-          {value}px
+          {value}%
         </div>
       </div>
 
@@ -185,7 +185,7 @@ export function CornerRadiusSlider({
         <input
           type="range"
           min={0}
-          max={60}
+          max={15}
           step={1}
           value={value}
           onChange={(e) => setValue(Number(e.target.value))}
