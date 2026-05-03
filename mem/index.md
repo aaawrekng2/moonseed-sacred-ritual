@@ -1,6 +1,6 @@
 # Project Memory
 
 ## Core
-Never bump APP_VERSION_LETTER in DevOverlay.tsx unless the user explicitly instructs it.
+Never invent a new APP_VERSION_LETTER stamp. Only stamp when the user provides a stamped file/instruction; then complete the work and apply that same stamp in DevOverlay.tsx.
 
 ## Memories
