@@ -865,6 +865,30 @@ button:focus-visible .moon-rung-glow {
   .moon-skeleton-sweep { animation: none; opacity: 0; }
 }
 
+/* DZ-3 — Hero card skeleton shimmer. Gentle gold sweep across the
+   placeholder while the active deck loads, so the gateway card has a
+   sense of life instead of an inert filled rectangle. */
+@keyframes hero-skeleton-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.hero-skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    color-mix(in oklab, var(--gold) 22%, transparent) 50%,
+    transparent 100%
+  );
+  animation: hero-skeleton-sweep 1800ms ease-in-out infinite;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-skeleton-shimmer::after { animation: none; opacity: 0; }
+}
+
 /* Next-slot beacon — gentle gold pulse on the empty slot that will receive
    the next picked card. Border, fill and label all breathe in unison so
    the whole "target" reads as one soft beacon, not a noisy ring. The

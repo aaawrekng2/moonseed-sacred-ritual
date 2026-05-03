@@ -207,23 +207,31 @@ export function useDeckCornerRadius(deckId: string | null | undefined): number |
 /**
  * DZ-1 — Inline CSS for applying a saved deck corner radius.
  *
- * Storage is a PERCENTAGE (0–15). To produce TRUE CIRCULAR corners on
- * a rectangle, we must compute the radius in PIXELS from the rendered
- * card's WIDTH and apply the same px to all four corners. CSS
- * `border-radius: X%` would give elliptical corners on a 1:1.75 card.
+ * Storage is a PERCENTAGE (0–15) interpreted as a fraction of the card
+ * WIDTH. To produce TRUE CIRCULAR corners on a non-square rectangle we
+ * use CSS's "X% / Y%" border-radius syntax (horizontal radius is % of
+ * width, vertical radius is % of height). For a tarot card with aspect
+ * ratio W/H ≈ 0.583, the vertical % must be radiusPercent / aspect to
+ * match the same pixel radius on both axes.
  *
- * Pass `widthPx` whenever the caller knows its rendered width. Falls
- * back to a percentage when no width is supplied (legacy callers /
- * fully-fluid containers).
+ * Callers may pass a `widthPx` (when known) to switch to an exact pixel
+ * value, or override the default tarot aspect via `aspect` (W/H) for
+ * non-standard card shapes (square, round, etc.).
  */
+const DEFAULT_TAROT_ASPECT = 0.583; // W / H for standard tarot proportions
 export function cornerRadiusStyle(
   radiusPercent: number | null,
   widthPx?: number | null,
+  aspect: number = DEFAULT_TAROT_ASPECT,
 ): { borderRadius?: string } {
   if (radiusPercent == null) return {};
   if (typeof widthPx === "number" && widthPx > 0) {
     const px = Math.max(0, Math.round((radiusPercent / 100) * widthPx));
     return { borderRadius: `${px}px` };
+  }
+  if (aspect > 0 && aspect !== 1) {
+    const v = +(radiusPercent / aspect).toFixed(3);
+    return { borderRadius: `${radiusPercent}% / ${v}%` };
   }
   return { borderRadius: `${radiusPercent}%` };
 }
