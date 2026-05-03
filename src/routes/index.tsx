@@ -322,7 +322,13 @@ function Index() {
                   animation: "fade-in 400ms ease-out both",
                 }}
               >
-                <CardBack id={cardBack} imageUrl={customBackUrl} width={cardWidth} neutralBorder />
+                <CardBack
+                  id={cardBack}
+                  imageUrl={customBackUrl}
+                  width={cardWidth}
+                  neutralBorder
+                  cornerRadiusPercent={heroDeckRadius}
+                />
               </div>
             )}
           </button>
