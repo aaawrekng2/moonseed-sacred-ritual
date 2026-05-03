@@ -173,6 +173,12 @@ function DrawPage() {
             // session — it should not reappear until the seeker
             // returns to the table.
             setSessionDismissed(true);
+            // DY-4 — fire chained-trigger event for the manual-draw hint.
+            try {
+              window.dispatchEvent(new CustomEvent("moonseed:question-modal-closed"));
+            } catch {
+              /* SSR / CustomEvent unavailable */
+            }
           }}
           onOpen={() => setQuestionOpen(true)}
           onDontAskAgain={
@@ -183,6 +189,11 @@ function DrawPage() {
                   });
                   setShowQuestionPrompt(false);
                   setSessionDismissed(true);
+                  try {
+                    window.dispatchEvent(new CustomEvent("moonseed:question-modal-closed"));
+                  } catch {
+                    /* ignore */
+                  }
                 }
               : undefined
           }

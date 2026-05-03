@@ -7,7 +7,7 @@ import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { useStreak } from "@/lib/use-streak";
-import { useActiveCardBackUrl, useActiveDeck, useActiveDeckImage } from "@/lib/active-deck";
+import { useActiveCardBackUrl, useActiveDeck, useActiveDeckImage, useActiveDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
@@ -60,6 +60,8 @@ function Index() {
   // DF-3 — Resolve today's card front through the active custom deck
   // (falls back to default Rider-Waite when no override exists).
   const getActiveDeckImage = useActiveDeckImage();
+  // DY-1C — apply per-deck CSS corner radius to the home hero card.
+  const heroDeckRadius = useActiveDeckCornerRadius();
   // CL Group 5 — gate the gateway card render on active-deck loading
   // so the themed default never flashes before the photographed back.
   const { loading: deckLoading } = useActiveDeck();
@@ -275,7 +277,7 @@ function Index() {
               })
             }
           >
-            {todayCard !== null ? (
+            {todayCard !== null && !deckLoading ? (
               <div
                 style={{
                   width: "100%",
@@ -289,11 +291,9 @@ function Index() {
                   style={{
                     width: "100%",
                     height: "100%",
-                    // DT-5 — Restore full hero card render. NEW.1's
-                    // crop fix is scoped to draw/tabletop only; the
-                    // home hero must show all four ornamental edges.
                     objectFit: "contain",
                     display: "block",
+                    ...cornerRadiusStyle(heroDeckRadius),
                   }}
                   loading="eager"
                 />
@@ -306,6 +306,7 @@ function Index() {
                   borderRadius: 12,
                   background: "color-mix(in oklab, var(--gold) 6%, transparent)",
                   border: "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
+                  animation: "fade-in 200ms ease-out both",
                 }}
                 aria-label="Loading today's card"
               />
