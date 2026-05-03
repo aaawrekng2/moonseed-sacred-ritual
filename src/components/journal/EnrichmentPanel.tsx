@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { HelpIcon } from "@/components/help/HelpIcon";
+import { useDeckImage } from "@/lib/active-deck";
+import { getCardName } from "@/lib/tarot";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1187,17 +1189,31 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
     name: string;
     lifecycle_state: string;
   } | null>(null);
-  // Top matching patterns shown when the reading isn't linked yet.
+  // DU-11 — Resonance-scored suggestion. Only the single strongest
+  // match is ever surfaced (cap = 1) and only when its resonance score
+  // crosses the 0.5 threshold (geometric mean of draw-overlap and
+  // story-pool overlap, plus a small tag bonus).
   type PatternSuggestion = {
     id: string;
     name: string;
     lifecycle_state: string;
-    reason: string;
-    score: number;
+    resonance: number;
+    sharedCards: number[];
+    sharedTags: string[];
+    drawSize: number;
+    poolSize: number;
+    storyCardPool: number[];
+    readingCount: number;
   };
   const [suggestions, setSuggestions] = useState<PatternSuggestion[]>([]);
   const [attachingId, setAttachingId] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(() => isDismissed(readingId));
+  // DU-12 — deck for the current reading so shared-card thumbnails use
+  // the deck the seeker actually drew with.
+  const [readingDeckId, setReadingDeckId] = useState<string | null>(null);
+  const getDeckImage = useDeckImage(readingDeckId);
+  // DU-12 — "Tell me more" disclosure for the surfaced match.
+  const [tellMoreOpen, setTellMoreOpen] = useState(false);
   // DL-7 — first-tap "Connect" hint modal. Persisted via
   // user_preferences.dismissed_hints (jsonb). When the
   // 'connect_to_story' key is true the modal is skipped.
@@ -1238,11 +1254,12 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
     let cancelled = false;
     setPattern(null);
     setSuggestions([]);
+    setTellMoreOpen(false);
     setDismissed(isDismissed(readingId));
     void (async () => {
       const { data: r } = await supabase
         .from("readings")
-        .select("pattern_id, user_id, card_ids, tags")
+        .select("pattern_id, user_id, card_ids, tags, deck_id")
         .eq("id", readingId)
         .maybeSingle();
       const row = r as
@@ -1251,9 +1268,11 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
             user_id: string;
             card_ids: number[] | null;
             tags: string[] | null;
+            deck_id: string | null;
           }
         | null;
       if (!row || cancelled) return;
+      setReadingDeckId(row.deck_id ?? null);
       // Already attached → show the "aligns with your Story" line.
       if (row.pattern_id) {
         const { data: p } = await supabase
@@ -1312,36 +1331,44 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
       for (const p of patterns) {
         const sharedCardSet = new Set<number>();
         const sharedTagSet = new Set<string>();
+        const storyCardPool = new Set<number>();
         for (const rid of p.reading_ids ?? []) {
           const meta = rel[rid];
           if (!meta) continue;
+          for (const c of meta.cards) storyCardPool.add(c);
           for (const c of myCards) if (meta.cards.has(c)) sharedCardSet.add(c);
           for (const t of myTags) if (meta.tags.has(t)) sharedTagSet.add(t);
         }
         const cardCount = sharedCardSet.size;
-        const tagCount = sharedTagSet.size;
-        const score = cardCount * 2 + tagCount;
-        if (score < 2) continue;
-        const sharedCards = Array.from(sharedCardSet).map((id) => `#${id}`);
-        const sharedTags = Array.from(sharedTagSet);
-        const source: "cards" | "tags" | "both" =
-          cardCount > 0 && tagCount > 0
-            ? "both"
-            : cardCount > 0
-              ? "cards"
-              : "tags";
-        const reason = buildReason(source, sharedCards, sharedTags);
+        const drawSize = myCards.size;
+        const poolSize = storyCardPool.size;
+        if (cardCount === 0 && sharedTagSet.size === 0) continue;
+        // DU-11 — resonance: geometric mean of (draw overlap) and
+        // (story-pool overlap), penalizing weakness in either direction.
+        // Threshold tuned so most draws produce no Connect prompt.
+        const drawOverlapRatio = drawSize > 0 ? cardCount / drawSize : 0;
+        const storyOverlapRatio = poolSize > 0 ? cardCount / poolSize : 0;
+        const cardResonance = Math.sqrt(drawOverlapRatio * storyOverlapRatio);
+        const tagBonus = sharedTagSet.size * 0.05;
+        const resonance = cardResonance + tagBonus;
+        if (resonance < 0.5) continue;
         scored.push({
           id: p.id,
           name: p.name,
           lifecycle_state: p.lifecycle_state,
-          reason,
-          score,
+          resonance,
+          sharedCards: Array.from(sharedCardSet),
+          sharedTags: Array.from(sharedTagSet),
+          drawSize,
+          poolSize,
+          storyCardPool: Array.from(storyCardPool),
+          readingCount: (p.reading_ids ?? []).length,
         });
       }
       if (!cancelled && scored.length > 0) {
-        scored.sort((a, b) => b.score - a.score);
-        setSuggestions(scored.slice(0, 3));
+        // DU-11 — only ever surface the single strongest match.
+        scored.sort((a, b) => b.resonance - a.resonance);
+        setSuggestions(scored.slice(0, 1));
       }
     })();
     return () => {
@@ -1476,140 +1503,240 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
   if (suggestions.length === 0 || dismissed) return null;
 
   const busy = attachingId !== null;
-  // DM-5 — Friendlier copy with a gold "Story" / "Stories" link that
-  // navigates to the Stories index. When there's a single suggestion
-  // we deep-link to that pattern's chamber; otherwise we land on the
-  // index so the seeker can choose.
-  const storyLinkProps =
-    suggestions.length === 1
-      ? {
-          to: "/threads/$patternId" as const,
-          params: { patternId: suggestions[0].id },
-        }
-      : { to: "/threads" as const };
-  const linkStyle = {
-    color: "var(--gold)",
-    textDecoration: "underline",
-    textUnderlineOffset: "2px",
-    fontStyle: "italic" as const,
-  };
+  const s = suggestions[0];
+  const isAttaching = attachingId === s.id;
+  const heading =
+    s.resonance >= 0.7
+      ? "An echo from your past."
+      : "This reading touches a Story.";
+  const rarity =
+    s.resonance >= 0.7
+      ? `This is rare. Your draw shares ${s.sharedCards.length} of ${s.drawSize} cards with this Story, which contains only ${s.poolSize} unique cards.`
+      : `Your draw echoes ${s.sharedCards.length} of your ${s.drawSize} cards in this Story.`;
 
   return (
     <div
-      className="mx-auto mb-4 max-w-prose text-center"
+      className="mx-auto mb-4 max-w-prose"
       style={{
-        fontFamily: "var(--font-serif)",
-        fontStyle: "italic",
-        fontSize: "var(--text-body-sm)",
-        opacity: "var(--ro-plus-30)",
+        background: "var(--surface-card)",
+        border:
+          "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
+        borderRadius: "var(--radius-lg, 14px)",
+        padding: 24,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 10,
+        gap: 16,
+        animation: "connect-panel-rise 600ms ease-out both",
       }}
     >
-      <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
-        {suggestions.length === 1 ? (
-          <>
-            This reading aligns with your{" "}
-            <Link {...storyLinkProps} style={linkStyle}>Story</Link>:
-          </>
-        ) : (
-          <>
-            This reading aligns with {suggestions.length}{" "}
-            <Link {...storyLinkProps} style={linkStyle}>Stories</Link>:
-          </>
-        )}
-      </span>
-      <ul
+      {/* DU-12 — keyframes are local to this panel. */}
+      <style>{`
+        @keyframes connect-panel-rise {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+      {/* 1. Resonance heading */}
+      <h3
         style={{
-          listStyle: "none",
-          padding: 0,
           margin: 0,
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          width: "100%",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-heading-sm, 17px)",
+          color: "var(--accent, var(--gold))",
+          opacity: 0.8,
+          textAlign: "center",
         }}
       >
-        {suggestions.map((s) => {
-          const isThisAttaching = attachingId === s.id;
+        {heading}
+      </h3>
+
+      {/* 2. Shared card thumbnails with glow halo */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap",
+        }}
+      >
+        {s.sharedCards.map((cardId) => {
+          const src = getDeckImage(cardId, "thumbnail");
           return (
-            <li
-              key={s.id}
+            <div
+              key={cardId}
               style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 4,
-                padding: "8px 10px",
-                borderTop:
-                  "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
+                position: "relative",
+                width: 74,
+                aspectRatio: "1 / 1.75",
               }}
             >
-              <span
+              <div
+                aria-hidden
                 style={{
-                  color: "color-mix(in oklab, var(--foreground) 70%, transparent)",
+                  position: "absolute",
+                  inset: -14,
+                  background:
+                    "radial-gradient(circle, color-mix(in oklab, var(--accent, var(--gold)) 40%, transparent) 0%, transparent 70%)",
+                  filter: "blur(8px)",
+                  opacity: 0.6,
+                  pointerEvents: "none",
                 }}
-              >
-                {s.reason} with{" "}
-                <Link
-                  to="/threads/$patternId"
-                  params={{ patternId: s.id }}
-                  title={`Open the ${s.name} chamber`}
-                  aria-label={`Open the ${s.name} pattern chamber — ${s.reason}`}
+              />
+              {src ? (
+                <img
+                  src={src}
+                  alt={getCardName(cardId)}
+                  loading="lazy"
                   style={{
-                    color: "var(--gold)",
-                    textDecoration: "none",
-                    borderBottom:
-                      "1px solid color-mix(in oklab, var(--gold) 40%, transparent)",
+                    position: "relative",
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    borderRadius: 4,
+                    border:
+                      "1px solid color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)",
                   }}
-                >
-                  {s.name}
-                </Link>
-                .
-              </span>
-              <button
-                type="button"
-                onClick={() => onConnectTap(s)}
-                disabled={busy}
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  cursor: busy ? "default" : "pointer",
-                  color: "var(--gold)",
-                  fontFamily: "var(--font-display, inherit)",
-                  fontSize: 11,
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  opacity: busy && !isThisAttaching ? 0.35 : isThisAttaching ? 0.7 : 1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                {isThisAttaching && (
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: "50%",
-                      border:
-                        "1.5px solid color-mix(in oklab, var(--gold) 35%, transparent)",
-                      borderTopColor: "var(--gold)",
-                      animation: "spin 0.8s linear infinite",
-                      display: "inline-block",
-                    }}
-                  />
-                )}
-                {isThisAttaching ? "Attaching…" : "Connect"}
-              </button>
-            </li>
+                />
+              ) : (
+                <div
+                  aria-label={getCardName(cardId)}
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                    height: "100%",
+                    borderRadius: 4,
+                    background:
+                      "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
+                    border:
+                      "1px solid color-mix(in oklab, var(--accent, var(--gold)) 20%, transparent)",
+                  }}
+                />
+              )}
+            </div>
           );
         })}
-      </ul>
+      </div>
+
+      {/* 3. Rarity statement */}
+      <p
+        style={{
+          margin: 0,
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-body)",
+          color: "var(--foreground-muted)",
+          textAlign: "center",
+          lineHeight: 1.6,
+        }}
+      >
+        {rarity}
+      </p>
+
+      {/* 4. Story name + link */}
+      <div
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontSize: "var(--text-body)",
+          color: "var(--foreground-muted)",
+          textAlign: "center",
+        }}
+      >
+        <span>This is your Story: </span>
+        <Link
+          to="/threads/$patternId"
+          params={{ patternId: s.id }}
+          style={{
+            color: "var(--accent, var(--gold))",
+            textDecoration: "none",
+            borderBottom:
+              "1px solid color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
+            paddingBottom: 1,
+          }}
+        >
+          {s.name}
+        </Link>
+      </div>
+
+      {/* 5. Tell me more disclosure */}
+      <button
+        type="button"
+        onClick={() => setTellMoreOpen((o) => !o)}
+        style={{
+          background: "none",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-body-sm)",
+          color: "var(--foreground-muted)",
+        }}
+      >
+        {tellMoreOpen ? "Hide details" : "Tell me more"}
+      </button>
+      {tellMoreOpen && (
+        <p
+          style={{
+            margin: 0,
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            color: "var(--foreground-muted)",
+            textAlign: "center",
+            lineHeight: 1.6,
+            opacity: 0.85,
+          }}
+        >
+          {s.name} contains {s.poolSize} unique{" "}
+          {s.poolSize === 1 ? "card" : "cards"} across {s.readingCount}{" "}
+          {s.readingCount === 1 ? "reading" : "readings"}:{" "}
+          {s.storyCardPool.map((id) => getCardName(id)).join(", ")}.
+        </p>
+      )}
+
+      {/* 6. Actions */}
+      <button
+        type="button"
+        onClick={() => onConnectTap(s)}
+        disabled={busy}
+        style={{
+          marginTop: 4,
+          background: "var(--accent, var(--gold))",
+          color: "var(--accent-foreground, #1e1b4b)",
+          border: "none",
+          borderRadius: 8,
+          padding: "10px 20px",
+          cursor: busy ? "default" : "pointer",
+          fontFamily: "var(--font-display, inherit)",
+          fontSize: 12,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          opacity: busy && !isAttaching ? 0.4 : 1,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        {isAttaching && (
+          <span
+            aria-hidden="true"
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: "50%",
+              border:
+                "1.5px solid color-mix(in oklab, var(--accent-foreground, #1e1b4b) 35%, transparent)",
+              borderTopColor: "var(--accent-foreground, #1e1b4b)",
+              animation: "spin 0.8s linear infinite",
+              display: "inline-block",
+            }}
+          />
+        )}
+        {isAttaching ? "Connecting…" : "Connect this reading"}
+      </button>
       <button
         type="button"
         onClick={() => {
@@ -1622,15 +1749,14 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
           border: "none",
           padding: 0,
           cursor: busy ? "default" : "pointer",
-          color: "color-mix(in oklab, var(--foreground) 50%, transparent)",
-          fontFamily: "var(--font-display, inherit)",
-          fontSize: 11,
-          letterSpacing: "0.18em",
-          textTransform: "uppercase",
-          opacity: busy ? 0.5 : 1,
+          color: "var(--foreground-muted)",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-body-sm)",
+          opacity: 0.7,
         }}
       >
-        Not now
+        Let it stand alone
       </button>
       {hintTarget && (
         <div

@@ -721,7 +721,7 @@ function DownloadModalLayer({
             <ModalBody>
               Account creation can sometimes lose data due to session
               changes. Download a backup of your readings, journal, and
-              decks now — it takes seconds.
+              decks now.
             </ModalBody>
             <PrimaryAccentButton onClick={onDownload}>
               Download my data
