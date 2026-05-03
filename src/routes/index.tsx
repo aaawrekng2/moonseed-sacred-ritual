@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { MoonStreakIcon } from "@/components/streak/MoonStreakIcon";
