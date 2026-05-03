@@ -1958,6 +1958,22 @@ function ReadingDetail({
     onDeckChange(reading.id, newDeckId);
     toast.success("Deck updated");
   };
+  const archiveFn = useServerFn(archiveReading);
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const handleArchive = async () => {
+    if (archiving) return;
+    setArchiving(true);
+    const res = await archiveFn({ data: { readingId: reading.id } });
+    setArchiving(false);
+    setArchiveConfirmOpen(false);
+    if (!res.ok) {
+      toast.error("Couldn't archive reading.");
+      return;
+    }
+    toast.success("Reading archived. Restore from the Archive tab within 30 days.");
+    onArchived(reading.id);
+  };
   const spreadModeForShare: SpreadMode = isValidSpreadMode(reading.spread_type)
     ? (reading.spread_type as SpreadMode)
     : "single";
