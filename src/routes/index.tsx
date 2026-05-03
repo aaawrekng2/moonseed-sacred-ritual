@@ -1,7 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
-import { Flame, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
+import { MoonPhaseIcon } from "@/components/moon/MoonPhaseIcon";
+import { getCurrentMoonPhase } from "@/lib/moon";
 import { CardBack } from "@/components/cards/CardBack";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -31,6 +33,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type IndexSearch = { question?: string };
 
@@ -65,8 +74,28 @@ function Index() {
   // CL Group 5 — gate the gateway card render on active-deck loading
   // so the themed default never flashes before the photographed back.
   const { loading: deckLoading } = useActiveDeck();
+  // EE-2 — Skeleton dismissal safety net. If the active-deck loader
+  // takes longer than 1500ms (slow network, cold cache, edge fn warmup),
+  // we stop showing the shimmer placeholder and fall through to the
+  // card back so the home hero never feels "stuck loading".
+  const [skeletonTimedOut, setSkeletonTimedOut] = useState(false);
+  useEffect(() => {
+    if (!deckLoading) {
+      setSkeletonTimedOut(false);
+      return;
+    }
+    const t = window.setTimeout(() => setSkeletonTimedOut(true), 1500);
+    return () => window.clearTimeout(t);
+  }, [deckLoading]);
+  const showSkeleton = deckLoading && !skeletonTimedOut;
   const navigate = useNavigate();
-  const { currentStreak } = useStreak();
+  const { currentStreak, longestStreak } = useStreak();
+  // EE-8 — Streak Moon glyph + modal. The glyph reflects today's actual
+  // moon phase (computed once per mount) so each day's streak marker
+  // visually echoes the sky. Tapping opens a modal with current/longest
+  // streak detail and a brief affordance to keep the practice going.
+  const moonInfo = useMemo(() => getCurrentMoonPhase(new Date()), []);
+  const [streakModalOpen, setStreakModalOpen] = useState(false);
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
   const isAnonymous = !user?.email;
@@ -277,7 +306,7 @@ function Index() {
               })
             }
           >
-            {todayCard !== null && !deckLoading ? (
+            {todayCard !== null && !showSkeleton ? (
               <div
                 style={{
                   width: "100%",
@@ -298,7 +327,7 @@ function Index() {
                   loading="eager"
                 />
               </div>
-            ) : deckLoading ? (
+            ) : showSkeleton ? (
               <div
                 className="hero-skeleton-shimmer"
                 style={{
@@ -332,52 +361,59 @@ function Index() {
               </div>
             )}
           </button>
-          {streakUnderCard ? (
-            <div
-              className="mt-3 flex items-center justify-center gap-1"
-              title="Your practice streak"
-              aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`}
-            >
-              <Flame size={16} style={{ color: "var(--gold)", opacity: "var(--ro-plus-20)" }} />
-              <span
-                style={{
-                  fontSize: "13px",
-                  color: "var(--gold)",
-                  opacity: "var(--ro-plus-20)",
-                  fontFamily: "var(--font-serif)",
-                }}
-              >
-                {currentStreak}
-              </span>
-            </div>
-          ) : (
-            <div
+          {/* EE-8 — Streak Moon glyph. Replaces the prior Flame icon
+              with today's actual moon phase, tying the streak marker
+              to the sky. Tappable: opens a modal with detail. */}
+          <button
+            type="button"
+            onClick={() => setStreakModalOpen(true)}
+            aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}. Open streak detail.`}
+            title="Your practice streak"
+            style={
+              streakUnderCard
+                ? {
+                    marginTop: 12,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                  }
+                : {
+                    position: "absolute",
+                    bottom: "8px",
+                    left: cardWidth >= 240 ? "-60px" : "-44px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                  }
+            }
+          >
+            <MoonPhaseIcon
+              phase={moonInfo.phase}
+              illumination={moonInfo.illumination}
+              size={20}
+              ringColor="rgba(212,175,55,0.35)"
+              ringWidth={1.5}
+            />
+            <span
               style={{
-                position: "absolute",
-                bottom: "12px",
-                // CV — flame offset scales with the card so the hero
-                // treatment doesn't pull the streak in too tight.
-                left: cardWidth >= 240 ? "-56px" : "-40px",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
+                fontSize: "13px",
+                color: "var(--gold)",
+                opacity: "var(--ro-plus-20)",
+                fontFamily: "var(--font-serif)",
               }}
-              title="Your practice streak"
-              aria-label={`Practice streak: ${currentStreak} day${currentStreak === 1 ? "" : "s"}`}
             >
-              <Flame size={16} style={{ color: "var(--gold)", opacity: "var(--ro-plus-20)" }} />
-              <span
-                style={{
-                  fontSize: "13px",
-                  color: "var(--gold)",
-                  opacity: "var(--ro-plus-20)",
-                  fontFamily: "var(--font-serif)",
-                }}
-              >
-                {currentStreak}
-              </span>
-            </div>
-          )}
+              {currentStreak}
+            </span>
+          </button>
         </div>
       </section>
     </main>
@@ -453,6 +489,100 @@ function Index() {
         />
       </section>
     </div>
+    {/* EE-8 — Streak detail modal */}
+    <Dialog open={streakModalOpen} onOpenChange={setStreakModalOpen}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              color: "var(--gold)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+            }}
+          >
+            <MoonPhaseIcon
+              phase={moonInfo.phase}
+              illumination={moonInfo.illumination}
+              size={28}
+              ringColor="rgba(212,175,55,0.4)"
+              ringWidth={1.5}
+            />
+            Your practice
+          </DialogTitle>
+          <DialogDescription className="text-center">
+            Tonight's moon: {moonInfo.phase} ({moonInfo.illumination}% lit)
+          </DialogDescription>
+        </DialogHeader>
+        <div
+          className="grid grid-cols-2 gap-4 py-2"
+          style={{ fontFamily: "var(--font-serif)" }}
+        >
+          <div className="text-center">
+            <div
+              style={{
+                fontSize: "32px",
+                color: "var(--gold)",
+                lineHeight: 1,
+              }}
+            >
+              {currentStreak}
+            </div>
+            <div
+              style={{
+                fontSize: "var(--text-caption)",
+                color: "var(--foreground)",
+                opacity: 0.6,
+                marginTop: 4,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+              }}
+            >
+              Current
+            </div>
+          </div>
+          <div className="text-center">
+            <div
+              style={{
+                fontSize: "32px",
+                color: "var(--foreground)",
+                opacity: 0.85,
+                lineHeight: 1,
+              }}
+            >
+              {longestStreak}
+            </div>
+            <div
+              style={{
+                fontSize: "var(--text-caption)",
+                color: "var(--foreground)",
+                opacity: 0.6,
+                marginTop: 4,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+              }}
+            >
+              Longest
+            </div>
+          </div>
+        </div>
+        <p
+          className="text-center"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            color: "var(--foreground)",
+            opacity: 0.7,
+          }}
+        >
+          Pull a card today to keep the moon waxing.
+        </p>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }
