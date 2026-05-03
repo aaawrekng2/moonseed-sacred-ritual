@@ -28,6 +28,7 @@ import { AlertTriangle, Check, Loader2, RotateCcw, Upload, X } from "lucide-reac
 import JSZip from "jszip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { useConfirm } from "@/hooks/use-confirm";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
 import { CardPicker } from "@/components/cards/CardPicker";
