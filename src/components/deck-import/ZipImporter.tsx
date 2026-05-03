@@ -683,6 +683,8 @@ export function ZipImporter({
         entryMode={entryMode}
         deckName={deckName ?? null}
         onSwitchToUpload={() => setPhase({ kind: "upload", resumable: false })}
+        deckId={deckId}
+        existingCornerRadiusPx={existingCornerRadiusPx}
       />
     );
 
@@ -918,6 +920,8 @@ function Workspace({
   entryMode,
   deckName,
   onSwitchToUpload,
+  deckId,
+  existingCornerRadiusPx,
 }: {
   session: ImportSession;
   onAssign: (imageKey: string, cardId: number | "BACK") => void;
@@ -938,6 +942,8 @@ function Workspace({
   entryMode: "import" | "edit";
   deckName: string | null;
   onSwitchToUpload: () => void;
+  deckId: string;
+  existingCornerRadiusPx: number | null;
 }) {
   const [tab, setTab] = useState<Tab>(entryMode === "edit" ? "assigned" : "unassigned");
   // Zoom modal context: which image, opened from which filter view.
