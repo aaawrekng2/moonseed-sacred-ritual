@@ -21,9 +21,9 @@ export function Level1SinglePull({
   const showQuestion = includeQuestion && !!ctx.question?.trim();
   return (
     <ShareCardFrame
+      level="pull"
       guideName={ctx.guideName}
       accent={color.accent}
-      background={`radial-gradient(ellipse at 50% 38%, ${color.glow.replace(/0\.35\)/, "0.7)")} 0%, transparent 60%), #06060c`}
     >
       {showQuestion && (
         <div

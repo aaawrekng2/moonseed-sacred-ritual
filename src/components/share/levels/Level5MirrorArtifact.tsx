@@ -23,15 +23,9 @@ export function Level5MirrorArtifact({
   const text = artifactText.trim();
   return (
     <ShareCardFrame
+      level="artifact"
       guideName={ctx.guideName}
       accent={color.accent}
-      // Vellum-ish layered warm tint.
-      background={[
-        `radial-gradient(ellipse at 50% 50%, rgba(252, 244, 224, 0.05) 0%, transparent 60%)`,
-        `radial-gradient(circle at 25% 25%, ${color.glow} 0%, transparent 38%)`,
-        `radial-gradient(circle at 75% 75%, ${color.glow} 0%, transparent 32%)`,
-        `linear-gradient(180deg, color-mix(in oklab, ${color.accent} 4%, #0c0a08) 0%, color-mix(in oklab, ${color.accent} 5%, #14110b) 100%)`,
-      ].join(", ")}
     >
       {/* Top hairline rule — gallery framing */}
       <div
