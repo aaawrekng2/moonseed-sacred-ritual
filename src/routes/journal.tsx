@@ -1889,6 +1889,7 @@ function ReadingDetail({
   onTagLibraryChange,
   onPhotoCountChange,
   onDeckChange,
+  onArchived,
 }: {
   reading: ReadingRow;
   onClose: () => void;
@@ -1903,6 +1904,7 @@ function ReadingDetail({
   onTagLibraryChange: (next: EnrichmentTag[]) => void;
   onPhotoCountChange: (readingId: string, count: number) => void;
   onDeckChange: (id: string, deckId: string | null) => void;
+  onArchived: (id: string) => void;
 }) {
   const guide = getGuideById(reading.guide_id);
   const positions = isValidSpreadMode(reading.spread_type)
