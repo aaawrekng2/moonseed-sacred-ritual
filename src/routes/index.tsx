@@ -250,6 +250,33 @@ function Index() {
     };
   }, [dayEpoch, effectiveTz]);
 
+  // EG-1 — Reset image-loaded state when the underlying todayCard changes
+  // (so a new card's load is properly gated).
+  useEffect(() => {
+    setHeroImageLoaded(false);
+  }, [todayCard]);
+
+  // EG-3 — Mount the draw-type hint only when not hard-dismissed.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const dismissed = await isHintHardDismissed(
+        "home_draw_type_select",
+        user?.id ?? null,
+      );
+      if (!cancelled && !dismissed) setShowDrawTypeHint(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  // EG-1 — Show shimmer while the deck is loading (with timeout fallback)
+  // OR while we have a card but its image hasn't decoded yet.
+  const showSkeleton =
+    (deckLoading && !skeletonTimedOut) ||
+    (!!todayCard && !heroImageLoaded);
+
   // DB-2.1 — Gateway padding tightens when the moon carousel is visible
   // so the spread icons aren't pushed past the bottom nav. The page also
   // scrolls (overflow-y-auto on <main>) so short viewports can reveal
