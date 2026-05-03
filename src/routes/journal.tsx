@@ -784,6 +784,7 @@ function JournalPage() {
             ["favorites", "Favorites", Heart],
             ["calendar", "Calendar", CalendarDays],
             ["threads", "Stories", Network],
+            ["archive", "Archive", ArchiveIcon],
           ] as const
         ).map(([key, label, Icon]) => {
           const active = view === key;
