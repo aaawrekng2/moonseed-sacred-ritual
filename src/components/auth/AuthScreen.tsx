@@ -1,20 +1,18 @@
 /**
- * Auth screen — DR redefinition.
+ * Auth screen — DS restructure.
  *
  * State machine (`AuthMode`):
  *   - signin              — sign-in form (default)
- *   - forced-download     — full-screen export progress + percent UI
+ *   - download-modal      — dedicated download modal (signup form not visible)
+ *   - skip-confirm        — "Are you sure?" interrupt over the download modal
  *   - signup-form         — email + password + confirm fields
  *   - signup-confirmation — "check your email" panel after signUp success
  *
- * Tap on "Don't have an account? Create one":
- *   • If the current session has any saved data → fire backup
- *     download immediately. There is no skip path. On success →
- *     signup-form. On failure → retry button.
+ * Tap "Don't have an account? Create one":
+ *   • If the session has saved data → open the dedicated download modal.
+ *     Inside the modal: idle → downloading → done | error → continue.
+ *     Tapping X or Skip opens the skip-confirm interrupt.
  *   • Otherwise → signup-form directly.
- *
- * After signUp success → signup-confirmation. The confirmation panel
- * persists until the user taps "Back to sign in".
  */
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
@@ -25,9 +23,12 @@ import { usePremium } from "@/lib/premium";
 
 type AuthMode =
   | "signin"
-  | "forced-download"
+  | "download-modal"
+  | "skip-confirm"
   | "signup-form"
   | "signup-confirmation";
+
+type DownloadStage = "idle" | "downloading" | "done" | "error";
 
 /**
  * Cheap probe: does the seeker have any rows on this device's session
@@ -84,7 +85,8 @@ export function AuthScreen({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Forced-download state
+  // Download modal state
+  const [downloadStage, setDownloadStage] = useState<DownloadStage>("idle");
   const [downloadProgress, setDownloadProgress] =
     useState<BackupProgress | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -113,20 +115,21 @@ export function AuthScreen({
 
   // Tick the elapsed-time readout while the download is running.
   useEffect(() => {
-    if (mode !== "forced-download" || !downloadStartedAt) return;
+    if (downloadStage !== "downloading" || !downloadStartedAt) return;
     const id = window.setInterval(() => setNowTick((n) => n + 1), 250);
     return () => window.clearInterval(id);
-  }, [mode, downloadStartedAt]);
+  }, [downloadStage, downloadStartedAt]);
 
-  const runForcedDownload = async () => {
+  const runDownload = async () => {
     setDownloadError(null);
     setDownloadProgress(null);
     setDownloadStartedAt(Date.now());
+    setDownloadStage("downloading");
     try {
       const uid = sessionUserIdRef.current;
       if (!uid) {
-        // No session — nothing to back up; advance to form.
         setMode("signup-form");
+        setDownloadStage("idle");
         return;
       }
       const blob = await createBackup({
@@ -143,11 +146,12 @@ export function AuthScreen({
         .slice(0, 10)}.zip`;
       a.click();
       URL.revokeObjectURL(url);
-      setMode("signup-form");
+      setDownloadStage("done");
     } catch (e) {
       setDownloadError(
         e instanceof Error ? e.message : "Couldn't create backup",
       );
+      setDownloadStage("error");
     }
   };
 
@@ -162,8 +166,10 @@ export function AuthScreen({
     }
     const hasData = await userHasData(uid);
     if (hasData) {
-      setMode("forced-download");
-      void runForcedDownload();
+      setDownloadStage("idle");
+      setDownloadError(null);
+      setDownloadProgress(null);
+      setMode("download-modal");
     } else {
       setMode("signup-form");
     }
@@ -230,11 +236,16 @@ export function AuthScreen({
   const headerLabel =
     mode === "signin"
       ? "Sign In"
-      : mode === "forced-download"
-        ? "Backing Up Your Data"
-        : mode === "signup-form"
-          ? "Create Account"
-          : "Check Your Email";
+      : mode === "signup-form"
+        ? "Create Account"
+        : mode === "signup-confirmation"
+          ? "Check Your Email"
+          : "Sign In";
+
+  // While a modal is open, the auth panel renders the sign-in form
+  // beneath the dimmed backdrop — but the modal itself is the focus.
+  const showModal = mode === "download-modal" || mode === "skip-confirm";
+  const formMode: AuthMode = showModal ? "signin" : mode;
 
   return (
     <div
@@ -274,15 +285,6 @@ export function AuthScreen({
             <X size={14} strokeWidth={1.5} />
           </button>
         </div>
-
-        {mode === "forced-download" && (
-          <ForcedDownloadPanel
-            progress={downloadProgress}
-            error={downloadError}
-            startedAt={downloadStartedAt}
-            onRetry={() => void runForcedDownload()}
-          />
-        )}
 
         {mode === "signup-confirmation" && (
           <div className="flex flex-col items-center gap-5 py-6 text-center">
@@ -324,7 +326,7 @@ export function AuthScreen({
           </div>
         )}
 
-        {(mode === "signin" || mode === "signup-form") && (
+        {(formMode === "signin" || formMode === "signup-form") && (
           <>
             <div className="flex flex-col gap-3">
               <input
@@ -374,7 +376,7 @@ export function AuthScreen({
                   )}
                 </button>
               </div>
-              {mode === "signup-form" && (
+              {formMode === "signup-form" && (
                 <div className="relative">
                   <input
                     type={showConfirm ? "text" : "password"}
@@ -448,7 +450,7 @@ export function AuthScreen({
                   loading ||
                   !email ||
                   !password ||
-                  (mode === "signup-form" && password !== confirmPassword)
+                  (formMode === "signup-form" && password !== confirmPassword)
                 }
                 className="w-full py-3 font-display text-sm uppercase tracking-[0.3em] text-gold transition-opacity hover:opacity-80 focus:outline-none disabled:opacity-40"
                 style={{
@@ -459,7 +461,7 @@ export function AuthScreen({
               >
                 {loading
                   ? "…"
-                  : mode === "signin"
+                  : formMode === "signin"
                     ? "Sign In"
                     : "Create Account"}
               </button>
@@ -467,7 +469,7 @@ export function AuthScreen({
               <button
                 type="button"
                 onClick={() => {
-                  if (mode === "signin") {
+                  if (formMode === "signin") {
                     void handleCreateAccountTap();
                   } else {
                     setMode("signin");
@@ -489,7 +491,7 @@ export function AuthScreen({
                   cursor: "pointer",
                 }}
               >
-                {mode === "signin"
+                {formMode === "signin"
                   ? "Don't have an account? Create one"
                   : "Already have an account? Sign in"}
               </button>
@@ -497,11 +499,31 @@ export function AuthScreen({
           </>
         )}
       </div>
+      {showModal && (
+        <DownloadModalLayer
+          mode={mode}
+          stage={downloadStage}
+          progress={downloadProgress}
+          error={downloadError}
+          startedAt={downloadStartedAt}
+          onDownload={() => void runDownload()}
+          onRequestClose={() => setMode("skip-confirm")}
+          onSkipAnyway={() => {
+            setMode("signup-form");
+            setDownloadStage("idle");
+          }}
+          onBackToDownload={() => setMode("download-modal")}
+          onContinueToSignup={() => {
+            setMode("signup-form");
+            setDownloadStage("idle");
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function ForcedDownloadPanel({
+function DownloadProgress({
   progress,
   error,
   startedAt,
@@ -531,19 +553,6 @@ function ForcedDownloadPanel({
 
   return (
     <div className="flex flex-col items-center gap-4 py-6 text-center">
-      <p
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-body)",
-          color: "var(--foreground)",
-          opacity: 0.85,
-          lineHeight: 1.5,
-          padding: "0 8px",
-        }}
-      >
-        Saving your data to this device before we create your account.
-      </p>
       {error ? (
         <>
           <p
@@ -616,5 +625,241 @@ function ForcedDownloadPanel({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * DS — Dedicated download modal layer (renders OVER the auth panel).
+ * Owns both the download modal and the skip-confirm interrupt.
+ */
+function DownloadModalLayer({
+  mode,
+  stage,
+  progress,
+  error,
+  startedAt,
+  onDownload,
+  onRequestClose,
+  onSkipAnyway,
+  onBackToDownload,
+  onContinueToSignup,
+}: {
+  mode: AuthMode;
+  stage: DownloadStage;
+  progress: BackupProgress | null;
+  error: string | null;
+  startedAt: number | null;
+  onDownload: () => void;
+  onRequestClose: () => void;
+  onSkipAnyway: () => void;
+  onBackToDownload: () => void;
+  onContinueToSignup: () => void;
+}) {
+  const isSkip = mode === "skip-confirm";
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center px-5"
+      style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(2px)" }}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl flex flex-col gap-4 relative"
+        style={{
+          background: "var(--surface-elevated)",
+          color: "var(--color-foreground)",
+          border: "1px solid var(--border-default)",
+          padding: 24,
+          boxShadow: "0 24px 60px rgba(0,0,0,0.5)",
+        }}
+      >
+        {/* Close X — only on the download modal, never on skip-confirm. */}
+        {!isSkip && (
+          <button
+            type="button"
+            onClick={() => {
+              if (stage === "done") onContinueToSignup();
+              else onRequestClose();
+            }}
+            className="absolute right-3 top-3 flex items-center justify-center w-7 h-7 rounded-full hover:bg-foreground/10 transition-colors focus:outline-none"
+            style={{ color: "var(--foreground-muted)", opacity: 0.6 }}
+            aria-label="Close"
+          >
+            <X size={18} strokeWidth={1.5} />
+          </button>
+        )}
+
+        {isSkip ? (
+          <SkipConfirmContents
+            onDownload={onBackToDownload}
+            onSkip={onSkipAnyway}
+          />
+        ) : stage === "downloading" || stage === "error" ? (
+          <>
+            <ModalHeading>
+              {stage === "error" ? "Backup failed" : "Backing up your data"}
+            </ModalHeading>
+            <DownloadProgress
+              progress={progress}
+              error={error}
+              startedAt={startedAt}
+              onRetry={onDownload}
+            />
+          </>
+        ) : stage === "done" ? (
+          <>
+            <ModalHeading>Your backup is downloaded.</ModalHeading>
+            <ModalBody>
+              Keep this file safe. If anything goes wrong, you can restore
+              from it.
+            </ModalBody>
+            <PrimaryAccentButton onClick={onContinueToSignup}>
+              Continue to signup
+            </PrimaryAccentButton>
+          </>
+        ) : (
+          <>
+            <ModalHeading>Download your data first</ModalHeading>
+            <ModalBody>
+              Account creation can sometimes lose data due to session
+              changes. Download a backup of your readings, journal, and
+              decks now — it takes seconds.
+            </ModalBody>
+            <PrimaryAccentButton onClick={onDownload}>
+              Download my data
+            </PrimaryAccentButton>
+            <button
+              type="button"
+              onClick={onRequestClose}
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--foreground-muted)",
+                opacity: 0.5,
+                background: "none",
+                border: "none",
+                padding: "4px 0 0",
+                cursor: "pointer",
+                alignSelf: "center",
+              }}
+            >
+              Skip — I understand the risk
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SkipConfirmContents({
+  onDownload,
+  onSkip,
+}: {
+  onDownload: () => void;
+  onSkip: () => void;
+}) {
+  return (
+    <>
+      <ModalHeading accent>Are you sure?</ModalHeading>
+      <ModalBody>
+        If something goes wrong during account creation, your readings,
+        journal entries, custom decks, and saved data could be permanently
+        lost. We strongly recommend downloading a backup first.
+      </ModalBody>
+      <div className="flex flex-col gap-2">
+        <PrimaryAccentButton onClick={onDownload}>
+          Download my data
+        </PrimaryAccentButton>
+        <button
+          type="button"
+          onClick={onSkip}
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-body-sm)",
+            color: "var(--foreground-muted)",
+            opacity: 0.7,
+            background: "none",
+            border: "1px solid var(--border-default)",
+            borderRadius: 10,
+            padding: "10px 16px",
+            cursor: "pointer",
+          }}
+        >
+          Skip anyway
+        </button>
+      </div>
+    </>
+  );
+}
+
+function ModalHeading({
+  children,
+  accent,
+}: {
+  children: React.ReactNode;
+  accent?: boolean;
+}) {
+  return (
+    <h2
+      style={{
+        fontFamily: "var(--font-serif)",
+        fontSize: "var(--text-heading-md, 22px)",
+        fontWeight: 500,
+        color: accent ? "var(--accent, var(--gold))" : "var(--color-foreground)",
+        textAlign: "center",
+        margin: 0,
+        padding: "0 16px",
+      }}
+    >
+      {children}
+    </h2>
+  );
+}
+
+function ModalBody({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      style={{
+        fontFamily: "var(--font-serif)",
+        fontSize: "var(--text-body)",
+        color: "var(--foreground-muted, var(--color-foreground))",
+        opacity: 0.85,
+        lineHeight: 1.55,
+        textAlign: "center",
+        margin: 0,
+        padding: "0 8px",
+      }}
+    >
+      {children}
+    </p>
+  );
+}
+
+function PrimaryAccentButton({
+  children,
+  onClick,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        background: "var(--accent, var(--gold))",
+        color: "var(--accent-foreground, var(--gold-foreground, #000))",
+        border: "none",
+        borderRadius: 10,
+        padding: "12px 20px",
+        fontFamily: "var(--font-serif)",
+        fontSize: "var(--text-body)",
+        fontWeight: 500,
+        cursor: "pointer",
+        letterSpacing: "0.02em",
+      }}
+    >
+      {children}
+    </button>
   );
 }

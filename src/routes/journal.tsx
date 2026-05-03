@@ -1069,7 +1069,6 @@ function ReadingCard({
         // DA — Mobile: full swipeable strip with all cards.
         <div
           className="journal-thumb-strip mt-3 flex items-center gap-1.5 overflow-x-auto pb-1"
-          onClick={(e) => e.stopPropagation()}
           style={{
             scrollbarWidth: "none",
             WebkitOverflowScrolling: "touch",

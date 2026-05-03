@@ -712,7 +712,7 @@ export function CardSlot({
             <img
               src={cardImg(faceIndex)}
               alt={getCardName(faceIndex)}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
               loading="eager"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).style.display = "none";

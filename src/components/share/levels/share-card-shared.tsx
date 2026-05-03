@@ -11,7 +11,7 @@ import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { useDeckImage } from "@/lib/active-deck";
 import type { SharePick } from "../share-types";
 import type { ShareLevel } from "../share-types";
-import { getSigilForLevel, MoonseedMark } from "../sigils";
+import { getSigilForLevel, SigilWithGlow } from "../sigils";
 
 /*
  * DN-7 — Share cards now render with the reading's saved deck_id, so
@@ -34,90 +34,170 @@ export function ShareCardFrame({
   guideName,
   accent,
 }: {
-  /**
-   * DR-X — Background is now OPTIONAL. When omitted, the canvas
-   * inherits the active theme's gradient + atmosphere via the same
-   * tokens the main app uses. Pass a value only for legacy / one-off
-   * level overrides.
-   */
   background?: CSSProperties["background"];
-  /** DR-X — drives which sigil renders in the upper-left corner. */
   level?: ShareLevel;
   children: ReactNode;
   guideName: string;
   accent: string;
 }) {
-  // DR-X — theme-driven canvas (mirrors .bg-cosmos in styles.css).
-  const themeBackground =
-    "radial-gradient(ellipse at 15% 10%, var(--atmosphere-overlay, transparent), transparent 50%)," +
-    "radial-gradient(ellipse at 85% 90%, var(--atmosphere-overlay, transparent), transparent 45%)," +
+  // DS — base gradient; atmosphere is layered as a separate element so
+  // we can dial its opacity for the share canvas without touching the
+  // global .bg-cosmos theme tokens.
+  const baseGradient =
     "linear-gradient(to right, var(--bg-gradient-left), var(--bg-gradient-right))";
   const Sigil = level ? getSigilForLevel(level) : null;
+  const FRAME_INSET = 36;
   return (
     <div
       style={{
         width: SHARE_CARD_W,
         height: SHARE_CARD_H,
         position: "relative",
-        background: background ?? themeBackground,
+        background: background ?? baseGradient,
         color: "var(--color-foreground)",
         overflow: "hidden",
         fontFamily: "var(--font-serif)",
       }}
     >
-      {/* DR-X — Upper-left level sigil. */}
-      {Sigil && (
-        <div
-          style={{
-            position: "absolute",
-            top: 48,
-            left: 48,
-            zIndex: 3,
-            pointerEvents: "none",
-          }}
-        >
-          <Sigil size={64} />
-        </div>
-      )}
-      {/* DR-X — Upper-right brand wordmark. */}
-      <div
-        style={{
-          position: "absolute",
-          top: 48,
-          right: 48,
-          zIndex: 3,
-          pointerEvents: "none",
-        }}
-      >
-        <MoonseedMark />
-      </div>
-      {/* DR-X — Dampener: a soft dark wash sized to the card cluster
-          area so cards stay dominant against any theme + custom deck.
-          Sits above the canvas gradient but below the content layer. */}
+      {/* DS — Atmosphere overlay: theme radial glow pools at corners.
+          Painted at ~55% intensity so cards remain dominant. */}
       <div
         aria-hidden
         style={{
           position: "absolute",
-          left: "10%",
-          right: "10%",
-          top: "22%",
-          bottom: "22%",
+          inset: 0,
           background:
-            "color-mix(in oklch, oklch(0.05 0.02 280) 15%, transparent)",
-          zIndex: 1,
+            "radial-gradient(ellipse at 15% 10%, var(--atmosphere-overlay, transparent), transparent 50%)," +
+            "radial-gradient(ellipse at 85% 90%, var(--atmosphere-overlay, transparent), transparent 45%)",
+          opacity: 0.55,
+          zIndex: 0,
           pointerEvents: "none",
-          borderRadius: 32,
         }}
       />
+      {/* DS — Full-canvas dampener: uniform whisper, no localized shape. */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(0,0,0,0.06)",
+          zIndex: 1,
+          pointerEvents: "none",
+        }}
+      />
+      {/* DS — Soft radial focus pool centered behind cards. */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          width: 1200,
+          height: 1200,
+          transform: "translate(-50%, -50%)",
+          background:
+            "radial-gradient(circle, rgba(0,0,0,0.10) 0%, transparent 60%)",
+          zIndex: 1,
+          pointerEvents: "none",
+        }}
+      />
+      {/* DS — Inner accent frame: thin line, ~25% opacity, inset. */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: FRAME_INSET,
+          top: FRAME_INSET,
+          right: FRAME_INSET,
+          bottom: FRAME_INSET,
+          border: "1.5px solid var(--accent)",
+          opacity: 0.25,
+          zIndex: 2,
+          pointerEvents: "none",
+        }}
+      />
+      {/* DS — Manuscript-illumination corner ornaments. */}
+      {[
+        { top: FRAME_INSET - 3, left: FRAME_INSET - 3 },
+        { top: FRAME_INSET - 3, right: FRAME_INSET - 3 },
+        { bottom: FRAME_INSET - 3, left: FRAME_INSET - 3 },
+        { bottom: FRAME_INSET - 3, right: FRAME_INSET - 3 },
+      ].map((pos, i) => (
+        <div
+          key={i}
+          aria-hidden
+          style={{
+            position: "absolute",
+            ...pos,
+            width: 6,
+            height: 6,
+            borderRadius: 9999,
+            background: "var(--accent)",
+            opacity: 0.5,
+            zIndex: 2,
+            pointerEvents: "none",
+          }}
+        />
+      ))}
+      {/* DS — Upper-left level sigil with glow halo. */}
+      {Sigil && (
+        <div
+          style={{
+            position: "absolute",
+            top: 64,
+            left: 64,
+            zIndex: 3,
+            pointerEvents: "none",
+          }}
+        >
+          <SigilWithGlow Sigil={Sigil} size={132} />
+        </div>
+      )}
+      {/* DS — Upper-right brand wordmark: ☽ moonseed in accent. */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: 64,
+          right: 64,
+          zIndex: 3,
+          pointerEvents: "none",
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          color: "var(--accent)",
+          opacity: 0.8,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 56,
+            lineHeight: 1,
+            fontFamily: "ui-serif, Georgia, serif",
+          }}
+        >
+          ☽
+        </span>
+        <span
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 44,
+            letterSpacing: "0.04em",
+          }}
+        >
+          moonseed
+        </span>
+      </div>
       <div
         style={{
           position: "absolute",
           inset: 0,
           display: "flex",
           flexDirection: "column",
-          padding: "160px 80px 100px",
+          padding: "240px 100px 160px",
           gap: 40,
-          zIndex: 2,
+          zIndex: 3,
         }}
       >
         <div
@@ -125,7 +205,8 @@ export function ShareCardFrame({
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            justifyContent: "flex-start",
+            justifyContent: "center",
+            alignItems: "stretch",
             gap: 40,
           }}
         >
@@ -155,16 +236,17 @@ export function ShareCardFooter({
         display: "flex",
         flexDirection: "column",
         gap: 8,
-        marginTop: 32,
+        marginTop: 0,
       }}
     >
       <div
         style={{
           fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-caption)",
-          letterSpacing: "0.04em",
-          opacity: 0.6,
+          fontSize: 26,
+          letterSpacing: "0.18em",
+          textTransform: "lowercase",
+          color: "var(--foreground-muted, var(--color-foreground))",
+          opacity: 0.5,
         }}
       >
         Moonseed.com
@@ -244,12 +326,14 @@ export function ShareCardRow({
           <div
             style={{
               fontFamily: "var(--font-serif)",
-              // DN-8 — bump from 28 → 38 for legibility on social thumbnails.
-              fontSize: 38,
+              // DS — small-caps title treatment, accent at 80%.
+              fontSize: 32,
               lineHeight: 1.2,
               textAlign: "center",
-              opacity: 0.92,
-              letterSpacing: "0.02em",
+              opacity: 0.8,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "var(--accent)",
             }}
           >
             {getCardName(p.cardIndex)}

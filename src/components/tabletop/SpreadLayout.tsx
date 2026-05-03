@@ -421,7 +421,7 @@ function CardFace({
           <img
             src={cardImg(pick.cardIndex)}
             alt={getCardName(pick.cardIndex)}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain"
             loading="eager"
             style={{
               transform: pick.isReversed ? "rotate(180deg)" : undefined,
@@ -874,7 +874,7 @@ export function ManualSpreadSlots({
         <img
           src={cardImg(pick.cardIndex)}
           alt={getCardName(pick.cardIndex)}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain"
           style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
         />
       ) : (
