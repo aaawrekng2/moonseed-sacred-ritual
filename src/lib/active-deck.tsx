@@ -205,13 +205,25 @@ export function useDeckCornerRadius(deckId: string | null | undefined): number |
 }
 
 /**
- * DX/DY — Inline CSS for applying a saved deck corner radius. The value
- * is treated as a PERCENTAGE so the curve scales proportionally with
- * card size (8% on a 280px card ≈ 22px curve; 8% on a 50px thumb ≈ 4px).
- * Returns an
- * empty object when `radiusPx` is null so the existing app-wide rule
- * keeps applying. Use as `style={{ ...other, ...cornerRadiusStyle(r) }}`.
+ * DZ-1 — Inline CSS for applying a saved deck corner radius.
+ *
+ * Storage is a PERCENTAGE (0–15). To produce TRUE CIRCULAR corners on
+ * a rectangle, we must compute the radius in PIXELS from the rendered
+ * card's WIDTH and apply the same px to all four corners. CSS
+ * `border-radius: X%` would give elliptical corners on a 1:1.75 card.
+ *
+ * Pass `widthPx` whenever the caller knows its rendered width. Falls
+ * back to a percentage when no width is supplied (legacy callers /
+ * fully-fluid containers).
  */
-export function cornerRadiusStyle(radiusPx: number | null): { borderRadius?: string } {
-  return radiusPx == null ? {} : { borderRadius: `${radiusPx}%` };
+export function cornerRadiusStyle(
+  radiusPercent: number | null,
+  widthPx?: number | null,
+): { borderRadius?: string } {
+  if (radiusPercent == null) return {};
+  if (typeof widthPx === "number" && widthPx > 0) {
+    const px = Math.max(0, Math.round((radiusPercent / 100) * widthPx));
+    return { borderRadius: `${px}px` };
+  }
+  return { borderRadius: `${radiusPercent}%` };
 }
