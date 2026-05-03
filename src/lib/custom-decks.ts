@@ -144,7 +144,11 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
     map.back = (deck?.card_back_url as string | null | undefined) ?? null;
   }
   const cr = (deck as { corner_radius_px?: number | null } | null)?.corner_radius_px;
-  map.cornerRadiusPx = typeof cr === "number" ? cr : null;
+  // DY-1A — value semantics changed from px to PERCENTAGE (0-15).
+  // Clamp legacy DX values (which could be up to 60 in the old px units)
+  // so they don't render as huge percentages on existing rows.
+  map.cornerRadiusPx =
+    typeof cr === "number" ? Math.max(0, Math.min(15, Math.round(cr))) : null;
   return map;
 }
 
