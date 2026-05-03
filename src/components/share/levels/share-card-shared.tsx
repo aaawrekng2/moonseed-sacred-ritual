@@ -10,6 +10,8 @@ import type { CSSProperties, ReactNode } from "react";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { useDeckImage } from "@/lib/active-deck";
 import type { SharePick } from "../share-types";
+import type { ShareLevel } from "../share-types";
+import { getSigilForLevel, MoonseedMark } from "../sigils";
 
 /*
  * DN-7 — Share cards now render with the reading's saved deck_id, so
@@ -27,27 +29,86 @@ export const SHARE_CARD_H = 1920;
  */
 export function ShareCardFrame({
   background,
+  level,
   children,
   guideName,
   accent,
 }: {
-  background: CSSProperties["background"];
+  /**
+   * DR-X — Background is now OPTIONAL. When omitted, the canvas
+   * inherits the active theme's gradient + atmosphere via the same
+   * tokens the main app uses. Pass a value only for legacy / one-off
+   * level overrides.
+   */
+  background?: CSSProperties["background"];
+  /** DR-X — drives which sigil renders in the upper-left corner. */
+  level?: ShareLevel;
   children: ReactNode;
   guideName: string;
   accent: string;
 }) {
+  // DR-X — theme-driven canvas (mirrors .bg-cosmos in styles.css).
+  const themeBackground =
+    "radial-gradient(ellipse at 15% 10%, var(--atmosphere-overlay, transparent), transparent 50%)," +
+    "radial-gradient(ellipse at 85% 90%, var(--atmosphere-overlay, transparent), transparent 45%)," +
+    "linear-gradient(to right, var(--bg-gradient-left), var(--bg-gradient-right))";
+  const Sigil = level ? getSigilForLevel(level) : null;
   return (
     <div
       style={{
         width: SHARE_CARD_W,
         height: SHARE_CARD_H,
         position: "relative",
-        background,
+        background: background ?? themeBackground,
         color: "var(--color-foreground)",
         overflow: "hidden",
         fontFamily: "var(--font-serif)",
       }}
     >
+      {/* DR-X — Upper-left level sigil. */}
+      {Sigil && (
+        <div
+          style={{
+            position: "absolute",
+            top: 48,
+            left: 48,
+            zIndex: 3,
+            pointerEvents: "none",
+          }}
+        >
+          <Sigil size={64} />
+        </div>
+      )}
+      {/* DR-X — Upper-right brand wordmark. */}
+      <div
+        style={{
+          position: "absolute",
+          top: 48,
+          right: 48,
+          zIndex: 3,
+          pointerEvents: "none",
+        }}
+      >
+        <MoonseedMark />
+      </div>
+      {/* DR-X — Dampener: a soft dark wash sized to the card cluster
+          area so cards stay dominant against any theme + custom deck.
+          Sits above the canvas gradient but below the content layer. */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: "10%",
+          right: "10%",
+          top: "22%",
+          bottom: "22%",
+          background:
+            "color-mix(in oklch, oklch(0.05 0.02 280) 15%, transparent)",
+          zIndex: 1,
+          pointerEvents: "none",
+          borderRadius: 32,
+        }}
+      />
       <div
         style={{
           position: "absolute",
@@ -56,6 +117,7 @@ export function ShareCardFrame({
           flexDirection: "column",
           padding: "160px 80px 100px",
           gap: 40,
+          zIndex: 2,
         }}
       >
         <div
