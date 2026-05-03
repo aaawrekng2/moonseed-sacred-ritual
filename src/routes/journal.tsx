@@ -2293,8 +2293,9 @@ function ReadingDetail({
                     fontSize: "var(--text-caption)",
                     opacity: "var(--ro-plus-20)",
                   }}
+                  aria-label="Saved reading"
                 >
-                  · mirror saved
+                  · saved
                 </span>
               )}
             </div>

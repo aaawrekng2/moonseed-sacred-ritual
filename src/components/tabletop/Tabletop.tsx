@@ -60,7 +60,7 @@ export function Tabletop({
   // AU — Manual card entry. Bypass the scatter and let the seeker pick
   // cards from a 78-card grid (used for logging a physical reading).
   const [manualOpen, setManualOpen] = useState(false);
-  // DY-4 — Manual-draw hint, anchored to the "Choose cards" button.
+  // DZ-2 — Manual-draw hint, anchored to the "Manual entry" button.
   // Fired by an event from draw.tsx after the question modal closes.
   const { user: authUser } = useAuth();
   const manualBtnRef = useRef<HTMLButtonElement | null>(null);
@@ -985,14 +985,14 @@ export function Tabletop({
           border: "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
           opacity: 0.92,
         }}
-        aria-label="Choose cards"
+        aria-label="Manual entry"
       >
-        <Hand className="h-3.5 w-3.5" /> Choose cards
+        <Hand className="h-3.5 w-3.5" /> Manual entry
       </button>
       {showManualHint && (
         <Hint
           hintId="manual_draw_choose_cards"
-          text="Choose your own cards instead of letting fate decide."
+          text="Already drew cards with a physical deck? Enter them here instead."
           anchorRef={manualBtnRef}
           position="bottom"
           onDismiss={() => setShowManualHint(false)}

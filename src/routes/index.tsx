@@ -293,7 +293,7 @@ function Index() {
                     height: "100%",
                     objectFit: "contain",
                     display: "block",
-                    ...cornerRadiusStyle(heroDeckRadius),
+                    ...cornerRadiusStyle(heroDeckRadius, cardWidth),
                   }}
                   loading="eager"
                 />
