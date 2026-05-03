@@ -2528,6 +2528,8 @@ function FiltersPanel({
   setActiveDrawTypes,
   deepOnly,
   setDeepOnly,
+  savedOnly,
+  setSavedOnly,
   allStories,
   activeStories,
   setActiveStories,
@@ -2542,6 +2544,8 @@ function FiltersPanel({
   setActiveDrawTypes: React.Dispatch<React.SetStateAction<DrawTypeKey[]>>;
   deepOnly: boolean;
   setDeepOnly: React.Dispatch<React.SetStateAction<boolean>>;
+  savedOnly: boolean;
+  setSavedOnly: React.Dispatch<React.SetStateAction<boolean>>;
   allStories: { id: string; name: string; lastActiveAt?: string }[];
   activeStories: string[];
   setActiveStories: React.Dispatch<React.SetStateAction<string[]>>;
@@ -2555,6 +2559,7 @@ function FiltersPanel({
     activeTags.length > 0 ||
     activeDrawTypes.length > 0 ||
     deepOnly ||
+    savedOnly ||
     activeStories.length > 0;
   return (
     <div className="flex flex-col gap-5">
@@ -2580,6 +2585,21 @@ function FiltersPanel({
         >
           ✦ Deep readings only
           {deepOnly && <span className="ml-1 text-[10px]">×</span>}
+        </button>
+        <button
+          type="button"
+          onClick={() => setSavedOnly((v) => !v)}
+          className="ml-4 font-display text-[13px] italic transition-colors text-foreground"
+          style={{
+            opacity: savedOnly ? 1 : 0.85,
+            borderBottom: savedOnly
+              ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
+              : "1px solid transparent",
+            paddingBottom: 2,
+          }}
+        >
+          Saved only
+          {savedOnly && <span className="ml-1 text-[10px]">×</span>}
         </button>
       </section>
 
