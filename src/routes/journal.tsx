@@ -1031,6 +1031,7 @@ function ReadingCard({
   const interpClean = stripMarkdown(interpFirst);
   // DB-3.1 — render with the reading's saved deck, not the global active deck.
   const getImage = useDeckImage(reading.deck_id ?? null);
+  const deckRadiusPx = useDeckCornerRadius(reading.deck_id ?? null);
   const archiveFn = useServerFn(archiveReading);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [archiving, setArchiving] = useState(false);
@@ -1228,6 +1229,7 @@ function ReadingCard({
                 border:
                   "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
                 opacity: "var(--ro-plus-30)",
+                ...cornerRadiusStyle(deckRadiusPx),
               }}
             />
           ))}
@@ -1248,6 +1250,7 @@ function ReadingCard({
                 border:
                   "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
                 opacity: "var(--ro-plus-30)",
+                ...cornerRadiusStyle(deckRadiusPx),
               }}
             />
           ))}
