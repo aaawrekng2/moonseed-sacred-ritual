@@ -177,6 +177,52 @@ Open the share menu on a qualifying reading and select **Mirror Artifact** at th
 If you are sharing a moment, choose **Single Pull**. If you are sharing the *insight*, choose **Full Reading**. If you want to point at one specific thing, choose **Spread Position** or **Deep Lens**. The Artifact is for the few readings you will still be thinking about months from now.`,
     related: ["mirror-artifact"],
   },
+  {
+    id: "four-lenses",
+    title: "The Four Lenses of a Deep Reading",
+    category: "tarot-and-readings",
+    summary: "Present Resonance, Thread Awareness, Shadow Layer, Mirror Artifact.",
+    body: `A Deep Reading is what happens when you ask Moonseed to look more carefully at a reading you've already drawn. Where the regular interpretation gives you one cohesive read, a Deep Reading offers four distinct perspectives — four lenses through which the same cards reveal different layers.
+
+This isn't decoration. Tarot has always invited multiple readings of the same draw. The cards don't change; what shifts is the question you bring to them. The four lenses formalize four classic angles of inquiry that experienced readers naturally cycle through. Moonseed makes them explicit so you can use them deliberately.
+
+## Present Resonance
+
+This is the "you are here" of the reading. Present Resonance reads the cards as a description of what's actually happening in your life right now — the texture of this moment, the dynamics in motion, the weather of your inner and outer world. It's the most immediate lens. If you only had time to read one, you'd read this one.
+
+Use it when: you want grounded, current-moment clarity. *"What's going on?"*
+
+## Thread Awareness
+
+This lens looks beyond this specific reading and notices what threads it shares with your past readings. Have similar cards appeared before? Are you returning to a question you've asked in different forms? Thread Awareness surfaces the larger story your readings have been telling — the recurring symbols, the unresolved tensions, the arcs you're still living through.
+
+This lens is sometimes empty — it only fills when the system can connect this reading to meaningful patterns in your history. When it does fill, pay attention. Repetition in tarot is rarely accidental.
+
+Use it when: you want to see this reading in context. *"How does this fit with the Stories I've been carrying?"*
+
+## Shadow Layer
+
+Shadow Layer is the harder, less-comfortable read of the cards. It asks the question most readings politely sidestep: **what doesn't this reading want to look at?** Where might you be flattering yourself? What's the reading suggesting you've been avoiding? What's the version of this interpretation you'd resist hearing from a friend?
+
+Shadow Layer is not negativity. It's honesty. The cards always carry both their face value and their inverse — this lens reads the inverse explicitly so you can hold both at once. Some seekers find this lens uncomfortable. That discomfort is often the point.
+
+Use it when: you trust the reading too much, OR you want a balancing perspective on something you're hoping to hear. *"What am I not seeing?"*
+
+## Mirror Artifact
+
+Mirror Artifact is a poetic, quotable reflection on the reading — distilled, compressed, save-worthy. It's the line you might write down in a paper journal, or screenshot for later. Where the other three lenses analyze, Mirror Artifact crystallizes.
+
+If a reading really lands, Mirror Artifact is what stays with you after you close the app. You can save any reading to your journal (the bookmark icon next to its row) so the Mirror lens — and the rest of the reading — stays easy to find.
+
+Use it when: you want something to carry away. The cards' essence in a few sentences.
+
+## How to use the lenses
+
+There's no required order. Most seekers scan all four after a Deep Reading, pause on whichever resonates most, and dismiss the rest. Some readings, all four lenses speak. Other readings, only one matters. Both are normal.
+
+If a lens feels off, dismiss it. The cards know what they came to say — the lenses are just four ways of asking. Trust your instinct about which questions belong to this reading.`,
+    related: ["how-interpretation-works", "mirror-artifact"],
+  },
 ];
 
 export function getArticleById(id: string): HelpArticle | undefined {
