@@ -945,6 +945,10 @@ function JournalPage() {
           onTagLibraryChange={handleTagLibraryChange}
           onPhotoCountChange={handlePhotoCountChange}
           onDeckChange={handleReadingDeckChange}
+          onArchived={(id) => {
+            setReadings((prev) => prev.filter((r) => r.id !== id));
+            setOpenId(null);
+          }}
         />
       )}
     </main>
