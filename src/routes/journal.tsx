@@ -2152,19 +2152,60 @@ function ReadingDetail({
     >
       <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+56px)]">
         <header>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-            <span style={{ opacity: "var(--ro-plus-30)" }}>
-              {spreadLabel(reading.spread_type)}
-            </span>
-            <span className="mx-2" aria-hidden>
-              ·
-            </span>
-            <span style={{ opacity: "var(--ro-plus-20)" }}>
-              {new Date(reading.created_at).toLocaleString(undefined, {
-                dateStyle: "medium",
-                timeStyle: "short",
-              })}
-            </span>
+          <div className="flex items-start justify-between gap-3">
+            <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              <span style={{ opacity: "var(--ro-plus-30)" }}>
+                {spreadLabel(reading.spread_type)}
+              </span>
+              <span className="mx-2" aria-hidden>
+                ·
+              </span>
+              <span style={{ opacity: "var(--ro-plus-20)" }}>
+                {new Date(reading.created_at).toLocaleString(undefined, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </span>
+            </div>
+            {/* EA-7 — mirror the row's right-cluster indicators at the top of the detail. */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {reading.is_favorite && (
+                <Heart
+                  size={16}
+                  strokeWidth={1.5}
+                  fill="currentColor"
+                  style={{ color: "var(--accent)", opacity: 0.8 }}
+                  aria-label="Favorite"
+                />
+              )}
+              {reading.mirror_saved && (
+                <Bookmark
+                  size={16}
+                  strokeWidth={1.5}
+                  fill="currentColor"
+                  style={{ color: "var(--accent)", opacity: 0.8 }}
+                  aria-label="Bookmarked"
+                />
+              )}
+              {reading.pattern_id && (
+                <Network
+                  size={16}
+                  strokeWidth={1.5}
+                  fill="currentColor"
+                  style={{ color: "var(--accent)", opacity: 0.8 }}
+                  aria-label="In Story"
+                />
+              )}
+              {reading.is_deep_reading && (
+                <Sparkles
+                  size={16}
+                  strokeWidth={1.5}
+                  fill="currentColor"
+                  style={{ color: "var(--accent)", opacity: 0.8 }}
+                  aria-label="Deep reading"
+                />
+              )}
+            </div>
           </div>
           <div
             className="mt-2 font-display text-sm italic text-gold"
