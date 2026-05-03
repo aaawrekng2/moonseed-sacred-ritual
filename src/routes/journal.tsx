@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive as ArchiveIcon, BookOpen, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
+import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -239,6 +239,8 @@ function JournalPage() {
   const [tagMode, setTagMode] = useState<TagMode>("all");
   const [activeDrawTypes, setActiveDrawTypes] = useState<DrawTypeKey[]>([]);
   const [deepOnly, setDeepOnly] = useState(false);
+  // DZ-5 — "Saved only" filter (replaces DW-6 "Saved Mirrors only").
+  const [savedOnly, setSavedOnly] = useState(false);
   // DN-5 — Stories filter (multi-select pattern IDs).
   const [activeStories, setActiveStories] = useState<string[]>([]);
   // YYYY-MM-DD selected from the calendar view; null = no date filter.
@@ -353,6 +355,7 @@ function JournalPage() {
           return false;
       }
       if (deepOnly && !r.is_deep_reading) return false;
+      if (savedOnly && !r.mirror_saved) return false;
       // DN-5 — Stories filter: keep only readings attached to one of
       // the currently-active patterns.
       if (activeStories.length > 0) {
@@ -388,6 +391,7 @@ function JournalPage() {
     tagMode,
     activeDrawTypes,
     deepOnly,
+    savedOnly,
     activeStories,
     activeDate,
     batchParam,
@@ -557,7 +561,8 @@ function JournalPage() {
     activeTags.length +
     activeDrawTypes.length +
     activeStories.length +
-    (deepOnly ? 1 : 0);
+    (deepOnly ? 1 : 0) +
+    (savedOnly ? 1 : 0);
 
   const filtersNode = (
     <FiltersPanel
@@ -570,6 +575,8 @@ function JournalPage() {
       setActiveDrawTypes={setActiveDrawTypes}
       deepOnly={deepOnly}
       setDeepOnly={setDeepOnly}
+      savedOnly={savedOnly}
+      setSavedOnly={setSavedOnly}
       allStories={allStories}
       activeStories={activeStories}
       setActiveStories={setActiveStories}
@@ -577,6 +584,7 @@ function JournalPage() {
         setActiveTags([]);
         setActiveDrawTypes([]);
         setDeepOnly(false);
+        setSavedOnly(false);
         setActiveStories([]);
       }}
     />
@@ -1093,9 +1101,7 @@ function ReadingCard({
           }}
           className={cn(
             "absolute inset-y-0 right-0 z-10 flex items-center justify-center px-4 text-gold transition-opacity",
-            isMobile
-              ? "opacity-100"
-              : "opacity-0 group-hover/reading:opacity-100 focus:opacity-100",
+            "opacity-0 group-hover/reading:opacity-100 focus:opacity-100",
           )}
           style={{
             width: REVEAL_PX,
@@ -1195,6 +1201,16 @@ function ReadingCard({
           }}
           aria-hidden
         />
+        {reading.mirror_saved && (
+          <Bookmark
+            size={14}
+            strokeWidth={1.5}
+            className="shrink-0 text-accent"
+            fill="currentColor"
+            style={{ opacity: 0.8, color: "var(--accent)" }}
+            aria-label="Saved reading"
+          />
+        )}
       </div>
 
       {/* Card thumbnails */}
@@ -2520,6 +2536,8 @@ function FiltersPanel({
   setActiveDrawTypes,
   deepOnly,
   setDeepOnly,
+  savedOnly,
+  setSavedOnly,
   allStories,
   activeStories,
   setActiveStories,
@@ -2534,6 +2552,8 @@ function FiltersPanel({
   setActiveDrawTypes: React.Dispatch<React.SetStateAction<DrawTypeKey[]>>;
   deepOnly: boolean;
   setDeepOnly: React.Dispatch<React.SetStateAction<boolean>>;
+  savedOnly: boolean;
+  setSavedOnly: React.Dispatch<React.SetStateAction<boolean>>;
   allStories: { id: string; name: string; lastActiveAt?: string }[];
   activeStories: string[];
   setActiveStories: React.Dispatch<React.SetStateAction<string[]>>;
@@ -2547,6 +2567,7 @@ function FiltersPanel({
     activeTags.length > 0 ||
     activeDrawTypes.length > 0 ||
     deepOnly ||
+    savedOnly ||
     activeStories.length > 0;
   return (
     <div className="flex flex-col gap-5">
@@ -2572,6 +2593,21 @@ function FiltersPanel({
         >
           ✦ Deep readings only
           {deepOnly && <span className="ml-1 text-[10px]">×</span>}
+        </button>
+        <button
+          type="button"
+          onClick={() => setSavedOnly((v) => !v)}
+          className="ml-4 font-display text-[13px] italic transition-colors text-foreground"
+          style={{
+            opacity: savedOnly ? 1 : 0.85,
+            borderBottom: savedOnly
+              ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
+              : "1px solid transparent",
+            paddingBottom: 2,
+          }}
+        >
+          Saved only
+          {savedOnly && <span className="ml-1 text-[10px]">×</span>}
         </button>
       </section>
 

@@ -369,7 +369,7 @@ export function DeepReadingPanel({
         <div className="deep-mirror" data-saved={mirrorSaved ? "true" : undefined}>
           <p className="deep-mirror__label">
             Mirror Artifact
-            <HelpIcon articleId="mirror-artifact" />
+            <HelpIcon articleId="four-lenses" />
           </p>
           <p className="deep-mirror__body">
             {stripMarkdown(lenses.mirror_artifact)}
@@ -427,7 +427,10 @@ function Lens({
   const clean = stripMarkdown(body);
   return (
     <section className="deep-lens">
-      <div className="deep-lens__label">{label}</div>
+      <div className="deep-lens__label">
+        {label}
+        <HelpIcon articleId="four-lenses" />
+      </div>
       <div className="deep-lens__divider" aria-hidden />
       <div className="deep-lens__body">{clean}</div>
       <div className="mt-2 flex justify-end">
