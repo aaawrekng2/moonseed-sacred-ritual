@@ -165,6 +165,7 @@ export function DeepReadingPanel({
         .from("readings")
         .select("card_ids")
         .eq("user_id", user.id)
+        .is("archived_at", null)
         .order("created_at", { ascending: false })
         .limit(30);
       if (cancelled) return;
