@@ -103,6 +103,15 @@ export function useActiveCardBackUrl(): string | null {
 }
 
 /**
+ * DX — Per-deck CSS corner radius for the active deck (px), or null
+ * if the seeker has no override saved. Pair with {@link cornerRadiusStyle}.
+ */
+export function useActiveDeckCornerRadius(): number | null {
+  const { imageMap } = useActiveDeck();
+  return imageMap.cornerRadiusPx;
+}
+
+/**
  * DB-3.1 — Resolve a card image for a SPECIFIC deck_id.
  *
  * Used when displaying a saved/historical reading: the reading's saved
@@ -160,4 +169,43 @@ export function useDeckImage(deckId: string | null | undefined): (
     },
     [imageMap, isLoading, deckId],
   );
+}
+
+/**
+ * DX — Resolve the per-deck CSS corner radius (px) for a SPECIFIC deck_id.
+ * Returns null when the deck has no override (or no deckId is provided),
+ * letting the existing app-default border-radius rule apply.
+ */
+export function useDeckCornerRadius(deckId: string | null | undefined): number | null {
+  const [value, setValue] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!deckId) {
+      setValue(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const map = await buildDeckImageMap(deckId);
+        if (!cancelled) setValue(map.cornerRadiusPx);
+      } catch {
+        if (!cancelled) setValue(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [deckId]);
+
+  return value;
+}
+
+/**
+ * DX — Inline CSS for applying a saved deck corner radius. Returns an
+ * empty object when `radiusPx` is null so the existing app-wide rule
+ * keeps applying. Use as `style={{ ...other, ...cornerRadiusStyle(rPx) }}`.
+ */
+export function cornerRadiusStyle(radiusPx: number | null): { borderRadius?: string } {
+  return radiusPx == null ? {} : { borderRadius: `${radiusPx}px` };
 }
