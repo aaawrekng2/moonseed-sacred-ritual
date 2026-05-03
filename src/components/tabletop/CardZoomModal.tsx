@@ -11,7 +11,7 @@
  */
 import { X } from "lucide-react";
 import { getCardName } from "@/lib/tarot";
-import { useDeckImage } from "@/lib/active-deck";
+import { useDeckImage, useDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
 import { useEffect, useState } from "react";
 
 interface CardZoomModalProps {
@@ -29,6 +29,7 @@ interface CardZoomModalProps {
 
 export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomModalProps) {
   const cardImg = useDeckImage(deckId ?? null);
+  const radiusPx = useDeckCornerRadius(deckId ?? null);
   // DB-1.2 — viewing-only rotate. Local state, never persists; saved
   // reading data is unaffected.
   const [tempUpright, setTempUpright] = useState(false);
@@ -71,6 +72,7 @@ export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomMod
           transform: showRotated ? "rotate(180deg)" : undefined,
           transition: "transform 300ms ease",
           boxShadow: "0 0 80px -10px rgba(212,175,55,0.5)",
+          ...cornerRadiusStyle(radiusPx),
         }}
         onClick={(e) => {
           e.stopPropagation();

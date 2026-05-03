@@ -11,7 +11,7 @@ import { getCardName } from "@/lib/tarot";
 import { cn, firstCardName, formatRelativeTime } from "@/lib/utils";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
-import { useDeckImage } from "@/lib/active-deck";
+import { useDeckImage, useDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
 import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
 import { toast } from "sonner";
 import {
@@ -1031,6 +1031,7 @@ function ReadingCard({
   const interpClean = stripMarkdown(interpFirst);
   // DB-3.1 — render with the reading's saved deck, not the global active deck.
   const getImage = useDeckImage(reading.deck_id ?? null);
+  const deckRadiusPx = useDeckCornerRadius(reading.deck_id ?? null);
   const archiveFn = useServerFn(archiveReading);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [archiving, setArchiving] = useState(false);
@@ -1228,6 +1229,7 @@ function ReadingCard({
                 border:
                   "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
                 opacity: "var(--ro-plus-30)",
+                ...cornerRadiusStyle(deckRadiusPx),
               }}
             />
           ))}
@@ -1248,6 +1250,7 @@ function ReadingCard({
                 border:
                   "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
                 opacity: "var(--ro-plus-30)",
+                ...cornerRadiusStyle(deckRadiusPx),
               }}
             />
           ))}
@@ -1375,6 +1378,7 @@ function GalleryTile({
 }) {
   const getImage = useDeckImage(reading.deck_id ?? null);
   const fallback = getImage(reading.card_ids[0] ?? 0, "thumbnail");
+  const deckRadiusPx = useDeckCornerRadius(reading.deck_id ?? null);
   return (
     <button
       type="button"
@@ -1383,6 +1387,7 @@ function GalleryTile({
       style={{
         border:
           "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
+        ...cornerRadiusStyle(deckRadiusPx),
       }}
     >
       <CardThumb
@@ -1390,7 +1395,11 @@ function GalleryTile({
         alt=""
         loading="lazy"
         className="h-full w-full object-cover"
-        style={photoUrl ? undefined : { opacity: "var(--ro-plus-30)" }}
+        style={
+          photoUrl
+            ? cornerRadiusStyle(deckRadiusPx)
+            : { opacity: "var(--ro-plus-30)", ...cornerRadiusStyle(deckRadiusPx) }
+        }
       />
       <div
         className="absolute inset-x-0 bottom-0 flex items-center justify-between px-2 py-1.5 text-[10px] uppercase tracking-[0.14em]"
@@ -2034,6 +2043,7 @@ function ReadingDetail({
   const [zoomedCard, setZoomedCard] = useState<{ cardId: number; reversed: boolean } | null>(null);
   // DB-3.1 — render this reading's images using its SAVED deck.
   const getImage = useDeckImage(reading.deck_id ?? null);
+  const deckRadiusPx = useDeckCornerRadius(reading.deck_id ?? null);
   // DB-3.2 — deck override picker.
   const [decks, setDecks] = useState<CustomDeck[]>([]);
   const [deckMenuOpen, setDeckMenuOpen] = useState(false);
@@ -2210,6 +2220,7 @@ function ReadingDetail({
                          "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
                        opacity: "var(--ro-plus-40)",
                        transform: isReversed ? "rotate(180deg)" : undefined,
+                       ...cornerRadiusStyle(deckRadiusPx),
                      }}
                    />
                 </button>

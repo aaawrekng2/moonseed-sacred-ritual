@@ -54,6 +54,7 @@ import {
   getSnapshot,
   restoreSnapshot,
 } from "@/lib/import-snapshot";
+import { CornerRadiusSlider } from "./CornerRadiusSlider";
 
 const ZIP_MAX_BYTES = 20 * 1024 * 1024;
 const VALID_EXT = /\.(png|jpe?g|webp|gif)$/i;
@@ -91,6 +92,7 @@ export function ZipImporter({
   entryMode = "import",
   initialPhase,
   deckName,
+  existingCornerRadiusPx = null,
 }: {
   userId: string;
   deckId: string;
@@ -108,6 +110,8 @@ export function ZipImporter({
   initialPhase?: "upload" | "workspace";
   /** CC G5 — used as the workspace title in edit mode. */
   deckName?: string | null;
+  /** DX — saved per-deck corner radius in px (null = app default). */
+  existingCornerRadiusPx?: number | null;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
@@ -679,6 +683,8 @@ export function ZipImporter({
         entryMode={entryMode}
         deckName={deckName ?? null}
         onSwitchToUpload={() => setPhase({ kind: "upload", resumable: false })}
+        deckId={deckId}
+        existingCornerRadiusPx={existingCornerRadiusPx}
       />
     );
 
@@ -914,6 +920,8 @@ function Workspace({
   entryMode,
   deckName,
   onSwitchToUpload,
+  deckId,
+  existingCornerRadiusPx,
 }: {
   session: ImportSession;
   onAssign: (imageKey: string, cardId: number | "BACK") => void;
@@ -934,6 +942,8 @@ function Workspace({
   entryMode: "import" | "edit";
   deckName: string | null;
   onSwitchToUpload: () => void;
+  deckId: string;
+  existingCornerRadiusPx: number | null;
 }) {
   const [tab, setTab] = useState<Tab>(entryMode === "edit" ? "assigned" : "unassigned");
   // Zoom modal context: which image, opened from which filter view.
@@ -1270,6 +1280,14 @@ function Workspace({
         >
           Card back not chosen — tap to pick one
         </button>
+      )}
+
+      {/* DX — Card corner radius slider (edit mode only). */}
+      {entryMode === "edit" && (
+        <CornerRadiusSlider
+          deckId={deckId}
+          initial={existingCornerRadiusPx}
+        />
       )}
 
       {/* Tab body */}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { getCardName } from "@/lib/tarot";
-import { useActiveCardBackUrl, useActiveDeckImage } from "@/lib/active-deck";
+import { useActiveCardBackUrl, useActiveDeckImage, useActiveDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -365,6 +365,7 @@ function CardFace({
   const cardImg = useActiveDeckImage();
   // BX — when a custom deck is active, render its photographed back.
   const customBackUrl = useActiveCardBackUrl();
+  const deckRadiusPx = useActiveDeckCornerRadius();
   // CM Group 2 — focus dim during the reveal phase only. Next-to-flip
   // stays full opacity, already-flipped fade to 0.8, others to 0.6.
   const cardOpacity = !isRevealPhase
@@ -427,6 +428,7 @@ function CardFace({
             style={{
               transform: pick.isReversed ? "rotate(180deg)" : undefined,
               transition: "transform 600ms ease-out",
+              ...cornerRadiusStyle(deckRadiusPx),
             }}
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).style.display = "none";
@@ -851,6 +853,7 @@ export function ManualSpreadSlots({
   const labels = meta.positions ?? meta.positionsShort ?? [];
   const sizing = useMemo(() => spreadSizing(spread), [spread]);
   const cardImg = useActiveDeckImage();
+  const deckRadiusPx = useActiveDeckCornerRadius();
 
   const Slot = ({ pick, slotIndex, rotated }: { pick: ManualSlotPick; slotIndex: number; rotated?: boolean }) => (
     <button
@@ -876,7 +879,7 @@ export function ManualSpreadSlots({
           src={cardImg(pick.cardIndex)}
           alt={getCardName(pick.cardIndex)}
           className="h-full w-full object-contain"
-          style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
+          style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined, ...cornerRadiusStyle(deckRadiusPx) }}
         />
       ) : (
         <span className="absolute inset-0 flex items-center justify-center text-[18px] font-light text-foreground/50">+</span>
