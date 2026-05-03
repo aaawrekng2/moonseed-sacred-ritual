@@ -817,6 +817,7 @@ function ChamberTimeline({ readingIds }: { readingIds: string[] }) {
         .from("readings")
         .select("id, created_at, spread_type, card_ids, interpretation")
         .in("id", readingIds)
+        .is("archived_at", null)
         .order("created_at", { ascending: false });
       if (cancelled) return;
       setRows(
@@ -997,6 +998,7 @@ function ChamberWeaveGraph({
           .from("readings")
           .select("id, created_at, spread_type")
           .in("id", pattern.reading_ids)
+          .is("archived_at", null)
           .order("created_at", { ascending: false });
         readingRows = ((rRows ?? []) as Array<{
           id: string;

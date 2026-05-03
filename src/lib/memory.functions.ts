@@ -116,6 +116,7 @@ export const detectThreads = createServerFn({ method: "POST" })
         const { data: readings, error: readErr } = await supabase
           .from("readings")
           .select("id, card_ids, tags, guide_id, spread_type, created_at")
+          .is("archived_at", null)
           .order("created_at", { ascending: false })
           .limit(20);
 
@@ -601,6 +602,7 @@ export const buildMemorySnapshot = createServerFn({ method: "POST" })
         let q = supabase
           .from("readings")
           .select("id, card_ids, tags, created_at")
+          .is("archived_at", null)
           .order("created_at", { ascending: false })
           .limit(data.snapshot_type === "full_archive" ? 500 : 100);
         if (windowStart) q = q.gte("created_at", windowStart.toISOString());

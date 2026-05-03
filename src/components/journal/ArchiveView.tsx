@@ -38,10 +38,8 @@ type ArchivedRow = {
 };
 
 export function ArchiveView({
-  onOpen,
   onChanged,
 }: {
-  onOpen: (id: string) => void;
   /** Called after a row is restored or permanently deleted so the parent journal can refetch. */
   onChanged?: () => void;
 }) {
@@ -117,7 +115,6 @@ export function ArchiveView({
           <ArchiveRow
             key={r.id}
             row={r}
-            onOpen={() => onOpen(r.id)}
             onRestore={() => void handleRestore(r.id)}
             onRequestDelete={() => setPendingDelete(r.id)}
           />
@@ -154,12 +151,10 @@ export function ArchiveView({
 
 function ArchiveRow({
   row,
-  onOpen,
   onRestore,
   onRequestDelete,
 }: {
   row: ArchivedRow;
-  onOpen: () => void;
   onRestore: () => void;
   onRequestDelete: () => void;
 }) {
@@ -221,11 +216,9 @@ function ArchiveRow({
       <button
         type="button"
         onClick={() => {
-          if (revealed) {
-            setRevealed(false);
-            return;
-          }
-          onOpen();
+          // Toggle the action drawer on tap. Archived readings are
+          // read-only from this view; restore them to view in detail.
+          setRevealed((r) => !r);
         }}
         onTouchStart={(e) => {
           startX.current = e.touches[0]?.clientX ?? 0;

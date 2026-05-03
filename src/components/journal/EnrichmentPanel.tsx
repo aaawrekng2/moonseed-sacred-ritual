@@ -1308,7 +1308,8 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
       const { data: relRows } = await supabase
         .from("readings")
         .select("id, card_ids, tags")
-        .in("id", allReadingIds);
+        .in("id", allReadingIds)
+        .is("archived_at", null);
       const rel = ((relRows ?? []) as Array<{
         id: string;
         card_ids: number[] | null;

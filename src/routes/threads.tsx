@@ -83,6 +83,7 @@ function ThreadsPage() {
           .select("id,pattern_id,card_ids,question,created_at")
           .eq("user_id", user.id)
           .not("pattern_id", "is", null)
+          .is("archived_at", null)
           .order("created_at", { ascending: false }),
       ]);
       if (cancelled) return;

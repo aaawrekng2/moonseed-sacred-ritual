@@ -263,6 +263,7 @@ function JournalPage() {
               "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id",
             )
             .eq("user_id", user.id)
+            .is("archived_at", null)
             .order("created_at", { ascending: false })
             .limit(500),
           supabase
@@ -783,6 +784,7 @@ function JournalPage() {
             ["favorites", "Favorites", Heart],
             ["calendar", "Calendar", CalendarDays],
             ["threads", "Stories", Network],
+            ["archive", "Archive", ArchiveIcon],
           ] as const
         ).map(([key, label, Icon]) => {
           const active = view === key;
@@ -903,6 +905,26 @@ function JournalPage() {
               setView("readings");
             }}
           />
+        ) : view === "archive" ? (
+          <ArchiveView
+            onChanged={() => {
+              // Restore puts a reading back in the active list — pull
+              // a fresh copy so it shows up everywhere.
+              if (!user) return;
+              void (async () => {
+                const { data: rows } = await supabase
+                  .from("readings")
+                  .select(
+                    "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id",
+                  )
+                  .eq("user_id", user.id)
+                  .is("archived_at", null)
+                  .order("created_at", { ascending: false })
+                  .limit(500);
+                setReadings((rows ?? []) as ReadingRow[]);
+              })();
+            }}
+          />
         ) : (
           <ThreadsView
             threads={threads}
@@ -923,6 +945,10 @@ function JournalPage() {
           onTagLibraryChange={handleTagLibraryChange}
           onPhotoCountChange={handlePhotoCountChange}
           onDeckChange={handleReadingDeckChange}
+          onArchived={(id) => {
+            setReadings((prev) => prev.filter((r) => r.id !== id));
+            setOpenId(null);
+          }}
         />
       )}
     </main>
@@ -1863,6 +1889,7 @@ function ReadingDetail({
   onTagLibraryChange,
   onPhotoCountChange,
   onDeckChange,
+  onArchived,
 }: {
   reading: ReadingRow;
   onClose: () => void;
@@ -1877,6 +1904,7 @@ function ReadingDetail({
   onTagLibraryChange: (next: EnrichmentTag[]) => void;
   onPhotoCountChange: (readingId: string, count: number) => void;
   onDeckChange: (id: string, deckId: string | null) => void;
+  onArchived: (id: string) => void;
 }) {
   const guide = getGuideById(reading.guide_id);
   const positions = isValidSpreadMode(reading.spread_type)
@@ -1929,6 +1957,22 @@ function ReadingDetail({
     }
     onDeckChange(reading.id, newDeckId);
     toast.success("Deck updated");
+  };
+  const archiveFn = useServerFn(archiveReading);
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const handleArchive = async () => {
+    if (archiving) return;
+    setArchiving(true);
+    const res = await archiveFn({ data: { readingId: reading.id } });
+    setArchiving(false);
+    setArchiveConfirmOpen(false);
+    if (!res.ok) {
+      toast.error("Couldn't archive reading.");
+      return;
+    }
+    toast.success("Reading archived. Restore from the Archive tab within 30 days.");
+    onArchived(reading.id);
   };
   const spreadModeForShare: SpreadMode = isValidSpreadMode(reading.spread_type)
     ? (reading.spread_type as SpreadMode)
@@ -2250,6 +2294,50 @@ function ReadingDetail({
           copyText={reading.interpretation ?? undefined}
           onShare={() => setShareOpen(true)}
         />
+
+        {/* DV — Archive (soft-delete) action. Confirmed via dialog;
+            row stays restorable from the Archive tab for 30 days. */}
+        <div className="mx-auto mt-6 flex max-w-prose justify-center">
+          <button
+            type="button"
+            onClick={() => setArchiveConfirmOpen(true)}
+            disabled={archiving}
+            className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 font-display text-[12px] italic text-muted-foreground transition-colors hover:text-gold disabled:opacity-50"
+            style={{
+              border:
+                "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
+              opacity: "var(--ro-plus-30)",
+            }}
+          >
+            <ArchiveIcon size={13} strokeWidth={1.5} aria-hidden />
+            Archive reading
+          </button>
+        </div>
+        <AlertDialog open={archiveConfirmOpen} onOpenChange={setArchiveConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Archive this reading?</AlertDialogTitle>
+              <AlertDialogDescription>
+                It will be hidden from your journal, gallery, notes,
+                favorites, calendar, and stories. You can restore it
+                from the Archive tab within 30 days, after which it&rsquo;s
+                permanently deleted.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => void handleArchive()}
+                style={{
+                  background: "var(--accent)",
+                  color: "var(--accent-foreground, #1a1a1a)",
+                }}
+              >
+                Archive
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Phase 8: surface the Deep Reading mist (or completed lenses) so
             the seeker can revisit/begin a deep reading from the journal

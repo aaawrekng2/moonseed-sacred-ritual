@@ -196,6 +196,7 @@ function Index() {
         .select("card_ids")
         .eq("user_id", uid)
         .eq("spread_type", "single")
+        .is("archived_at", null)
         .gte("created_at", start.toISOString())
         .lt("created_at", end.toISOString())
         .order("created_at", { ascending: false })
