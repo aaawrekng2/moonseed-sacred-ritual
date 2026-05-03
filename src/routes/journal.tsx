@@ -995,6 +995,25 @@ function JournalPage() {
             setReadings((prev) => prev.filter((r) => r.id !== id));
             setOpenId(null);
           }}
+          onRestored={() => {
+            // ED-2B — refetch active readings so the restored row
+            // shows back up in Readings/Favorites/etc.
+            if (!user) return;
+            void (async () => {
+              const { data: rows } = await supabase
+                .from("readings")
+                .select(
+                  "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id",
+                )
+                .eq("user_id", user.id)
+                .is("archived_at", null)
+                .order("created_at", { ascending: false })
+                .limit(500);
+              setReadings((rows ?? []) as ReadingRow[]);
+            })();
+            setOpenOverride(null);
+            setOpenId(null);
+          }}
         />
       )}
     </main>
