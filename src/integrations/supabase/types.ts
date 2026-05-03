@@ -135,6 +135,8 @@ export type Database = {
       }
       custom_decks: {
         Row: {
+          card_back_path: string | null
+          card_back_thumb_path: string | null
           card_back_thumb_url: string | null
           card_back_url: string | null
           cards_photographed_count: number
@@ -151,6 +153,8 @@ export type Database = {
           width_inches: number | null
         }
         Insert: {
+          card_back_path?: string | null
+          card_back_thumb_path?: string | null
           card_back_thumb_url?: string | null
           card_back_url?: string | null
           cards_photographed_count?: number
@@ -167,6 +171,8 @@ export type Database = {
           width_inches?: number | null
         }
         Update: {
+          card_back_path?: string | null
+          card_back_thumb_path?: string | null
           card_back_thumb_url?: string | null
           card_back_url?: string | null
           cards_photographed_count?: number
