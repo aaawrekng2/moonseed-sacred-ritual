@@ -11,7 +11,7 @@ import { getCardName } from "@/lib/tarot";
 import { cn, firstCardName, formatRelativeTime } from "@/lib/utils";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
-import { useDeckImage } from "@/lib/active-deck";
+import { useDeckImage, useDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
 import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
 import { toast } from "sonner";
 import {
