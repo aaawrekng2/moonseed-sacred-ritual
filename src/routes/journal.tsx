@@ -2076,6 +2076,7 @@ function ReadingDetail({
   onPhotoCountChange,
   onDeckChange,
   onArchived,
+  onRestored,
 }: {
   reading: ReadingRow;
   onClose: () => void;
@@ -2091,6 +2092,7 @@ function ReadingDetail({
   onPhotoCountChange: (readingId: string, count: number) => void;
   onDeckChange: (id: string, deckId: string | null) => void;
   onArchived: (id: string) => void;
+  onRestored?: () => void;
 }) {
   const guide = getGuideById(reading.guide_id);
   const positions = isValidSpreadMode(reading.spread_type)
