@@ -25,7 +25,7 @@ import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CardZoomModal } from "@/components/tabletop/CardZoomModal";
 import { ArchiveView } from "@/components/journal/ArchiveView";
-import { archiveReading, daysUntilPurge } from "@/lib/readings-archive";
+import { archiveReading, daysUntilPurge, restoreReading } from "@/lib/readings-archive";
 import { useServerFn } from "@tanstack/react-start";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
@@ -249,6 +249,10 @@ function JournalPage() {
   const [view, setView] = useState<ViewMode>("readings");
   const [openId, setOpenId] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // ED-2A — cache for an archived reading opened from the Archive view.
+  // Active readings come from `readings`; archived rows are filtered out
+  // of that list, so we lazily fetch them by id here.
+  const [openOverride, setOpenOverride] = useState<ReadingRow | null>(null);
 
   // Fetch readings + tags + photo counts whenever the user resolves.
   useEffect(() => {
@@ -441,8 +445,33 @@ function JournalPage() {
     );
   }, [readings, patternsById]);
   const openReading = openId
-    ? readings.find((r) => r.id === openId) ?? null
+    ? readings.find((r) => r.id === openId) ??
+      (openOverride && openOverride.id === openId ? openOverride : null)
     : null;
+
+  // ED-2A — when an Archive row is tapped, the reading isn't in
+  // `readings` (it's filtered out by `archived_at IS NULL`). Fetch it
+  // on demand so ReadingDetail can render in read-only mode.
+  useEffect(() => {
+    if (!openId || !user) return;
+    if (readings.find((r) => r.id === openId)) return;
+    if (openOverride && openOverride.id === openId) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("readings")
+        .select(
+          "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,archived_at",
+        )
+        .eq("id", openId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (!cancelled && data) setOpenOverride(data as ReadingRow);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [openId, user, readings, openOverride]);
 
   // Stable callbacks for the EnrichmentPanel — keep the Journal list and
   // tag library in sync with edits made inside the Reading Detail overlay
@@ -923,6 +952,7 @@ function JournalPage() {
           />
         ) : view === "archive" ? (
           <ArchiveView
+            onOpen={(id) => setOpenId(id)}
             onChanged={() => {
               // Restore puts a reading back in the active list — pull
               // a fresh copy so it shows up everywhere.
@@ -963,6 +993,25 @@ function JournalPage() {
           onDeckChange={handleReadingDeckChange}
           onArchived={(id) => {
             setReadings((prev) => prev.filter((r) => r.id !== id));
+            setOpenId(null);
+          }}
+          onRestored={() => {
+            // ED-2B — refetch active readings so the restored row
+            // shows back up in Readings/Favorites/etc.
+            if (!user) return;
+            void (async () => {
+              const { data: rows } = await supabase
+                .from("readings")
+                .select(
+                  "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id",
+                )
+                .eq("user_id", user.id)
+                .is("archived_at", null)
+                .order("created_at", { ascending: false })
+                .limit(500);
+              setReadings((rows ?? []) as ReadingRow[]);
+            })();
+            setOpenOverride(null);
             setOpenId(null);
           }}
         />
@@ -2027,6 +2076,7 @@ function ReadingDetail({
   onPhotoCountChange,
   onDeckChange,
   onArchived,
+  onRestored,
 }: {
   reading: ReadingRow;
   onClose: () => void;
@@ -2042,6 +2092,7 @@ function ReadingDetail({
   onPhotoCountChange: (readingId: string, count: number) => void;
   onDeckChange: (id: string, deckId: string | null) => void;
   onArchived: (id: string) => void;
+  onRestored?: () => void;
 }) {
   const guide = getGuideById(reading.guide_id);
   const positions = isValidSpreadMode(reading.spread_type)
@@ -2097,8 +2148,29 @@ function ReadingDetail({
     toast.success("Deck updated");
   };
   const archiveFn = useServerFn(archiveReading);
+  const restoreFn = useServerFn(restoreReading);
   const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  // ED-2B — read-only mode when this reading is in the Archive.
+  const isArchived = reading.archived_at != null;
+  const archivedDays = reading.archived_at
+    ? daysUntilPurge(reading.archived_at)
+    : 0;
+  const [restoring, setRestoring] = useState(false);
+  const handleRestore = async () => {
+    if (restoring) return;
+    setRestoring(true);
+    const headers = await getAuthHeaders();
+    const res = await restoreFn({ data: { readingId: reading.id }, headers });
+    setRestoring(false);
+    if (!res.ok) {
+      toast.error("Couldn't restore reading.");
+      return;
+    }
+    toast.success("Reading restored.");
+    onRestored?.();
+    onClose();
+  };
   const handleArchive = async () => {
     if (archiving) return;
     setArchiving(true);
@@ -2154,6 +2226,41 @@ function ReadingDetail({
       className="bg-cosmos fixed inset-0 z-50 overflow-y-auto"
     >
       <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+56px)]">
+        {isArchived && (
+          <div
+            role="status"
+            className="mb-4 flex items-center justify-between gap-3 rounded-xl px-3 py-2"
+            style={{
+              border:
+                "1px solid color-mix(in oklab, var(--gold) 22%, transparent)",
+              background:
+                "color-mix(in oklab, var(--gold) 8%, transparent)",
+            }}
+          >
+            <div
+              className="font-display text-[12px] italic"
+              style={{ color: "var(--gold)", opacity: 0.9 }}
+            >
+              Archived — restore to edit. Permanently deletes in {archivedDays}{" "}
+              {archivedDays === 1 ? "day" : "days"}.
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleRestore()}
+              disabled={restoring}
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-[12px] italic transition-colors disabled:opacity-50"
+              style={{
+                border:
+                  "1px solid color-mix(in oklab, var(--gold) 32%, transparent)",
+                color: "var(--gold)",
+                background: "transparent",
+              }}
+            >
+              <ArchiveIcon size={12} strokeWidth={1.5} aria-hidden />
+              Restore
+            </button>
+          </div>
+        )}
         <header>
           <div className="flex items-start justify-between gap-3">
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
@@ -2453,6 +2560,14 @@ function ReadingDetail({
           </div>
         </div>
 
+        <div
+          style={
+            isArchived
+              ? { opacity: 0.45, pointerEvents: "none" }
+              : undefined
+          }
+          aria-disabled={isArchived ? true : undefined}
+        >
         <EnrichmentPanel
           reading={{
             id: reading.id,
@@ -2476,9 +2591,11 @@ function ReadingDetail({
           copyText={reading.interpretation ?? undefined}
           onShare={() => setShareOpen(true)}
         />
+        </div>
 
         {/* DV — Archive (soft-delete) action. Confirmed via dialog;
             row stays restorable from the Archive tab for 30 days. */}
+        {!isArchived && (
         <div className="mx-auto mt-6 flex max-w-prose justify-center">
           <button
             type="button"
@@ -2495,6 +2612,7 @@ function ReadingDetail({
             Archive reading
           </button>
         </div>
+        )}
         <AlertDialog open={archiveConfirmOpen} onOpenChange={setArchiveConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>

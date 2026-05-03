@@ -17,6 +17,7 @@ import {
   fetchArchivedReadings,
   restoreReading,
 } from "@/lib/readings-archive";
+import { useDeckImage } from "@/lib/active-deck";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,13 +37,18 @@ type ArchivedRow = {
   created_at: string;
   question: string | null;
   interpretation: string | null;
+  card_ids: number[] | null;
+  deck_id: string | null;
 };
 
 export function ArchiveView({
   onChanged,
+  onOpen,
 }: {
   /** Called after a row is restored or permanently deleted so the parent journal can refetch. */
   onChanged?: () => void;
+  /** ED-2A — open an archived reading in read-only detail mode. */
+  onOpen?: (id: string) => void;
 }) {
   const [rows, setRows] = useState<ArchivedRow[] | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
@@ -121,6 +127,7 @@ export function ArchiveView({
             row={r}
             onRestore={() => void handleRestore(r.id)}
             onRequestDelete={() => setPendingDelete(r.id)}
+            onOpen={() => onOpen?.(r.id)}
           />
         ))}
       </ul>
@@ -157,16 +164,22 @@ function ArchiveRow({
   row,
   onRestore,
   onRequestDelete,
+  onOpen,
 }: {
   row: ArchivedRow;
   onRestore: () => void;
   onRequestDelete: () => void;
+  onOpen: () => void;
 }) {
   const isMobile = useIsMobile();
   const [revealed, setRevealed] = useState(false);
   const [hover, setHover] = useState(false);
   const days = daysUntilPurge(row.archived_at);
   const showActions = isMobile ? revealed : hover;
+  // ED-2C — small card thumbnail strip rendered at the bottom of each
+  // row using the reading's saved deck art.
+  const getImage = useDeckImage(row.deck_id ?? null);
+  const thumbIds = (row.card_ids ?? []).slice(0, 5);
 
   // Touch swipe tracking (mobile).
   const startX = { current: 0 } as { current: number };
@@ -220,9 +233,14 @@ function ArchiveRow({
       <button
         type="button"
         onClick={() => {
-          // Toggle the action drawer on tap. Archived readings are
-          // read-only from this view; restore them to view in detail.
-          setRevealed((r) => !r);
+          // ED-2A — tap opens the archived reading in read-only
+          // detail. If the action drawer is currently revealed, tap
+          // closes the drawer first instead of opening the reading.
+          if (revealed) {
+            setRevealed(false);
+            return;
+          }
+          onOpen();
         }}
         onTouchStart={(e) => {
           startX.current = e.touches[0]?.clientX ?? 0;
@@ -285,6 +303,41 @@ function ArchiveRow({
           >
             {row.interpretation}
           </p>
+        )}
+        {thumbIds.length > 0 && (
+          <div className="mt-3 flex items-center gap-1.5">
+            {thumbIds.map((cardId, idx) => {
+              const src = getImage(cardId, "thumbnail");
+              return (
+                <div
+                  key={`${cardId}-${idx}`}
+                  style={{
+                    width: 28,
+                    aspectRatio: "1 / 1.75",
+                    borderRadius: 4,
+                    overflow: "hidden",
+                    background:
+                      "color-mix(in oklab, var(--gold) 6%, transparent)",
+                    border:
+                      "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
+                  }}
+                >
+                  {src && (
+                    <img
+                      src={src}
+                      alt=""
+                      loading="lazy"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
         {!isMobile && !revealed && (
           <span
