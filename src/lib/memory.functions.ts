@@ -315,6 +315,12 @@ function buildShortName(t: {
   const keyWord = words[0] ?? null;
   const cardCore = cardName ? cardName.replace(/^The\s+/i, "") : null;
   if (keyWord && cardCore) {
+    // DW-5 — Skip the keyword when it's already part of the card name
+    // (e.g. "nine" extracted from a thread about Nine of Wands would
+    // produce "Nine Nine of Wands"). Fall back to cardCore alone.
+    if (cardCore.toLowerCase().includes(keyWord.toLowerCase())) {
+      return cardCore.slice(0, 60);
+    }
     const cap = keyWord.charAt(0).toUpperCase() + keyWord.slice(1);
     return `${cap} ${cardCore}`.slice(0, 60);
   }
