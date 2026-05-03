@@ -88,13 +88,36 @@ export async function fetchDeckCards(deckId: string): Promise<CustomDeckCard[]> 
 export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   const cards = await fetchDeckCards(deckId);
   const map: DeckImageMap = { display: {}, thumbnail: {}, back: null };
+  // Re-sign from storage paths so we never serve stale/expired signed URLs.
+  // Falls back to the stored URL when a path is missing (legacy rows).
+  const yearSecs = 60 * 60 * 24 * 365;
+  const pathToCard = new Map<string, { cardId: number; kind: "display" | "thumbnail" }>();
+  const allPaths: string[] = [];
   for (const c of cards) {
-    // Source-aware resolution (BJ Fix 2): rows with source='default'
-    // intentionally fall through to the deck's default fallback so the
-    // sync resolver in resolveCardImage() picks up the Rider-Waite art.
     if (c.source === "default") continue;
-    map.display[c.card_id] = c.display_url;
-    map.thumbnail[c.card_id] = c.thumbnail_url;
+    if (c.display_path) {
+      pathToCard.set(c.display_path, { cardId: c.card_id, kind: "display" });
+      allPaths.push(c.display_path);
+    } else if (c.display_url) {
+      map.display[c.card_id] = c.display_url;
+    }
+    if (c.thumbnail_path) {
+      pathToCard.set(c.thumbnail_path, { cardId: c.card_id, kind: "thumbnail" });
+      allPaths.push(c.thumbnail_path);
+    } else if (c.thumbnail_url) {
+      map.thumbnail[c.card_id] = c.thumbnail_url;
+    }
+  }
+  if (allPaths.length > 0) {
+    const { data: signed } = await supabase.storage
+      .from("custom-deck-images")
+      .createSignedUrls(allPaths, yearSecs);
+    for (const entry of signed ?? []) {
+      if (!entry.signedUrl || !entry.path) continue;
+      const meta = pathToCard.get(entry.path);
+      if (!meta) continue;
+      map[meta.kind][meta.cardId] = entry.signedUrl;
+    }
   }
   // Pull the deck row separately for back image.
   const { data: deck } = await supabase
