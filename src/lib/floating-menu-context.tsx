@@ -123,21 +123,20 @@ export const useFloatingMenu = () => useContext(FloatingMenuContext);
 /** Register a close handler that becomes the X icon in the floating menu. */
 export function useRegisterCloseHandler(fn: (() => void) | null) {
   const { setCloseHandler } = useFloatingMenu();
-  // Keep a ref to the latest fn so screens don't need to memoize the
-  // handler every render. The context only stores a stable forwarder
-  // and is updated/cleared once per mount.
+  // EA-8 — re-run when fn toggles between null/non-null so the
+  // forwarder is cleared when the screen no longer wants to own the X.
+  // ref keeps latest implementation so callers don't have to memoize.
   const ref = useRef(fn);
   ref.current = fn;
+  const has = fn != null;
   useEffect(() => {
-    if (!ref.current) {
+    if (!has) {
       setCloseHandler(null);
       return;
     }
     setCloseHandler(() => ref.current?.());
     return () => setCloseHandler(null);
-    // Only re-run on mount/unmount — fn changes are picked up via ref.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setCloseHandler]);
+  }, [setCloseHandler, has]);
 }
 
 /** Register a help handler that becomes the ? icon in the floating menu. */
@@ -197,13 +196,13 @@ export function useRegisterShareBuilderClose(fn: (() => void) | null) {
   const { setShareBuilderClose } = useFloatingMenu();
   const ref = useRef(fn);
   ref.current = fn;
+  const has = fn != null;
   useEffect(() => {
-    if (!ref.current) {
+    if (!has) {
       setShareBuilderClose(null);
       return;
     }
     setShareBuilderClose(() => ref.current?.());
     return () => setShareBuilderClose(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setShareBuilderClose]);
+  }, [setShareBuilderClose, has]);
 }
