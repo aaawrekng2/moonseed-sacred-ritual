@@ -281,7 +281,10 @@ function Index() {
                   style={{
                     width: "100%",
                     height: "100%",
-                    objectFit: "cover",
+                    // DT-5 — Restore full hero card render. NEW.1's
+                    // crop fix is scoped to draw/tabletop only; the
+                    // home hero must show all four ornamental edges.
+                    objectFit: "contain",
                     display: "block",
                   }}
                   loading="eager"
