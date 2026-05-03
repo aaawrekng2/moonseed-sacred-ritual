@@ -228,6 +228,7 @@ export function SpreadLayout({
           cardId={zoomedCard.cardIndex}
           reversed={zoomedCard.reversed}
           onClose={() => setZoomedCard(null)}
+          deckId={deckId ?? null}
         />
       )}
     </main>

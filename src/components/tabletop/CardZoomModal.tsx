@@ -11,17 +11,24 @@
  */
 import { X } from "lucide-react";
 import { getCardName } from "@/lib/tarot";
-import { useActiveDeckImage } from "@/lib/active-deck";
+import { useDeckImage } from "@/lib/active-deck";
 import { useEffect, useState } from "react";
 
 interface CardZoomModalProps {
   cardId: number;
   reversed?: boolean;
   onClose: () => void;
+  /**
+   * DT-10a — When viewing a saved reading, pass the reading's saved
+   * `deck_id` so the zoom uses the same artwork the reading was drawn
+   * with — not the seeker's currently-active deck. Pass null/omit for
+   * default Rider-Waite (or the live-active-deck case).
+   */
+  deckId?: string | null;
 }
 
-export function CardZoomModal({ cardId, reversed, onClose }: CardZoomModalProps) {
-  const cardImg = useActiveDeckImage();
+export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomModalProps) {
+  const cardImg = useDeckImage(deckId ?? null);
   // DB-1.2 — viewing-only rotate. Local state, never persists; saved
   // reading data is unaffected.
   const [tempUpright, setTempUpright] = useState(false);
@@ -55,7 +62,7 @@ export function CardZoomModal({ cardId, reversed, onClose }: CardZoomModalProps)
         <X size={24} />
       </button>
       <img
-        src={cardImg(cardId)}
+        src={cardImg(cardId) ?? undefined}
         alt={getCardName(cardId)}
         className="rounded-lg object-contain"
         style={{
