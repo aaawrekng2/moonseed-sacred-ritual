@@ -91,11 +91,8 @@ function Index() {
   const showSkeleton = deckLoading && !skeletonTimedOut;
   const navigate = useNavigate();
   const { currentStreak, longestStreak } = useStreak();
-  // EE-8 — Streak Moon glyph + modal. The glyph reflects today's actual
-  // moon phase (computed once per mount) so each day's streak marker
-  // visually echoes the sky. Tapping opens a modal with current/longest
-  // streak detail and a brief affordance to keep the practice going.
-  const moonInfo = useMemo(() => getCurrentMoonPhase(new Date()), []);
+  // EG-4 — Streak glyph is locked to streak progression (NOT today's
+  // sky moon phase). The MoonCarousel handles current-phase display.
   const [streakModalOpen, setStreakModalOpen] = useState(false);
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
