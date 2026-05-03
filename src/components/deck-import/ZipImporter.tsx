@@ -119,6 +119,11 @@ export function ZipImporter({
   const queueRef = useRef<EncodingQueue>(new EncodingQueue());
   const saverRef = useRef(makeThrottledSaver(deckId));
   const confirm = useConfirm();
+  // EH-4 — register the FloatingMenu X handler when used as the
+  // deck-editor workspace (edit mode). Import mode keeps its own UI.
+  useRegisterCloseHandler(
+    entryMode === "edit" ? () => onCancel() : null,
+  );
 
   // CB — per-slot save state map. Slot key matches session.assigned keys
   // ("0".."77" or "BACK"). Missing entry = clean/empty.
