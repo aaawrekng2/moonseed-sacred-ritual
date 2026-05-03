@@ -75,10 +75,11 @@ function Index() {
   // CL Group 5 — gate the gateway card render on active-deck loading
   // so the themed default never flashes before the photographed back.
   const { loading: deckLoading } = useActiveDeck();
-  // EE-2 — Skeleton dismissal safety net. If the active-deck loader
-  // takes longer than 1500ms (slow network, cold cache, edge fn warmup),
-  // we stop showing the shimmer placeholder and fall through to the
-  // card back so the home hero never feels "stuck loading".
+  // EG-1 — Skeleton dismisses when the hero image actually loads (onLoad).
+  // Falls back to a 1500ms timeout only if loading hangs (slow network /
+  // cold cache). The hero <img>'s onLoad sets heroImageLoaded=true,
+  // immediately swapping skeleton for image.
+  const [heroImageLoaded, setHeroImageLoaded] = useState(false);
   const [skeletonTimedOut, setSkeletonTimedOut] = useState(false);
   useEffect(() => {
     if (!deckLoading) {
@@ -88,12 +89,14 @@ function Index() {
     const t = window.setTimeout(() => setSkeletonTimedOut(true), 1500);
     return () => window.clearTimeout(t);
   }, [deckLoading]);
-  const showSkeleton = deckLoading && !skeletonTimedOut;
   const navigate = useNavigate();
   const { currentStreak, longestStreak } = useStreak();
   // EG-4 — Streak glyph is locked to streak progression (NOT today's
   // sky moon phase). The MoonCarousel handles current-phase display.
   const [streakModalOpen, setStreakModalOpen] = useState(false);
+  // EG-3 — first-time onboarding hint anchored to the spread icons row.
+  const drawTypeRowRef = useRef<HTMLDivElement | null>(null);
+  const [showDrawTypeHint, setShowDrawTypeHint] = useState(false);
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
   const isAnonymous = !user?.email;
