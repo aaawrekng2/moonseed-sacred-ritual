@@ -21,6 +21,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useConfirm } from "@/hooks/use-confirm";
+import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import {
   FREE_DECK_LIMIT,
   fetchDeckCards,
@@ -364,6 +365,12 @@ function DeckEditor({
           initialPhase: startInUploadPhase ? "upload" : "workspace",
         }
       : { kind: "details" },
+  );
+  // EH-4 — wire FloatingMenu X icon to close back to deck list when
+  // we're in the grid overview. Workspace mode is handled inside
+  // ZipImporter itself.
+  useRegisterCloseHandler(
+    mode.kind === "grid" ? () => onClose(true) : null,
   );
   const [saving, setSaving] = useState(false);
   const [cards, setCards] = useState<CustomDeckCard[]>([]);
