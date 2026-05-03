@@ -355,6 +355,7 @@ function DeckEditor({
   const [name, setName] = useState(existing?.name ?? "My Deck");
   const [shape, setShape] = useState<CustomDeck["shape"]>(existing?.shape ?? "rectangle");
   const [cornerRadius, setCornerRadius] = useState(existing?.corner_radius_percent ?? 4);
+  const cornerRadiusPx = existing?.corner_radius_px ?? null;
   const [mode, setMode] = useState<EditorMode>(
     existing
       ? {
@@ -884,6 +885,7 @@ function DeckEditor({
         entryMode="import"
         initialPhase="upload"
         deckName={name}
+        existingCornerRadiusPx={cornerRadiusPx}
         onCancel={() => onClose(true)}
         onDone={async () => {
           await reloadCards(deckId);
@@ -906,6 +908,7 @@ function DeckEditor({
         entryMode="edit"
         initialPhase={mode.initialPhase}
         deckName={name}
+        existingCornerRadiusPx={cornerRadiusPx}
         onCancel={async () => {
           await reloadCards(deckId);
           onClose(true);
