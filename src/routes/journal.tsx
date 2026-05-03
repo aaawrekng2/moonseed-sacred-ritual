@@ -25,7 +25,7 @@ import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CardZoomModal } from "@/components/tabletop/CardZoomModal";
 import { ArchiveView } from "@/components/journal/ArchiveView";
-import { archiveReading, daysUntilPurge } from "@/lib/readings-archive";
+import { archiveReading, daysUntilPurge, restoreReading } from "@/lib/readings-archive";
 import { useServerFn } from "@tanstack/react-start";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
@@ -923,6 +923,7 @@ function JournalPage() {
           />
         ) : view === "archive" ? (
           <ArchiveView
+            onOpen={(id) => setOpenId(id)}
             onChanged={() => {
               // Restore puts a reading back in the active list — pull
               // a fresh copy so it shows up everywhere.
