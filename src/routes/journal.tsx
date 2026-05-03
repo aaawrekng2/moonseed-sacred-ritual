@@ -227,6 +227,9 @@ function JournalPage() {
   } | null>(null);
 
   const [readings, setReadings] = useState<ReadingRow[]>([]);
+  // EG-2 — increments on every archive action so ArchiveView remounts
+  // (and re-fetches) when the user navigates to the archive tab.
+  const [archiveCounter, setArchiveCounter] = useState(0);
   const [tags, setTags] = useState<TagRow[]>([]);
   const [threads, setThreads] = useState<ThreadRow[]>([]);
   const [patternsById, setPatternsById] = useState<Record<string, PatternRow>>({});
