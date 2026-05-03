@@ -1276,6 +1276,14 @@ function Workspace({
         </button>
       )}
 
+      {/* DX — Card corner radius slider (edit mode only). */}
+      {entryMode === "edit" && (
+        <CornerRadiusSlider
+          deckId={deckId}
+          initial={existingCornerRadiusPx}
+        />
+      )}
+
       {/* Tab body */}
       {tab === "unassigned" && (
         <ImageGrid
