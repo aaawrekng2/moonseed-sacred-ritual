@@ -11,6 +11,50 @@ import type { ShareLevel } from "./share-types";
 
 type SigilProps = { size?: number; color?: string };
 
+/**
+ * DS — Sigil with accent-colored glow halo behind it. The halo is a
+ * blurred radial gradient sized ~30-40px larger than the sigil on
+ * each side. Reads as a wax seal / pressed emblem.
+ */
+export function SigilWithGlow({
+  Sigil,
+  size = 128,
+}: {
+  Sigil: (p: SigilProps) => ReactElement;
+  size?: number;
+}) {
+  const halo = size + 64;
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: size,
+        height: size,
+        display: "inline-block",
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: (size - halo) / 2,
+          top: (size - halo) / 2,
+          width: halo,
+          height: halo,
+          background:
+            "radial-gradient(circle, var(--accent-glow, var(--accent)) 0%, transparent 70%)",
+          filter: "blur(16px)",
+          opacity: 0.6,
+          pointerEvents: "none",
+        }}
+      />
+      <div style={{ position: "relative" }}>
+        <Sigil size={size} />
+      </div>
+    </div>
+  );
+}
+
 function SigilSvg({
   size = 64,
   color = "var(--accent)",
