@@ -74,7 +74,7 @@ function Index() {
   const heroDeckRadius = useActiveDeckCornerRadius();
   // CL Group 5 — gate the gateway card render on active-deck loading
   // so the themed default never flashes before the photographed back.
-  const { loading: deckLoading } = useActiveDeck();
+  const { activeDeck, loading: deckLoading } = useActiveDeck();
   // EG-1 — Skeleton dismisses when the hero image actually loads (onLoad).
   // Falls back to a 1500ms timeout only if loading hangs (slow network /
   // cold cache). The hero <img>'s onLoad sets heroImageLoaded=true,
@@ -275,7 +275,12 @@ function Index() {
   // OR while we have a card but its image hasn't decoded yet.
   const showSkeleton =
     (deckLoading && !skeletonTimedOut) ||
-    (!!todayCard && !heroImageLoaded);
+    (!!todayCard && !heroImageLoaded) ||
+    // EH-3 — keep skeleton up while we still might be resolving a
+    // custom deck. Without this, the CardBack fallback briefly renders
+    // the default Rider-Waite back on PWA cold open before activeDeck
+    // resolves to the user's photographed back.
+    (todayCard === null && activeDeck === null && !skeletonTimedOut && !customBackUrl);
 
   // DB-2.1 — Gateway padding tightens when the moon carousel is visible
   // so the spread icons aren't pushed past the bottom nav. The page also
