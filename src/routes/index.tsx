@@ -300,6 +300,7 @@ function Index() {
               </div>
             ) : deckLoading ? (
               <div
+                className="hero-skeleton-shimmer"
                 style={{
                   width: "100%",
                   height: "100%",
@@ -307,6 +308,9 @@ function Index() {
                   background: "color-mix(in oklab, var(--gold) 6%, transparent)",
                   border: "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
                   animation: "fade-in 200ms ease-out both",
+                  position: "relative",
+                  overflow: "hidden",
+                  ...cornerRadiusStyle(heroDeckRadius, cardWidth),
                 }}
                 aria-label="Loading today's card"
               />
