@@ -374,12 +374,16 @@ export const setMirrorSaved = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ ok: boolean }> => {
     try {
       const { supabase, userId } = context;
-      const patch: Record<string, unknown> = {
+      const patch: {
+        mirror_saved: boolean;
+        mirror_saved_at: string | null;
+        mirror_significance?: string | null;
+      } = {
         mirror_saved: data.saved,
         mirror_saved_at: data.saved ? new Date().toISOString() : null,
       };
       if (data.significance !== undefined) {
-        patch.mirror_significance = data.saved ? data.significance : null;
+        patch.mirror_significance = data.saved ? (data.significance ?? null) : null;
       } else if (!data.saved) {
         patch.mirror_significance = null;
       }
