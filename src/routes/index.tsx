@@ -75,7 +75,13 @@ function Index() {
   // so the themed default never flashes before the photographed back.
   const { loading: deckLoading } = useActiveDeck();
   const navigate = useNavigate();
-  const { currentStreak } = useStreak();
+  const { currentStreak, longestStreak } = useStreak();
+  // EE-8 — Streak Moon glyph + modal. The glyph reflects today's actual
+  // moon phase (computed once per mount) so each day's streak marker
+  // visually echoes the sky. Tapping opens a modal with current/longest
+  // streak detail and a brief affordance to keep the practice going.
+  const moonInfo = useMemo(() => getCurrentMoonPhase(new Date()), []);
+  const [streakModalOpen, setStreakModalOpen] = useState(false);
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
   const isAnonymous = !user?.email;
