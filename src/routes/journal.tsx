@@ -2204,6 +2204,41 @@ function ReadingDetail({
       className="bg-cosmos fixed inset-0 z-50 overflow-y-auto"
     >
       <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+56px)]">
+        {isArchived && (
+          <div
+            role="status"
+            className="mb-4 flex items-center justify-between gap-3 rounded-xl px-3 py-2"
+            style={{
+              border:
+                "1px solid color-mix(in oklab, var(--gold) 22%, transparent)",
+              background:
+                "color-mix(in oklab, var(--gold) 8%, transparent)",
+            }}
+          >
+            <div
+              className="font-display text-[12px] italic"
+              style={{ color: "var(--gold)", opacity: 0.9 }}
+            >
+              Archived — restore to edit. Permanently deletes in {archivedDays}{" "}
+              {archivedDays === 1 ? "day" : "days"}.
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleRestore()}
+              disabled={restoring}
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-display text-[12px] italic transition-colors disabled:opacity-50"
+              style={{
+                border:
+                  "1px solid color-mix(in oklab, var(--gold) 32%, transparent)",
+                color: "var(--gold)",
+                background: "transparent",
+              }}
+            >
+              <ArchiveIcon size={12} strokeWidth={1.5} aria-hidden />
+              Restore
+            </button>
+          </div>
+        )}
         <header>
           <div className="flex items-start justify-between gap-3">
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
