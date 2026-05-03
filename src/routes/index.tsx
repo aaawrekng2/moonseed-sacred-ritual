@@ -475,6 +475,100 @@ function Index() {
         />
       </section>
     </div>
+    {/* EE-8 — Streak detail modal */}
+    <Dialog open={streakModalOpen} onOpenChange={setStreakModalOpen}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              color: "var(--gold)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+            }}
+          >
+            <MoonPhaseIcon
+              phase={moonInfo.phase}
+              illumination={moonInfo.illumination}
+              size={28}
+              ringColor="rgba(212,175,55,0.4)"
+              ringWidth={1.5}
+            />
+            Your practice
+          </DialogTitle>
+          <DialogDescription className="text-center">
+            Tonight's moon: {moonInfo.phase} ({moonInfo.illumination}% lit)
+          </DialogDescription>
+        </DialogHeader>
+        <div
+          className="grid grid-cols-2 gap-4 py-2"
+          style={{ fontFamily: "var(--font-serif)" }}
+        >
+          <div className="text-center">
+            <div
+              style={{
+                fontSize: "32px",
+                color: "var(--gold)",
+                lineHeight: 1,
+              }}
+            >
+              {currentStreak}
+            </div>
+            <div
+              style={{
+                fontSize: "var(--text-caption)",
+                color: "var(--foreground)",
+                opacity: 0.6,
+                marginTop: 4,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+              }}
+            >
+              Current
+            </div>
+          </div>
+          <div className="text-center">
+            <div
+              style={{
+                fontSize: "32px",
+                color: "var(--foreground)",
+                opacity: 0.85,
+                lineHeight: 1,
+              }}
+            >
+              {longestStreak}
+            </div>
+            <div
+              style={{
+                fontSize: "var(--text-caption)",
+                color: "var(--foreground)",
+                opacity: 0.6,
+                marginTop: 4,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+              }}
+            >
+              Longest
+            </div>
+          </div>
+        </div>
+        <p
+          className="text-center"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            color: "var(--foreground)",
+            opacity: 0.7,
+          }}
+        >
+          Pull a card today to keep the moon waxing.
+        </p>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }
