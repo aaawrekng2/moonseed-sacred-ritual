@@ -110,7 +110,7 @@ export function useActiveCardBackUrl(): string | null {
  */
 export function useActiveDeckCornerRadius(): number | null {
   const { imageMap } = useActiveDeck();
-  return imageMap.cornerRadiusPx;
+  return imageMap.cornerRadiusPercent;
 }
 
 /**
@@ -191,7 +191,7 @@ export function useDeckCornerRadius(deckId: string | null | undefined): number |
     void (async () => {
       try {
         const map = await buildDeckImageMap(deckId);
-        if (!cancelled) setValue(map.cornerRadiusPx);
+        if (!cancelled) setValue(map.cornerRadiusPercent);
       } catch {
         if (!cancelled) setValue(null);
       }
