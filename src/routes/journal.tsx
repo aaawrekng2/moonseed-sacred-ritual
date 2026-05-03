@@ -249,6 +249,10 @@ function JournalPage() {
   const [view, setView] = useState<ViewMode>("readings");
   const [openId, setOpenId] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // ED-2A — cache for an archived reading opened from the Archive view.
+  // Active readings come from `readings`; archived rows are filtered out
+  // of that list, so we lazily fetch them by id here.
+  const [openOverride, setOpenOverride] = useState<ReadingRow | null>(null);
 
   // Fetch readings + tags + photo counts whenever the user resolves.
   useEffect(() => {
@@ -441,7 +445,8 @@ function JournalPage() {
     );
   }, [readings, patternsById]);
   const openReading = openId
-    ? readings.find((r) => r.id === openId) ?? null
+    ? readings.find((r) => r.id === openId) ??
+      (openOverride && openOverride.id === openId ? openOverride : null)
     : null;
 
   // Stable callbacks for the EnrichmentPanel — keep the Journal list and
