@@ -48,19 +48,19 @@ export type DeckImageMap = {
   thumbnail: Record<number, string>;
   back: string | null;
   /**
-   * DX — saved per-deck CSS border-radius in pixels (whole pixels). Null
-   * means "use the app's existing default". Resolved at deck-load time
-   * so render sites can apply inline `border-radius` without an extra
-   * round trip.
+   * EC-2 — saved per-deck CSS border-radius as a PERCENTAGE (0-15) of
+   * card width. Null means "use the app's existing default". Resolved
+   * at deck-load time so render sites can apply inline `border-radius`
+   * without an extra round trip.
    */
-  cornerRadiusPx: number | null;
+  cornerRadiusPercent: number | null;
 };
 
 export const EMPTY_DECK_IMAGE_MAP: DeckImageMap = {
   display: {},
   thumbnail: {},
   back: null,
-  cornerRadiusPx: null,
+  cornerRadiusPercent: null,
 };
 
 export async function fetchUserDecks(userId: string): Promise<CustomDeck[]> {
@@ -96,7 +96,7 @@ export async function fetchDeckCards(deckId: string): Promise<CustomDeckCard[]> 
 
 export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   const cards = await fetchDeckCards(deckId);
-  const map: DeckImageMap = { display: {}, thumbnail: {}, back: null, cornerRadiusPx: null };
+  const map: DeckImageMap = { display: {}, thumbnail: {}, back: null, cornerRadiusPercent: null };
   // Re-sign from storage paths so we never serve stale/expired signed URLs.
   // Falls back to the stored URL when a path is missing (legacy rows).
   const yearSecs = 60 * 60 * 24 * 365;
@@ -131,7 +131,7 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   // Pull the deck row separately for back image.
   const { data: deck } = await supabase
     .from("custom_decks")
-    .select("card_back_url, card_back_path, corner_radius_px")
+    .select("card_back_url, card_back_path, corner_radius_percent")
     .eq("id", deckId)
     .maybeSingle();
   const backPath = (deck as { card_back_path?: string | null } | null)?.card_back_path ?? null;
@@ -143,11 +143,13 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   } else {
     map.back = (deck?.card_back_url as string | null | undefined) ?? null;
   }
-  const cr = (deck as { corner_radius_px?: number | null } | null)?.corner_radius_px;
-  // DY-1A — value semantics changed from px to PERCENTAGE (0-15).
-  // Clamp legacy DX values (which could be up to 60 in the old px units)
+  // EC-1 — read corner_radius_percent (the column DeckEditor saves to).
+  // The corner_radius_px column is legacy and no longer used at runtime.
+  const cr = (deck as { corner_radius_percent?: number | null } | null)
+    ?.corner_radius_percent;
+  // Clamp legacy values (which could be up to 30 from the older slider)
   // so they don't render as huge percentages on existing rows.
-  map.cornerRadiusPx =
+  map.cornerRadiusPercent =
     typeof cr === "number" ? Math.max(0, Math.min(15, Math.round(cr))) : null;
   return map;
 }
