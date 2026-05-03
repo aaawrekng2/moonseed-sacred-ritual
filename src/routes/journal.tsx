@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, SlidersHorizontal, X as XIcon } from "lucide-react";
+import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, SlidersHorizontal, Sparkles, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -1101,7 +1101,12 @@ function ReadingCard({
           }}
           className={cn(
             "absolute inset-y-0 right-0 z-10 flex items-center justify-center px-4 text-gold transition-opacity",
-            "opacity-0 group-hover/reading:opacity-100 focus:opacity-100",
+            // EA-5 — never capture clicks unless actually revealed.
+            isMobile
+              ? swipeX <= -REVEAL_PX * 0.6
+                ? "opacity-100"
+                : "opacity-0 pointer-events-none"
+              : "opacity-0 pointer-events-none group-hover/reading:opacity-100 group-hover/reading:pointer-events-auto focus:opacity-100 focus:pointer-events-auto",
           )}
           style={{
             width: REVEAL_PX,
