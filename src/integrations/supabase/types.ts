@@ -141,6 +141,7 @@ export type Database = {
           card_back_url: string | null
           cards_photographed_count: number
           corner_radius_percent: number
+          corner_radius_px: number | null
           created_at: string
           height_inches: number | null
           id: string
@@ -159,6 +160,7 @@ export type Database = {
           card_back_url?: string | null
           cards_photographed_count?: number
           corner_radius_percent?: number
+          corner_radius_px?: number | null
           created_at?: string
           height_inches?: number | null
           id?: string
@@ -177,6 +179,7 @@ export type Database = {
           card_back_url?: string | null
           cards_photographed_count?: number
           corner_radius_percent?: number
+          corner_radius_px?: number | null
           created_at?: string
           height_inches?: number | null
           id?: string
