@@ -1203,6 +1203,16 @@ function ReadingCard({
           }}
           aria-hidden
         />
+        {reading.mirror_saved && (
+          <Bookmark
+            size={14}
+            strokeWidth={1.5}
+            className="shrink-0 text-accent"
+            fill="currentColor"
+            style={{ opacity: 0.8, color: "var(--accent)" }}
+            aria-label="Saved reading"
+          />
+        )}
       </div>
 
       {/* Card thumbnails */}
