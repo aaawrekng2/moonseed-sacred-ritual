@@ -68,7 +68,7 @@ export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomMod
         ref={imgRef}
         src={cardImg(cardId) ?? undefined}
         alt={getCardName(cardId)}
-        className="rounded-lg object-contain"
+        className="object-contain"
         style={{
           maxHeight: reversed ? "78vh" : "85vh",
           maxWidth: "90vw",

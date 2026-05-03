@@ -641,8 +641,8 @@ function CardStrip({
     const card = (i: number) => (
       <div key={picks[i]?.id ?? i} className="flex flex-col items-center gap-1">
         <div
-          className="reading-card-frame overflow-hidden rounded-[6px] border border-border/40 bg-card"
-          style={{ width: cw, height: ch, boxShadow: "0 4px 14px rgba(0,0,0,0.45)" }}
+          className="reading-card-frame overflow-hidden border border-border/40 bg-card"
+          style={{ width: cw, height: ch, boxShadow: "0 4px 14px rgba(0,0,0,0.45)", ...cornerRadiusStyle(deckRadiusPx, cw) }}
         >
           {picks[i] && (
             <img
@@ -700,14 +700,14 @@ function CardStrip({
             <div className="relative flex items-center justify-center" style={{ width: cw, height: ch }}>
               <div className="absolute inset-0 flex items-center justify-center">
                 {picks[0] && (
-                  <div className="reading-card-frame overflow-hidden rounded-[6px] border border-border/40 bg-card" style={{ width: cw, height: ch }}>
+                  <div className="reading-card-frame overflow-hidden border border-border/40 bg-card" style={{ width: cw, height: ch, ...cornerRadiusStyle(deckRadiusPx, cw) }}>
                     <img src={cardImg(picks[0].cardIndex)} alt={getCardName(picks[0].cardIndex)} className="h-full w-full object-contain" loading="eager" style={{ transform: picks[0].isReversed ? "rotate(180deg)" : undefined, transition: "transform 600ms ease-out", ...cornerRadiusStyle(deckRadiusPx, cw) }} />
                   </div>
                 )}
               </div>
               <div className="absolute inset-0 flex items-center justify-center" style={{ transform: "rotate(90deg)" }}>
                 {picks[1] && (
-                  <div className="reading-card-frame overflow-hidden rounded-[6px] border border-border/40 bg-card" style={{ width: cw, height: ch }}>
+                  <div className="reading-card-frame overflow-hidden border border-border/40 bg-card" style={{ width: cw, height: ch, ...cornerRadiusStyle(deckRadiusPx, cw) }}>
                     <img src={cardImg(picks[1].cardIndex)} alt={getCardName(picks[1].cardIndex)} className="h-full w-full object-contain" loading="eager" style={{ transform: picks[1].isReversed ? "rotate(180deg)" : undefined, transition: "transform 600ms ease-out", ...cornerRadiusStyle(deckRadiusPx, cw) }} />
                   </div>
                 )}
@@ -810,11 +810,12 @@ function CardStrip({
           )}
         >
           <div
-            className="reading-card-frame overflow-hidden rounded-[6px] border border-border/40 bg-card"
+            className="reading-card-frame overflow-hidden border border-border/40 bg-card"
             style={{
               width: w,
               height: h,
               boxShadow: "0 4px 14px rgba(0,0,0,0.45)",
+              ...cornerRadiusStyle(deckRadiusPx, w),
             }}
           >
             <img

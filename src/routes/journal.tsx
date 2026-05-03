@@ -1288,7 +1288,7 @@ function ReadingCard({
               src={getImage(id, "thumbnail")}
               alt={getCardName(id)}
               loading="lazy"
-              className="flex-shrink-0 rounded-[3px]"
+              className="flex-shrink-0"
               style={{
                 width: "74px",
                 aspectRatio: "1 / 1.75",
@@ -1309,7 +1309,7 @@ function ReadingCard({
               src={getImage(id, "thumbnail")}
               alt={getCardName(id)}
               loading="lazy"
-              className="rounded-[3px]"
+              className=""
               style={{
                 width: "74px",
                 aspectRatio: "1 / 1.75",
@@ -2372,7 +2372,7 @@ function ReadingDetail({
                   type="button"
                   onClick={() => setZoomedCard({ cardId: id, reversed: isReversed })}
                   aria-label={`Zoom ${getCardName(id)}`}
-                  className="block rounded-md transition active:scale-[0.98]"
+                  className="block transition active:scale-[0.98]"
                 >
                    <CardThumb
                      src={getImage(id)}
@@ -2380,7 +2380,7 @@ function ReadingDetail({
                      // DO-3 — drop fixed h-32 + object-cover; enforce
                      // tarot 1:1.75 aspect with object-fit: contain so
                      // the card never crops top/bottom.
-                     className="w-20 rounded-md"
+                     className="w-20"
                      style={{
                        aspectRatio: "1 / 1.75",
                        objectFit: "contain",

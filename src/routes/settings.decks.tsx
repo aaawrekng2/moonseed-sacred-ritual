@@ -21,6 +21,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useConfirm } from "@/hooks/use-confirm";
+import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import {
   FREE_DECK_LIMIT,
   fetchDeckCards,
@@ -365,6 +366,12 @@ function DeckEditor({
         }
       : { kind: "details" },
   );
+  // EH-4 — wire FloatingMenu X icon to close back to deck list when
+  // we're in the grid overview. Workspace mode is handled inside
+  // ZipImporter itself.
+  useRegisterCloseHandler(
+    mode.kind === "grid" ? () => onClose(true) : null,
+  );
   const [saving, setSaving] = useState(false);
   const [cards, setCards] = useState<CustomDeckCard[]>([]);
   const [deckBackUrl, setDeckBackUrl] = useState<string | null>(
@@ -509,7 +516,8 @@ function DeckEditor({
               <input
                 type="range"
                 min={0}
-                max={30}
+                max={8}
+                step={1}
                 value={cornerRadius}
                 onChange={(e) => setCornerRadius(Number(e.target.value))}
                 className="mt-2 block w-full"
@@ -614,28 +622,12 @@ function DeckEditor({
     );
     return (
       <section className="py-6">
-        <header className="mb-6 flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => onClose(true)}
-            aria-label="Close deck editor"
-            className="rounded-md p-1.5 hover:bg-foreground/5"
-          >
-            <X className="h-5 w-5" />
-          </button>
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-2xl font-semibold">{name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {photographedIds.length}/78 cards customized
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => onClose(true)}
-            className="shrink-0 rounded-md border border-gold/30 px-3 py-1.5 text-sm hover:bg-gold/10"
-          >
-            Done
-          </button>
+        {/* EH-4 — close affordance moved to global FloatingMenu */}
+        <header className="mb-6">
+          <h1 className="truncate text-2xl font-semibold">{name}</h1>
+          <p className="text-sm text-muted-foreground">
+            {photographedIds.length}/78 cards customized
+          </p>
         </header>
 
         <div className="mb-4 flex flex-wrap gap-2">
