@@ -2168,6 +2168,7 @@ function ReadingDetail({
       return;
     }
     toast.success("Reading restored.");
+    onRestored?.();
     onClose();
   };
   const handleArchive = async () => {
