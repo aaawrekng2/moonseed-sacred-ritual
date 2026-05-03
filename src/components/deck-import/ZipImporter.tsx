@@ -54,6 +54,7 @@ import {
   getSnapshot,
   restoreSnapshot,
 } from "@/lib/import-snapshot";
+import { CornerRadiusSlider } from "./CornerRadiusSlider";
 
 const ZIP_MAX_BYTES = 20 * 1024 * 1024;
 const VALID_EXT = /\.(png|jpe?g|webp|gif)$/i;
@@ -91,6 +92,7 @@ export function ZipImporter({
   entryMode = "import",
   initialPhase,
   deckName,
+  existingCornerRadiusPx = null,
 }: {
   userId: string;
   deckId: string;
@@ -108,6 +110,8 @@ export function ZipImporter({
   initialPhase?: "upload" | "workspace";
   /** CC G5 — used as the workspace title in edit mode. */
   deckName?: string | null;
+  /** DX — saved per-deck corner radius in px (null = app default). */
+  existingCornerRadiusPx?: number | null;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
