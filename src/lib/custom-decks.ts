@@ -22,6 +22,7 @@ export type CustomDeck = {
   width_inches: number | null;
   height_inches: number | null;
   corner_radius_percent: number;
+  corner_radius_px: number | null;
   card_back_url: string | null;
   card_back_thumb_url: string | null;
   is_complete: boolean;
@@ -46,12 +47,20 @@ export type DeckImageMap = {
   display: Record<number, string>;
   thumbnail: Record<number, string>;
   back: string | null;
+  /**
+   * DX — saved per-deck CSS border-radius in pixels (whole pixels). Null
+   * means "use the app's existing default". Resolved at deck-load time
+   * so render sites can apply inline `border-radius` without an extra
+   * round trip.
+   */
+  cornerRadiusPx: number | null;
 };
 
 export const EMPTY_DECK_IMAGE_MAP: DeckImageMap = {
   display: {},
   thumbnail: {},
   back: null,
+  cornerRadiusPx: null,
 };
 
 export async function fetchUserDecks(userId: string): Promise<CustomDeck[]> {
@@ -87,7 +96,7 @@ export async function fetchDeckCards(deckId: string): Promise<CustomDeckCard[]> 
 
 export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   const cards = await fetchDeckCards(deckId);
-  const map: DeckImageMap = { display: {}, thumbnail: {}, back: null };
+  const map: DeckImageMap = { display: {}, thumbnail: {}, back: null, cornerRadiusPx: null };
   // Re-sign from storage paths so we never serve stale/expired signed URLs.
   // Falls back to the stored URL when a path is missing (legacy rows).
   const yearSecs = 60 * 60 * 24 * 365;
@@ -122,7 +131,7 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   // Pull the deck row separately for back image.
   const { data: deck } = await supabase
     .from("custom_decks")
-    .select("card_back_url, card_back_path")
+    .select("card_back_url, card_back_path, corner_radius_px")
     .eq("id", deckId)
     .maybeSingle();
   const backPath = (deck as { card_back_path?: string | null } | null)?.card_back_path ?? null;
@@ -134,6 +143,8 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   } else {
     map.back = (deck?.card_back_url as string | null | undefined) ?? null;
   }
+  const cr = (deck as { corner_radius_px?: number | null } | null)?.corner_radius_px;
+  map.cornerRadiusPx = typeof cr === "number" ? cr : null;
   return map;
 }
 
