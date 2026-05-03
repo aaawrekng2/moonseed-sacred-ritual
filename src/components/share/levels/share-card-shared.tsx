@@ -272,7 +272,7 @@ export function ShareCardRow({
             style={{
               width: cardWidth,
               height: cardHeight,
-              borderRadius: deckRadiusPx ?? 16,
+              borderRadius: deckRadiusPx != null ? `${deckRadiusPx}%` : 16,
               overflow: "hidden",
               boxShadow: "0 24px 48px rgba(0,0,0,0.45)",
               // DN-6 — inherit active theme background instead of a
