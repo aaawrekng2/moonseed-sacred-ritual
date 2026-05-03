@@ -306,7 +306,7 @@ function Index() {
               })
             }
           >
-            {todayCard !== null && !deckLoading ? (
+            {todayCard !== null && !showSkeleton ? (
               <div
                 style={{
                   width: "100%",
@@ -327,7 +327,7 @@ function Index() {
                   loading="eager"
                 />
               </div>
-            ) : deckLoading ? (
+            ) : showSkeleton ? (
               <div
                 className="hero-skeleton-shimmer"
                 style={{
