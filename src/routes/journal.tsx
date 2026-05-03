@@ -12,6 +12,7 @@ import { cn, firstCardName, formatRelativeTime } from "@/lib/utils";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { useDeckImage, useDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
+import { useElementWidth } from "@/lib/use-element-width";
 import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
 import { toast } from "sonner";
 import {
@@ -1240,7 +1241,7 @@ function ReadingCard({
                 border:
                   "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
                 opacity: "var(--ro-plus-30)",
-                ...cornerRadiusStyle(deckRadiusPx),
+                ...cornerRadiusStyle(deckRadiusPx, 74),
               }}
             />
           ))}
@@ -1261,7 +1262,7 @@ function ReadingCard({
                 border:
                   "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
                 opacity: "var(--ro-plus-30)",
-                ...cornerRadiusStyle(deckRadiusPx),
+                ...cornerRadiusStyle(deckRadiusPx, 74),
               }}
             />
           ))}
@@ -1390,15 +1391,17 @@ function GalleryTile({
   const getImage = useDeckImage(reading.deck_id ?? null);
   const fallback = getImage(reading.card_ids[0] ?? 0, "thumbnail");
   const deckRadiusPx = useDeckCornerRadius(reading.deck_id ?? null);
+  const { ref: tileRef, width: tileW } = useElementWidth<HTMLButtonElement>();
   return (
     <button
+      ref={tileRef}
       type="button"
       onClick={() => onOpen(reading.id)}
       className="relative aspect-square overflow-hidden rounded-md"
       style={{
         border:
           "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
-        ...cornerRadiusStyle(deckRadiusPx),
+        ...cornerRadiusStyle(deckRadiusPx, tileW),
       }}
     >
       <CardThumb
@@ -1408,8 +1411,8 @@ function GalleryTile({
         className="h-full w-full object-cover"
         style={
           photoUrl
-            ? cornerRadiusStyle(deckRadiusPx)
-            : { opacity: "var(--ro-plus-30)", ...cornerRadiusStyle(deckRadiusPx) }
+            ? cornerRadiusStyle(deckRadiusPx, tileW)
+            : { opacity: "var(--ro-plus-30)", ...cornerRadiusStyle(deckRadiusPx, tileW) }
         }
       />
       <div
@@ -2272,7 +2275,7 @@ function ReadingDetail({
                          "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
                        opacity: "var(--ro-plus-40)",
                        transform: isReversed ? "rotate(180deg)" : undefined,
-                       ...cornerRadiusStyle(deckRadiusPx),
+                       ...cornerRadiusStyle(deckRadiusPx, 80),
                      }}
                    />
                 </button>

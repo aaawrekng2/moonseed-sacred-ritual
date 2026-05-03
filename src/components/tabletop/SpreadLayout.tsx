@@ -428,7 +428,7 @@ function CardFace({
             style={{
               transform: pick.isReversed ? "rotate(180deg)" : undefined,
               transition: "transform 600ms ease-out",
-              ...cornerRadiusStyle(deckRadiusPx),
+              ...cornerRadiusStyle(deckRadiusPx, sizing.w),
             }}
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).style.display = "none";
@@ -879,7 +879,7 @@ export function ManualSpreadSlots({
           src={cardImg(pick.cardIndex)}
           alt={getCardName(pick.cardIndex)}
           className="h-full w-full object-contain"
-          style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined, ...cornerRadiusStyle(deckRadiusPx) }}
+          style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined, ...cornerRadiusStyle(deckRadiusPx, sizing.w) }}
         />
       ) : (
         <span className="absolute inset-0 flex items-center justify-center text-[18px] font-light text-foreground/50">+</span>
