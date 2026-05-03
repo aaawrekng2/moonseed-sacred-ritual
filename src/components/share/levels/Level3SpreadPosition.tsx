@@ -33,9 +33,9 @@ export function Level3SpreadPosition({
 
   return (
     <ShareCardFrame
+      level="position"
       guideName={ctx.guideName}
       accent={color.accent}
-      background={`linear-gradient(180deg, #07070d 0%, #14110a 60%, #1c1810 100%), radial-gradient(ellipse at 50% 28%, ${color.glow} 0%, transparent 55%)`}
     >
       <div
         style={{

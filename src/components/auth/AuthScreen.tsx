@@ -1,9 +1,72 @@
-import { useEffect, useState } from "react";
+/**
+ * Auth screen — DR redefinition.
+ *
+ * State machine (`AuthMode`):
+ *   - signin              — sign-in form (default)
+ *   - forced-download     — full-screen export progress + percent UI
+ *   - signup-form         — email + password + confirm fields
+ *   - signup-confirmation — "check your email" panel after signUp success
+ *
+ * Tap on "Don't have an account? Create one":
+ *   • If the current session has any saved data → fire backup
+ *     download immediately. There is no skip path. On success →
+ *     signup-form. On failure → retry button.
+ *   • Otherwise → signup-form directly.
+ *
+ * After signUp success → signup-confirmation. The confirmation panel
+ * persists until the user taps "Back to sign in".
+ */
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { X, Eye, EyeOff, Download, AlertTriangle } from "lucide-react";
-import { toast } from "sonner";
+import { X, Eye, EyeOff } from "lucide-react";
+import { createBackup, type BackupProgress } from "@/lib/backup-export";
+import { BACKUP_CATEGORIES } from "@/lib/backup-categories";
+import { usePremium } from "@/lib/premium";
 
-type Mode = "signin" | "signup";
+type AuthMode =
+  | "signin"
+  | "forced-download"
+  | "signup-form"
+  | "signup-confirmation";
+
+/**
+ * Cheap probe: does the seeker have any rows on this device's session
+ * worth backing up before account creation? Resolves quickly via HEAD
+ * counts on the tables that matter.
+ */
+async function userHasData(userId: string): Promise<boolean> {
+  const tables: Array<"readings" | "custom_decks" | "user_tags"> = [
+    "readings",
+    "custom_decks",
+    "user_tags",
+  ];
+  for (const t of tables) {
+    try {
+      const { count } = await (supabase as unknown as {
+        from: (t: string) => {
+          select: (
+            c: string,
+            o: { count: "exact"; head: true },
+          ) => { eq: (c: string, v: string) => Promise<{ count: number | null }> };
+        };
+      })
+        .from(t)
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId);
+      if ((count ?? 0) > 0) return true;
+    } catch {
+      // best-effort; treat as no data on transient failures.
+    }
+  }
+  return false;
+}
+
+function fmtElapsed(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return m > 0 ? `${m}m ${r}s` : `${s}s`;
+}
 
 export function AuthScreen({
   onClose,
@@ -12,7 +75,7 @@ export function AuthScreen({
   onClose: () => void;
   onSuccess: () => void;
 }) {
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<AuthMode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -20,51 +83,25 @@ export function AuthScreen({
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  // After a successful sign-up we replace the entire form with a
-  // "check your email" confirmation pane until the seeker chooses to
-  // go back to sign-in. Persists for the lifetime of the modal.
-  const [signupSent, setSignupSent] = useState(false);
-  // DP-6 — Skip-confirm modal: when an anonymous user with local data
-  // tries to switch to signup, intercept once with a warning. Only
-  // shown if the current session has any user-owned rows.
-  const [skipConfirmOpen, setSkipConfirmOpen] = useState(false);
-  const [hasLocalData, setHasLocalData] = useState(false);
 
-  // Detect whether the current (likely anonymous) session has any saved
-  // data that could be lost during account creation. Cheap HEAD counts.
+  // Forced-download state
+  const [downloadProgress, setDownloadProgress] =
+    useState<BackupProgress | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloadStartedAt, setDownloadStartedAt] = useState<number | null>(
+    null,
+  );
+  const [, setNowTick] = useState(0);
+
+  const sessionUserIdRef = useRef<string | null>(null);
+
+  // Cache the current (anonymous) session uid so we know who to back up.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const uid = sessionData.session?.user?.id;
-        if (!uid) return;
-        const tables: Array<"readings" | "custom_decks" | "tags"> = [
-          "readings",
-          "custom_decks",
-          "tags",
-        ];
-        for (const t of tables) {
-          const { count } = await (supabase as unknown as {
-            from: (t: string) => {
-              select: (
-                c: string,
-                o: { count: "exact"; head: true },
-              ) => { eq: (c: string, v: string) => Promise<{ count: number | null }> };
-            };
-          })
-            .from(t)
-            .select("id", { count: "exact", head: true })
-            .eq("user_id", uid);
-          if (cancelled) return;
-          if ((count ?? 0) > 0) {
-            setHasLocalData(true);
-            return;
-          }
-        }
-      } catch {
-        // best-effort only
+      const { data } = await supabase.auth.getSession();
+      if (!cancelled) {
+        sessionUserIdRef.current = data.session?.user?.id ?? null;
       }
     })();
     return () => {
@@ -72,91 +109,90 @@ export function AuthScreen({
     };
   }, []);
 
-  const exportLocalReadings = async () => {
+  const { isPremium } = usePremium(sessionUserIdRef.current ?? undefined);
+
+  // Tick the elapsed-time readout while the download is running.
+  useEffect(() => {
+    if (mode !== "forced-download" || !downloadStartedAt) return;
+    const id = window.setInterval(() => setNowTick((n) => n + 1), 250);
+    return () => window.clearInterval(id);
+  }, [mode, downloadStartedAt]);
+
+  const runForcedDownload = async () => {
+    setDownloadError(null);
+    setDownloadProgress(null);
+    setDownloadStartedAt(Date.now());
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUser = sessionData.session?.user;
-      if (!currentUser) {
-        toast.message("No readings to export yet.");
+      const uid = sessionUserIdRef.current;
+      if (!uid) {
+        // No session — nothing to back up; advance to form.
+        setMode("signup-form");
         return;
       }
-      const { data: readings } = await supabase
-        .from("readings")
-        .select("*")
-        .eq("user_id", currentUser.id);
-      if (!readings || readings.length === 0) {
-        toast.message("No readings to export yet.");
-        return;
-      }
-      const payload = {
-        app: "Moonseed",
-        exported_at: new Date().toISOString(),
-        user_id: currentUser.id,
-        readings,
-      };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], {
-        type: "application/json",
+      const blob = await createBackup({
+        userId: uid,
+        categories: BACKUP_CATEGORIES.map((c) => c.id),
+        isPremium,
+        onProgress: (p) => setDownloadProgress(p),
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `moonseed-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `moonseed-backup-${new Date()
+        .toISOString()
+        .slice(0, 10)}.zip`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Readings downloaded");
-    } catch {
-      toast.error("Couldn't export your readings");
+      setMode("signup-form");
+    } catch (e) {
+      setDownloadError(
+        e instanceof Error ? e.message : "Couldn't create backup",
+      );
+    }
+  };
+
+  const handleCreateAccountTap = async () => {
+    setError(null);
+    const { data } = await supabase.auth.getSession();
+    const uid = data.session?.user?.id ?? null;
+    sessionUserIdRef.current = uid;
+    if (!uid) {
+      setMode("signup-form");
+      return;
+    }
+    const hasData = await userHasData(uid);
+    if (hasData) {
+      setMode("forced-download");
+      void runForcedDownload();
+    } else {
+      setMode("signup-form");
     }
   };
 
   const handleSubmit = async () => {
     setError(null);
-    setSuccess(null);
-    if (mode === "signup" && password !== confirmPassword) {
+    if (mode === "signup-form" && password !== confirmPassword) {
       setError("Passwords don't match");
       return;
     }
     setLoading(true);
     try {
-      if (mode === "signup") {
+      if (mode === "signup-form") {
         const { data: sessionData } = await supabase.auth.getSession();
         const currentUser = sessionData.session?.user;
         const isAnonymous =
           (currentUser as { is_anonymous?: boolean } | undefined)
             ?.is_anonymous === true;
-
-        // If the visitor is currently in an anonymous session, sign out
-        // first. Calling updateUser({ email }) on an anonymous user
-        // triggers Supabase's email-CHANGE flow (not signup), which does
-        // not deliver a usable confirmation email. signUp() is the only
-        // path that sends the standard "Confirm your signup" template.
         if (currentUser && isAnonymous) {
           await supabase.auth.signOut();
         }
-        // CO Group 1 — diagnostic logs to surface which branch fires when
-        // users report not seeing the "Check your email" pane. Also note:
-        // this flow REQUIRES "Confirm email" to be enabled in Lovable
-        // Cloud auth settings. With auto-confirm ON, signUp() returns a
-        // live session and onAuthStateChange unmounts AuthScreen before
-        // signupSent can render.
-        console.log("[Auth-signup] before signUp call", { email });
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: { emailRedirectTo: window.location.origin },
         });
-        if (signUpError) {
-          console.warn("[Auth-signup] signUp error:", signUpError);
-          throw signUpError;
-        }
-        console.log("[Auth-signup] after signUp success — setSignupSent(true)", {
-          hasSession: !!signUpData?.session,
-          userId: signUpData?.user?.id,
-        });
-
-        // Replace the form with a confirmation pane so the seeker has
-        // a clear next step instead of an empty card or a fleeting toast.
-        setSignupSent(true);
+        if (signUpError) throw signUpError;
+        setMode("signup-confirmation");
         return;
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -165,23 +201,18 @@ export function AuthScreen({
         });
         if (signInError) {
           const msg = (signInError.message ?? "").toLowerCase();
+          // Detect Supabase's `email_not_confirmed` and surface a friendly hint.
+          const code =
+            (signInError as unknown as { code?: string; name?: string }).code ??
+            (signInError as unknown as { name?: string }).name ??
+            "";
           if (
+            String(code).toLowerCase().includes("email_not_confirmed") ||
             msg.includes("email not confirmed") ||
             msg.includes("confirm")
           ) {
-            console.warn(
-              "[Auth] Sign-in blocked because email is not confirmed:",
-              email,
-            );
             throw new Error(
               "Please confirm your email before signing in. Check your inbox.",
-            );
-          }
-          if (msg.includes("invalid login credentials")) {
-            // Could also be an unconfirmed account (Supabase sometimes
-            // returns this for unconfirmed users). Surface a hint.
-            throw new Error(
-              "Email or password incorrect. If you just signed up, please confirm your email first.",
             );
           }
           throw signInError;
@@ -189,12 +220,21 @@ export function AuthScreen({
         onSuccess();
       }
     } catch (e: unknown) {
-      console.warn("[Auth-signup] in catch:", e);
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
+
+  // ---- Render ----
+  const headerLabel =
+    mode === "signin"
+      ? "Sign In"
+      : mode === "forced-download"
+        ? "Backing Up Your Data"
+        : mode === "signup-form"
+          ? "Create Account"
+          : "Check Your Email";
 
   return (
     <div
@@ -222,19 +262,29 @@ export function AuthScreen({
               opacity: 0.8,
             }}
           >
-            {signupSent ? "Check Your Email" : mode === "signin" ? "Sign In" : "Create Account"}
+            {headerLabel}
           </span>
           <button
             type="button"
             onClick={onClose}
             className="flex items-center justify-center w-6 h-6 rounded-full hover:bg-foreground/10 transition-colors focus:outline-none"
             style={{ color: "var(--gold)", opacity: 0.6 }}
+            aria-label="Close"
           >
             <X size={14} strokeWidth={1.5} />
           </button>
         </div>
 
-        {signupSent ? (
+        {mode === "forced-download" && (
+          <ForcedDownloadPanel
+            progress={downloadProgress}
+            error={downloadError}
+            startedAt={downloadStartedAt}
+            onRetry={() => void runForcedDownload()}
+          />
+        )}
+
+        {mode === "signup-confirmation" && (
           <div className="flex flex-col items-center gap-5 py-6 text-center">
             <p
               style={{
@@ -252,10 +302,8 @@ export function AuthScreen({
             <button
               type="button"
               onClick={() => {
-                setSignupSent(false);
                 setMode("signin");
                 setError(null);
-                setSuccess(null);
                 setPassword("");
                 setConfirmPassword("");
               }}
@@ -274,305 +322,298 @@ export function AuthScreen({
               Back to sign in
             </button>
           </div>
-        ) : (
-        <>
-        {/* Fields */}
-        <div className="flex flex-col gap-3">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg px-4 py-2.5 focus:outline-none"
-            style={{
-              background:
-                "color-mix(in oklab, var(--gold) 6%, transparent)",
-              border:
-                "1px solid color-mix(in oklab, var(--gold) 20%, transparent)",
-              color: "var(--foreground)",
-              fontFamily: "var(--font-serif)",
-              fontSize: "var(--text-body)",
-            }}
-          />
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg px-4 py-2.5 pr-10 focus:outline-none"
-              style={{
-                background:
-                  "color-mix(in oklab, var(--gold) 6%, transparent)",
-                border:
-                  "1px solid color-mix(in oklab, var(--gold) 20%, transparent)",
-                color: "var(--foreground)",
-                fontFamily: "var(--font-serif)",
-                fontSize: "var(--text-body)",
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 focus:outline-none"
-              style={{ color: "var(--foreground)", opacity: 0.35 }}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-            >
-              {showPassword ? <EyeOff size={15} strokeWidth={1.5} /> : <Eye size={15} strokeWidth={1.5} />}
-            </button>
-          </div>
-          {mode === "signup" && (
-            <div className="relative">
+        )}
+
+        {(mode === "signin" || mode === "signup-form") && (
+          <>
+            <div className="flex flex-col gap-3">
               <input
-                type={showConfirm ? "text" : "password"}
-                placeholder="Confirm password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full rounded-lg px-4 py-2.5 pr-10 focus:outline-none"
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-lg px-4 py-2.5 focus:outline-none"
                 style={{
                   background:
                     "color-mix(in oklab, var(--gold) 6%, transparent)",
-                  border: `1px solid ${
-                    confirmPassword && confirmPassword !== password
-                      ? "rgba(248,113,113,0.5)"
-                      : "color-mix(in oklab, var(--gold) 20%, transparent)"
-                  }`,
+                  border:
+                    "1px solid color-mix(in oklab, var(--gold) 20%, transparent)",
                   color: "var(--foreground)",
                   fontFamily: "var(--font-serif)",
                   fontSize: "var(--text-body)",
                 }}
               />
-              <button
-                type="button"
-                onClick={() => setShowConfirm((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 focus:outline-none"
-                style={{ color: "var(--foreground)", opacity: 0.35 }}
-                aria-label={showConfirm ? "Hide password" : "Show password"}
-              >
-                {showConfirm ? <EyeOff size={15} strokeWidth={1.5} /> : <Eye size={15} strokeWidth={1.5} />}
-              </button>
-              {confirmPassword && confirmPassword !== password && (
-                <p style={{
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: "var(--text-caption)",
-                  color: "#f87171",
-                  marginTop: 4,
-                  paddingLeft: 4,
-                }}>
-                  Passwords don't match
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Error / Success */}
-        {error && (
-          <p
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-body-sm)",
-              color: "#f87171",
-              textAlign: "center",
-            }}
-          >
-            {error}
-          </p>
-        )}
-        {success && (
-          <p
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-body-sm)",
-              color: "var(--gold)",
-              textAlign: "center",
-              opacity: 0.85,
-            }}
-          >
-            {success}
-          </p>
-        )}
-
-        {/* Actions */}
-        <div className="flex flex-col items-center gap-3 pt-1">
-          {mode === "signup" && (
-            <div
-              className="w-full rounded-lg px-3 py-2.5 flex items-start gap-2"
-              style={{
-                background: "color-mix(in oklab, var(--gold) 6%, transparent)",
-                border:
-                  "1px solid color-mix(in oklab, var(--gold) 22%, transparent)",
-              }}
-            >
-              <AlertTriangle
-                size={14}
-                strokeWidth={1.5}
-                style={{ color: "var(--gold)", marginTop: 2, flexShrink: 0 }}
-              />
-              <div className="flex-1">
-                <p
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full rounded-lg px-4 py-2.5 pr-10 focus:outline-none"
                   style={{
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-body-sm)",
+                    background:
+                      "color-mix(in oklab, var(--gold) 6%, transparent)",
+                    border:
+                      "1px solid color-mix(in oklab, var(--gold) 20%, transparent)",
                     color: "var(--foreground)",
-                    opacity: 0.85,
-                    lineHeight: 1.5,
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "var(--text-body)",
                   }}
-                >
-                  If you have readings from before signing in, download them
-                  first — they may not transfer to your new account.
-                </p>
+                />
                 <button
                   type="button"
-                  onClick={() => void exportLocalReadings()}
-                  className="mt-2 inline-flex items-center gap-1.5 focus:outline-none"
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-body-sm)",
-                    color: "var(--gold)",
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    cursor: "pointer",
-                  }}
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 focus:outline-none"
+                  style={{ color: "var(--foreground)", opacity: 0.35 }}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  <Download size={12} strokeWidth={1.5} />
-                  Download my readings
+                  {showPassword ? (
+                    <EyeOff size={15} strokeWidth={1.5} />
+                  ) : (
+                    <Eye size={15} strokeWidth={1.5} />
+                  )}
                 </button>
               </div>
+              {mode === "signup-form" && (
+                <div className="relative">
+                  <input
+                    type={showConfirm ? "text" : "password"}
+                    placeholder="Confirm password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full rounded-lg px-4 py-2.5 pr-10 focus:outline-none"
+                    style={{
+                      background:
+                        "color-mix(in oklab, var(--gold) 6%, transparent)",
+                      border: `1px solid ${
+                        confirmPassword && confirmPassword !== password
+                          ? "rgba(248,113,113,0.5)"
+                          : "color-mix(in oklab, var(--gold) 20%, transparent)"
+                      }`,
+                      color: "var(--foreground)",
+                      fontFamily: "var(--font-serif)",
+                      fontSize: "var(--text-body)",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirm((v) => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 focus:outline-none"
+                    style={{ color: "var(--foreground)", opacity: 0.35 }}
+                    aria-label={showConfirm ? "Hide password" : "Show password"}
+                  >
+                    {showConfirm ? (
+                      <EyeOff size={15} strokeWidth={1.5} />
+                    ) : (
+                      <Eye size={15} strokeWidth={1.5} />
+                    )}
+                  </button>
+                  {confirmPassword && confirmPassword !== password && (
+                    <p
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: "var(--text-caption)",
+                        color: "#f87171",
+                        marginTop: 4,
+                        paddingLeft: 4,
+                      }}
+                    >
+                      Passwords don't match
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
-          )}
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={
-              loading ||
-              !email ||
-              !password ||
-              (mode === "signup" && password !== confirmPassword)
-            }
-            className="w-full py-3 font-display text-sm uppercase tracking-[0.3em] text-gold transition-opacity hover:opacity-80 focus:outline-none disabled:opacity-40"
-            style={{
-              background: "none",
-              border: "none",
-              padding: "12px 0",
-            }}
-          >
-            {loading ? "…" : mode === "signin" ? "Sign In" : "Create Account"}
-          </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              const nextMode = mode === "signin" ? "signup" : "signin";
-              if (nextMode === "signup" && hasLocalData) {
-                setSkipConfirmOpen(true);
-                return;
-              }
-              setMode(nextMode);
-              setError(null);
-              setSuccess(null);
-              setConfirmPassword("");
-              setShowPassword(false);
-              setShowConfirm(false);
-            }}
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-body-sm)",
-              color: "var(--foreground)",
-              opacity: 0.35,
-              background: "none",
-              border: "none",
-              padding: 0,
-              cursor: "pointer",
-            }}
-          >
-            {mode === "signin"
-              ? "Don't have an account? Create one"
-              : "Already have an account? Sign in"}
-          </button>
-        </div>
-        </>
-        )}
-      </div>
-      {skipConfirmOpen && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center px-5"
-          style={{ background: "var(--surface-scrim)" }}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl px-6 py-6 flex flex-col gap-4"
-            style={{
-              background: "var(--surface-elevated)",
-              color: "var(--color-foreground)",
-              border: "1px solid var(--border-default)",
-            }}
-          >
-            <p
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-body)",
-                color: "var(--foreground)",
-                lineHeight: 1.55,
-                opacity: 0.9,
-              }}
-            >
-              You have unsaved data on this device. If something goes wrong
-              during account creation, this data could be permanently lost.
-              Are you sure you want to continue without downloading a backup
-              first?
-            </p>
-            <div className="flex flex-col gap-2 pt-1">
-              <button
-                type="button"
-                onClick={async () => {
-                  await exportLocalReadings();
-                }}
-                className="w-full py-2.5 font-display text-[12px] uppercase tracking-[0.25em]"
+            {error && (
+              <p
                 style={{
-                  color: "var(--accent)",
-                  background: "none",
-                  border: "1px solid var(--border-default)",
-                  borderRadius: 10,
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                  color: "#f87171",
+                  textAlign: "center",
                 }}
               >
-                Download first
+                {error}
+              </p>
+            )}
+
+            <div className="flex flex-col items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={
+                  loading ||
+                  !email ||
+                  !password ||
+                  (mode === "signup-form" && password !== confirmPassword)
+                }
+                className="w-full py-3 font-display text-sm uppercase tracking-[0.3em] text-gold transition-opacity hover:opacity-80 focus:outline-none disabled:opacity-40"
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: "12px 0",
+                }}
+              >
+                {loading
+                  ? "…"
+                  : mode === "signin"
+                    ? "Sign In"
+                    : "Create Account"}
               </button>
+
               <button
                 type="button"
                 onClick={() => {
-                  setSkipConfirmOpen(false);
-                  setMode("signup");
-                  setError(null);
-                  setSuccess(null);
-                  setConfirmPassword("");
-                  setShowPassword(false);
-                  setShowConfirm(false);
+                  if (mode === "signin") {
+                    void handleCreateAccountTap();
+                  } else {
+                    setMode("signin");
+                    setError(null);
+                    setConfirmPassword("");
+                    setShowPassword(false);
+                    setShowConfirm(false);
+                  }
                 }}
                 style={{
                   fontFamily: "var(--font-serif)",
                   fontStyle: "italic",
                   fontSize: "var(--text-body-sm)",
                   color: "var(--foreground)",
-                  opacity: 0.6,
+                  opacity: 0.35,
                   background: "none",
                   border: "none",
-                  padding: "8px 0",
+                  padding: 0,
                   cursor: "pointer",
                 }}
               >
-                Continue anyway
+                {mode === "signin"
+                  ? "Don't have an account? Create one"
+                  : "Already have an account? Sign in"}
               </button>
             </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ForcedDownloadPanel({
+  progress,
+  error,
+  startedAt,
+  onRetry,
+}: {
+  progress: BackupProgress | null;
+  error: string | null;
+  startedAt: number | null;
+  onRetry: () => void;
+}) {
+  const pct = Math.max(
+    2,
+    Math.min(
+      100,
+      progress?.pct ??
+        (progress && progress.total > 0
+          ? (progress.current / progress.total) * 100
+          : 5),
+    ),
+  );
+  const elapsed = startedAt ? Date.now() - startedAt : 0;
+  // Crude ETA: extrapolate from elapsed/pct.
+  const eta =
+    pct > 5 && elapsed > 0
+      ? Math.max(0, (elapsed / pct) * (100 - pct))
+      : null;
+
+  return (
+    <div className="flex flex-col items-center gap-4 py-6 text-center">
+      <p
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-body)",
+          color: "var(--foreground)",
+          opacity: 0.85,
+          lineHeight: 1.5,
+          padding: "0 8px",
+        }}
+      >
+        Saving your data to this device before we create your account.
+      </p>
+      {error ? (
+        <>
+          <p
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "#f87171",
+            }}
+          >
+            Couldn't finish the backup: {error}
+          </p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="px-4 py-2 font-display text-xs uppercase tracking-[0.25em] text-gold focus:outline-none"
+            style={{
+              background: "none",
+              border: "1px solid var(--border-default)",
+              borderRadius: 10,
+            }}
+          >
+            Try again
+          </button>
+        </>
+      ) : (
+        <>
+          <div
+            className="h-1.5 w-full overflow-hidden rounded-full"
+            style={{
+              background:
+                "color-mix(in oklab, var(--gold) 12%, transparent)",
+            }}
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(pct)}
+          >
+            <div
+              className="h-full transition-[width] duration-200 ease-out"
+              style={{
+                width: `${pct}%`,
+                background: "var(--gold)",
+                opacity: 0.85,
+              }}
+            />
           </div>
-        </div>
+          <p
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--gold)",
+              opacity: 0.8,
+            }}
+          >
+            {progress?.phase ?? "Preparing"} · {Math.round(pct)}%
+          </p>
+          <p
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-caption)",
+              color: "var(--foreground-muted)",
+              opacity: 0.7,
+            }}
+          >
+            {fmtElapsed(elapsed)} elapsed
+            {eta !== null ? ` · ~${fmtElapsed(eta)} left` : ""}
+          </p>
+        </>
       )}
     </div>
   );

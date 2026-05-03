@@ -32,15 +32,9 @@ export function Level4DeepLens({
   const anchorPick = variant === "anchor" ? ctx.picks.slice(0, 1) : ctx.picks;
   return (
     <ShareCardFrame
+      level="lens"
       guideName={ctx.guideName}
       accent={color.accent}
-      // Layered mist: dark base + soft glow halo + faint vertical band.
-      background={[
-        `radial-gradient(ellipse at 50% 30%, ${color.glow.replace(/0\.35\)/, "0.7)")} 0%, transparent 60%)`,
-        `radial-gradient(circle at 20% 80%, ${color.glow} 0%, transparent 40%)`,
-        `radial-gradient(circle at 80% 70%, ${color.glow} 0%, transparent 45%)`,
-        `linear-gradient(180deg, #050509 0%, #0a0a14 50%, #0e0a18 100%)`,
-      ].join(", ")}
     >
       <div
         style={{
