@@ -10,7 +10,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { X, Lock } from "lucide-react";
-import { getLunationRecap } from "@/lib/insights.functions";
+import { getLunationRecap, getLunationReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage } from "@/lib/active-deck";
 import { getCardImagePath } from "@/lib/tarot";
@@ -25,7 +25,8 @@ export const Route = createFileRoute("/insights/recap/$lunationStart")({
   component: LunationRecapRoute,
 });
 
-const TOTAL_SLIDES = 5; // Free tier. Premium slides 6–12 deferred (EO).
+const TOTAL_SLIDES_FREE = 5;
+const TOTAL_SLIDES_PREMIUM = 6; // Adds AI reflection slide.
 
 type RecapData = Awaited<ReturnType<typeof getLunationRecap>>;
 
@@ -60,7 +61,8 @@ function LunationRecapRoute() {
   }, [lunationStart, fn]);
 
   const close = () => navigate({ to: "/insights" });
-  const next = () => setSlide((s) => Math.min(s + 1, TOTAL_SLIDES - 1));
+  const total = isPremium ? TOTAL_SLIDES_PREMIUM : TOTAL_SLIDES_FREE;
+  const next = () => setSlide((s) => Math.min(s + 1, total - 1));
   const prev = () => setSlide((s) => Math.max(s - 1, 0));
 
   return (
@@ -73,7 +75,7 @@ function LunationRecapRoute() {
     >
       {/* Top progress bar */}
       <div className="flex gap-1 px-3 pt-3" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)" }}>
-        {Array.from({ length: TOTAL_SLIDES }).map((_, i) => (
+        {Array.from({ length: total }).map((_, i) => (
           <div
             key={i}
             className="flex-1"
@@ -136,7 +138,7 @@ function LunationRecapRoute() {
           </div>
         )}
         {!loading && data && (
-          <SlideContent data={data} slide={slide} isPremium={isPremium} onPremium={() => {
+          <SlideContent data={data} slide={slide} isPremium={isPremium} lunationStart={lunationStart} onPremium={() => {
             window.dispatchEvent(
               new CustomEvent("moonseed:open-premium", {
                 detail: { feature: "Full Lunation Recap", featureName: "Full Lunation Recap" },
@@ -153,11 +155,13 @@ function SlideContent({
   data,
   slide,
   isPremium,
+  lunationStart,
   onPremium,
 }: {
   data: RecapData;
   slide: number;
   isPremium: boolean;
+  lunationStart: string;
   onPremium: () => void;
 }) {
   const range = formatLunationRange({
@@ -267,27 +271,12 @@ function SlideContent({
     );
   }
 
-  // Slide 4 — premium teaser closer.
+  // Slide 4/5 — premium reflection or locked teaser.
   if (isPremium) {
-    /* EO-7 — premium placeholder until EP ships slides 6-12. */
-    return (
-      <SlideShell>
-        <div
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "clamp(1.6rem, 6vw, 2.4rem)",
-            color: "var(--gold)",
-            lineHeight: 1.2,
-          }}
-        >
-          More slides coming soon.
-        </div>
-        <Caption>
-          Your full lunation report is being prepared. Check back soon for deeper insights.
-        </Caption>
-      </SlideShell>
-    );
+    if (slide === 4) {
+      return <PremiumReflectionSlide lunationStart={lunationStart} />;
+    }
+    return <PremiumClosingSlide />;
   }
   return (
     <SlideShell>
@@ -322,6 +311,70 @@ function SlideContent({
       >
         Unlock the full recap
       </button>
+    </SlideShell>
+  );
+}
+
+function PremiumReflectionSlide({ lunationStart }: { lunationStart: string }) {
+  const fn = useServerFn(getLunationReflection);
+  const [text, setText] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const r = await fn({ data: { lunationStart }, headers });
+        if (cancelled) return;
+        if (r.ok) setText(r.reflection);
+        else setErr(r.error);
+      } catch {
+        if (!cancelled) setErr("ai_unavailable");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [lunationStart, fn]);
+  return (
+    <SlideShell>
+      <Eyebrow>Reflection</Eyebrow>
+      {!text && !err && <Caption>Listening to the lunation…</Caption>}
+      {err && <Caption>The reflection is unavailable right now.</Caption>}
+      {text && (
+        <div
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body)",
+            lineHeight: 1.6,
+            color: "var(--color-foreground)",
+            maxWidth: 420,
+            whiteSpace: "pre-line",
+          }}
+        >
+          {text}
+        </div>
+      )}
+    </SlideShell>
+  );
+}
+
+function PremiumClosingSlide() {
+  return (
+    <SlideShell>
+      <div
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "clamp(1.6rem, 6vw, 2.4rem)",
+          color: "var(--gold)",
+          lineHeight: 1.2,
+        }}
+      >
+        Until the next moon.
+      </div>
+      <Caption>This cycle is sealed. The next New Moon begins a fresh lunation.</Caption>
     </SlideShell>
   );
 }
