@@ -1301,24 +1301,22 @@ function ReadingCard({
         </div>
       ) : (
         <div className="mt-3 flex items-center gap-1.5">
-          {visible.map((id) => (
-            <CardThumb
-              key={id}
-              src={getImage(id, "thumbnail")}
-              alt={getCardName(id)}
-              loading="lazy"
-              className=""
-              style={{
-                width: "74px",
-                aspectRatio: "1 / 1.75",
-                objectFit: "contain",
-                border:
-                  "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
-                opacity: "var(--ro-plus-30)",
-                ...cornerRadiusStyle(deckRadiusPx, 74),
-              }}
-            />
-          ))}
+          {visible.map((id) => {
+            const idx = reading.card_ids.indexOf(id);
+            const isReversed =
+              idx >= 0 ? !!reading.card_orientations?.[idx] : false;
+            return (
+              <CardImage
+                key={id}
+                cardId={id}
+                variant="face"
+                reversed={isReversed}
+                size="thumbnail"
+                deckId={reading.deck_id ?? null}
+                style={{ opacity: "var(--ro-plus-30)" }}
+              />
+            );
+          })}
           {overflow > 0 && (
             <span
               className="ml-1 font-display text-[11px] italic text-muted-foreground"
