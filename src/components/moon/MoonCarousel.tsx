@@ -876,8 +876,9 @@ function AdjacentCard({
       className={cn(
         "flex flex-col items-center gap-1 rounded-xl px-2 py-2 transition-all duration-300 ease-out cursor-pointer",
         "outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        // ET-2 — selected/today drops backdrop entirely; matches ES-3.
         selected
-          ? "bg-card/60 shadow-[0_0_18px_-4px_rgba(212,175,55,0.6)] backdrop-blur-sm"
+          ? ""
           : expanded
             ? "bg-card/50 shadow-[0_4px_20px_-12px_rgba(212,175,55,0.35)] backdrop-blur-sm"
             : "hover:bg-card/30 hover:opacity-100 active:scale-95",

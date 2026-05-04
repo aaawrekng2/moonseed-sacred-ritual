@@ -1332,7 +1332,13 @@ function ThemeCarousel({
             aria-hidden
             className={cn(
               "block h-1.5 rounded-full transition-all",
-              i === activeIndex ? "w-4 bg-gold" : "w-1.5 bg-gold/30",
+              // ET-8 — muted inactive dot using foreground at low alpha
+              // so it stays soft regardless of theme accent saturation.
+              // Active dot keeps the gold accent but at 70% so it reads
+              // as intentional rather than visually loud.
+              i === activeIndex
+                ? "w-4 bg-gold/70"
+                : "w-1.5 bg-foreground/15",
             )}
           />
         ))}

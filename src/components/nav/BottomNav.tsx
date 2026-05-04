@@ -121,7 +121,11 @@ export function BottomNav() {
                         inset: -12,
                         borderRadius: "50%",
                         background:
-                          "radial-gradient(circle, color-mix(in oklab, var(--gold) 25%, transparent) 0%, transparent 70%)",
+                          // ET-7 — softened from 25% to 12% so the halo
+                          // reads as a subtle glow on every theme rather
+                          // than a hard circle behind the Home moon icon
+                          // when the theme accent is a saturated colour.
+                          "radial-gradient(circle, color-mix(in oklab, var(--gold) 12%, transparent) 0%, transparent 70%)",
                         pointerEvents: "none",
                       }}
                     />
