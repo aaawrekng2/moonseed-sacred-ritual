@@ -2108,18 +2108,33 @@ function ReadingDetail({
   // DD-4 — tap-to-zoom on saved-reading cards. Reuses the same modal
   // the active draw uses (CZ Group 3) so behavior matches everywhere.
   const [zoomedCard, setZoomedCard] = useState<{ cardId: number; reversed: boolean } | null>(null);
-  // EZ-5 — Cards in journal reading-detail size to a 3-card-spread
+  // EZ-5 / FA-2 — Cards in journal reading-detail size to a 3-card-spread
   // baseline. A single-card reading renders at the same physical
   // width as one of three cards (centered, prominent — not full-row).
   // Larger spreads scale down so all cards fit.
+  const cardRowRef = useRef<HTMLDivElement | null>(null);
+  const [measuredRowWidth, setMeasuredRowWidth] = useState<number>(320);
+  useEffect(() => {
+    const node = cardRowRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const w = Math.round(entry.contentRect.width);
+      if (w > 0) setMeasuredRowWidth(w);
+    });
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, []);
   const ezCardCount = reading.card_ids.length;
-  const ezContainerWidthPx = 320;
   const ezGapPx = 8;
   const ezBaseDivisor = Math.max(3, ezCardCount);
+  // FA-2 — use measured row width instead of hardcoded 320 so
+  // single cards actually fill the available space.
   const ezCardWidthPx = Math.max(
     32,
     Math.floor(
-      (ezContainerWidthPx - ezGapPx * (ezBaseDivisor - 1)) / ezBaseDivisor,
+      (measuredRowWidth - ezGapPx * (ezBaseDivisor - 1)) / ezBaseDivisor,
     ),
   );
   // DB-3.2 — deck override picker.
@@ -2346,6 +2361,7 @@ function ReadingDetail({
             separate line whose space is reserved with min-height even
             when absent. */}
         <div
+          ref={cardRowRef}
           className={cn(
             "mt-6 flex items-start gap-2",
             swipeMobile

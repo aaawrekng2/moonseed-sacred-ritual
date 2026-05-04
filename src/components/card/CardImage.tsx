@@ -105,6 +105,14 @@ export interface CardImageProps {
    * don't clip the shadow with their own overflow rules.
    */
   shadow?: boolean;
+  /**
+   * FA-4 — When set (boolean), render BOTH the face and back inside a
+   * 3D-perspective wrapper using the existing `.flip-3d` / `.flip-face`
+   * classes from styles.css. `flipped=false` shows the back; `flipped=true`
+   * rotates 180° to reveal the face. Used by the tabletop draw flow so
+   * the same component owns face/back rendering everywhere.
+   */
+  flipped?: boolean;
 }
 
 // Standard widths in px. Aspect ratio 1 / 1.75.
@@ -149,6 +157,7 @@ export function CardImage({
   onClick,
   ariaLabel,
   shadow = false,
+  flipped,
 }: CardImageProps) {
   // Resolve image source + radius from active deck OR a specific deck
   // when `deckId` is supplied. Both hooks are always called (Rules of
@@ -199,9 +208,10 @@ export function CardImage({
     overflow: shadow ? "visible" : "hidden",
     display: "inline-block",
     ...radiusStyle,
-    // EZ-4 — drop shadow follows the rounded silhouette.
+    // FA-3 — tighter shadow: less blur, slightly more opacity.
+    // More grounded, less halo.
     ...(shadow
-      ? { filter: "drop-shadow(0 4px 12px rgba(0, 0, 0, 0.25))" }
+      ? { filter: "drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35))" }
       : null),
     // EZ-3 — Wrapper green as outline so it's visible as a ring
     // around the actual card boundary (the wrapper hugs the IMG
@@ -233,6 +243,101 @@ export function CardImage({
 
   const showFaceShimmer =
     variant === "face" && !loading && (faceSrc == null || !imageLoaded);
+
+  // FA-4 — Flip mode: render face + back together inside a 3D wrapper.
+  // Activated when the caller passes a boolean `flipped` prop. The
+  // .flip-3d / .flip-face / .is-flipped CSS classes live in styles.css
+  // (legacy CardSlot implementation). We always mount both faces so the
+  // front image is decoded before the rotation reaches its apex.
+  if (typeof flipped === "boolean" && typeof cardId === "number") {
+    return (
+      <div
+        className={className}
+        style={{
+          width,
+          height: width * 1.6,
+          position: "relative",
+          display: "inline-block",
+          ...(style ?? {}),
+        }}
+      >
+        <div
+          className={`absolute inset-0 flip-3d${flipped ? " is-flipped" : ""}`}
+          style={{ ...radiusStyle }}
+        >
+          <div className="flip-face back" style={{ ...radiusStyle, overflow: "hidden" }}>
+            <CardBack
+              id={cardBackId}
+              imageUrl={customBackUrl ?? undefined}
+              width={width}
+              cornerRadiusPercent={deckRadius}
+              className="h-full w-full"
+            />
+            {DEV_BACK_OUTLINE ? (
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  outline: DEV_BACK_OUTLINE,
+                  outlineOffset: -3,
+                  pointerEvents: "none",
+                  ...radiusStyle,
+                }}
+              />
+            ) : null}
+          </div>
+          <div
+            className="flip-face front"
+            style={{ ...radiusStyle, overflow: "hidden" }}
+          >
+            {faceSrc ? (
+              <img
+                src={faceSrc}
+                alt={ariaLabel ?? getCardName(cardId)}
+                loading="eager"
+                onLoad={() => setImageLoaded(true)}
+                onError={() => {
+                  if (
+                    variantTier !== "full" &&
+                    baseFaceSrc &&
+                    faceSrc !== baseFaceSrc &&
+                    variantFailedFor !== variantSrc
+                  ) {
+                    setVariantFailedFor(variantSrc);
+                  } else {
+                    setImageLoaded(true);
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  display: "block",
+                  opacity: imageLoaded ? 1 : 0,
+                  transform: reversed ? "rotate(180deg)" : undefined,
+                  transition: "opacity 300ms ease-out",
+                  ...radiusStyle,
+                }}
+              />
+            ) : null}
+            {DEV_IMG_TINT_BG && imageLoaded ? (
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  backgroundColor: DEV_IMG_TINT_BG,
+                  pointerEvents: "none",
+                  ...radiusStyle,
+                }}
+              />
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const inner: ReactNode = (
     <>
