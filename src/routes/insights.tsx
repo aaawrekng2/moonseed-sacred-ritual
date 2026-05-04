@@ -22,6 +22,10 @@ import { YearHeatmap } from "@/components/insights/YearHeatmap";
 import { MoonPhaseInsightRing } from "@/components/insights/MoonPhaseInsightRing";
 import { TimeOfDayRadial } from "@/components/insights/TimeOfDayRadial";
 import { StreakHistory } from "@/components/insights/StreakHistory";
+import { TagCloud } from "@/components/insights/TagCloud";
+import { GuidePreferences } from "@/components/insights/GuidePreferences";
+import { LensDistribution } from "@/components/insights/LensDistribution";
+import { QuestionThemesLocked } from "@/components/insights/QuestionThemesLocked";
 import type { MoonPhaseName } from "@/lib/moon";
 
 export const Route = createFileRoute("/insights")({
@@ -154,7 +158,21 @@ function InsightsRoute() {
               <StreakHistory />
             </div>
           )}
-          {tab !== "overview" && tab !== "cards" && tab !== "calendar" && <ComingSoon />}
+          {tab === "themes" && (
+            <div className="flex flex-col gap-12 pb-12">
+              <TagCloud
+                filters={filters}
+                onTagSelect={(tagId) => {
+                  setFilters((f) => ({ ...f, tagIds: [tagId] }));
+                  setTab("cards");
+                }}
+              />
+              <GuidePreferences filters={filters} />
+              <LensDistribution filters={filters} />
+              <QuestionThemesLocked />
+            </div>
+          )}
+          {tab === "recap" && <ComingSoon />}
         </div>
       </main>
 
