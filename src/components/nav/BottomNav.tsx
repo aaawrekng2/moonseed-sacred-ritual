@@ -56,7 +56,7 @@ export function BottomNav() {
       style={{
         background: "color-mix(in oklch, var(--surface-elevated) 90%, transparent)",
         borderTopColor: "var(--border-default)",
-        minHeight: "calc(64px + env(safe-area-inset-bottom, 0px))",
+        minHeight: "calc(72px + env(safe-area-inset-bottom, 0px))",
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
       }}
     >
