@@ -586,7 +586,13 @@ function SlideTopTags({ data }: { data: RecapData }) {
   );
 }
 
-function PremiumReflectionSlide({ lunationStart }: { lunationStart: string }) {
+function PremiumReflectionSlide({
+  lunationStart,
+  onReflection,
+}: {
+  lunationStart: string;
+  onReflection?: (r: string | null) => void;
+}) {
   const fn = useServerFn(getLunationReflection);
   const [text, setText] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -597,16 +603,24 @@ function PremiumReflectionSlide({ lunationStart }: { lunationStart: string }) {
         const headers = await getAuthHeaders();
         const r = await fn({ data: { lunationStart }, headers });
         if (cancelled) return;
-        if (r.ok) setText(r.reflection);
-        else setErr(r.error);
+        if (r.ok) {
+          setText(r.reflection);
+          onReflection?.(r.reflection);
+        } else {
+          setErr(r.error);
+          onReflection?.(null);
+        }
       } catch {
-        if (!cancelled) setErr("ai_unavailable");
+        if (!cancelled) {
+          setErr("ai_unavailable");
+          onReflection?.(null);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [lunationStart, fn]);
+  }, [lunationStart, fn, onReflection]);
   return (
     <SlideShell>
       <Eyebrow>Reflection</Eyebrow>
