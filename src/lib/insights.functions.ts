@@ -17,6 +17,8 @@ import {
 import { getCardArcana, getCardSuit, getCardName } from "@/lib/tarot";
 import { getGuideById, LENSES } from "@/lib/guides";
 import { z } from "zod";
+import { getLunationContaining } from "@/lib/lunation";
+import * as Astronomy from "astronomy-engine";
 
 const FREE_CAP_DAYS = 90;
 const STALKER_THRESHOLD = 3;
