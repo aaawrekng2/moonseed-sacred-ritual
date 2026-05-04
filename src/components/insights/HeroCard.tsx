@@ -1,6 +1,6 @@
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import type { StalkerCardsResult } from "@/lib/insights.types";
-import { useDeckImage, useDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
+import { useActiveDeckImage, useActiveDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
 import { useElementWidth } from "@/lib/use-element-width";
 
 /**
@@ -29,9 +29,10 @@ export function HeroCard({
     : isStalker
       ? "Stalker emerging"
       : "Most-drawn card";
-  const { displayUrl } = useDeckImage(featuredId, "display");
-  const [ref, width] = useElementWidth<HTMLDivElement>();
-  const radiusPct = useDeckCornerRadius();
+  const resolveImage = useActiveDeckImage();
+  const displayUrl = resolveImage(featuredId, "display");
+  const { ref, width } = useElementWidth<HTMLDivElement>();
+  const radiusPct = useActiveDeckCornerRadius();
   const radiusStyle = cornerRadiusStyle(radiusPct, width || 120);
   const cardName = getCardName(featuredId);
 
