@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useActiveCardBackUrl, useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
 import { getCardName } from "@/lib/tarot";
 import { CardImage } from "@/components/card/CardImage";
 import type { CardBackId } from "@/lib/card-backs";
@@ -89,11 +88,6 @@ export function CardSlot({
   containerElRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const isSelected = card.selectionOrder !== null;
-  const cardImg = useActiveDeckImage();
-  // BX — render custom deck back when an active deck has one.
-  const customBackUrl = useActiveCardBackUrl();
-  // DX — apply per-deck corner radius if set; falls through to existing default.
-  const deckRadiusPx = useActiveDeckCornerRadius();
   // When the card landed in the slot via a physical drag-drop we skip
   // the FLIP-style flight animation entirely — the user just placed it
   // there, animating it from the scatter coords (where it would re-mount
