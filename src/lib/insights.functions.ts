@@ -152,7 +152,8 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
   .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
   .handler(async ({ data, context }): Promise<InsightsOverview> => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const { days, capped } = effectiveWindow(data.timeRange);
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days, capped } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
 
     const suitCounts = { Wands: 0, Cups: 0, Swords: 0, Pentacles: 0 };
@@ -242,7 +243,8 @@ export const getStalkerCards = createServerFn({ method: "GET" })
   .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
   .handler(async ({ data, context }): Promise<StalkerCardsResult> => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const { days } = effectiveWindow(data.timeRange);
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
 
     const counts = new Map<number, { count: number; appearances: Array<{ readingId: string; date: string }> }>();
@@ -283,7 +285,8 @@ export const getCardFrequency = createServerFn({ method: "GET" })
   .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const { days } = effectiveWindow(data.timeRange);
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
     const counts = new Array<number>(78).fill(0);
     let totalDraws = 0;
@@ -310,7 +313,8 @@ export const getCardPairs = createServerFn({ method: "GET" })
   .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const { days } = effectiveWindow(data.timeRange);
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
     const multi = rows.filter((r) => (r.card_ids ?? []).length >= 2);
     const pairCounts = new Map<string, number>();
@@ -360,7 +364,8 @@ export const getReversalPatterns = createServerFn({ method: "GET" })
   .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const { days } = effectiveWindow(data.timeRange);
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
     const totals = new Map<number, { total: number; reversed: number }>();
     let allCards = 0;
@@ -406,7 +411,8 @@ export const getStalkerCardDetail = createServerFn({ method: "GET" })
   .inputValidator((raw: unknown) => StalkerDetailInputSchema.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const { days } = effectiveWindow(data.timeRange);
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
     const filters = InsightsFiltersSchema.parse({ ...data, cardId: undefined });
     const rows = await fetchFilteredReadings(supabase, userId, filters, days);
     const appearances: Array<{
@@ -463,9 +469,10 @@ export const getCalendarHeatmap = createServerFn({ method: "GET" })
   .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
+    const isPremium = await getIsPremium(supabase, userId);
     const totalDays = rangeToCalendarDays(data.timeRange);
     // Fetch within free-tier cap window for queries.
-    const { days: capDays, capped } = effectiveWindow(data.timeRange);
+    const { days: capDays, capped } = effectiveWindow(data.timeRange, isPremium);
     const fetchDays = Math.min(totalDays, capDays ?? totalDays);
     const rows = await fetchFilteredReadings(supabase, userId, data, fetchDays);
     const dayMap = new Map<string, { count: number; suits: Record<string, number> }>();
@@ -505,7 +512,8 @@ export const getMoonPhaseStats = createServerFn({ method: "GET" })
   .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const { days } = effectiveWindow(data.timeRange);
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
     const phaseCounts: Record<string, number> = {};
     for (const r of rows) {
@@ -529,7 +537,8 @@ export const getTimeOfDayPattern = createServerFn({ method: "GET" })
   .inputValidator((raw: unknown) => TimeOfDayInputSchema.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const { days } = effectiveWindow(data.timeRange);
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
     const filters = InsightsFiltersSchema.parse({ ...data, timeZone: undefined });
     const rows = await fetchFilteredReadings(supabase, userId, filters, days);
     const tz = data.timeZone || "UTC";
@@ -575,6 +584,7 @@ export const getStreakHistory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
+    const isPremium = await getIsPremium(supabase, userId);
     const { data: rows, error } = await supabase
       .from("readings")
       .select("created_at")
@@ -645,7 +655,8 @@ export const getTagCloud = createServerFn({ method: "GET" })
   .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const { days } = effectiveWindow(data.timeRange);
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
     const counts = new Map<string, number>();
     let tagged = 0;
@@ -675,7 +686,8 @@ export const getGuidePreferences = createServerFn({ method: "GET" })
   .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const { days } = effectiveWindow(data.timeRange);
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
     const useWeekly = data.timeRange === "7d" || data.timeRange === "30d";
     function bucketKey(iso: string): string {
@@ -724,7 +736,8 @@ export const getLensDistribution = createServerFn({ method: "GET" })
   .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
-    const { days } = effectiveWindow(data.timeRange);
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
     const counts = new Map<string, number>();
     let totalDeep = 0;
@@ -770,6 +783,7 @@ export const getLunationRecap = createServerFn({ method: "GET" })
   .inputValidator((raw: unknown) => LunationRecapInputSchema.parse(raw))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
+    const isPremium = await getIsPremium(supabase, userId);
     const startDate = new Date(data.lunationStart);
     const containing = getLunationContaining(startDate);
     const start = containing.start;
@@ -916,6 +930,7 @@ export const getEarliestReadingDate = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
+    const isPremium = await getIsPremium(supabase, userId);
     const { data, error } = await supabase
       .from("readings")
       .select("created_at")
