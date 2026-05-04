@@ -199,9 +199,10 @@ export function CardImage({
     overflow: shadow ? "visible" : "hidden",
     display: "inline-block",
     ...radiusStyle,
-    // EZ-4 — drop shadow follows the rounded silhouette.
+    // FA-3 — tighter shadow: less blur, slightly more opacity.
+    // More grounded, less halo.
     ...(shadow
-      ? { filter: "drop-shadow(0 4px 12px rgba(0, 0, 0, 0.25))" }
+      ? { filter: "drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35))" }
       : null),
     // EZ-3 — Wrapper green as outline so it's visible as a ring
     // around the actual card boundary (the wrapper hugs the IMG
