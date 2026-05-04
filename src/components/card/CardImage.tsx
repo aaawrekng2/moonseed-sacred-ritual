@@ -255,9 +255,16 @@ export function CardImage({
         className={className}
         style={{
           width,
-          height: width * 1.6,
+          // FB-1 — drop hardcoded height; the wrapper hugs the IMG's
+          // natural dimensions (EY-2 pattern). minHeight reserves a
+          // visible footprint while the IMG decodes.
+          minHeight: width * 1.6,
           position: "relative",
           display: "inline-block",
+          // FB-1 — same dev-mode green outline as the standard branch.
+          ...(DEV_WRAPPER_BG
+            ? { outline: `3px solid ${DEV_WRAPPER_BG}`, outlineOffset: -3 }
+            : null),
           ...(style ?? {}),
         }}
       >
@@ -310,9 +317,11 @@ export function CardImage({
                   }
                 }}
                 style={{
+                  // FB-1 — IMG defines its own height from natural
+                  // aspect (same as the EY-2 non-flip branch). No
+                  // letterboxing, no objectFit.
                   width: "100%",
-                  height: "100%",
-                  objectFit: "contain",
+                  height: "auto",
                   display: "block",
                   opacity: imageLoaded ? 1 : 0,
                   transform: reversed ? "rotate(180deg)" : undefined,

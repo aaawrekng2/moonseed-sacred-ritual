@@ -422,18 +422,20 @@ export function CardBack({ id = "celestial", imageUrl, width = 160, className, a
         className={cn("relative overflow-hidden", className)}
         style={{
           width,
-          height,
+          // FB-2 — no hardcoded height; IMG below defines its own
+          // height from natural aspect, matching the EY-2 face fix.
           borderRadius: effectiveRadius,
           background: "var(--surface-card)",
-          border: `${m.border}px solid ${
-            neutralBorder ? "oklch(1 0 0 / 0.10)" : style.borderColor
-          }`,
+          // FB-2 — no outer border. The scanned card art is its own
+          // visual edge; the rounded clip handles the corners.
         }}
       >
         <img
           src={imageUrl}
           alt={ariaLabel ?? "Card back"}
-          className="h-full w-full object-cover"
+          // FB-2 — width 100% / height auto so the back renders at
+          // its natural aspect; no cropping, no letterboxing.
+          style={{ width: "100%", height: "auto", display: "block" }}
           draggable={false}
         />
       </div>
