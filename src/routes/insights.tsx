@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { BottomNav } from "@/components/nav/BottomNav";
@@ -262,14 +262,13 @@ function OverviewTab({
       </div>
 
       <div className="pt-2 text-center">
-        <Link
-          to="/journal"
-          search={{}}
+        <a
+          href="/journal"
           className="text-sm italic"
           style={{ color: "var(--gold)", opacity: 0.8 }}
         >
           See in journal →
-        </Link>
+        </a>
       </div>
     </div>
   );
