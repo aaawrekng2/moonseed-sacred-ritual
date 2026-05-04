@@ -47,6 +47,11 @@ const VARIANTS: VariantSpec[] = [
   { suffix: "md", width: 400 },
 ];
 
+// FB-6 — process cards in CHUNKS to stay well under the 150s
+// Edge Function timeout. The client (Settings → Decks Optimize
+// button) loops the call with the returned cursor until null.
+const BATCH_SIZE = 12;
+
 function variantPathFor(originalPath: string, suffix: "sm" | "md"): string | null {
   // Match `<...>/card-N-TS(-thumb)?.<ext>` and replace the filename.
   const m = originalPath.match(
@@ -96,6 +101,11 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const deckId = typeof body?.deckId === "string" ? body.deckId : null;
+    // FB-6 — chunk cursor (0-indexed offset into the card list).
+    const cursor =
+      typeof body?.cursor === "number" && Number.isFinite(body.cursor)
+        ? Math.max(0, Math.floor(body.cursor))
+        : 0;
     if (!deckId) {
       return new Response(JSON.stringify({ error: "missing_deckId" }), {
         status: 400,
@@ -124,7 +134,8 @@ serve(async (req) => {
       .from("custom_deck_cards")
       .select("card_id, display_path")
       .eq("deck_id", deckId)
-      .is("archived_at", null);
+      .is("archived_at", null)
+      .order("card_id", { ascending: true });
     if (cardsErr) {
       return new Response(JSON.stringify({ error: cardsErr.message }), {
         status: 500,
@@ -132,12 +143,17 @@ serve(async (req) => {
       });
     }
 
+    // FB-6 — slice this invocation's batch off the full list.
+    const allCards = (cards ?? []) as CardRow[];
+    const totalCards = allCards.length;
+    const batch = allCards.slice(cursor, cursor + BATCH_SIZE);
+
     let generated = 0;
     let skipped = 0;
     let failed = 0;
     const errors: { card_id: number; reason: string }[] = [];
 
-    for (const c of (cards ?? []) as CardRow[]) {
+    for (const c of batch) {
       if (!c.display_path) {
         skipped++;
         continue;
@@ -207,11 +223,17 @@ serve(async (req) => {
       }
     }
 
+    const processed = cursor + batch.length;
+    const nextCursor = processed < totalCards ? processed : null;
+
     return new Response(
       JSON.stringify({
         ok: true,
         deckId,
-        cardCount: (cards ?? []).length,
+        cardCount: totalCards,
+        totalCards,
+        processed,
+        nextCursor,
         generated,
         skipped,
         failed,
