@@ -8,6 +8,8 @@ import { getCardImagePath } from "@/lib/tarot";
 import { Lock } from "lucide-react";
 import type { InsightsFilters, StalkerCardsResult } from "@/lib/insights.types";
 import { StalkerSparkline } from "./StalkerSparkline";
+import { usePremium } from "@/lib/premium";
+import { useAuth } from "@/lib/auth";
 
 /** EK-1 — Stalker Cards section in the Cards tab. */
 export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
@@ -16,6 +18,8 @@ export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
   const [data, setData] = useState<StalkerCardsResult | null>(null);
   const [loading, setLoading] = useState(true);
   const resolveImage = useActiveDeckImage();
+  const { user } = useAuth();
+  const { isPremium } = usePremium(user?.id);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,12 +99,38 @@ export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
                     windowEnd={windowEnd}
                   />
                 </div>
-                <LockedReflection />
+                {isPremium ? (
+                  <PremiumReflection />
+                ) : (
+                  <LockedReflection />
+                )}
               </div>
             </button>
           );
         })}
     </section>
+  );
+}
+
+/**
+ * EO-3 — Placeholder for premium users. EP builds the actual AI
+ * `getStalkerReflection` server fn; this stub just confirms the gate
+ * is open.
+ */
+function PremiumReflection() {
+  return (
+    <div
+      className="mt-2 inline-flex items-center rounded-full px-2 py-1"
+      style={{
+        background: "color-mix(in oklch, var(--gold) 12%, transparent)",
+        color: "var(--gold)",
+        fontStyle: "italic",
+        fontFamily: "var(--font-serif)",
+        fontSize: "var(--text-caption, 0.7rem)",
+      }}
+    >
+      Reflection generating…
+    </div>
   );
 }
 
