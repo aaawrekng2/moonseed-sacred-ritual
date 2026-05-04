@@ -264,6 +264,7 @@ function OverviewTab({
       <div className="pt-2 text-center">
         <Link
           to="/journal"
+          search={{}}
           className="text-sm italic"
           style={{ color: "var(--gold)", opacity: 0.8 }}
         >
