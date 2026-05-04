@@ -142,6 +142,16 @@ export function CardImage({
   const specificRadius = useDeckCornerRadius(deckId ?? null);
   const customBackUrl = useActiveCardBackUrl();
   const [imageLoaded, setImageLoaded] = useState(false);
+  const devMode = useDevMode();
+
+  // EX-4 — color-coded layer overrides so we can visually identify which
+  // element has which radius applied. All undefined when devMode is off
+  // so normal users see no diagnostic styling.
+  const DEV_WRAPPER_BG = devMode ? "oklch(0.78 0.18 145 / 0.55)" : undefined; // green
+  const DEV_IMG_TINT_BG = devMode ? "oklch(0.85 0.10 200 / 0.30)" : undefined; // cyan tint
+  const DEV_BACK_OUTLINE = devMode ? "3px solid oklch(0.65 0.25 330)" : undefined; // magenta
+  const DEV_EMPTY_BG = devMode ? "oklch(0.85 0.18 95)" : undefined; // yellow
+  const DEV_LOADING_OUTLINE = devMode ? "2px solid oklch(0.70 0.20 50)" : undefined; // orange
 
   const useSpecific = deckId != null && deckId !== "";
   const deckRadius = useSpecific ? specificRadius : activeRadius;
@@ -157,6 +167,7 @@ export function CardImage({
     overflow: "hidden",
     display: "inline-block",
     ...radiusStyle,
+    ...(DEV_WRAPPER_BG ? { background: DEV_WRAPPER_BG } : null),
     ...(style ?? {}),
   };
 
@@ -187,6 +198,7 @@ export function CardImage({
             background:
               "color-mix(in oklab, var(--gold) 6%, transparent)",
             ...radiusStyle,
+            ...(DEV_LOADING_OUTLINE ? { outline: DEV_LOADING_OUTLINE, outlineOffset: -2 } : null),
           }}
         />
       ) : null}
@@ -207,17 +219,33 @@ export function CardImage({
             transform: reversed ? "rotate(180deg)" : undefined,
             transition: "opacity 300ms ease-out",
             ...radiusStyle,
+            ...(DEV_IMG_TINT_BG ? { backgroundColor: DEV_IMG_TINT_BG } : null),
           }}
         />
       ) : null}
 
       {variant === "back" && !loading ? (
-        <CardBack
-          id={cardBackId}
-          imageUrl={customBackUrl ?? undefined}
-          width={width}
-          cornerRadiusPercent={deckRadius}
-        />
+        <>
+          <CardBack
+            id={cardBackId}
+            imageUrl={customBackUrl ?? undefined}
+            width={width}
+            cornerRadiusPercent={deckRadius}
+          />
+          {DEV_BACK_OUTLINE ? (
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                inset: 0,
+                outline: DEV_BACK_OUTLINE,
+                outlineOffset: -3,
+                pointerEvents: "none",
+                ...radiusStyle,
+              }}
+            />
+          ) : null}
+        </>
       ) : null}
 
       {variant === "empty" && !loading ? (
@@ -227,7 +255,7 @@ export function CardImage({
             position: "absolute",
             inset: 0,
             background:
-              "color-mix(in oklab, var(--gold) 6%, transparent)",
+              DEV_EMPTY_BG ?? "color-mix(in oklab, var(--gold) 6%, transparent)",
             ...radiusStyle,
           }}
         />
