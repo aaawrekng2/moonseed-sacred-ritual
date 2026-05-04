@@ -16,8 +16,7 @@ import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { HelpIcon } from "@/components/help/HelpIcon";
-import { useDeckImage, useDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
-import { getCardName } from "@/lib/tarot";
+import { CardImage } from "@/components/card/CardImage";
 import {
   AlertDialog,
   AlertDialogAction,
