@@ -63,26 +63,19 @@ function Index() {
   usePortraitOnly();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [todayCard, setTodayCard] = useState<number | null>(null);
+  // EW-2 — track today's draw orientation so the gateway face rotates
+  // 180° when the seeker drew a reversed card.
+  const [todayReversed, setTodayReversed] = useState<boolean>(false);
   // CE — propagate the active custom deck's photographed card back to
   // the home gateway. Hook returns null when no active deck or no back
   // photographed; CardBack falls back to the themed default.
   const customBackUrl = useActiveCardBackUrl();
-  // DF-3 — Resolve today's card front through the active custom deck
-  // (falls back to default Rider-Waite when no override exists).
-  const getActiveDeckImage = useActiveDeckImage();
-  // DY-1C — apply per-deck CSS corner radius to the home hero card.
-  const heroDeckRadius = useActiveDeckCornerRadius();
+  // EW-2 — image / radius / loading are now handled inside CardImage.
   // CL Group 5 — gate the gateway card render on active-deck loading
   // so the themed default never flashes before the photographed back.
   const { activeDeck, loading: deckLoading } = useActiveDeck();
-  // EG-1 — Skeleton dismisses when the hero image actually loads (onLoad).
-  // Falls back to a 1500ms timeout only if loading hangs (slow network /
-  // cold cache). The hero <img>'s onLoad sets heroImageLoaded=true,
-  // immediately swapping skeleton for image.
-  const [heroImageLoaded, setHeroImageLoaded] = useState(false);
+  // EW-2 — heroImageLoaded state lives inside CardImage now.
   const [skeletonTimedOut, setSkeletonTimedOut] = useState(false);
-  // EI-5 — ref for cached-image race detection.
-  const heroImgRef = useRef<HTMLImageElement | null>(null);
   // ES-1 — Watch the hero <section>'s actual content box. On warm
   // reopen, viewportH is correct but the moon carousel snaps in late
   // and shrinks the available pane after the initial layout pass.
