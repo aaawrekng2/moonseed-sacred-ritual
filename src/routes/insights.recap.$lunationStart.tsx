@@ -21,6 +21,7 @@ import { formatLunationRange } from "@/lib/lunation";
 import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
 import { exportRecapPdf, shareRecapImage } from "@/lib/recap-export";
+import { useTrackReversals } from "@/lib/use-track-reversals";
 
 export const Route = createFileRoute("/insights/recap/$lunationStart")({
   head: () => ({
@@ -59,6 +60,8 @@ function LunationRecapRoute() {
   const [reflection, setReflection] = useState<string | null>(null);
   const { user } = useAuth();
   const { isPremium } = usePremium(user?.id);
+  // ER-8 — drop the reversal slide from the premium order when off.
+  const { trackReversals } = useTrackReversals();
 
   useEffect(() => {
     let cancelled = false;
@@ -89,9 +92,9 @@ function LunationRecapRoute() {
     [data],
   );
   const total = isPremium
-    ? hasTags
-      ? TOTAL_SLIDES_PREMIUM_FULL
-      : TOTAL_SLIDES_PREMIUM_FULL - 1
+    ? TOTAL_SLIDES_PREMIUM_FULL -
+      (hasTags ? 0 : 1) -
+      (trackReversals ? 0 : 1)
     : TOTAL_SLIDES_FREE;
 
   const next = () => setSlide((s) => Math.min(s + 1, total - 1));
@@ -175,6 +178,7 @@ function LunationRecapRoute() {
             slide={slide}
             isPremium={isPremium}
             hasTags={hasTags}
+            trackReversals={trackReversals}
             lunationStart={lunationStart}
             reflection={reflection}
             onReflection={setReflection}
@@ -198,6 +202,7 @@ function SlideContent({
   slide,
   isPremium,
   hasTags,
+  trackReversals,
   lunationStart,
   reflection,
   onReflection,
@@ -208,6 +213,7 @@ function SlideContent({
   slide: number;
   isPremium: boolean;
   hasTags: boolean;
+  trackReversals: boolean;
   lunationStart: string;
   reflection: string | null;
   onReflection: (r: string | null) => void;
@@ -366,7 +372,7 @@ function SlideContent({
     "majorMinor" | "reversal" | "moonPhase" | "pairs" | "tags" | "reflection" | "closer"
   > = [
     "majorMinor",
-    "reversal",
+    ...((trackReversals ? (["reversal"] as const) : []) as Array<"reversal">),
     "moonPhase",
     "pairs",
     ...(hasTags ? (["tags"] as const) : []),

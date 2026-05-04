@@ -737,6 +737,7 @@ export type Database = {
           subscription_type: string
           sun_sign: string | null
           timezone: string | null
+          track_reversals: boolean
           tz_mode: string
           ui_density: number
           updated_at: string
@@ -798,6 +799,7 @@ export type Database = {
           subscription_type?: string
           sun_sign?: string | null
           timezone?: string | null
+          track_reversals?: boolean
           tz_mode?: string
           ui_density?: number
           updated_at?: string
@@ -859,6 +861,7 @@ export type Database = {
           subscription_type?: string
           sun_sign?: string | null
           timezone?: string | null
+          track_reversals?: boolean
           tz_mode?: string
           ui_density?: number
           updated_at?: string

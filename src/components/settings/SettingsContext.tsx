@@ -34,6 +34,8 @@ export type Prefs = {
   memory_ai_permission: boolean;
   show_question_prompt: boolean;
   allow_reversed_cards: boolean;
+  /** ER-7 — when off, reversal STATISTICS are hidden across the app. */
+  track_reversals: boolean;
   // Theme-related columns surfaced for the Themes tab.
   accent_color: string | null;
   bg_gradient_from: string | null;
@@ -61,6 +63,7 @@ const DEFAULT_PREFS: Prefs = {
   memory_ai_permission: true,
   show_question_prompt: true,
   allow_reversed_cards: false,
+  track_reversals: true,
   accent_color: null,
   bg_gradient_from: null,
   bg_gradient_to: null,
@@ -98,7 +101,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("user_preferences")
         .select(
-          "display_name, birth_date, birth_time, birth_place, sun_sign, rising_sign, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_carousel_size, moon_ai_phase, moon_ai_sign, moon_void_warning, memory_ai_permission, show_question_prompt, allow_reversed_cards, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
+          "display_name, birth_date, birth_time, birth_place, sun_sign, rising_sign, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_carousel_size, moon_ai_phase, moon_ai_sign, moon_void_warning, memory_ai_permission, show_question_prompt, allow_reversed_cards, track_reversals, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -141,6 +144,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         memory_ai_permission: b("memory_ai_permission", true),
         show_question_prompt: b("show_question_prompt", true),
         allow_reversed_cards: b("allow_reversed_cards", false),
+        track_reversals: b("track_reversals", true),
         accent_color: n("accent_color"),
         bg_gradient_from: n("bg_gradient_from"),
         bg_gradient_to: n("bg_gradient_to"),

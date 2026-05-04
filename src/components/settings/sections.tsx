@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { useSettings, type Prefs } from "./SettingsContext";
 import { MoonFeaturesSection } from "./MoonFeaturesSection";
 import { AIToneSection } from "./AIToneSection";
+import { emitTrackReversalsChanged } from "@/lib/use-track-reversals";
 import { useTimezone } from "@/lib/use-timezone";
 import { COMMON_TIMEZONES, timezoneLabel } from "@/lib/timezones";
 import {
@@ -808,6 +809,7 @@ function ReadingPreferencesSection({
   const [saving, setSaving] = useState(false);
   const [savingPrompt, setSavingPrompt] = useState(false);
   const [savingReversed, setSavingReversed] = useState(false);
+  const [savingTrackReversals, setSavingTrackReversals] = useState(false);
 
   const togglePrompt = async (next: boolean) => {
     setSavingPrompt(true);
@@ -843,6 +845,23 @@ function ReadingPreferencesSection({
     toast.success(next ? "Reversed cards on" : "Reversed cards off", {
       icon: "✓",
     });
+  };
+
+  const toggleTrackReversals = async (next: boolean) => {
+    setSavingTrackReversals(true);
+    const previous = prefs.track_reversals;
+    setPrefs({ ...prefs, track_reversals: next });
+    const { error } = await updateUserPreferences(user.id, {
+      track_reversals: next,
+    } as never);
+    setSavingTrackReversals(false);
+    if (error) {
+      setPrefs({ ...prefs, track_reversals: previous });
+      toast.error("Couldn't save your preference.");
+      return;
+    }
+    emitTrackReversalsChanged();
+    toast.success("Preference saved.", { icon: "✓" });
   };
 
   const save = async () => {
@@ -912,6 +931,25 @@ function ReadingPreferencesSection({
             checked={prefs.allow_reversed_cards}
             disabled={savingReversed}
             onCheckedChange={toggleReversed}
+          />
+        </div>
+
+        {/* ER-7 — Track reversed cards (statistics gating) */}
+        <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
+          <div className="space-y-0.5">
+            <Label htmlFor="track-reversals" className="text-sm">
+              Track reversed cards
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              When off, reversed cards are still drawable, but reversal stats
+              are hidden across the app.
+            </p>
+          </div>
+          <Switch
+            id="track-reversals"
+            checked={prefs.track_reversals}
+            disabled={savingTrackReversals}
+            onCheckedChange={toggleTrackReversals}
           />
         </div>
 

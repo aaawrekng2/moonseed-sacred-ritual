@@ -1,4 +1,5 @@
 import { InsightCard } from "./InsightCard";
+import { useTrackReversals } from "@/lib/use-track-reversals";
 
 export function ReversalStat({
   rate,
@@ -8,6 +9,9 @@ export function ReversalStat({
   rate: number;
   onTap?: () => void;
 }) {
+  // ER-8 — hide entirely when the seeker has turned off reversal tracking.
+  const { trackReversals, loaded } = useTrackReversals();
+  if (loaded && !trackReversals) return null;
   const pct = Math.round(rate * 100);
   const sub =
     rate > 0.4

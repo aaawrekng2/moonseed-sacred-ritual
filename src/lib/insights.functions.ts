@@ -171,9 +171,16 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
     for (const r of rows) {
       const cards = r.card_ids ?? [];
       const orientations = r.card_orientations ?? [];
+      // ER-6 — Reversal rate is reversed cards / total cards across
+      // readings whose orientations were tracked. Readings with
+      // `card_orientations === null` predate reversal tracking and
+      // would otherwise inflate the denominator and depress the rate.
+      const orientationsTracked = r.card_orientations !== null;
       cards.forEach((cid, idx) => {
-        totalCards += 1;
-        if (orientations[idx]) reversedCards += 1;
+        if (orientationsTracked) {
+          totalCards += 1;
+          if (orientations[idx]) reversedCards += 1;
+        }
         const arcana = getCardArcana(cid);
         if (arcana === "major") majors += 1;
         else minors += 1;
@@ -374,6 +381,9 @@ export const getReversalPatterns = createServerFn({ method: "GET" })
     for (const r of rows) {
       const cards = r.card_ids ?? [];
       const orients = r.card_orientations ?? [];
+      // ER-6 — skip readings without tracked orientations so old
+      // pre-tracking readings don't depress the reversal totals.
+      if (r.card_orientations === null) continue;
       cards.forEach((cid, idx) => {
         const e = totals.get(cid) ?? { total: 0, reversed: 0 };
         e.total += 1;
@@ -828,9 +838,15 @@ export const getLunationRecap = createServerFn({ method: "GET" })
     for (const r of rows) {
       const cards = r.card_ids ?? [];
       const orients = r.card_orientations ?? [];
+      // ER-6 — see getInsightsOverview: skip readings without
+      // tracked orientations so the lunation reversal rate isn't
+      // depressed by pre-tracking history.
+      const orientationsTracked = r.card_orientations !== null;
       cards.forEach((cid, idx) => {
-        totalCards += 1;
-        if (orients[idx]) reversedCards += 1;
+        if (orientationsTracked) {
+          totalCards += 1;
+          if (orients[idx]) reversedCards += 1;
+        }
         cardCounts.set(cid, (cardCounts.get(cid) ?? 0) + 1);
         const arcana = getCardArcana(cid);
         if (arcana === "major") majors += 1;
