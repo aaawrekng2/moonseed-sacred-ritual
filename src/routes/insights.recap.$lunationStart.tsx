@@ -202,6 +202,7 @@ function SlideContent({
   slide,
   isPremium,
   hasTags,
+  trackReversals,
   lunationStart,
   reflection,
   onReflection,
@@ -212,6 +213,7 @@ function SlideContent({
   slide: number;
   isPremium: boolean;
   hasTags: boolean;
+  trackReversals: boolean;
   lunationStart: string;
   reflection: string | null;
   onReflection: (r: string | null) => void;
