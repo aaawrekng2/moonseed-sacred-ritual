@@ -679,7 +679,7 @@ export const getGuidePreferences = createServerFn({ method: "GET" })
         for (const id of topGuides) counts[id] = m.get(id) ?? 0;
         return { month, counts };
       });
-    return { months, guides, bucket: useWeekly ? "week" : "month" as const };
+    return { months, guides, bucket: (useWeekly ? "week" : "month") as "week" | "month" };
   });
 
 /** EM-3 — Lens distribution across all (and deep) readings. */
