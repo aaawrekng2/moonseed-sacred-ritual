@@ -1199,6 +1199,10 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
     lifecycle_state: string;
     resonance: number;
     sharedCards: number[];
+    // EX-3 — orientation lookup keyed by cardId (from this reading's
+    // own card_orientations), so reversed cards rotate in the resonance
+    // shared-cards row.
+    cardOrientations: Record<number, boolean>;
     sharedTags: string[];
     drawSize: number;
     poolSize: number;
