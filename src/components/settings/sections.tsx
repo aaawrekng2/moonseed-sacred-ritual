@@ -788,6 +788,7 @@ export function PreferencesTab() {
     <div className="space-y-12" key={loaded ? "loaded" : "empty"}>
       <ReadingPreferencesSection user={user} prefs={prefs} setPrefs={setPrefs} />
       <MoonFeaturesSection />
+      <AIToneSection />
       <MemorySection user={user} prefs={prefs} setPrefs={setPrefs} />
     </div>
   );
