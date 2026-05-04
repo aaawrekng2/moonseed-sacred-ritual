@@ -191,9 +191,23 @@ export async function setActiveDeck(userId: string, deckId: string | null): Prom
   }
 }
 
-/** Stub for premium gating — Phase 9.5b/AW. Treats everyone as free. */
-export async function isPremiumUser(_userId: string): Promise<boolean> {
-  return false;
+/**
+ * EO-9 — Read user's premium status from user_preferences.
+ * Replaces the AW-era stub that always returned false.
+ */
+export async function isPremiumUser(userId: string): Promise<boolean> {
+  if (!userId) return false;
+  const { data, error } = await supabase
+    .from("user_preferences")
+    .select("is_premium, premium_expires_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error || !data?.is_premium) return false;
+  if (data.premium_expires_at) {
+    const exp = new Date(data.premium_expires_at).getTime();
+    if (Number.isFinite(exp) && exp <= Date.now()) return false;
+  }
+  return true;
 }
 
 export const FREE_DECK_LIMIT = 3;

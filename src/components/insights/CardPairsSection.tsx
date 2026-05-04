@@ -7,6 +7,8 @@ import { getCardImagePath } from "@/lib/tarot";
 import { Lock } from "lucide-react";
 import type { InsightsFilters } from "@/lib/insights.types";
 import { SectionHeader, EmptyNote, SkeletonRow } from "./StalkerCardsSection";
+import { usePremium } from "@/lib/premium";
+import { useAuth } from "@/lib/auth";
 
 type Pair = {
   cardA: number;
@@ -42,8 +44,9 @@ export function CardPairsSection({ filters }: { filters: InsightsFilters }) {
     };
   }, [filters, fn]);
 
-  // Premium gating — everyone is non-premium for now.
-  const isPremium = false;
+  // EO-2 — wire to canonical premium hook.
+  const { user } = useAuth();
+  const { isPremium } = usePremium(user?.id);
 
   return (
     <section className="space-y-3">

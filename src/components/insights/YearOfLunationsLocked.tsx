@@ -3,8 +3,49 @@
  * Tap dispatches `moonseed:open-premium` with featureName "Year of Lunations".
  */
 import { Lock } from "lucide-react";
+import { usePremium } from "@/lib/premium";
+import { useAuth } from "@/lib/auth";
 
 export function YearOfLunationsLocked() {
+  const { user } = useAuth();
+  const { isPremium } = usePremium(user?.id);
+  if (isPremium) {
+    /* EO-6 — premium placeholder; EP builds the actual story content. */
+    return (
+      <div
+        className="w-full overflow-hidden p-6 text-left"
+        style={{
+          background: "var(--surface-card)",
+          borderRadius: 18,
+          backgroundImage:
+            "linear-gradient(135deg, color-mix(in oklab, var(--gold) 14%, transparent) 0%, transparent 60%)",
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-heading-sm, 1.4rem)",
+            color: "var(--gold)",
+            lineHeight: 1.2,
+          }}
+        >
+          Year of Lunations
+        </div>
+        <div
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            opacity: 0.75,
+            marginTop: 6,
+          }}
+        >
+          Your Year of Lunations is being prepared…
+        </div>
+      </div>
+    );
+  }
   const open = () =>
     window.dispatchEvent(
       new CustomEvent("moonseed:open-premium", {

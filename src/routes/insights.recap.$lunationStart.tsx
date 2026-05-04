@@ -15,6 +15,8 @@ import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage } from "@/lib/active-deck";
 import { getCardImagePath } from "@/lib/tarot";
 import { formatLunationRange } from "@/lib/lunation";
+import { usePremium } from "@/lib/premium";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/insights/recap/$lunationStart")({
   head: () => ({
@@ -34,6 +36,8 @@ function LunationRecapRoute() {
   const [data, setData] = useState<RecapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [slide, setSlide] = useState(0);
+  const { user } = useAuth();
+  const { isPremium } = usePremium(user?.id);
 
   useEffect(() => {
     let cancelled = false;
@@ -132,7 +136,7 @@ function LunationRecapRoute() {
           </div>
         )}
         {!loading && data && (
-          <SlideContent data={data} slide={slide} onPremium={() => {
+          <SlideContent data={data} slide={slide} isPremium={isPremium} onPremium={() => {
             window.dispatchEvent(
               new CustomEvent("moonseed:open-premium", {
                 detail: { feature: "Full Lunation Recap", featureName: "Full Lunation Recap" },
@@ -148,10 +152,12 @@ function LunationRecapRoute() {
 function SlideContent({
   data,
   slide,
+  isPremium,
   onPremium,
 }: {
   data: RecapData;
   slide: number;
+  isPremium: boolean;
   onPremium: () => void;
 }) {
   const range = formatLunationRange({
@@ -262,6 +268,27 @@ function SlideContent({
   }
 
   // Slide 4 — premium teaser closer.
+  if (isPremium) {
+    /* EO-7 — premium placeholder until EP ships slides 6-12. */
+    return (
+      <SlideShell>
+        <div
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "clamp(1.6rem, 6vw, 2.4rem)",
+            color: "var(--gold)",
+            lineHeight: 1.2,
+          }}
+        >
+          More slides coming soon.
+        </div>
+        <Caption>
+          Your full lunation report is being prepared. Check back soon for deeper insights.
+        </Caption>
+      </SlideShell>
+    );
+  }
   return (
     <SlideShell>
       <Lock size={28} style={{ color: "var(--gold)", opacity: 0.85 }} />

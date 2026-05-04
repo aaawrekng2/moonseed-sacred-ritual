@@ -28,6 +28,7 @@ import { LensDistribution } from "@/components/insights/LensDistribution";
 import { QuestionThemesLocked } from "@/components/insights/QuestionThemesLocked";
 import { RecapTab } from "@/components/insights/RecapTab";
 import { LunationBanner } from "@/components/insights/LunationBanner";
+import { PremiumBadge } from "@/components/insights/PremiumBadge";
 import type { MoonPhaseName } from "@/lib/moon";
 
 export const Route = createFileRoute("/insights")({
@@ -89,6 +90,10 @@ function InsightsRoute() {
   return (
     <div className="relative flex h-dvh flex-col" style={{ background: "var(--background)" }}>
       {/* EK-0 — h-dvh + flex-col so the inner <main> can own the scroll. */}
+      {/* EO-11 — premium badge above the filter bar. */}
+      <div className="flex justify-end px-4 pt-2">
+        <PremiumBadge />
+      </div>
       <InsightsFilterBar filters={filters} onChange={setFilters} hidden={tab === "recap"} />
 
       {/* Tab strip */}
