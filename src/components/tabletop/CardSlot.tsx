@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { CardBack } from "@/components/cards/CardBack";
-import { useActiveCardBackUrl, useActiveDeckImage, useActiveDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
-import { getCardName } from "@/lib/tarot";
+import { useActiveCardBackUrl, useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
+import { CardImage } from "@/components/card/CardImage";
 import type { CardBackId } from "@/lib/card-backs";
 import { cn } from "@/lib/utils";
 import { TABLETOP_CONFIG } from "./config";
@@ -697,41 +696,26 @@ export function CardSlot({
         {/* Flip 3D container nested inside the scale wrapper so the inline
             scale transform on the parent doesn't override the rotateY(180deg)
             applied by .flip-3d.is-flipped when the card reveals. */}
-        <div
-          className={cn(
-            "absolute inset-0 rounded-[10px] flip-3d",
-            card.revealed && "is-flipped",
-          )}
-        >
-          <div className="flip-face back">
-            <CardBack id={cardBack} imageUrl={customBackUrl} width={cardW} className="h-full w-full" />
-          </div>
-          <div
-            className="flip-face front overflow-hidden bg-card"
-            style={cornerRadiusStyle(deckRadiusPx, cardW)}
-          >
-            {/* Always render the face image so it's loaded and decoded before
-                the flip animation reaches the apex — gating on `card.revealed`
-                left the front blank for the first reveal. The back covers it
-                until the rotation completes (backface-visibility: hidden). */}
-            <img
-              src={cardImg(faceIndex)}
-              alt={getCardName(faceIndex)}
-              className="h-full w-full object-contain"
-              loading="eager"
-              style={cornerRadiusStyle(deckRadiusPx, cardW)}
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = "none";
-              }}
+        {/* FA-4 — CardImage owns the face/back rendering and the flip
+            animation. CardSlot keeps the surrounding state machines
+            (drag, flight, consecration) untouched. */}
+        <div className="absolute inset-0">
+          <CardImage
+            cardId={faceIndex}
+            variant="face"
+            reversed={card.reversed ?? false}
+            flipped={card.revealed}
+            cardBackId={cardBack}
+            size="custom"
+            widthPx={cardW}
+          />
+          {faceGlowing && card.revealed && (
+            <span
+              key={`face-glow-${faceGlowTick}`}
+              aria-hidden="true"
+              className="face-reveal-glow"
             />
-            {faceGlowing && (
-              <span
-                key={`face-glow-${faceGlowTick}`}
-                aria-hidden="true"
-                className="face-reveal-glow"
-              />
-            )}
-          </div>
+          )}
         </div>
         {consecrating && !card.revealed && (
           <span aria-hidden="true" className="card-consecrate-shimmer" />
