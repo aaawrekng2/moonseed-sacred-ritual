@@ -9,6 +9,8 @@ import { useElementWidth } from "@/lib/use-element-width";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { DEFAULT_FILTERS } from "@/lib/insights.types";
 import { StalkerSparkline } from "@/components/insights/StalkerSparkline";
+import { usePremium } from "@/lib/premium";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/insights/card/$cardId")({
   component: StalkerDetailRoute,
@@ -39,6 +41,8 @@ function StalkerDetailRoute() {
   const radiusPct = useActiveDeckCornerRadius();
   const { ref, width } = useElementWidth<HTMLDivElement>();
   const radiusStyle = cornerRadiusStyle(radiusPct, width || 200);
+  const { user } = useAuth();
+  const { isPremium } = usePremium(user?.id);
 
   useEffect(() => {
     void (async () => {
@@ -139,25 +143,40 @@ function StalkerDetailRoute() {
                 height={32}
               />
 
-              <button
-                type="button"
-                onClick={() =>
-                  window.dispatchEvent(
-                    new CustomEvent("moonseed:open-premium", {
-                      detail: { feature: "Stalker Reflections" },
-                    }),
-                  )
-                }
-                className="flex w-full items-center justify-center gap-2 p-4"
-                style={{
-                  background: "color-mix(in oklch, var(--gold) 12%, transparent)",
-                  borderRadius: 14,
-                  color: "var(--gold)",
-                  fontStyle: "italic",
-                }}
-              >
-                <Lock className="h-4 w-4" /> Reflection — premium
-              </button>
+              {isPremium ? (
+                /* EO-4 — placeholder until EP ships the AI reflection. */
+                <div
+                  className="flex w-full items-center justify-center gap-2 p-4"
+                  style={{
+                    background: "color-mix(in oklch, var(--gold) 12%, transparent)",
+                    borderRadius: 14,
+                    color: "var(--gold)",
+                    fontStyle: "italic",
+                  }}
+                >
+                  Reflection generating…
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent("moonseed:open-premium", {
+                        detail: { feature: "Stalker Reflections" },
+                      }),
+                    )
+                  }
+                  className="flex w-full items-center justify-center gap-2 p-4"
+                  style={{
+                    background: "color-mix(in oklch, var(--gold) 12%, transparent)",
+                    borderRadius: 14,
+                    color: "var(--gold)",
+                    fontStyle: "italic",
+                  }}
+                >
+                  <Lock className="h-4 w-4" /> Reflection — premium
+                </button>
+              )}
 
               <div className="w-full space-y-2">
                 <h2
