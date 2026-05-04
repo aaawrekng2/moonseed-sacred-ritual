@@ -8,7 +8,8 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, CheckCheck, ChevronDown, ChevronRight, Copy, Share2 } from "lucide-react";
 import { getCardName } from "@/lib/tarot";
-import { useActiveDeckImage, useActiveDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
+import { useActiveDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
+import { CardImage } from "@/components/card/CardImage";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { PositionLabel } from "@/components/tabletop/SpreadLayout";
 import {
@@ -605,7 +606,6 @@ function CardStrip({
   spread: SpreadMode;
 }) {
   const { level } = useUIDensity();
-  const cardImg = useActiveDeckImage();
   const deckRadiusPx = useActiveDeckCornerRadius();
   const showLabels = level === 1; // Glimpse + Veiled hide the labels
   const labelOpacity = level === 1 ? 0.7 : 0;
