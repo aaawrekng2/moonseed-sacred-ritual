@@ -15,7 +15,7 @@ import {
   type TimeRange,
 } from "@/lib/insights.types";
 import { getCardArcana, getCardSuit, getCardName } from "@/lib/tarot";
-import { getGuideById } from "@/lib/guides";
+import { getGuideById, getLensById, LENSES, BUILT_IN_GUIDES } from "@/lib/guides";
 import { z } from "zod";
 
 const FREE_CAP_DAYS = 90;
