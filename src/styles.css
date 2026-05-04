@@ -1170,10 +1170,9 @@ button:focus-visible .moon-rung-glow {
   justify-content: center;
 }
 
-/* Force neutral card frame in the reading/reveal screen — overrides any
-   gold-tinted border that might leak in via Tailwind class precedence. */
+/* EI-3 — visual border removed; class kept for any positioning hooks. */
 .reading-card-frame {
-  border-color: oklch(1 0 0 / 0.08) !important;
+  /* visual border removed in EI-3 */
 }
 
 /* Journal filter drawer width — narrow on mobile, wider on desktop */
