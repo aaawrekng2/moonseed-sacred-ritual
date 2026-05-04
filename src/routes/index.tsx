@@ -258,6 +258,21 @@ function Index() {
     setHeroImageLoaded(false);
   }, [todayCard]);
 
+  // EI-7 diagnostic — observe render-decision state on warm PWA reopen
+  // to track down the default-card flash.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    // eslint-disable-next-line no-console
+    console.log("[EI-7]", {
+      todayCard,
+      deckLoading,
+      activeDeck: !!activeDeck,
+      customBackUrl: !!customBackUrl,
+      heroImageLoaded,
+      skeletonTimedOut,
+    });
+  }, [todayCard, deckLoading, activeDeck, customBackUrl, heroImageLoaded, skeletonTimedOut]);
+
   // EI-5 — Cached-image race: when the browser has the image cached,
   // onLoad may fire BEFORE React's handler attaches. After todayCard
   // changes (and the new <img> mounts), check imgRef.current.complete —
