@@ -52,9 +52,13 @@ export function LunationBanner() {
     } catch {
       // ignore
     }
+    // EX-1 — ISO timestamps contain colons (URL-reserved). Replace ':'
+    // and '.' with '-' so the path segment matches cleanly. The route
+    // reverses the transform before passing to the server fn.
+    const safeParam = previousStart.toISOString().replace(/[:.]/g, "-");
     void navigate({
       to: "/insights/recap/$lunationStart",
-      params: { lunationStart: previousStart.toISOString() },
+      params: { lunationStart: safeParam },
     });
   };
 

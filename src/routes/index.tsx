@@ -65,6 +65,10 @@ function Index() {
   // EW-2 — track today's draw orientation so the gateway face rotates
   // 180° when the seeker drew a reversed card.
   const [todayReversed, setTodayReversed] = useState<boolean>(false);
+  // EX-2 — tracks whether we've finished checking the today-draw query
+  // at least once, so we don't flash the card-back during the async
+  // resolution on warm reopen.
+  const [hasCheckedTodayDraw, setHasCheckedTodayDraw] = useState(false);
   // CE — propagate the active custom deck's photographed card back to
   // the home gateway. Hook returns null when no active deck or no back
   // photographed; CardBack falls back to the themed default.
@@ -282,10 +286,14 @@ function Index() {
     // calendar flips — the query below will re-populate it only if
     // the seeker has already drawn for the new day.
     setTodayCard(null);
+    setHasCheckedTodayDraw(false); // EX-2 — reset on day flip / re-check
     void (async () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const uid = sessionData.session?.user?.id;
-      if (!uid) return;
+      if (!uid) {
+        if (!cancelled) setHasCheckedTodayDraw(true);
+        return;
+      }
       const today = getTodayInTz(effectiveTz);
       const start = getStartOfDayInTz(today, effectiveTz);
       const end = getStartOfDayInTz(today, effectiveTz, 1);
@@ -309,6 +317,7 @@ function Index() {
         setTodayCard(first);
         setTodayReversed(!!row?.card_orientations?.[0]);
       }
+      setHasCheckedTodayDraw(true); // EX-2 — always set, even with no row
     })();
     return () => {
       cancelled = true;
@@ -385,13 +394,17 @@ function Index() {
           <CardImage
             cardId={todayCard ?? undefined}
             variant={
-              todayCard !== null
+              // EX-2 — while the today-draw check is still pending,
+              // render face+loading (shimmer) so we never flash the
+              // card-back during warm reopen. After the check resolves:
+              // face if drawn, back if not.
+              !hasCheckedTodayDraw
                 ? "face"
-                : showSkeleton
-                ? "face"
-                : "back"
+                : todayCard !== null
+                  ? "face"
+                  : "back"
             }
-            loading={todayCard === null && showSkeleton}
+            loading={!hasCheckedTodayDraw || (todayCard === null && showSkeleton)}
             reversed={todayReversed}
             cardBackId={cardBack}
             size="custom"

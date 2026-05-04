@@ -104,12 +104,17 @@ export function RecapTab() {
             <button
               key={l.start.toISOString()}
               type="button"
-              onClick={() =>
+              onClick={() => {
+                // EX-1 — encode ':' and '.' to '-' so the ISO datetime
+                // survives as a single URL path segment.
+                const safeParam = l.start
+                  .toISOString()
+                  .replace(/[:.]/g, "-");
                 navigate({
                   to: "/insights/recap/$lunationStart",
-                  params: { lunationStart: l.start.toISOString() },
-                })
-              }
+                  params: { lunationStart: safeParam },
+                });
+              }}
               className="relative flex w-full items-center gap-4 p-4 text-left transition-opacity hover:opacity-95"
               style={{
                 background: "var(--surface-card)",

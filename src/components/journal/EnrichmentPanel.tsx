@@ -1199,6 +1199,10 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
     lifecycle_state: string;
     resonance: number;
     sharedCards: number[];
+    // EX-3 — orientation lookup keyed by cardId (from this reading's
+    // own card_orientations), so reversed cards rotate in the resonance
+    // shared-cards row.
+    cardOrientations: Record<number, boolean>;
     sharedTags: string[];
     drawSize: number;
     poolSize: number;
@@ -1260,7 +1264,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
     void (async () => {
       const { data: r } = await supabase
         .from("readings")
-        .select("pattern_id, user_id, card_ids, tags, deck_id")
+       .select("pattern_id, user_id, card_ids, card_orientations, tags, deck_id")
         .eq("id", readingId)
         .maybeSingle();
       const row = r as
@@ -1268,6 +1272,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
             pattern_id: string | null;
             user_id: string;
             card_ids: number[] | null;
+            card_orientations: boolean[] | null;
             tags: string[] | null;
             deck_id: string | null;
           }
@@ -1328,6 +1333,13 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
 
       const myCards = new Set(row.card_ids ?? []);
       const myTags = new Set((row.tags ?? []).map((t) => t.toLowerCase()));
+      // EX-3 — pair each cardId with its orientation from this reading.
+      const myOrientations: Record<number, boolean> = {};
+      const ids = row.card_ids ?? [];
+      const ors = row.card_orientations ?? [];
+      for (let i = 0; i < ids.length; i++) {
+        myOrientations[ids[i]] = !!ors[i];
+      }
 
       const scored: PatternSuggestion[] = [];
       for (const p of patterns) {
@@ -1360,6 +1372,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
           lifecycle_state: p.lifecycle_state,
           resonance,
           sharedCards: Array.from(sharedCardSet),
+          cardOrientations: myOrientations,
           sharedTags: Array.from(sharedTagSet),
           drawSize,
           poolSize,
@@ -1594,6 +1607,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
               variant="face"
               size="thumbnail"
               deckId={readingDeckId}
+              reversed={!!s.cardOrientations[cardId]}
               ariaLabel={getCardName(cardId)}
             />
           </div>
