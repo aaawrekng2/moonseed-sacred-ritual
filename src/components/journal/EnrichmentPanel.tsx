@@ -1209,13 +1209,10 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
   const [attachingId, setAttachingId] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(() => isDismissed(readingId));
   // DU-12 — deck for the current reading so shared-card thumbnails use
-  // the deck the seeker actually drew with.
+  // the deck the seeker actually drew with. EW-3: passed straight to
+  // <CardImage deckId> — image resolution + corner radius are handled
+  // inside the shared component.
   const [readingDeckId, setReadingDeckId] = useState<string | null>(null);
-  const getDeckImage = useDeckImage(readingDeckId);
-  // EU-1 — deck-aware corner radius for the journal entry card image
-  // and its loading placeholder. Matches the radius the seeker has
-  // configured for the deck this reading was drawn with.
-  const deckRadius = useDeckCornerRadius(readingDeckId);
   // DU-12 — "Tell me more" disclosure for the surfaced match.
   const [tellMoreOpen, setTellMoreOpen] = useState(false);
   // DL-7 — first-tap "Connect" hint modal. Persisted via
