@@ -131,7 +131,7 @@ export function YearHeatmap({ filters }: { filters: InsightsFilters }) {
                         disabled={!d}
                         onClick={() => {
                           if (d && d.count > 0) {
-                            void navigate({ to: "/journal", search: {} });
+                            void navigate({ to: "/journal", search: { batch: undefined } });
                           }
                         }}
                         style={{
