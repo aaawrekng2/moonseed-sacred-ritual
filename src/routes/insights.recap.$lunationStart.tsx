@@ -209,14 +209,13 @@ function SlideContent({
 
   if (slide === 2) {
     const sb = data.suitBalance;
-    const top = (
-      [
-        { name: "Wands", v: sb.wands, color: "var(--suit-wands, #C75D2E)" },
-        { name: "Cups", v: sb.cups, color: "var(--suit-cups, #2E73C7)" },
-        { name: "Swords", v: sb.swords, color: "var(--suit-swords, #B8B8C4)" },
-        { name: "Pentacles", v: sb.pentacles, color: "var(--suit-pentacles, #6B8E4E)" },
-      ] as const
-    ).sort((a, b) => b.v - a.v)[0];
+    const suits: Array<{ name: string; v: number; color: string }> = [
+      { name: "Wands", v: sb.wands, color: "var(--suit-wands, #C75D2E)" },
+      { name: "Cups", v: sb.cups, color: "var(--suit-cups, #2E73C7)" },
+      { name: "Swords", v: sb.swords, color: "var(--suit-swords, #B8B8C4)" },
+      { name: "Pentacles", v: sb.pentacles, color: "var(--suit-pentacles, #6B8E4E)" },
+    ];
+    const top = suits.sort((a, b) => b.v - a.v)[0];
     return (
       <SlideShell>
         <Eyebrow>Suit balance</Eyebrow>

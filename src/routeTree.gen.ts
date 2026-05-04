@@ -28,6 +28,7 @@ import { Route as SettingsGuidesRouteImport } from './routes/settings.guides'
 import { Route as SettingsDecksRouteImport } from './routes/settings.decks'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
+import { Route as InsightsRecapLunationStartRouteImport } from './routes/insights.recap.$lunationStart'
 import { Route as InsightsCardCardIdRouteImport } from './routes/insights.card.$cardId'
 import { Route as HelpCategoryArticleRouteImport } from './routes/help.$category.$article'
 import { Route as ApiPublicDetectWeavesRouteImport } from './routes/api/public/detect-weaves'
@@ -128,6 +129,12 @@ const SettingsBlueprintRoute = SettingsBlueprintRouteImport.update({
   path: '/blueprint',
   getParentRoute: () => SettingsRoute,
 } as any)
+const InsightsRecapLunationStartRoute =
+  InsightsRecapLunationStartRouteImport.update({
+    id: '/recap/$lunationStart',
+    path: '/recap/$lunationStart',
+    getParentRoute: () => InsightsRoute,
+  } as any)
 const InsightsCardCardIdRoute = InsightsCardCardIdRouteImport.update({
   id: '/card/$cardId',
   path: '/card/$cardId',
@@ -173,6 +180,7 @@ export interface FileRoutesByFullPath {
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
+  '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRoutesByTo {
@@ -198,6 +206,7 @@ export interface FileRoutesByTo {
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
+  '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRoutesById {
@@ -224,6 +233,7 @@ export interface FileRoutesById {
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
+  '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRouteTypes {
@@ -251,6 +261,7 @@ export interface FileRouteTypes {
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
+    | '/insights/recap/$lunationStart'
     | '/api/public/detect-weaves/status'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -276,6 +287,7 @@ export interface FileRouteTypes {
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
+    | '/insights/recap/$lunationStart'
     | '/api/public/detect-weaves/status'
   id:
     | '__root__'
@@ -301,6 +313,7 @@ export interface FileRouteTypes {
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
+    | '/insights/recap/$lunationStart'
     | '/api/public/detect-weaves/status'
   fileRoutesById: FileRoutesById
 }
@@ -453,6 +466,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsBlueprintRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/insights/recap/$lunationStart': {
+      id: '/insights/recap/$lunationStart'
+      path: '/recap/$lunationStart'
+      fullPath: '/insights/recap/$lunationStart'
+      preLoaderRoute: typeof InsightsRecapLunationStartRouteImport
+      parentRoute: typeof InsightsRoute
+    }
     '/insights/card/$cardId': {
       id: '/insights/card/$cardId'
       path: '/card/$cardId'
@@ -496,10 +516,12 @@ const HelpRouteWithChildren = HelpRoute._addFileChildren(HelpRouteChildren)
 
 interface InsightsRouteChildren {
   InsightsCardCardIdRoute: typeof InsightsCardCardIdRoute
+  InsightsRecapLunationStartRoute: typeof InsightsRecapLunationStartRoute
 }
 
 const InsightsRouteChildren: InsightsRouteChildren = {
   InsightsCardCardIdRoute: InsightsCardCardIdRoute,
+  InsightsRecapLunationStartRoute: InsightsRecapLunationStartRoute,
 }
 
 const InsightsRouteWithChildren = InsightsRoute._addFileChildren(
