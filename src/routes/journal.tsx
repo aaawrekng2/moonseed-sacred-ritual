@@ -2110,7 +2110,20 @@ function ReadingDetail({
   const [zoomedCard, setZoomedCard] = useState<{ cardId: number; reversed: boolean } | null>(null);
   // DB-3.1 — render this reading's images using its SAVED deck.
   const getImage = useDeckImage(reading.deck_id ?? null);
-  const deckRadiusPx = useDeckCornerRadius(reading.deck_id ?? null);
+  // EZ-5 — Cards in journal reading-detail size to a 3-card-spread
+  // baseline. A single-card reading renders at the same physical
+  // width as one of three cards (centered, prominent — not full-row).
+  // Larger spreads scale down so all cards fit.
+  const ezCardCount = reading.card_ids.length;
+  const ezContainerWidthPx = 320;
+  const ezGapPx = 8;
+  const ezBaseDivisor = Math.max(3, ezCardCount);
+  const ezCardWidthPx = Math.max(
+    32,
+    Math.floor(
+      (ezContainerWidthPx - ezGapPx * (ezBaseDivisor - 1)) / ezBaseDivisor,
+    ),
+  );
   // DB-3.2 — deck override picker.
   const [decks, setDecks] = useState<CustomDeck[]>([]);
   const [deckMenuOpen, setDeckMenuOpen] = useState(false);
@@ -2336,10 +2349,10 @@ function ReadingDetail({
             when absent. */}
         <div
           className={cn(
-            "mt-6 flex items-start gap-3",
+            "mt-6 flex items-start gap-2",
             swipeMobile
               ? "overflow-x-auto snap-x snap-mandatory -mx-4 px-4 pb-2 justify-start"
-              : "flex-wrap justify-center",
+              : "justify-center",
           )}
           style={
             swipeMobile
@@ -2351,7 +2364,7 @@ function ReadingDetail({
                   WebkitMaskImage:
                     "linear-gradient(to right, black 90%, transparent 100%)",
                 }
-              : undefined
+              : { paddingBottom: 16 /* EZ-4 — room for drop shadow */ }
           }
         >
           {reading.card_ids.map((id, idx) => {
@@ -2364,30 +2377,21 @@ function ReadingDetail({
                   swipeMobile && "flex-shrink-0 snap-start",
                 )}
               >
-                <button
-                  type="button"
-                  onClick={() => setZoomedCard({ cardId: id, reversed: isReversed })}
-                  aria-label={`Zoom ${getCardName(id)}`}
-                  className="block transition active:scale-[0.98]"
-                >
-                   <CardThumb
-                     src={getImage(id)}
-                     alt={getCardName(id)}
-                     // DO-3 — drop fixed h-32 + object-cover; enforce
-                     // tarot 1:1.75 aspect with object-fit: contain so
-                     // the card never crops top/bottom.
-                     className="w-20"
-                     style={{
-                       aspectRatio: "1 / 1.75",
-                       objectFit: "contain",
-                       border:
-                         "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
-                       opacity: "var(--ro-plus-40)",
-                       transform: isReversed ? "rotate(180deg)" : undefined,
-                       ...cornerRadiusStyle(deckRadiusPx, 80),
-                     }}
-                   />
-                </button>
+                {/* EZ-2 / EZ-5 — Use CardImage with deck-aware
+                    rendering, theme-correct radius, drop shadow,
+                    and spread-aware sizing. */}
+                <CardImage
+                  cardId={id}
+                  reversed={isReversed}
+                  size="custom"
+                  widthPx={ezCardWidthPx}
+                  deckId={reading.deck_id ?? null}
+                  shadow
+                  ariaLabel={`Zoom ${getCardName(id)}`}
+                  onClick={() =>
+                    setZoomedCard({ cardId: id, reversed: isReversed })
+                  }
+                />
                 <span
                   className="mt-1 max-w-[90px] text-center font-display text-[10px] italic text-muted-foreground"
                   style={{ opacity: "var(--ro-plus-20)" }}
