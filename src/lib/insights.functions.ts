@@ -73,7 +73,7 @@ const READING_COLUMNS =
   "id, created_at, card_ids, card_orientations, spread_type, moon_phase, guide_id, lens_id, is_deep_reading, deck_id, tags";
 
 async function fetchFilteredReadings(
-  supabase: ReturnType<typeof requireSupabaseAuth> extends never ? never : any,
+  supabase: any,
   userId: string,
   filters: ReturnType<typeof InsightsFiltersSchema.parse>,
   days: number | null,
