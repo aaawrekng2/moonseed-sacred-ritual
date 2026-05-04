@@ -8,7 +8,9 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, CheckCheck, ChevronDown, ChevronRight, Copy, Share2 } from "lucide-react";
 import { getCardName } from "@/lib/tarot";
-import { useActiveDeckImage, useActiveDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
+// EZ-1 — Card rendering goes through CardImage; the per-deck radius and
+// frame sizing are now owned by that component.
+import { CardImage } from "@/components/card/CardImage";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { PositionLabel } from "@/components/tabletop/SpreadLayout";
 import {
@@ -605,8 +607,6 @@ function CardStrip({
   spread: SpreadMode;
 }) {
   const { level } = useUIDensity();
-  const cardImg = useActiveDeckImage();
-  const deckRadiusPx = useActiveDeckCornerRadius();
   const showLabels = level === 1; // Glimpse + Veiled hide the labels
   const labelOpacity = level === 1 ? 0.7 : 0;
   const [vp, setVp] = useState(() =>
@@ -640,24 +640,17 @@ function CardStrip({
 
     const card = (i: number) => (
       <div key={picks[i]?.id ?? i} className="flex flex-col items-center gap-1">
-        <div
-          className="reading-card-frame overflow-hidden bg-card"
-          style={{ width: cw, height: ch, boxShadow: "0 4px 14px rgba(0,0,0,0.45)", ...cornerRadiusStyle(deckRadiusPx, cw) }}
-        >
-          {picks[i] && (
-            <img
-              src={cardImg(picks[i].cardIndex)}
-              alt={getCardName(picks[i].cardIndex)}
-              className="h-full w-full object-contain"
-              loading="eager"
-              style={{
-                transform: picks[i].isReversed ? "rotate(180deg)" : undefined,
-                transition: "transform 600ms ease-out",
-                ...cornerRadiusStyle(deckRadiusPx, cw),
-              }}
-            />
-          )}
-        </div>
+        {picks[i] ? (
+          <CardImage
+            cardId={picks[i].cardIndex}
+            reversed={picks[i].isReversed}
+            size="custom"
+            widthPx={cw}
+            shadow
+          />
+        ) : (
+          <CardImage variant="empty" size="custom" widthPx={cw} />
+        )}
         {showLabels && (
           <span
             className="font-display italic"
@@ -700,16 +693,24 @@ function CardStrip({
             <div className="relative flex items-center justify-center" style={{ width: cw, height: ch }}>
               <div className="absolute inset-0 flex items-center justify-center">
                 {picks[0] && (
-                  <div className="reading-card-frame overflow-hidden bg-card" style={{ width: cw, height: ch, ...cornerRadiusStyle(deckRadiusPx, cw) }}>
-                    <img src={cardImg(picks[0].cardIndex)} alt={getCardName(picks[0].cardIndex)} className="h-full w-full object-contain" loading="eager" style={{ transform: picks[0].isReversed ? "rotate(180deg)" : undefined, transition: "transform 600ms ease-out", ...cornerRadiusStyle(deckRadiusPx, cw) }} />
-                  </div>
+                  <CardImage
+                    cardId={picks[0].cardIndex}
+                    reversed={picks[0].isReversed}
+                    size="custom"
+                    widthPx={cw}
+                    shadow
+                  />
                 )}
               </div>
               <div className="absolute inset-0 flex items-center justify-center" style={{ transform: "rotate(90deg)" }}>
                 {picks[1] && (
-                  <div className="reading-card-frame overflow-hidden bg-card" style={{ width: cw, height: ch, ...cornerRadiusStyle(deckRadiusPx, cw) }}>
-                    <img src={cardImg(picks[1].cardIndex)} alt={getCardName(picks[1].cardIndex)} className="h-full w-full object-contain" loading="eager" style={{ transform: picks[1].isReversed ? "rotate(180deg)" : undefined, transition: "transform 600ms ease-out", ...cornerRadiusStyle(deckRadiusPx, cw) }} />
-                  </div>
+                  <CardImage
+                    cardId={picks[1].cardIndex}
+                    reversed={picks[1].isReversed}
+                    size="custom"
+                    widthPx={cw}
+                    shadow
+                  />
                 )}
               </div>
             </div>
@@ -809,27 +810,13 @@ function CardStrip({
             swipeMobile && "flex-shrink-0 snap-start",
           )}
         >
-          <div
-            className="reading-card-frame overflow-hidden bg-card"
-            style={{
-              width: w,
-              height: h,
-              boxShadow: "0 4px 14px rgba(0,0,0,0.45)",
-              ...cornerRadiusStyle(deckRadiusPx, w),
-            }}
-          >
-            <img
-              src={cardImg(pick.cardIndex)}
-              alt={getCardName(pick.cardIndex)}
-              className="h-full w-full object-contain"
-              loading="eager"
-              style={{
-                transform: pick.isReversed ? "rotate(180deg)" : undefined,
-                transition: "transform 600ms ease-out",
-                ...cornerRadiusStyle(deckRadiusPx, w),
-              }}
-            />
-          </div>
+          <CardImage
+            cardId={pick.cardIndex}
+            reversed={pick.isReversed}
+            size="custom"
+            widthPx={w}
+            shadow
+          />
           {showLabels && (
             <div
               style={{

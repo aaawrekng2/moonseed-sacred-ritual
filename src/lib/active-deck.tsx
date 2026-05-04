@@ -295,3 +295,50 @@ export function cornerRadiusStyle(
   const px = Math.max(0, Math.round((radiusPercent / 100) * widthPx));
   return { borderRadius: `${px}px` };
 }
+
+/**
+ * EZ-7 — Variant URL resolution.
+ *
+ * Card images are stored in `custom-deck-images` at paths like
+ *   `<userId>/<deckId>/card-<N>-<ts>.webp`
+ *   `<userId>/<deckId>/card-<N>-<ts>-thumb.webp`
+ *
+ * The Edge Function `generate-deck-variants` writes JPEG variants
+ * alongside the originals using suffix swaps:
+ *   `<...>/card-<N>-<ts>-sm.jpg`   (200px wide)
+ *   `<...>/card-<N>-<ts>-md.jpg`   (400px wide)
+ *
+ * Signed URLs look like:
+ *   `<base>/storage/v1/object/sign/custom-deck-images/<path>?token=...`
+ *
+ * To produce the variant URL we rewrite the trailing filename in the
+ * path part of the URL while preserving the query string (signed
+ * token works because the bucket policy is per-object). If the input
+ * URL does not look like a stored card image (e.g. a Rider-Waite
+ * default `/cards/...` asset bundled with the app), we return it
+ * unchanged so callers fall back to the original.
+ */
+export function variantUrlFor(
+  originalUrl: string | null | undefined,
+  variant: "sm" | "md" | "full",
+): string | null {
+  if (!originalUrl) return null;
+  if (variant === "full") return originalUrl;
+  // Only rewrite custom-deck-images URLs. Default Rider-Waite assets
+  // live under `/cards/` in the app bundle and have no JPEG variants.
+  if (!originalUrl.includes("/custom-deck-images/")) return originalUrl;
+  try {
+    const url = new URL(originalUrl);
+    const path = url.pathname;
+    // Match "<...>/card-N-TS(-thumb)?.<ext>" at the end of the path.
+    const m = path.match(
+      /^(.*\/card-\d+-\d+)(?:-thumb)?\.(?:webp|png|jpe?g)$/i,
+    );
+    if (!m) return originalUrl;
+    const newPath = `${m[1]}-${variant}.jpg`;
+    url.pathname = newPath;
+    return url.toString();
+  } catch {
+    return originalUrl;
+  }
+}
