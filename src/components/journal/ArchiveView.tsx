@@ -199,8 +199,9 @@ function ArchiveRow({
     <li
       className="relative overflow-hidden rounded-2xl"
       style={{
-        border: "1px solid color-mix(in oklab, var(--gold) 8%, transparent)",
-        background: "color-mix(in oklab, oklch(0.10 0.03 280) 30%, transparent)",
+        // ET-5 — outer border removed; row separation comes from
+        // the gap in the parent <ul> and the surface-card background.
+        background: "var(--surface-card)",
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}

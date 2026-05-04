@@ -1520,8 +1520,8 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
       className="mx-auto mb-4 max-w-prose"
       style={{
         background: "var(--surface-card)",
-        border:
-          "1px solid color-mix(in oklab, var(--accent, var(--gold)) 30%, transparent)",
+        // ET-4 — outer border removed; surface-card alone provides
+        // adequate visual grouping without competing with card art.
         borderRadius: "var(--radius-lg, 14px)",
         padding: 24,
         display: "flex",
@@ -1780,7 +1780,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
             style={{
               maxWidth: 420,
               width: "100%",
-              background: "var(--background, #14101e)",
+              background: "var(--surface-card)",
               border: "1px solid color-mix(in oklab, var(--gold) 25%, transparent)",
               borderRadius: 12,
               padding: 20,

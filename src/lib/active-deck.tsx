@@ -88,7 +88,11 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
     // rendering the Rider-Waite default before the active-deck
     // context catches up on PWA cold open.
     if (authLoading) {
-      setLoading(true);
+      // ET-1 — If we have a cached deck hydrated from localStorage,
+      // KEEP loading=false. The cache is good enough to render the
+      // home hero correctly during auth resolution. Without this guard,
+      // the cache is wasted and the default deck flashes on warm reopen.
+      if (!activeDeck) setLoading(true);
       return;
     }
     if (!user) {
