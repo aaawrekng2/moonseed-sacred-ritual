@@ -13,6 +13,11 @@ import { X } from "lucide-react";
 import { getCardName } from "@/lib/tarot";
 import { useEffect, useState } from "react";
 import { CardImage } from "@/components/card/CardImage";
+import {
+  cornerRadiusStyle,
+  useActiveDeckCornerRadius,
+  useDeckCornerRadius,
+} from "@/lib/active-deck";
 
 interface CardZoomModalProps {
   cardId: number;
@@ -52,6 +57,13 @@ export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomMod
   // reading data is unaffected.
   const [tempUpright, setTempUpright] = useState(false);
   const showRotated = !!reversed && !tempUpright;
+  // FB-4 — derive deck-aware radius so the wrapper's gold glow follows
+  // the rounded silhouette instead of a square box. Both hooks always
+  // run; we pick which to use per render.
+  const activeRadius = useActiveDeckCornerRadius();
+  const specificRadius = useDeckCornerRadius(deckId ?? null);
+  const useSpecific = deckId != null && deckId !== "";
+  const deckRadius = useSpecific ? specificRadius : activeRadius;
   // Allow Escape key to close on desktop.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -86,6 +98,7 @@ export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomMod
           onClose();
         }}
         style={{
+          ...cornerRadiusStyle(deckRadius, imgW),
           boxShadow: "0 0 80px -10px rgba(212,175,55,0.5)",
           transition: "transform 300ms ease",
         }}
