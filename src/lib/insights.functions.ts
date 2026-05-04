@@ -19,6 +19,26 @@ import { getGuideById, LENSES } from "@/lib/guides";
 import { z } from "zod";
 import { getLunationContaining } from "@/lib/lunation";
 import { getAIToneServerSide, TONE_FRAGMENTS, type AITone } from "@/lib/ai-tone";
+import { getCurrentMoonPhase } from "@/lib/moon";
+
+/**
+ * ES-4 — Older readings predate the `moon_phase` column; derive a
+ * phase from `created_at` on the fly so phase rings / distributions /
+ * top-phase aggregations don't appear empty for historical data.
+ * Returns null only when neither value is usable.
+ */
+function resolveMoonPhase(
+  storedPhase: string | null | undefined,
+  createdAt: string | null | undefined,
+): string | null {
+  if (storedPhase) return storedPhase;
+  if (!createdAt) return null;
+  try {
+    return getCurrentMoonPhase(new Date(createdAt)).phase;
+  } catch {
+    return null;
+  }
+}
 
 const FREE_CAP_DAYS = 90;
 const STALKER_THRESHOLD = 3;
@@ -187,7 +207,8 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
         const suit = getCardSuit(cid);
         if (suit !== "Major") suitCounts[suit] += 1;
       });
-      if (r.moon_phase) moonPhases[r.moon_phase] = (moonPhases[r.moon_phase] ?? 0) + 1;
+      const phase0 = resolveMoonPhase(r.moon_phase, r.created_at);
+      if (phase0) moonPhases[phase0] = (moonPhases[phase0] ?? 0) + 1;
       if (r.guide_id) guideCounts[r.guide_id] = (guideCounts[r.guide_id] ?? 0) + 1;
       if (r.lens_id) lensCounts[r.lens_id] = (lensCounts[r.lens_id] ?? 0) + 1;
       if (r.is_deep_reading) deepCount += 1;
