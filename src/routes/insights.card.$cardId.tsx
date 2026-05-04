@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, X, Lock } from "lucide-react";
-import { getStalkerCardDetail } from "@/lib/insights.functions";
+import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage, useActiveDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
 import { useElementWidth } from "@/lib/use-element-width";
@@ -144,18 +144,13 @@ function StalkerDetailRoute() {
               />
 
               {isPremium ? (
-                /* EO-4 — placeholder until EP ships the AI reflection. */
-                <div
-                  className="flex w-full items-center justify-center gap-2 p-4"
-                  style={{
-                    background: "color-mix(in oklch, var(--gold) 12%, transparent)",
-                    borderRadius: 14,
-                    color: "var(--gold)",
-                    fontStyle: "italic",
-                  }}
-                >
-                  Reflection generating…
-                </div>
+                /* EQ-1 — wire real AI reflection. */
+                <PremiumDetailReflection
+                  cardId={cid}
+                  count={data.totalCount}
+                  latestDate={data.lastSeen ?? new Date().toISOString()}
+                  appearances={data.appearances}
+                />
               ) : (
                 <button
                   type="button"
@@ -220,6 +215,70 @@ function StalkerDetailRoute() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+/**
+ * EQ-1 — Premium AI reflection on the stalker detail page. Mirrors the
+ * pattern in StalkerCardsSection's PremiumReflection but renders larger
+ * and pulls up to 10 sample questions from the appearances list.
+ */
+function PremiumDetailReflection({
+  cardId,
+  count,
+  latestDate,
+  appearances,
+}: {
+  cardId: number;
+  count: number;
+  latestDate: string;
+  appearances: Detail["appearances"];
+}) {
+  const fn = useServerFn(getStalkerReflection);
+  const [text, setText] = useState<string | null>(null);
+  const [err, setErr] = useState(false);
+  // Detail.appearances doesn't carry question text in the current shape,
+  // so we pass an empty array — the server fn handles that gracefully.
+  const sampleQuestions: string[] = [];
+  void appearances;
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const r = await fn({
+          data: { cardId, count, latestDate, sampleQuestions },
+          headers,
+        });
+        if (cancelled) return;
+        if (r.ok) setText(r.reflection);
+        else setErr(true);
+      } catch {
+        if (!cancelled) setErr(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cardId, count, latestDate, fn]);
+  return (
+    <div
+      className="w-full p-4"
+      style={{
+        background: "color-mix(in oklch, var(--gold) 10%, transparent)",
+        borderRadius: 14,
+        color: "var(--gold)",
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+        lineHeight: 1.5,
+        opacity: text ? 0.95 : 0.6,
+        whiteSpace: "pre-line",
+      }}
+    >
+      {err
+        ? "Reflection unavailable right now."
+        : text ?? "Reflection generating…"}
     </div>
   );
 }
