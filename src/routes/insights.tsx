@@ -18,6 +18,11 @@ import { StalkerCardsSection } from "@/components/insights/StalkerCardsSection";
 import { CardFrequencySection } from "@/components/insights/CardFrequencySection";
 import { CardPairsSection } from "@/components/insights/CardPairsSection";
 import { ReversalPatternsSection } from "@/components/insights/ReversalPatternsSection";
+import { YearHeatmap } from "@/components/insights/YearHeatmap";
+import { MoonPhaseInsightRing } from "@/components/insights/MoonPhaseInsightRing";
+import { TimeOfDayRadial } from "@/components/insights/TimeOfDayRadial";
+import { StreakHistory } from "@/components/insights/StreakHistory";
+import type { MoonPhaseName } from "@/lib/moon";
 
 export const Route = createFileRoute("/insights")({
   head: () => ({
@@ -133,7 +138,23 @@ function InsightsRoute() {
               <ReversalPatternsSection filters={filters} />
             </div>
           )}
-          {tab !== "overview" && tab !== "cards" && <ComingSoon />}
+          {tab === "calendar" && (
+            <div className="flex flex-col gap-12 pb-12">
+              <MoonPhaseInsightRing
+                filters={filters}
+                onPhaseToggle={(phase: MoonPhaseName) =>
+                  setFilters((f) => ({
+                    ...f,
+                    moonPhases: f.moonPhases[0] === phase ? [] : [phase],
+                  }))
+                }
+              />
+              <YearHeatmap filters={filters} />
+              <TimeOfDayRadial filters={filters} />
+              <StreakHistory />
+            </div>
+          )}
+          {tab !== "overview" && tab !== "cards" && tab !== "calendar" && <ComingSoon />}
         </div>
       </main>
 
