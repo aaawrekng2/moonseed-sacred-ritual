@@ -21,7 +21,7 @@
  * chrome. CardImage applies only the corner radius and orientation
  * transform to the IMG element.
  */
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { CardBack } from "@/components/cards/CardBack";
 import {
   cornerRadiusStyle,
@@ -33,6 +33,37 @@ import {
 } from "@/lib/active-deck";
 import type { CardBackId } from "@/lib/card-backs";
 import { getCardName } from "@/lib/tarot";
+
+/**
+ * EX-4 — Read the dev-mode flag from localStorage and subscribe to
+ * the same custom event used by DevOverlay so toggling reflects
+ * immediately without a page refresh.
+ */
+function useDevMode(): boolean {
+  const [on, setOn] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("moonseed:dev_mode") === "true";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const read = () =>
+      window.localStorage.getItem("moonseed:dev_mode") === "true";
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<boolean>).detail;
+      setOn(typeof detail === "boolean" ? detail : read());
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "moonseed:dev_mode") setOn(read());
+    };
+    window.addEventListener("moonseed:dev-mode-changed", handler);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("moonseed:dev-mode-changed", handler);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+  return on;
+}
 
 export type CardImageSize = "hero" | "medium" | "thumbnail" | "small" | "custom";
 export type CardImageVariant = "face" | "back" | "empty";
