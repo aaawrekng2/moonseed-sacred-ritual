@@ -2128,7 +2128,10 @@ function ReadingDetail({
   }, []);
   const ezCardCount = reading.card_ids.length;
   const ezGapPx = 8;
-  const ezBaseDivisor = Math.max(3, ezCardCount);
+  // FB-3 — single-card readings get a larger card. Divisor 1.5 makes
+  // the card ~2/3 of row width — about 2× the per-card width of a
+  // 3-card spread. Multi-card spreads keep proportional sizing.
+  const ezBaseDivisor = ezCardCount === 1 ? 1.5 : Math.max(3, ezCardCount);
   // FA-2 — use measured row width instead of hardcoded 320 so
   // single cards actually fill the available space.
   const ezCardWidthPx = Math.max(
