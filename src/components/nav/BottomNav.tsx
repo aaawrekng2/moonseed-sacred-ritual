@@ -62,7 +62,7 @@ export function BottomNav() {
     >
       <ul
         className="mx-auto flex items-center justify-center px-4"
-        style={{ height: 64, maxWidth: showThreads ? 440 : 360, gap: showThreads ? 28 : 36 }}
+        style={{ height: 72, maxWidth: showThreads ? 440 : 360, gap: showThreads ? 28 : 36, paddingTop: 8 }}
       >
         {tabs.map(({ to, label, Icon, primary }) => {
           // Settings nav nests sub-routes (/settings/profile, /settings/themes,
@@ -78,7 +78,7 @@ export function BottomNav() {
               : to === "/insights"
               ? path === "/insights" || path.startsWith("/insights/")
               : path === to;
-          const iconSize = primary ? 32 : 20;
+          const iconSize = primary ? 36 : 20;
           // Active = signature gold. Inactive (including Home) = neutral
           // foreground/white tint. Primary keeps a slight size advantage.
           const tabAlpha = active
@@ -110,11 +110,28 @@ export function BottomNav() {
                 )}
                 aria-current={active ? "page" : undefined}
               >
-                <Icon size={iconSize} strokeWidth={primary ? 1.5 : 1.6} aria-hidden="true" />
+                {primary ? (
+                  <div className="relative" style={{ transform: "translateY(-6px)" }}>
+                    <div
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        inset: -12,
+                        borderRadius: "50%",
+                        background:
+                          "radial-gradient(circle, color-mix(in oklab, var(--gold) 25%, transparent) 0%, transparent 70%)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                    <Icon size={iconSize} strokeWidth={1.5} aria-hidden="true" />
+                  </div>
+                ) : (
+                  <Icon size={iconSize} strokeWidth={1.6} aria-hidden="true" />
+                )}
                 <span
                   className={cn(
                     "clarity-label font-display tracking-wide",
-                    primary ? "text-[13px] font-medium" : "text-[11px]",
+                    primary ? "text-[13px] font-semibold" : "text-[11px]",
                     "hidden sm:inline-block",
                   )}
                 >
