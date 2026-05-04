@@ -3,8 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { getStalkerCards, getStalkerReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
-import { useActiveDeckImage } from "@/lib/active-deck";
-import { getCardImagePath } from "@/lib/tarot";
+import { CardImage } from "@/components/card/CardImage";
 import { Lock } from "lucide-react";
 import type { InsightsFilters, StalkerCardsResult } from "@/lib/insights.types";
 import { StalkerSparkline } from "./StalkerSparkline";
@@ -17,7 +16,6 @@ export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
   const navigate = useNavigate();
   const [data, setData] = useState<StalkerCardsResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const resolveImage = useActiveDeckImage();
   const { user } = useAuth();
   const { isPremium } = usePremium(user?.id);
 
@@ -54,7 +52,6 @@ export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
       )}
       {!loading &&
         data?.stalkerCards.map((s) => {
-          const url = resolveImage(s.cardId, "thumbnail") ?? getCardImagePath(s.cardId);
           return (
             <button
               key={s.cardId}
@@ -68,10 +65,13 @@ export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
                 borderRadius: 14,
               }}
             >
-              <img
-                src={url}
-                alt={s.cardName}
-                style={{ width: 48, height: 84, objectFit: "cover", borderRadius: 6 }}
+              {/* EY-7 — unified card render. */}
+              <CardImage
+                cardId={s.cardId}
+                variant="face"
+                size="custom"
+                widthPx={48}
+                ariaLabel={s.cardName}
               />
               <div className="flex-1">
                 <div
