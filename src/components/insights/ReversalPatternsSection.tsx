@@ -7,6 +7,7 @@ import { useActiveDeckImage } from "@/lib/active-deck";
 import { getCardImagePath } from "@/lib/tarot";
 import type { InsightsFilters } from "@/lib/insights.types";
 import { SectionHeader, EmptyNote, SkeletonRow } from "./StalkerCardsSection";
+import { useTrackReversals } from "@/lib/use-track-reversals";
 
 type Pattern = {
   cardId: number;
@@ -21,8 +22,14 @@ export function ReversalPatternsSection({ filters }: { filters: InsightsFilters 
   const navigate = useNavigate();
   const [data, setData] = useState<{ patterns: Pattern[]; overallReversalRate: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  // ER-8 — hide section entirely when reversal tracking is off.
+  const { trackReversals, loaded: prefLoaded } = useTrackReversals();
 
   useEffect(() => {
+    if (prefLoaded && !trackReversals) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     void (async () => {
@@ -40,7 +47,9 @@ export function ReversalPatternsSection({ filters }: { filters: InsightsFilters 
     return () => {
       cancelled = true;
     };
-  }, [filters, fn]);
+  }, [filters, fn, prefLoaded, trackReversals]);
+
+  if (prefLoaded && !trackReversals) return null;
 
   return (
     <section className="space-y-3">
