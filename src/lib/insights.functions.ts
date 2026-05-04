@@ -549,7 +549,9 @@ export const getMoonPhaseStats = createServerFn({ method: "GET" })
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
     const phaseCounts: Record<string, number> = {};
     for (const r of rows) {
-      if (r.moon_phase) phaseCounts[r.moon_phase] = (phaseCounts[r.moon_phase] ?? 0) + 1;
+      // ES-4 — backfill from created_at when historical row has no moon_phase.
+      const phase = resolveMoonPhase(r.moon_phase, r.created_at);
+      if (phase) phaseCounts[phase] = (phaseCounts[phase] ?? 0) + 1;
     }
     const sorted = Object.entries(phaseCounts).sort((a, b) => b[1] - a[1]);
     return {
@@ -886,7 +888,11 @@ export const getLunationRecap = createServerFn({ method: "GET" })
           }
         }
       }
-      if (r.moon_phase) moonPhases[r.moon_phase] = (moonPhases[r.moon_phase] ?? 0) + 1;
+      // ES-4 — backfill from created_at when historical row has no moon_phase.
+      {
+        const phase = resolveMoonPhase(r.moon_phase, r.created_at);
+        if (phase) moonPhases[phase] = (moonPhases[phase] ?? 0) + 1;
+      }
       if (r.guide_id) guideCounts[r.guide_id] = (guideCounts[r.guide_id] ?? 0) + 1;
       for (const t of r.tags ?? []) tagCounts[t] = (tagCounts[t] ?? 0) + 1;
     }
@@ -1350,7 +1356,11 @@ async function computeLunationSummaryForReflection(
           pairCounts.set(`${a}:${b}`, (pairCounts.get(`${a}:${b}`) ?? 0) + 1);
         }
     }
-    if (r.moon_phase) moonPhases[r.moon_phase] = (moonPhases[r.moon_phase] ?? 0) + 1;
+    // ES-4 — backfill from created_at when historical row has no moon_phase.
+    {
+      const phase = resolveMoonPhase(r.moon_phase, r.created_at);
+      if (phase) moonPhases[phase] = (moonPhases[phase] ?? 0) + 1;
+    }
     if (r.guide_id) guideCounts[r.guide_id] = (guideCounts[r.guide_id] ?? 0) + 1;
     for (const t of r.tags ?? []) tagCounts[t] = (tagCounts[t] ?? 0) + 1;
   }
@@ -1494,7 +1504,11 @@ export const getYearOfLunationsRecap = createServerFn({ method: "GET" })
             pairCounts.set(`${a}:${b}`, (pairCounts.get(`${a}:${b}`) ?? 0) + 1);
           }
       }
-      if (r.moon_phase) moonPhases[r.moon_phase] = (moonPhases[r.moon_phase] ?? 0) + 1;
+      // ES-4 — backfill from created_at when historical row has no moon_phase.
+      {
+        const phase = resolveMoonPhase(r.moon_phase, r.created_at);
+        if (phase) moonPhases[phase] = (moonPhases[phase] ?? 0) + 1;
+      }
       if (r.guide_id) guideCounts[r.guide_id] = (guideCounts[r.guide_id] ?? 0) + 1;
       if (r.lens_id) lensCounts[r.lens_id] = (lensCounts[r.lens_id] ?? 0) + 1;
       for (const tag of r.tags ?? []) tagsByHalf[halfIndex][tag] = (tagsByHalf[halfIndex][tag] ?? 0) + 1;
@@ -1615,7 +1629,11 @@ export const getYearOfLunationsReflection = createServerFn({ method: "POST" })
     for (const r of rows) {
       for (const c of r.card_ids ?? []) cardCounts.set(c, (cardCounts.get(c) ?? 0) + 1);
       for (const t of r.tags ?? []) tagCounts[t] = (tagCounts[t] ?? 0) + 1;
-      if (r.moon_phase) moonPhases[r.moon_phase] = (moonPhases[r.moon_phase] ?? 0) + 1;
+      // ES-4 — backfill from created_at when historical row has no moon_phase.
+      {
+        const phase = resolveMoonPhase(r.moon_phase, r.created_at);
+        if (phase) moonPhases[phase] = (moonPhases[phase] ?? 0) + 1;
+      }
       if (r.guide_id) guideCounts[r.guide_id] = (guideCounts[r.guide_id] ?? 0) + 1;
     }
     const top = (m: Record<string, number>, n: number) =>
