@@ -168,12 +168,35 @@ function Index() {
   // crop seen on first paint (especially in incognito / cold sessions
   // where the moon carousel snaps in late and shrinks the pane further).
   const PANE_PADDING_Y = 48;
-  const maxWidthCap = viewportW < 768 ? viewportW * 0.9 : 360;
+  // ER-1 — the hero <section> uses px-6 (24px each side). The
+  // previous cap of `viewportW * 0.9` ignored that, so on narrow
+  // viewports (≤375px) the card width could exceed the section's
+  // content box and bleed off the right edge — visible after a warm
+  // reopen where the carousel snaps in late and the recompute lands
+  // at the smaller pane height. Reserve the parent's horizontal
+  // padding (plus a 4px breathing margin so the breathe-glow halo
+  // never hugs the edge) before deriving the card width.
+  const HERO_SECTION_PADDING_X = 24;
+  const HERO_SAFETY_MARGIN_X = 4;
+  const horizontalReserve = (HERO_SECTION_PADDING_X + HERO_SAFETY_MARGIN_X) * 2;
+  const safeViewportW = Math.max(0, viewportW - horizontalReserve);
+  const maxWidthCap = viewportW < 768 ? safeViewportW : Math.min(360, safeViewportW);
   const heightDerivedWidth = Math.max(0, availablePaneHeight - PANE_PADDING_Y) / 1.75;
-  const cardWidth = Math.round(
+  const computedCardWidth = Math.round(
     Math.max(120, Math.min(heightDerivedWidth, maxWidthCap)),
   );
+  // ER-2 — re-measure after the hero <img> actually loads so the
+  // corner-radius calc uses the final rendered width, not the stale
+  // pre-load layout width. Same pattern as EI-2 fix in CardZoomModal.
+  const [measuredCardWidth, setMeasuredCardWidth] = useState<number | null>(null);
+  const cardWidth = measuredCardWidth ?? computedCardWidth;
   const cardHeight = Math.round(cardWidth * 1.75);
+  // Reset the measured width whenever the computed (layout-derived)
+  // width changes, so a viewport rotation or carousel toggle doesn't
+ // freeze the card at a stale measurement.
+  useEffect(() => {
+    setMeasuredCardWidth(null);
+  }, [computedCardWidth]);
   // CX — Streak under-card only in mobile hero mode.
   const streakUnderCard = isMobile && !showMoonCarousel;
   const [nudgeDismissed, setNudgeDismissed] = useState(true);
