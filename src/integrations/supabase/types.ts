@@ -358,6 +358,54 @@ export type Database = {
         }
         Relationships: []
       }
+      insight_reflections: {
+        Row: {
+          cache_key: string
+          created_at: string
+          id: string
+          reflection: string
+          user_id: string
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          id?: string
+          reflection: string
+          user_id: string
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          id?: string
+          reflection?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      insight_themes: {
+        Row: {
+          cache_key: string
+          created_at: string
+          id: string
+          themes: Json
+          user_id: string
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          id?: string
+          themes: Json
+          user_id: string
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          id?: string
+          themes?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       memory_snapshots: {
         Row: {
           active_patterns_summary: string | null
@@ -639,6 +687,7 @@ export type Database = {
           active_guide_id: string | null
           active_theme_slot: number | null
           admin_note: string | null
+          ai_tone: string
           allow_reversed_cards: boolean
           archive_deepening_unlocked: boolean
           bg_gradient_from: string | null
@@ -699,6 +748,7 @@ export type Database = {
           active_guide_id?: string | null
           active_theme_slot?: number | null
           admin_note?: string | null
+          ai_tone?: string
           allow_reversed_cards?: boolean
           archive_deepening_unlocked?: boolean
           bg_gradient_from?: string | null
@@ -759,6 +809,7 @@ export type Database = {
           active_guide_id?: string | null
           active_theme_slot?: number | null
           admin_note?: string | null
+          ai_tone?: string
           allow_reversed_cards?: boolean
           archive_deepening_unlocked?: boolean
           bg_gradient_from?: string | null
