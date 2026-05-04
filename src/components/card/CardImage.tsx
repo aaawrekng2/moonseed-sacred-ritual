@@ -30,6 +30,7 @@ import {
   useActiveDeckImage,
   useDeckCornerRadius,
   useDeckImage,
+  variantUrlFor,
 } from "@/lib/active-deck";
 import type { CardBackId } from "@/lib/card-backs";
 import { getCardName } from "@/lib/tarot";
@@ -98,6 +99,12 @@ export interface CardImageProps {
   onClick?: () => void;
   /** ARIA label override. Defaults to the card name. */
   ariaLabel?: string;
+  /**
+   * EZ-4 — Render a soft drop shadow that follows the rounded
+   * silhouette. Caller is responsible for ensuring parent containers
+   * don't clip the shadow with their own overflow rules.
+   */
+  shadow?: boolean;
 }
 
 // Standard widths in px. Aspect ratio 1 / 1.75.
@@ -106,6 +113,15 @@ const SIZE_PX: Record<Exclude<CardImageSize, "custom">, number> = {
   medium: 180,
   thumbnail: 74,
   small: 40,
+};
+
+// EZ-7 — Pick the lightest variant that still meets the rendered size.
+const SIZE_TO_VARIANT: Record<CardImageSize, "sm" | "md" | "full"> = {
+  small: "sm",      // 40px target → 200px sm is plenty
+  thumbnail: "sm",  // 74px target → sm
+  medium: "md",     // 180px target → 400px md
+  hero: "full",     // 320px target → original
+  custom: "md",     // safe default for unknown sizes
 };
 
 function resolveWidth(size: CardImageSize, widthPx?: number): number {
@@ -132,6 +148,7 @@ export function CardImage({
   style,
   onClick,
   ariaLabel,
+  shadow = false,
 }: CardImageProps) {
   // Resolve image source + radius from active deck OR a specific deck
   // when `deckId` is supplied. Both hooks are always called (Rules of
@@ -142,6 +159,10 @@ export function CardImage({
   const specificRadius = useDeckCornerRadius(deckId ?? null);
   const customBackUrl = useActiveCardBackUrl();
   const [imageLoaded, setImageLoaded] = useState(false);
+  // EZ-7 — When the variant URL 404s (deck hasn't been backfilled),
+  // retry once with the original. State is keyed off the resolved
+  // src so deck/card swaps reset cleanly.
+  const [variantFailedFor, setVariantFailedFor] = useState<string | null>(null);
   const devMode = useDevMode();
 
   // EY-1 — Saturated diagnostic colors. The card art still
@@ -170,22 +191,45 @@ export function CardImage({
     width,
     minHeight: width * 1.6,
     position: "relative",
-    overflow: "hidden",
+    // EZ-4 — When a drop shadow is requested we cannot clip the
+    // wrapper (overflow: hidden would cut the shadow off). The IMG
+    // and overlays still inherit the same border-radius, so the
+    // visible card shape stays correctly rounded; the shadow now
+    // renders outside that silhouette via filter: drop-shadow().
+    overflow: shadow ? "visible" : "hidden",
     display: "inline-block",
     ...radiusStyle,
-    ...(DEV_WRAPPER_BG ? { background: DEV_WRAPPER_BG } : null),
+    // EZ-4 — drop shadow follows the rounded silhouette.
+    ...(shadow
+      ? { filter: "drop-shadow(0 4px 12px rgba(0, 0, 0, 0.25))" }
+      : null),
+    // EZ-3 — Wrapper green as outline so it's visible as a ring
+    // around the actual card boundary (the wrapper hugs the IMG
+    // per EY-2, so a background fill would be invisible).
+    ...(DEV_WRAPPER_BG
+      ? { outline: `3px solid ${DEV_WRAPPER_BG}`, outlineOffset: -3 }
+      : null),
     ...(style ?? {}),
   };
 
   // Image src — `useDeckImage(deckId)` may return null while the
   // specific deck's image map is still loading; fall back to the
   // active deck resolver only when no `deckId` was supplied.
-  const faceSrc =
+  const baseFaceSrc =
     typeof cardId === "number"
       ? useSpecific
         ? specificResolve(cardId)
         : activeResolve(cardId)
       : null;
+  // EZ-7 — Use a smaller variant when one would suffice for the
+  // rendered size. If the variant URL later 404s, onError flips
+  // variantFailedFor and we re-render with the original.
+  const variantTier = SIZE_TO_VARIANT[size];
+  const variantSrc = variantUrlFor(baseFaceSrc, variantTier);
+  const faceSrc =
+    variantFailedFor && variantFailedFor === variantSrc
+      ? baseFaceSrc
+      : variantSrc;
 
   const showFaceShimmer =
     variant === "face" && !loading && (faceSrc == null || !imageLoaded);
@@ -210,26 +254,55 @@ export function CardImage({
       ) : null}
 
       {variant === "face" && typeof cardId === "number" && !loading && faceSrc ? (
-        <img
-          src={faceSrc}
-          alt={ariaLabel ?? getCardName(cardId)}
-          loading="lazy"
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setImageLoaded(true)}
-          style={{
-            // EY-2 — width matches wrapper; height auto-derives
-            // from the image's natural aspect. No objectFit
-            // letterboxing — the IMG IS the box.
-            width: "100%",
-            height: "auto",
-            display: "block",
-            opacity: imageLoaded ? 1 : 0,
-            transform: reversed ? "rotate(180deg)" : undefined,
-            transition: "opacity 300ms ease-out",
-            ...radiusStyle,
-            ...(DEV_IMG_TINT_BG ? { backgroundColor: DEV_IMG_TINT_BG } : null),
-          }}
-        />
+        <>
+          <img
+            src={faceSrc}
+            alt={ariaLabel ?? getCardName(cardId)}
+            loading="lazy"
+            onLoad={() => setImageLoaded(true)}
+            onError={() => {
+              // EZ-7 — Variant 404? Try the original once.
+              if (
+                variantTier !== "full" &&
+                baseFaceSrc &&
+                faceSrc !== baseFaceSrc &&
+                variantFailedFor !== variantSrc
+              ) {
+                setVariantFailedFor(variantSrc);
+              } else {
+                // Original also failed — give up and clear shimmer.
+                setImageLoaded(true);
+              }
+            }}
+            style={{
+              // EY-2 — width matches wrapper; height auto-derives
+              // from the image's natural aspect.
+              width: "100%",
+              height: "auto",
+              display: "block",
+              opacity: imageLoaded ? 1 : 0,
+              transform: reversed ? "rotate(180deg)" : undefined,
+              transition: "opacity 300ms ease-out",
+              ...radiusStyle,
+            }}
+          />
+          {/* EZ-3 — Dev-mode tint as sibling overlay so it's visible
+              over the opaque card art (backgroundColor on an opaque
+              IMG renders behind the pixels and is therefore invisible). */}
+          {DEV_IMG_TINT_BG && imageLoaded ? (
+            <div
+              aria-hidden
+              style={{
+                position: "absolute",
+                inset: 0,
+                backgroundColor: DEV_IMG_TINT_BG,
+                pointerEvents: "none",
+                transform: reversed ? "rotate(180deg)" : undefined,
+                ...radiusStyle,
+              }}
+            />
+          ) : null}
+        </>
       ) : null}
 
       {variant === "back" && !loading ? (
