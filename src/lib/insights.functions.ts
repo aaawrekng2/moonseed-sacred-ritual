@@ -49,12 +49,47 @@ function rangeToDays(range: TimeRange): number | null {
   }
 }
 
-/** Apply the free-tier cap. Returns the effective day window + a flag. */
-function effectiveWindow(range: TimeRange): { days: number | null; capped: boolean } {
+/**
+ * EO-1 — Apply the free-tier cap. Premium users bypass the cap entirely
+ * (including "all time" → null day window).
+ */
+function effectiveWindow(
+  range: TimeRange,
+  isPremium: boolean,
+): { days: number | null; capped: boolean } {
   const requested = rangeToDays(range);
+  if (isPremium) {
+    return { days: requested, capped: false };
+  }
   if (requested === null) return { days: FREE_CAP_DAYS, capped: true };
   if (requested > FREE_CAP_DAYS) return { days: FREE_CAP_DAYS, capped: true };
   return { days: requested, capped: false };
+}
+
+/**
+ * EO-1 — Read user's premium status server-side. Cached per request would
+ * require a context store; for now we hit user_preferences once per
+ * server-fn invocation. Returns false on any error to avoid accidentally
+ * unlocking unauthenticated callers.
+ */
+async function getIsPremium(supabase: any, userId: string): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const { data, error } = await supabase
+      .from("user_preferences")
+      .select("is_premium, premium_expires_at")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error || !data) return false;
+    if (!data.is_premium) return false;
+    if (data.premium_expires_at) {
+      const exp = new Date(data.premium_expires_at).getTime();
+      if (Number.isFinite(exp) && exp <= Date.now()) return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 type ReadingRow = {
