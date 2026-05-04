@@ -20,6 +20,7 @@ import { getCardImagePath } from "@/lib/tarot";
 import { formatLunationRange } from "@/lib/lunation";
 import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
+import { exportRecapPdf, shareRecapImage } from "@/lib/recap-export";
 
 export const Route = createFileRoute("/insights/recap/$lunationStart")({
   head: () => ({
@@ -385,7 +386,7 @@ function SlideContent({
       <PremiumReflectionSlide lunationStart={lunationStart} onReflection={onReflection} />
     );
   if (kind === "closer")
-    return <SlideSaveShareDone onClose={onClose} reflection={reflection} />;
+    return <SlideSaveShareDone onClose={onClose} reflection={reflection} data={data} />;
   return null;
 }
 
@@ -652,36 +653,134 @@ function PremiumReflectionSlide({
  * ============================================================ */
 function SlideSaveShareDone({
   onClose,
-  reflection: _reflection,
+  reflection,
+  data,
 }: {
   onClose: () => void;
   reflection: string | null;
+  data: RecapData;
 }) {
   const [msg, setMsg] = useState<string | null>(null);
-  const stub = (label: string) => {
-    setMsg(`${label} — coming soon.`);
-    setTimeout(() => setMsg(null), 2000);
+  const [busy, setBusy] = useState<null | "pdf" | "share">(null);
+  const flash = (text: string) => {
+    setMsg(text);
+    setTimeout(() => setMsg(null), 2400);
   };
+
+  const handlePdf = async () => {
+    if (busy) return;
+    setBusy("pdf");
+    try {
+      await exportRecapPdf(data, reflection);
+      flash("PDF saved.");
+    } catch (e) {
+      console.error(e);
+      flash("Couldn't save the PDF.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleShare = async () => {
+    if (busy) return;
+    setBusy("share");
+    try {
+      const node = document.getElementById("recap-share-card");
+      if (!node) {
+        flash("Nothing to share yet.");
+        return;
+      }
+      const filename = `lunation-${data.lunationStart.slice(0, 10)}.png`;
+      const result = await shareRecapImage(node as HTMLElement, filename);
+      flash(result.shared ? "Shared." : "Image saved.");
+    } catch (e) {
+      console.error(e);
+      flash("Couldn't generate the image.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
     <SlideShell>
       <Caption>Save this lunation, or share it.</Caption>
+      {/* Off-screen share canvas — captured by html2canvas-pro. */}
+      <div
+        id="recap-share-card"
+        aria-hidden
+        style={{
+          position: "fixed",
+          left: -10000,
+          top: 0,
+          width: 540,
+          height: 720,
+          padding: 48,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          background:
+            "radial-gradient(ellipse at top, rgba(206,168,92,0.18), #0a0a14 70%)",
+          color: "#e8e2d4",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+        }}
+      >
+        <div style={{ textAlign: "center" }}>
+          <div style={{ letterSpacing: "0.25em", fontSize: 12, opacity: 0.6, textTransform: "uppercase" }}>
+            Moonseed
+          </div>
+          <div style={{ color: "#cea85c", fontSize: 36, marginTop: 18 }}>Your Lunation</div>
+          <div style={{ opacity: 0.7, fontSize: 14, marginTop: 6 }}>
+            {new Date(data.lunationStart).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}{" "}
+            –{" "}
+            {new Date(data.lunationEnd).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ color: "#cea85c", fontSize: 96, lineHeight: 1 }}>{data.readingCount}</div>
+          <div style={{ opacity: 0.75, marginTop: 8 }}>
+            reading{data.readingCount === 1 ? "" : "s"} this cycle
+          </div>
+          {data.topStalker && (
+            <div style={{ marginTop: 28, opacity: 0.85 }}>
+              Top card: <span style={{ color: "#cea85c" }}>{data.topStalker.cardName}</span>
+            </div>
+          )}
+          {data.topMoonPhase && (
+            <div style={{ marginTop: 6, opacity: 0.7 }}>under the {data.topMoonPhase.phase}</div>
+          )}
+        </div>
+        <div style={{ textAlign: "center", opacity: 0.55, fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase" }}>
+          moonseed
+        </div>
+      </div>
       <div
         className="pointer-events-auto flex flex-col items-center gap-5"
         style={{ marginTop: 18 }}
       >
         <button
           type="button"
-          onClick={() => stub("Save as PDF")}
+          onClick={handlePdf}
+          disabled={busy !== null}
           style={closerButtonStyle}
         >
-          Save as PDF
+          {busy === "pdf" ? "Saving…" : "Save as PDF"}
         </button>
         <button
           type="button"
-          onClick={() => stub("Share image")}
+          onClick={handleShare}
+          disabled={busy !== null}
           style={closerButtonStyle}
         >
-          Share image
+          {busy === "share" ? "Preparing…" : "Share image"}
         </button>
         <button
           type="button"

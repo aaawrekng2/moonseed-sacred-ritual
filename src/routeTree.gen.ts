@@ -28,6 +28,7 @@ import { Route as SettingsGuidesRouteImport } from './routes/settings.guides'
 import { Route as SettingsDecksRouteImport } from './routes/settings.decks'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
+import { Route as InsightsYearOfLunationsRouteImport } from './routes/insights.year-of-lunations'
 import { Route as InsightsRecapLunationStartRouteImport } from './routes/insights.recap.$lunationStart'
 import { Route as InsightsCardCardIdRouteImport } from './routes/insights.card.$cardId'
 import { Route as HelpCategoryArticleRouteImport } from './routes/help.$category.$article'
@@ -129,6 +130,11 @@ const SettingsBlueprintRoute = SettingsBlueprintRouteImport.update({
   path: '/blueprint',
   getParentRoute: () => SettingsRoute,
 } as any)
+const InsightsYearOfLunationsRoute = InsightsYearOfLunationsRouteImport.update({
+  id: '/year-of-lunations',
+  path: '/year-of-lunations',
+  getParentRoute: () => InsightsRoute,
+} as any)
 const InsightsRecapLunationStartRoute =
   InsightsRecapLunationStartRouteImport.update({
     id: '/recap/$lunationStart',
@@ -168,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/threads': typeof ThreadsRouteWithChildren
+  '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/decks': typeof SettingsDecksRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/threads': typeof ThreadsRouteWithChildren
+  '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/decks': typeof SettingsDecksRoute
@@ -221,6 +229,7 @@ export interface FileRoutesById {
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/threads': typeof ThreadsRouteWithChildren
+  '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/decks': typeof SettingsDecksRoute
@@ -249,6 +258,7 @@ export interface FileRouteTypes {
     | '/scatter-test'
     | '/settings'
     | '/threads'
+    | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
     | '/settings/decks'
@@ -275,6 +285,7 @@ export interface FileRouteTypes {
     | '/scatter-test'
     | '/settings'
     | '/threads'
+    | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
     | '/settings/decks'
@@ -301,6 +312,7 @@ export interface FileRouteTypes {
     | '/scatter-test'
     | '/settings'
     | '/threads'
+    | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
     | '/settings/decks'
@@ -466,6 +478,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsBlueprintRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/insights/year-of-lunations': {
+      id: '/insights/year-of-lunations'
+      path: '/year-of-lunations'
+      fullPath: '/insights/year-of-lunations'
+      preLoaderRoute: typeof InsightsYearOfLunationsRouteImport
+      parentRoute: typeof InsightsRoute
+    }
     '/insights/recap/$lunationStart': {
       id: '/insights/recap/$lunationStart'
       path: '/recap/$lunationStart'
@@ -515,11 +534,13 @@ const HelpRouteChildren: HelpRouteChildren = {
 const HelpRouteWithChildren = HelpRoute._addFileChildren(HelpRouteChildren)
 
 interface InsightsRouteChildren {
+  InsightsYearOfLunationsRoute: typeof InsightsYearOfLunationsRoute
   InsightsCardCardIdRoute: typeof InsightsCardCardIdRoute
   InsightsRecapLunationStartRoute: typeof InsightsRecapLunationStartRoute
 }
 
 const InsightsRouteChildren: InsightsRouteChildren = {
+  InsightsYearOfLunationsRoute: InsightsYearOfLunationsRoute,
   InsightsCardCardIdRoute: InsightsCardCardIdRoute,
   InsightsRecapLunationStartRoute: InsightsRecapLunationStartRoute,
 }
@@ -594,12 +615,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
