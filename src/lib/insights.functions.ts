@@ -409,3 +409,193 @@ export const getStalkerCardDetail = createServerFn({ method: "GET" })
       appearances,
     };
   });
+
+/* ============================================================
+ * EM — Calendar tab server functions
+ * ============================================================ */
+
+function rangeToCalendarDays(range: TimeRange): number {
+  // For the year heatmap. <=30d shows shorter window; otherwise 365 (capped).
+  if (range === "7d") return 35;
+  if (range === "30d") return 35;
+  return 365;
+}
+
+/** EM-1 — Daily reading counts for the heatmap. */
+export const getCalendarHeatmap = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const totalDays = rangeToCalendarDays(data.timeRange);
+    // Fetch within free-tier cap window for queries.
+    const { days: capDays, capped } = effectiveWindow(data.timeRange);
+    const fetchDays = Math.min(totalDays, capDays ?? totalDays);
+    const rows = await fetchFilteredReadings(supabase, userId, data, fetchDays);
+    const dayMap = new Map<string, { count: number; suits: Record<string, number> }>();
+    for (const r of rows) {
+      const key = ymd(r.created_at);
+      const entry = dayMap.get(key) ?? { count: 0, suits: {} };
+      entry.count += 1;
+      for (const cid of r.card_ids ?? []) {
+        const s = getCardSuit(cid);
+        entry.suits[s] = (entry.suits[s] ?? 0) + 1;
+      }
+      dayMap.set(key, entry);
+    }
+    const days: Array<{ date: string; count: number; dominantSuit?: string }> = [];
+    let max = 0;
+    for (let i = totalDays - 1; i >= 0; i -= 1) {
+      const d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const entry = dayMap.get(key);
+      const count = entry?.count ?? 0;
+      if (count > max) max = count;
+      let dominantSuit: string | undefined;
+      if (entry) {
+        const top = Object.entries(entry.suits).sort((a, b) => b[1] - a[1])[0];
+        dominantSuit = top?.[0];
+      }
+      days.push({ date: key, count, dominantSuit });
+    }
+    return { days, maxCount: max, dataCapped: capped };
+  });
+
+/** EM-2 — Aggregate readings by moon phase for the calendar ring. */
+export const getMoonPhaseStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { days } = effectiveWindow(data.timeRange);
+    const rows = await fetchFilteredReadings(supabase, userId, data, days);
+    const phaseCounts: Record<string, number> = {};
+    for (const r of rows) {
+      if (r.moon_phase) phaseCounts[r.moon_phase] = (phaseCounts[r.moon_phase] ?? 0) + 1;
+    }
+    const sorted = Object.entries(phaseCounts).sort((a, b) => b[1] - a[1]);
+    return {
+      phaseCounts,
+      totalReadings: rows.length,
+      dominantPhase: sorted[0]?.[0] ?? null,
+    };
+  });
+
+/** EM-3 — Hour-of-day distribution. */
+const TimeOfDayInputSchema = InsightsFiltersSchema.extend({
+  timeZone: z.string().default("UTC"),
+});
+
+export const getTimeOfDayPattern = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => TimeOfDayInputSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { days } = effectiveWindow(data.timeRange);
+    const filters = InsightsFiltersSchema.parse({ ...data, timeZone: undefined });
+    const rows = await fetchFilteredReadings(supabase, userId, filters, days);
+    const tz = data.timeZone || "UTC";
+    const hours = new Array<number>(24).fill(0);
+    const fmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      hour: "numeric",
+      hour12: false,
+    });
+    for (const r of rows) {
+      try {
+        const parts = fmt.formatToParts(new Date(r.created_at));
+        const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
+        const idx = h === 24 ? 0 : h;
+        if (idx >= 0 && idx < 24) hours[idx] += 1;
+      } catch {
+        // skip
+      }
+    }
+    let peakHour: number | null = null;
+    let peakVal = 0;
+    hours.forEach((c, i) => {
+      if (c > peakVal) {
+        peakVal = c;
+        peakHour = i;
+      }
+    });
+    const fmtH = (h: number) => {
+      const ampm = h < 12 ? "am" : "pm";
+      const hh = h % 12 === 0 ? 12 : h % 12;
+      return `${hh}${ampm}`;
+    };
+    const peakLabel = peakHour === null ? "" : `${fmtH(peakHour)}–${fmtH((peakHour + 1) % 24)}`;
+    return {
+      hours: hours.map((count, hour) => ({ hour, count })),
+      peakHour,
+      peakLabel,
+    };
+  });
+
+/** EM-4 — Streak history derived from distinct reading dates. */
+export const getStreakHistory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { data: rows, error } = await supabase
+      .from("readings")
+      .select("created_at")
+      .eq("user_id", userId)
+      .is("archived_at", null)
+      .order("created_at", { ascending: true })
+      .limit(5000);
+    if (error) throw error;
+    const dateSet = new Set<string>();
+    for (const r of (rows ?? []) as Array<{ created_at: string }>) {
+      dateSet.add(ymd(r.created_at));
+    }
+    const dates = [...dateSet].sort();
+    const allStreaks: Array<{ startDate: string; endDate: string; length: number; isActive: boolean }> = [];
+    let runStart: string | null = null;
+    let runEnd: string | null = null;
+    let runLen = 0;
+    const oneDay = 24 * 60 * 60 * 1000;
+    for (const d of dates) {
+      if (runEnd === null) {
+        runStart = d;
+        runEnd = d;
+        runLen = 1;
+        continue;
+      }
+      const gap = (new Date(d).getTime() - new Date(runEnd).getTime()) / oneDay;
+      if (gap === 1) {
+        runEnd = d;
+        runLen += 1;
+      } else {
+        allStreaks.push({ startDate: runStart!, endDate: runEnd, length: runLen, isActive: false });
+        runStart = d;
+        runEnd = d;
+        runLen = 1;
+      }
+    }
+    if (runEnd !== null) {
+      allStreaks.push({ startDate: runStart!, endDate: runEnd, length: runLen, isActive: false });
+    }
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const yesterdayKey = new Date(Date.now() - oneDay).toISOString().slice(0, 10);
+    if (allStreaks.length > 0) {
+      const last = allStreaks[allStreaks.length - 1];
+      if (last.endDate === todayKey || last.endDate === yesterdayKey) {
+        last.isActive = true;
+      }
+    }
+    const multi = allStreaks.filter((s) => s.length >= 2);
+    const singles = allStreaks.filter((s) => s.length === 1).length;
+    multi.sort((a, b) => (a.endDate < b.endDate ? 1 : -1));
+    const trimmed = multi.slice(0, 20);
+    const longest = allStreaks.reduce((m, s) => Math.max(m, s.length), 0);
+    const current = allStreaks.find((s) => s.isActive)?.length ?? 0;
+    return {
+      streaks: trimmed,
+      currentStreak: current,
+      longestStreak: longest,
+      singleDayPulls: singles,
+    };
+  });
