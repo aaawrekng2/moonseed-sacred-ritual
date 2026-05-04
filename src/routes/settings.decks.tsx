@@ -271,44 +271,70 @@ function DeckRow({
   const handleGenerateVariants = async () => {
     if (variantBusy) return;
     setVariantBusy(true);
+    // FB-6 — loop chunked invocations until the function reports
+    // nextCursor === null. Each call processes ~12 cards in well
+    // under the Edge Function timeout. Progress is surfaced via a
+    // single toast id that updates as chunks complete.
+    const progressToastId = toast.loading("Optimizing deck images…");
     try {
       const { data: sess } = await supabase.auth.getSession();
       const jwt = sess.session?.access_token;
       if (!jwt) {
+        toast.dismiss(progressToastId);
         toast.error("Sign in required.");
         return;
       }
-      const { data, error } = await supabase.functions.invoke(
-        "generate-deck-variants",
-        {
-          body: { deckId: deck.id },
-          headers: { Authorization: `Bearer ${jwt}` },
-        },
-      );
-      if (error) throw error;
-      const summary = data as
-        | {
-            generated?: number;
-            skipped?: number;
-            failed?: number;
-            cardCount?: number;
-          }
-        | null;
-      if (!summary) {
-        toast.success("Deck optimized.");
-      } else if ((summary.generated ?? 0) === 0) {
+      let cursor: number | null = 0;
+      let totalGenerated = 0;
+      let totalSkipped = 0;
+      let totalFailed = 0;
+      let totalCards = 0;
+      // Safety cap — even with 78 cards and BATCH_SIZE=12 we expect
+      // ≤ 7 invocations. Cap loops at 50 to avoid pathological cycles.
+      let safety = 50;
+      while (cursor !== null && safety-- > 0) {
+        const { data, error } = await supabase.functions.invoke(
+          "generate-deck-variants",
+          {
+            body: { deckId: deck.id, cursor },
+            headers: { Authorization: `Bearer ${jwt}` },
+          },
+        );
+        if (error) throw error;
+        const summary = (data ?? {}) as {
+          generated?: number;
+          skipped?: number;
+          failed?: number;
+          totalCards?: number;
+          processed?: number;
+          nextCursor?: number | null;
+        };
+        totalGenerated += summary.generated ?? 0;
+        totalSkipped += summary.skipped ?? 0;
+        totalFailed += summary.failed ?? 0;
+        totalCards = summary.totalCards ?? totalCards;
+        const processed = summary.processed ?? 0;
+        toast.loading(
+          totalCards > 0
+            ? `Optimizing… ${processed}/${totalCards} cards`
+            : "Optimizing…",
+          { id: progressToastId },
+        );
+        cursor = summary.nextCursor ?? null;
+      }
+      toast.dismiss(progressToastId);
+      if (totalGenerated === 0) {
         toast.success(
-          `Already optimized (${summary.skipped ?? 0} variants present).`,
+          `Already optimized (${totalSkipped} variants present).`,
         );
       } else {
         toast.success(
-          `Generated ${summary.generated} variants` +
-            ((summary.failed ?? 0) > 0
-              ? ` · ${summary.failed} failed`
-              : ""),
+          `Generated ${totalGenerated} variants` +
+            (totalFailed > 0 ? ` · ${totalFailed} failed` : ""),
         );
       }
     } catch (err) {
+      toast.dismiss(progressToastId);
       console.error("[EZ-7] variant generation failed", err);
       toast.error(
         err instanceof Error
