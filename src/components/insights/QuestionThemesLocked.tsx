@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { getQuestionThemes, type QuestionTheme } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import type { InsightsFilters } from "@/lib/insights.types";
+import { DEFAULT_FILTERS } from "@/lib/insights.types";
 
 const FAKE_THEMES: Array<{ name: string; pct: number }> = [
   { name: "Career & Path", pct: 28 },
@@ -24,7 +25,7 @@ export function QuestionThemesLocked({ filters }: { filters?: InsightsFilters } 
   const { user } = useAuth();
   const { isPremium } = usePremium(user?.id);
   if (isPremium) {
-    return <PremiumQuestionThemes filters={filters ?? { timeRange: "90d", lifeArea: "all", spreadType: "all" } as InsightsFilters} />;
+    return <PremiumQuestionThemes filters={filters ?? DEFAULT_FILTERS} />;
   }
   const open = () =>
     window.dispatchEvent(
