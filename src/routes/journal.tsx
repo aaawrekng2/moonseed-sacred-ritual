@@ -2361,6 +2361,7 @@ function ReadingDetail({
             separate line whose space is reserved with min-height even
             when absent. */}
         <div
+          ref={cardRowRef}
           className={cn(
             "mt-6 flex items-start gap-2",
             swipeMobile
