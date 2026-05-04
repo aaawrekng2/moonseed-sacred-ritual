@@ -147,9 +147,12 @@ export function MoonPhaseIcon({
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
+        {/* ER-4 — tightened halo: inner stop pushed to 78% and outer
+            alpha reduced so the glow hugs the moon instead of bleeding
+            into the day-label area below. */}
         <radialGradient id={`${id}-halo`} cx="50%" cy="50%" r="50%">
-          <stop offset="60%" stopColor="rgba(212,175,55,0)" />
-          <stop offset="100%" stopColor="rgba(212,175,55,0.18)" />
+          <stop offset="78%" stopColor="rgba(212,175,55,0)" />
+          <stop offset="100%" stopColor="rgba(212,175,55,0.10)" />
         </radialGradient>
         {/* Mask used for crescent/gibbous: white = visible pearl, black = hidden */}
         <PhaseMask phase={phase} maskId={`${id}-mask`} illumination={illumination} />
