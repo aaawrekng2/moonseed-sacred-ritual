@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useActiveCardBackUrl, useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
+import { getCardName } from "@/lib/tarot";
 import { CardImage } from "@/components/card/CardImage";
 import type { CardBackId } from "@/lib/card-backs";
 import { cn } from "@/lib/utils";
@@ -703,7 +704,6 @@ export function CardSlot({
           <CardImage
             cardId={faceIndex}
             variant="face"
-            reversed={card.reversed ?? false}
             flipped={card.revealed}
             cardBackId={cardBack}
             size="custom"
