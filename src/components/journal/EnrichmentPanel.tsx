@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { HelpIcon } from "@/components/help/HelpIcon";
-import { useDeckImage } from "@/lib/active-deck";
+import { useDeckImage, useDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
 import { getCardName } from "@/lib/tarot";
 import {
   AlertDialog,
@@ -1212,6 +1212,10 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
   // the deck the seeker actually drew with.
   const [readingDeckId, setReadingDeckId] = useState<string | null>(null);
   const getDeckImage = useDeckImage(readingDeckId);
+  // EU-1 — deck-aware corner radius for the journal entry card image
+  // and its loading placeholder. Matches the radius the seeker has
+  // configured for the deck this reading was drawn with.
+  const deckRadius = useDeckCornerRadius(readingDeckId);
   // DU-12 — "Tell me more" disclosure for the surfaced match.
   const [tellMoreOpen, setTellMoreOpen] = useState(false);
   // DL-7 — first-tap "Connect" hint modal. Persisted via
@@ -1596,9 +1600,13 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
                     width: "100%",
                     height: "100%",
                     objectFit: "contain",
-                    borderRadius: 4,
-                    border:
-                      "1px solid color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)",
+                    // EU-1 — hardcoded borderRadius: 4 replaced with deck-aware
+                    // cornerRadiusStyle. Border removed; the card art has its
+                    // own visual edge and the outer accent line was reading as
+                    // stray chrome (especially in light/colorful themes).
+                    ...(deckRadius != null
+                      ? cornerRadiusStyle(deckRadius, 74)
+                      : { borderRadius: 4 }),
                   }}
                 />
               ) : (
@@ -1608,11 +1616,14 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
                     position: "relative",
                     width: "100%",
                     height: "100%",
-                    borderRadius: 4,
+                    // EU-2 — same treatment as the loaded <img>: deck-aware
+                    // corner radius, no outer border. A subtle background
+                    // tint is kept so the placeholder reads as a card slot.
+                    ...(deckRadius != null
+                      ? cornerRadiusStyle(deckRadius, 74)
+                      : { borderRadius: 4 }),
                     background:
                       "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
-                    border:
-                      "1px solid color-mix(in oklab, var(--accent, var(--gold)) 20%, transparent)",
                   }}
                 />
               )}
