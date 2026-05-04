@@ -394,13 +394,17 @@ function Index() {
           <CardImage
             cardId={todayCard ?? undefined}
             variant={
-              todayCard !== null
+              // EX-2 — while the today-draw check is still pending,
+              // render face+loading (shimmer) so we never flash the
+              // card-back during warm reopen. After the check resolves:
+              // face if drawn, back if not.
+              !hasCheckedTodayDraw
                 ? "face"
-                : showSkeleton
-                ? "face"
-                : "back"
+                : todayCard !== null
+                  ? "face"
+                  : "back"
             }
-            loading={todayCard === null && showSkeleton}
+            loading={!hasCheckedTodayDraw || (todayCard === null && showSkeleton)}
             reversed={todayReversed}
             cardBackId={cardBack}
             size="custom"
