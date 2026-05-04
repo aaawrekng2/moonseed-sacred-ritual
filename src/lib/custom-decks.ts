@@ -150,7 +150,7 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   // Clamp legacy values (which could be up to 30 from the older slider)
   // so they don't render as huge percentages on existing rows.
   map.cornerRadiusPercent =
-    typeof cr === "number" ? Math.max(0, Math.min(8, Math.round(cr))) : null;
+    typeof cr === "number" ? Math.max(0, Math.min(20, Math.round(cr))) : null;
   return map;
 }
 

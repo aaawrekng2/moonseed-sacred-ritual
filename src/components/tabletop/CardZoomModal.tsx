@@ -12,8 +12,7 @@
 import { X } from "lucide-react";
 import { getCardName } from "@/lib/tarot";
 import { useDeckImage, useDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
-import { useElementWidth } from "@/lib/use-element-width";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface CardZoomModalProps {
   cardId: number;
@@ -31,7 +30,27 @@ interface CardZoomModalProps {
 export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomModalProps) {
   const cardImg = useDeckImage(deckId ?? null);
   const radiusPx = useDeckCornerRadius(deckId ?? null);
-  const { ref: imgRef, width: imgW } = useElementWidth<HTMLImageElement>();
+  // EI-2 — manual width measurement triggered on img onLoad and on
+  // mount via img.complete (catches cached images that fire onLoad
+  // before React attaches the handler).
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const [imgW, setImgW] = useState(0);
+  const measureImg = useCallback(() => {
+    const el = imgRef.current;
+    if (!el) return;
+    const w = el.getBoundingClientRect().width;
+    if (w > 0) setImgW(w);
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    measureImg();
+    const onResize = () => measureImg();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [measureImg]);
+  useEffect(() => {
+    if (imgRef.current?.complete) measureImg();
+  }, [cardId, measureImg]);
   // DB-1.2 — viewing-only rotate. Local state, never persists; saved
   // reading data is unaffected.
   const [tempUpright, setTempUpright] = useState(false);
@@ -77,6 +96,7 @@ export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomMod
           boxShadow: "0 0 80px -10px rgba(212,175,55,0.5)",
           ...cornerRadiusStyle(radiusPx, imgW),
         }}
+        onLoad={measureImg}
         onClick={(e) => {
           e.stopPropagation();
           onClose();

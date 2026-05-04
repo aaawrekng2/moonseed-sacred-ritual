@@ -706,7 +706,10 @@ export function CardSlot({
           <div className="flip-face back">
             <CardBack id={cardBack} imageUrl={customBackUrl} width={cardW} className="h-full w-full" />
           </div>
-          <div className="flip-face front overflow-hidden rounded-[10px] border border-gold/40 bg-card">
+          <div
+            className="flip-face front overflow-hidden bg-card"
+            style={cornerRadiusStyle(deckRadiusPx, cardW)}
+          >
             {/* Always render the face image so it's loaded and decoded before
                 the flip animation reaches the apex — gating on `card.revealed`
                 left the front blank for the first reveal. The back covers it

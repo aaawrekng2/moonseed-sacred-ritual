@@ -192,7 +192,7 @@ export function CornerRadiusSlider({
         <input
           type="range"
           min={0}
-          max={8}
+          max={20}
           step={1}
           value={value}
           onChange={(e) => setValue(Number(e.target.value))}
