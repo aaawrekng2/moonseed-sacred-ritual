@@ -838,9 +838,15 @@ export const getLunationRecap = createServerFn({ method: "GET" })
     for (const r of rows) {
       const cards = r.card_ids ?? [];
       const orients = r.card_orientations ?? [];
+      // ER-6 — see getInsightsOverview: skip readings without
+      // tracked orientations so the lunation reversal rate isn't
+      // depressed by pre-tracking history.
+      const orientationsTracked = r.card_orientations !== null;
       cards.forEach((cid, idx) => {
-        totalCards += 1;
-        if (orients[idx]) reversedCards += 1;
+        if (orientationsTracked) {
+          totalCards += 1;
+          if (orients[idx]) reversedCards += 1;
+        }
         cardCounts.set(cid, (cardCounts.get(cid) ?? 0) + 1);
         const arcana = getCardArcana(cid);
         if (arcana === "major") majors += 1;
