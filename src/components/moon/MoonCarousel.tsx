@@ -795,14 +795,14 @@ function CenterCard({
       </span>
       <div
         className={cn(
-          "w-full rounded-2xl bg-card/60 px-3 py-4 sm:px-4 backdrop-blur-sm transition-all duration-200",
-          // ER-3 — border was removed previously; the residual gold halo
-          // on the selected/today card now reads as orphaned, so the
-          // selected state drops the glow entirely. Unselected cards keep
-          // their subtle ambient shadow.
+          "w-full rounded-2xl px-3 py-4 sm:px-4 transition-all duration-200",
+          // ES-3 — selected/today cell drops the bg-card/60 + backdrop-blur
+          // entirely so today reads as page-background, matching the
+          // adjacent days. Unselected days keep their card backdrop +
+          // ambient shadow so they read as secondary cards.
           selected
             ? ""
-            : "shadow-[0_8px_30px_-12px_rgba(212,175,55,0.4)]",
+            : "bg-card/60 backdrop-blur-sm shadow-[0_8px_30px_-12px_rgba(212,175,55,0.4)]",
         )}
       >
         {/* No keyed remount here — the wrapper stays mounted across day
