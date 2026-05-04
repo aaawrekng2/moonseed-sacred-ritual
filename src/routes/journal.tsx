@@ -1282,24 +1282,21 @@ function ReadingCard({
                 : undefined,
           }}
         >
-          {reading.card_ids.map((id, idx) => (
-            <CardThumb
-              key={`${id}-${idx}`}
-              src={getImage(id, "thumbnail")}
-              alt={getCardName(id)}
-              loading="lazy"
-              className="flex-shrink-0"
-              style={{
-                width: "74px",
-                aspectRatio: "1 / 1.75",
-                objectFit: "contain",
-                border:
-                  "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
-                opacity: "var(--ro-plus-30)",
-                ...cornerRadiusStyle(deckRadiusPx, 74),
-              }}
-            />
-          ))}
+          {reading.card_ids.map((id, idx) => {
+            const isReversed = !!reading.card_orientations?.[idx];
+            return (
+              <CardImage
+                key={`${id}-${idx}`}
+                cardId={id}
+                variant="face"
+                reversed={isReversed}
+                size="thumbnail"
+                deckId={reading.deck_id ?? null}
+                className="flex-shrink-0"
+                style={{ opacity: "var(--ro-plus-30)" }}
+              />
+            );
+          })}
         </div>
       ) : (
         <div className="mt-3 flex items-center gap-1.5">
