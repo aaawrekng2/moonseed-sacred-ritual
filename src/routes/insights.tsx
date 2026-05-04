@@ -14,6 +14,10 @@ import { TopLensStat } from "@/components/insights/TopLensStat";
 import { getInsightsOverview, getStalkerCards } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { DEFAULT_FILTERS, type InsightsFilters, type InsightsOverview, type StalkerCardsResult } from "@/lib/insights.types";
+import { StalkerCardsSection } from "@/components/insights/StalkerCardsSection";
+import { CardFrequencySection } from "@/components/insights/CardFrequencySection";
+import { CardPairsSection } from "@/components/insights/CardPairsSection";
+import { ReversalPatternsSection } from "@/components/insights/ReversalPatternsSection";
 
 export const Route = createFileRoute("/insights")({
   head: () => ({
@@ -72,14 +76,14 @@ function InsightsRoute() {
   }, [filters, overviewFn, stalkerFn]);
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: "var(--background)" }}>
+    <div className="relative flex h-dvh flex-col" style={{ background: "var(--background)" }}>
+      {/* EK-0 — h-dvh + flex-col so the inner <main> can own the scroll. */}
       <InsightsFilterBar filters={filters} onChange={setFilters} hidden={tab === "recap"} />
 
       {/* Tab strip */}
       <div
-        className="sticky z-20 backdrop-blur-md"
+        className="backdrop-blur-md"
         style={{
-          top: tab === "recap" ? 0 : 56,
           background: "color-mix(in oklch, var(--surface-elevated) 85%, transparent)",
         }}
       >
@@ -110,17 +114,27 @@ function InsightsRoute() {
         </div>
       </div>
 
-      <main className="mx-auto max-w-2xl px-4 py-4">
-        {tab === "overview" && (
-          <OverviewTab
-            loading={loading}
-            overview={overview}
-            stalkers={stalkers}
-            onTapHero={() => setTab("cards")}
-            onEmptyCta={() => navigate({ to: "/" })}
-          />
-        )}
-        {tab !== "overview" && <ComingSoon />}
+      <main className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
+        <div className="mx-auto max-w-2xl">
+          {tab === "overview" && (
+            <OverviewTab
+              loading={loading}
+              overview={overview}
+              stalkers={stalkers}
+              onTapHero={() => setTab("cards")}
+              onEmptyCta={() => navigate({ to: "/" })}
+            />
+          )}
+          {tab === "cards" && (
+            <div className="flex flex-col gap-8 pb-12">
+              <StalkerCardsSection filters={filters} />
+              <CardFrequencySection filters={filters} />
+              <CardPairsSection filters={filters} />
+              <ReversalPatternsSection filters={filters} />
+            </div>
+          )}
+          {tab !== "overview" && tab !== "cards" && <ComingSoon />}
+        </div>
       </main>
 
       <BottomNav />

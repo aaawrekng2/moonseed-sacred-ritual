@@ -16,6 +16,7 @@ import {
 } from "@/lib/insights.types";
 import { getCardArcana, getCardSuit, getCardName } from "@/lib/tarot";
 import { getGuideById } from "@/lib/guides";
+import { z } from "zod";
 
 const FREE_CAP_DAYS = 90;
 const STALKER_THRESHOLD = 3;
@@ -236,4 +237,175 @@ export const getStalkerCards = createServerFn({ method: "GET" })
             }));
 
     return { stalkerCards: stalkers, topCard, totalReadings: rows.length };
+  });
+
+/**
+ * EK-2 — Frequency of every card (78 entries) within filter window.
+ */
+export const getCardFrequency = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { days } = effectiveWindow(data.timeRange);
+    const rows = await fetchFilteredReadings(supabase, userId, data, days);
+    const counts = new Array<number>(78).fill(0);
+    let totalDraws = 0;
+    for (const r of rows) {
+      for (const cid of r.card_ids ?? []) {
+        if (cid >= 0 && cid < 78) {
+          counts[cid] += 1;
+          totalDraws += 1;
+        }
+      }
+    }
+    return {
+      cards: counts.map((count, cardId) => ({ cardId, count })),
+      totalDraws,
+      totalReadings: rows.length,
+    };
+  });
+
+/**
+ * EK-3 — Card pairs that co-occur in multi-card readings.
+ */
+export const getCardPairs = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { days } = effectiveWindow(data.timeRange);
+    const rows = await fetchFilteredReadings(supabase, userId, data, days);
+    const multi = rows.filter((r) => (r.card_ids ?? []).length >= 2);
+    const pairCounts = new Map<string, number>();
+    const cardCounts = new Map<number, number>();
+    for (const r of multi) {
+      const cards = Array.from(new Set(r.card_ids ?? []));
+      for (const c of cards) cardCounts.set(c, (cardCounts.get(c) ?? 0) + 1);
+      for (let i = 0; i < cards.length; i++) {
+        for (let j = i + 1; j < cards.length; j++) {
+          const a = Math.min(cards[i], cards[j]);
+          const b = Math.max(cards[i], cards[j]);
+          const k = `${a}:${b}`;
+          pairCounts.set(k, (pairCounts.get(k) ?? 0) + 1);
+        }
+      }
+    }
+    const totalReadings = multi.length;
+    const pairs = [...pairCounts.entries()]
+      .map(([k, count]) => {
+        const [a, b] = k.split(":").map(Number);
+        return { cardA: a, cardB: b, count };
+      })
+      .filter((p) => {
+        if (p.count < 3) return false;
+        const eitherCount = Math.max(cardCounts.get(p.cardA) ?? 0, cardCounts.get(p.cardB) ?? 0);
+        return eitherCount > 0 && p.count / eitherCount >= 0.1;
+      })
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+      .map((p) => ({
+        ...p,
+        cardAName: getCardName(p.cardA),
+        cardBName: getCardName(p.cardB),
+        totalReadings,
+      }));
+    return { pairs, totalMultiCardReadings: totalReadings };
+  });
+
+/**
+ * EK-4 — Cards arriving reversed most often.
+ * NOTE: Uses the same card_orientations source as getInsightsOverview.
+ * Mark has flagged the overall reversal calc as low; pinned for an
+ * upcoming reversal-audit prompt — DO NOT adjust here.
+ */
+export const getReversalPatterns = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { days } = effectiveWindow(data.timeRange);
+    const rows = await fetchFilteredReadings(supabase, userId, data, days);
+    const totals = new Map<number, { total: number; reversed: number }>();
+    let allCards = 0;
+    let allReversed = 0;
+    for (const r of rows) {
+      const cards = r.card_ids ?? [];
+      const orients = r.card_orientations ?? [];
+      cards.forEach((cid, idx) => {
+        const e = totals.get(cid) ?? { total: 0, reversed: 0 };
+        e.total += 1;
+        allCards += 1;
+        if (orients[idx]) {
+          e.reversed += 1;
+          allReversed += 1;
+        }
+        totals.set(cid, e);
+      });
+    }
+    const overallRate = allCards === 0 ? 0 : allReversed / allCards;
+    const patterns = [...totals.entries()]
+      .filter(([, v]) => v.total >= 3 && v.reversed / v.total >= 0.5)
+      .sort((a, b) => b[1].reversed - a[1].reversed)
+      .slice(0, 5)
+      .map(([cardId, v]) => ({
+        cardId,
+        cardName: getCardName(cardId),
+        totalCount: v.total,
+        reversedCount: v.reversed,
+        reversedRate: v.reversed / v.total,
+      }));
+    return { patterns, overallReversalRate: overallRate };
+  });
+
+/**
+ * EK-5 — Detail for a single stalker card.
+ */
+const StalkerDetailInputSchema = InsightsFiltersSchema.extend({
+  cardId: z.number().int().min(0).max(77),
+});
+
+export const getStalkerCardDetail = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => StalkerDetailInputSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { days } = effectiveWindow(data.timeRange);
+    const filters = InsightsFiltersSchema.parse({ ...data, cardId: undefined });
+    const rows = await fetchFilteredReadings(supabase, userId, filters, days);
+    const appearances: Array<{
+      readingId: string;
+      date: string;
+      spreadType: string | null;
+      isReversed: boolean;
+    }> = [];
+    let total = 0;
+    let reversed = 0;
+    for (const r of rows) {
+      const cards = r.card_ids ?? [];
+      const orients = r.card_orientations ?? [];
+      cards.forEach((cid, idx) => {
+        if (cid === data.cardId) {
+          total += 1;
+          const isRev = !!orients[idx];
+          if (isRev) reversed += 1;
+          appearances.push({
+            readingId: r.id,
+            date: r.created_at,
+            spreadType: r.spread_type,
+            isReversed: isRev,
+          });
+        }
+      });
+    }
+    appearances.sort((a, b) => (a.date < b.date ? 1 : -1));
+    return {
+      cardId: data.cardId,
+      cardName: getCardName(data.cardId),
+      totalCount: total,
+      reversedCount: reversed,
+      firstSeen: appearances.length ? appearances[appearances.length - 1].date : null,
+      lastSeen: appearances.length ? appearances[0].date : null,
+      appearances,
+    };
   });

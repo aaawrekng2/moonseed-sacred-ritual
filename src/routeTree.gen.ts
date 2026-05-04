@@ -28,6 +28,7 @@ import { Route as SettingsGuidesRouteImport } from './routes/settings.guides'
 import { Route as SettingsDecksRouteImport } from './routes/settings.decks'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
+import { Route as InsightsCardCardIdRouteImport } from './routes/insights.card.$cardId'
 import { Route as HelpCategoryArticleRouteImport } from './routes/help.$category.$article'
 import { Route as ApiPublicDetectWeavesRouteImport } from './routes/api/public/detect-weaves'
 import { Route as ApiPublicDetectWeavesStatusRouteImport } from './routes/api/public/detect-weaves/status'
@@ -127,6 +128,11 @@ const SettingsBlueprintRoute = SettingsBlueprintRouteImport.update({
   path: '/blueprint',
   getParentRoute: () => SettingsRoute,
 } as any)
+const InsightsCardCardIdRoute = InsightsCardCardIdRouteImport.update({
+  id: '/card/$cardId',
+  path: '/card/$cardId',
+  getParentRoute: () => InsightsRoute,
+} as any)
 const HelpCategoryArticleRoute = HelpCategoryArticleRouteImport.update({
   id: '/$category/$article',
   path: '/$category/$article',
@@ -150,7 +156,7 @@ export interface FileRoutesByFullPath {
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
-  '/insights': typeof InsightsRoute
+  '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/threads/$patternId': typeof ThreadsPatternIdRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
+  '/insights/card/$cardId': typeof InsightsCardCardIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRoutesByTo {
@@ -174,7 +181,7 @@ export interface FileRoutesByTo {
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
-  '/insights': typeof InsightsRoute
+  '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/threads/$patternId': typeof ThreadsPatternIdRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
+  '/insights/card/$cardId': typeof InsightsCardCardIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRoutesById {
@@ -199,7 +207,7 @@ export interface FileRoutesById {
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
-  '/insights': typeof InsightsRoute
+  '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -215,6 +223,7 @@ export interface FileRoutesById {
   '/threads/$patternId': typeof ThreadsPatternIdRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
+  '/insights/card/$cardId': typeof InsightsCardCardIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRouteTypes {
@@ -241,6 +250,7 @@ export interface FileRouteTypes {
     | '/threads/$patternId'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
+    | '/insights/card/$cardId'
     | '/api/public/detect-weaves/status'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -265,6 +275,7 @@ export interface FileRouteTypes {
     | '/threads/$patternId'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
+    | '/insights/card/$cardId'
     | '/api/public/detect-weaves/status'
   id:
     | '__root__'
@@ -289,6 +300,7 @@ export interface FileRouteTypes {
     | '/threads/$patternId'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
+    | '/insights/card/$cardId'
     | '/api/public/detect-weaves/status'
   fileRoutesById: FileRoutesById
 }
@@ -298,7 +310,7 @@ export interface RootRouteChildren {
   DrawRoute: typeof DrawRoute
   GuidesRoute: typeof GuidesRoute
   HelpRoute: typeof HelpRouteWithChildren
-  InsightsRoute: typeof InsightsRoute
+  InsightsRoute: typeof InsightsRouteWithChildren
   JournalRoute: typeof JournalRoute
   ScatterTestRoute: typeof ScatterTestRoute
   SettingsRoute: typeof SettingsRouteWithChildren
@@ -441,6 +453,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsBlueprintRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/insights/card/$cardId': {
+      id: '/insights/card/$cardId'
+      path: '/card/$cardId'
+      fullPath: '/insights/card/$cardId'
+      preLoaderRoute: typeof InsightsCardCardIdRouteImport
+      parentRoute: typeof InsightsRoute
+    }
     '/help/$category/$article': {
       id: '/help/$category/$article'
       path: '/$category/$article'
@@ -474,6 +493,18 @@ const HelpRouteChildren: HelpRouteChildren = {
 }
 
 const HelpRouteWithChildren = HelpRoute._addFileChildren(HelpRouteChildren)
+
+interface InsightsRouteChildren {
+  InsightsCardCardIdRoute: typeof InsightsCardCardIdRoute
+}
+
+const InsightsRouteChildren: InsightsRouteChildren = {
+  InsightsCardCardIdRoute: InsightsCardCardIdRoute,
+}
+
+const InsightsRouteWithChildren = InsightsRoute._addFileChildren(
+  InsightsRouteChildren,
+)
 
 interface SettingsRouteChildren {
   SettingsBlueprintRoute: typeof SettingsBlueprintRoute
@@ -531,7 +562,7 @@ const rootRouteChildren: RootRouteChildren = {
   DrawRoute: DrawRoute,
   GuidesRoute: GuidesRoute,
   HelpRoute: HelpRouteWithChildren,
-  InsightsRoute: InsightsRoute,
+  InsightsRoute: InsightsRouteWithChildren,
   JournalRoute: JournalRoute,
   ScatterTestRoute: ScatterTestRoute,
   SettingsRoute: SettingsRouteWithChildren,
