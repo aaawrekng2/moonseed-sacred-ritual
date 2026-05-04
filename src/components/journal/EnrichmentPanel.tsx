@@ -1564,69 +1564,40 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
           flexWrap: "wrap",
         }}
       >
-        {s.sharedCards.map((cardId) => {
-          const src = getDeckImage(cardId, "thumbnail");
-          return (
+        {s.sharedCards.map((cardId) => (
+          <div
+            key={cardId}
+            style={{
+              position: "relative",
+              width: 74,
+              aspectRatio: "1 / 1.75",
+            }}
+          >
+            {/* EW-3 — radial halo behind the shared-card thumbnail.
+                The thumbnail itself is now <CardImage>, which handles
+                deck-aware artwork, corner radius, loading skeleton, and
+                drops the legacy 1px accent border. */}
             <div
-              key={cardId}
+              aria-hidden
               style={{
-                position: "relative",
-                width: 74,
-                aspectRatio: "1 / 1.75",
+                position: "absolute",
+                inset: -14,
+                background:
+                  "radial-gradient(circle, color-mix(in oklab, var(--accent, var(--gold)) 40%, transparent) 0%, transparent 70%)",
+                filter: "blur(8px)",
+                opacity: 0.6,
+                pointerEvents: "none",
               }}
-            >
-              <div
-                aria-hidden
-                style={{
-                  position: "absolute",
-                  inset: -14,
-                  background:
-                    "radial-gradient(circle, color-mix(in oklab, var(--accent, var(--gold)) 40%, transparent) 0%, transparent 70%)",
-                  filter: "blur(8px)",
-                  opacity: 0.6,
-                  pointerEvents: "none",
-                }}
-              />
-              {src ? (
-                <img
-                  src={src}
-                  alt={getCardName(cardId)}
-                  loading="lazy"
-                  style={{
-                    position: "relative",
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    // EU-1 — hardcoded borderRadius: 4 replaced with deck-aware
-                    // cornerRadiusStyle. Border removed; the card art has its
-                    // own visual edge and the outer accent line was reading as
-                    // stray chrome (especially in light/colorful themes).
-                    ...(deckRadius != null
-                      ? cornerRadiusStyle(deckRadius, 74)
-                      : { borderRadius: 4 }),
-                  }}
-                />
-              ) : (
-                <div
-                  aria-label={getCardName(cardId)}
-                  style={{
-                    position: "relative",
-                    width: "100%",
-                    height: "100%",
-                    // EU-2 — same treatment as the loaded <img>: deck-aware
-                    // corner radius, no outer border. A subtle background
-                    // tint is kept so the placeholder reads as a card slot.
-                    ...(deckRadius != null
-                      ? cornerRadiusStyle(deckRadius, 74)
-                      : { borderRadius: 4 }),
-                    background:
-                      "color-mix(in oklab, var(--accent, var(--gold)) 8%, transparent)",
-                  }}
-                />
-              )}
-            </div>
-          );
-        })}
+            />
+            <CardImage
+              cardId={cardId}
+              variant="face"
+              size="thumbnail"
+              deckId={readingDeckId}
+              ariaLabel={getCardName(cardId)}
+            />
+          </div>
+        ))}
       </div>
 
       {/* 3. Rarity statement */}
