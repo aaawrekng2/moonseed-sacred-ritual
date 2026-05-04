@@ -50,6 +50,21 @@ const PHASE_GLYPHS: Record<string, string> = {
   "Waning Crescent": "🌘",
 };
 
+/**
+ * EX-1 — Reverse the URL-safe encoding from LunationBanner / RecapTab.
+ * Input shape: "YYYY-MM-DDTHH-MM-SS-sssZ" (or already-decoded ISO).
+ * Output shape: standard ISO "YYYY-MM-DDTHH:MM:SS.sssZ".
+ * If the input doesn't match the encoded shape, return as-is so an
+ * already-decoded value still works.
+ */
+function decodeIsoLunationParam(raw: string): string {
+  const m = raw.match(
+    /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z$/,
+  );
+  if (!m) return raw;
+  return `${m[1]}T${m[2]}:${m[3]}:${m[4]}.${m[5]}Z`;
+}
+
 function LunationRecapRoute() {
   const { lunationStart: lunationStartRaw } = Route.useParams();
   // EX-1 — Reverse the ':'/'.' → '-' encoding applied at navigate time.
