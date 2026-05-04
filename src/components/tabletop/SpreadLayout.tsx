@@ -416,7 +416,10 @@ function CardFace({
         <div className="flip-face back">
           <CardBack id={cardBack} imageUrl={customBackUrl} width={sizing.w} className="h-full w-full" />
         </div>
-        <div className="flip-face front overflow-hidden rounded-[10px] border border-gold/40 bg-card">
+        <div
+          className="flip-face front overflow-hidden bg-card"
+          style={cornerRadiusStyle(deckRadiusPx, sizing.w)}
+        >
           {/* Always render the face image so it's preloaded before the flip
               animation begins — otherwise the first reveal shows a blank
               front while the image is still fetching. */}
@@ -861,9 +864,9 @@ export function ManualSpreadSlots({
       onClick={() => onSlotTap(slotIndex)}
       aria-label={pick ? `Replace ${getCardName(pick.cardIndex)}` : `Pick card for ${labels[slotIndex] ?? `position ${slotIndex + 1}`}`}
       className={cn(
-        "relative rounded-[10px] transition active:scale-[0.98]",
+        "relative transition active:scale-[0.98]",
         pick
-          ? "border border-gold/40 overflow-hidden bg-card"
+          ? "overflow-hidden bg-card"
           : "border-2 border-dashed border-foreground/25 bg-foreground/[0.04] hover:border-gold/50 hover:bg-gold/5",
       )}
       style={{
@@ -872,6 +875,7 @@ export function ManualSpreadSlots({
         transform: rotated ? "rotate(90deg)" : undefined,
         transformOrigin: "center center",
         boxShadow: pick ? "0 6px 18px rgba(0,0,0,0.5)" : undefined,
+        ...(pick ? cornerRadiusStyle(deckRadiusPx, sizing.w) : {}),
       }}
     >
       {pick ? (
