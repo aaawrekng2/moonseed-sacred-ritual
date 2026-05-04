@@ -174,6 +174,11 @@ export function CardImage({
   const [variantFailedFor, setVariantFailedFor] = useState<string | null>(null);
   const devMode = useDevMode();
 
+  // FC-1 — Track the IMG's natural aspect ratio so the flipped
+  // wrapper can size to match exactly. Until measured, fall back
+  // to a sensible 1.6 default (typical tarot card height/width).
+  const [imgAspect, setImgAspect] = useState<number | null>(null);
+
   // EY-1 — Saturated diagnostic colors. The card art still
   // shows through the IMG layer at 50% opacity; everything else
   // is fully opaque so layer geometry is unambiguous.
