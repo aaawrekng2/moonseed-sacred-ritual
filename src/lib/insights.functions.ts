@@ -381,6 +381,9 @@ export const getReversalPatterns = createServerFn({ method: "GET" })
     for (const r of rows) {
       const cards = r.card_ids ?? [];
       const orients = r.card_orientations ?? [];
+      // ER-6 — skip readings without tracked orientations so old
+      // pre-tracking readings don't depress the reversal totals.
+      if (r.card_orientations === null) continue;
       cards.forEach((cid, idx) => {
         const e = totals.get(cid) ?? { total: 0, reversed: 0 };
         e.total += 1;
