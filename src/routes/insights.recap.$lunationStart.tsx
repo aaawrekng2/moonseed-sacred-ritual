@@ -1,13 +1,16 @@
 /**
- * EN-3 — Lunation Recap story (Spotify-Wrapped style).
- * Free tier = 5 slides. Slides 6–12 are deferred until the
- * premium subscription system ships (EO+).
+ * EN-3 / EQ — Lunation Recap story (Spotify-Wrapped style).
+ *
+ * Free tier:    5 slides (0–3 content + 4 locked closer).
+ * Premium tier: up to 11 slides (0–3 content + 4–9 premium content + 10 closer).
+ *               Slide 8 (Top tags) is skipped if the user has zero tags
+ *               this lunation, so premium total may be 10.
  *
  * URL param: lunationStart = ISO datetime of the New Moon that opens
  * this lunation.
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { X, Lock } from "lucide-react";
 import { getLunationRecap, getLunationReflection } from "@/lib/insights.functions";
@@ -26,9 +29,24 @@ export const Route = createFileRoute("/insights/recap/$lunationStart")({
 });
 
 const TOTAL_SLIDES_FREE = 5;
-const TOTAL_SLIDES_PREMIUM = 6; // Adds AI reflection slide.
+// EQ — Premium gets the full story: 0–3 shared, 4–9 premium content,
+// 10 Save/Share/Done. Top tags (slide 8) is dropped dynamically when
+// the user has no tags this lunation.
+const TOTAL_SLIDES_PREMIUM_FULL = 11;
 
 type RecapData = Awaited<ReturnType<typeof getLunationRecap>>;
+
+/** Inline phase-glyph map (PHASE_GLYPHS in moon.ts isn't exported). */
+const PHASE_GLYPHS: Record<string, string> = {
+  "New Moon": "🌑",
+  "Waxing Crescent": "🌒",
+  "First Quarter": "🌓",
+  "Waxing Gibbous": "🌔",
+  "Full Moon": "🌕",
+  "Waning Gibbous": "🌖",
+  "Last Quarter": "🌗",
+  "Waning Crescent": "🌘",
+};
 
 function LunationRecapRoute() {
   const { lunationStart } = Route.useParams();
@@ -37,6 +55,7 @@ function LunationRecapRoute() {
   const [data, setData] = useState<RecapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [slide, setSlide] = useState(0);
+  const [reflection, setReflection] = useState<string | null>(null);
   const { user } = useAuth();
   const { isPremium } = usePremium(user?.id);
 
@@ -61,7 +80,19 @@ function LunationRecapRoute() {
   }, [lunationStart, fn]);
 
   const close = () => navigate({ to: "/insights" });
-  const total = isPremium ? TOTAL_SLIDES_PREMIUM : TOTAL_SLIDES_FREE;
+
+  // Compute effective premium slide count: drop the Top Tags slide (index 8)
+  // when there are no tags. The closer (10) becomes 9 in that case.
+  const hasTags = useMemo(
+    () => Boolean(data?.topTags && data.topTags.length > 0),
+    [data],
+  );
+  const total = isPremium
+    ? hasTags
+      ? TOTAL_SLIDES_PREMIUM_FULL
+      : TOTAL_SLIDES_PREMIUM_FULL - 1
+    : TOTAL_SLIDES_FREE;
+
   const next = () => setSlide((s) => Math.min(s + 1, total - 1));
   const prev = () => setSlide((s) => Math.max(s - 1, 0));
 
@@ -138,13 +169,23 @@ function LunationRecapRoute() {
           </div>
         )}
         {!loading && data && (
-          <SlideContent data={data} slide={slide} isPremium={isPremium} lunationStart={lunationStart} onPremium={() => {
-            window.dispatchEvent(
-              new CustomEvent("moonseed:open-premium", {
-                detail: { feature: "Full Lunation Recap", featureName: "Full Lunation Recap" },
-              }),
-            );
-          }} />
+          <SlideContent
+            data={data}
+            slide={slide}
+            isPremium={isPremium}
+            hasTags={hasTags}
+            lunationStart={lunationStart}
+            reflection={reflection}
+            onReflection={setReflection}
+            onClose={close}
+            onPremium={() => {
+              window.dispatchEvent(
+                new CustomEvent("moonseed:open-premium", {
+                  detail: { feature: "Full Lunation Recap", featureName: "Full Lunation Recap" },
+                }),
+              );
+            }}
+          />
         )}
       </div>
     </div>
@@ -155,13 +196,21 @@ function SlideContent({
   data,
   slide,
   isPremium,
+  hasTags,
   lunationStart,
+  reflection,
+  onReflection,
+  onClose,
   onPremium,
 }: {
   data: RecapData;
   slide: number;
   isPremium: boolean;
+  hasTags: boolean;
   lunationStart: string;
+  reflection: string | null;
+  onReflection: (r: string | null) => void;
+  onClose: () => void;
   onPremium: () => void;
 }) {
   const range = formatLunationRange({
@@ -271,14 +320,9 @@ function SlideContent({
     );
   }
 
-  // Slide 4/5 — premium reflection or locked teaser.
-  if (isPremium) {
-    if (slide === 4) {
-      return <PremiumReflectionSlide lunationStart={lunationStart} />;
-    }
-    return <PremiumClosingSlide />;
-  }
-  return (
+  // Free users: locked closer at slide 4.
+  if (!isPremium) {
+    return (
     <SlideShell>
       <Lock size={28} style={{ color: "var(--gold)", opacity: 0.85 }} />
       <div
@@ -311,6 +355,233 @@ function SlideContent({
       >
         Unlock the full recap
       </button>
+    </SlideShell>
+    );
+  }
+
+  // Premium slides 4–9 / 10 (or 4–8 / 9 when topTags is empty).
+  // Build the active premium-slide order so we can branch by index.
+  const premiumOrder: Array<
+    "majorMinor" | "reversal" | "moonPhase" | "pairs" | "tags" | "reflection" | "closer"
+  > = [
+    "majorMinor",
+    "reversal",
+    "moonPhase",
+    "pairs",
+    ...(hasTags ? (["tags"] as const) : []),
+    "reflection",
+    "closer",
+  ];
+  const premiumIdx = slide - 4;
+  const kind = premiumOrder[premiumIdx];
+
+  if (kind === "majorMinor") return <SlideMajorMinor data={data} />;
+  if (kind === "reversal") return <SlideReversal data={data} />;
+  if (kind === "moonPhase") return <SlideTopMoonPhase data={data} />;
+  if (kind === "pairs") return <SlideCardPairs data={data} />;
+  if (kind === "tags") return <SlideTopTags data={data} />;
+  if (kind === "reflection")
+    return (
+      <PremiumReflectionSlide lunationStart={lunationStart} onReflection={onReflection} />
+    );
+  if (kind === "closer")
+    return <SlideSaveShareDone onClose={onClose} reflection={reflection} />;
+  return null;
+}
+
+/* ============================================================
+ * EQ-2 — Major / Minor
+ * ============================================================ */
+function SlideMajorMinor({ data }: { data: RecapData }) {
+  const { major, minor } = data.majorMinor;
+  const isMajor = major >= minor;
+  const top = isMajor ? major : minor;
+  const label = isMajor ? "Major" : "Minor";
+  const balanced = Math.abs(major - minor) <= 10;
+  const descriptor = balanced
+    ? "both threads woven"
+    : isMajor
+    ? "big-life-themes"
+    : "day-to-day rhythm";
+  return (
+    <SlideShell>
+      <Eyebrow>Major / Minor</Eyebrow>
+      <BigNumber>{Math.round(top)}%</BigNumber>
+      <div
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "clamp(1.4rem, 5vw, 2rem)",
+          color: "var(--gold)",
+        }}
+      >
+        {label}
+      </div>
+      {/* Stacked bar */}
+      <div
+        style={{
+          width: "min(320px, 80vw)",
+          height: 14,
+          borderRadius: 999,
+          overflow: "hidden",
+          display: "flex",
+          marginTop: 10,
+          background: "color-mix(in oklab, var(--color-foreground) 12%, transparent)",
+        }}
+      >
+        <div style={{ width: `${major}%`, background: "var(--gold)" }} />
+        <div
+          style={{
+            width: `${minor}%`,
+            background: "color-mix(in oklab, var(--gold) 35%, transparent)",
+          }}
+        />
+      </div>
+      <Caption>
+        This lunation leaned {balanced ? "balanced" : isMajor ? "major" : "minor"} — {descriptor}.
+      </Caption>
+    </SlideShell>
+  );
+}
+
+/* ============================================================
+ * EQ-3 — Reversal pattern
+ * ============================================================ */
+function SlideReversal({ data }: { data: RecapData }) {
+  const pct = Math.round(data.reversalRate * 100);
+  const caption =
+    pct >= 50
+      ? "— internalized energy"
+      : pct >= 25
+      ? "— a balance of inner and outer"
+      : "— outward, forward energy";
+  return (
+    <SlideShell>
+      <Eyebrow>Reversal pattern</Eyebrow>
+      <BigNumber>{pct}%</BigNumber>
+      <Caption>of cards arrived reversed</Caption>
+      <Caption>{caption}</Caption>
+    </SlideShell>
+  );
+}
+
+/* ============================================================
+ * EQ-4 — Top moon phase
+ * ============================================================ */
+function SlideTopMoonPhase({ data }: { data: RecapData }) {
+  if (!data.topMoonPhase) {
+    return (
+      <SlideShell>
+        <Eyebrow>Moon phase</Eyebrow>
+        <Caption>No moon-phase pattern this cycle.</Caption>
+      </SlideShell>
+    );
+  }
+  const { phase, count } = data.topMoonPhase;
+  const glyph = PHASE_GLYPHS[phase] ?? "🌙";
+  return (
+    <SlideShell>
+      <Eyebrow>Top moon phase</Eyebrow>
+      <div style={{ fontSize: "clamp(4rem, 18vw, 7rem)", lineHeight: 1 }}>{glyph}</div>
+      <div
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "clamp(1.6rem, 6vw, 2.4rem)",
+          color: "var(--gold)",
+        }}
+      >
+        {phase}
+      </div>
+      <Caption>You read most under the {phase}.</Caption>
+      <Caption>
+        {count} reading{count === 1 ? "" : "s"} during the {phase}.
+      </Caption>
+    </SlideShell>
+  );
+}
+
+/* ============================================================
+ * EQ-5 — Card pairs
+ * ============================================================ */
+function SlideCardPairs({ data }: { data: RecapData }) {
+  const pairs = data.topPairs.slice(0, 3);
+  if (pairs.length === 0) {
+    return (
+      <SlideShell>
+        <Eyebrow>Card pairs</Eyebrow>
+        <Caption>No notable pairs yet — try larger spreads.</Caption>
+      </SlideShell>
+    );
+  }
+  return (
+    <SlideShell>
+      <Eyebrow>Card pairs</Eyebrow>
+      <div className="flex flex-col gap-3" style={{ marginTop: 8 }}>
+        {pairs.map((p) => (
+          <div
+            key={`${p.cardA}:${p.cardB}`}
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "clamp(1rem, 4vw, 1.4rem)",
+              color: "var(--color-foreground)",
+              lineHeight: 1.3,
+            }}
+          >
+            <span style={{ color: "var(--gold)" }}>{p.cardAName}</span>
+            <span style={{ opacity: 0.6, margin: "0 0.5em" }}>+</span>
+            <span style={{ color: "var(--gold)" }}>{p.cardBName}</span>
+            <span style={{ opacity: 0.6, marginLeft: "0.6em" }}>×{p.count}</span>
+          </div>
+        ))}
+      </div>
+      <Caption>Cards that arrived together, again and again.</Caption>
+    </SlideShell>
+  );
+}
+
+/* ============================================================
+ * EQ-6 — Top tags
+ * ============================================================ */
+function SlideTopTags({ data }: { data: RecapData }) {
+  const tags = data.topTags.slice(0, 8);
+  const top = tags[0];
+  // Size each tag by frequency for a tag-cloud feel.
+  const maxCount = Math.max(...tags.map((t) => t.count), 1);
+  return (
+    <SlideShell>
+      <Eyebrow>Top themes</Eyebrow>
+      <div
+        className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1"
+        style={{ maxWidth: 360 }}
+      >
+        {tags.map((t) => {
+          const ratio = t.count / maxCount;
+          const size = 0.9 + ratio * 1.4; // rem
+          return (
+            <span
+              key={t.tagName}
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: `${size.toFixed(2)}rem`,
+                color: ratio > 0.66 ? "var(--gold)" : "var(--color-foreground)",
+                opacity: 0.5 + ratio * 0.5,
+                lineHeight: 1.2,
+              }}
+            >
+              {t.tagName}
+            </span>
+          );
+        })}
+      </div>
+      {top && (
+        <Caption>
+          Your most-tagged moment: {top.tagName}. {top.count} reading
+          {top.count === 1 ? "" : "s"} carried it.
+        </Caption>
+      )}
     </SlideShell>
   );
 }
@@ -360,24 +631,78 @@ function PremiumReflectionSlide({ lunationStart }: { lunationStart: string }) {
   );
 }
 
-function PremiumClosingSlide() {
+/* ============================================================
+ * EQ-8 — Save / Share / Done (stub buttons)
+ * Full PDF export and share-image wiring lands in the next chunk.
+ * For now: Save/Share toast a placeholder, Done navigates back.
+ * ============================================================ */
+function SlideSaveShareDone({
+  onClose,
+  reflection: _reflection,
+}: {
+  onClose: () => void;
+  reflection: string | null;
+}) {
+  const [msg, setMsg] = useState<string | null>(null);
+  const stub = (label: string) => {
+    setMsg(`${label} — coming soon.`);
+    setTimeout(() => setMsg(null), 2000);
+  };
   return (
     <SlideShell>
+      <Caption>Save this lunation, or share it.</Caption>
       <div
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "clamp(1.6rem, 6vw, 2.4rem)",
-          color: "var(--gold)",
-          lineHeight: 1.2,
-        }}
+        className="pointer-events-auto flex flex-col items-center gap-5"
+        style={{ marginTop: 18 }}
       >
-        Until the next moon.
+        <button
+          type="button"
+          onClick={() => stub("Save as PDF")}
+          style={closerButtonStyle}
+        >
+          Save as PDF
+        </button>
+        <button
+          type="button"
+          onClick={() => stub("Share image")}
+          style={closerButtonStyle}
+        >
+          Share image
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{ ...closerButtonStyle, color: "var(--gold)" }}
+        >
+          Done
+        </button>
       </div>
-      <Caption>This cycle is sealed. The next New Moon begins a fresh lunation.</Caption>
+      {msg && (
+        <div
+          style={{
+            marginTop: 14,
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-caption, 0.75rem)",
+            opacity: 0.7,
+          }}
+        >
+          {msg}
+        </div>
+      )}
     </SlideShell>
   );
 }
+
+const closerButtonStyle: React.CSSProperties = {
+  fontFamily: "var(--font-serif)",
+  fontStyle: "italic",
+  fontSize: "var(--text-body)",
+  color: "var(--color-foreground)",
+  borderBottom: "1px solid color-mix(in oklab, var(--gold) 60%, transparent)",
+  paddingBottom: 4,
+  background: "transparent",
+};
 
 function SlideShell({ children }: { children: React.ReactNode }) {
   return (
