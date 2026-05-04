@@ -1607,6 +1607,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
               variant="face"
               size="thumbnail"
               deckId={readingDeckId}
+              reversed={!!s.cardOrientations[cardId]}
               ariaLabel={getCardName(cardId)}
             />
           </div>
