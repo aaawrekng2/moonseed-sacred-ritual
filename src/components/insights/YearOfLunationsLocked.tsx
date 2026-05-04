@@ -5,15 +5,17 @@
 import { Lock } from "lucide-react";
 import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
+import { Link } from "@tanstack/react-router";
 
 export function YearOfLunationsLocked() {
   const { user } = useAuth();
   const { isPremium } = usePremium(user?.id);
   if (isPremium) {
-    /* EO-6 — premium placeholder; EP builds the actual story content. */
+    /* EQ-9 — Premium tap opens the 12-slide year story. */
     return (
-      <div
-        className="w-full overflow-hidden p-6 text-left"
+      <Link
+        to="/insights/year-of-lunations"
+        className="block w-full overflow-hidden p-6 text-left"
         style={{
           background: "var(--surface-card)",
           borderRadius: 18,
@@ -41,9 +43,9 @@ export function YearOfLunationsLocked() {
             marginTop: 6,
           }}
         >
-          Your Year of Lunations is being prepared…
+          Open your 12-slide year story →
         </div>
-      </div>
+      </Link>
     );
   }
   const open = () =>
