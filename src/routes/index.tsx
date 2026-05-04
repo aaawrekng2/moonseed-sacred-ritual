@@ -12,7 +12,6 @@ import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { useStreak } from "@/lib/use-streak";
 import { useActiveCardBackUrl, useActiveDeck } from "@/lib/active-deck";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
-import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
 import { carouselHeightForSize, useMoonPrefs } from "@/lib/use-moon-prefs";
 import {
