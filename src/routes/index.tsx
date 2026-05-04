@@ -5,14 +5,13 @@ import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { MoonStreakIcon } from "@/components/streak/MoonStreakIcon";
 import { streakPhaseState } from "@/lib/streak-phase";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
-import { CardBack } from "@/components/cards/CardBack";
+import { CardImage } from "@/components/card/CardImage";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { useStreak } from "@/lib/use-streak";
-import { useActiveCardBackUrl, useActiveDeck, useActiveDeckImage, useActiveDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
+import { useActiveCardBackUrl, useActiveDeck } from "@/lib/active-deck";
 import { useRegisterRefresh } from "@/lib/floating-menu-context";
-import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { supabase } from "@/lib/supabase";
 import { carouselHeightForSize, useMoonPrefs } from "@/lib/use-moon-prefs";
 import {
@@ -63,26 +62,19 @@ function Index() {
   usePortraitOnly();
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const [todayCard, setTodayCard] = useState<number | null>(null);
+  // EW-2 — track today's draw orientation so the gateway face rotates
+  // 180° when the seeker drew a reversed card.
+  const [todayReversed, setTodayReversed] = useState<boolean>(false);
   // CE — propagate the active custom deck's photographed card back to
   // the home gateway. Hook returns null when no active deck or no back
   // photographed; CardBack falls back to the themed default.
   const customBackUrl = useActiveCardBackUrl();
-  // DF-3 — Resolve today's card front through the active custom deck
-  // (falls back to default Rider-Waite when no override exists).
-  const getActiveDeckImage = useActiveDeckImage();
-  // DY-1C — apply per-deck CSS corner radius to the home hero card.
-  const heroDeckRadius = useActiveDeckCornerRadius();
+  // EW-2 — image / radius / loading are now handled inside CardImage.
   // CL Group 5 — gate the gateway card render on active-deck loading
   // so the themed default never flashes before the photographed back.
   const { activeDeck, loading: deckLoading } = useActiveDeck();
-  // EG-1 — Skeleton dismisses when the hero image actually loads (onLoad).
-  // Falls back to a 1500ms timeout only if loading hangs (slow network /
-  // cold cache). The hero <img>'s onLoad sets heroImageLoaded=true,
-  // immediately swapping skeleton for image.
-  const [heroImageLoaded, setHeroImageLoaded] = useState(false);
+  // EW-2 — heroImageLoaded state lives inside CardImage now.
   const [skeletonTimedOut, setSkeletonTimedOut] = useState(false);
-  // EI-5 — ref for cached-image race detection.
-  const heroImgRef = useRef<HTMLImageElement | null>(null);
   // ES-1 — Watch the hero <section>'s actual content box. On warm
   // reopen, viewportH is correct but the moon carousel snaps in late
   // and shrinks the available pane after the initial layout pass.
@@ -299,7 +291,7 @@ function Index() {
       const end = getStartOfDayInTz(today, effectiveTz, 1);
       const { data } = await supabase
         .from("readings")
-        .select("card_ids")
+        .select("card_ids,card_orientations")
         .eq("user_id", uid)
         .eq("spread_type", "single")
         .is("archived_at", null)
@@ -309,47 +301,19 @@ function Index() {
         .limit(1)
         .maybeSingle();
       if (cancelled) return;
-      const first = (data as { card_ids?: number[] } | null)?.card_ids?.[0];
-      if (typeof first === "number") setTodayCard(first);
+      const row = data as
+        | { card_ids?: number[]; card_orientations?: boolean[] }
+        | null;
+      const first = row?.card_ids?.[0];
+      if (typeof first === "number") {
+        setTodayCard(first);
+        setTodayReversed(!!row?.card_orientations?.[0]);
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [dayEpoch, effectiveTz]);
-
-  // EG-1 — Reset image-loaded state when the underlying todayCard changes
-  // (so a new card's load is properly gated).
-  useEffect(() => {
-    setHeroImageLoaded(false);
-  }, [todayCard]);
-
-  // EI-7 diagnostic — observe render-decision state on warm PWA reopen
-  // to track down the default-card flash.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    // eslint-disable-next-line no-console
-    console.log("[EI-7]", {
-      todayCard,
-      deckLoading,
-      activeDeck: !!activeDeck,
-      customBackUrl: !!customBackUrl,
-      heroImageLoaded,
-      skeletonTimedOut,
-    });
-  }, [todayCard, deckLoading, activeDeck, customBackUrl, heroImageLoaded, skeletonTimedOut]);
-
-  // EI-5 — Cached-image race: when the browser has the image cached,
-  // onLoad may fire BEFORE React's handler attaches. After todayCard
-  // changes (and the new <img> mounts), check imgRef.current.complete —
-  // if true, the image is already loaded.
-  useEffect(() => {
-    if (
-      heroImgRef.current?.complete &&
-      heroImgRef.current.naturalHeight > 0
-    ) {
-      setHeroImageLoaded(true);
-    }
-  }, [todayCard]);
 
   // EG-3 — Mount the draw-type hint only when not hard-dismissed.
   useEffect(() => {
@@ -366,15 +330,12 @@ function Index() {
     };
   }, [user]);
 
-  // EG-1 — Show shimmer while the deck is loading (with timeout fallback)
-  // OR while we have a card but its image hasn't decoded yet.
+  // EW-2 — CardImage handles its own image-load shimmer. We only need
+  // a shimmer here while the active deck is still resolving so the
+  // CardBack fallback doesn't flash the default before we know whether
+  // the seeker has a custom photographed back.
   const showSkeleton =
     (deckLoading && !skeletonTimedOut) ||
-    (!!todayCard && !heroImageLoaded) ||
-    // EH-3 — keep skeleton up while we still might be resolving a
-    // custom deck. Without this, the CardBack fallback briefly renders
-    // the default Rider-Waite back on PWA cold open before activeDeck
-    // resolves to the user's photographed back.
     (todayCard === null && activeDeck === null && !skeletonTimedOut && !customBackUrl);
 
   // DB-2.1 — Gateway padding tightens when the moon carousel is visible
@@ -417,112 +378,34 @@ function Index() {
             alignItems: "center",
           }}
         >
-          <button
-            type="button"
-            aria-label="Begin today's draw"
-            className="gateway-card-frame animate-breathe-glow overflow-hidden rounded-[12px] transition-transform active:scale-[0.98]"
-            style={{
-              width: cardWidth,
-              height: cardHeight,
-              maxWidth: "90vw",
-              maxHeight: "100%",
-              padding: 0,
-            }}
+          {/* EW-2 — Single CardImage replaces the legacy gateway button:
+              face / back / loading variants are all handled internally,
+              and the bordered `gateway-card-frame` wrapper is dropped so
+              the scanned card art reads as its own visual edge. */}
+          <CardImage
+            cardId={todayCard ?? undefined}
+            variant={
+              todayCard !== null
+                ? "face"
+                : showSkeleton
+                ? "face"
+                : "back"
+            }
+            loading={todayCard === null && showSkeleton}
+            reversed={todayReversed}
+            cardBackId={cardBack}
+            size="custom"
+            widthPx={cardWidth}
+            className="animate-breathe-glow"
+            style={{ maxWidth: "90vw", maxHeight: "100%" }}
             onClick={() =>
               navigate({
                 to: "/draw",
                 search: { spread: "single" },
               })
             }
-          >
-            {todayCard !== null ? (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  position: "relative",
-                }}
-              >
-                <img
-                  ref={heroImgRef}
-                  src={getActiveDeckImage(todayCard)}
-                  alt={getCardName(todayCard)}
-                  onLoad={(e) => {
-                    setHeroImageLoaded(true);
-                    // ER-2 — re-measure the actual rendered width
-                    // once the image is in flow so cornerRadiusStyle
-                    // computes against the final size on first paint.
-                    const w = Math.round(
-                      (e.currentTarget as HTMLImageElement).getBoundingClientRect().width,
-                    );
-                    if (w > 0 && Math.abs(w - cardWidth) > 1) {
-                      setMeasuredCardWidth(w);
-                    }
-                  }}
-                  onError={() => setHeroImageLoaded(true)}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    display: "block",
-                    opacity: heroImageLoaded ? 1 : 0,
-                    transition: "opacity 300ms ease-out",
-                    ...cornerRadiusStyle(heroDeckRadius, cardWidth),
-                  }}
-                  loading="eager"
-                />
-                {!heroImageLoaded && (
-                  <div
-                    className="hero-skeleton-shimmer"
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      borderRadius: 12,
-                      background:
-                        "color-mix(in oklab, var(--gold) 6%, transparent)",
-                      border:
-                        "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
-                      overflow: "hidden",
-                      ...cornerRadiusStyle(heroDeckRadius, cardWidth),
-                    }}
-                    aria-label="Loading today's card"
-                  />
-                )}
-              </div>
-            ) : showSkeleton ? (
-              <div
-                className="hero-skeleton-shimmer"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  borderRadius: 12,
-                  background: "color-mix(in oklab, var(--gold) 6%, transparent)",
-                  border: "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
-                  animation: "fade-in 200ms ease-out both",
-                  position: "relative",
-                  overflow: "hidden",
-                  ...cornerRadiusStyle(heroDeckRadius, cardWidth),
-                }}
-                aria-label="Loading today's card"
-              />
-            ) : (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  animation: "fade-in 400ms ease-out both",
-                }}
-              >
-                <CardBack
-                  id={cardBack}
-                  imageUrl={customBackUrl}
-                  width={cardWidth}
-                  neutralBorder
-                  cornerRadiusPercent={heroDeckRadius}
-                />
-              </div>
-            )}
-          </button>
+            ariaLabel="Begin today's draw"
+          />
           {/* EE-8 — Streak Moon glyph. Replaces the prior Flame icon
               with today's actual moon phase, tying the streak marker
               to the sky. Tappable: opens a modal with detail. */}

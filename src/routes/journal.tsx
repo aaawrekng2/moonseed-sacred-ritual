@@ -12,6 +12,7 @@ import { cn, firstCardName, formatRelativeTime } from "@/lib/utils";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { useDeckImage, useDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
+import { CardImage } from "@/components/card/CardImage";
 import { useElementWidth } from "@/lib/use-element-width";
 import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
 import { toast } from "sonner";
@@ -1093,9 +1094,9 @@ function ReadingCard({
     .replace(/\s+/g, " ")
     .trim();
   const interpClean = stripMarkdown(interpFirst);
-  // DB-3.1 — render with the reading's saved deck, not the global active deck.
-  const getImage = useDeckImage(reading.deck_id ?? null);
-  const deckRadiusPx = useDeckCornerRadius(reading.deck_id ?? null);
+  // EW-4 — Card thumbnails now render through <CardImage deckId> which
+  // resolves the per-reading deck art and corner radius internally, so
+  // the row no longer needs its own deck hooks.
   const archiveFn = useServerFn(archiveReading);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [archiving, setArchiving] = useState(false);
@@ -1282,45 +1283,40 @@ function ReadingCard({
                 : undefined,
           }}
         >
-          {reading.card_ids.map((id, idx) => (
-            <CardThumb
-              key={`${id}-${idx}`}
-              src={getImage(id, "thumbnail")}
-              alt={getCardName(id)}
-              loading="lazy"
-              className="flex-shrink-0"
-              style={{
-                width: "74px",
-                aspectRatio: "1 / 1.75",
-                objectFit: "contain",
-                border:
-                  "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
-                opacity: "var(--ro-plus-30)",
-                ...cornerRadiusStyle(deckRadiusPx, 74),
-              }}
-            />
-          ))}
+          {reading.card_ids.map((id, idx) => {
+            const isReversed = !!reading.card_orientations?.[idx];
+            return (
+              <CardImage
+                key={`${id}-${idx}`}
+                cardId={id}
+                variant="face"
+                reversed={isReversed}
+                size="thumbnail"
+                deckId={reading.deck_id ?? null}
+                className="flex-shrink-0"
+                style={{ opacity: "var(--ro-plus-30)" }}
+              />
+            );
+          })}
         </div>
       ) : (
         <div className="mt-3 flex items-center gap-1.5">
-          {visible.map((id) => (
-            <CardThumb
-              key={id}
-              src={getImage(id, "thumbnail")}
-              alt={getCardName(id)}
-              loading="lazy"
-              className=""
-              style={{
-                width: "74px",
-                aspectRatio: "1 / 1.75",
-                objectFit: "contain",
-                border:
-                  "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
-                opacity: "var(--ro-plus-30)",
-                ...cornerRadiusStyle(deckRadiusPx, 74),
-              }}
-            />
-          ))}
+          {visible.map((id) => {
+            const idx = reading.card_ids.indexOf(id);
+            const isReversed =
+              idx >= 0 ? !!reading.card_orientations?.[idx] : false;
+            return (
+              <CardImage
+                key={id}
+                cardId={id}
+                variant="face"
+                reversed={isReversed}
+                size="thumbnail"
+                deckId={reading.deck_id ?? null}
+                style={{ opacity: "var(--ro-plus-30)" }}
+              />
+            );
+          })}
           {overflow > 0 && (
             <span
               className="ml-1 font-display text-[11px] italic text-muted-foreground"
