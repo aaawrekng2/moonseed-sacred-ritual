@@ -174,6 +174,19 @@ export function CardImage({
   const [variantFailedFor, setVariantFailedFor] = useState<string | null>(null);
   const devMode = useDevMode();
 
+  // FC-1 — Track the IMG's natural aspect ratio so the flipped
+  // wrapper can size to match exactly. Until measured, fall back
+  // to a sensible 1.6 default (typical tarot card height/width).
+  const [imgAspect, setImgAspect] = useState<number | null>(null);
+
+  // FC-1 — Reset measurement when the card identity / image source
+  // changes so each card gets measured fresh (custom decks may have
+  // varied aspect ratios per scan).
+  useEffect(() => {
+    setImgAspect(null);
+    setImageLoaded(false);
+  }, [cardId, deckId]);
+
   // EY-1 — Saturated diagnostic colors. The card art still
   // shows through the IMG layer at 50% opacity; everything else
   // is fully opaque so layer geometry is unambiguous.
@@ -244,29 +257,31 @@ export function CardImage({
   const showFaceShimmer =
     variant === "face" && !loading && (faceSrc == null || !imageLoaded);
 
-  // FA-4 — Flip mode: render face + back together inside a 3D wrapper.
-  // Activated when the caller passes a boolean `flipped` prop. The
-  // .flip-3d / .flip-face / .is-flipped CSS classes live in styles.css
-  // (legacy CardSlot implementation). We always mount both faces so the
-  // front image is decoded before the rotation reaches its apex.
+  // FC-1 — Flip mode: render face + back inside a 3D wrapper. The
+  // standard CardImage pattern (wrapper hugs IMG via height:auto)
+  // CANNOT work here because .flip-face is position:absolute/inset:0
+  // — the rotation requires both faces to overlap with explicit
+  // dimensions. Solution: measure the IMG's natural aspect on load
+  // and size the OUTER wrapper to width × aspect, so the
+  // absolutely-positioned faces fit perfectly with no letterbox.
   if (typeof flipped === "boolean" && typeof cardId === "number") {
+    const aspectRatio = imgAspect ?? 1.6;
+    const wrapperHeight = Math.round(width * aspectRatio);
     return (
       <div
         className={className}
         style={{
           width,
-          // FB-1 — drop hardcoded height; the wrapper hugs the IMG's
-          // natural dimensions (EY-2 pattern). minHeight reserves a
-          // visible footprint while the IMG decodes.
-          minHeight: width * 1.6,
+          height: wrapperHeight,
           position: "relative",
           display: "inline-block",
-          // FB-1 — same dev-mode green outline as the standard branch.
+          ...radiusStyle,
           ...(DEV_WRAPPER_BG
             ? { outline: `3px solid ${DEV_WRAPPER_BG}`, outlineOffset: -3 }
             : null),
           ...(style ?? {}),
         }}
+        onClick={onClick}
       >
         <div
           className={`absolute inset-0 flip-3d${flipped ? " is-flipped" : ""}`}
@@ -303,7 +318,15 @@ export function CardImage({
                 src={faceSrc}
                 alt={ariaLabel ?? getCardName(cardId)}
                 loading="eager"
-                onLoad={() => setImageLoaded(true)}
+                onLoad={(e) => {
+                  // FC-1 — measure natural aspect on load so the
+                  // wrapper can match the IMG's true shape.
+                  const img = e.currentTarget;
+                  if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                    setImgAspect(img.naturalHeight / img.naturalWidth);
+                  }
+                  setImageLoaded(true);
+                }}
                 onError={() => {
                   if (
                     variantTier !== "full" &&
@@ -317,11 +340,10 @@ export function CardImage({
                   }
                 }}
                 style={{
-                  // FB-1 — IMG defines its own height from natural
-                  // aspect (same as the EY-2 non-flip branch). No
-                  // letterboxing, no objectFit.
+                  // FC-1 — wrapper sized to match IMG's natural
+                  // aspect, so 100%/100% fits with no letterbox.
                   width: "100%",
-                  height: "auto",
+                  height: "100%",
                   display: "block",
                   opacity: imageLoaded ? 1 : 0,
                   transform: reversed ? "rotate(180deg)" : undefined,
