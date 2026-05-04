@@ -1321,6 +1321,7 @@ async function computeLunationSummaryForReflection(
     .limit(2000);
   if (error) return null;
   const rows = (rowsRaw ?? []) as Array<{
+    created_at: string;
     card_ids: number[] | null;
     card_orientations: boolean[] | null;
     moon_phase: string | null;
