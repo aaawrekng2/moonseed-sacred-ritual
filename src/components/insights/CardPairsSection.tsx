@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getCardPairs } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
-import { useActiveDeckImage } from "@/lib/active-deck";
-import { getCardImagePath } from "@/lib/tarot";
+import { CardImage } from "@/components/card/CardImage";
 import { Lock } from "lucide-react";
 import type { InsightsFilters } from "@/lib/insights.types";
 import { SectionHeader, EmptyNote, SkeletonRow } from "./StalkerCardsSection";
@@ -89,17 +88,15 @@ export function CardPairsSection({ filters }: { filters: InsightsFilters }) {
 }
 
 function PairRow({ pair }: { pair: Pair }) {
-  const resolveImage = useActiveDeckImage();
-  const a = resolveImage(pair.cardA, "thumbnail") ?? getCardImagePath(pair.cardA);
-  const b = resolveImage(pair.cardB, "thumbnail") ?? getCardImagePath(pair.cardB);
   return (
     <div
       className="mb-2 flex items-center gap-3 p-3"
       style={{ background: "var(--surface-card)", borderRadius: 14 }}
     >
       <div className="flex gap-1">
-        <img src={a} alt={pair.cardAName} style={{ width: 38, height: 66, objectFit: "cover", borderRadius: 4 }} />
-        <img src={b} alt={pair.cardBName} style={{ width: 38, height: 66, objectFit: "cover", borderRadius: 4 }} />
+        {/* EY-7 — unified card render. */}
+        <CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={38} ariaLabel={pair.cardAName} />
+        <CardImage cardId={pair.cardB} variant="face" size="custom" widthPx={38} ariaLabel={pair.cardBName} />
       </div>
       <div
         style={{
