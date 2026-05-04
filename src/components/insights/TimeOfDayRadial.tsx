@@ -37,7 +37,7 @@ export function TimeOfDayRadial({ filters }: { filters: InsightsFilters }) {
     void (async () => {
       try {
         const headers = await getAuthHeaders();
-        const r = await fn({ data: { ...filters, timeZone: tz.timeZone }, headers });
+        const r = await fn({ data: { ...filters, timeZone: tz.effectiveTz }, headers });
         if (!cancelled) {
           setData(r);
           setLoading(false);
@@ -49,7 +49,7 @@ export function TimeOfDayRadial({ filters }: { filters: InsightsFilters }) {
     return () => {
       cancelled = true;
     };
-  }, [filters, fn, tz.timeZone]);
+  }, [filters, fn, tz.effectiveTz]);
 
   const hours = data?.hours ?? [];
   const max = Math.max(1, ...hours.map((h) => h.count));
