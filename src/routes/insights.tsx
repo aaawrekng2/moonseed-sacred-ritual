@@ -176,7 +176,7 @@ function InsightsRoute() {
               />
               <GuidePreferences filters={filters} />
               <LensDistribution filters={filters} />
-              <QuestionThemesLocked />
+              <QuestionThemesLocked filters={filters} />
             </div>
           )}
           {tab === "recap" && <RecapTab />}

@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useSettings, type Prefs } from "./SettingsContext";
 import { MoonFeaturesSection } from "./MoonFeaturesSection";
+import { AIToneSection } from "./AIToneSection";
 import { useTimezone } from "@/lib/use-timezone";
 import { COMMON_TIMEZONES, timezoneLabel } from "@/lib/timezones";
 import {
@@ -788,6 +789,7 @@ export function PreferencesTab() {
     <div className="space-y-12" key={loaded ? "loaded" : "empty"}>
       <ReadingPreferencesSection user={user} prefs={prefs} setPrefs={setPrefs} />
       <MoonFeaturesSection />
+      <AIToneSection />
       <MemorySection user={user} prefs={prefs} setPrefs={setPrefs} />
     </div>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { getStalkerCards } from "@/lib/insights.functions";
+import { getStalkerCards, getStalkerReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage } from "@/lib/active-deck";
 import { getCardImagePath } from "@/lib/tarot";
@@ -100,7 +100,11 @@ export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
                   />
                 </div>
                 {isPremium ? (
-                  <PremiumReflection />
+                  <PremiumReflection
+                    cardId={s.cardId}
+                    count={s.count}
+                    latestDate={s.appearances[0]?.date ?? new Date().toISOString()}
+                  />
                 ) : (
                   <LockedReflection />
                 )}
@@ -117,19 +121,50 @@ export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
  * `getStalkerReflection` server fn; this stub just confirms the gate
  * is open.
  */
-function PremiumReflection() {
+function PremiumReflection({
+  cardId,
+  count,
+  latestDate,
+}: {
+  cardId: number;
+  count: number;
+  latestDate: string;
+}) {
+  const fn = useServerFn(getStalkerReflection);
+  const [text, setText] = useState<string | null>(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const r = await fn({ data: { cardId, count, latestDate, sampleQuestions: [] }, headers });
+        if (cancelled) return;
+        if (r.ok) setText(r.reflection);
+        else setErr(true);
+      } catch {
+        if (!cancelled) setErr(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [cardId, count, latestDate, fn]);
+  if (err) return null;
   return (
     <div
-      className="mt-2 inline-flex items-center rounded-full px-2 py-1"
+      className="mt-2"
       style={{
-        background: "color-mix(in oklch, var(--gold) 12%, transparent)",
         color: "var(--gold)",
         fontStyle: "italic",
         fontFamily: "var(--font-serif)",
-        fontSize: "var(--text-caption, 0.7rem)",
+        fontSize: "var(--text-body-sm)",
+        opacity: text ? 0.9 : 0.55,
+        lineHeight: 1.4,
       }}
+      onClick={(e) => e.stopPropagation()}
     >
-      Reflection generating…
+      {text ?? "Reflection generating…"}
     </div>
   );
 }
