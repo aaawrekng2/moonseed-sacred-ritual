@@ -17,6 +17,7 @@ import { compressImage } from "@/lib/compress-image";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { HelpIcon } from "@/components/help/HelpIcon";
 import { CardImage } from "@/components/card/CardImage";
+import { getCardName } from "@/lib/tarot";
 import {
   AlertDialog,
   AlertDialogAction,
