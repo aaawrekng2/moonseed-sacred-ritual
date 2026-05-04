@@ -171,9 +171,16 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
     for (const r of rows) {
       const cards = r.card_ids ?? [];
       const orientations = r.card_orientations ?? [];
+      // ER-6 — Reversal rate is reversed cards / total cards across
+      // readings whose orientations were tracked. Readings with
+      // `card_orientations === null` predate reversal tracking and
+      // would otherwise inflate the denominator and depress the rate.
+      const orientationsTracked = r.card_orientations !== null;
       cards.forEach((cid, idx) => {
-        totalCards += 1;
-        if (orientations[idx]) reversedCards += 1;
+        if (orientationsTracked) {
+          totalCards += 1;
+          if (orientations[idx]) reversedCards += 1;
+        }
         const arcana = getCardArcana(cid);
         if (arcana === "major") majors += 1;
         else minors += 1;
