@@ -15,7 +15,7 @@ import {
   type TimeRange,
 } from "@/lib/insights.types";
 import { getCardArcana, getCardSuit, getCardName } from "@/lib/tarot";
-import { getGuideById } from "@/lib/guides";
+import { getGuideById, LENSES } from "@/lib/guides";
 import { z } from "zod";
 
 const FREE_CAP_DAYS = 90;
@@ -597,5 +597,118 @@ export const getStreakHistory = createServerFn({ method: "GET" })
       currentStreak: current,
       longestStreak: longest,
       singleDayPulls: singles,
+    };
+  });
+/* ============================================================
+ * EM — Themes tab server functions
+ * ============================================================ */
+
+/** EM-1 — Tag cloud aggregation. Reads `tags` array per row. */
+export const getTagCloud = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { days } = effectiveWindow(data.timeRange);
+    const rows = await fetchFilteredReadings(supabase, userId, data, days);
+    const counts = new Map<string, number>();
+    let tagged = 0;
+    for (const r of rows) {
+      const tags = r.tags ?? [];
+      if (tags.length > 0) tagged += 1;
+      for (const t of tags) {
+        if (!t) continue;
+        counts.set(t, (counts.get(t) ?? 0) + 1);
+      }
+    }
+    const tags = [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30)
+      .map(([tagId, count]) => ({ tagId, name: tagId, count }));
+    return {
+      tags,
+      uniqueTags: counts.size,
+      totalReadings: rows.length,
+      taggedReadings: tagged,
+    };
+  });
+
+/** EM-2 — Guide preferences over time, bucketed by week or month. */
+export const getGuidePreferences = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { days } = effectiveWindow(data.timeRange);
+    const rows = await fetchFilteredReadings(supabase, userId, data, days);
+    const useWeekly = data.timeRange === "7d" || data.timeRange === "30d";
+    function bucketKey(iso: string): string {
+      const d = new Date(iso);
+      if (useWeekly) {
+        // ISO week start (Monday)
+        const day = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() - (day - 1));
+        return d.toISOString().slice(0, 10);
+      }
+      return iso.slice(0, 7);
+    }
+    const guideTotals = new Map<string, number>();
+    const buckets = new Map<string, Map<string, number>>();
+    for (const r of rows) {
+      const g = r.guide_id;
+      if (!g) continue;
+      guideTotals.set(g, (guideTotals.get(g) ?? 0) + 1);
+      const k = bucketKey(r.created_at);
+      const m = buckets.get(k) ?? new Map<string, number>();
+      m.set(g, (m.get(g) ?? 0) + 1);
+      buckets.set(k, m);
+    }
+    const topGuides = [...guideTotals.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([id]) => id);
+    const guides = topGuides.map((id) => ({
+      guideId: id,
+      name: getGuideById(id)?.name ?? id,
+      totalCount: guideTotals.get(id) ?? 0,
+    }));
+    const months = [...buckets.entries()]
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .map(([month, m]) => {
+        const counts: Record<string, number> = {};
+        for (const id of topGuides) counts[id] = m.get(id) ?? 0;
+        return { month, counts };
+      });
+    return { months, guides, bucket: (useWeekly ? "week" : "month") as "week" | "month" };
+  });
+
+/** EM-3 — Lens distribution across all (and deep) readings. */
+export const getLensDistribution = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { days } = effectiveWindow(data.timeRange);
+    const rows = await fetchFilteredReadings(supabase, userId, data, days);
+    const counts = new Map<string, number>();
+    let totalDeep = 0;
+    for (const r of rows) {
+      if (r.is_deep_reading) totalDeep += 1;
+      if (r.lens_id) counts.set(r.lens_id, (counts.get(r.lens_id) ?? 0) + 1);
+    }
+    const lenses = LENSES.map((l) => ({
+      lensId: l.id,
+      name: l.name,
+      count: counts.get(l.id) ?? 0,
+    }));
+    const sorted = [...lenses].sort((a, b) => b.count - a.count);
+    const dominantLens = sorted[0] && sorted[0].count > 0 ? sorted[0].lensId : null;
+    const allEven = lenses.every((l) => l.count === lenses[0].count);
+    return {
+      lenses,
+      totalDeepReadings: totalDeep,
+      dominantLens,
+      allEven,
+      hasAnyLens: lenses.some((l) => l.count > 0),
     };
   });
