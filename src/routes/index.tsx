@@ -292,7 +292,7 @@ function Index() {
       const end = getStartOfDayInTz(today, effectiveTz, 1);
       const { data } = await supabase
         .from("readings")
-        .select("card_ids")
+        .select("card_ids,card_orientations")
         .eq("user_id", uid)
         .eq("spread_type", "single")
         .is("archived_at", null)
@@ -302,47 +302,19 @@ function Index() {
         .limit(1)
         .maybeSingle();
       if (cancelled) return;
-      const first = (data as { card_ids?: number[] } | null)?.card_ids?.[0];
-      if (typeof first === "number") setTodayCard(first);
+      const row = data as
+        | { card_ids?: number[]; card_orientations?: boolean[] }
+        | null;
+      const first = row?.card_ids?.[0];
+      if (typeof first === "number") {
+        setTodayCard(first);
+        setTodayReversed(!!row?.card_orientations?.[0]);
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [dayEpoch, effectiveTz]);
-
-  // EG-1 — Reset image-loaded state when the underlying todayCard changes
-  // (so a new card's load is properly gated).
-  useEffect(() => {
-    setHeroImageLoaded(false);
-  }, [todayCard]);
-
-  // EI-7 diagnostic — observe render-decision state on warm PWA reopen
-  // to track down the default-card flash.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    // eslint-disable-next-line no-console
-    console.log("[EI-7]", {
-      todayCard,
-      deckLoading,
-      activeDeck: !!activeDeck,
-      customBackUrl: !!customBackUrl,
-      heroImageLoaded,
-      skeletonTimedOut,
-    });
-  }, [todayCard, deckLoading, activeDeck, customBackUrl, heroImageLoaded, skeletonTimedOut]);
-
-  // EI-5 — Cached-image race: when the browser has the image cached,
-  // onLoad may fire BEFORE React's handler attaches. After todayCard
-  // changes (and the new <img> mounts), check imgRef.current.complete —
-  // if true, the image is already loaded.
-  useEffect(() => {
-    if (
-      heroImgRef.current?.complete &&
-      heroImgRef.current.naturalHeight > 0
-    ) {
-      setHeroImageLoaded(true);
-    }
-  }, [todayCard]);
 
   // EG-3 — Mount the draw-type hint only when not hard-dismissed.
   useEffect(() => {
@@ -359,15 +331,12 @@ function Index() {
     };
   }, [user]);
 
-  // EG-1 — Show shimmer while the deck is loading (with timeout fallback)
-  // OR while we have a card but its image hasn't decoded yet.
+  // EW-2 — CardImage handles its own image-load shimmer. We only need
+  // a shimmer here while the active deck is still resolving so the
+  // CardBack fallback doesn't flash the default before we know whether
+  // the seeker has a custom photographed back.
   const showSkeleton =
     (deckLoading && !skeletonTimedOut) ||
-    (!!todayCard && !heroImageLoaded) ||
-    // EH-3 — keep skeleton up while we still might be resolving a
-    // custom deck. Without this, the CardBack fallback briefly renders
-    // the default Rider-Waite back on PWA cold open before activeDeck
-    // resolves to the user's photographed back.
     (todayCard === null && activeDeck === null && !skeletonTimedOut && !customBackUrl);
 
   // DB-2.1 — Gateway padding tightens when the moon carousel is visible
