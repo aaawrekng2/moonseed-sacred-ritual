@@ -15,8 +15,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { X, Lock } from "lucide-react";
 import { getLunationRecap, getLunationReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
-import { useActiveDeckImage } from "@/lib/active-deck";
-import { getCardImagePath } from "@/lib/tarot";
+import { CardImage } from "@/components/card/CardImage";
 import { formatLunationRange } from "@/lib/lunation";
 import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
@@ -903,17 +902,15 @@ function Caption({ children }: { children: React.ReactNode }) {
 }
 
 function StalkerImage({ cardId }: { cardId: number }) {
-  const resolveImage = useActiveDeckImage();
-  const url = resolveImage(cardId, "thumbnail") ?? getCardImagePath(cardId);
+  // EY-5 — unified card rendering via CardImage. Width drives size;
+  // height auto-derives from the image's natural proportions.
   return (
-    <img
-      src={url}
-      alt=""
+    <CardImage
+      cardId={cardId}
+      variant="face"
+      size="custom"
+      widthPx={140}
       style={{
-        width: 140,
-        height: 240,
-        objectFit: "cover",
-        borderRadius: 10,
         boxShadow: "0 8px 32px color-mix(in oklab, var(--gold) 25%, transparent)",
       }}
     />

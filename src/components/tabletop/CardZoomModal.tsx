@@ -11,8 +11,8 @@
  */
 import { X } from "lucide-react";
 import { getCardName } from "@/lib/tarot";
-import { useDeckImage, useDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { CardImage } from "@/components/card/CardImage";
 
 interface CardZoomModalProps {
   cardId: number;
@@ -28,29 +28,26 @@ interface CardZoomModalProps {
 }
 
 export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomModalProps) {
-  const cardImg = useDeckImage(deckId ?? null);
-  const radiusPx = useDeckCornerRadius(deckId ?? null);
-  // EI-2 — manual width measurement triggered on img onLoad and on
-  // mount via img.complete (catches cached images that fire onLoad
-  // before React attaches the handler).
-  const imgRef = useRef<HTMLImageElement | null>(null);
-  const [imgW, setImgW] = useState(0);
-  const measureImg = useCallback(() => {
-    const el = imgRef.current;
-    if (!el) return;
-    const w = el.getBoundingClientRect().width;
-    if (w > 0) setImgW(w);
-  }, []);
+  // EY-3 — derive a viewport-aware width and let CardImage handle
+  // image loading, corner radius, and orientation via the unified
+  // pipeline. The IMG sizes its own height from its natural aspect
+  // (EY-2), so we constrain via width only.
+  const computeWidth = () => {
+    if (typeof window === "undefined") return 320;
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+    // Target ~85vh height assuming card aspect ~1/1.6, but cap at 90vw.
+    const byHeight = (reversed ? 0.78 : 0.85) * vh / 1.6;
+    return Math.min(vw * 0.9, byHeight);
+  };
+  const [imgW, setImgW] = useState<number>(() => computeWidth());
   useEffect(() => {
     if (typeof window === "undefined") return;
-    measureImg();
-    const onResize = () => measureImg();
+    const onResize = () => setImgW(computeWidth());
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, [measureImg]);
-  useEffect(() => {
-    if (imgRef.current?.complete) measureImg();
-  }, [cardId, measureImg]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reversed]);
   // DB-1.2 — viewing-only rotate. Local state, never persists; saved
   // reading data is unaffected.
   const [tempUpright, setTempUpright] = useState(false);
@@ -83,25 +80,26 @@ export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomMod
       >
         <X size={24} />
       </button>
-      <img
-        ref={imgRef}
-        src={cardImg(cardId) ?? undefined}
-        alt={getCardName(cardId)}
-        className="object-contain"
-        style={{
-          maxHeight: reversed ? "78vh" : "85vh",
-          maxWidth: "90vw",
-          transform: showRotated ? "rotate(180deg)" : undefined,
-          transition: "transform 300ms ease",
-          boxShadow: "0 0 80px -10px rgba(212,175,55,0.5)",
-          ...cornerRadiusStyle(radiusPx, imgW),
-        }}
-        onLoad={measureImg}
+      <div
         onClick={(e) => {
           e.stopPropagation();
           onClose();
         }}
-      />
+        style={{
+          boxShadow: "0 0 80px -10px rgba(212,175,55,0.5)",
+          transition: "transform 300ms ease",
+        }}
+      >
+        <CardImage
+          cardId={cardId}
+          variant="face"
+          reversed={showRotated}
+          deckId={deckId}
+          size="custom"
+          widthPx={imgW}
+          ariaLabel={getCardName(cardId)}
+        />
+      </div>
       {reversed && (
         <button
           type="button"

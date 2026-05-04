@@ -1,7 +1,6 @@
-import { getCardImagePath, getCardName } from "@/lib/tarot";
+import { getCardName } from "@/lib/tarot";
 import type { StalkerCardsResult } from "@/lib/insights.types";
-import { useActiveDeckImage, useActiveDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
-import { useElementWidth } from "@/lib/use-element-width";
+import { CardImage } from "@/components/card/CardImage";
 
 /**
  * EJ-6 — Hero card for the Overview tab.
@@ -29,11 +28,6 @@ export function HeroCard({
     : isStalker
       ? "Stalker emerging"
       : "Most-drawn card";
-  const resolveImage = useActiveDeckImage();
-  const displayUrl = resolveImage(featuredId, "display");
-  const { ref, width } = useElementWidth<HTMLDivElement>();
-  const radiusPct = useActiveDeckCornerRadius();
-  const radiusStyle = cornerRadiusStyle(radiusPct, width || 120);
   const cardName = getCardName(featuredId);
 
   // Twice-this-week banner: count appearances in last 7 days.
@@ -54,24 +48,15 @@ export function HeroCard({
           : "0 1px 3px color-mix(in oklch, var(--cosmos, #0a0a14) 25%, transparent)",
       }}
     >
-      <div
-        ref={ref}
-        style={{
-          width: 120,
-          aspectRatio: "1 / 1.75",
-          overflow: "hidden",
-          background: "var(--cosmos, #0a0a14)",
-          flexShrink: 0,
-          ...radiusStyle,
-        }}
-      >
-        <img
-          src={displayUrl ?? getCardImagePath(featuredId)}
-          alt={cardName}
-          className="h-full w-full object-cover"
-          style={radiusStyle}
-        />
-      </div>
+      {/* EY-7 — unified card render. */}
+      <CardImage
+        cardId={featuredId}
+        variant="face"
+        size="custom"
+        widthPx={120}
+        ariaLabel={cardName}
+        style={{ flexShrink: 0 }}
+      />
       <div className="flex flex-1 flex-col justify-center gap-1">
         <div
           className="uppercase"

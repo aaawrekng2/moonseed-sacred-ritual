@@ -144,25 +144,31 @@ export function CardImage({
   const [imageLoaded, setImageLoaded] = useState(false);
   const devMode = useDevMode();
 
-  // EX-4 — color-coded layer overrides so we can visually identify which
-  // element has which radius applied. All undefined when devMode is off
-  // so normal users see no diagnostic styling.
-  const DEV_WRAPPER_BG = devMode ? "oklch(0.78 0.18 145 / 0.55)" : undefined; // green
-  const DEV_IMG_TINT_BG = devMode ? "oklch(0.85 0.10 200 / 0.30)" : undefined; // cyan tint
-  const DEV_BACK_OUTLINE = devMode ? "3px solid oklch(0.65 0.25 330)" : undefined; // magenta
-  const DEV_EMPTY_BG = devMode ? "oklch(0.85 0.18 95)" : undefined; // yellow
-  const DEV_LOADING_OUTLINE = devMode ? "2px solid oklch(0.70 0.20 50)" : undefined; // orange
+  // EY-1 — Saturated diagnostic colors. The card art still
+  // shows through the IMG layer at 50% opacity; everything else
+  // is fully opaque so layer geometry is unambiguous.
+  const DEV_WRAPPER_BG = devMode ? "#00FF00" : undefined; // green
+  const DEV_IMG_TINT_BG = devMode ? "rgba(255, 0, 0, 0.5)" : undefined; // red 50%
+  const DEV_BACK_OUTLINE = devMode ? "3px solid #FF4F00" : undefined; // international orange
+  const DEV_EMPTY_BG = devMode ? "#FFFF00" : undefined; // yellow
+  const DEV_LOADING_OUTLINE = devMode ? "3px solid #FF00FF" : undefined; // magenta
 
   const useSpecific = deckId != null && deckId !== "";
   const deckRadius = useSpecific ? specificRadius : activeRadius;
 
   const width = resolveWidth(size, widthPx);
-  const aspectRatio = "1 / 1.75";
   const radiusStyle = cornerRadiusStyle(deckRadius, width);
 
+  // EY-2 — No hardcoded aspect ratio. The IMG sources its own
+  // natural dimensions; the wrapper hugs the IMG. This means the
+  // rounded corner sits at the actual card edge, not at letterbox
+  // space that resulted from forcing 1/1.75 onto images with
+  // different natural proportions. minHeight reserves space before
+  // IMG loads so shimmer / placeholder has a visible footprint;
+  // once the IMG loads, its height auto-derives and overrides this.
   const wrapperStyle: CSSProperties = {
     width,
-    aspectRatio,
+    minHeight: width * 1.6,
     position: "relative",
     overflow: "hidden",
     display: "inline-block",
@@ -211,9 +217,11 @@ export function CardImage({
           onLoad={() => setImageLoaded(true)}
           onError={() => setImageLoaded(true)}
           style={{
+            // EY-2 — width matches wrapper; height auto-derives
+            // from the image's natural aspect. No objectFit
+            // letterboxing — the IMG IS the box.
             width: "100%",
-            height: "100%",
-            objectFit: "contain",
+            height: "auto",
             display: "block",
             opacity: imageLoaded ? 1 : 0,
             transform: reversed ? "rotate(180deg)" : undefined,

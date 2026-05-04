@@ -3,8 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { getReversalPatterns } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
-import { useActiveDeckImage } from "@/lib/active-deck";
-import { getCardImagePath } from "@/lib/tarot";
+import { CardImage } from "@/components/card/CardImage";
 import type { InsightsFilters } from "@/lib/insights.types";
 import { SectionHeader, EmptyNote, SkeletonRow } from "./StalkerCardsSection";
 import { useTrackReversals } from "@/lib/use-track-reversals";
@@ -75,8 +74,6 @@ export function ReversalPatternsSection({ filters }: { filters: InsightsFilters 
 }
 
 function ReversalRow({ pattern, onTap }: { pattern: Pattern; onTap: () => void }) {
-  const resolveImage = useActiveDeckImage();
-  const url = resolveImage(pattern.cardId, "thumbnail") ?? getCardImagePath(pattern.cardId);
   return (
     <button
       type="button"
@@ -84,16 +81,14 @@ function ReversalRow({ pattern, onTap }: { pattern: Pattern; onTap: () => void }
       className="flex w-full items-center gap-3 p-3 text-left"
       style={{ background: "var(--surface-card)", borderRadius: 14 }}
     >
-      <img
-        src={url}
-        alt={pattern.cardName}
-        style={{
-          width: 44,
-          height: 76,
-          objectFit: "cover",
-          borderRadius: 6,
-          transform: "rotate(180deg)",
-        }}
+      {/* EY-7 — unified card render with reversed orientation. */}
+      <CardImage
+        cardId={pattern.cardId}
+        variant="face"
+        reversed
+        size="custom"
+        widthPx={44}
+        ariaLabel={pattern.cardName}
       />
       <div className="flex-1">
         <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: "var(--text-body)" }}>

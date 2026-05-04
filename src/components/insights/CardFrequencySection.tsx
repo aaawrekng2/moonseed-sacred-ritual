@@ -3,8 +3,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { getCardFrequency } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
-import { useActiveDeckImage } from "@/lib/active-deck";
-import { getCardImagePath, getCardName } from "@/lib/tarot";
+import { getCardName } from "@/lib/tarot";
+import { CardImage } from "@/components/card/CardImage";
 import type { InsightsFilters } from "@/lib/insights.types";
 import { SectionHeader, EmptyNote, SkeletonRow } from "./StalkerCardsSection";
 
@@ -121,8 +121,6 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
 
 function BarRow({ cardId, count, max }: { cardId: number; count: number; max: number }) {
   const navigate = useNavigate();
-  const resolveImage = useActiveDeckImage();
-  const url = resolveImage(cardId, "thumbnail") ?? getCardImagePath(cardId);
   const w = max === 0 ? 0 : (count / max) * 100;
   const tappable = count >= 3;
   return (
@@ -135,10 +133,14 @@ function BarRow({ cardId, count, max }: { cardId: number; count: number; max: nu
       }
       className="flex w-full items-center gap-2 py-1.5 text-left"
     >
-      <img
-        src={url}
-        alt={getCardName(cardId)}
-        style={{ width: 28, height: 50, objectFit: "cover", borderRadius: 4, opacity: count === 0 ? 0.4 : 1 }}
+      {/* EY-7 — unified card render. */}
+      <CardImage
+        cardId={cardId}
+        variant="face"
+        size="custom"
+        widthPx={28}
+        ariaLabel={getCardName(cardId)}
+        style={{ opacity: count === 0 ? 0.4 : 1 }}
       />
       <div className="flex-1">
         <div style={{ fontStyle: "italic", fontSize: "var(--text-body-sm)" }}>{getCardName(cardId)}</div>
@@ -165,8 +167,6 @@ function BarView({ entries, max }: { entries: Array<{ cardId: number; count: num
 
 function GridCell({ cardId, count }: { cardId: number; count: number }) {
   const navigate = useNavigate();
-  const resolveImage = useActiveDeckImage();
-  const url = resolveImage(cardId, "display") ?? getCardImagePath(cardId);
   return (
     <button
       type="button"
@@ -175,9 +175,17 @@ function GridCell({ cardId, count }: { cardId: number; count: number }) {
         navigate({ to: "/insights/card/$cardId", params: { cardId: String(cardId) } })
       }
       className="relative"
-      style={{ aspectRatio: "1 / 1.6", overflow: "hidden", borderRadius: 6, opacity: count === 0 ? 0.3 : 1 }}
+      style={{ opacity: count === 0 ? 0.3 : 1, display: "block" }}
     >
-      <img src={url} alt={getCardName(cardId)} className="h-full w-full object-cover" />
+      {/* EY-7 — unified card render; width 100% via custom + container. */}
+      <CardImage
+        cardId={cardId}
+        variant="face"
+        size="custom"
+        widthPx={120}
+        ariaLabel={getCardName(cardId)}
+        style={{ width: "100%", display: "block" }}
+      />
       {count > 0 && (
         <span
           className="absolute right-1 top-1 inline-flex items-center justify-center rounded-full px-1.5 text-[10px]"
