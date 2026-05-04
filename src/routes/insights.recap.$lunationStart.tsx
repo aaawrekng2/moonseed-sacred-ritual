@@ -51,7 +51,11 @@ const PHASE_GLYPHS: Record<string, string> = {
 };
 
 function LunationRecapRoute() {
-  const { lunationStart } = Route.useParams();
+  const { lunationStart: lunationStartRaw } = Route.useParams();
+  // EX-1 — Reverse the ':'/'.' → '-' encoding applied at navigate time.
+  // The ISO date portion (YYYY-MM-DD) keeps its hyphens; we only
+  // rewrite the time portion after the 'T'.
+  const lunationStart = decodeIsoLunationParam(lunationStartRaw);
   const navigate = useNavigate();
   const fn = useServerFn(getLunationRecap);
   const [data, setData] = useState<RecapData | null>(null);
