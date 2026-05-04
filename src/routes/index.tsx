@@ -404,7 +404,18 @@ function Index() {
                   ref={heroImgRef}
                   src={getActiveDeckImage(todayCard)}
                   alt={getCardName(todayCard)}
-                  onLoad={() => setHeroImageLoaded(true)}
+                  onLoad={(e) => {
+                    setHeroImageLoaded(true);
+                    // ER-2 — re-measure the actual rendered width
+                    // once the image is in flow so cornerRadiusStyle
+                    // computes against the final size on first paint.
+                    const w = Math.round(
+                      (e.currentTarget as HTMLImageElement).getBoundingClientRect().width,
+                    );
+                    if (w > 0 && Math.abs(w - cardWidth) > 1) {
+                      setMeasuredCardWidth(w);
+                    }
+                  }}
                   onError={() => setHeroImageLoaded(true)}
                   style={{
                     width: "100%",
