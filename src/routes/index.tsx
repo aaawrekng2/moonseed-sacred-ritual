@@ -83,6 +83,38 @@ function Index() {
   const [skeletonTimedOut, setSkeletonTimedOut] = useState(false);
   // EI-5 — ref for cached-image race detection.
   const heroImgRef = useRef<HTMLImageElement | null>(null);
+  // ES-1 — Watch the hero <section>'s actual content box. On warm
+  // reopen, viewportH is correct but the moon carousel snaps in late
+  // and shrinks the available pane after the initial layout pass.
+  // No window resize event fires for that, so cardWidth was previously
+  // computed against the stale (too-large) layout and bled past the
+  // section's right/bottom edge. ResizeObserver triggers a recompute
+  // whenever the section's content box settles to a new size.
+  const heroSectionRef = useRef<HTMLElement | null>(null);
+  const [sectionContentBox, setSectionContentBox] = useState<{ w: number; h: number } | null>(
+    null,
+  );
+  useEffect(() => {
+    const node = heroSectionRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      setSectionContentBox((prev) => {
+        if (
+          prev &&
+          Math.abs(prev.w - width) < 2 &&
+          Math.abs(prev.h - height) < 2
+        ) {
+          return prev;
+        }
+        return { w: Math.round(width), h: Math.round(height) };
+      });
+    });
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, []);
   useEffect(() => {
     if (!deckLoading) {
       setSkeletonTimedOut(false);
@@ -182,8 +214,18 @@ function Index() {
   const safeViewportW = Math.max(0, viewportW - horizontalReserve);
   const maxWidthCap = viewportW < 768 ? safeViewportW : Math.min(360, safeViewportW);
   const heightDerivedWidth = Math.max(0, availablePaneHeight - PANE_PADDING_Y) / 1.75;
+  // ES-1 — Prefer the section's actual measured content box (from
+  // ResizeObserver) over viewportH-derived availablePaneHeight, since
+  // the section can shrink after the moon carousel snaps in late on
+  // warm reopen.
+  const measuredHeightDerivedWidth = sectionContentBox
+    ? Math.max(0, sectionContentBox.h - PANE_PADDING_Y) / 1.75
+    : heightDerivedWidth;
+  const measuredMaxWidthCap = sectionContentBox
+    ? Math.min(maxWidthCap, sectionContentBox.w - HERO_SAFETY_MARGIN_X * 2)
+    : maxWidthCap;
   const computedCardWidth = Math.round(
-    Math.max(120, Math.min(heightDerivedWidth, maxWidthCap)),
+    Math.max(120, Math.min(measuredHeightDerivedWidth, measuredMaxWidthCap)),
   );
   // ER-2 — re-measure after the hero <img> actually loads so the
   // corner-radius calc uses the final rendered width, not the stale
@@ -363,6 +405,7 @@ function Index() {
           with explicit padding so it never hugs the carousel above or
           the draw icons below. */}
       <section
+        ref={heroSectionRef}
         className="flex flex-col items-center justify-start px-6"
         style={{ paddingTop: 24, paddingBottom: 24, minHeight: 0, overflow: "hidden" }}
       >

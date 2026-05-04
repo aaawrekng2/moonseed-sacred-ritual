@@ -19,6 +19,26 @@ import { getGuideById, LENSES } from "@/lib/guides";
 import { z } from "zod";
 import { getLunationContaining } from "@/lib/lunation";
 import { getAIToneServerSide, TONE_FRAGMENTS, type AITone } from "@/lib/ai-tone";
+import { getCurrentMoonPhase } from "@/lib/moon";
+
+/**
+ * ES-4 — Older readings predate the `moon_phase` column; derive a
+ * phase from `created_at` on the fly so phase rings / distributions /
+ * top-phase aggregations don't appear empty for historical data.
+ * Returns null only when neither value is usable.
+ */
+function resolveMoonPhase(
+  storedPhase: string | null | undefined,
+  createdAt: string | null | undefined,
+): string | null {
+  if (storedPhase) return storedPhase;
+  if (!createdAt) return null;
+  try {
+    return getCurrentMoonPhase(new Date(createdAt)).phase;
+  } catch {
+    return null;
+  }
+}
 
 const FREE_CAP_DAYS = 90;
 const STALKER_THRESHOLD = 3;
@@ -187,7 +207,8 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
         const suit = getCardSuit(cid);
         if (suit !== "Major") suitCounts[suit] += 1;
       });
-      if (r.moon_phase) moonPhases[r.moon_phase] = (moonPhases[r.moon_phase] ?? 0) + 1;
+      const phase0 = resolveMoonPhase(r.moon_phase, r.created_at);
+      if (phase0) moonPhases[phase0] = (moonPhases[phase0] ?? 0) + 1;
       if (r.guide_id) guideCounts[r.guide_id] = (guideCounts[r.guide_id] ?? 0) + 1;
       if (r.lens_id) lensCounts[r.lens_id] = (lensCounts[r.lens_id] ?? 0) + 1;
       if (r.is_deep_reading) deepCount += 1;
@@ -528,7 +549,9 @@ export const getMoonPhaseStats = createServerFn({ method: "GET" })
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
     const phaseCounts: Record<string, number> = {};
     for (const r of rows) {
-      if (r.moon_phase) phaseCounts[r.moon_phase] = (phaseCounts[r.moon_phase] ?? 0) + 1;
+      // ES-4 — backfill from created_at when historical row has no moon_phase.
+      const phase = resolveMoonPhase(r.moon_phase, r.created_at);
+      if (phase) phaseCounts[phase] = (phaseCounts[phase] ?? 0) + 1;
     }
     const sorted = Object.entries(phaseCounts).sort((a, b) => b[1] - a[1]);
     return {
@@ -865,7 +888,11 @@ export const getLunationRecap = createServerFn({ method: "GET" })
           }
         }
       }
-      if (r.moon_phase) moonPhases[r.moon_phase] = (moonPhases[r.moon_phase] ?? 0) + 1;
+      // ES-4 — backfill from created_at when historical row has no moon_phase.
+      {
+        const phase = resolveMoonPhase(r.moon_phase, r.created_at);
+        if (phase) moonPhases[phase] = (moonPhases[phase] ?? 0) + 1;
+      }
       if (r.guide_id) guideCounts[r.guide_id] = (guideCounts[r.guide_id] ?? 0) + 1;
       for (const t of r.tags ?? []) tagCounts[t] = (tagCounts[t] ?? 0) + 1;
     }
@@ -1294,6 +1321,7 @@ async function computeLunationSummaryForReflection(
     .limit(2000);
   if (error) return null;
   const rows = (rowsRaw ?? []) as Array<{
+    created_at: string;
     card_ids: number[] | null;
     card_orientations: boolean[] | null;
     moon_phase: string | null;
@@ -1329,7 +1357,11 @@ async function computeLunationSummaryForReflection(
           pairCounts.set(`${a}:${b}`, (pairCounts.get(`${a}:${b}`) ?? 0) + 1);
         }
     }
-    if (r.moon_phase) moonPhases[r.moon_phase] = (moonPhases[r.moon_phase] ?? 0) + 1;
+    // ES-4 — backfill from created_at when historical row has no moon_phase.
+    {
+      const phase = resolveMoonPhase(r.moon_phase, r.created_at);
+      if (phase) moonPhases[phase] = (moonPhases[phase] ?? 0) + 1;
+    }
     if (r.guide_id) guideCounts[r.guide_id] = (guideCounts[r.guide_id] ?? 0) + 1;
     for (const t of r.tags ?? []) tagCounts[t] = (tagCounts[t] ?? 0) + 1;
   }
@@ -1473,7 +1505,11 @@ export const getYearOfLunationsRecap = createServerFn({ method: "GET" })
             pairCounts.set(`${a}:${b}`, (pairCounts.get(`${a}:${b}`) ?? 0) + 1);
           }
       }
-      if (r.moon_phase) moonPhases[r.moon_phase] = (moonPhases[r.moon_phase] ?? 0) + 1;
+      // ES-4 — backfill from created_at when historical row has no moon_phase.
+      {
+        const phase = resolveMoonPhase(r.moon_phase, r.created_at);
+        if (phase) moonPhases[phase] = (moonPhases[phase] ?? 0) + 1;
+      }
       if (r.guide_id) guideCounts[r.guide_id] = (guideCounts[r.guide_id] ?? 0) + 1;
       if (r.lens_id) lensCounts[r.lens_id] = (lensCounts[r.lens_id] ?? 0) + 1;
       for (const tag of r.tags ?? []) tagsByHalf[halfIndex][tag] = (tagsByHalf[halfIndex][tag] ?? 0) + 1;
@@ -1594,7 +1630,11 @@ export const getYearOfLunationsReflection = createServerFn({ method: "POST" })
     for (const r of rows) {
       for (const c of r.card_ids ?? []) cardCounts.set(c, (cardCounts.get(c) ?? 0) + 1);
       for (const t of r.tags ?? []) tagCounts[t] = (tagCounts[t] ?? 0) + 1;
-      if (r.moon_phase) moonPhases[r.moon_phase] = (moonPhases[r.moon_phase] ?? 0) + 1;
+      // ES-4 — backfill from created_at when historical row has no moon_phase.
+      {
+        const phase = resolveMoonPhase(r.moon_phase, r.created_at);
+        if (phase) moonPhases[phase] = (moonPhases[phase] ?? 0) + 1;
+      }
       if (r.guide_id) guideCounts[r.guide_id] = (guideCounts[r.guide_id] ?? 0) + 1;
     }
     const top = (m: Record<string, number>, n: number) =>

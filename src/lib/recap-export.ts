@@ -184,6 +184,132 @@ export async function exportRecapPdf(data: RecapData, reflection: string | null)
 }
 
 /**
+ * ES-6 — Year of Lunations PDF export.
+ * 4-page A5 portrait document mirroring the in-app premium story.
+ */
+export type YearOfLunationsPdfData = {
+  startDate: string;
+  endDate: string;
+  totalReadings: number;
+  daysRead: number;
+  topCard: { cardName: string; count: number } | null;
+  topMoonPhase: { phase: string; count: number } | null;
+  topGuide: { name: string; count: number } | null;
+  topLens: { name: string; count: number } | null;
+  evolvedTag: { tag: string; older: number; recent: number } | null;
+  longestStreak: number;
+  topPairs: Array<{ cardAName: string; cardBName: string; count: number }>;
+  reflection: string | null;
+};
+
+export async function exportYearOfLunationsPdf(data: YearOfLunationsPdfData): Promise<void> {
+  const doc = new jsPDF({ unit: "pt", format: "a5", orientation: "portrait" });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 36;
+
+  const drawBg = () => {
+    doc.setFillColor(10, 10, 20);
+    doc.rect(0, 0, pageW, pageH, "F");
+  };
+  const setGold = () => doc.setTextColor(206, 168, 92);
+  const setText = () => doc.setTextColor(232, 226, 212);
+  const setMuted = () => doc.setTextColor(170, 165, 150);
+  const heading = (text: string, y: number) => {
+    setGold();
+    doc.setFont("times", "italic");
+    doc.setFontSize(22);
+    doc.text(text, pageW / 2, y, { align: "center" });
+  };
+  const eyebrow = (text: string, y: number) => {
+    setMuted();
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(text.toUpperCase(), pageW / 2, y, { align: "center", charSpace: 2 });
+  };
+  const big = (text: string, y: number) => {
+    setGold();
+    doc.setFont("times", "italic");
+    doc.setFontSize(48);
+    doc.text(text, pageW / 2, y, { align: "center" });
+  };
+  const body = (text: string, y: number, opts: { align?: "left" | "center"; size?: number } = {}) => {
+    setText();
+    doc.setFont("times", "italic");
+    doc.setFontSize(opts.size ?? 11);
+    const align = opts.align ?? "center";
+    const x = align === "center" ? pageW / 2 : margin;
+    const width = pageW - margin * 2;
+    const lines = doc.splitTextToSize(text, width);
+    doc.text(lines, x, y, { align });
+    return y + lines.length * (opts.size ?? 11) * 1.4;
+  };
+
+  // Page 1 — Hero
+  drawBg();
+  eyebrow("Moonseed", 60);
+  heading("A Year of Lunations", 110);
+  body(`${data.startDate} – ${data.endDate}`, 138, { size: 10 });
+  big(String(data.totalReadings), pageH / 2);
+  body(`readings across ${data.daysRead} days`, pageH / 2 + 28);
+
+  // Page 2 — Card / Moon / Streak
+  doc.addPage(); drawBg();
+  eyebrow("Card of the year", 60);
+  if (data.topCard) {
+    heading(data.topCard.cardName, 100);
+    body(`Visited ${data.topCard.count} times.`, 130);
+  } else {
+    body("No standout card.", 110);
+  }
+  eyebrow("Moon phase of the year", 200);
+  heading(data.topMoonPhase?.phase ?? "—", 240);
+  if (data.topMoonPhase) body(`${data.topMoonPhase.count} readings`, 268);
+  eyebrow("Longest streak", 360);
+  big(String(data.longestStreak), 410);
+  body(`day${data.longestStreak === 1 ? "" : "s"} in a row`, 432);
+
+  // Page 3 — Guide / Lens / Theme / Pairs
+  doc.addPage(); drawBg();
+  eyebrow("Top guide", 60);
+  heading(data.topGuide?.name ?? "—", 100);
+  if (data.topGuide) body(`Walked with you ${data.topGuide.count} times.`, 130);
+  eyebrow("Top lens", 200);
+  heading(data.topLens?.name ?? "—", 240);
+  if (data.topLens) body(`Your favored angle, ${data.topLens.count} times.`, 268);
+  eyebrow("Evolved theme", 340);
+  if (data.evolvedTag) {
+    heading(data.evolvedTag.tag, 380);
+    body(`${data.evolvedTag.recent} recent · ${data.evolvedTag.older} earlier.`, 410);
+  } else {
+    body("—", 380);
+  }
+  if (data.topPairs.length) {
+    eyebrow("Recurring pairs", 460);
+    let py = 485;
+    data.topPairs.slice(0, 3).forEach((p) => {
+      setText();
+      doc.setFont("times", "italic");
+      doc.setFontSize(11);
+      doc.text(`${p.cardAName} + ${p.cardBName}`, margin, py);
+      setMuted();
+      doc.text(`×${p.count}`, pageW - margin, py, { align: "right" });
+      py += 18;
+    });
+  }
+
+  // Page 4 — Reflection
+  if (data.reflection) {
+    doc.addPage(); drawBg();
+    eyebrow("Reflection", 60);
+    body(data.reflection, 100, { align: "left", size: 11 });
+  }
+
+  const filename = `Year-of-Lunations-${data.endDate.slice(0, 7)}.pdf`;
+  doc.save(filename);
+}
+
+/**
  * Capture a DOM node as a PNG and either share it via the Web Share API
  * or trigger a download as a fallback.
  */

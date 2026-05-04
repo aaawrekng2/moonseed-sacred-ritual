@@ -12,6 +12,7 @@ import {
   getYearOfLunationsRecap,
   getYearOfLunationsReflection,
 } from "@/lib/insights.functions";
+import { exportYearOfLunationsPdf, shareRecapImage } from "@/lib/recap-export";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
@@ -39,6 +40,9 @@ function YearOfLunationsRoute() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [slide, setSlide] = useState(0);
+  // ES-7 — lift the AI reflection so the closer slide can include it
+  // in the PDF export.
+  const [reflection, setReflection] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -142,7 +146,13 @@ function YearOfLunationsRoute() {
           <Caption>The year recap is unavailable right now.</Caption>
         )}
         {!loading && !err && data && (
-          <YearSlideContent data={data} slide={slide} onClose={close} />
+          <YearSlideContent
+            data={data}
+            slide={slide}
+            onClose={close}
+            reflection={reflection}
+            onReflection={setReflection}
+          />
         )}
       </div>
     </div>
@@ -153,10 +163,14 @@ function YearSlideContent({
   data,
   slide,
   onClose,
+  reflection,
+  onReflection,
 }: {
   data: YearData;
   slide: number;
   onClose: () => void;
+  reflection: string | null;
+  onReflection: (text: string) => void;
 }) {
   if (slide === 0) {
     return (
@@ -328,31 +342,13 @@ function YearSlideContent({
     );
   }
   if (slide === 10) {
-    return <YearReflectionSlide />;
+    return <YearReflectionSlide onReflection={onReflection} />;
   }
   // slide 11 — closer
-  return (
-    <Shell>
-      <Title>A year of moons.</Title>
-      <Caption>Carry what stayed. Release what didn't.</Caption>
-      <button
-        type="button"
-        onClick={onClose}
-        className="pointer-events-auto mt-6 rounded-full px-6 py-2"
-        style={{
-          background: "var(--gold)",
-          color: "var(--cosmos, #0a0a14)",
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-        }}
-      >
-        Done
-      </button>
-    </Shell>
-  );
+  return <SlideYearSaveShareDone onClose={onClose} reflection={reflection} data={data} />;
 }
 
-function YearReflectionSlide() {
+function YearReflectionSlide({ onReflection }: { onReflection?: (text: string) => void }) {
   const fn = useServerFn(getYearOfLunationsReflection);
   const [text, setText] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -363,7 +359,10 @@ function YearReflectionSlide() {
         const headers = await getAuthHeaders();
         const r = await fn({ data: { ack: true }, headers });
         if (cancelled) return;
-        if (r.ok) setText(r.reflection);
+        if (r.ok) {
+          setText(r.reflection);
+          onReflection?.(r.reflection);
+        }
         else setErr(r.error);
       } catch {
         if (!cancelled) setErr("ai_unavailable");
@@ -372,7 +371,7 @@ function YearReflectionSlide() {
     return () => {
       cancelled = true;
     };
-  }, [fn]);
+  }, [fn, onReflection]);
   return (
     <Shell>
       <Eyebrow>Reflection</Eyebrow>
@@ -394,6 +393,171 @@ function YearReflectionSlide() {
           {text}
         </div>
       )}
+    </Shell>
+  );
+}
+
+/**
+ * ES-7 — Closer slide with Save as PDF / Share image / Done. Mirrors
+ * the SlideSaveShareDone pattern from the Lunation Recap.
+ */
+function SlideYearSaveShareDone({
+  onClose,
+  reflection,
+  data,
+}: {
+  onClose: () => void;
+  reflection: string | null;
+  data: YearData;
+}) {
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState<null | "pdf" | "share">(null);
+  const flash = (text: string) => {
+    setMsg(text);
+    setTimeout(() => setMsg(null), 2400);
+  };
+
+  const endIso = new Date().toISOString().slice(0, 10);
+  const startIso = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
+
+  const handlePdf = async () => {
+    if (busy) return;
+    setBusy("pdf");
+    try {
+      await exportYearOfLunationsPdf({
+        startDate: data.dateRange.split("–")[0]?.trim() || startIso,
+        endDate: endIso,
+        totalReadings: data.totalReadings,
+        daysRead: data.daysRead,
+        topCard: data.topCard
+          ? { cardName: data.topCard.cardName, count: data.topCard.count }
+          : null,
+        topMoonPhase: data.topMoonPhase ? { phase: data.topMoonPhase, count: 0 } : null,
+        topGuide: data.topGuide,
+        topLens: data.topLens,
+        evolvedTag: data.evolvedTag,
+        longestStreak: data.longestStreak,
+        topPairs: data.topPairs,
+        reflection,
+      });
+      flash("PDF saved.");
+    } catch (e) {
+      console.error(e);
+      flash("Couldn't save the PDF.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleShare = async () => {
+    if (busy) return;
+    setBusy("share");
+    try {
+      const node = document.getElementById("year-share-card");
+      if (!node) {
+        flash("Nothing to share yet.");
+        return;
+      }
+      const filename = `year-of-lunations-${endIso.slice(0, 7)}.png`;
+      const result = await shareRecapImage(node as HTMLElement, filename);
+      flash(result.shared ? "Shared." : "Image saved.");
+    } catch (e) {
+      console.error(e);
+      flash("Couldn't generate the image.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <Shell>
+      <Title>A year of moons.</Title>
+      <Caption>Carry what stayed. Release what didn't.</Caption>
+
+      {/* Off-screen share card — captured by html2canvas-pro. */}
+      <div
+        id="year-share-card"
+        aria-hidden
+        style={{
+          position: "fixed",
+          left: -10000,
+          top: 0,
+          width: 540,
+          height: 720,
+          background:
+            "radial-gradient(ellipse at top, color-mix(in oklab, var(--gold) 12%, #0a0a14) 0%, #0a0a14 70%)",
+          color: "var(--color-foreground)",
+          padding: 48,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 16,
+          fontFamily: "var(--font-serif)",
+        }}
+      >
+        <div style={{ fontSize: 12, letterSpacing: "0.2em", opacity: 0.6 }}>MOONSEED</div>
+        <div style={{ fontSize: 32, fontStyle: "italic", color: "var(--gold)" }}>A Year of Lunations</div>
+        <div style={{ fontSize: 14, opacity: 0.75 }}>{data.dateRange}</div>
+        <div style={{ fontSize: 96, fontStyle: "italic", color: "var(--gold)", lineHeight: 1 }}>
+          {data.totalReadings}
+        </div>
+        <div style={{ fontSize: 14, opacity: 0.75 }}>readings across {data.daysRead} days</div>
+        {data.topCard && (
+          <div style={{ marginTop: 12, fontStyle: "italic", color: "var(--gold)" }}>
+            {data.topCard.cardName} ×{data.topCard.count}
+          </div>
+        )}
+      </div>
+
+      <div className="pointer-events-auto mt-6 flex flex-col items-stretch gap-2" style={{ width: 220 }}>
+        <button
+          type="button"
+          onClick={handlePdf}
+          disabled={!!busy}
+          className="rounded-full px-6 py-2"
+          style={{
+            background: "var(--gold)",
+            color: "var(--cosmos, #0a0a14)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            opacity: busy === "pdf" ? 0.6 : 1,
+          }}
+        >
+          {busy === "pdf" ? "Saving…" : "Save as PDF"}
+        </button>
+        <button
+          type="button"
+          onClick={handleShare}
+          disabled={!!busy}
+          className="rounded-full px-6 py-2"
+          style={{
+            background: "transparent",
+            border: "1px solid var(--gold)",
+            color: "var(--gold)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            opacity: busy === "share" ? 0.6 : 1,
+          }}
+        >
+          {busy === "share" ? "Preparing…" : "Share image"}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-full px-6 py-2"
+          style={{
+            background: "transparent",
+            color: "var(--color-foreground)",
+            opacity: 0.7,
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+          }}
+        >
+          Done
+        </button>
+      </div>
+      {msg && <Caption>{msg}</Caption>}
     </Shell>
   );
 }

@@ -17,6 +17,42 @@ import {
 } from "@/lib/custom-decks";
 import { useAuth } from "@/lib/auth";
 
+// ES-5 — Persist last-known active deck so warm reopen doesn't flash
+// the Rider-Waite default before the live fetch returns.
+const STORAGE_KEY_DECK = "moonseed.activeDeck";
+const STORAGE_KEY_IMAGES = "moonseed.activeDeckImages";
+
+function readCachedDeck(): { deck: CustomDeck | null; map: DeckImageMap } {
+  if (typeof window === "undefined") {
+    return { deck: null, map: EMPTY_DECK_IMAGE_MAP };
+  }
+  try {
+    const deckRaw = localStorage.getItem(STORAGE_KEY_DECK);
+    const imagesRaw = localStorage.getItem(STORAGE_KEY_IMAGES);
+    return {
+      deck: deckRaw ? (JSON.parse(deckRaw) as CustomDeck) : null,
+      map: imagesRaw ? (JSON.parse(imagesRaw) as DeckImageMap) : EMPTY_DECK_IMAGE_MAP,
+    };
+  } catch {
+    return { deck: null, map: EMPTY_DECK_IMAGE_MAP };
+  }
+}
+
+function writeCachedDeck(deck: CustomDeck | null, map: DeckImageMap) {
+  if (typeof window === "undefined") return;
+  try {
+    if (deck) {
+      localStorage.setItem(STORAGE_KEY_DECK, JSON.stringify(deck));
+      localStorage.setItem(STORAGE_KEY_IMAGES, JSON.stringify(map));
+    } else {
+      localStorage.removeItem(STORAGE_KEY_DECK);
+      localStorage.removeItem(STORAGE_KEY_IMAGES);
+    }
+  } catch {
+    // Quota / serialization error — ignore.
+  }
+}
+
 type Ctx = {
   activeDeck: CustomDeck | null;
   imageMap: DeckImageMap;
@@ -34,9 +70,17 @@ const ActiveDeckCtx = createContext<Ctx>({
 
 export function ActiveDeckProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
-  const [activeDeck, setActiveDeck] = useState<CustomDeck | null>(null);
-  const [imageMap, setImageMap] = useState<DeckImageMap>(EMPTY_DECK_IMAGE_MAP);
-  const [loading, setLoading] = useState(true);
+  // ES-5 — Hydrate from localStorage so warm reopen doesn't flash the
+  // Rider-Waite default before the live fetch returns.
+  const [activeDeck, setActiveDeck] = useState<CustomDeck | null>(
+    () => readCachedDeck().deck,
+  );
+  const [imageMap, setImageMap] = useState<DeckImageMap>(
+    () => readCachedDeck().map,
+  );
+  const [loading, setLoading] = useState(
+    () => readCachedDeck().deck === null,
+  );
 
   const refresh = useCallback(async () => {
     // EE-3 — While auth is still resolving, keep loading=true so the
@@ -50,6 +94,7 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
     if (!user) {
       setActiveDeck(null);
       setImageMap(EMPTY_DECK_IMAGE_MAP);
+      writeCachedDeck(null, EMPTY_DECK_IMAGE_MAP);
       setLoading(false);
       return;
     }
@@ -60,8 +105,10 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
       if (deck) {
         const map = await buildDeckImageMap(deck.id);
         setImageMap(map);
+        writeCachedDeck(deck, map);
       } else {
         setImageMap(EMPTY_DECK_IMAGE_MAP);
+        writeCachedDeck(null, EMPTY_DECK_IMAGE_MAP);
       }
     } catch {
       // Non-fatal — fall back to default deck silently.
