@@ -1,0 +1,280 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { BottomNav } from "@/components/nav/BottomNav";
+import { InsightsFilterBar } from "@/components/insights/InsightsFilterBar";
+import { HeroCard } from "@/components/insights/HeroCard";
+import { SuitBalanceChart } from "@/components/insights/SuitBalanceChart";
+import { MajorMinorChart } from "@/components/insights/MajorMinorChart";
+import { MoonPhaseRing } from "@/components/insights/MoonPhaseRing";
+import { ReversalStat } from "@/components/insights/ReversalStat";
+import { RhythmHeatmap } from "@/components/insights/RhythmHeatmap";
+import { TopGuideStat } from "@/components/insights/TopGuideStat";
+import { TopLensStat } from "@/components/insights/TopLensStat";
+import { getInsightsOverview, getStalkerCards } from "@/lib/insights.functions";
+import { getAuthHeaders } from "@/lib/server-fn-auth";
+import { DEFAULT_FILTERS, type InsightsFilters, type InsightsOverview, type StalkerCardsResult } from "@/lib/insights.types";
+
+export const Route = createFileRoute("/insights")({
+  head: () => ({
+    meta: [
+      { title: "Insights — Moonseed" },
+      { name: "description", content: "Patterns, rhythms, and stalker cards across your readings." },
+    ],
+  }),
+  component: InsightsRoute,
+});
+
+type Tab = "overview" | "cards" | "calendar" | "themes" | "recap";
+
+const TABS: ReadonlyArray<{ id: Tab; label: string }> = [
+  { id: "overview", label: "Overview" },
+  { id: "cards", label: "Cards" },
+  { id: "calendar", label: "Calendar" },
+  { id: "themes", label: "Themes" },
+  { id: "recap", label: "Recap" },
+];
+
+function InsightsRoute() {
+  const navigate = useNavigate();
+  const [tab, setTab] = useState<Tab>("overview");
+  const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
+  const [overview, setOverview] = useState<InsightsOverview | null>(null);
+  const [stalkers, setStalkers] = useState<StalkerCardsResult | null>(null);
+  const [loading, setLoading] = useState(true);
+  const overviewFn = useServerFn(getInsightsOverview);
+  const stalkerFn = useServerFn(getStalkerCards);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const [ov, st] = await Promise.all([
+          overviewFn({ data: filters, headers }),
+          stalkerFn({ data: filters, headers }),
+        ]);
+        if (!cancelled) {
+          setOverview(ov);
+          setStalkers(st);
+          setLoading(false);
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn("[insights] fetch failed", e);
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [filters, overviewFn, stalkerFn]);
+
+  return (
+    <div className="min-h-screen pb-24" style={{ background: "var(--background)" }}>
+      <InsightsFilterBar filters={filters} onChange={setFilters} hidden={tab === "recap"} />
+
+      {/* Tab strip */}
+      <div
+        className="sticky z-20 backdrop-blur-md"
+        style={{
+          top: tab === "recap" ? 0 : 56,
+          background: "color-mix(in oklch, var(--surface-elevated) 85%, transparent)",
+        }}
+      >
+        <div className="mx-auto flex max-w-2xl items-center justify-center gap-6 overflow-x-auto px-4 py-2">
+          {TABS.map((t) => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className="whitespace-nowrap pb-1"
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption, 0.75rem)",
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: active ? "var(--gold)" : "var(--color-foreground)",
+                  opacity: active ? 1 : 0.55,
+                  borderBottom: active ? "1px solid var(--gold)" : "1px solid transparent",
+                }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <main className="mx-auto max-w-2xl px-4 py-4">
+        {tab === "overview" && (
+          <OverviewTab
+            loading={loading}
+            overview={overview}
+            stalkers={stalkers}
+            onTapHero={() => setTab("cards")}
+            onEmptyCta={() => navigate({ to: "/" })}
+          />
+        )}
+        {tab !== "overview" && <ComingSoon />}
+      </main>
+
+      <BottomNav />
+    </div>
+  );
+}
+
+function ComingSoon() {
+  return (
+    <div
+      className="py-16 text-center"
+      style={{
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+        opacity: 0.5,
+        fontSize: "var(--text-body)",
+      }}
+    >
+      Coming next — in development.
+    </div>
+  );
+}
+
+function OverviewTab({
+  loading,
+  overview,
+  stalkers,
+  onTapHero,
+  onEmptyCta,
+}: {
+  loading: boolean;
+  overview: InsightsOverview | null;
+  stalkers: StalkerCardsResult | null;
+  onTapHero: () => void;
+  onEmptyCta: () => void;
+}) {
+  if (loading && !overview) {
+    return (
+      <div className="space-y-3">
+        {[0, 1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="animate-pulse"
+            style={{
+              height: i === 0 ? 220 : 160,
+              background: "var(--surface-card)",
+              borderRadius: 18,
+              opacity: 0.5,
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  if (!overview || overview.totalReadings === 0) {
+    return (
+      <div className="py-16 text-center">
+        <div
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-heading-sm)",
+            opacity: 0.85,
+            lineHeight: 1.5,
+          }}
+        >
+          Your insights will bloom here once you've logged a few readings.
+        </div>
+        <button
+          type="button"
+          onClick={onEmptyCta}
+          className="mt-6 inline-flex items-center rounded-full px-4 py-2 text-sm"
+          style={{
+            background: "color-mix(in oklch, var(--gold) 24%, transparent)",
+            color: "var(--gold)",
+            fontStyle: "italic",
+          }}
+        >
+          Draw your first card
+        </button>
+      </div>
+    );
+  }
+
+  const lowData = overview.totalReadings < 5;
+
+  return (
+    <div className="space-y-4">
+      {lowData && (
+        <div
+          className="rounded-lg p-3 text-center"
+          style={{
+            background: "color-mix(in oklch, var(--gold) 12%, transparent)",
+            color: "var(--color-foreground)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            opacity: 0.9,
+          }}
+        >
+          Insights become richer as you read more. Currently showing data from {overview.totalReadings} reading{overview.totalReadings === 1 ? "" : "s"}.
+        </div>
+      )}
+
+      {stalkers && (stalkers.topCard || stalkers.stalkerCards.length > 0) && (
+        <HeroCard result={stalkers} onTap={onTapHero} />
+      )}
+
+      {overview.dataCapped && (
+        <div
+          className="rounded-lg p-2 text-center"
+          style={{
+            background: "var(--surface-card)",
+            fontStyle: "italic",
+            fontSize: "var(--text-caption, 0.75rem)",
+            opacity: 0.75,
+          }}
+        >
+          Showing the last 90 days. Upgrade for all-time data.
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <SuitBalanceChart data={overview.suitBalance} onTap={() => log("suit")} />
+        <MajorMinorChart data={overview.majorMinor} onTap={() => log("major-minor")} />
+        <MoonPhaseRing distribution={overview.moonPhaseDistribution} onTap={() => log("moon")} />
+        <ReversalStat rate={overview.reversalRate} onTap={() => log("reversal")} />
+        <RhythmHeatmap days={overview.readingsByDay} onTap={() => log("rhythm")} />
+        <TopGuideStat
+          data={overview.topGuide}
+          onlyOne={overview.topGuide ? overview.topGuide.count === overview.totalReadings : false}
+          onTap={() => log("guide")}
+        />
+        <TopLensStat
+          data={overview.topLens}
+          totalDeep={overview.deepReadingsCount}
+          onTap={() => log("lens")}
+        />
+      </div>
+
+      <div className="pt-2 text-center">
+        <a
+          href="/journal"
+          className="text-sm italic"
+          style={{ color: "var(--gold)", opacity: 0.8 }}
+        >
+          See in journal →
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function log(cardType: string) {
+  // eslint-disable-next-line no-console
+  console.log("insights.overview.tapped", { cardType });
+}

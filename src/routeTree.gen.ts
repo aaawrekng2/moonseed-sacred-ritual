@@ -13,6 +13,7 @@ import { Route as ThreadsRouteImport } from './routes/threads'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScatterTestRouteImport } from './routes/scatter-test'
 import { Route as JournalRouteImport } from './routes/journal'
+import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as DrawRouteImport } from './routes/draw'
@@ -49,6 +50,11 @@ const ScatterTestRoute = ScatterTestRouteImport.update({
 const JournalRoute = JournalRouteImport.update({
   id: '/journal',
   path: '/journal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InsightsRoute = InsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HelpRoute = HelpRouteImport.update({
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
+  '/insights': typeof InsightsRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -167,6 +174,7 @@ export interface FileRoutesByTo {
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
+  '/insights': typeof InsightsRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -191,6 +199,7 @@ export interface FileRoutesById {
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
+  '/insights': typeof InsightsRoute
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -216,6 +225,7 @@ export interface FileRouteTypes {
     | '/draw'
     | '/guides'
     | '/help'
+    | '/insights'
     | '/journal'
     | '/scatter-test'
     | '/settings'
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/draw'
     | '/guides'
     | '/help'
+    | '/insights'
     | '/journal'
     | '/scatter-test'
     | '/settings'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/draw'
     | '/guides'
     | '/help'
+    | '/insights'
     | '/journal'
     | '/scatter-test'
     | '/settings'
@@ -286,6 +298,7 @@ export interface RootRouteChildren {
   DrawRoute: typeof DrawRoute
   GuidesRoute: typeof GuidesRoute
   HelpRoute: typeof HelpRouteWithChildren
+  InsightsRoute: typeof InsightsRoute
   JournalRoute: typeof JournalRoute
   ScatterTestRoute: typeof ScatterTestRoute
   SettingsRoute: typeof SettingsRouteWithChildren
@@ -321,6 +334,13 @@ declare module '@tanstack/react-router' {
       path: '/journal'
       fullPath: '/journal'
       preLoaderRoute: typeof JournalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/insights': {
+      id: '/insights'
+      path: '/insights'
+      fullPath: '/insights'
+      preLoaderRoute: typeof InsightsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/help': {
@@ -511,6 +531,7 @@ const rootRouteChildren: RootRouteChildren = {
   DrawRoute: DrawRoute,
   GuidesRoute: GuidesRoute,
   HelpRoute: HelpRouteWithChildren,
+  InsightsRoute: InsightsRoute,
   JournalRoute: JournalRoute,
   ScatterTestRoute: ScatterTestRoute,
   SettingsRoute: SettingsRouteWithChildren,

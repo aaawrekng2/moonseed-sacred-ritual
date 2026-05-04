@@ -70,3 +70,26 @@ export function getCardImagePath(id: TarotCardId): string {
 
 // Alias kept for newer call sites / docs that reference `getCardImageUrl`.
 export const getCardImageUrl = getCardImagePath;
+
+/**
+ * EJ — suit + arcana helpers used by the Insights aggregations.
+ * Matches the canonical 0..77 deck order built above:
+ *   0..21  — Major Arcana
+ *   22..35 — Wands
+ *   36..49 — Cups
+ *   50..63 — Swords
+ *   64..77 — Pentacles
+ */
+export type CardSuit = "Wands" | "Cups" | "Swords" | "Pentacles" | "Major";
+
+export function getCardArcana(id: TarotCardId): "major" | "minor" {
+  return id >= 0 && id <= 21 ? "major" : "minor";
+}
+
+export function getCardSuit(id: TarotCardId): CardSuit {
+  if (id <= 21) return "Major";
+  if (id <= 35) return "Wands";
+  if (id <= 49) return "Cups";
+  if (id <= 63) return "Swords";
+  return "Pentacles";
+}

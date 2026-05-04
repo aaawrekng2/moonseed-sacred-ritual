@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Moon, BookOpen, SlidersHorizontal, Network } from "lucide-react";
+import { Moon, BookOpen, SlidersHorizontal, Network, BarChart3 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -7,16 +7,17 @@ import { usePatternsCount } from "@/lib/patterns";
 import { useEffect, useState } from "react";
 
 type Tab = {
-  to: "/" | "/journal" | "/settings" | "/threads";
+  to: "/" | "/journal" | "/settings" | "/threads" | "/insights";
   label: string;
   Icon: LucideIcon;
   primary?: boolean;
 };
 
-// Order: Journal (left), Home (center, primary), Settings (right).
-// Home is the moon-phase landing — the primary destination of the app.
+// EJ-2 — Order: Journal (left), Insights, Home (center, primary), Settings (right).
+// Stories appears as a 5th tab when the seeker has any patterns.
 const BASE_TABS: readonly Tab[] = [
   { to: "/journal", label: "Journal", Icon: BookOpen },
+  { to: "/insights", label: "Insights", Icon: BarChart3 },
   { to: "/", label: "Home", Icon: Moon, primary: true },
   { to: "/settings", label: "Settings", Icon: SlidersHorizontal },
 ] as const;
@@ -43,8 +44,9 @@ export function BottomNav() {
     }
   }, [count, showThreads]);
 
+  // With Stories: Journal, Stories, Insights, Home, Settings.
   const tabs: Tab[] = showThreads
-    ? [BASE_TABS[0], THREADS_TAB, BASE_TABS[1], BASE_TABS[2]]
+    ? [BASE_TABS[0], THREADS_TAB, BASE_TABS[1], BASE_TABS[2], BASE_TABS[3]]
     : [...BASE_TABS];
 
   return (
@@ -60,7 +62,7 @@ export function BottomNav() {
     >
       <ul
         className="mx-auto flex items-center justify-center px-4"
-        style={{ height: 64, maxWidth: showThreads ? 380 : 320, gap: showThreads ? 36 : 48 }}
+        style={{ height: 64, maxWidth: showThreads ? 440 : 360, gap: showThreads ? 28 : 36 }}
       >
         {tabs.map(({ to, label, Icon, primary }) => {
           // Settings nav nests sub-routes (/settings/profile, /settings/themes,
@@ -73,6 +75,8 @@ export function BottomNav() {
               ? path === "/settings" || path.startsWith("/settings/")
               : to === "/threads"
               ? path === "/threads" || path.startsWith("/threads/")
+              : to === "/insights"
+              ? path === "/insights" || path.startsWith("/insights/")
               : path === to;
           const iconSize = primary ? 32 : 20;
           // Active = signature gold. Inactive (including Home) = neutral
