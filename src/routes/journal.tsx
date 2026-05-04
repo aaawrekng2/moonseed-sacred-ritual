@@ -1094,9 +1094,9 @@ function ReadingCard({
     .replace(/\s+/g, " ")
     .trim();
   const interpClean = stripMarkdown(interpFirst);
-  // DB-3.1 — render with the reading's saved deck, not the global active deck.
-  const getImage = useDeckImage(reading.deck_id ?? null);
-  const deckRadiusPx = useDeckCornerRadius(reading.deck_id ?? null);
+  // EW-4 — Card thumbnails now render through <CardImage deckId> which
+  // resolves the per-reading deck art and corner radius internally, so
+  // the row no longer needs its own deck hooks.
   const archiveFn = useServerFn(archiveReading);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [archiving, setArchiving] = useState(false);
