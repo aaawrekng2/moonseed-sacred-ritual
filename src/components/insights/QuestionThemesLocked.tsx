@@ -2,10 +2,15 @@
  * EM-4 — Question Themes (locked premium teaser).
  * No data fetched. Tap dispatches `moonseed:open-premium`.
  */
+import { useEffect, useState } from "react";
 import { Lock } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
 import { SectionHeader } from "./StalkerCardsSection";
 import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
+import { getQuestionThemes, type QuestionTheme } from "@/lib/insights.functions";
+import { getAuthHeaders } from "@/lib/server-fn-auth";
+import type { InsightsFilters } from "@/lib/insights.types";
 
 const FAKE_THEMES: Array<{ name: string; pct: number }> = [
   { name: "Career & Path", pct: 28 },
@@ -15,28 +20,11 @@ const FAKE_THEMES: Array<{ name: string; pct: number }> = [
   { name: "Creative Voice", pct: 15 },
 ];
 
-export function QuestionThemesLocked() {
+export function QuestionThemesLocked({ filters }: { filters?: InsightsFilters } = {}) {
   const { user } = useAuth();
   const { isPremium } = usePremium(user?.id);
   if (isPremium) {
-    /* EO-5 — premium placeholder; EP will build the AI question themes server fn. */
-    return (
-      <section className="space-y-3">
-        <SectionHeader title="Question Themes" caption="What you keep asking about." />
-        <div
-          className="p-4 text-center"
-          style={{
-            background: "color-mix(in oklch, var(--gold) 12%, transparent)",
-            borderRadius: 14,
-            color: "var(--gold)",
-            fontStyle: "italic",
-            fontFamily: "var(--font-serif)",
-          }}
-        >
-          Question themes generating…
-        </div>
-      </section>
-    );
+    return <PremiumQuestionThemes filters={filters ?? { timeRange: "90d", lifeArea: "all", spreadType: "all" } as InsightsFilters} />;
   }
   const open = () =>
     window.dispatchEvent(
