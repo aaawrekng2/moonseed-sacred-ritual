@@ -372,7 +372,7 @@ function SlideContent({
     "majorMinor" | "reversal" | "moonPhase" | "pairs" | "tags" | "reflection" | "closer"
   > = [
     "majorMinor",
-    "reversal",
+    ...((trackReversals ? (["reversal"] as const) : []) as Array<"reversal">),
     "moonPhase",
     "pairs",
     ...(hasTags ? (["tags"] as const) : []),
