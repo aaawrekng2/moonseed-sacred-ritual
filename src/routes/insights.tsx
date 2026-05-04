@@ -183,22 +183,6 @@ function InsightsRoute() {
   );
 }
 
-function ComingSoon() {
-  return (
-    <div
-      className="py-16 text-center"
-      style={{
-        fontFamily: "var(--font-serif)",
-        fontStyle: "italic",
-        opacity: 0.5,
-        fontSize: "var(--text-body)",
-      }}
-    >
-      Coming next — in development.
-    </div>
-  );
-}
-
 function OverviewTab({
   loading,
   overview,
@@ -265,6 +249,7 @@ function OverviewTab({
 
   return (
     <div className="space-y-4">
+      <LunationBanner />
       {lowData && (
         <div
           className="rounded-lg p-3 text-center"
