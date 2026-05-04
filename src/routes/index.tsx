@@ -379,112 +379,34 @@ function Index() {
             alignItems: "center",
           }}
         >
-          <button
-            type="button"
-            aria-label="Begin today's draw"
-            className="gateway-card-frame animate-breathe-glow overflow-hidden rounded-[12px] transition-transform active:scale-[0.98]"
-            style={{
-              width: cardWidth,
-              height: cardHeight,
-              maxWidth: "90vw",
-              maxHeight: "100%",
-              padding: 0,
-            }}
+          {/* EW-2 — Single CardImage replaces the legacy gateway button:
+              face / back / loading variants are all handled internally,
+              and the bordered `gateway-card-frame` wrapper is dropped so
+              the scanned card art reads as its own visual edge. */}
+          <CardImage
+            cardId={todayCard ?? undefined}
+            variant={
+              todayCard !== null
+                ? "face"
+                : showSkeleton
+                ? "face"
+                : "back"
+            }
+            loading={todayCard === null && showSkeleton}
+            reversed={todayReversed}
+            cardBackId={cardBack}
+            size="custom"
+            widthPx={cardWidth}
+            className="animate-breathe-glow"
+            style={{ maxWidth: "90vw", maxHeight: "100%" }}
             onClick={() =>
               navigate({
                 to: "/draw",
                 search: { spread: "single" },
               })
             }
-          >
-            {todayCard !== null ? (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  position: "relative",
-                }}
-              >
-                <img
-                  ref={heroImgRef}
-                  src={getActiveDeckImage(todayCard)}
-                  alt={getCardName(todayCard)}
-                  onLoad={(e) => {
-                    setHeroImageLoaded(true);
-                    // ER-2 — re-measure the actual rendered width
-                    // once the image is in flow so cornerRadiusStyle
-                    // computes against the final size on first paint.
-                    const w = Math.round(
-                      (e.currentTarget as HTMLImageElement).getBoundingClientRect().width,
-                    );
-                    if (w > 0 && Math.abs(w - cardWidth) > 1) {
-                      setMeasuredCardWidth(w);
-                    }
-                  }}
-                  onError={() => setHeroImageLoaded(true)}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "contain",
-                    display: "block",
-                    opacity: heroImageLoaded ? 1 : 0,
-                    transition: "opacity 300ms ease-out",
-                    ...cornerRadiusStyle(heroDeckRadius, cardWidth),
-                  }}
-                  loading="eager"
-                />
-                {!heroImageLoaded && (
-                  <div
-                    className="hero-skeleton-shimmer"
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      borderRadius: 12,
-                      background:
-                        "color-mix(in oklab, var(--gold) 6%, transparent)",
-                      border:
-                        "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
-                      overflow: "hidden",
-                      ...cornerRadiusStyle(heroDeckRadius, cardWidth),
-                    }}
-                    aria-label="Loading today's card"
-                  />
-                )}
-              </div>
-            ) : showSkeleton ? (
-              <div
-                className="hero-skeleton-shimmer"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  borderRadius: 12,
-                  background: "color-mix(in oklab, var(--gold) 6%, transparent)",
-                  border: "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
-                  animation: "fade-in 200ms ease-out both",
-                  position: "relative",
-                  overflow: "hidden",
-                  ...cornerRadiusStyle(heroDeckRadius, cardWidth),
-                }}
-                aria-label="Loading today's card"
-              />
-            ) : (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  animation: "fade-in 400ms ease-out both",
-                }}
-              >
-                <CardBack
-                  id={cardBack}
-                  imageUrl={customBackUrl}
-                  width={cardWidth}
-                  neutralBorder
-                  cornerRadiusPercent={heroDeckRadius}
-                />
-              </div>
-            )}
-          </button>
+            ariaLabel="Begin today's draw"
+          />
           {/* EE-8 — Streak Moon glyph. Replaces the prior Flame icon
               with today's actual moon phase, tying the streak marker
               to the sky. Tappable: opens a modal with detail. */}
