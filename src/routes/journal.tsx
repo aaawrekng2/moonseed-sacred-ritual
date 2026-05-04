@@ -2108,8 +2108,6 @@ function ReadingDetail({
   // DD-4 — tap-to-zoom on saved-reading cards. Reuses the same modal
   // the active draw uses (CZ Group 3) so behavior matches everywhere.
   const [zoomedCard, setZoomedCard] = useState<{ cardId: number; reversed: boolean } | null>(null);
-  // DB-3.1 — render this reading's images using its SAVED deck.
-  const getImage = useDeckImage(reading.deck_id ?? null);
   // EZ-5 — Cards in journal reading-detail size to a 3-card-spread
   // baseline. A single-card reading renders at the same physical
   // width as one of three cards (centered, prominent — not full-row).
