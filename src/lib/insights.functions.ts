@@ -17,6 +17,7 @@ import {
 import { getCardArcana, getCardSuit, getCardName } from "@/lib/tarot";
 import { getGuideById, LENSES } from "@/lib/guides";
 import { z } from "zod";
+import { getLunationContaining } from "@/lib/lunation";
 
 const FREE_CAP_DAYS = 90;
 const STALKER_THRESHOLD = 3;
@@ -711,4 +712,183 @@ export const getLensDistribution = createServerFn({ method: "GET" })
       allEven,
       hasAnyLens: lenses.some((l) => l.count > 0),
     };
+  });
+
+/* ============================================================
+ * EN — Recap (lunation) server functions
+ * ============================================================ */
+
+const LunationRecapInputSchema = z.object({
+  lunationStart: z.string(), // ISO datetime
+});
+
+/**
+ * EN-6 — Aggregate everything needed for the Lunation Recap story.
+ * Lunation queries are astronomically anchored, not time-windowed,
+ * so the 90-day free-tier cap does NOT apply here.
+ *
+ * NOTE: reversal calc reuses card_orientations; pinned reversal-audit
+ * is upstream. DO NOT adjust here.
+ */
+export const getLunationRecap = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => LunationRecapInputSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const startDate = new Date(data.lunationStart);
+    const containing = getLunationContaining(startDate);
+    const start = containing.start;
+    const end = containing.end;
+
+    const { data: rowsRaw, error } = await supabase
+      .from("readings")
+      .select(READING_COLUMNS_EN)
+      .eq("user_id", userId)
+      .is("archived_at", null)
+      .gte("created_at", start.toISOString())
+      .lt("created_at", end.toISOString())
+      .order("created_at", { ascending: true })
+      .limit(2000);
+    if (error) throw error;
+    const rows = (rowsRaw ?? []) as Array<{
+      id: string;
+      created_at: string;
+      card_ids: number[] | null;
+      card_orientations: boolean[] | null;
+      spread_type: string | null;
+      moon_phase: string | null;
+      guide_id: string | null;
+      lens_id: string | null;
+      is_deep_reading: boolean | null;
+      deck_id: string | null;
+      tags: string[] | null;
+    }>;
+
+    const cardCounts = new Map<number, number>();
+    const suitCounts = { Wands: 0, Cups: 0, Swords: 0, Pentacles: 0 };
+    let majors = 0;
+    let minors = 0;
+    let totalCards = 0;
+    let reversedCards = 0;
+    const moonPhases: Record<string, number> = {};
+    const guideCounts: Record<string, number> = {};
+    const tagCounts: Record<string, number> = {};
+    const pairCounts = new Map<string, number>();
+
+    for (const r of rows) {
+      const cards = r.card_ids ?? [];
+      const orients = r.card_orientations ?? [];
+      cards.forEach((cid, idx) => {
+        totalCards += 1;
+        if (orients[idx]) reversedCards += 1;
+        cardCounts.set(cid, (cardCounts.get(cid) ?? 0) + 1);
+        const arcana = getCardArcana(cid);
+        if (arcana === "major") majors += 1;
+        else minors += 1;
+        const suit = getCardSuit(cid);
+        if (suit !== "Major") suitCounts[suit] += 1;
+      });
+      if (cards.length >= 2) {
+        const unique = Array.from(new Set(cards));
+        for (let i = 0; i < unique.length; i += 1) {
+          for (let j = i + 1; j < unique.length; j += 1) {
+            const a = Math.min(unique[i], unique[j]);
+            const b = Math.max(unique[i], unique[j]);
+            const k = `${a}:${b}`;
+            pairCounts.set(k, (pairCounts.get(k) ?? 0) + 1);
+          }
+        }
+      }
+      if (r.moon_phase) moonPhases[r.moon_phase] = (moonPhases[r.moon_phase] ?? 0) + 1;
+      if (r.guide_id) guideCounts[r.guide_id] = (guideCounts[r.guide_id] ?? 0) + 1;
+      for (const t of r.tags ?? []) tagCounts[t] = (tagCounts[t] ?? 0) + 1;
+    }
+
+    const minorTotal = suitCounts.Wands + suitCounts.Cups + suitCounts.Swords + suitCounts.Pentacles;
+    const sortedCards = [...cardCounts.entries()].sort((a, b) => b[1] - a[1]);
+    const topStalker = sortedCards[0]
+      ? {
+          cardId: sortedCards[0][0],
+          count: sortedCards[0][1],
+          cardName: getCardName(sortedCards[0][0]),
+        }
+      : null;
+
+    const topGuideEntry = Object.entries(guideCounts).sort((a, b) => b[1] - a[1])[0];
+    const topGuide = topGuideEntry
+      ? {
+          guideId: topGuideEntry[0],
+          name: getGuideById(topGuideEntry[0])?.name ?? topGuideEntry[0],
+          count: topGuideEntry[1],
+        }
+      : null;
+
+    const topMoonPhaseEntry = Object.entries(moonPhases).sort((a, b) => b[1] - a[1])[0];
+    const topMoonPhase = topMoonPhaseEntry
+      ? { phase: topMoonPhaseEntry[0], count: topMoonPhaseEntry[1] }
+      : null;
+
+    const topPairs = [...pairCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([k, count]) => {
+        const [a, b] = k.split(":").map(Number);
+        return {
+          cardA: a,
+          cardB: b,
+          cardAName: getCardName(a),
+          cardBName: getCardName(b),
+          count,
+        };
+      });
+
+    const topTags = Object.entries(tagCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([tagName, count]) => ({ tagName, count }));
+
+    const pctOf = (part: number, total: number) =>
+      total <= 0 ? 0 : Math.round((part / total) * 1000) / 10;
+
+    return {
+      lunationStart: start.toISOString(),
+      lunationEnd: end.toISOString(),
+      readingCount: rows.length,
+      topStalker,
+      suitBalance: {
+        wands: pctOf(suitCounts.Wands, minorTotal),
+        cups: pctOf(suitCounts.Cups, minorTotal),
+        swords: pctOf(suitCounts.Swords, minorTotal),
+        pentacles: pctOf(suitCounts.Pentacles, minorTotal),
+      },
+      topGuide,
+      majorMinor: {
+        major: pctOf(majors, majors + minors),
+        minor: pctOf(minors, majors + minors),
+      },
+      reversalRate: totalCards === 0 ? 0 : reversedCards / totalCards,
+      topMoonPhase,
+      topPairs,
+      topTags,
+    };
+  });
+
+const READING_COLUMNS_EN =
+  "id, created_at, card_ids, card_orientations, spread_type, moon_phase, guide_id, lens_id, is_deep_reading, deck_id, tags";
+
+/** EN-2 — Earliest reading date for the user (used to bound lunation history). */
+export const getEarliestReadingDate = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const { data, error } = await supabase
+      .from("readings")
+      .select("created_at")
+      .eq("user_id", userId)
+      .is("archived_at", null)
+      .order("created_at", { ascending: true })
+      .limit(1);
+    if (error) throw error;
+    const first = (data ?? [])[0];
+    return { earliest: first ? (first.created_at as string) : null };
   });

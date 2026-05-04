@@ -44,9 +44,11 @@ export function BottomNav() {
     }
   }, [count, showThreads]);
 
-  // With Stories: Journal, Stories, Insights, Home, Settings.
+  // EN-0 — 5-tab order: Journal | Stories | Home | Insights | Settings,
+  // so Home (primary) sits at the true geometric center (index 2 of 5).
+  // BASE_TABS is [Journal, Insights, Home, Settings].
   const tabs: Tab[] = showThreads
-    ? [BASE_TABS[0], THREADS_TAB, BASE_TABS[1], BASE_TABS[2], BASE_TABS[3]]
+    ? [BASE_TABS[0], THREADS_TAB, BASE_TABS[2], BASE_TABS[1], BASE_TABS[3]]
     : [...BASE_TABS];
 
   return (

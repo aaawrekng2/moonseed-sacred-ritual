@@ -26,6 +26,8 @@ import { TagCloud } from "@/components/insights/TagCloud";
 import { GuidePreferences } from "@/components/insights/GuidePreferences";
 import { LensDistribution } from "@/components/insights/LensDistribution";
 import { QuestionThemesLocked } from "@/components/insights/QuestionThemesLocked";
+import { RecapTab } from "@/components/insights/RecapTab";
+import { LunationBanner } from "@/components/insights/LunationBanner";
 import type { MoonPhaseName } from "@/lib/moon";
 
 export const Route = createFileRoute("/insights")({
@@ -172,27 +174,11 @@ function InsightsRoute() {
               <QuestionThemesLocked />
             </div>
           )}
-          {tab === "recap" && <ComingSoon />}
+          {tab === "recap" && <RecapTab />}
         </div>
       </main>
 
       <BottomNav />
-    </div>
-  );
-}
-
-function ComingSoon() {
-  return (
-    <div
-      className="py-16 text-center"
-      style={{
-        fontFamily: "var(--font-serif)",
-        fontStyle: "italic",
-        opacity: 0.5,
-        fontSize: "var(--text-body)",
-      }}
-    >
-      Coming next — in development.
     </div>
   );
 }
@@ -263,6 +249,7 @@ function OverviewTab({
 
   return (
     <div className="space-y-4">
+      <LunationBanner />
       {lowData && (
         <div
           className="rounded-lg p-3 text-center"
