@@ -26,6 +26,8 @@ import { TagCloud } from "@/components/insights/TagCloud";
 import { GuidePreferences } from "@/components/insights/GuidePreferences";
 import { LensDistribution } from "@/components/insights/LensDistribution";
 import { QuestionThemesLocked } from "@/components/insights/QuestionThemesLocked";
+import { RecapTab } from "@/components/insights/RecapTab";
+import { LunationBanner } from "@/components/insights/LunationBanner";
 import type { MoonPhaseName } from "@/lib/moon";
 
 export const Route = createFileRoute("/insights")({
@@ -172,7 +174,7 @@ function InsightsRoute() {
               <QuestionThemesLocked />
             </div>
           )}
-          {tab === "recap" && <ComingSoon />}
+          {tab === "recap" && <RecapTab />}
         </div>
       </main>
 
