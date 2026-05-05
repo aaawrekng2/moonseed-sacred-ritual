@@ -20,6 +20,43 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchDeckCards, type CustomDeckCard } from "@/lib/custom-decks";
 import { getCardName } from "@/lib/tarot";
 import { useConfirm } from "@/hooks/use-confirm";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+// FI-2 — 4-corner crop coordinates in IMG NATURAL pixel space.
+type CropCoords = {
+  tl: { x: number; y: number };
+  tr: { x: number; y: number };
+  bl: { x: number; y: number };
+  br: { x: number; y: number };
+};
+
+function defaultCropFor(w: number, h: number): CropCoords {
+  return {
+    tl: { x: 0, y: 0 },
+    tr: { x: w, y: 0 },
+    bl: { x: 0, y: h },
+    br: { x: w, y: h },
+  };
+}
+
+function isCropCoords(v: unknown): v is CropCoords {
+  if (!v || typeof v !== "object") return false;
+  const o = v as Record<string, unknown>;
+  for (const k of ["tl", "tr", "bl", "br"]) {
+    const p = o[k] as { x?: unknown; y?: unknown } | undefined;
+    if (!p || typeof p.x !== "number" || typeof p.y !== "number") return false;
+  }
+  return true;
+}
 
 type Props = {
   deckId: string;
@@ -40,8 +77,14 @@ export function PerCardEditModal({
   const [signedUrls, setSignedUrls] = useState<Record<number, string>>({});
   const [radius, setRadius] = useState<number>(defaultRadiusPercent);
   const [savedRadii, setSavedRadii] = useState<Record<number, number>>({});
+  // FI-2 — per-card crop coords loaded from DB.
+  const [savedCrops, setSavedCrops] = useState<Record<number, CropCoords>>({});
+  const [crop, setCrop] = useState<CropCoords | null>(null);
   const [busy, setBusy] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  // FI-3 — choice dialog state for "Apply to all".
+  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [applyScope, setApplyScope] = useState<"unsaved" | "all">("unsaved");
   const [canvasPreview, setCanvasPreview] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
   // FG-3 — show big radius number overlay only while user is dragging.
@@ -60,6 +103,7 @@ export function PerCardEditModal({
     { w: number; h: number } | null
   >(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const previewWrapRef = useRef<HTMLDivElement | null>(null);
 
   // Load card list + per-card radii.
   useEffect(() => {
@@ -90,17 +134,22 @@ export function PerCardEditModal({
         // don't have to widen CustomDeckCard everywhere.
         const { data: rows } = await supabase
           .from("custom_deck_cards")
-          .select("card_id, corner_radius_percent")
+          .select("card_id, corner_radius_percent, crop_coords")
           .eq("deck_id", deckId)
           .is("archived_at", null);
         if (cancelled) return;
         const sr: Record<number, number> = {};
+        const sc: Record<number, CropCoords> = {};
         for (const r of rows ?? []) {
           if (typeof r.corner_radius_percent === "number") {
             sr[r.card_id] = r.corner_radius_percent;
           }
+          if (isCropCoords(r.crop_coords)) {
+            sc[r.card_id] = r.crop_coords;
+          }
         }
         setSavedRadii(sr);
+        setSavedCrops(sc);
         if (photographed.length > 0) {
           const first = photographed[0].card_id;
           setActiveCardId(first);
@@ -154,7 +203,17 @@ export function PerCardEditModal({
     setCanvasPreview(null);
     setImgDims(null);
     setRenderedDims(null);
+    // FI-2 — clear crop until imgDims arrive; we'll hydrate then.
+    setCrop(null);
   }, [activeCardId]);
+
+  // FI-2 — hydrate crop from saved coords (or default rect) once we
+  // know the natural dimensions of the loaded image.
+  useEffect(() => {
+    if (activeCardId === null || !imgDims) return;
+    const saved = savedCrops[activeCardId];
+    setCrop(saved ?? defaultCropFor(imgDims.w, imgDims.h));
+  }, [activeCardId, imgDims, savedCrops]);
 
   // FF-1 — observe rendered size of the preview IMG. Fires on initial
   // mount, modal resize, viewport rotation, and whenever the image
@@ -176,9 +235,18 @@ export function PerCardEditModal({
     setBusy(true);
     try {
       // First persist the chosen radius so the edge fn picks it up.
+      const patch: {
+        corner_radius_percent: number;
+        processing_status: string;
+        crop_coords?: CropCoords;
+      } = {
+        corner_radius_percent: radius,
+        processing_status: "pending",
+      };
+      if (crop) patch.crop_coords = crop;
       const { error: updErr } = await supabase
         .from("custom_deck_cards")
-        .update({ corner_radius_percent: radius, processing_status: "pending" })
+        .update(patch)
         .eq("deck_id", deckId)
         .eq("card_id", activeCardId);
       if (updErr) throw updErr;
@@ -206,6 +274,9 @@ export function PerCardEditModal({
         throw new Error(`${result.error ?? "Processing failed."}${stepLabel}`);
       }
       setSavedRadii((prev) => ({ ...prev, [activeCardId]: radius }));
+      if (crop) {
+        setSavedCrops((prev) => ({ ...prev, [activeCardId]: crop }));
+      }
       // Cache-bust the visible image so the new -full.webp shows.
       setVersion((v) => v + 1);
       toast.success(`${getCardName(activeCardId)} saved.`);
@@ -220,40 +291,59 @@ export function PerCardEditModal({
     }
   }
 
-  // FG-4 — Apply current radius to every card in the deck, then offer
-  // to batch-process them through the edge function (single-card mode
-  // per card so the rounded -full.webp variants get baked).
-  async function handleApplyToAll() {
+  // FI-3 — open the choice dialog instead of going straight to confirm.
+  function handleApplyToAll() {
     if (bulkBusy || busy) return;
-    const list = cards ?? [];
-    const total = list.length;
-    if (total === 0) return;
+    if (!cards || cards.length === 0) return;
+    setApplyScope("unsaved");
+    setApplyDialogOpen(true);
+  }
 
-    const ok = await confirm({
-      title: `Apply radius ${radius}% to all ${total} cards?`,
-      description:
-        "Updates the per-card setting on every photographed card in this deck.",
-      confirmLabel: "Apply to all",
-    });
-    if (!ok) return;
+  // FI-3 — perform the apply with the chosen scope (unsaved-only or all).
+  async function applyToSelected(scope: "unsaved" | "all") {
+    const list = cards ?? [];
+    const targets = scope === "unsaved"
+      ? list.filter((c) => !(c.card_id in savedRadii))
+      : list;
+    const targetCount = targets.length;
+    if (targetCount === 0) {
+      toast.info("No cards to update.");
+      return;
+    }
 
     setBulkBusy(true);
     try {
+      const updatePatch: {
+        corner_radius_percent: number;
+        processing_status: string;
+        crop_coords?: CropCoords;
+      } = {
+        corner_radius_percent: radius,
+        processing_status: "pending",
+      };
+      if (crop) updatePatch.crop_coords = crop;
+
+      const targetIds = targets.map((c) => c.card_id);
       const { error } = await supabase
         .from("custom_deck_cards")
-        .update({ corner_radius_percent: radius, processing_status: "pending" })
+        .update(updatePatch)
         .eq("deck_id", deckId)
-        .is("archived_at", null);
+        .is("archived_at", null)
+        .in("card_id", targetIds);
       if (error) throw error;
 
-      // Reflect locally so thumbnails get the saved-state border.
-      const next: Record<number, number> = {};
-      for (const c of list) next[c.card_id] = radius;
-      setSavedRadii((prev) => ({ ...prev, ...next }));
-      toast.success(`Radius ${radius}% set for all ${total} cards.`);
+      const nextRadii: Record<number, number> = {};
+      const nextCrops: Record<number, CropCoords> = {};
+      for (const c of targets) {
+        nextRadii[c.card_id] = radius;
+        if (crop) nextCrops[c.card_id] = crop;
+      }
+      setSavedRadii((prev) => ({ ...prev, ...nextRadii }));
+      if (crop) setSavedCrops((prev) => ({ ...prev, ...nextCrops }));
+      toast.success(`Settings applied to ${targetCount} cards.`);
 
       const goProcess = await confirm({
-        title: `Process all ${total} cards now?`,
+        title: `Process ${targetCount} cards now?`,
         description: "This may take several minutes. You can also do it later from Settings → Decks.",
         confirmLabel: "Process now",
         cancelLabel: "Not now",
@@ -266,8 +356,8 @@ export function PerCardEditModal({
 
       let done = 0;
       let failed = 0;
-      const progressId = toast.loading(`Processing 0/${total}…`);
-      for (const c of list) {
+      const progressId = toast.loading(`Processing 0/${targetCount}…`);
+      for (const c of targets) {
         try {
           const { data, error: invErr } = await supabase.functions.invoke(
             "generate-deck-variants",
@@ -281,29 +371,29 @@ export function PerCardEditModal({
           if (!result.ok) {
             failed++;
             console.warn(
-              `[FG-4] card ${c.card_id} failed`,
+              `[FI-3] card ${c.card_id} failed`,
               result.step,
               result.error,
             );
           }
         } catch (e) {
           failed++;
-          console.warn(`[FG-4] card ${c.card_id} threw`, e);
+          console.warn(`[FI-3] card ${c.card_id} threw`, e);
         }
         done++;
-        toast.loading(`Processing ${done}/${total}…`, { id: progressId });
+        toast.loading(`Processing ${done}/${targetCount}…`, { id: progressId });
       }
       setVersion((v) => v + 1);
       if (failed > 0) {
         toast.error(
-          `Processed ${done - failed}/${total}. ${failed} failed — check console.`,
+          `Processed ${done - failed}/${targetCount}. ${failed} failed — check console.`,
           { id: progressId },
         );
       } else {
-        toast.success(`All ${total} cards processed.`, { id: progressId });
+        toast.success(`All ${targetCount} cards processed.`, { id: progressId });
       }
     } catch (err) {
-      console.error("[FG-4] apply-to-all failed", err);
+      console.error("[FI-3] apply-to-all failed", err);
       toast.error(
         err instanceof Error ? err.message : "Apply to all failed.",
       );
@@ -370,7 +460,10 @@ export function PerCardEditModal({
                   </p>
                 </div>
 
-                <div className="relative flex items-center justify-center rounded-md bg-cosmos/40 p-4">
+                <div
+                  ref={previewWrapRef}
+                  className="relative flex items-center justify-center rounded-md bg-cosmos/40 p-4"
+                >
                   {previewSrc ? (
                     <img
                       ref={imgRef}
@@ -402,6 +495,19 @@ export function PerCardEditModal({
                   ) : (
                     <Loader2 className="h-5 w-5 animate-spin opacity-60" />
                   )}
+                  {/* FI-2 — Crop corner handles. Only shown on raw image
+                      preview (not the rounded canvas snapshot) and only
+                      once both natural + rendered sizes are known. */}
+                  {!canvasPreview && crop && imgDims && renderedDims && imgRef.current ? (
+                    <CropHandles
+                      imgEl={imgRef.current}
+                      crop={crop}
+                      imgDims={imgDims}
+                      renderedDims={renderedDims}
+                      onChange={(next) => setCrop(next)}
+                      onRelease={() => renderCanvasPreview()}
+                    />
+                  ) : null}
                   {/* FG-3 — Big radius value overlay while dragging. */}
                   {isSliding ? (
                     <div
@@ -547,7 +653,196 @@ export function PerCardEditModal({
           </aside>
         </div>
       </div>
+      {/* FI-3 — Apply-to-all choice dialog. */}
+      <AlertDialog
+        open={applyDialogOpen}
+        onOpenChange={(o) => { if (!o) setApplyDialogOpen(false); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply settings to which cards?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Radius {radius}%{crop ? " · Cropped" : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-col gap-2 py-2 text-sm">
+            {(() => {
+              const list = cards ?? [];
+              const unsavedCount = list.filter(
+                (c) => !(c.card_id in savedRadii),
+              ).length;
+              const totalCount = list.length;
+              const savedCount = totalCount - unsavedCount;
+              return (
+                <>
+                  <label className="flex items-start gap-2 cursor-pointer rounded-md border border-border/40 p-2 hover:bg-muted/30">
+                    <input
+                      type="radio"
+                      name="apply-scope"
+                      value="unsaved"
+                      checked={applyScope === "unsaved"}
+                      onChange={() => setApplyScope("unsaved")}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="font-medium">Unsaved cards only ({unsavedCount})</span>
+                      <span className="block text-xs text-muted-foreground">
+                        Skips cards you've already saved.
+                      </span>
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 cursor-pointer rounded-md border border-border/40 p-2 hover:bg-muted/30">
+                    <input
+                      type="radio"
+                      name="apply-scope"
+                      value="all"
+                      checked={applyScope === "all"}
+                      onChange={() => setApplyScope("all")}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="font-medium">All cards ({totalCount})</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {savedCount > 0
+                          ? `Will overwrite ${savedCount} already-saved card${savedCount === 1 ? "" : "s"}.`
+                          : "Updates every photographed card."}
+                      </span>
+                    </span>
+                  </label>
+                </>
+              );
+            })()}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setApplyDialogOpen(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setApplyDialogOpen(false);
+                void applyToSelected(applyScope);
+              }}
+            >
+              Apply
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>,
     document.body,
+  );
+}
+
+// FI-2 — Draggable corner-crop overlay. Renders 4 small handles plus
+// SVG quad outline. Coordinates kept in IMG NATURAL pixel space.
+function CropHandles({
+  imgEl,
+  crop,
+  imgDims,
+  renderedDims,
+  onChange,
+  onRelease,
+}: {
+  imgEl: HTMLImageElement;
+  crop: CropCoords;
+  imgDims: { w: number; h: number };
+  renderedDims: { w: number; h: number };
+  onChange: (next: CropCoords) => void;
+  onRelease: () => void;
+}) {
+  const [, force] = useState(0);
+
+  // Re-measure offset on each render (cheap; layout-stable).
+  const wrap = imgEl.parentElement;
+  if (!wrap) return null;
+  const wrapRect = wrap.getBoundingClientRect();
+  const imgRect = imgEl.getBoundingClientRect();
+  const offX = imgRect.left - wrapRect.left;
+  const offY = imgRect.top - wrapRect.top;
+
+  function natToRendered(p: { x: number; y: number }) {
+    return {
+      x: (p.x / imgDims.w) * renderedDims.w,
+      y: (p.y / imgDims.h) * renderedDims.h,
+    };
+  }
+
+  function startDrag(
+    e: React.PointerEvent<HTMLDivElement>,
+    corner: keyof CropCoords,
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startCrop = { ...crop[corner] };
+    let latest = crop;
+
+    function onMove(ev: PointerEvent) {
+      const dxRendered = ev.clientX - startX;
+      const dyRendered = ev.clientY - startY;
+      const dxNatural = (dxRendered / renderedDims.w) * imgDims.w;
+      const dyNatural = (dyRendered / renderedDims.h) * imgDims.h;
+      const next: CropCoords = {
+        ...latest,
+        [corner]: {
+          x: Math.max(0, Math.min(imgDims.w, startCrop.x + dxNatural)),
+          y: Math.max(0, Math.min(imgDims.h, startCrop.y + dyNatural)),
+        },
+      };
+      latest = next;
+      onChange(next);
+      force((n) => n + 1);
+    }
+    function onUp() {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      onRelease();
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
+  const corners: (keyof CropCoords)[] = ["tl", "tr", "bl", "br"];
+  const pts = corners.map((k) => natToRendered(crop[k]));
+
+  return (
+    <>
+      <svg
+        aria-hidden
+        className="pointer-events-none absolute"
+        style={{
+          left: offX,
+          top: offY,
+          width: renderedDims.w,
+          height: renderedDims.h,
+        }}
+      >
+        <polygon
+          points={`${pts[0].x},${pts[0].y} ${pts[1].x},${pts[1].y} ${pts[3].x},${pts[3].y} ${pts[2].x},${pts[2].y}`}
+          fill="none"
+          stroke="hsl(var(--gold, 45 80% 60%))"
+          strokeWidth="1.5"
+          strokeDasharray="4 3"
+          opacity="0.85"
+        />
+      </svg>
+      {corners.map((k, i) => {
+        const p = pts[i];
+        return (
+          <div
+            key={k}
+            role="slider"
+            aria-label={`Crop ${k} handle`}
+            onPointerDown={(e) => startDrag(e, k)}
+            className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-gold bg-background/90 shadow-md cursor-grab active:cursor-grabbing touch-none"
+            style={{
+              left: offX + p.x,
+              top: offY + p.y,
+            }}
+          />
+        );
+      })}
+    </>
   );
 }
