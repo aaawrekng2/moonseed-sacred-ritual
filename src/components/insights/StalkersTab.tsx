@@ -50,22 +50,70 @@ const TIME_RANGE_LABELS: Record<TimeRange, string> = {
   all: "All time",
 };
 
-// FM-6 — Type chip without count badge.
-function TypeChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+// FN-4 — Inline SVG icons for chips (stacked-card glyphs).
+function SingleCardIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="7" y="4" width="10" height="16" rx="1" />
+    </svg>
+  );
+}
+function TwinCardIcon() {
+  return (
+    <svg width="22" height="18" viewBox="0 0 28 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="4" y="4" width="10" height="16" rx="1" />
+      <rect x="14" y="4" width="10" height="16" rx="1" />
+    </svg>
+  );
+}
+function TripletCardIcon() {
+  return (
+    <svg width="26" height="18" viewBox="0 0 32 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <rect x="2" y="4" width="9" height="16" rx="1" />
+      <rect x="11.5" y="4" width="9" height="16" rx="1" />
+      <rect x="21" y="4" width="9" height="16" rx="1" />
+    </svg>
+  );
+}
+function ReversedCardIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="7" y="4" width="10" height="16" rx="1" transform="rotate(180 12 12)" />
+      <path d="M16 18 L12 22 L8 18" />
+    </svg>
+  );
+}
+
+// FN-4 — Icon-only chip.
+function Chip({ icon, active, onClick, label }: {
+  icon: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-label={label}
+      title={label}
+      aria-pressed={active}
       className={
-        "text-xs rounded-full border px-2.5 py-1 transition-colors " +
+        "inline-flex items-center justify-center rounded-full border p-1.5 transition-colors " +
         (active
-          ? "border-[var(--gold)] bg-[color-mix(in_oklch,var(--gold)_10%,transparent)] text-[var(--gold)]"
-          : "border-border/50 text-muted-foreground hover:border-[var(--gold)]/50")
+          ? "border-[var(--gold)] bg-[color-mix(in_oklch,var(--gold)_15%,transparent)] text-[var(--gold)]"
+          : "border-border/50 text-muted-foreground hover:border-[var(--gold)]/50 hover:text-[var(--gold)]")
       }
     >
-      {label}
+      {icon}
     </button>
   );
+}
+
+// FN-2 — Selection by highlight: unselected dim, selected stays bright.
+function selClass(selectedKey: string | number | null, key: string | number): string {
+  if (selectedKey === null) return "";
+  return selectedKey === key ? "opacity-100" : "opacity-40";
 }
 
 export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
