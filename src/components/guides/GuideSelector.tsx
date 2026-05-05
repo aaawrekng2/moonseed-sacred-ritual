@@ -629,7 +629,6 @@ function CreateCustomGuideDialog({
             {saving ? "Saving…" : "Save Guide"}
           </Button>
         </div>
-      </div>
     </Modal>
   );
 }
