@@ -256,6 +256,8 @@ function DeckRow({
   // for every card in this deck. Speeds up journal/insights renders
   // by 10-50× on decks with multi-MB scans.
   const [variantBusy, setVariantBusy] = useState(false);
+  // FD-2 — open the per-card rounded-corner editor.
+  const [showRoundEditor, setShowRoundEditor] = useState(false);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -418,12 +420,32 @@ function DeckRow({
       </button>
       <button
         type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowRoundEditor(true);
+        }}
+        className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
+        title="Round corners per card (FD)"
+        aria-label="Round corners per card"
+      >
+        <Scissors className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
         onClick={(e) => { e.stopPropagation(); onDelete(); }}
         className="rounded-md border border-destructive/40 p-1.5 text-destructive hover:bg-destructive/10"
         aria-label="Delete deck"
       >
         <Trash2 className="h-4 w-4" />
       </button>
+      {showRoundEditor ? (
+        <PerCardEditModal
+          deckId={deck.id}
+          deckName={deck.name}
+          defaultRadiusPercent={deck.corner_radius_percent ?? 4}
+          onClose={() => setShowRoundEditor(false)}
+        />
+      ) : null}
     </li>
   );
 }
