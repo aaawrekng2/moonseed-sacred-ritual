@@ -182,7 +182,7 @@ function InsightsRoute() {
               <QuestionThemesLocked filters={filters} />
             </div>
           )}
-          {tab === "stalkers" && <StalkersTab timeRange={filters.timeRange} />}
+          {tab === "stalkers" && <StalkersTab filters={filters} />}
           {tab === "recap" && <RecapTab />}
         </div>
       </main>
