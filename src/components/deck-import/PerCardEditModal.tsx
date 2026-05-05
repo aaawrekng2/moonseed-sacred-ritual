@@ -134,9 +134,12 @@ export function PerCardEditModal({
         }
         // Pull existing per-card radii in a separate query so we
         // don't have to widen CustomDeckCard everywhere.
+        // FK-1 — include processing_status so pendingCount can be
+        // computed at modal open. Without this, the Resume button
+        // never appears on stuck decks.
         const { data: rows } = await supabase
           .from("custom_deck_cards")
-          .select("card_id, corner_radius_percent, crop_coords")
+          .select("card_id, corner_radius_percent, crop_coords, processing_status")
           .eq("deck_id", deckId)
           .is("archived_at", null);
         if (cancelled) return;
@@ -152,6 +155,24 @@ export function PerCardEditModal({
         }
         setSavedRadii(sr);
         setSavedCrops(sc);
+        // FK-1 — merge processing_status onto cards so pendingCount works
+        // immediately on open (fetchDeckCards may not include it).
+        const statusByCard = new Map<number, string>();
+        for (const r of rows ?? []) {
+          if (typeof r.processing_status === "string") {
+            statusByCard.set(r.card_id, r.processing_status);
+          }
+        }
+        setCards((prev) =>
+          prev
+            ? prev.map((c) => {
+                const s = statusByCard.get(c.card_id);
+                return s
+                  ? ({ ...(c as unknown as object), processing_status: s } as unknown as CustomDeckCard)
+                  : c;
+              })
+            : prev,
+        );
         if (photographed.length > 0) {
           const first = photographed[0].card_id;
           setActiveCardId(first);
@@ -590,7 +611,10 @@ export function PerCardEditModal({
         {/* FG-2 — On mobile: preview takes the full width, card list
             becomes a horizontal scroll row UNDERNEATH. On md+: keep
             the original sidebar grid + side preview layout. */}
-        <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 md:flex-row">
+        {/* FK-2 — enable vertical scroll on mobile when content
+            overflows. Desktop layout (md+) still uses flex-row with
+            internal scrolling on the sidebar. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 md:flex-row md:overflow-y-visible">
           {/* Editor — first on mobile (order-1), right side on desktop (order-2). */}
           <section className="order-1 flex min-w-0 flex-1 flex-col gap-3 md:order-2">
             {activeCardId === null ? (
@@ -963,7 +987,9 @@ function CropHandles({
       window.removeEventListener("pointerup", onUp);
       onRelease();
     }
-    window.addEventListener("pointermove", onMove);
+    // FK-3 — passive:false so any future preventDefault inside onMove
+    // isn't silently ignored on touch devices.
+    window.addEventListener("pointermove", onMove, { passive: false });
     window.addEventListener("pointerup", onUp);
   }
 
@@ -994,12 +1020,15 @@ function CropHandles({
       {corners.map((k, i) => {
         const p = pts[i];
         return (
+          // FK-3 — bigger hit target (h-8 w-8 = 32px) and z-20 so
+          // pointerdown reaches the handle even when other layers
+          // (slider, IMG, polygon) sit underneath.
           <div
             key={k}
             role="slider"
             aria-label={`Crop ${k} handle`}
             onPointerDown={(e) => startDrag(e, k)}
-            className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-gold bg-background/90 shadow-md cursor-grab active:cursor-grabbing touch-none"
+            className="absolute z-20 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-gold bg-background/90 shadow-md cursor-grab active:cursor-grabbing touch-none"
             style={{
               left: offX + p.x,
               top: offY + p.y,
