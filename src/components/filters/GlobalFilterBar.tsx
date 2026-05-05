@@ -240,12 +240,13 @@ function TimeRangeDropdown({ value, options, onChange }: TimeRangeProp) {
         createPortal(
           <div
             data-time-range-popover
-            className="fixed z-[60] min-w-[10rem] overflow-hidden rounded-md border shadow-lg"
+            className="fixed min-w-[10rem] overflow-hidden rounded-md border shadow-lg"
             style={{
               left: coords.left,
               top: coords.top,
               background: "var(--surface-overlay)",
               borderColor: "var(--border-subtle)",
+              zIndex: "var(--z-drawer)",
             }}
           >
           {options.map((o) => {
@@ -310,13 +311,13 @@ function FilterDrawer({
           type="button"
           aria-label="Close filters"
           onClick={onClose}
-          className="fixed top-0 z-40 h-dvh w-10 cursor-pointer bg-transparent"
-          style={{ right: "var(--journal-drawer-w)" }}
+          className="fixed top-0 h-dvh w-10 cursor-pointer bg-transparent"
+          style={{ right: "var(--journal-drawer-w)", zIndex: 50 }}
         />
       )}
       <aside
         aria-hidden={!open}
-        className="journal-filter-drawer fixed right-0 top-0 z-50 flex h-dvh flex-col overflow-y-auto border-l shadow-2xl transition-transform duration-300 ease-out"
+        className="journal-filter-drawer fixed right-0 top-0 flex h-dvh flex-col overflow-y-auto border-l shadow-2xl transition-transform duration-300 ease-out"
         style={{
           width: "var(--journal-drawer-w)",
           borderColor: "color-mix(in oklab, var(--gold) 18%, transparent)",
@@ -327,6 +328,7 @@ function FilterDrawer({
           paddingRight: 20,
           transform: open ? "translateX(0)" : "translateX(100%)",
           pointerEvents: open ? "auto" : "none",
+          zIndex: "var(--z-drawer)",
         }}
       >
         <div className="mb-4 flex items-center justify-between">
