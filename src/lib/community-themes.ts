@@ -276,51 +276,6 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     stateActiveBgPassive: "#0000000a",
     stateActiveFgPassive: "#3a3a3c",
   },
-  // FT-1 — Audit themes. Dev-only. Inherit Mystic's base palette but
-  // override state-active tokens to test alternative rules. Hidden in
-  // production via the dev-mode filter in ThemesTab.
-  {
-    key: "audit-neutral", name: "Audit \u00b7 Neutral",
-    tagline: "Dev only — passive states use neutral, not accent.",
-    recommendedFont: "Cormorant Garamond",
-    bgLeft: "#1e1b4b", bgRight: "#2d1b69",
-    surface: "#252056", surfaceElevated: "#2d2664",
-    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
-    foreground: "#f5f3ff", foregroundMuted: "#c4b8e8",
-    background: "#1e1b4b", card: "#252056",
-    foregroundMutedStrong: "#e0d8f9", foregroundMutedWeak: "#9989c4",
-    surfaceOverlay: "#1a1742",
-    accent: "#f59e0b", accentForeground: "#1e1b4b",
-    atmosphereOverlay: "#5b21b66b",
-    popover: "#2d2664", popoverForeground: "#f5f3ff",
-    input: "#252056",
-    destructiveForeground: "#fff5f0",
-    // The variable under audit — force passive state to a pure neutral
-    // (no accent tint at all).
-    stateActiveBgPassive: "#ffffff1a",
-    stateActiveFgPassive: "#e0d8f9",
-  },
-  {
-    key: "audit-accent", name: "Audit \u00b7 Accent",
-    tagline: "Dev only — passive states use the accent color, loud.",
-    recommendedFont: "Cormorant Garamond",
-    bgLeft: "#1e1b4b", bgRight: "#2d1b69",
-    surface: "#252056", surfaceElevated: "#2d2664",
-    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
-    foreground: "#f5f3ff", foregroundMuted: "#c4b8e8",
-    background: "#1e1b4b", card: "#252056",
-    foregroundMutedStrong: "#e0d8f9", foregroundMutedWeak: "#9989c4",
-    surfaceOverlay: "#1a1742",
-    accent: "#f59e0b", accentForeground: "#1e1b4b",
-    atmosphereOverlay: "#5b21b66b",
-    popover: "#2d2664", popoverForeground: "#f5f3ff",
-    input: "#252056",
-    destructiveForeground: "#fff5f0",
-    // The variable under audit — force passive state to use the accent
-    // color heavily (mimicking Material Design defaults).
-    stateActiveBgPassive: "#f59e0b3d",
-    stateActiveFgPassive: "#f59e0b",
-  },
 ];
 
 /**
