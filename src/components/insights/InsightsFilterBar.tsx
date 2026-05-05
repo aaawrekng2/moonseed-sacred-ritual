@@ -65,27 +65,30 @@ export function InsightsFilterBar({
         borderBottom: "1px solid var(--border-subtle)",
       }}
     >
-      <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 px-4 py-2">
+      {/* FO-1 — Edit dropdown moves to the far left. Summary follows after. */}
+      <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-2">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="inline-flex items-center gap-1 px-2 py-1 text-sm flex-shrink-0"
+          style={{ color: "var(--gold)", fontStyle: "italic" }}
+        >
+          {open ? "Done" : "Edit"}
+          <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
         <div
+          className="truncate"
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
             fontSize: "var(--text-body-sm)",
             color: "var(--color-foreground)",
             opacity: 0.85,
+            minWidth: 0,
           }}
         >
           {summary.join(" · ")}
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className="inline-flex items-center gap-1 px-2 py-1 text-sm"
-          style={{ color: "var(--gold)", fontStyle: "italic" }}
-        >
-          {open ? "Done" : "Edit"}
-          <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} />
-        </button>
       </div>
       {activeChips.length > 0 && (
         <div className="mx-auto flex max-w-2xl flex-wrap items-center gap-2 px-4 pb-2">
