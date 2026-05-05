@@ -9,10 +9,10 @@
  * Reversed cards are rendered rotated 180° to match the seated
  * orientation in the spread.
  */
-import { X } from "lucide-react";
 import { getCardName } from "@/lib/tarot";
 import { useEffect, useState } from "react";
 import { CardImage } from "@/components/card/CardImage";
+import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import {
   cornerRadiusStyle,
   useActiveDeckCornerRadius,
@@ -64,77 +64,57 @@ export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomMod
   const specificRadius = useDeckCornerRadius(deckId ?? null);
   const useSpecific = deckId != null && deckId !== "";
   const deckRadius = useSpecific ? specificRadius : activeRadius;
-  // Allow Escape key to close on desktop.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
   return (
-    <div
-      className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-4 bg-black/80 backdrop-blur-sm p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={`Zoomed view of ${getCardName(cardId)}`}
-    >
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-        aria-label="Close zoom"
-        className="absolute right-4 top-4 z-10 rounded-full bg-black/40 p-2 text-white"
-        style={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
-      >
-        <X size={24} />
-      </button>
+    <FullScreenSheet open onClose={onClose} entry="fade" showCloseButton>
       <div
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-        style={{
-          ...cornerRadiusStyle(deckRadius, imgW),
-          boxShadow: "0 0 80px -10px rgba(212,175,55,0.5)",
-          transition: "transform 300ms ease",
-        }}
+        className="flex h-full flex-col items-center justify-center gap-4 p-4"
+        onClick={onClose}
+        aria-label={`Zoomed view of ${getCardName(cardId)}`}
       >
-        <CardImage
-          cardId={cardId}
-          variant="face"
-          reversed={showRotated}
-          deckId={deckId}
-          size="custom"
-          widthPx={imgW}
-          ariaLabel={getCardName(cardId)}
-        />
-      </div>
-      {reversed && (
-        <button
-          type="button"
+        <div
           onClick={(e) => {
             e.stopPropagation();
-            setTempUpright((v) => !v);
+            onClose();
           }}
-          className="text-sm italic text-gold/80 hover:text-gold transition-colors"
           style={{
-            marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
-            fontFamily: "var(--font-serif)",
-            opacity: "var(--ro-plus-15)",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
+            ...cornerRadiusStyle(deckRadius, imgW),
+            boxShadow: "0 0 80px -10px rgba(212,175,55,0.5)",
+            transition: "transform 300ms ease",
           }}
         >
-          {tempUpright
-            ? "Show as drawn (reversed)"
-            : "Rotate (for this viewing only)"}
-        </button>
-      )}
-    </div>
+          <CardImage
+            cardId={cardId}
+            variant="face"
+            reversed={showRotated}
+            deckId={deckId}
+            size="custom"
+            widthPx={imgW}
+            ariaLabel={getCardName(cardId)}
+          />
+        </div>
+        {reversed && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setTempUpright((v) => !v);
+            }}
+            className="text-sm italic text-gold/80 hover:text-gold transition-colors"
+            style={{
+              marginBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+              fontFamily: "var(--font-serif)",
+              opacity: "var(--ro-plus-15)",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            {tempUpright
+              ? "Show as drawn (reversed)"
+              : "Rotate (for this viewing only)"}
+          </button>
+        )}
+      </div>
+    </FullScreenSheet>
   );
 }
