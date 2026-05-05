@@ -830,7 +830,6 @@ export function PerCardEditModal({
             )}
           </aside>
         </div>
-      </div>
       {/* FI-3 — Apply-to-all choice dialog. */}
       <AlertDialog
         open={applyDialogOpen}
