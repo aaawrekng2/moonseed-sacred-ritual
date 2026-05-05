@@ -268,55 +268,74 @@ serve(async (req) => {
           ? row.corner_radius_percent
           : (deck as { corner_radius_percent?: number }).corner_radius_percent ?? 0;
 
+      // FG-1 — named-step error reporting so the client (and logs)
+      // can pinpoint exactly where the single-card pipeline fails.
+      let step = "start";
+      let usedFallbackPng = false;
       try {
+        step = "download_source";
         const dl = await admin.storage.from(BUCKET).download(sourcePath);
         if (dl.error || !dl.data) throw dl.error ?? new Error("download failed");
+
+        step = "decode_source";
         const bytes = new Uint8Array(await dl.data.arrayBuffer());
         const decoded = await decodeAny(bytes);
 
-        // Bake the rounded mask into a full-size copy.
+        step = "apply_mask";
         const full = decoded.clone();
         applyRoundedMask(full, radius);
+
+        step = "encode_png";
+        const fullPng = await full.encode();
+
+        // FG-1 — try WebP via imagemagick; fall back to PNG bytes
+        // (still alpha-correct) under a .webp filename if the WebP
+        // encoder is missing or throws on this Magick build.
+        step = "reencode_webp";
+        let fullBytes: Uint8Array;
+        let fullContentType = "image/webp";
+        try {
+          await ensureMagick();
+          fullBytes = await new Promise<Uint8Array>((resolve, reject) => {
+            try {
+              ImageMagick.read(fullPng, (img) => {
+                img.write(MagickFormat.Webp, (data) => {
+                  resolve(new Uint8Array(data));
+                });
+              });
+            } catch (e) {
+              reject(e);
+            }
+          });
+        } catch (webpErr) {
+          console.warn(
+            "[generate-deck-variants] WebP encode failed; falling back to PNG",
+            webpErr,
+          );
+          usedFallbackPng = true;
+          fullBytes = fullPng;
+          fullContentType = "image/png";
+        }
+
+        step = "resolve_full_path";
         const fullPath = fullWebpPathFor(row.display_path ?? sourcePath);
         if (!fullPath) throw new Error("unrecognized path layout");
-        // FF-2 — imagescript on Deno can't encode WebP. Encode as
-        // PNG from imagescript (preserves alpha), then route through
-        // imagemagick_deno to convert PNG → WebP with alpha so the
-        // bytes actually match the .webp filename + Content-Type.
-        const fullPng = await full.encode();
-        await ensureMagick();
-        const fullWebp: Uint8Array = await new Promise((resolve, reject) => {
-          try {
-            ImageMagick.read(fullPng, (img) => {
-              img.write(MagickFormat.Webp, (data) => {
-                resolve(new Uint8Array(data));
-              });
-            });
-          } catch (e) {
-            reject(e);
-          }
-        });
+
+        step = "upload_full";
         const upFull = await admin.storage.from(BUCKET).upload(
           fullPath,
-          fullWebp,
-          { contentType: "image/webp", upsert: true },
+          fullBytes,
+          { contentType: fullContentType, upsert: true },
         );
         if (upFull.error) throw upFull.error;
 
-        // sm/md JPEG variants (no alpha — corners stay opaque, but
-        // these are only used at small sizes where corner anti-alias
-        // doesn't matter much; the -full.webp is the master).
+        step = "variants";
         for (const v of VARIANTS) {
           const vPath = variantPathFor(row.display_path ?? sourcePath, v.suffix);
           if (!vPath) continue;
           const ratio = v.width / decoded.width;
           const targetH = Math.max(1, Math.round(decoded.height * ratio));
           const small = decoded.clone().resize(v.width, targetH);
-          // sm/md remain JPEG (no alpha). At <=400px wide the lack
-          // of corner transparency is invisible in practice and we
-          // stay fully compatible with the existing variantUrlFor
-          // resolver. The -full.webp variant carries the alpha
-          // mask used at hero sizes.
           const jpeg = await small.encodeJPEG(85);
           const upV = await admin.storage.from(BUCKET).upload(
             vPath,
@@ -326,9 +345,7 @@ serve(async (req) => {
           if (upV.error) throw upV.error;
         }
 
-        // Persist row state. If we didn't have an original_path
-        // before, capture the current display_path as the canonical
-        // source for future re-edits.
+        step = "db_update";
         const patch: Record<string, unknown> = {
           processing_status: "saved",
           processed_at: new Date().toISOString(),
@@ -350,10 +367,15 @@ serve(async (req) => {
             cardId: row.card_id,
             radius,
             fullPath,
+            usedFallbackPng,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       } catch (err) {
+        console.error(
+          `[generate-deck-variants] single-card failed at step '${step}'`,
+          err,
+        );
         await admin
           .from("custom_deck_cards")
           .update({ processing_status: "failed" })
@@ -363,7 +385,9 @@ serve(async (req) => {
             ok: false,
             mode: "single",
             cardId: singleCardId,
+            step,
             error: err instanceof Error ? err.message : String(err),
+            stack: err instanceof Error ? err.stack : undefined,
           }),
           {
             status: 500,
