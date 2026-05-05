@@ -291,40 +291,59 @@ export function PerCardEditModal({
     }
   }
 
-  // FG-4 — Apply current radius to every card in the deck, then offer
-  // to batch-process them through the edge function (single-card mode
-  // per card so the rounded -full.webp variants get baked).
-  async function handleApplyToAll() {
+  // FI-3 — open the choice dialog instead of going straight to confirm.
+  function handleApplyToAll() {
     if (bulkBusy || busy) return;
-    const list = cards ?? [];
-    const total = list.length;
-    if (total === 0) return;
+    if (!cards || cards.length === 0) return;
+    setApplyScope("unsaved");
+    setApplyDialogOpen(true);
+  }
 
-    const ok = await confirm({
-      title: `Apply radius ${radius}% to all ${total} cards?`,
-      description:
-        "Updates the per-card setting on every photographed card in this deck.",
-      confirmLabel: "Apply to all",
-    });
-    if (!ok) return;
+  // FI-3 — perform the apply with the chosen scope (unsaved-only or all).
+  async function applyToSelected(scope: "unsaved" | "all") {
+    const list = cards ?? [];
+    const targets = scope === "unsaved"
+      ? list.filter((c) => !(c.card_id in savedRadii))
+      : list;
+    const targetCount = targets.length;
+    if (targetCount === 0) {
+      toast.info("No cards to update.");
+      return;
+    }
 
     setBulkBusy(true);
     try {
+      const updatePatch: {
+        corner_radius_percent: number;
+        processing_status: string;
+        crop_coords?: CropCoords;
+      } = {
+        corner_radius_percent: radius,
+        processing_status: "pending",
+      };
+      if (crop) updatePatch.crop_coords = crop;
+
+      const targetIds = targets.map((c) => c.card_id);
       const { error } = await supabase
         .from("custom_deck_cards")
-        .update({ corner_radius_percent: radius, processing_status: "pending" })
+        .update(updatePatch)
         .eq("deck_id", deckId)
-        .is("archived_at", null);
+        .is("archived_at", null)
+        .in("card_id", targetIds);
       if (error) throw error;
 
-      // Reflect locally so thumbnails get the saved-state border.
-      const next: Record<number, number> = {};
-      for (const c of list) next[c.card_id] = radius;
-      setSavedRadii((prev) => ({ ...prev, ...next }));
-      toast.success(`Radius ${radius}% set for all ${total} cards.`);
+      const nextRadii: Record<number, number> = {};
+      const nextCrops: Record<number, CropCoords> = {};
+      for (const c of targets) {
+        nextRadii[c.card_id] = radius;
+        if (crop) nextCrops[c.card_id] = crop;
+      }
+      setSavedRadii((prev) => ({ ...prev, ...nextRadii }));
+      if (crop) setSavedCrops((prev) => ({ ...prev, ...nextCrops }));
+      toast.success(`Settings applied to ${targetCount} cards.`);
 
       const goProcess = await confirm({
-        title: `Process all ${total} cards now?`,
+        title: `Process ${targetCount} cards now?`,
         description: "This may take several minutes. You can also do it later from Settings → Decks.",
         confirmLabel: "Process now",
         cancelLabel: "Not now",
@@ -337,8 +356,8 @@ export function PerCardEditModal({
 
       let done = 0;
       let failed = 0;
-      const progressId = toast.loading(`Processing 0/${total}…`);
-      for (const c of list) {
+      const progressId = toast.loading(`Processing 0/${targetCount}…`);
+      for (const c of targets) {
         try {
           const { data, error: invErr } = await supabase.functions.invoke(
             "generate-deck-variants",
@@ -352,29 +371,29 @@ export function PerCardEditModal({
           if (!result.ok) {
             failed++;
             console.warn(
-              `[FG-4] card ${c.card_id} failed`,
+              `[FI-3] card ${c.card_id} failed`,
               result.step,
               result.error,
             );
           }
         } catch (e) {
           failed++;
-          console.warn(`[FG-4] card ${c.card_id} threw`, e);
+          console.warn(`[FI-3] card ${c.card_id} threw`, e);
         }
         done++;
-        toast.loading(`Processing ${done}/${total}…`, { id: progressId });
+        toast.loading(`Processing ${done}/${targetCount}…`, { id: progressId });
       }
       setVersion((v) => v + 1);
       if (failed > 0) {
         toast.error(
-          `Processed ${done - failed}/${total}. ${failed} failed — check console.`,
+          `Processed ${done - failed}/${targetCount}. ${failed} failed — check console.`,
           { id: progressId },
         );
       } else {
-        toast.success(`All ${total} cards processed.`, { id: progressId });
+        toast.success(`All ${targetCount} cards processed.`, { id: progressId });
       }
     } catch (err) {
-      console.error("[FG-4] apply-to-all failed", err);
+      console.error("[FI-3] apply-to-all failed", err);
       toast.error(
         err instanceof Error ? err.message : "Apply to all failed.",
       );
