@@ -347,57 +347,65 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
 
       {activeFilterChips.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mb-3">
+          {/* FT-1 (2A) — CLEAR FILTERS leads the row, styled like Journal's
+              leading link: uppercase, font-display, 12px, gold. */}
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="uppercase"
+            style={{
+              fontFamily: "var(--font-display, var(--font-serif))",
+              fontSize: "12px",
+              letterSpacing: "0.15em",
+              color: "var(--gold)",
+              opacity: 1,
+              fontWeight: 700,
+            }}
+          >
+            CLEAR FILTERS
+          </button>
           {activeFilterChips.map((c) => (
+            // FT-1 (2B) — kill the pill. Plain text + X. No background, no rounded chrome.
             <button
               key={c.key}
               type="button"
               onClick={c.clear}
-              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+              className="inline-flex items-center gap-1 text-xs transition-opacity hover:opacity-100"
               style={{
-                background: "color-mix(in oklch, var(--gold) 18%, transparent)",
                 color: "var(--color-foreground)",
+                opacity: 0.85,
               }}
             >
               {c.label}
               <X className="h-3 w-3 opacity-60" />
             </button>
           ))}
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="ml-auto text-xs italic"
-            style={{ color: "var(--gold)" }}
-          >
-            Clear filters
-          </button>
         </div>
       )}
 
       {(mode === "twins" || mode === "triplets") ? (
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs text-muted-foreground">Co-occurring in:</span>
-          <button
-            onClick={() => setCooccurrence("reading")}
-            className={
-              "text-xs rounded-full px-2 py-0.5 " +
-              (cooccurrence === "reading"
-                ? "bg-[color-mix(in_oklch,var(--gold)_15%,transparent)] text-[var(--gold)]"
-                : "text-muted-foreground")
-            }
-          >
-            Same reading
-          </button>
-          <button
-            onClick={() => setCooccurrence("day")}
-            className={
-              "text-xs rounded-full px-2 py-0.5 " +
-              (cooccurrence === "day"
-                ? "bg-[color-mix(in_oklch,var(--gold)_15%,transparent)] text-[var(--gold)]"
-                : "text-muted-foreground")
-            }
-          >
-            Same day
-          </button>
+          {/* FT-1 (2C) — match the mode-chip pattern: plain text, underline-on-active. */}
+          {(["reading", "day"] as const).map((co) => {
+            const active = cooccurrence === co;
+            return (
+              <button
+                key={co}
+                type="button"
+                onClick={() => setCooccurrence(co)}
+                aria-pressed={active}
+                className="text-xs pb-0.5 transition-colors"
+                style={{
+                  color: active ? "var(--gold)" : "var(--color-foreground)",
+                  opacity: active ? 1 : 0.55,
+                  borderBottom: active ? "1px solid var(--gold)" : "1px solid transparent",
+                }}
+              >
+                {co === "reading" ? "Same reading" : "Same day"}
+              </button>
+            );
+          })}
         </div>
       ) : null}
 

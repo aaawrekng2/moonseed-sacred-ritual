@@ -984,7 +984,7 @@ function FullMoonMarker({
         style={{
           fontFamily: "var(--font-serif)",
           fontSize: 10,
-          color: "#d4a843",
+          color: "var(--gold)",
           textAlign: "center",
           letterSpacing: "0.05em",
           whiteSpace: "nowrap",

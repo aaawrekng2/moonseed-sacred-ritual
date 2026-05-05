@@ -92,21 +92,7 @@ export function InsightsFilterBar({
       </div>
       {activeChips.length > 0 && (
         <div className="mx-auto flex max-w-2xl flex-wrap items-center gap-2 px-4 pb-2">
-          {activeChips.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              onClick={c.clear}
-              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-              style={{
-                background: "color-mix(in oklch, var(--gold) 18%, transparent)",
-                color: "var(--color-foreground)",
-              }}
-            >
-              {c.label}
-              <X className="h-3 w-3" />
-            </button>
-          ))}
+          {/* FT-1 (2A) — CLEAR FILTERS leads the row. */}
           <button
             type="button"
             onClick={() =>
@@ -120,11 +106,34 @@ export function InsightsFilterBar({
                 deepOnly: false,
               })
             }
-            className="ml-auto text-xs italic"
-            style={{ color: "var(--gold)" }}
+            className="uppercase"
+            style={{
+              fontFamily: "var(--font-display, var(--font-serif))",
+              fontSize: "12px",
+              letterSpacing: "0.15em",
+              color: "var(--gold)",
+              opacity: 1,
+              fontWeight: 700,
+            }}
           >
-            Clear filters
+            CLEAR FILTERS
           </button>
+          {activeChips.map((c) => (
+            // FT-1 (2B) — kill the pill. Plain text + X.
+            <button
+              key={c.key}
+              type="button"
+              onClick={c.clear}
+              className="inline-flex items-center gap-1 text-xs transition-opacity hover:opacity-100"
+              style={{
+                color: "var(--color-foreground)",
+                opacity: 0.85,
+              }}
+            >
+              {c.label}
+              <X className="h-3 w-3 opacity-60" />
+            </button>
+          ))}
         </div>
       )}
       {open && (

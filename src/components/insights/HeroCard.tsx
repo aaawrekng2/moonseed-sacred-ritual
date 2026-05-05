@@ -44,7 +44,7 @@ export function HeroCard({
         background: "var(--surface-card)",
         borderRadius: 20,
         boxShadow: isStalker
-          ? "0 0 0 1px color-mix(in oklch, var(--gold) 40%, transparent), 0 4px 30px color-mix(in oklch, var(--gold) 18%, transparent)"
+          ? "0 0 0 1px color-mix(in oklch, var(--state-active-fg-passive, var(--gold)) 40%, transparent), 0 4px 30px var(--state-active-bg-passive, color-mix(in oklch, var(--gold) 18%, transparent))"
           : "0 1px 3px color-mix(in oklch, var(--cosmos, #0a0a14) 25%, transparent)",
       }}
     >
