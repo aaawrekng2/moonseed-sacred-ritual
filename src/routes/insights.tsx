@@ -158,19 +158,25 @@ function InsightsRoute() {
   return (
     <div className="relative flex h-dvh flex-col" style={{ background: "var(--background)" }}>
       {/* EK-0 — h-dvh + flex-col so the inner <main> can own the scroll. */}
-      {/* EO-11 — premium badge above the filter bar. */}
-      <div className="flex justify-end px-4 pt-2">
-        <PremiumBadge />
-      </div>
-      {tab !== "recap" && (
-        <div
-          className="backdrop-blur-md"
-          style={{
-            background:
-              "color-mix(in oklch, var(--surface-elevated) 88%, transparent)",
-            borderBottom: "1px solid var(--border-subtle)",
-          }}
-        >
+      {/* FU-7 — Unified sticky header: title row + filter bar + tab strip. */}
+      <div
+        className="page-header-glass sticky top-0"
+        style={{ zIndex: "var(--z-sticky-header)" }}
+      >
+        <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top,0px)+12px)] pb-2">
+          <h1
+            className="font-serif italic"
+            style={{
+              fontSize: "var(--text-heading-lg)",
+              color: "var(--color-foreground)",
+              opacity: 0.9,
+            }}
+          >
+            Insights
+          </h1>
+          <PremiumBadge />
+        </div>
+        {tab !== "recap" && (
           <GlobalFilterBar
             filters={globalFilters}
             onChange={handleGlobalChange}
@@ -195,16 +201,8 @@ function InsightsRoute() {
             }}
             userTags={userTags}
           />
-        </div>
-      )}
-
-      {/* Tab strip */}
-      <div
-        className="backdrop-blur-md"
-        style={{
-          background: "color-mix(in oklch, var(--surface-elevated) 85%, transparent)",
-        }}
-      >
+        )}
+        {/* Tab strip */}
         <div className="mx-auto flex items-center justify-center gap-6 overflow-x-auto px-4 py-2">
           {TABS.map((t) => {
             const active = tab === t.id;
