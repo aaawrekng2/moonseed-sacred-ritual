@@ -5,7 +5,7 @@
  * Lunation Recap story.
  */
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { getEarliestReadingDate } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
@@ -14,7 +14,6 @@ import { MiniLunationRing } from "./MiniLunationRing";
 import { YearOfLunationsLocked } from "./YearOfLunationsLocked";
 
 export function RecapTab() {
-  const navigate = useNavigate();
   const earliestFn = useServerFn(getEarliestReadingDate);
   const [earliest, setEarliest] = useState<Date | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -101,19 +100,16 @@ export function RecapTab() {
       {loaded && (
         <div className="flex flex-col gap-3">
           {lunations.map((l) => (
-            <button
+            // FK-5 — TanStack <Link> for reliable navigation. The old
+            // programmatic navigate() inside an onClick handler did
+            // not consistently fire for Mark on the recap landing.
+            <Link
               key={l.start.toISOString()}
-              type="button"
-              onClick={() => {
+              to="/insights/recap/$lunationStart"
+              params={{
                 // EX-1 — encode ':' and '.' to '-' so the ISO datetime
                 // survives as a single URL path segment.
-                const safeParam = l.start
-                  .toISOString()
-                  .replace(/[:.]/g, "-");
-                navigate({
-                  to: "/insights/recap/$lunationStart",
-                  params: { lunationStart: safeParam },
-                });
+                lunationStart: l.start.toISOString().replace(/[:.]/g, "-"),
               }}
               className="relative flex w-full items-center gap-4 p-4 text-left transition-opacity hover:opacity-95"
               style={{
@@ -178,7 +174,7 @@ export function RecapTab() {
                   </span>
                 </div>
               )}
-            </button>
+            </Link>
           ))}
         </div>
       )}
