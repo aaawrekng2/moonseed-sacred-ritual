@@ -39,7 +39,8 @@ export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
     };
   }, [filters, fn]);
 
-  const days = filters.timeRange === "7d" ? 7 : filters.timeRange === "30d" ? 30 : filters.timeRange === "12m" ? 365 : 90;
+  // FK-4 — "12m" renamed to "365d".
+  const days = filters.timeRange === "7d" ? 7 : filters.timeRange === "30d" ? 30 : filters.timeRange === "365d" ? 365 : 90;
   const windowEnd = Date.now();
   const windowStart = windowEnd - days * 24 * 60 * 60 * 1000;
 
