@@ -272,7 +272,7 @@ serve(async (req) => {
         const dl = await admin.storage.from(BUCKET).download(sourcePath);
         if (dl.error || !dl.data) throw dl.error ?? new Error("download failed");
         const bytes = new Uint8Array(await dl.data.arrayBuffer());
-        const decoded = await Image.decode(bytes);
+        const decoded = await decodeAny(bytes);
 
         // Bake the rounded mask into a full-size copy.
         const full = decoded.clone();
@@ -425,7 +425,7 @@ serve(async (req) => {
               throw dl.error ?? new Error("download failed");
             }
             const bytes = new Uint8Array(await dl.data.arrayBuffer());
-            decoded = await Image.decode(bytes);
+            decoded = await decodeAny(bytes);
           }
 
           const ratio = v.width / decoded.width;
