@@ -254,15 +254,16 @@ serve(async (req) => {
           const ratio = v.width / decoded.width;
           const targetH = Math.max(1, Math.round(decoded.height * ratio));
           const small = decoded.clone().resize(v.width, targetH);
-          applyRoundedMask(small, radius);
-          const smallWebp = await small.encode();
+          // sm/md remain JPEG (no alpha). At <=400px wide the lack
+          // of corner transparency is invisible in practice and we
+          // stay fully compatible with the existing variantUrlFor
+          // resolver. The -full.webp variant carries the alpha
+          // mask used at hero sizes.
+          const jpeg = await small.encodeJPEG(85);
           const upV = await admin.storage.from(BUCKET).upload(
-            // FD-3 — switch sm/md to webp too so transparent corners
-            // survive. Keep the same `-sm` / `-md` stem; only the
-            // extension changes (variantUrlFor on client must agree).
-            vPath.replace(/\.jpg$/i, ".webp"),
-            smallWebp,
-            { contentType: "image/webp", upsert: true },
+            vPath,
+            jpeg,
+            { contentType: "image/jpeg", upsert: true },
           );
           if (upV.error) throw upV.error;
         }
