@@ -354,24 +354,24 @@ function JournalPage() {
     const q = search.trim().toLowerCase();
     return readings.filter((r) => {
       if (batchParam && r.import_batch_id !== batchParam) return false;
-      if (activeTags.length > 0) {
+      if (journalFilters.tags.length > 0) {
         const rt = r.tags ?? [];
-        if (tagMode === "all") {
-          if (!activeTags.every((t) => rt.includes(t))) return false;
+        if (journalFilters.tagMode === "all") {
+          if (!journalFilters.tags.every((t) => rt.includes(t))) return false;
         } else {
-          if (!activeTags.some((t) => rt.includes(t))) return false;
+          if (!journalFilters.tags.some((t) => rt.includes(t))) return false;
         }
       }
-      if (activeDrawTypes.length > 0) {
-        if (!activeDrawTypes.includes(r.spread_type as DrawTypeKey))
+      if (journalFilters.spreadTypes.length > 0) {
+        if (!journalFilters.spreadTypes.includes(r.spread_type as DrawTypeKey))
           return false;
       }
-      if (deepOnly && !r.is_deep_reading) return false;
-      if (savedOnly && !r.mirror_saved) return false;
+      if (journalFilters.deepOnly && !r.is_deep_reading) return false;
+      if (journalFilters.bookmarked && !r.mirror_saved) return false;
       // DN-5 — Stories filter: keep only readings attached to one of
       // the currently-active patterns.
-      if (activeStories.length > 0) {
-        if (!r.pattern_id || !activeStories.includes(r.pattern_id))
+      if (journalFilters.storyIds.length > 0) {
+        if (!r.pattern_id || !journalFilters.storyIds.includes(r.pattern_id))
           return false;
       }
       if (activeDate) {
@@ -399,12 +399,7 @@ function JournalPage() {
   }, [
     readings,
     search,
-    activeTags,
-    tagMode,
-    activeDrawTypes,
-    deepOnly,
-    savedOnly,
-    activeStories,
+    journalFilters,
     activeDate,
     batchParam,
   ]);
