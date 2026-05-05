@@ -416,7 +416,7 @@ export function AuthScreen({
                         fontFamily: "var(--font-serif)",
                         fontStyle: "italic",
                         fontSize: "var(--text-caption)",
-                        color: "#f87171",
+                        color: "var(--destructive)",
                         marginTop: 4,
                         paddingLeft: 4,
                       }}
@@ -434,7 +434,7 @@ export function AuthScreen({
                   fontFamily: "var(--font-serif)",
                   fontStyle: "italic",
                   fontSize: "var(--text-body-sm)",
-                  color: "#f87171",
+                  color: "var(--destructive)",
                   textAlign: "center",
                 }}
               >
@@ -560,7 +560,7 @@ function DownloadProgress({
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
               fontSize: "var(--text-body-sm)",
-              color: "#f87171",
+              color: "var(--destructive)",
             }}
           >
             Couldn't finish the backup: {error}
