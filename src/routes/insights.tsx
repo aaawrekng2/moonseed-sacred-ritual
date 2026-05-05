@@ -29,6 +29,7 @@ import { QuestionThemesLocked } from "@/components/insights/QuestionThemesLocked
 import { RecapTab } from "@/components/insights/RecapTab";
 import { LunationBanner } from "@/components/insights/LunationBanner";
 import { PremiumBadge } from "@/components/insights/PremiumBadge";
+import { StalkersTab } from "@/components/insights/StalkersTab";
 import type { MoonPhaseName } from "@/lib/moon";
 
 export const Route = createFileRoute("/insights")({
@@ -41,13 +42,15 @@ export const Route = createFileRoute("/insights")({
   component: InsightsRoute,
 });
 
-type Tab = "overview" | "cards" | "calendar" | "themes" | "recap";
+// FL-1 — new Stalkers tab between Themes and Recap.
+type Tab = "overview" | "cards" | "calendar" | "themes" | "stalkers" | "recap";
 
 const TABS: ReadonlyArray<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "cards", label: "Cards" },
   { id: "calendar", label: "Calendar" },
   { id: "themes", label: "Themes" },
+  { id: "stalkers", label: "Stalkers" },
   { id: "recap", label: "Recap" },
 ];
 
@@ -179,6 +182,7 @@ function InsightsRoute() {
               <QuestionThemesLocked filters={filters} />
             </div>
           )}
+          {tab === "stalkers" && <StalkersTab timeRange={filters.timeRange} />}
           {tab === "recap" && <RecapTab />}
         </div>
       </main>
