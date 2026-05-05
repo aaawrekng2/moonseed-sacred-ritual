@@ -330,7 +330,7 @@ code, pre, kbd {
   backdrop-filter: blur(12px);
 }
 .settings-tabbar {
-  background: oklch(0.14 0.04 280);
+  background: var(--background);
 }
 .settings-tab {
   border: 1px solid transparent;
@@ -1465,7 +1465,7 @@ button:focus-visible .moon-rung-glow {
   padding: 22px 24px;
   border-radius: 14px;
   border: 1px solid color-mix(in oklab, var(--gold) 14%, transparent);
-  background: color-mix(in oklab, oklch(0.10 0.03 280) 40%, transparent);
+  background: color-mix(in oklab, var(--surface-overlay) 40%, transparent);
   text-align: center;
 }
 .deep-limit__line {
