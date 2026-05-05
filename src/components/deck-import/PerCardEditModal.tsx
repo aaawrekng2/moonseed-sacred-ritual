@@ -20,6 +20,43 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchDeckCards, type CustomDeckCard } from "@/lib/custom-decks";
 import { getCardName } from "@/lib/tarot";
 import { useConfirm } from "@/hooks/use-confirm";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+// FI-2 — 4-corner crop coordinates in IMG NATURAL pixel space.
+type CropCoords = {
+  tl: { x: number; y: number };
+  tr: { x: number; y: number };
+  bl: { x: number; y: number };
+  br: { x: number; y: number };
+};
+
+function defaultCropFor(w: number, h: number): CropCoords {
+  return {
+    tl: { x: 0, y: 0 },
+    tr: { x: w, y: 0 },
+    bl: { x: 0, y: h },
+    br: { x: w, y: h },
+  };
+}
+
+function isCropCoords(v: unknown): v is CropCoords {
+  if (!v || typeof v !== "object") return false;
+  const o = v as Record<string, unknown>;
+  for (const k of ["tl", "tr", "bl", "br"]) {
+    const p = o[k] as { x?: unknown; y?: unknown } | undefined;
+    if (!p || typeof p.x !== "number" || typeof p.y !== "number") return false;
+  }
+  return true;
+}
 
 type Props = {
   deckId: string;
@@ -40,8 +77,14 @@ export function PerCardEditModal({
   const [signedUrls, setSignedUrls] = useState<Record<number, string>>({});
   const [radius, setRadius] = useState<number>(defaultRadiusPercent);
   const [savedRadii, setSavedRadii] = useState<Record<number, number>>({});
+  // FI-2 — per-card crop coords loaded from DB.
+  const [savedCrops, setSavedCrops] = useState<Record<number, CropCoords>>({});
+  const [crop, setCrop] = useState<CropCoords | null>(null);
   const [busy, setBusy] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  // FI-3 — choice dialog state for "Apply to all".
+  const [applyDialogOpen, setApplyDialogOpen] = useState(false);
+  const [applyScope, setApplyScope] = useState<"unsaved" | "all">("unsaved");
   const [canvasPreview, setCanvasPreview] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
   // FG-3 — show big radius number overlay only while user is dragging.
@@ -60,6 +103,7 @@ export function PerCardEditModal({
     { w: number; h: number } | null
   >(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const previewWrapRef = useRef<HTMLDivElement | null>(null);
 
   // Load card list + per-card radii.
   useEffect(() => {
@@ -90,17 +134,22 @@ export function PerCardEditModal({
         // don't have to widen CustomDeckCard everywhere.
         const { data: rows } = await supabase
           .from("custom_deck_cards")
-          .select("card_id, corner_radius_percent")
+          .select("card_id, corner_radius_percent, crop_coords")
           .eq("deck_id", deckId)
           .is("archived_at", null);
         if (cancelled) return;
         const sr: Record<number, number> = {};
+        const sc: Record<number, CropCoords> = {};
         for (const r of rows ?? []) {
           if (typeof r.corner_radius_percent === "number") {
             sr[r.card_id] = r.corner_radius_percent;
           }
+          if (isCropCoords(r.crop_coords)) {
+            sc[r.card_id] = r.crop_coords;
+          }
         }
         setSavedRadii(sr);
+        setSavedCrops(sc);
         if (photographed.length > 0) {
           const first = photographed[0].card_id;
           setActiveCardId(first);
