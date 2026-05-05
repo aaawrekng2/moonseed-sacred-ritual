@@ -639,27 +639,33 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
               Tags
             </h3>
             <div className="flex flex-wrap gap-x-3 gap-y-2">
-              {DEMO_TAGS.map((t) => {
-                const active = activeTags.includes(t);
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => toggleTag(t)}
-                    className="font-display text-[13px] italic transition-colors text-foreground"
-                    style={{
-                      opacity: active ? 1 : 0.85,
-                      borderBottom: active
-                        ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
-                        : "1px solid transparent",
-                      paddingBottom: 2,
-                    }}
-                  >
-                    {t}
-                    {active && <span className="ml-1 text-[10px]">×</span>}
-                  </button>
-                );
-              })}
+              {userTags.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">
+                  You have no tags yet. Tag readings to filter by tag here.
+                </p>
+              ) : (
+                userTags.map((tag) => {
+                  const active = activeTags.includes(tag.name);
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleTag(tag.name)}
+                      className="font-display text-[13px] italic transition-colors text-foreground"
+                      style={{
+                        opacity: active ? 1 : 0.85,
+                        borderBottom: active
+                          ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
+                          : "1px solid transparent",
+                        paddingBottom: 2,
+                      }}
+                    >
+                      {tag.name}
+                      {active && <span className="ml-1 text-[10px]">×</span>}
+                    </button>
+                  );
+                })
+              )}
             </div>
           </section>
 
@@ -671,13 +677,13 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
               Draw type
             </h3>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
-              {DRAW_TYPES.map((d) => {
-                const active = activeDrawTypes.includes(d);
+              {DRAW_TYPE_OPTIONS.map(({ key, label }) => {
+                const active = activeDrawTypes.includes(key);
                 return (
                   <button
-                    key={d}
+                    key={key}
                     type="button"
-                    onClick={() => toggleDrawType(d)}
+                    onClick={() => toggleDrawType(key)}
                     className="font-display text-[12px] italic transition-colors text-foreground"
                     style={{
                       opacity: active ? 1 : 0.85,
@@ -687,7 +693,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
                       paddingBottom: 2,
                     }}
                   >
-                    {d}
+                    {label}
                     {active && <span className="ml-1 text-[10px]">×</span>}
                   </button>
                 );
