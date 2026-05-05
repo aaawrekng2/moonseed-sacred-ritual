@@ -460,7 +460,10 @@ export function PerCardEditModal({
                   </p>
                 </div>
 
-                <div className="relative flex items-center justify-center rounded-md bg-cosmos/40 p-4">
+                <div
+                  ref={previewWrapRef}
+                  className="relative flex items-center justify-center rounded-md bg-cosmos/40 p-4"
+                >
                   {previewSrc ? (
                     <img
                       ref={imgRef}
@@ -492,6 +495,19 @@ export function PerCardEditModal({
                   ) : (
                     <Loader2 className="h-5 w-5 animate-spin opacity-60" />
                   )}
+                  {/* FI-2 — Crop corner handles. Only shown on raw image
+                      preview (not the rounded canvas snapshot) and only
+                      once both natural + rendered sizes are known. */}
+                  {!canvasPreview && crop && imgDims && renderedDims && imgRef.current ? (
+                    <CropHandles
+                      imgEl={imgRef.current}
+                      crop={crop}
+                      imgDims={imgDims}
+                      renderedDims={renderedDims}
+                      onChange={(next) => setCrop(next)}
+                      onRelease={() => renderCanvasPreview()}
+                    />
+                  ) : null}
                   {/* FG-3 — Big radius value overlay while dragging. */}
                   {isSliding ? (
                     <div
