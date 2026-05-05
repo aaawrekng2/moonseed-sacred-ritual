@@ -1,44 +1,39 @@
 /**
- * FM — Stalkers tab visual polish on FL skeleton.
- * - Top row: wider container, larger cards (FM-1)
- * - Single detail: bigger, uncropped (FM-2)
- * - Twin/Triplet detail: bigger, uncropped (FM-3)
- * - Filter drawer matches Journal exactly (FM-4)
- * - Page title "Stalkers" (FM-5)
- * - Type chips drop count badges (FM-6)
+ * FP — Stalkers tab wired to real server functions.
+ * Replaces the FL/FM/FN/FO demo data with live results from
+ * getStalkerCards / getStalkerTwins / getStalkerTriplets /
+ * getReversedStalkers. Mode/cooccurrence/filter changes refetch.
  */
 import { useEffect, useMemo, useState } from "react";
 import { SlidersHorizontal, Sparkles, X as XIcon, X } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
 import { CardImage } from "@/components/card/CardImage";
-import type { TimeRange } from "@/lib/insights.types";
+import {
+  getStalkerCards,
+  getStalkerTwins,
+  getStalkerTriplets,
+  getReversedStalkers,
+} from "@/lib/insights.functions";
+import { getAuthHeaders } from "@/lib/server-fn-auth";
+import type {
+  InsightsFilters,
+  TimeRange,
+  StalkerCardsResult,
+  StalkerTwinsResult,
+  StalkerTripletsResult,
+  ReversedStalkersResult,
+  StalkerCard,
+  StalkerTwin,
+  StalkerTriplet,
+  ReversedStalker,
+} from "@/lib/insights.types";
 
 type Mode = "singles" | "twins" | "triplets" | "reversed";
 type Cooccurrence = "reading" | "day";
 
-// FL-7 — Demo data.
-const DEMO_SINGLES = [
-  { cardId: 16, name: "The Tower", count: 12, prose: "The Tower has appeared 12 times in the last 30 days. A pattern of disruption — each time something solid you'd built has needed to come down. The card asks: what's still standing that shouldn't be?" },
-  { cardId: 13, name: "Death", count: 8, prose: "Death keeps showing up because something is ending whether you'd choose it or not. Not literal. Recurring this often suggests you're holding onto something past its time." },
-  { cardId: 0, name: "The Fool", count: 7, prose: "Beginnings won't leave you alone. The Fool keeps appearing because the path keeps offering you new starts." },
-  { cardId: 1, name: "The Magician", count: 6, prose: "The Magician asks: are you using everything you have? Six appearances in 30 days suggests untapped capacity nearby." },
-  { cardId: 17, name: "The Star", count: 5, prose: "Hope keeps surfacing. Even when the readings are heavy, the Star arrives. Trust this." },
-];
-
-const DEMO_TWINS = [
-  { id: "twin-1", cardA: 16, cardB: 13, names: ["Tower", "Death"], count: 4, prose: "The Tower and Death have appeared together in 4 readings. This is a pair speaking the same message: structures ending, transformation forced rather than chosen." },
-  { id: "twin-2", cardA: 17, cardB: 0, names: ["Star", "Fool"], count: 3, prose: "Hope (Star) and beginning (Fool) keep appearing together. Every time you've thought 'this is over,' they remind you it's the start of something else." },
-  { id: "twin-3", cardA: 1, cardB: 17, names: ["Magician", "Star"], count: 2, prose: "Capacity (Magician) and hope (Star). What you can do, paired with the faith that doing matters. They appear together when you're underestimating yourself." },
-];
-
-const DEMO_TRIPLETS = [
-  { id: "trip-1", cardIds: [16, 13, 0], names: ["Tower", "Death", "Fool"], count: 2, prose: "The full arc: collapse, ending, beginning. This triplet has appeared in 2 readings and represents the most common pattern of transformation — something falls, something dies, something starts." },
-];
-
-const DEMO_REVERSED = [
-  { cardId: 16, name: "Tower (reversed)", count: 5, prose: "The Tower reversed keeps appearing. Avoidance of necessary collapse. The structure that needs to fall is being propped up." },
-  { cardId: 19, name: "Sun (reversed)", count: 3, prose: "Joy delayed or blocked. The Sun reversed three times in 30 days suggests something holding back natural happiness." },
-];
-
+// FP-6 — local UI-only filters (tags + draw types) until they're plumbed
+// through to the parent filter bar. These narrow the displayed data
+// client-side via the parent `filters` prop's tagIds/spreadTypes.
 const DEMO_TAGS = ["work", "love", "family", "creativity", "shadow", "healing"];
 const DRAW_TYPES = ["Single", "Three Card", "Celtic Cross", "Yes/No"];
 
@@ -50,7 +45,43 @@ const TIME_RANGE_LABELS: Record<TimeRange, string> = {
   all: "All time",
 };
 
-// FN-4 — Inline SVG icons for chips (stacked-card glyphs).
+function timeRangeLabel(tr: TimeRange): string {
+  if (tr === "7d") return "the last 7 days";
+  if (tr === "30d") return "the last 30 days";
+  if (tr === "90d") return "the last 90 days";
+  if (tr === "365d") return "the last year";
+  return "all your readings";
+}
+
+// FP-5 — Template prose generators. Deterministic, no AI.
+function singleProse(name: string, count: number, tr: TimeRange): string {
+  const w = timeRangeLabel(tr);
+  return `${name} has appeared ${count} times in ${w}. ` +
+    `When a card returns this often, it's marking the texture of this season — ` +
+    `not a coincidence, but a thread. What is ${name} asking you to notice?`;
+}
+function twinProse(a: string, b: string, count: number, tr: TimeRange, mode: Cooccurrence): string {
+  const w = timeRangeLabel(tr);
+  const together = mode === "day" ? "on the same day" : "in the same reading";
+  return `${a} and ${b} have arrived together ${together} ${count} times in ${w}. ` +
+    `A pair speaking the same message — two cards braiding into one story. ` +
+    `Sit with what these two share between them.`;
+}
+function tripletProse(names: [string, string, string], count: number, tr: TimeRange, mode: Cooccurrence): string {
+  const w = timeRangeLabel(tr);
+  const together = mode === "day" ? "on the same day" : "in the same reading";
+  return `${names[0]}, ${names[1]}, and ${names[2]} have all appeared ${together} ${count} times in ${w}. ` +
+    `Three cards arriving together is rare. ` +
+    `This is a full pattern emerging — the kind of message that doesn't repeat by accident.`;
+}
+function reversedProse(name: string, count: number, tr: TimeRange): string {
+  const w = timeRangeLabel(tr);
+  return `${name} has appeared reversed ${count} times in ${w}. ` +
+    `The reversed orientation has its own voice — blocked, withheld, or shadow. ` +
+    `What's the inverted side of ${name} asking you to look at?`;
+}
+
+// FN-4 — Inline SVG icons for chips.
 function SingleCardIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -84,7 +115,6 @@ function ReversedCardIcon() {
   );
 }
 
-// FO-3 — No circle/pill border. Underline-on-active matching insights tab strip.
 function Chip({ icon, active, onClick, label }: {
   icon: React.ReactNode;
   active: boolean;
@@ -110,13 +140,13 @@ function Chip({ icon, active, onClick, label }: {
   );
 }
 
-// FN-2 — Selection by highlight: unselected dim, selected stays bright.
 function selClass(selectedKey: string | number | null, key: string | number): string {
   if (selectedKey === null) return "";
   return selectedKey === key ? "opacity-100" : "opacity-40";
 }
 
-export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
+export function StalkersTab({ filters }: { filters: InsightsFilters }) {
+  const timeRange = filters.timeRange;
   const [mode, setMode] = useState<Mode>("singles");
   const [cooccurrence, setCooccurrence] = useState<Cooccurrence>("reading");
   const [selectedKey, setSelectedKey] = useState<string | number | null>(null);
@@ -124,25 +154,98 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [activeDrawTypes, setActiveDrawTypes] = useState<string[]>([]);
 
-  const twinCount = DEMO_TWINS.length;
-  const tripletCount = DEMO_TRIPLETS.length;
-  const reversedCount = DEMO_REVERSED.length;
+  // FP-4 — Real data via server functions. Match existing useServerFn + useEffect pattern.
+  const singlesFn = useServerFn(getStalkerCards);
+  const twinsFn = useServerFn(getStalkerTwins);
+  const tripletsFn = useServerFn(getStalkerTriplets);
+  const reversedFn = useServerFn(getReversedStalkers);
+
+  const [singles, setSingles] = useState<StalkerCardsResult | null>(null);
+  const [twins, setTwins] = useState<StalkerTwinsResult | null>(null);
+  const [triplets, setTriplets] = useState<StalkerTripletsResult | null>(null);
+  const [reversed, setReversed] = useState<ReversedStalkersResult | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // FP-6 — Merge parent filters with local tag/draw selections.
+  const effectiveFilters: InsightsFilters = useMemo(() => ({
+    ...filters,
+    tagIds: activeTags.length ? Array.from(new Set([...filters.tagIds, ...activeTags])) : filters.tagIds,
+    spreadTypes: activeDrawTypes.length
+      ? Array.from(new Set([...filters.spreadTypes, ...activeDrawTypes]))
+      : filters.spreadTypes,
+  }), [filters, activeTags, activeDrawTypes]);
 
   useEffect(() => {
-    if (mode === "singles") setSelectedKey(DEMO_SINGLES[0]?.cardId ?? null);
-    else if (mode === "twins") setSelectedKey(DEMO_TWINS[0]?.id ?? null);
-    else if (mode === "triplets") setSelectedKey(DEMO_TRIPLETS[0]?.id ?? null);
-    else if (mode === "reversed") setSelectedKey(DEMO_REVERSED[0]?.cardId ?? null);
-  }, [mode]);
+    let cancelled = false;
+    setLoading(true);
+    void (async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const [s, t, tr, rv] = await Promise.all([
+          singlesFn({ data: effectiveFilters, headers }).catch((e) => {
+            console.warn("[stalkers] singles failed", e);
+            return { stalkerCards: [], topCard: null, totalReadings: 0 } satisfies StalkerCardsResult;
+          }),
+          twinsFn({ data: { ...effectiveFilters, cooccurrence }, headers }).catch((e) => {
+            console.warn("[stalkers] twins failed", e);
+            return { twins: [] } satisfies StalkerTwinsResult;
+          }),
+          tripletsFn({ data: { ...effectiveFilters, cooccurrence }, headers }).catch((e) => {
+            console.warn("[stalkers] triplets failed", e);
+            return { triplets: [] } satisfies StalkerTripletsResult;
+          }),
+          reversedFn({ data: effectiveFilters, headers }).catch((e) => {
+            console.warn("[stalkers] reversed failed", e);
+            return { reversedStalkers: [] } satisfies ReversedStalkersResult;
+          }),
+        ]);
+        if (cancelled) return;
+        setSingles(s);
+        setTwins(t);
+        setTriplets(tr);
+        setReversed(rv);
+        setLoading(false);
+      } catch (e) {
+        console.warn("[stalkers] load failed", e);
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveFilters, cooccurrence, singlesFn, twinsFn, tripletsFn, reversedFn]);
 
-  const slots = useMemo(() => {
-    const filled =
-      mode === "singles" ? DEMO_SINGLES.length
-      : mode === "twins" ? DEMO_TWINS.length
-      : mode === "triplets" ? DEMO_TRIPLETS.length
-      : DEMO_REVERSED.length;
-    return Math.max(0, 5 - filled);
-  }, [mode]);
+  const singlesList: StalkerCard[] = singles?.stalkerCards ?? [];
+  const twinsList: StalkerTwin[] = twins?.twins ?? [];
+  const tripletsList: StalkerTriplet[] = triplets?.triplets ?? [];
+  const reversedList: ReversedStalker[] = reversed?.reversedStalkers ?? [];
+
+  const twinCount = twinsList.length;
+  const tripletCount = tripletsList.length;
+  const reversedCount = reversedList.length;
+
+  // Auto-select first item when mode changes or data arrives.
+  useEffect(() => {
+    if (mode === "singles") setSelectedKey(singlesList[0]?.cardId ?? null);
+    else if (mode === "twins") setSelectedKey(twinsList[0] ? `${twinsList[0].cardA}-${twinsList[0].cardB}` : null);
+    else if (mode === "triplets") setSelectedKey(tripletsList[0] ? tripletsList[0].cardIds.join("-") : null);
+    else if (mode === "reversed") setSelectedKey(reversedList[0]?.cardId ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, singles, twins, triplets, reversed]);
+
+  // FP-7 — If selected mode is no longer available (count went to 0), fall back to singles.
+  useEffect(() => {
+    if (mode === "twins" && twinCount === 0) setMode("singles");
+    else if (mode === "triplets" && tripletCount === 0) setMode("singles");
+    else if (mode === "reversed" && reversedCount === 0) setMode("singles");
+  }, [mode, twinCount, tripletCount, reversedCount]);
+
+  const filledCount =
+    mode === "singles" ? singlesList.length
+    : mode === "twins" ? twinsList.length
+    : mode === "triplets" ? tripletsList.length
+    : reversedList.length;
+  const slots = Math.max(0, 5 - filledCount);
 
   const toggleTag = (t: string) =>
     setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
@@ -154,7 +257,6 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
   };
   const hasAnyFilter = activeTags.length > 0 || activeDrawTypes.length > 0;
 
-  // FO-2 — Active filter chips for the row beneath the title.
   const activeFilterChips = useMemo(() => {
     const chips: { key: string; label: string; clear: () => void }[] = [];
     activeTags.forEach((t) =>
@@ -174,18 +276,16 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
     return chips;
   }, [activeTags, activeDrawTypes]);
 
-  const selectedSingle = DEMO_SINGLES.find((s) => s.cardId === selectedKey);
-  const selectedTwin = DEMO_TWINS.find((t) => t.id === selectedKey);
-  const selectedTriplet = DEMO_TRIPLETS.find((t) => t.id === selectedKey);
-  const selectedReversed = DEMO_REVERSED.find((r) => r.cardId === selectedKey);
+  const selectedSingle = singlesList.find((s) => s.cardId === selectedKey);
+  const selectedTwin = twinsList.find((t) => `${t.cardA}-${t.cardB}` === selectedKey);
+  const selectedTriplet = tripletsList.find((t) => t.cardIds.join("-") === selectedKey);
+  const selectedReversed = reversedList.find((r) => r.cardId === selectedKey);
 
   return (
     <div className="px-4 pb-12">
-      {/* FM-5 — Header */}
       <header className="flex items-center justify-between gap-3 mb-3">
         <h2 className="text-lg font-serif italic">Stalkers</h2>
         <div className="flex items-center gap-2">
-          {/* FN-3 — Singles chip always renders. FN-5 — definitive setMode. */}
           <Chip icon={<SingleCardIcon />} label="Singles" active={mode === "singles"} onClick={() => setMode("singles")} />
           {twinCount > 0 ? (
             <Chip icon={<TwinCardIcon />} label="Twins" active={mode === "twins"} onClick={() => setMode("twins")} />
@@ -209,7 +309,6 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
 
       <div className="text-xs text-muted-foreground mb-3">{TIME_RANGE_LABELS[timeRange]}</div>
 
-      {/* FO-2 — Active filter chips. Visible only when filters are set. */}
       {activeFilterChips.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mb-3">
           {activeFilterChips.map((c) => (
@@ -266,11 +365,14 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
         </div>
       ) : null}
 
-      {/* FM-1 — Wider container so cards scale up nicely. */}
+      {loading && (
+        <div className="text-xs text-muted-foreground italic mb-3">Loading stalkers…</div>
+      )}
+
       <div className="mx-auto w-full max-w-3xl mb-8">
         <div className="grid grid-cols-5 gap-2 sm:gap-3 md:gap-4">
           {mode === "singles" &&
-            DEMO_SINGLES.map((s) => (
+            singlesList.map((s) => (
               <div key={s.cardId} className="flex flex-col items-center gap-1">
                 <button
                   type="button"
@@ -284,48 +386,54 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
             ))}
 
           {mode === "twins" &&
-            DEMO_TWINS.map((t) => (
-              <div key={t.id} className="flex flex-col items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setSelectedKey(t.id)}
-                  className={"aspect-[2/3] w-full relative transition-opacity duration-200 " + selClass(selectedKey, t.id)}
-                >
-                  <div className="absolute inset-0 -translate-x-1 -translate-y-1">
-                    <CardImage cardId={t.cardA} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
-                  </div>
-                  <div className="absolute inset-0 translate-x-1 translate-y-1">
-                    <CardImage cardId={t.cardB} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
-                  </div>
-                </button>
-                <span className="text-xs text-muted-foreground tabular-nums">{t.count}</span>
-              </div>
-            ))}
+            twinsList.map((t) => {
+              const key = `${t.cardA}-${t.cardB}`;
+              return (
+                <div key={key} className="flex flex-col items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedKey(key)}
+                    className={"aspect-[2/3] w-full relative transition-opacity duration-200 " + selClass(selectedKey, key)}
+                  >
+                    <div className="absolute inset-0 -translate-x-1 -translate-y-1">
+                      <CardImage cardId={t.cardA} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
+                    </div>
+                    <div className="absolute inset-0 translate-x-1 translate-y-1">
+                      <CardImage cardId={t.cardB} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
+                    </div>
+                  </button>
+                  <span className="text-xs text-muted-foreground tabular-nums">{t.count}</span>
+                </div>
+              );
+            })}
 
           {mode === "triplets" &&
-            DEMO_TRIPLETS.map((t) => (
-              <div key={t.id} className="flex flex-col items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setSelectedKey(t.id)}
-                  className={"aspect-[2/3] w-full relative transition-opacity duration-200 " + selClass(selectedKey, t.id)}
-                >
-                  <div className="absolute inset-0 -translate-x-1.5 -translate-y-1.5">
-                    <CardImage cardId={t.cardIds[0]} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
-                  </div>
-                  <div className="absolute inset-0">
-                    <CardImage cardId={t.cardIds[1]} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
-                  </div>
-                  <div className="absolute inset-0 translate-x-1.5 translate-y-1.5">
-                    <CardImage cardId={t.cardIds[2]} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
-                  </div>
-                </button>
-                <span className="text-xs text-muted-foreground tabular-nums">{t.count}</span>
-              </div>
-            ))}
+            tripletsList.map((t) => {
+              const key = t.cardIds.join("-");
+              return (
+                <div key={key} className="flex flex-col items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedKey(key)}
+                    className={"aspect-[2/3] w-full relative transition-opacity duration-200 " + selClass(selectedKey, key)}
+                  >
+                    <div className="absolute inset-0 -translate-x-1.5 -translate-y-1.5">
+                      <CardImage cardId={t.cardIds[0]} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
+                    </div>
+                    <div className="absolute inset-0">
+                      <CardImage cardId={t.cardIds[1]} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
+                    </div>
+                    <div className="absolute inset-0 translate-x-1.5 translate-y-1.5">
+                      <CardImage cardId={t.cardIds[2]} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
+                    </div>
+                  </button>
+                  <span className="text-xs text-muted-foreground tabular-nums">{t.count}</span>
+                </div>
+              );
+            })}
 
           {mode === "reversed" &&
-            DEMO_REVERSED.map((r) => (
+            reversedList.map((r) => (
               <div key={r.cardId} className="flex flex-col items-center gap-1">
                 <button
                   type="button"
@@ -334,7 +442,7 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
                 >
                   <CardImage cardId={r.cardId} size="custom" widthPx={9999} reversed style={{ width: "100%", minHeight: 0 }} />
                 </button>
-                <span className="text-xs text-muted-foreground tabular-nums">{r.count}</span>
+                <span className="text-xs text-muted-foreground tabular-nums">{r.reversedCount}</span>
               </div>
             ))}
 
@@ -347,21 +455,20 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
         </div>
       </div>
 
-      {/* FM-2 — Single detail: larger, uncropped */}
       {mode === "singles" && selectedSingle ? (
         <div className="flex flex-col md:flex-row items-start gap-6">
-          {/* FN-6 — mobile detail card 50%; desktop unchanged. */}
           <div className="w-1/2 md:w-2/5 max-w-md mx-auto md:mx-0">
             <CardImage cardId={selectedSingle.cardId} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
           </div>
           <div className="flex-1">
-            <h3 className="text-base font-serif italic mb-2">{selectedSingle.name}</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">{selectedSingle.prose}</p>
+            <h3 className="text-base font-serif italic mb-2">{selectedSingle.cardName}</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {singleProse(selectedSingle.cardName, selectedSingle.count, timeRange)}
+            </p>
           </div>
         </div>
       ) : null}
 
-      {/* FM-3 — Twin detail: bigger */}
       {mode === "twins" && selectedTwin ? (
         <div className="flex flex-col gap-4">
           <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-2">
@@ -371,11 +478,12 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
               </div>
             ))}
           </div>
-          <p className="text-sm text-muted-foreground leading-relaxed">{selectedTwin.prose}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {twinProse(selectedTwin.cardAName, selectedTwin.cardBName, selectedTwin.count, timeRange, cooccurrence)}
+          </p>
         </div>
       ) : null}
 
-      {/* FM-3 — Triplet detail: bigger */}
       {mode === "triplets" && selectedTriplet ? (
         <div className="flex flex-col gap-4">
           <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-2">
@@ -385,35 +493,35 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
               </div>
             ))}
           </div>
-          <p className="text-sm text-muted-foreground leading-relaxed">{selectedTriplet.prose}</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            {tripletProse(selectedTriplet.cardNames, selectedTriplet.count, timeRange, cooccurrence)}
+          </p>
         </div>
       ) : null}
 
-      {/* Reversed detail (matches single FM-2 sizing) */}
       {mode === "reversed" && selectedReversed ? (
         <div className="flex flex-col md:flex-row items-start gap-6">
           <div className="w-1/2 md:w-2/5 max-w-md mx-auto md:mx-0">
             <CardImage cardId={selectedReversed.cardId} size="custom" widthPx={9999} reversed style={{ width: "100%", minHeight: 0 }} />
           </div>
           <div className="flex-1">
-            <h3 className="text-base font-serif italic mb-2">{selectedReversed.name}</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">{selectedReversed.prose}</p>
+            <h3 className="text-base font-serif italic mb-2">{selectedReversed.cardName} (reversed)</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {reversedProse(selectedReversed.cardName, selectedReversed.reversedCount, timeRange)}
+            </p>
           </div>
         </div>
       ) : null}
 
-      {((mode === "singles" && DEMO_SINGLES.length === 0) ||
-        (mode === "twins" && DEMO_TWINS.length === 0) ||
-        (mode === "triplets" && DEMO_TRIPLETS.length === 0) ||
-        (mode === "reversed" && DEMO_REVERSED.length === 0)) && (
+      {!loading && filledCount === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
           <Sparkles className="h-8 w-8 mb-2 opacity-40" />
           <p className="text-sm font-serif italic">No {mode} stalkers in this time range yet.</p>
-          <p className="text-xs mt-1 opacity-70">Try a wider time range or keep drawing.</p>
+          <p className="text-xs mt-1 opacity-70">Try a wider time range or different filters.</p>
         </div>
       )}
 
-      {/* FM-4 — Filter drawer matching Journal exactly */}
+      {/* Filter drawer (matches Journal) */}
       {drawerOpen && (
         <>
           <div
