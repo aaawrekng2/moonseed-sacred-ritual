@@ -235,7 +235,11 @@ export function PerCardEditModal({
     setBusy(true);
     try {
       // First persist the chosen radius so the edge fn picks it up.
-      const patch: Record<string, unknown> = {
+      const patch: {
+        corner_radius_percent: number;
+        processing_status: string;
+        crop_coords?: CropCoords;
+      } = {
         corner_radius_percent: radius,
         processing_status: "pending",
       };
