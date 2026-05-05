@@ -914,25 +914,15 @@ function DeleteGuideConfirm({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Confirm delete guide"
-      className="modal-scrim fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: "var(--z-modal-nested)" }}
-      onClick={onCancel}
+    <Modal
+      open
+      onClose={onCancel}
+      title={isOracle ? "Release this Guide?" : "Delete this Guide?"}
+      size="sm"
+      nested
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-2xl border border-gold/30 bg-cosmos p-5 shadow-2xl"
-      >
-        <h3
-          className="text-base italic text-gold"
-          style={{ fontFamily: "var(--font-serif)" }}
-        >
-          {isOracle ? "Release this Guide?" : "Delete this Guide?"}
-        </h3>
-        <p className="mt-2 text-[12px] text-muted-foreground">
+      <div className="p-5">
+        <p className="text-[12px] text-muted-foreground">
           This cannot be undone. Your custom guide will be permanently removed.
         </p>
         <div className="mt-4 flex justify-end gap-2">
@@ -948,6 +938,6 @@ function DeleteGuideConfirm({
           </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
