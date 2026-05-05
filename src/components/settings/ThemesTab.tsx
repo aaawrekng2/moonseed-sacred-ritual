@@ -1367,6 +1367,34 @@ function CommunityThemesSection() {
   const { user, prefs, setPrefs } = useSettings();
   const { markDirty } = useThemeDirty();
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  // FT-1 (3B) — dev-mode flag drives whether audit themes appear in the carousel.
+  const [isDevMode, setIsDevMode] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("moonseed:dev_mode") === "true";
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const read = () => window.localStorage.getItem("moonseed:dev_mode") === "true";
+    const onDev = (e: Event) => {
+      const detail = (e as CustomEvent<boolean>).detail;
+      setIsDevMode(typeof detail === "boolean" ? detail : read());
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "moonseed:dev_mode") setIsDevMode(read());
+    };
+    window.addEventListener("moonseed:dev-mode-changed", onDev);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("moonseed:dev-mode-changed", onDev);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
+  // FT-1 (3B) — hide audit themes from non-dev users.
+  const visibleThemes = useMemo(
+    () => COMMUNITY_THEMES.filter((t) => isDevMode || !t.key.startsWith("audit-")),
+    [isDevMode],
+  );
 
   useEffect(() => {
     setActiveKey(getStoredCommunityTheme());
@@ -1418,11 +1446,12 @@ function CommunityThemesSection() {
       description="Curated atmospheres — designed with intention, named for the cosmos."
     >
       <ThemeCarousel
-        count={COMMUNITY_THEMES.length}
+        count={visibleThemes.length}
         ariaLabel="Celestial palettes"
       >
-        {COMMUNITY_THEMES.map((theme) => {
+        {visibleThemes.map((theme) => {
           const active = activeKey === theme.key;
+          const isAudit = theme.key.startsWith("audit-");
           return (
             <button
               key={theme.key}
@@ -1443,6 +1472,20 @@ function CommunityThemesSection() {
                   className="absolute left-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-gold text-gold-foreground"
                 >
                   <Check className="h-3 w-3" strokeWidth={3} />
+                </span>
+              )}
+              {isAudit && (
+                // FT-1 (3C) — AUDIT marker in top-right of the card.
+                <span
+                  aria-hidden
+                  className="absolute right-2 top-2 z-10 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                  style={{
+                    background: "var(--gold)",
+                    color: "var(--gold-foreground)",
+                    letterSpacing: "0.15em",
+                  }}
+                >
+                  AUDIT
                 </span>
               )}
               <span
