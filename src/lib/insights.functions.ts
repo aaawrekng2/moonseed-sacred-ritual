@@ -13,6 +13,9 @@ import {
   type InsightsOverview,
   type StalkerCardsResult,
   type TimeRange,
+  type StalkerTwinsResult,
+  type StalkerTripletsResult,
+  type ReversedStalkersResult,
 } from "@/lib/insights.types";
 import { getCardArcana, getCardSuit, getCardName } from "@/lib/tarot";
 import { getGuideById, LENSES } from "@/lib/guides";
@@ -43,6 +46,9 @@ function resolveMoonPhase(
 const FREE_CAP_DAYS = 90;
 const STALKER_THRESHOLD = 3;
 const STALKER_MIN_WINDOW = 5;
+// FP — thresholds for twin/triplet stalkers.
+const STALKER_TWIN_THRESHOLD = 2;
+const STALKER_TRIPLET_THRESHOLD = 2;
 
 const LENS_NAMES: Record<string, string> = {
   present_resonance: "Present Resonance",
