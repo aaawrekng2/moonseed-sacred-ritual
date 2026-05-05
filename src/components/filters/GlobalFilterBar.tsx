@@ -279,7 +279,12 @@ function FilterDrawer({
   userTags: ReadonlyArray<{ id: string; name: string; usage_count: number }>;
   allStories: ReadonlyArray<{ id: string; name: string }>;
 }) {
-  return (
+  // FU-2 — Portal to document.body so the drawer escapes any ancestor
+  // stacking/containing context (e.g. `backdrop-filter`, `transform`)
+  // which would otherwise trap a `position: fixed` child inside that
+  // ancestor's box and z-index layer.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <>
       {open && (
         <button
@@ -381,7 +386,8 @@ function FilterDrawer({
           })}
         </div>
       </aside>
-    </>
+    </>,
+    document.body,
   );
 }
 
