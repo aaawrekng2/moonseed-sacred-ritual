@@ -2,11 +2,12 @@ import { useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 import type { InsightsFilters, TimeRange } from "@/lib/insights.types";
 
+// FK-4 — unify all bounded time ranges as "Last X days".
 const TIME_LABELS: Record<TimeRange, string> = {
   "7d": "Last 7 days",
   "30d": "Last 30 days",
   "90d": "Last 90 days",
-  "12m": "Last 12 months",
+  "365d": "Last 365 days",
   all: "All time",
 };
 
