@@ -29,6 +29,28 @@ export type CommunityTheme = {
   foreground: string;
   foregroundMuted: string;
 
+  // Page background — the bottom-most layer behind the gradient.
+  // Components that read var(--background) (modals, full-screen routes, sticky
+  // headers using a 92% mix) need a theme-aware value, not the :root default.
+  background: string;
+
+  // Card surface — used by shadcn-style components and any surface that
+  // reads var(--card). Usually equal to surface but kept separate so future
+  // themes can differentiate.
+  card: string;
+
+  // Stronger and weaker muted-foreground variants. The base
+  // foregroundMuted covers the common case; these two cover the edge
+  // cases where text needs slightly more or slightly less presence than
+  // the standard muted (used in Settings and ThemesTab labels).
+  foregroundMutedStrong: string;
+  foregroundMutedWeak: string;
+
+  // Surface for sticky headers, drawer panels, and any chrome that needs
+  // to sit slightly recessed from the page background. Replaces the
+  // hardcoded oklch(0.08 0.03 280) and oklch(0.10 0.03 280) literals.
+  surfaceOverlay: string;
+
   // Accent — primary actions, focus rings, selection. NOT body text.
   accent: string;
   accentForeground: string;
@@ -51,6 +73,9 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surface: "#252056", surfaceElevated: "#2d2664",
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#f5f3ff", foregroundMuted: "#c4b8e8",
+    background: "#1e1b4b", card: "#252056",
+    foregroundMutedStrong: "#e0d8f9", foregroundMutedWeak: "#9989c4",
+    surfaceOverlay: "#1a1742",
     accent: "#f59e0b", accentForeground: "#1e1b4b",
     atmosphereOverlay: "#5b21b66b",
   },
@@ -62,6 +87,9 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surface: "#16162e", surfaceElevated: "#1e1e3d",
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#ede9fe", foregroundMuted: "#a78bfa",
+    background: "#0a0a0f", card: "#16162e",
+    foregroundMutedStrong: "#dcd5fb", foregroundMutedWeak: "#7c6cb0",
+    surfaceOverlay: "#0d0d1a",
     accent: "#a78bfa", accentForeground: "#0a0a0f",
     atmosphereOverlay: "#4c1d9540",
   },
@@ -73,6 +101,9 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surface: "#330505", surfaceElevated: "#421010",
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#fff5f0", foregroundMuted: "#fca5a5",
+    background: "#1a0000", card: "#330505",
+    foregroundMutedStrong: "#ffe4dc", foregroundMutedWeak: "#c97070",
+    surfaceOverlay: "#150000",
     accent: "#fb7185", accentForeground: "#1a0000",
     atmosphereOverlay: "#7f1d1d66",
   },
@@ -84,6 +115,9 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surface: "#2a1f0c", surfaceElevated: "#372a14",
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#fefce8", foregroundMuted: "#fde68a",
+    background: "#1a1308", card: "#2a1f0c",
+    foregroundMutedStrong: "#fef3c7", foregroundMutedWeak: "#bfa566",
+    surfaceOverlay: "#150f06",
     accent: "#facc15", accentForeground: "#1a1308",
     atmosphereOverlay: "#a162074d",
   },
@@ -95,6 +129,9 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surface: "#0a2a3f", surfaceElevated: "#10374f",
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#ecfeff", foregroundMuted: "#a5f3fc",
+    background: "#001a2c", card: "#0a2a3f",
+    foregroundMutedStrong: "#cffafe", foregroundMutedWeak: "#67c5d4",
+    surfaceOverlay: "#001423",
     accent: "#67e8f9", accentForeground: "#001a2c",
     atmosphereOverlay: "#0e74904d",
   },
@@ -106,6 +143,9 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surface: "#2a1410", surfaceElevated: "#3a1d18",
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#fff7ed", foregroundMuted: "#fed7aa",
+    background: "#1c0a0a", card: "#2a1410",
+    foregroundMutedStrong: "#ffedd5", foregroundMutedWeak: "#c98a5a",
+    surfaceOverlay: "#170707",
     accent: "#fb923c", accentForeground: "#1c0a0a",
     atmosphereOverlay: "#9a34124d",
   },
@@ -117,6 +157,9 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surface: "#102a20", surfaceElevated: "#173a2c",
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#ecfdf5", foregroundMuted: "#86efac",
+    background: "#0a1a14", card: "#102a20",
+    foregroundMutedStrong: "#d1fae5", foregroundMutedWeak: "#5a9d76",
+    surfaceOverlay: "#07150f",
     accent: "#34d399", accentForeground: "#0a1a14",
     atmosphereOverlay: "#1665344d",
   },
@@ -128,6 +171,9 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surface: "#1a1430", surfaceElevated: "#241a3f",
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#faf5ff", foregroundMuted: "#d8b4fe",
+    background: "#0d0a1f", card: "#1a1430",
+    foregroundMutedStrong: "#f3e8ff", foregroundMutedWeak: "#9b7bcc",
+    surfaceOverlay: "#0a0719",
     accent: "#c084fc", accentForeground: "#0d0a1f",
     atmosphereOverlay: "#6b21a866",
   },
@@ -139,6 +185,9 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surface: "#1c1c1e", surfaceElevated: "#2c2c2e",
     borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
     foreground: "#f5f5f7", foregroundMuted: "#aeaeb2",
+    background: "#000000", card: "#1c1c1e",
+    foregroundMutedStrong: "#d1d1d6", foregroundMutedWeak: "#8e8e93",
+    surfaceOverlay: "#0a0a0a",
     accent: "#0a84ff", accentForeground: "#ffffff",
   },
   {
@@ -149,6 +198,9 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surface: "#ffffff", surfaceElevated: "#fbfbfd",
     borderSubtle: "#0000000f", borderDefault: "#0000001f",
     foreground: "#1d1d1f", foregroundMuted: "#6e6e73",
+    background: "#ffffff", card: "#ffffff",
+    foregroundMutedStrong: "#3a3a3c", foregroundMutedWeak: "#8e8e93",
+    surfaceOverlay: "#f5f5f7",
     accent: "#0066cc", accentForeground: "#ffffff",
   },
 ];

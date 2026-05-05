@@ -653,7 +653,7 @@ function JournalPage() {
           width: "var(--journal-drawer-w)",
           borderColor:
             "color-mix(in oklab, var(--gold) 18%, transparent)",
-          background: "oklch(0.08 0.03 280)",
+          background: "var(--surface-overlay)",
           paddingTop:
             "calc(env(safe-area-inset-top,0px) + 72px)",
           paddingBottom: "calc(env(safe-area-inset-bottom,0px) + 96px)",
@@ -689,7 +689,7 @@ function JournalPage() {
         className="sticky top-0 z-30 -mx-5 px-5 pt-[calc(env(safe-area-inset-top,0px)+12px)]"
         style={{
           background:
-            "linear-gradient(to bottom, oklch(0.10 0.03 280) 92%, transparent)",
+            "linear-gradient(to bottom, color-mix(in oklab, var(--surface-overlay) 92%, transparent), transparent)",
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
         }}
@@ -744,7 +744,7 @@ function JournalPage() {
               className="inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[10px] tabular-nums leading-none"
               style={{
                 background: "var(--gold)",
-                color: "oklch(0.10 0.03 280)",
+                color: "var(--accent-foreground)",
               }}
             >
               {activeFilterCount}
@@ -773,7 +773,7 @@ function JournalPage() {
               fontWeight: 700,
               letterSpacing: "0.15em",
               textTransform: "uppercase",
-              color: "#d4a843",
+              color: "var(--gold)",
               opacity: 1,
               whiteSpace: "nowrap",
               background: "none",
@@ -1181,7 +1181,7 @@ function ReadingCard({
       className="relative z-0 block w-full rounded-2xl px-4 py-4 text-left transition-[transform,background-color] hover:bg-foreground/[0.04]"
       style={{
         border: "1px solid color-mix(in oklab, var(--gold) 8%, transparent)",
-        background: "color-mix(in oklab, oklch(0.10 0.03 280) 30%, transparent)",
+        background: "color-mix(in oklab, var(--surface-overlay) 30%, transparent)",
         transform: `translateX(${swipeX}px)`,
       }}
     >
@@ -2042,7 +2042,7 @@ function CalendarView({
                   className="journal-calendar-badge absolute -bottom-1 -right-1 rounded-full px-1 leading-none"
                   style={{
                     background: "var(--gold)",
-                    color: "oklch(0.10 0.03 280)",
+                    color: "var(--accent-foreground)",
                     border:
                       "1px solid color-mix(in oklab, var(--gold) 70%, transparent)",
                     boxShadow: "0 1px 4px oklch(0 0 0 / 0.5)",
@@ -2542,7 +2542,7 @@ function ReadingDetail({
                   role="listbox"
                   className="absolute left-1/2 z-50 mt-2 w-56 -translate-x-1/2 overflow-hidden rounded-md py-1 shadow-lg"
                   style={{
-                    background: "oklch(0.10 0.03 280)",
+                    background: "var(--surface-overlay)",
                     border:
                       "1px solid color-mix(in oklab, var(--gold) 22%, transparent)",
                   }}
@@ -2966,7 +2966,7 @@ function FiltersPanel({
           type="button"
           onClick={onClearAll}
           className="self-start font-display text-[12px] uppercase tracking-[0.15em] underline-offset-2 hover:underline"
-          style={{ color: "#d4a843", opacity: 1, fontWeight: 700 }}
+          style={{ color: "var(--gold)", opacity: 1, fontWeight: 700 }}
         >
           CLEAR FILTERS
         </button>

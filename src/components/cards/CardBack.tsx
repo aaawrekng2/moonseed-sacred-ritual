@@ -38,7 +38,7 @@ const ACCENT = {
 const ACCENT_BG =
   "radial-gradient(ellipse at 45% 28%, " +
   "color-mix(in oklch, var(--gold) 30%, oklch(0.14 0.04 280)) 0%, " +
-  "color-mix(in oklch, var(--gold) 18%, oklch(0.10 0.03 280)) 55%, " +
+  "color-mix(in oklch, var(--gold) 18%, var(--surface-overlay)) 55%, " +
   "color-mix(in oklch, var(--gold) 8%, oklch(0.06 0.02 280)) 100%)";
 
 interface Props {

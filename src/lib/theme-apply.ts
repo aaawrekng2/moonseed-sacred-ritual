@@ -27,6 +27,22 @@ export function applyCommunityTheme(theme: CommunityTheme) {
   root.style.setProperty("--surface-card", theme.surface);
   root.style.setProperty("--surface-card-hover", theme.surfaceElevated);
   root.style.setProperty("--surface-elevated", theme.surfaceElevated);
+  // Page background — written so any component that reads var(--background)
+  // (modals, full-screen routes, the 92% sticky-header mix in journal.tsx)
+  // gets the theme value instead of the :root default.
+  root.style.setProperty("--background", theme.background);
+  root.style.setProperty("--color-background", theme.background);
+  // Card semantic tokens — shadcn components and Tailwind's bg-card use these.
+  root.style.setProperty("--card", theme.card);
+  root.style.setProperty("--card-foreground", theme.foreground);
+  // Surface overlay — sticky headers, drawer panels, recessed chrome.
+  // Replaces the hardcoded oklch(0.08 0.03 280) and oklch(0.10 0.03 280)
+  // literals that were leaking dark-mode values into Daybreak.
+  root.style.setProperty("--surface-overlay", theme.surfaceOverlay);
+  // Muted-foreground variants — strong and weak. Used by Settings and
+  // ThemesTab labels. Without these, Daybreak shows cream text on white.
+  root.style.setProperty("--muted-foreground-strong", theme.foregroundMutedStrong);
+  root.style.setProperty("--muted-foreground-weak", theme.foregroundMutedWeak);
   // Borders
   root.style.setProperty("--border-subtle", theme.borderSubtle);
   root.style.setProperty("--border-default", theme.borderDefault);

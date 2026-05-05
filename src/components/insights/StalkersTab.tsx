@@ -604,7 +604,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
         style={{
           width: "var(--journal-drawer-w)",
           borderColor: "color-mix(in oklab, var(--gold) 18%, transparent)",
-          background: "oklch(0.08 0.03 280)",
+          background: "var(--surface-overlay)",
           paddingTop: "calc(env(safe-area-inset-top,0px) + 72px)",
           paddingBottom: "calc(env(safe-area-inset-bottom,0px) + 96px)",
           paddingLeft: 20,
@@ -706,7 +706,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
               type="button"
               onClick={clearFilters}
               className="self-start font-display text-[12px] uppercase tracking-[0.15em] underline-offset-2 hover:underline"
-              style={{ color: "#d4a843", opacity: 1, fontWeight: 700 }}
+              style={{ color: "var(--gold)", opacity: 1, fontWeight: 700 }}
             >
               CLEAR FILTERS
             </button>

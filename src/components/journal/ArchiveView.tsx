@@ -268,7 +268,7 @@ function ArchiveRow({
         style={{
           transform: showActions ? "translateX(-160px)" : "translateX(0)",
           background:
-            "color-mix(in oklab, oklch(0.10 0.03 280) 80%, transparent)",
+            "color-mix(in oklab, var(--surface-overlay) 80%, transparent)",
           transition: "transform 220ms ease-out",
         }}
       >
