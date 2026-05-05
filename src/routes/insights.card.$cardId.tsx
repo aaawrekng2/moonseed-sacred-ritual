@@ -77,7 +77,10 @@ function StalkerDetailRoute() {
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
-            fontSize: "var(--text-body)",
+            fontSize: "var(--text-heading-lg)",
+            color: "var(--color-foreground)",
+            opacity: 0.9,
+            margin: 0,
           }}
         >
           {cardName}

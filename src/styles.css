@@ -1194,6 +1194,7 @@ button:focus-visible .moon-rung-glow {
  * toast       — transient notifications (top of everything)
  */
 :root {
+  --z-sticky-header: 30;        /* FU-7 — page sticky headers */
   --z-popover: 50;
   --z-drawer: 60;
   --z-modal: 100;
@@ -1545,6 +1546,18 @@ button:focus-visible .moon-rung-glow {
   background: color-mix(in oklch, var(--color-foreground) 8%, transparent);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+}
+
+/*
+ * FU-7 — Canonical sticky-header glass effect. Theme-aware,
+ * uses backdrop-blur for the iOS-canonical translucent header.
+ * Border-bottom provides edge definition against scrolling content.
+ */
+.page-header-glass {
+  background: color-mix(in oklch, var(--surface-elevated) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 /* FU-5 — Modal entry animations (used by Modal + FullScreenSheet). */

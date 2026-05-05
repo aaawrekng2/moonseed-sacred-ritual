@@ -123,9 +123,9 @@ function ThreadsPage() {
       }}
     >
       <header
-        className="sticky top-0 z-20 backdrop-blur-md"
+        className="page-header-glass sticky top-0"
         style={{
-          background: "linear-gradient(to bottom, rgba(10,8,22,0.92), rgba(10,8,22,0.7))",
+          zIndex: "var(--z-sticky-header)",
           paddingTop: "calc(env(safe-area-inset-top, 0px) + var(--space-4, 16px))",
         }}
       >
@@ -139,10 +139,11 @@ function ThreadsPage() {
           <h1
             style={{
               fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
               fontSize: "var(--text-heading-lg)",
               color: "var(--color-foreground)",
+              opacity: 0.9,
               margin: 0,
-              letterSpacing: "0.02em",
             }}
           >
             Stories

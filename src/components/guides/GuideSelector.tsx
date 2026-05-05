@@ -28,6 +28,8 @@ import {
   type LensMode,
 } from "@/lib/guides";
 import { cn } from "@/lib/utils";
+import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
+import { Modal } from "@/components/ui/modal";
 
 const FREE_CUSTOM_SLOTS = 1;
 
@@ -149,20 +151,15 @@ export function GuideSelector({
     [customGuides],
   );
 
-  return (
+  const inner = (
     <main
-      className={
-        isEmbedded
-          ? "flex flex-col"
-          : "fixed inset-0 flex flex-col bg-cosmos"
-      }
+      className={isEmbedded ? "flex flex-col" : "flex h-full flex-col"}
       style={
         isEmbedded
           ? undefined
           : {
               paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)",
               paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
-              zIndex: "var(--z-modal)",
             }
       }
     >
@@ -466,6 +463,14 @@ export function GuideSelector({
       )}
     </main>
   );
+
+  if (isEmbedded) return inner;
+
+  return (
+    <FullScreenSheet open onClose={onSkip} entry="fade" showCloseButton={false}>
+      {inner}
+    </FullScreenSheet>
+  );
 }
 
 /* -------------------------------------------------------------------- */
@@ -531,37 +536,8 @@ function CreateCustomGuideDialog({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Create custom guide"
-      className="modal-scrim fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: "var(--z-modal)" }}
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-2xl border border-gold/30 bg-cosmos p-5 shadow-2xl"
-        style={{ maxHeight: "90vh", overflowY: "auto" }}
-      >
-        <div className="mb-4 flex items-start justify-between">
-          <h3
-            className="text-lg italic text-gold"
-            style={{ fontFamily: "var(--font-serif)" }}
-          >
-            Forge a Custom Guide
-          </h3>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={onClose}
-            className="text-gold/60 hover:text-gold"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
+    <Modal open onClose={onClose} title="Forge a Custom Guide" size="md">
+      <div className="space-y-4 p-5">
           <div>
             <Label className="text-xs text-muted-foreground">Base guide</Label>
             <div className="mt-1 grid grid-cols-2 gap-2">
@@ -653,8 +629,7 @@ function CreateCustomGuideDialog({
             {saving ? "Saving…" : "Save Guide"}
           </Button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -753,32 +728,13 @@ function EditCustomGuideDialog({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Edit custom guide"
-      className="modal-scrim fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: "var(--z-modal)" }}
-      onClick={onClose}
+    <Modal
+      open
+      onClose={onClose}
+      title={isOracle ? "Refine this Guide" : "Edit Guide"}
+      size="md"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-2xl border border-gold/30 bg-cosmos p-5 shadow-2xl"
-        style={{ maxHeight: "90vh", overflowY: "auto" }}
-      >
-        {/* No on-screen X — the Close affordance lives in the global
-            FloatingMenu pill (the `···`). Backdrop tap and ESC also
-            dismiss this dialog (handled by the wrapper). */}
-        <div className="mb-4 flex items-start justify-between">
-          <h3
-            className="text-lg italic text-gold"
-            style={{ fontFamily: "var(--font-serif)" }}
-          >
-            {isOracle ? "Refine this Guide" : "Edit Guide"}
-          </h3>
-        </div>
-
-        <div className="space-y-4">
+      <div className="space-y-4 p-5">
           <div>
             <Label className="text-xs text-muted-foreground">Base guide</Label>
             <div className="mt-1 grid grid-cols-2 gap-2">
@@ -915,8 +871,7 @@ function EditCustomGuideDialog({
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -959,25 +914,15 @@ function DeleteGuideConfirm({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Confirm delete guide"
-      className="modal-scrim fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: "var(--z-modal-nested)" }}
-      onClick={onCancel}
+    <Modal
+      open
+      onClose={onCancel}
+      title={isOracle ? "Release this Guide?" : "Delete this Guide?"}
+      size="sm"
+      nested
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-2xl border border-gold/30 bg-cosmos p-5 shadow-2xl"
-      >
-        <h3
-          className="text-base italic text-gold"
-          style={{ fontFamily: "var(--font-serif)" }}
-        >
-          {isOracle ? "Release this Guide?" : "Delete this Guide?"}
-        </h3>
-        <p className="mt-2 text-[12px] text-muted-foreground">
+      <div className="p-5">
+        <p className="text-[12px] text-muted-foreground">
           This cannot be undone. Your custom guide will be permanently removed.
         </p>
         <div className="mt-4 flex justify-end gap-2">
@@ -993,6 +938,6 @@ function DeleteGuideConfirm({
           </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

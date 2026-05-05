@@ -47,8 +47,11 @@ function HelpHub() {
         <h1
           style={{
             fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-h2, 1.5rem)",
-            color: "var(--foreground)",
+            fontStyle: "italic",
+            fontSize: "var(--text-heading-lg)",
+            color: "var(--color-foreground)",
+            opacity: 0.9,
+            margin: 0,
           }}
         >
           Help
