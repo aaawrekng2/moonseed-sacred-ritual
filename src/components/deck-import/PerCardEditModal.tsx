@@ -41,6 +41,11 @@ export function PerCardEditModal({
   const [busy, setBusy] = useState(false);
   const [canvasPreview, setCanvasPreview] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
+  // FE-2 — track the natural dimensions of the loaded preview so we
+  // can compute a single px corner radius (rather than a percent that
+  // CSS interprets per-axis and turns into an ellipse on tarot-aspect
+  // cards).
+  const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   // Load card list + per-card radii.
@@ -134,6 +139,7 @@ export function PerCardEditModal({
   // Reset Canvas preview whenever the active card changes.
   useEffect(() => {
     setCanvasPreview(null);
+    setImgDims(null);
   }, [activeCardId]);
 
   async function handleSave() {
@@ -176,9 +182,17 @@ export function PerCardEditModal({
   }
 
   const previewSrc = canvasPreview ?? activeUrl;
+  // FE-2 — CSS `border-radius: N%` computes X = N% of width and
+  // Y = N% of height, producing an ellipse on non-square cards. Use
+  // a single px value derived from the image's natural smaller
+  // dimension so all four corners are TRUE circles. Mirrors the
+  // Edge Function and Canvas formula: min(w, h) * radiusPercent / 100.
+  const cssRadiusPx = imgDims
+    ? Math.round((Math.min(imgDims.w, imgDims.h) * radius) / 100)
+    : 0;
   const previewStyle: React.CSSProperties = canvasPreview
     ? {} // Canvas image already has rounded transparent corners baked in.
-    : { borderRadius: `${radius}%`, overflow: "hidden" };
+    : { borderRadius: `${cssRadiusPx}px`, overflow: "hidden" };
 
   const cardCount = cards?.length ?? 0;
 
