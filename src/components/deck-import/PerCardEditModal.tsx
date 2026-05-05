@@ -82,6 +82,8 @@ export function PerCardEditModal({
   const [crop, setCrop] = useState<CropCoords | null>(null);
   const [busy, setBusy] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  // FJ-1 — abort controller for batch processing (Cancel button).
+  const [batchAbort, setBatchAbort] = useState<AbortController | null>(null);
   // FI-3 — choice dialog state for "Apply to all".
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [applyScope, setApplyScope] = useState<"unsaved" | "all">("unsaved");
@@ -350,52 +352,200 @@ export function PerCardEditModal({
       });
       if (!goProcess) return;
 
-      const { data: sess } = await supabase.auth.getSession();
-      const jwt = sess.session?.access_token;
-      if (!jwt) throw new Error("Not signed in.");
+      await processCards(targets);
+    } catch (err) {
+      console.error("[FI-3] apply-to-all failed", err);
+      toast.error(
+        err instanceof Error ? err.message : "Apply to all failed.",
+      );
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
-      let done = 0;
-      let failed = 0;
-      const progressId = toast.loading(`Processing 0/${targetCount}…`);
-      for (const c of targets) {
+  // FJ-1 — Reusable batch processing loop with progress, cancel, and
+  // 60s per-card timeout. Used by both Apply-to-all and Resume.
+  async function processCards(targets: CustomDeckCard[]) {
+    const targetCount = targets.length;
+    if (targetCount === 0) return;
+
+    const { data: sess } = await supabase.auth.getSession();
+    const jwt = sess.session?.access_token;
+    if (!jwt) throw new Error("Not signed in.");
+
+    const abortController = new AbortController();
+    setBatchAbort(abortController);
+
+    let done = 0;
+    let failed = 0;
+    let cancelled = false;
+
+    const progressId = toast.loading(`Starting… 0/${targetCount}`, {
+      duration: Infinity,
+      cancel: {
+        label: "Cancel",
+        onClick: () => {
+          cancelled = true;
+          abortController.abort();
+        },
+      },
+    });
+
+    try {
+      for (let i = 0; i < targets.length; i++) {
+        if (cancelled) break;
+        const c = targets[i];
+
+        toast.loading(
+          `Processing ${i + 1}/${targetCount} (${getCardName(c.card_id)})…`,
+          { id: progressId },
+        );
+
+        const timeoutController = new AbortController();
+        const timeoutId = setTimeout(() => timeoutController.abort(), 60000);
+
         try {
-          const { data, error: invErr } = await supabase.functions.invoke(
+          const invokePromise = supabase.functions.invoke(
             "generate-deck-variants",
             {
               body: { deckId, cardId: c.card_id },
               headers: { Authorization: `Bearer ${jwt}` },
             },
           );
-          if (invErr) throw invErr;
-          const result = (data ?? {}) as { ok?: boolean; error?: string; step?: string };
-          if (!result.ok) {
+
+          const result = (await Promise.race([
+            invokePromise,
+            new Promise((_, reject) => {
+              abortController.signal.addEventListener(
+                "abort",
+                () => reject(new Error("Batch cancelled by user")),
+                { once: true },
+              );
+              timeoutController.signal.addEventListener(
+                "abort",
+                () => reject(new Error("Card processing timeout (60s)")),
+                { once: true },
+              );
+            }),
+          ])) as {
+            data?: { ok?: boolean; error?: string; step?: string };
+            error?: unknown;
+          };
+
+          clearTimeout(timeoutId);
+
+          if (result.error) throw result.error;
+          const data = result.data ?? {};
+          if (!data.ok) {
             failed++;
             console.warn(
-              `[FI-3] card ${c.card_id} failed`,
-              result.step,
-              result.error,
+              `[FJ-1] card ${c.card_id} failed`,
+              data.step,
+              data.error,
             );
           }
         } catch (e) {
+          clearTimeout(timeoutId);
           failed++;
-          console.warn(`[FI-3] card ${c.card_id} threw`, e);
+          const msg = (e as Error).message ?? String(e);
+          if (msg.includes("cancelled")) {
+            cancelled = true;
+            break;
+          }
+          console.warn(`[FJ-1] card ${c.card_id} threw`, e);
         }
         done++;
-        toast.loading(`Processing ${done}/${targetCount}…`, { id: progressId });
       }
+
+      // Re-fetch saved state from DB so UI reflects reality.
+      try {
+        const { data: rows } = await supabase
+          .from("custom_deck_cards")
+          .select("card_id, corner_radius_percent, crop_coords, processing_status")
+          .eq("deck_id", deckId)
+          .is("archived_at", null);
+        const sr: Record<number, number> = {};
+        const sc: Record<number, CropCoords> = {};
+        for (const r of rows ?? []) {
+          if (
+            r.processing_status === "saved" &&
+            typeof r.corner_radius_percent === "number"
+          ) {
+            sr[r.card_id] = r.corner_radius_percent;
+          }
+          if (
+            r.processing_status === "saved" &&
+            isCropCoords(r.crop_coords)
+          ) {
+            sc[r.card_id] = r.crop_coords;
+          }
+        }
+        setSavedRadii(sr);
+        setSavedCrops(sc);
+        // Also refresh the cards list so pendingCount recomputes.
+        const fresh = await fetchDeckCards(deckId);
+        setCards(
+          fresh
+            .filter((c) => c.source !== "default" && !!c.display_path)
+            .sort((a, b) => a.card_id - b.card_id),
+        );
+      } catch (e) {
+        console.warn("[FJ-1] post-batch refresh failed", e);
+      }
+
       setVersion((v) => v + 1);
-      if (failed > 0) {
+
+      if (cancelled) {
+        toast.warning(
+          `Cancelled. Processed ${done - failed}/${targetCount}.`,
+          { id: progressId, duration: 4000 },
+        );
+      } else if (failed > 0) {
         toast.error(
           `Processed ${done - failed}/${targetCount}. ${failed} failed — check console.`,
-          { id: progressId },
+          { id: progressId, duration: 5000 },
         );
       } else {
-        toast.success(`All ${targetCount} cards processed.`, { id: progressId });
+        toast.success(`All ${targetCount} cards processed.`, {
+          id: progressId,
+          duration: 4000,
+        });
       }
+    } finally {
+      setBatchAbort(null);
+    }
+  }
+
+  // FJ-3 — count of cards with settings applied but processing pending.
+  const pendingCount = useMemo(() => {
+    return (cards ?? []).filter((c) => {
+      const r = c as unknown as {
+        processing_status?: string;
+        corner_radius_percent?: number | null;
+      };
+      return r.processing_status === "pending" && r.corner_radius_percent != null;
+    }).length;
+  }, [cards]);
+
+  // FJ-3 — Resume processing handler.
+  async function handleResumeProcessing() {
+    if (bulkBusy || busy) return;
+    const list = cards ?? [];
+    const targets = list.filter((c) => {
+      const r = c as unknown as {
+        processing_status?: string;
+        corner_radius_percent?: number | null;
+      };
+      return r.processing_status === "pending" && r.corner_radius_percent != null;
+    });
+    if (targets.length === 0) return;
+    setBulkBusy(true);
+    try {
+      await processCards(targets);
     } catch (err) {
-      console.error("[FI-3] apply-to-all failed", err);
+      console.error("[FJ-3] resume failed", err);
       toast.error(
-        err instanceof Error ? err.message : "Apply to all failed.",
+        err instanceof Error ? err.message : "Resume failed.",
       );
     } finally {
       setBulkBusy(false);
@@ -498,7 +648,10 @@ export function PerCardEditModal({
                   {/* FI-2 — Crop corner handles. Only shown on raw image
                       preview (not the rounded canvas snapshot) and only
                       once both natural + rendered sizes are known. */}
-                  {!canvasPreview && crop && imgDims && renderedDims && imgRef.current ? (
+                  {/* FJ-2 — Handles stay visible whenever crop is set,
+                      even after the Canvas preview renders. The handles
+                      ARE the edit UI; hiding them defeats the purpose. */}
+                  {crop && imgDims && renderedDims && imgRef.current ? (
                     <CropHandles
                       imgEl={imgRef.current}
                       crop={crop}
@@ -565,6 +718,17 @@ export function PerCardEditModal({
                 </div>
 
                 <div className="flex flex-wrap items-center justify-end gap-2">
+                  {pendingCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={handleResumeProcessing}
+                      disabled={busy || bulkBusy}
+                      title="Pick up where the last batch left off. No settings will be changed."
+                      className="text-sm text-gold underline-offset-2 hover:underline disabled:opacity-50 mr-auto"
+                    >
+                      Resume processing ({pendingCount} pending)
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={handleApplyToAll}
