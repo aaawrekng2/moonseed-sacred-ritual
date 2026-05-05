@@ -8,7 +8,7 @@
  * - Type chips drop count badges (FM-6)
  */
 import { useEffect, useMemo, useState } from "react";
-import { SlidersHorizontal, Sparkles, X as XIcon } from "lucide-react";
+import { SlidersHorizontal, Sparkles, X as XIcon, X } from "lucide-react";
 import { CardImage } from "@/components/card/CardImage";
 import type { TimeRange } from "@/lib/insights.types";
 
@@ -84,7 +84,7 @@ function ReversedCardIcon() {
   );
 }
 
-// FN-4 — Icon-only chip.
+// FO-3 — No circle/pill border. Underline-on-active matching insights tab strip.
 function Chip({ icon, active, onClick, label }: {
   icon: React.ReactNode;
   active: boolean;
@@ -98,12 +98,12 @@ function Chip({ icon, active, onClick, label }: {
       aria-label={label}
       title={label}
       aria-pressed={active}
-      className={
-        "inline-flex items-center justify-center rounded-full border p-1.5 transition-colors " +
-        (active
-          ? "border-[var(--gold)] bg-[color-mix(in_oklch,var(--gold)_15%,transparent)] text-[var(--gold)]"
-          : "border-border/50 text-muted-foreground hover:border-[var(--gold)]/50 hover:text-[var(--gold)]")
-      }
+      className="relative inline-flex items-center justify-center px-1.5 pb-1 pt-1 transition-colors"
+      style={{
+        color: active ? "var(--gold)" : "var(--color-foreground)",
+        opacity: active ? 1 : 0.55,
+        borderBottom: active ? "1px solid var(--gold)" : "1px solid transparent",
+      }}
     >
       {icon}
     </button>
@@ -154,6 +154,26 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
   };
   const hasAnyFilter = activeTags.length > 0 || activeDrawTypes.length > 0;
 
+  // FO-2 — Active filter chips for the row beneath the title.
+  const activeFilterChips = useMemo(() => {
+    const chips: { key: string; label: string; clear: () => void }[] = [];
+    activeTags.forEach((t) =>
+      chips.push({
+        key: `tag-${t}`,
+        label: t,
+        clear: () => setActiveTags((prev) => prev.filter((x) => x !== t)),
+      }),
+    );
+    activeDrawTypes.forEach((dt) =>
+      chips.push({
+        key: `dt-${dt}`,
+        label: dt,
+        clear: () => setActiveDrawTypes((prev) => prev.filter((x) => x !== dt)),
+      }),
+    );
+    return chips;
+  }, [activeTags, activeDrawTypes]);
+
   const selectedSingle = DEMO_SINGLES.find((s) => s.cardId === selectedKey);
   const selectedTwin = DEMO_TWINS.find((t) => t.id === selectedKey);
   const selectedTriplet = DEMO_TRIPLETS.find((t) => t.id === selectedKey);
@@ -188,6 +208,35 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
       </header>
 
       <div className="text-xs text-muted-foreground mb-3">{TIME_RANGE_LABELS[timeRange]}</div>
+
+      {/* FO-2 — Active filter chips. Visible only when filters are set. */}
+      {activeFilterChips.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          {activeFilterChips.map((c) => (
+            <button
+              key={c.key}
+              type="button"
+              onClick={c.clear}
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
+              style={{
+                background: "color-mix(in oklch, var(--gold) 18%, transparent)",
+                color: "var(--color-foreground)",
+              }}
+            >
+              {c.label}
+              <X className="h-3 w-3 opacity-60" />
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="ml-auto text-xs italic"
+            style={{ color: "var(--gold)" }}
+          >
+            Clear filters
+          </button>
+        </div>
+      )}
 
       {(mode === "twins" || mode === "triplets") ? (
         <div className="flex items-center gap-2 mb-3">
