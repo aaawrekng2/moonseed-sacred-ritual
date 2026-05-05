@@ -15,6 +15,9 @@ import {
   getReversedStalkers,
 } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
+import { StalkerCalendar } from "./StalkerCalendar";
+import { StalkerOccurrenceList } from "./StalkerOccurrenceList";
+import { StalkerReadingModal } from "./StalkerReadingModal";
 import type {
   InsightsFilters,
   TimeRange,
@@ -153,6 +156,9 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [activeDrawTypes, setActiveDrawTypes] = useState<string[]>([]);
+  // FQ-5 — Selected occurrence opens a modal over the Stalkers tab; setting
+  // null restores the underlying state untouched.
+  const [openReadingId, setOpenReadingId] = useState<string | null>(null);
 
   // FP-4 — Real data via server functions. Match existing useServerFn + useEffect pattern.
   const singlesFn = useServerFn(getStalkerCards);
@@ -456,16 +462,23 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
       </div>
 
       {mode === "singles" && selectedSingle ? (
-        <div className="flex flex-col md:flex-row items-start gap-6">
-          <div className="w-1/2 md:w-2/5 max-w-md mx-auto md:mx-0">
-            <CardImage cardId={selectedSingle.cardId} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row items-start gap-6">
+            <div className="w-1/2 md:w-2/5 max-w-md mx-auto md:mx-0">
+              <CardImage cardId={selectedSingle.cardId} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-base font-serif italic mb-2">{selectedSingle.cardName}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {singleProse(selectedSingle.cardName, selectedSingle.count, timeRange)}
+              </p>
+            </div>
           </div>
-          <div className="flex-1">
-            <h3 className="text-base font-serif italic mb-2">{selectedSingle.cardName}</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {singleProse(selectedSingle.cardName, selectedSingle.count, timeRange)}
-            </p>
-          </div>
+          <StalkerCalendar appearances={selectedSingle.appearances} />
+          <StalkerOccurrenceList
+            appearances={selectedSingle.appearances}
+            onOpenReading={setOpenReadingId}
+          />
         </div>
       ) : null}
 
@@ -481,6 +494,11 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
           <p className="text-sm text-muted-foreground leading-relaxed">
             {twinProse(selectedTwin.cardAName, selectedTwin.cardBName, selectedTwin.count, timeRange, cooccurrence)}
           </p>
+          <StalkerCalendar appearances={selectedTwin.appearances} />
+          <StalkerOccurrenceList
+            appearances={selectedTwin.appearances}
+            onOpenReading={setOpenReadingId}
+          />
         </div>
       ) : null}
 
@@ -496,20 +514,32 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
           <p className="text-sm text-muted-foreground leading-relaxed">
             {tripletProse(selectedTriplet.cardNames, selectedTriplet.count, timeRange, cooccurrence)}
           </p>
+          <StalkerCalendar appearances={selectedTriplet.appearances} />
+          <StalkerOccurrenceList
+            appearances={selectedTriplet.appearances}
+            onOpenReading={setOpenReadingId}
+          />
         </div>
       ) : null}
 
       {mode === "reversed" && selectedReversed ? (
-        <div className="flex flex-col md:flex-row items-start gap-6">
-          <div className="w-1/2 md:w-2/5 max-w-md mx-auto md:mx-0">
-            <CardImage cardId={selectedReversed.cardId} size="custom" widthPx={9999} reversed style={{ width: "100%", minHeight: 0 }} />
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row items-start gap-6">
+            <div className="w-1/2 md:w-2/5 max-w-md mx-auto md:mx-0">
+              <CardImage cardId={selectedReversed.cardId} size="custom" widthPx={9999} reversed style={{ width: "100%", minHeight: 0 }} />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-base font-serif italic mb-2">{selectedReversed.cardName} (reversed)</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {reversedProse(selectedReversed.cardName, selectedReversed.reversedCount, timeRange)}
+              </p>
+            </div>
           </div>
-          <div className="flex-1">
-            <h3 className="text-base font-serif italic mb-2">{selectedReversed.cardName} (reversed)</h3>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {reversedProse(selectedReversed.cardName, selectedReversed.reversedCount, timeRange)}
-            </p>
-          </div>
+          <StalkerCalendar appearances={selectedReversed.appearances} />
+          <StalkerOccurrenceList
+            appearances={selectedReversed.appearances}
+            onOpenReading={setOpenReadingId}
+          />
         </div>
       ) : null}
 
@@ -647,6 +677,14 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
           )}
         </div>
       </aside>
+
+      {/* FQ-4/5 — Reading detail modal opens over the tab. */}
+      {openReadingId && (
+        <StalkerReadingModal
+          readingId={openReadingId}
+          onClose={() => setOpenReadingId(null)}
+        />
+      )}
     </div>
   );
 }
