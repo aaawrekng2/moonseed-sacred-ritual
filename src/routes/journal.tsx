@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, SlidersHorizontal, Sparkles, X as XIcon } from "lucide-react";
+import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, Sparkles, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -29,6 +29,11 @@ import { ArchiveView } from "@/components/journal/ArchiveView";
 import { archiveReading, daysUntilPurge, restoreReading } from "@/lib/readings-archive";
 import { useServerFn } from "@tanstack/react-start";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
+import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
+import {
+  EMPTY_GLOBAL_FILTERS,
+  type GlobalFilters,
+} from "@/lib/filters.types";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -240,14 +245,13 @@ function JournalPage() {
   const [loaded, setLoaded] = useState(false);
 
   const [search, setSearch] = useState("");
-  const [activeTags, setActiveTags] = useState<string[]>([]);
-  const [tagMode, setTagMode] = useState<TagMode>("all");
-  const [activeDrawTypes, setActiveDrawTypes] = useState<DrawTypeKey[]>([]);
-  const [deepOnly, setDeepOnly] = useState(false);
-  // DZ-5 — "Saved only" filter (replaces DW-6 "Saved Mirrors only").
-  const [savedOnly, setSavedOnly] = useState(false);
-  // DN-5 — Stories filter (multi-select pattern IDs).
-  const [activeStories, setActiveStories] = useState<string[]>([]);
+  // FU-3 — Consolidated filter state. Mirrors what Insights does for
+  // its InsightsFilters. activeDate stays separate — it's a date
+  // picker tied to the calendar tab, not a generic filter.
+  const [journalFilters, setJournalFilters] = useState<GlobalFilters>({
+    ...EMPTY_GLOBAL_FILTERS,
+    tagMode: "all", // Journal's default match mode is "all"
+  });
   // YYYY-MM-DD selected from the calendar view; null = no date filter.
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("readings");
@@ -256,7 +260,6 @@ function JournalPage() {
   // Active readings come from `readings`; archived rows are filtered out
   // of that list, so we lazily fetch them by id here.
   const [openOverride, setOpenOverride] = useState<ReadingRow | null>(null);
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Fetch readings + tags + photo counts whenever the user resolves.
   useEffect(() => {
@@ -351,24 +354,24 @@ function JournalPage() {
     const q = search.trim().toLowerCase();
     return readings.filter((r) => {
       if (batchParam && r.import_batch_id !== batchParam) return false;
-      if (activeTags.length > 0) {
+      if (journalFilters.tags.length > 0) {
         const rt = r.tags ?? [];
-        if (tagMode === "all") {
-          if (!activeTags.every((t) => rt.includes(t))) return false;
+        if (journalFilters.tagMode === "all") {
+          if (!journalFilters.tags.every((t) => rt.includes(t))) return false;
         } else {
-          if (!activeTags.some((t) => rt.includes(t))) return false;
+          if (!journalFilters.tags.some((t) => rt.includes(t))) return false;
         }
       }
-      if (activeDrawTypes.length > 0) {
-        if (!activeDrawTypes.includes(r.spread_type as DrawTypeKey))
+      if (journalFilters.spreadTypes.length > 0) {
+        if (!journalFilters.spreadTypes.includes(r.spread_type as DrawTypeKey))
           return false;
       }
-      if (deepOnly && !r.is_deep_reading) return false;
-      if (savedOnly && !r.mirror_saved) return false;
+      if (journalFilters.deepOnly && !r.is_deep_reading) return false;
+      if (journalFilters.bookmarked && !r.mirror_saved) return false;
       // DN-5 — Stories filter: keep only readings attached to one of
       // the currently-active patterns.
-      if (activeStories.length > 0) {
-        if (!r.pattern_id || !activeStories.includes(r.pattern_id))
+      if (journalFilters.storyIds.length > 0) {
+        if (!r.pattern_id || !journalFilters.storyIds.includes(r.pattern_id))
           return false;
       }
       if (activeDate) {
@@ -396,12 +399,7 @@ function JournalPage() {
   }, [
     readings,
     search,
-    activeTags,
-    tagMode,
-    activeDrawTypes,
-    deepOnly,
-    savedOnly,
-    activeStories,
+    journalFilters,
     activeDate,
     batchParam,
   ]);
@@ -588,100 +586,8 @@ function JournalPage() {
     [],
   );
 
-  // Count of currently-active filters (excludes search and active date,
-  // which have their own UI affordances). Drives the badge on the mobile
-  // "Filter" button.
-  const activeFilterCount =
-    activeTags.length +
-    activeDrawTypes.length +
-    activeStories.length +
-    (deepOnly ? 1 : 0) +
-    (savedOnly ? 1 : 0);
-
-  const filtersNode = (
-    <FiltersPanel
-      topTags={topTags}
-      activeTags={activeTags}
-      setActiveTags={setActiveTags}
-      tagMode={tagMode}
-      setTagMode={setTagMode}
-      activeDrawTypes={activeDrawTypes}
-      setActiveDrawTypes={setActiveDrawTypes}
-      deepOnly={deepOnly}
-      setDeepOnly={setDeepOnly}
-      savedOnly={savedOnly}
-      setSavedOnly={setSavedOnly}
-      allStories={allStories}
-      activeStories={activeStories}
-      setActiveStories={setActiveStories}
-      onClearAll={() => {
-        setActiveTags([]);
-        setActiveDrawTypes([]);
-        setDeepOnly(false);
-        setSavedOnly(false);
-        setActiveStories([]);
-      }}
-    />
-  );
-
   return (
     <div className="bg-cosmos relative flex h-dvh">
-      {/* Right-side flyout filter drawer — used on both mobile and
-          desktop. The backdrop is pointer-events:none so the journal
-          behind keeps scrolling; a small left-edge tap target closes
-          the drawer. */}
-      {filtersOpen && (
-        <>
-          <div
-            aria-hidden
-            className="fixed inset-0 z-40 bg-transparent"
-            style={{ pointerEvents: "none" }}
-          />
-          <button
-            type="button"
-            aria-label="Close filters"
-            onClick={() => setFiltersOpen(false)}
-            className="fixed top-0 z-40 h-dvh w-10 cursor-pointer bg-transparent"
-            style={{ right: "var(--journal-drawer-w)" }}
-          />
-        </>
-      )}
-      <aside
-        aria-hidden={!filtersOpen}
-        className="journal-filter-drawer fixed right-0 top-0 z-50 flex h-dvh flex-col overflow-y-auto border-l shadow-2xl transition-transform duration-300 ease-out"
-        style={{
-          width: "var(--journal-drawer-w)",
-          borderColor:
-            "color-mix(in oklab, var(--gold) 18%, transparent)",
-          background: "var(--surface-overlay)",
-          paddingTop:
-            "calc(env(safe-area-inset-top,0px) + 72px)",
-          paddingBottom: "calc(env(safe-area-inset-bottom,0px) + 96px)",
-          paddingLeft: 20,
-          paddingRight: 20,
-          transform: filtersOpen ? "translateX(0)" : "translateX(100%)",
-          pointerEvents: filtersOpen ? "auto" : "none",
-        }}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2
-            className="font-display text-[11px] uppercase tracking-[0.22em] text-gold"
-            style={{ opacity: "var(--ro-plus-30)" }}
-          >
-            Filters
-          </h2>
-          <button
-            type="button"
-            onClick={() => setFiltersOpen(false)}
-            aria-label="Close"
-            className="rounded-full p-1 text-muted-foreground hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          >
-            <XIcon size={16} strokeWidth={1.5} />
-          </button>
-        </div>
-        {filtersNode}
-      </aside>
-
     <main className="relative h-dvh flex-1 overflow-y-auto px-5 pb-28">
       {/* Sticky header — title, search, filter button, tab row.
           Stays pinned while the body below scrolls. */}
@@ -723,97 +629,32 @@ function JournalPage() {
               "1px solid color-mix(in oklab, var(--gold) 20%, transparent)",
           }}
         />
-        <button
-          type="button"
-          onClick={() => setFiltersOpen(true)}
-          aria-label="Filter"
-          className="journal-filter-btn ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 font-display text-[12px] italic text-gold transition-opacity"
-          style={{
-            border:
-              "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
-          }}
-        >
-          <SlidersHorizontal
-            className="journal-filter-btn__icon"
-            size={14}
-            strokeWidth={1.5}
-            aria-hidden
-          />
-          {activeFilterCount > 0 && (
-            <span
-              className="inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[10px] tabular-nums leading-none"
-              style={{
-                background: "var(--gold)",
-                color: "var(--accent-foreground)",
-              }}
-            >
-              {activeFilterCount}
-            </span>
-          )}
-        </button>
       </div>
 
-      {/* Tag strip */}
-      {/* Compact filter row — Filter button (mobile only — sidebar covers
-          desktop) plus the active-date chip. The full filter UI lives in
-          either the bottom sheet or the desktop sidebar. */}
-      <div className="mt-1 mb-1 flex flex-wrap items-center gap-x-3 gap-y-1" style={{ paddingTop: 4, paddingBottom: 4 }}>
-        {(activeTags.length > 0 || activeDrawTypes.length > 0 || deepOnly || activeDate) && (
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTags([]);
-              setActiveDrawTypes([]);
-              setDeepOnly(false);
-              setActiveDate(null);
-            }}
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "var(--text-body-sm)",
-              fontWeight: 700,
-              letterSpacing: "0.15em",
-              textTransform: "uppercase",
-              color: "var(--gold)",
-              opacity: 1,
-              whiteSpace: "nowrap",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "0 var(--space-2) 0 0",
-            }}
-          >
-            CLEAR FILTERS
-          </button>
-        )}
-        {/* Inline summary of active filters — visible on all sizes so the
-            seeker always sees what's narrowing their results. */}
-        {(activeTags.length > 0 || activeDrawTypes.length > 0 || deepOnly) && (
-          <span
-            className="font-display text-[11px] italic text-muted-foreground"
-            style={{ opacity: "var(--ro-plus-20)" }}
-          >
-            {[
-              ...activeTags,
-              ...activeDrawTypes.map((k) => DRAW_TYPE_LABEL[k]),
-              ...(deepOnly ? ["Deep readings"] : []),
-            ].join(" · ")}
-          </span>
-        )}
-        {activeDate && (
-          <button
-            type="button"
-            onClick={() => setActiveDate(null)}
-            className="ml-auto inline-flex items-center gap-1 font-display text-[11px] italic text-muted-foreground"
-            style={{ opacity: "var(--ro-plus-20)" }}
-          >
-            <XIcon size={11} strokeWidth={1.5} />
-            {new Date(activeDate + "T12:00:00").toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-            })}
-          </button>
-        )}
-      </div>
+      {/* FU-3 — Unified filter pattern via GlobalFilterBar. */}
+      <GlobalFilterBar
+        filters={journalFilters}
+        onChange={setJournalFilters}
+        sections={["tags", "spreadTypes", "depth", "stories"]}
+        userTags={topTags}
+        allStories={allStories}
+        trailingChips={
+          activeDate ? (
+            <button
+              type="button"
+              onClick={() => setActiveDate(null)}
+              className="inline-flex items-center gap-1 font-display text-[11px] italic text-muted-foreground"
+              style={{ opacity: "var(--ro-plus-20)" }}
+            >
+              <XIcon size={11} strokeWidth={1.5} />
+              {new Date(activeDate + "T12:00:00").toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              })}
+            </button>
+          ) : null
+        }
+      />
 
       {/* View tabs — icons only on mobile (< sm), label-only at sm+.
           BO Fix 1 — wrapped in HorizontalScroll so the row gets edge
@@ -947,9 +788,9 @@ function JournalPage() {
         ) : view === "calendar" ? (
           <CalendarView
             readings={readings}
-            activeTags={activeTags}
-            tagMode={tagMode}
-            activeDrawTypes={activeDrawTypes}
+            activeTags={journalFilters.tags}
+            tagMode={journalFilters.tagMode}
+            activeDrawTypes={journalFilters.spreadTypes as DrawTypeKey[]}
             activeDate={activeDate}
             onSelectDate={(d) => {
               setActiveDate((cur) => (cur === d ? null : d));
@@ -2704,273 +2545,3 @@ function ReadingDetail({
   );
 }
 
-/* ---------- Filters panel (shared between mobile sheet + desktop sidebar) ---------- */
-
-function FiltersPanel({
-  topTags,
-  activeTags,
-  setActiveTags,
-  tagMode,
-  setTagMode,
-  activeDrawTypes,
-  setActiveDrawTypes,
-  deepOnly,
-  setDeepOnly,
-  savedOnly,
-  setSavedOnly,
-  allStories,
-  activeStories,
-  setActiveStories,
-  onClearAll,
-}: {
-  topTags: TagRow[];
-  activeTags: string[];
-  setActiveTags: React.Dispatch<React.SetStateAction<string[]>>;
-  tagMode: TagMode;
-  setTagMode: React.Dispatch<React.SetStateAction<TagMode>>;
-  activeDrawTypes: DrawTypeKey[];
-  setActiveDrawTypes: React.Dispatch<React.SetStateAction<DrawTypeKey[]>>;
-  deepOnly: boolean;
-  setDeepOnly: React.Dispatch<React.SetStateAction<boolean>>;
-  savedOnly: boolean;
-  setSavedOnly: React.Dispatch<React.SetStateAction<boolean>>;
-  allStories: { id: string; name: string; lastActiveAt?: string }[];
-  activeStories: string[];
-  setActiveStories: React.Dispatch<React.SetStateAction<string[]>>;
-  onClearAll: () => void;
-}) {
-  // DO-1 — Stories list paginates: default to 5 most-recent, with a
-  // "Show all (N)" toggle so the section never grows into a wall.
-  const [showAllStories, setShowAllStories] = useState(false);
-  const STORIES_DEFAULT_VISIBLE = 5;
-  const hasAny =
-    activeTags.length > 0 ||
-    activeDrawTypes.length > 0 ||
-    deepOnly ||
-    savedOnly ||
-    activeStories.length > 0;
-  return (
-    <div className="flex flex-col gap-5">
-      {/* Deep readings toggle */}
-      <section>
-        <h3
-          className="font-display text-[14px] uppercase tracking-[0.18em] mb-2"
-          style={{ color: "var(--accent)" }}
-        >
-          Depth
-        </h3>
-        <button
-          type="button"
-          onClick={() => setDeepOnly((v) => !v)}
-          className="font-display text-[13px] italic transition-colors text-foreground"
-          style={{
-            opacity: deepOnly ? 1 : 0.85,
-            borderBottom: deepOnly
-              ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
-              : "1px solid transparent",
-            paddingBottom: 2,
-          }}
-        >
-          ✦ Deep readings only
-          {deepOnly && <span className="ml-1 text-[10px]">×</span>}
-        </button>
-        <button
-          type="button"
-          onClick={() => setSavedOnly((v) => !v)}
-          className="ml-4 font-display text-[13px] italic transition-colors text-foreground"
-          style={{
-            opacity: savedOnly ? 1 : 0.85,
-            borderBottom: savedOnly
-              ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
-              : "1px solid transparent",
-            paddingBottom: 2,
-          }}
-        >
-          Bookmarked
-          {savedOnly && <span className="ml-1 text-[10px]">×</span>}
-        </button>
-      </section>
-
-      {/* Tags */}
-      {topTags.length > 0 && (
-        <section>
-          <h3
-            className="font-display text-[14px] uppercase tracking-[0.18em] mb-2"
-            style={{ color: "var(--accent)" }}
-          >
-            Tags
-          </h3>
-          <div className="flex flex-wrap gap-x-3 gap-y-2">
-            {topTags.map((t) => {
-              const active = activeTags.includes(t.name);
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() =>
-                    setActiveTags((prev) =>
-                      prev.includes(t.name)
-                        ? prev.filter((x) => x !== t.name)
-                        : [...prev, t.name],
-                    )
-                  }
-                  className="font-display text-[13px] italic transition-colors text-foreground"
-                  style={{
-                    opacity: active ? 1 : 0.85,
-                    borderBottom: active
-                      ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
-                      : "1px solid transparent",
-                    paddingBottom: 2,
-                  }}
-                >
-                  {t.name}
-                  {active && <span className="ml-1 text-[10px]">×</span>}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {activeTags.length >= 2 && (
-        <section>
-          <h3 className="font-display text-[10px] uppercase tracking-[0.18em] mb-2 text-foreground/85">
-            Match
-          </h3>
-          <div className="flex items-center gap-3">
-            {(["any", "all"] as const).map((m) => {
-              const active = tagMode === m;
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setTagMode(m)}
-                  className="font-display text-[12px] italic transition-colors text-foreground"
-                  style={{
-                    opacity: active ? 1 : 0.75,
-                    borderBottom: active
-                      ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
-                      : "1px solid transparent",
-                    paddingBottom: 2,
-                  }}
-                >
-                  {m === "any" ? "Any tag" : "All tags"}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {/* DN-5 — Stories filter (only shown when at least one Story exists). */}
-      {allStories.length > 0 && (
-        <section>
-          <h3
-            className="font-display text-[14px] uppercase tracking-[0.18em] mb-2"
-            style={{ color: "var(--accent)" }}
-          >
-            Stories
-          </h3>
-          <div className="flex flex-wrap gap-x-3 gap-y-2">
-            {(showAllStories
-              ? allStories
-              : allStories.slice(0, STORIES_DEFAULT_VISIBLE)
-            ).map((s) => {
-              const active = activeStories.includes(s.id);
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() =>
-                    setActiveStories((prev) =>
-                      prev.includes(s.id)
-                        ? prev.filter((x) => x !== s.id)
-                        : [...prev, s.id],
-                    )
-                  }
-                  className="font-display text-[13px] italic transition-colors text-foreground"
-                  style={{
-                    opacity: active ? 1 : 0.85,
-                    borderBottom: active
-                      ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
-                      : "1px solid transparent",
-                    paddingBottom: 2,
-                  }}
-                >
-                  {s.name}
-                  {active && <span className="ml-1 text-[10px]">×</span>}
-                </button>
-              );
-            })}
-          </div>
-          {allStories.length > STORIES_DEFAULT_VISIBLE && (
-            <button
-              type="button"
-              onClick={() => setShowAllStories((v) => !v)}
-              className="font-display text-[11px] italic mt-2"
-              style={{
-                color: "var(--gold)",
-                background: "none",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-              }}
-            >
-              {showAllStories
-                ? "Show fewer"
-                : `Show all (${allStories.length})`}
-            </button>
-          )}
-        </section>
-      )}
-
-      <section>
-        <h3
-          className="font-display text-[14px] uppercase tracking-[0.18em] mb-2"
-          style={{ color: "var(--accent)" }}
-        >
-          Draw type
-        </h3>
-        <div className="flex flex-wrap gap-x-4 gap-y-2">
-          {DRAW_TYPE_KEYS.map((k) => {
-            const active = activeDrawTypes.includes(k);
-            return (
-              <button
-                key={k}
-                type="button"
-                onClick={() =>
-                  setActiveDrawTypes((prev) =>
-                    prev.includes(k)
-                      ? prev.filter((x) => x !== k)
-                      : [...prev, k],
-                  )
-                }
-                className="font-display text-[12px] italic transition-colors text-foreground"
-                style={{
-                  opacity: active ? 1 : 0.85,
-                  borderBottom: active
-                    ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
-                    : "1px solid transparent",
-                  paddingBottom: 2,
-                }}
-              >
-                {DRAW_TYPE_LABEL[k]}
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {hasAny && (
-        <button
-          type="button"
-          onClick={onClearAll}
-          className="self-start font-display text-[12px] uppercase tracking-[0.15em] underline-offset-2 hover:underline"
-          style={{ color: "var(--gold)", opacity: 1, fontWeight: 700 }}
-        >
-          CLEAR FILTERS
-        </button>
-      )}
-    </div>
-  );
-}
