@@ -728,32 +728,13 @@ function EditCustomGuideDialog({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Edit custom guide"
-      className="modal-scrim fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: "var(--z-modal)" }}
-      onClick={onClose}
+    <Modal
+      open
+      onClose={onClose}
+      title={isOracle ? "Refine this Guide" : "Edit Guide"}
+      size="md"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-2xl border border-gold/30 bg-cosmos p-5 shadow-2xl"
-        style={{ maxHeight: "90vh", overflowY: "auto" }}
-      >
-        {/* No on-screen X — the Close affordance lives in the global
-            FloatingMenu pill (the `···`). Backdrop tap and ESC also
-            dismiss this dialog (handled by the wrapper). */}
-        <div className="mb-4 flex items-start justify-between">
-          <h3
-            className="text-lg italic text-gold"
-            style={{ fontFamily: "var(--font-serif)" }}
-          >
-            {isOracle ? "Refine this Guide" : "Edit Guide"}
-          </h3>
-        </div>
-
-        <div className="space-y-4">
+      <div className="space-y-4 p-5">
           <div>
             <Label className="text-xs text-muted-foreground">Base guide</Label>
             <div className="mt-1 grid grid-cols-2 gap-2">
