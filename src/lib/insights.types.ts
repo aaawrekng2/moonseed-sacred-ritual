@@ -5,7 +5,9 @@
 import { z } from "zod";
 import type { MoonPhaseName } from "@/lib/moon";
 
-export const TIME_RANGES = ["7d", "30d", "90d", "12m", "all"] as const;
+// FK-4 — renamed "12m" → "365d" so all bounded ranges follow the
+// "Last X days" pattern.
+export const TIME_RANGES = ["7d", "30d", "90d", "365d", "all"] as const;
 export type TimeRange = (typeof TIME_RANGES)[number];
 
 export const InsightsFiltersSchema = z.object({
