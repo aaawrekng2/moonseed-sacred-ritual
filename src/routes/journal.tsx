@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, SlidersHorizontal, Sparkles, X as XIcon } from "lucide-react";
+import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, Sparkles, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -29,6 +29,11 @@ import { ArchiveView } from "@/components/journal/ArchiveView";
 import { archiveReading, daysUntilPurge, restoreReading } from "@/lib/readings-archive";
 import { useServerFn } from "@tanstack/react-start";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
+import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
+import {
+  EMPTY_GLOBAL_FILTERS,
+  type GlobalFilters,
+} from "@/lib/filters.types";
 import {
   AlertDialog,
   AlertDialogAction,
