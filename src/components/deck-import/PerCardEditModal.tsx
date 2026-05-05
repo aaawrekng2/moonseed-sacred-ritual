@@ -168,7 +168,7 @@ export function PerCardEditModal({
             ? prev.map((c) => {
                 const s = statusByCard.get(c.card_id);
                 return s
-                  ? ({ ...(c as object), processing_status: s } as CustomDeckCard)
+                  ? ({ ...(c as unknown as object), processing_status: s } as unknown as CustomDeckCard)
                   : c;
               })
             : prev,
