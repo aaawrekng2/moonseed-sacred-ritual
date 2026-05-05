@@ -653,7 +653,196 @@ export function PerCardEditModal({
           </aside>
         </div>
       </div>
+      {/* FI-3 — Apply-to-all choice dialog. */}
+      <AlertDialog
+        open={applyDialogOpen}
+        onOpenChange={(o) => { if (!o) setApplyDialogOpen(false); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Apply settings to which cards?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Radius {radius}%{crop ? " · Cropped" : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex flex-col gap-2 py-2 text-sm">
+            {(() => {
+              const list = cards ?? [];
+              const unsavedCount = list.filter(
+                (c) => !(c.card_id in savedRadii),
+              ).length;
+              const totalCount = list.length;
+              const savedCount = totalCount - unsavedCount;
+              return (
+                <>
+                  <label className="flex items-start gap-2 cursor-pointer rounded-md border border-border/40 p-2 hover:bg-muted/30">
+                    <input
+                      type="radio"
+                      name="apply-scope"
+                      value="unsaved"
+                      checked={applyScope === "unsaved"}
+                      onChange={() => setApplyScope("unsaved")}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="font-medium">Unsaved cards only ({unsavedCount})</span>
+                      <span className="block text-xs text-muted-foreground">
+                        Skips cards you've already saved.
+                      </span>
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2 cursor-pointer rounded-md border border-border/40 p-2 hover:bg-muted/30">
+                    <input
+                      type="radio"
+                      name="apply-scope"
+                      value="all"
+                      checked={applyScope === "all"}
+                      onChange={() => setApplyScope("all")}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="font-medium">All cards ({totalCount})</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {savedCount > 0
+                          ? `Will overwrite ${savedCount} already-saved card${savedCount === 1 ? "" : "s"}.`
+                          : "Updates every photographed card."}
+                      </span>
+                    </span>
+                  </label>
+                </>
+              );
+            })()}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setApplyDialogOpen(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setApplyDialogOpen(false);
+                void applyToSelected(applyScope);
+              }}
+            >
+              Apply
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>,
     document.body,
+  );
+}
+
+// FI-2 — Draggable corner-crop overlay. Renders 4 small handles plus
+// SVG quad outline. Coordinates kept in IMG NATURAL pixel space.
+function CropHandles({
+  imgEl,
+  crop,
+  imgDims,
+  renderedDims,
+  onChange,
+  onRelease,
+}: {
+  imgEl: HTMLImageElement;
+  crop: CropCoords;
+  imgDims: { w: number; h: number };
+  renderedDims: { w: number; h: number };
+  onChange: (next: CropCoords) => void;
+  onRelease: () => void;
+}) {
+  const [, force] = useState(0);
+
+  // Re-measure offset on each render (cheap; layout-stable).
+  const wrap = imgEl.parentElement;
+  if (!wrap) return null;
+  const wrapRect = wrap.getBoundingClientRect();
+  const imgRect = imgEl.getBoundingClientRect();
+  const offX = imgRect.left - wrapRect.left;
+  const offY = imgRect.top - wrapRect.top;
+
+  function natToRendered(p: { x: number; y: number }) {
+    return {
+      x: (p.x / imgDims.w) * renderedDims.w,
+      y: (p.y / imgDims.h) * renderedDims.h,
+    };
+  }
+
+  function startDrag(
+    e: React.PointerEvent<HTMLDivElement>,
+    corner: keyof CropCoords,
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startCrop = { ...crop[corner] };
+    let latest = crop;
+
+    function onMove(ev: PointerEvent) {
+      const dxRendered = ev.clientX - startX;
+      const dyRendered = ev.clientY - startY;
+      const dxNatural = (dxRendered / renderedDims.w) * imgDims.w;
+      const dyNatural = (dyRendered / renderedDims.h) * imgDims.h;
+      const next: CropCoords = {
+        ...latest,
+        [corner]: {
+          x: Math.max(0, Math.min(imgDims.w, startCrop.x + dxNatural)),
+          y: Math.max(0, Math.min(imgDims.h, startCrop.y + dyNatural)),
+        },
+      };
+      latest = next;
+      onChange(next);
+      force((n) => n + 1);
+    }
+    function onUp() {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      onRelease();
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
+  const corners: (keyof CropCoords)[] = ["tl", "tr", "bl", "br"];
+  const pts = corners.map((k) => natToRendered(crop[k]));
+
+  return (
+    <>
+      <svg
+        aria-hidden
+        className="pointer-events-none absolute"
+        style={{
+          left: offX,
+          top: offY,
+          width: renderedDims.w,
+          height: renderedDims.h,
+        }}
+      >
+        <polygon
+          points={`${pts[0].x},${pts[0].y} ${pts[1].x},${pts[1].y} ${pts[3].x},${pts[3].y} ${pts[2].x},${pts[2].y}`}
+          fill="none"
+          stroke="hsl(var(--gold, 45 80% 60%))"
+          strokeWidth="1.5"
+          strokeDasharray="4 3"
+          opacity="0.85"
+        />
+      </svg>
+      {corners.map((k, i) => {
+        const p = pts[i];
+        return (
+          <div
+            key={k}
+            role="slider"
+            aria-label={`Crop ${k} handle`}
+            onPointerDown={(e) => startDrag(e, k)}
+            className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-gold bg-background/90 shadow-md cursor-grab active:cursor-grabbing touch-none"
+            style={{
+              left: offX + p.x,
+              top: offY + p.y,
+            }}
+          />
+        );
+      })}
+    </>
   );
 }
