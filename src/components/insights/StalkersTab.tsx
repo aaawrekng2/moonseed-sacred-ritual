@@ -8,6 +8,8 @@ import { useEffect, useMemo, useState } from "react";
 import { SlidersHorizontal, Sparkles, X as XIcon, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { CardImage } from "@/components/card/CardImage";
+import { supabase } from "@/integrations/supabase/client";
+import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import {
   getStalkerCards,
   getStalkerTwins,
@@ -34,11 +36,15 @@ import type {
 type Mode = "singles" | "twins" | "triplets" | "reversed";
 type Cooccurrence = "reading" | "day";
 
-// FP-6 — local UI-only filters (tags + draw types) until they're plumbed
-// through to the parent filter bar. These narrow the displayed data
-// client-side via the parent `filters` prop's tagIds/spreadTypes.
-const DEMO_TAGS = ["work", "love", "family", "creativity", "shadow", "healing"];
-const DRAW_TYPES = ["Single", "Three Card", "Celtic Cross", "Yes/No"];
+// FR-1 — Real spread mode keys with display labels. Keys match the values
+// stored in readings.spread_type, labels come from SPREAD_META.
+const DRAW_TYPE_OPTIONS: Array<{ key: SpreadMode; label: string }> = [
+  { key: "single", label: SPREAD_META.single.label },
+  { key: "three", label: SPREAD_META.three.label },
+  { key: "celtic", label: SPREAD_META.celtic.label },
+  { key: "yes_no", label: SPREAD_META.yes_no.label },
+  { key: "daily", label: SPREAD_META.daily.label },
+];
 
 const TIME_RANGE_LABELS: Record<TimeRange, string> = {
   "7d": "Last 7 days",
@@ -155,10 +161,34 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
   const [selectedKey, setSelectedKey] = useState<string | number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeTags, setActiveTags] = useState<string[]>([]);
-  const [activeDrawTypes, setActiveDrawTypes] = useState<string[]>([]);
+  const [activeDrawTypes, setActiveDrawTypes] = useState<SpreadMode[]>([]);
+  // FR-2 — User's actual tag library, fetched from user_tags.
+  const [userTags, setUserTags] = useState<Array<{ id: string; name: string; usage_count: number }>>([]);
   // FQ-5 — Selected occurrence opens a modal over the Stalkers tab; setting
   // null restores the underlying state untouched.
   const [openReadingId, setOpenReadingId] = useState<string | null>(null);
+
+  // FR-2 — Fetch user's actual tags (sorted by usage_count desc, top 50).
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      const { data, error } = await supabase
+        .from("user_tags")
+        .select("id, name, usage_count")
+        .eq("user_id", user.id)
+        .order("usage_count", { ascending: false })
+        .limit(50);
+      if (cancelled) return;
+      if (error) {
+        console.error("[FR-2] failed to fetch tags", error);
+        return;
+      }
+      setUserTags((data ?? []) as Array<{ id: string; name: string; usage_count: number }>);
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // FP-4 — Real data via server functions. Match existing useServerFn + useEffect pattern.
   const singlesFn = useServerFn(getStalkerCards);
@@ -255,7 +285,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
 
   const toggleTag = (t: string) =>
     setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
-  const toggleDrawType = (d: string) =>
+  const toggleDrawType = (d: SpreadMode) =>
     setActiveDrawTypes((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
   const clearFilters = () => {
     setActiveTags([]);
@@ -275,7 +305,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
     activeDrawTypes.forEach((dt) =>
       chips.push({
         key: `dt-${dt}`,
-        label: dt,
+        label: SPREAD_META[dt]?.label ?? dt,
         clear: () => setActiveDrawTypes((prev) => prev.filter((x) => x !== dt)),
       }),
     );
@@ -609,27 +639,33 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
               Tags
             </h3>
             <div className="flex flex-wrap gap-x-3 gap-y-2">
-              {DEMO_TAGS.map((t) => {
-                const active = activeTags.includes(t);
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => toggleTag(t)}
-                    className="font-display text-[13px] italic transition-colors text-foreground"
-                    style={{
-                      opacity: active ? 1 : 0.85,
-                      borderBottom: active
-                        ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
-                        : "1px solid transparent",
-                      paddingBottom: 2,
-                    }}
-                  >
-                    {t}
-                    {active && <span className="ml-1 text-[10px]">×</span>}
-                  </button>
-                );
-              })}
+              {userTags.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">
+                  You have no tags yet. Tag readings to filter by tag here.
+                </p>
+              ) : (
+                userTags.map((tag) => {
+                  const active = activeTags.includes(tag.name);
+                  return (
+                    <button
+                      key={tag.id}
+                      type="button"
+                      onClick={() => toggleTag(tag.name)}
+                      className="font-display text-[13px] italic transition-colors text-foreground"
+                      style={{
+                        opacity: active ? 1 : 0.85,
+                        borderBottom: active
+                          ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
+                          : "1px solid transparent",
+                        paddingBottom: 2,
+                      }}
+                    >
+                      {tag.name}
+                      {active && <span className="ml-1 text-[10px]">×</span>}
+                    </button>
+                  );
+                })
+              )}
             </div>
           </section>
 
@@ -641,13 +677,13 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
               Draw type
             </h3>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
-              {DRAW_TYPES.map((d) => {
-                const active = activeDrawTypes.includes(d);
+              {DRAW_TYPE_OPTIONS.map(({ key, label }) => {
+                const active = activeDrawTypes.includes(key);
                 return (
                   <button
-                    key={d}
+                    key={key}
                     type="button"
-                    onClick={() => toggleDrawType(d)}
+                    onClick={() => toggleDrawType(key)}
                     className="font-display text-[12px] italic transition-colors text-foreground"
                     style={{
                       opacity: active ? 1 : 0.85,
@@ -657,7 +693,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
                       paddingBottom: 2,
                     }}
                   >
-                    {d}
+                    {label}
                     {active && <span className="ml-1 text-[10px]">×</span>}
                   </button>
                 );
