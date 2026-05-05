@@ -871,8 +871,7 @@ function EditCustomGuideDialog({
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
