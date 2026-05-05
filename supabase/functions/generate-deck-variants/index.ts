@@ -279,7 +279,23 @@ serve(async (req) => {
         applyRoundedMask(full, radius);
         const fullPath = fullWebpPathFor(row.display_path ?? sourcePath);
         if (!fullPath) throw new Error("unrecognized path layout");
-        const fullWebp = await full.encode(); // PNG-style WebP w/ alpha
+        // FF-2 — imagescript on Deno can't encode WebP. Encode as
+        // PNG from imagescript (preserves alpha), then route through
+        // imagemagick_deno to convert PNG → WebP with alpha so the
+        // bytes actually match the .webp filename + Content-Type.
+        const fullPng = await full.encode();
+        await ensureMagick();
+        const fullWebp: Uint8Array = await new Promise((resolve, reject) => {
+          try {
+            ImageMagick.read(fullPng, (img) => {
+              img.write(MagickFormat.Webp, (data) => {
+                resolve(new Uint8Array(data));
+              });
+            });
+          } catch (e) {
+            reject(e);
+          }
+        });
         const upFull = await admin.storage.from(BUCKET).upload(
           fullPath,
           fullWebp,
