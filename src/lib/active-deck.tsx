@@ -323,9 +323,8 @@ export function variantUrlFor(
   variant: "sm" | "md" | "full",
 ): string | null {
   if (!originalUrl) return null;
-  if (variant === "full") return originalUrl;
   // Only rewrite custom-deck-images URLs. Default Rider-Waite assets
-  // live under `/cards/` in the app bundle and have no JPEG variants.
+  // live under `/cards/` in the app bundle and have no variants.
   if (!originalUrl.includes("/custom-deck-images/")) return originalUrl;
   try {
     const url = new URL(originalUrl);
@@ -335,7 +334,13 @@ export function variantUrlFor(
       /^(.*\/card-\d+-\d+)(?:-thumb)?\.(?:webp|png|jpe?g)$/i,
     );
     if (!m) return originalUrl;
-    const newPath = `${m[1]}-${variant}.jpg`;
+    // FD-3 — `-full.webp` is the rounded-alpha master baked at
+    // single-card save time. sm/md remain `-${variant}.jpg`
+    // (un-rounded; the lack of alpha is invisible at <=400px).
+    const newPath =
+      variant === "full"
+        ? `${m[1]}-full.webp`
+        : `${m[1]}-${variant}.jpg`;
     url.pathname = newPath;
     return url.toString();
   } catch {

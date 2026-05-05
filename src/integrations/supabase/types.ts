@@ -84,11 +84,16 @@ export type Database = {
         Row: {
           archived_at: string | null
           card_id: number
+          corner_radius_percent: number | null
           created_at: string
+          crop_coords: Json | null
           deck_id: string
           display_path: string
           display_url: string
           id: string
+          original_path: string | null
+          processed_at: string | null
+          processing_status: string
           source: string
           thumbnail_path: string
           thumbnail_url: string
@@ -98,11 +103,16 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           card_id: number
+          corner_radius_percent?: number | null
           created_at?: string
+          crop_coords?: Json | null
           deck_id: string
           display_path: string
           display_url: string
           id?: string
+          original_path?: string | null
+          processed_at?: string | null
+          processing_status?: string
           source?: string
           thumbnail_path: string
           thumbnail_url: string
@@ -112,11 +122,16 @@ export type Database = {
         Update: {
           archived_at?: string | null
           card_id?: number
+          corner_radius_percent?: number | null
           created_at?: string
+          crop_coords?: Json | null
           deck_id?: string
           display_path?: string
           display_url?: string
           id?: string
+          original_path?: string | null
+          processed_at?: string | null
+          processing_status?: string
           source?: string
           thumbnail_path?: string
           thumbnail_url?: string

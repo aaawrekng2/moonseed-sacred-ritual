@@ -1,5 +1,5 @@
 /**
- * generate-deck-variants (Phase EZ-6)
+ * generate-deck-variants (Phase EZ-6, extended FD-3)
  *
  * Server-side image resizer for custom deck card art. Takes a
  * `deckId`, fetches each photographed card from the
@@ -11,17 +11,29 @@
  *   <userId>/<deckId>/card-<N>-<ts>-sm.jpg      (≤ 200 px wide)
  *   <userId>/<deckId>/card-<N>-<ts>-md.jpg      (≤ 400 px wide)
  *
+ * FD-3 — single-card mode. When the request includes `cardId` (in
+ * addition to `deckId`), the function processes ONLY that card and
+ * additionally bakes a rounded-corner alpha mask into a transparent
+ * WebP `-full` variant. The radius is taken from the per-card
+ * `corner_radius_percent` if set, otherwise from the deck-level
+ * default. The original storage object is never overwritten — the
+ * `original_path` column tracks where to re-fetch source bytes for
+ * subsequent re-edits. After a successful run the card row's
+ * `processing_status` is set to `saved` and `processed_at` to now.
+ *
  * The client (CardImage + variantUrlFor) derives variant URLs by
  * rewriting the filename portion of the signed URL — no DB schema
- * changes required. If a variant doesn't exist (deck not yet
- * backfilled), the IMG `onError` retries with the original URL.
+ * changes required for the sm/md path. If a variant doesn't exist
+ * (deck not yet backfilled), the IMG `onError` retries with the
+ * original URL.
  *
  * Auth: caller must be the deck owner. We validate the JWT supplied
  * in the Authorization header against custom_decks.user_id.
  *
  * Idempotent: existing variants are skipped via `upsert: false`
  * combined with a HEAD probe — re-running on a fully-backfilled
- * deck is cheap.
+ * deck is cheap. Single-card mode always re-renders (so a user who
+ * adjusts the slider gets fresh output).
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -59,6 +71,52 @@ function variantPathFor(originalPath: string, suffix: "sm" | "md"): string | nul
   );
   if (!m) return null;
   return `${m[1]}-${suffix}.jpg`;
+}
+
+// FD-3 — alpha WebP variant. Same filename stem, `-full.webp`.
+function fullWebpPathFor(originalPath: string): string | null {
+  const m = originalPath.match(
+    /^(.*\/card-\d+-\d+)(?:-thumb)?\.(?:webp|png|jpe?g)$/i,
+  );
+  if (!m) return null;
+  return `${m[1]}-full.webp`;
+}
+
+/**
+ * FD-3 — apply a rounded-corner alpha mask in-place. Pixels in the
+ * 4 corner regions outside the rounded path get alpha=0; everything
+ * else is preserved. `radiusPercent` is the % of the SHORTER side
+ * (matches the client/Canvas convention used in deck import).
+ */
+function applyRoundedMask(img: Image, radiusPercent: number): void {
+  const w = img.width;
+  const h = img.height;
+  const r = Math.max(0, Math.min(
+    Math.floor(Math.min(w, h) / 2),
+    Math.round((Math.min(w, h) * radiusPercent) / 100),
+  ));
+  if (r <= 0) return;
+  const r2 = r * r;
+  // Corner centers (where the rounded arc is centered).
+  const corners: { cx: number; cy: number; xStart: number; xEnd: number; yStart: number; yEnd: number }[] = [
+    { cx: r,     cy: r,     xStart: 0,     xEnd: r, yStart: 0,     yEnd: r }, // TL
+    { cx: w - r, cy: r,     xStart: w - r, xEnd: w, yStart: 0,     yEnd: r }, // TR
+    { cx: r,     cy: h - r, xStart: 0,     xEnd: r, yStart: h - r, yEnd: h }, // BL
+    { cx: w - r, cy: h - r, xStart: w - r, xEnd: w, yStart: h - r, yEnd: h }, // BR
+  ];
+  for (const c of corners) {
+    for (let y = c.yStart; y < c.yEnd; y++) {
+      for (let x = c.xStart; x < c.xEnd; x++) {
+        const dx = x - c.cx;
+        const dy = y - c.cy;
+        if (dx * dx + dy * dy > r2) {
+          // imagescript pixels are RGBA packed into a Uint32. We use
+          // setPixelAt to overwrite alpha=0 cleanly.
+          img.setPixelAt(x + 1, y + 1, 0x00000000);
+        }
+      }
+    }
+  }
 }
 
 serve(async (req) => {
@@ -101,6 +159,13 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const deckId = typeof body?.deckId === "string" ? body.deckId : null;
+    // FD-3 — if cardId is supplied we run the single-card pipeline
+    // (which also bakes a rounded WebP variant). Otherwise the
+    // existing chunked sm/md backfill runs.
+    const singleCardId =
+      typeof body?.cardId === "number" && Number.isFinite(body.cardId)
+        ? Math.floor(body.cardId)
+        : null;
     // FB-6 — chunk cursor (0-indexed offset into the card list).
     const cursor =
       typeof body?.cursor === "number" && Number.isFinite(body.cursor)
@@ -119,7 +184,7 @@ serve(async (req) => {
     // 3) Verify deck ownership.
     const { data: deck, error: deckErr } = await admin
       .from("custom_decks")
-      .select("id, user_id")
+      .select("id, user_id, corner_radius_percent")
       .eq("id", deckId)
       .maybeSingle();
     if (deckErr || !deck || deck.user_id !== userId) {
@@ -127,6 +192,127 @@ serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // ----------------------------------------------------------------
+    // FD-3 — single-card mode
+    // ----------------------------------------------------------------
+    if (singleCardId !== null) {
+      const { data: row, error: rowErr } = await admin
+        .from("custom_deck_cards")
+        .select("id, card_id, display_path, original_path, corner_radius_percent")
+        .eq("deck_id", deckId)
+        .eq("card_id", singleCardId)
+        .is("archived_at", null)
+        .maybeSingle();
+      if (rowErr || !row) {
+        return new Response(JSON.stringify({ error: "card_not_found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // FD-6 — always read from the original (preserved) source if we
+      // have one; otherwise the current display_path IS the original
+      // and we record that fact for future re-edits.
+      const sourcePath = row.original_path ?? row.display_path;
+      if (!sourcePath) {
+        return new Response(JSON.stringify({ error: "no_source_image" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const radius =
+        typeof row.corner_radius_percent === "number"
+          ? row.corner_radius_percent
+          : (deck as { corner_radius_percent?: number }).corner_radius_percent ?? 0;
+
+      try {
+        const dl = await admin.storage.from(BUCKET).download(sourcePath);
+        if (dl.error || !dl.data) throw dl.error ?? new Error("download failed");
+        const bytes = new Uint8Array(await dl.data.arrayBuffer());
+        const decoded = await Image.decode(bytes);
+
+        // Bake the rounded mask into a full-size copy.
+        const full = decoded.clone();
+        applyRoundedMask(full, radius);
+        const fullPath = fullWebpPathFor(row.display_path ?? sourcePath);
+        if (!fullPath) throw new Error("unrecognized path layout");
+        const fullWebp = await full.encode(); // PNG-style WebP w/ alpha
+        const upFull = await admin.storage.from(BUCKET).upload(
+          fullPath,
+          fullWebp,
+          { contentType: "image/webp", upsert: true },
+        );
+        if (upFull.error) throw upFull.error;
+
+        // sm/md JPEG variants (no alpha — corners stay opaque, but
+        // these are only used at small sizes where corner anti-alias
+        // doesn't matter much; the -full.webp is the master).
+        for (const v of VARIANTS) {
+          const vPath = variantPathFor(row.display_path ?? sourcePath, v.suffix);
+          if (!vPath) continue;
+          const ratio = v.width / decoded.width;
+          const targetH = Math.max(1, Math.round(decoded.height * ratio));
+          const small = decoded.clone().resize(v.width, targetH);
+          // sm/md remain JPEG (no alpha). At <=400px wide the lack
+          // of corner transparency is invisible in practice and we
+          // stay fully compatible with the existing variantUrlFor
+          // resolver. The -full.webp variant carries the alpha
+          // mask used at hero sizes.
+          const jpeg = await small.encodeJPEG(85);
+          const upV = await admin.storage.from(BUCKET).upload(
+            vPath,
+            jpeg,
+            { contentType: "image/jpeg", upsert: true },
+          );
+          if (upV.error) throw upV.error;
+        }
+
+        // Persist row state. If we didn't have an original_path
+        // before, capture the current display_path as the canonical
+        // source for future re-edits.
+        const patch: Record<string, unknown> = {
+          processing_status: "saved",
+          processed_at: new Date().toISOString(),
+          corner_radius_percent: radius,
+        };
+        if (!row.original_path && row.display_path) {
+          patch.original_path = row.display_path;
+        }
+        const { error: updErr } = await admin
+          .from("custom_deck_cards")
+          .update(patch)
+          .eq("id", row.id);
+        if (updErr) throw updErr;
+
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            mode: "single",
+            cardId: row.card_id,
+            radius,
+            fullPath,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      } catch (err) {
+        await admin
+          .from("custom_deck_cards")
+          .update({ processing_status: "failed" })
+          .eq("id", row.id);
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            mode: "single",
+            cardId: singleCardId,
+            error: err instanceof Error ? err.message : String(err),
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
     }
 
     // 4) List active cards for the deck.
