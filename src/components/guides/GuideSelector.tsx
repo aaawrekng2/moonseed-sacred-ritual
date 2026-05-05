@@ -151,20 +151,15 @@ export function GuideSelector({
     [customGuides],
   );
 
-  return (
+  const inner = (
     <main
-      className={
-        isEmbedded
-          ? "flex flex-col"
-          : "fixed inset-0 flex flex-col bg-cosmos"
-      }
+      className={isEmbedded ? "flex flex-col" : "flex h-full flex-col"}
       style={
         isEmbedded
           ? undefined
           : {
               paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)",
               paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
-              zIndex: "var(--z-modal)",
             }
       }
     >
@@ -467,6 +462,14 @@ export function GuideSelector({
         />
       )}
     </main>
+  );
+
+  if (isEmbedded) return inner;
+
+  return (
+    <FullScreenSheet open onClose={onSkip} entry="fade" showCloseButton={false}>
+      {inner}
+    </FullScreenSheet>
   );
 }
 
