@@ -28,6 +28,8 @@ import {
   type LensMode,
 } from "@/lib/guides";
 import { cn } from "@/lib/utils";
+import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
+import { Modal } from "@/components/ui/modal";
 
 const FREE_CUSTOM_SLOTS = 1;
 
