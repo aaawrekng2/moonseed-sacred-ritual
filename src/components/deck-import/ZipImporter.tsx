@@ -1241,7 +1241,7 @@ function Workspace({
             {savedCount}/78 cards · {hasBack ? "back set" : "no back"} ·{" "}
           </span>
           {failedCount > 0 ? (
-            <span style={{ color: "#ef4444" }}>{failedCount} failed</span>
+            <span style={{ color: "var(--destructive)" }}>{failedCount} failed</span>
           ) : (
             <span>{skippedKeys.length} skipped</span>
           )}
@@ -1751,7 +1751,7 @@ function AssignedGrid({
               className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
               style={{
                 borderColor: isFailed
-                  ? "#ef4444"
+                  ? "var(--destructive)"
                   : key
                     ? "var(--accent)"
                     : "var(--border-subtle)",
@@ -1778,7 +1778,7 @@ function AssignedGrid({
               {isFailed && (
                 <span
                   className="absolute right-1 bottom-1 inline-flex items-center justify-center rounded-full"
-                  style={{ width: 18, height: 18, background: "#ef4444", color: "#fff" }}
+                  style={{ width: 18, height: 18, background: "var(--destructive)", color: "#fff" }}
                   aria-label="Save failed"
                 >
                   <AlertTriangle className="h-3 w-3" />
@@ -1862,8 +1862,8 @@ function SaveStatusIndicator({
         className="inline-flex items-center gap-2"
         style={{ fontFamily: "var(--font-serif)", fontSize: "var(--text-body-sm)" }}
       >
-        <AlertTriangle className="h-4 w-4" style={{ color: "#ef4444" }} />
-        <span style={{ color: "#ef4444" }}>{failedCount} failed</span>
+        <AlertTriangle className="h-4 w-4" style={{ color: "var(--destructive)" }} />
+        <span style={{ color: "var(--destructive)" }}>{failedCount} failed</span>
         <button
           type="button"
           onClick={onRetryAllFailed}

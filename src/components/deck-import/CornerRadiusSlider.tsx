@@ -232,7 +232,7 @@ export function CornerRadiusSlider({
           <span
             style={{
               fontSize: "var(--text-body-sm)",
-              color: "#ef4444",
+              color: "var(--destructive)",
             }}
             role="alert"
           >
