@@ -165,14 +165,16 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
       <header className="flex items-center justify-between gap-3 mb-3">
         <h2 className="text-lg font-serif italic">Stalkers</h2>
         <div className="flex items-center gap-2">
+          {/* FN-3 — Singles chip always renders. FN-5 — definitive setMode. */}
+          <Chip icon={<SingleCardIcon />} label="Singles" active={mode === "singles"} onClick={() => setMode("singles")} />
           {twinCount > 0 ? (
-            <TypeChip label="Twins" active={mode === "twins"} onClick={() => setMode(mode === "twins" ? "singles" : "twins")} />
+            <Chip icon={<TwinCardIcon />} label="Twins" active={mode === "twins"} onClick={() => setMode("twins")} />
           ) : null}
           {tripletCount > 0 ? (
-            <TypeChip label="Triplets" active={mode === "triplets"} onClick={() => setMode(mode === "triplets" ? "singles" : "triplets")} />
+            <Chip icon={<TripletCardIcon />} label="Triplets" active={mode === "triplets"} onClick={() => setMode("triplets")} />
           ) : null}
           {reversedCount > 0 ? (
-            <TypeChip label="Reversed" active={mode === "reversed"} onClick={() => setMode(mode === "reversed" ? "singles" : "reversed")} />
+            <Chip icon={<ReversedCardIcon />} label="Reversed" active={mode === "reversed"} onClick={() => setMode("reversed")} />
           ) : null}
           <button
             type="button"
@@ -224,10 +226,7 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
                 <button
                   type="button"
                   onClick={() => setSelectedKey(s.cardId)}
-                  className={
-                    "w-full rounded-md " +
-                    (selectedKey === s.cardId ? "ring-2 ring-[var(--gold)]" : "")
-                  }
+                  className={"w-full transition-opacity duration-200 " + selClass(selectedKey, s.cardId)}
                 >
                   <CardImage cardId={s.cardId} size="custom" widthPx={9999} className="w-full" style={{ width: "100%", minHeight: 0 }} />
                 </button>
@@ -241,10 +240,7 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
                 <button
                   type="button"
                   onClick={() => setSelectedKey(t.id)}
-                  className={
-                    "aspect-[2/3] w-full relative rounded-md " +
-                    (selectedKey === t.id ? "ring-2 ring-[var(--gold)]" : "")
-                  }
+                  className={"aspect-[2/3] w-full relative transition-opacity duration-200 " + selClass(selectedKey, t.id)}
                 >
                   <div className="absolute inset-0 -translate-x-1 -translate-y-1">
                     <CardImage cardId={t.cardA} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
@@ -263,10 +259,7 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
                 <button
                   type="button"
                   onClick={() => setSelectedKey(t.id)}
-                  className={
-                    "aspect-[2/3] w-full relative rounded-md " +
-                    (selectedKey === t.id ? "ring-2 ring-[var(--gold)]" : "")
-                  }
+                  className={"aspect-[2/3] w-full relative transition-opacity duration-200 " + selClass(selectedKey, t.id)}
                 >
                   <div className="absolute inset-0 -translate-x-1.5 -translate-y-1.5">
                     <CardImage cardId={t.cardIds[0]} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
@@ -288,10 +281,7 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
                 <button
                   type="button"
                   onClick={() => setSelectedKey(r.cardId)}
-                  className={
-                    "w-full rounded-md " +
-                    (selectedKey === r.cardId ? "ring-2 ring-[var(--gold)]" : "")
-                  }
+                  className={"w-full transition-opacity duration-200 " + selClass(selectedKey, r.cardId)}
                 >
                   <CardImage cardId={r.cardId} size="custom" widthPx={9999} reversed style={{ width: "100%", minHeight: 0 }} />
                 </button>
@@ -311,7 +301,8 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
       {/* FM-2 — Single detail: larger, uncropped */}
       {mode === "singles" && selectedSingle ? (
         <div className="flex flex-col md:flex-row items-start gap-6">
-          <div className="w-full md:w-2/5 max-w-md mx-auto md:mx-0">
+          {/* FN-6 — mobile detail card 50%; desktop unchanged. */}
+          <div className="w-1/2 md:w-2/5 max-w-md mx-auto md:mx-0">
             <CardImage cardId={selectedSingle.cardId} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
           </div>
           <div className="flex-1">
@@ -352,7 +343,7 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
       {/* Reversed detail (matches single FM-2 sizing) */}
       {mode === "reversed" && selectedReversed ? (
         <div className="flex flex-col md:flex-row items-start gap-6">
-          <div className="w-full md:w-2/5 max-w-md mx-auto md:mx-0">
+          <div className="w-1/2 md:w-2/5 max-w-md mx-auto md:mx-0">
             <CardImage cardId={selectedReversed.cardId} size="custom" widthPx={9999} reversed style={{ width: "100%", minHeight: 0 }} />
           </div>
           <div className="flex-1">
