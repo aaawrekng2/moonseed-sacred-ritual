@@ -8,7 +8,8 @@
  * as the historical Journal drawer) with sections rendered in the order
  * specified by the `sections` prop.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, SlidersHorizontal, X as XIcon } from "lucide-react";
 import {
   DRAW_TYPE_LABEL,
