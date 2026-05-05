@@ -2537,7 +2537,7 @@ function ReadingDetail({
           deckId={reading.deck_id ?? null}
         />
       )}
-    </div>
+    </FullScreenSheet>
   );
 }
 
