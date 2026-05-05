@@ -164,7 +164,7 @@ export function PerCardEditModal({
     });
     ro.observe(node);
     return () => ro.disconnect();
-  }, [activeCardId, previewSrc]);
+  }, [activeCardId, activeUrl, canvasPreview]);
 
   async function handleSave() {
     if (activeCardId === null || busy) return;
