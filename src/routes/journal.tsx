@@ -1,11 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, Sparkles, X as XIcon } from "lucide-react";
-import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
-import {
-  EMPTY_GLOBAL_FILTERS,
-  type GlobalFilters,
-} from "@/lib/filters.types";
+import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, SlidersHorizontal, Sparkles, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -261,6 +256,7 @@ function JournalPage() {
   // Active readings come from `readings`; archived rows are filtered out
   // of that list, so we lazily fetch them by id here.
   const [openOverride, setOpenOverride] = useState<ReadingRow | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Fetch readings + tags + photo counts whenever the user resolves.
   useEffect(() => {
