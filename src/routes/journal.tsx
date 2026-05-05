@@ -629,97 +629,32 @@ function JournalPage() {
               "1px solid color-mix(in oklab, var(--gold) 20%, transparent)",
           }}
         />
-        <button
-          type="button"
-          onClick={() => setFiltersOpen(true)}
-          aria-label="Filter"
-          className="journal-filter-btn ml-auto inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 font-display text-[12px] italic text-gold transition-opacity"
-          style={{
-            border:
-              "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
-          }}
-        >
-          <SlidersHorizontal
-            className="journal-filter-btn__icon"
-            size={14}
-            strokeWidth={1.5}
-            aria-hidden
-          />
-          {activeFilterCount > 0 && (
-            <span
-              className="inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 font-mono text-[10px] tabular-nums leading-none"
-              style={{
-                background: "var(--gold)",
-                color: "var(--accent-foreground)",
-              }}
-            >
-              {activeFilterCount}
-            </span>
-          )}
-        </button>
       </div>
 
-      {/* Tag strip */}
-      {/* Compact filter row — Filter button (mobile only — sidebar covers
-          desktop) plus the active-date chip. The full filter UI lives in
-          either the bottom sheet or the desktop sidebar. */}
-      <div className="mt-1 mb-1 flex flex-wrap items-center gap-x-3 gap-y-1" style={{ paddingTop: 4, paddingBottom: 4 }}>
-        {(activeTags.length > 0 || activeDrawTypes.length > 0 || deepOnly || activeDate) && (
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTags([]);
-              setActiveDrawTypes([]);
-              setDeepOnly(false);
-              setActiveDate(null);
-            }}
-            style={{
-              fontFamily: "var(--font-display)",
-              fontSize: "var(--text-body-sm)",
-              fontWeight: 700,
-              letterSpacing: "0.15em",
-              textTransform: "uppercase",
-              color: "var(--gold)",
-              opacity: 1,
-              whiteSpace: "nowrap",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "0 var(--space-2) 0 0",
-            }}
-          >
-            CLEAR FILTERS
-          </button>
-        )}
-        {/* Inline summary of active filters — visible on all sizes so the
-            seeker always sees what's narrowing their results. */}
-        {(activeTags.length > 0 || activeDrawTypes.length > 0 || deepOnly) && (
-          <span
-            className="font-display text-[11px] italic text-muted-foreground"
-            style={{ opacity: "var(--ro-plus-20)" }}
-          >
-            {[
-              ...activeTags,
-              ...activeDrawTypes.map((k) => DRAW_TYPE_LABEL[k]),
-              ...(deepOnly ? ["Deep readings"] : []),
-            ].join(" · ")}
-          </span>
-        )}
-        {activeDate && (
-          <button
-            type="button"
-            onClick={() => setActiveDate(null)}
-            className="ml-auto inline-flex items-center gap-1 font-display text-[11px] italic text-muted-foreground"
-            style={{ opacity: "var(--ro-plus-20)" }}
-          >
-            <XIcon size={11} strokeWidth={1.5} />
-            {new Date(activeDate + "T12:00:00").toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-            })}
-          </button>
-        )}
-      </div>
+      {/* FU-3 — Unified filter pattern via GlobalFilterBar. */}
+      <GlobalFilterBar
+        filters={journalFilters}
+        onChange={setJournalFilters}
+        sections={["tags", "spreadTypes", "depth", "stories"]}
+        userTags={topTags}
+        allStories={allStories}
+        trailingChips={
+          activeDate ? (
+            <button
+              type="button"
+              onClick={() => setActiveDate(null)}
+              className="inline-flex items-center gap-1 font-display text-[11px] italic text-muted-foreground"
+              style={{ opacity: "var(--ro-plus-20)" }}
+            >
+              <XIcon size={11} strokeWidth={1.5} />
+              {new Date(activeDate + "T12:00:00").toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              })}
+            </button>
+          ) : null
+        }
+      />
 
       {/* View tabs — icons only on mobile (< sm), label-only at sm+.
           BO Fix 1 — wrapped in HorizontalScroll so the row gets edge
