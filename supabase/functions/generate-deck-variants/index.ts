@@ -38,34 +38,37 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Image } from "https://deno.land/x/imagescript@1.2.15/mod.ts";
-// FH-1 — Use Supabase's officially-supported magick-wasm via npm.
-// imagemagick_deno from deno.land/x has a transitive onnxruntime
-// dep that crashes on Edge Runtime ("Web Cache is not available").
-// Reference: https://supabase.com/docs/guides/functions/examples/image-manipulation
+// FI-1 — bump to current published version. 0.0.30 was stale and
+// auto-init tries XMLHttpRequest which isn't available in Edge Runtime,
+// causing the function to fail to boot ("Invalid URL: 'magick.wasm'").
 import {
   ImageMagick,
   initializeImageMagick,
   MagickFormat,
-} from "npm:@imagemagick/magick-wasm@0.0.30";
+} from "npm:@imagemagick/magick-wasm@0.0.40";
 
+// FI-1 — Always use explicit wasm load. Auto-load uses XMLHttpRequest
+// which isn't available in Deno Edge Runtime.
+// Reference: https://github.com/dlemstra/magick-wasm/issues/81
 let magickReady: Promise<void> | null = null;
 function ensureMagick(): Promise<void> {
   if (!magickReady) {
     magickReady = (async () => {
+      const wasmUrl = new URL(
+        "magick.wasm",
+        import.meta.resolve("npm:@imagemagick/magick-wasm@0.0.40"),
+      );
+      let wasmBytes: Uint8Array;
       try {
-        // Simple form first (library auto-locates wasm in some builds).
-        // deno-lint-ignore no-explicit-any
-        await (initializeImageMagick as any)();
+        wasmBytes = await Deno.readFile(wasmUrl);
       } catch {
-        // Explicit wasm load per Supabase docs example.
-        const wasmBytes = await Deno.readFile(
-          new URL(
-            "magick.wasm",
-            import.meta.resolve("npm:@imagemagick/magick-wasm@0.0.30"),
-          ),
-        );
-        await initializeImageMagick(wasmBytes);
+        const resp = await fetch(wasmUrl);
+        if (!resp.ok) {
+          throw new Error(`Failed to fetch magick.wasm: ${resp.status}`);
+        }
+        wasmBytes = new Uint8Array(await resp.arrayBuffer());
       }
+      await initializeImageMagick(wasmBytes);
     })();
   }
   return magickReady;
