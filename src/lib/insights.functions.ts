@@ -1859,3 +1859,27 @@ export const getReversedStalkers = createServerFn({ method: "GET" })
       }));
     return { reversedStalkers };
   });
+
+// FQ-3 — Fetch a set of readings by ID for the Stalker occurrence list / modal.
+const ReadingsByIdsInputSchema = z.object({
+  readingIds: z.array(z.string()).max(100),
+});
+
+export const getReadingsByIds = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => ReadingsByIdsInputSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    if (data.readingIds.length === 0) return { readings: [] as any[] };
+    const { data: rows, error } = await supabase
+      .from("readings")
+      .select(
+        "id, created_at, spread_type, card_ids, card_orientations, question, deck_id, note, is_favorite, tags, guide_id, lens_id, moon_phase, is_deep_reading, deep_reading_lenses",
+      )
+      .eq("user_id", userId)
+      .in("id", data.readingIds)
+      .is("archived_at", null)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return { readings: rows ?? [] };
+  });
