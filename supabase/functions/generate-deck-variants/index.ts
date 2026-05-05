@@ -38,6 +38,48 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Image } from "https://deno.land/x/imagescript@1.2.15/mod.ts";
+// FE-1 — imagescript can decode JPEG/PNG but NOT WebP. Custom-deck
+// originals are uploaded as WebP by the import pipeline, so we use
+// imagemagick_deno to decode/encode WebP (with alpha) and fall back
+// to imagescript only for the rounded-mask + JPEG variant pipeline.
+import {
+  ImageMagick,
+  initialize,
+  MagickFormat,
+} from "https://deno.land/x/imagemagick_deno@0.0.31/mod.ts";
+
+let magickReady: Promise<void> | null = null;
+function ensureMagick(): Promise<void> {
+  if (!magickReady) magickReady = initialize();
+  return magickReady;
+}
+
+/**
+ * FE-1 — decode arbitrary image bytes (WebP/PNG/JPEG) into an
+ * imagescript Image. WebP is routed through imagemagick_deno first
+ * and re-encoded as PNG (lossless, preserves alpha) so imagescript
+ * can take over for the rounded-mask and resize work it does well.
+ */
+async function decodeAny(bytes: Uint8Array): Promise<Image> {
+  // Quick sniff: WebP files start with "RIFF....WEBP".
+  const isWebp =
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
+  if (!isWebp) return await Image.decode(bytes);
+
+  await ensureMagick();
+  const png: Uint8Array = await new Promise((resolve, reject) => {
+    try {
+      ImageMagick.read(bytes, (img) => {
+        img.write(MagickFormat.Png, (data) => resolve(new Uint8Array(data)));
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+  return await Image.decode(png);
+}
 
 const BUCKET = "custom-deck-images";
 
@@ -230,7 +272,7 @@ serve(async (req) => {
         const dl = await admin.storage.from(BUCKET).download(sourcePath);
         if (dl.error || !dl.data) throw dl.error ?? new Error("download failed");
         const bytes = new Uint8Array(await dl.data.arrayBuffer());
-        const decoded = await Image.decode(bytes);
+        const decoded = await decodeAny(bytes);
 
         // Bake the rounded mask into a full-size copy.
         const full = decoded.clone();
@@ -383,7 +425,7 @@ serve(async (req) => {
               throw dl.error ?? new Error("download failed");
             }
             const bytes = new Uint8Array(await dl.data.arrayBuffer());
-            decoded = await Image.decode(bytes);
+            decoded = await decodeAny(bytes);
           }
 
           const ratio = v.width / decoded.width;
