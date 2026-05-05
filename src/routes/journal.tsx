@@ -245,14 +245,13 @@ function JournalPage() {
   const [loaded, setLoaded] = useState(false);
 
   const [search, setSearch] = useState("");
-  const [activeTags, setActiveTags] = useState<string[]>([]);
-  const [tagMode, setTagMode] = useState<TagMode>("all");
-  const [activeDrawTypes, setActiveDrawTypes] = useState<DrawTypeKey[]>([]);
-  const [deepOnly, setDeepOnly] = useState(false);
-  // DZ-5 — "Saved only" filter (replaces DW-6 "Saved Mirrors only").
-  const [savedOnly, setSavedOnly] = useState(false);
-  // DN-5 — Stories filter (multi-select pattern IDs).
-  const [activeStories, setActiveStories] = useState<string[]>([]);
+  // FU-3 — Consolidated filter state. Mirrors what Insights does for
+  // its InsightsFilters. activeDate stays separate — it's a date
+  // picker tied to the calendar tab, not a generic filter.
+  const [journalFilters, setJournalFilters] = useState<GlobalFilters>({
+    ...EMPTY_GLOBAL_FILTERS,
+    tagMode: "all", // Journal's default match mode is "all"
+  });
   // YYYY-MM-DD selected from the calendar view; null = no date filter.
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("readings");
@@ -261,7 +260,6 @@ function JournalPage() {
   // Active readings come from `readings`; archived rows are filtered out
   // of that list, so we lazily fetch them by id here.
   const [openOverride, setOpenOverride] = useState<ReadingRow | null>(null);
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Fetch readings + tags + photo counts whenever the user resolves.
   useEffect(() => {
