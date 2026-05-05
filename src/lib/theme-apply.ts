@@ -72,6 +72,14 @@ export function applyCommunityTheme(theme: CommunityTheme) {
   // Audit themes override these to test alternative rules.
   root.style.setProperty("--state-active-bg-passive", theme.stateActiveBgPassive);
   root.style.setProperty("--state-active-fg-passive", theme.stateActiveFgPassive);
+  // FT-2 — emphasis-state tokens. Used by surfaces that have crossed a
+  // threshold and deserve attention (HeroCard when a stalker is detected,
+  // future unread badges, etc.). Distinct from state-active-* which is
+  // for passive selection indicators. Derived from accent so themes don't
+  // need new fields — future themes can add explicit fields if they want
+  // emphasis to differ from accent.
+  root.style.setProperty("--emphasis-bg-passive", `${theme.accent}3d`); // ~24% alpha
+  root.style.setProperty("--emphasis-fg-passive", theme.accent);
   // BT Fix 4A — apply the recommended heading font alongside colors.
   // Font size is intentionally NOT touched: that's a user preference
   // independent of theme.
