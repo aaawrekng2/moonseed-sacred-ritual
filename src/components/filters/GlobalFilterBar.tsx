@@ -191,13 +191,26 @@ export function GlobalFilterBar({
 function TimeRangeDropdown({ value, options, onChange }: TimeRangeProp) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const [coords, setCoords] = useState<{ left: number; top: number } | null>(
+    null,
+  );
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const r = triggerRef.current.getBoundingClientRect();
+    setCoords({ left: r.left, top: r.bottom + 4 });
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const t = e.target as Node;
+      if (ref.current?.contains(t)) return;
+      // Popover is portaled — check if click is inside it via data attr.
+      const el = t as HTMLElement;
+      if (el.closest?.("[data-time-range-popover]")) return;
+      setOpen(false);
     }
     window.addEventListener("mousedown", onDown);
     return () => window.removeEventListener("mousedown", onDown);
@@ -208,6 +221,7 @@ function TimeRangeDropdown({ value, options, onChange }: TimeRangeProp) {
   return (
     <div ref={ref} className="relative shrink-0">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         className="inline-flex items-center gap-1 px-1 py-0.5 text-xs"
@@ -222,14 +236,18 @@ function TimeRangeDropdown({ value, options, onChange }: TimeRangeProp) {
           className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
-      {open && (
-        <div
-          className="absolute left-0 top-full z-50 mt-1 min-w-[10rem] overflow-hidden rounded-md border shadow-lg"
-          style={{
-            background: "var(--surface-overlay)",
-            borderColor: "var(--border-subtle)",
-          }}
-        >
+      {open && coords && typeof document !== "undefined" &&
+        createPortal(
+          <div
+            data-time-range-popover
+            className="fixed z-[60] min-w-[10rem] overflow-hidden rounded-md border shadow-lg"
+            style={{
+              left: coords.left,
+              top: coords.top,
+              background: "var(--surface-overlay)",
+              borderColor: "var(--border-subtle)",
+            }}
+          >
           {options.map((o) => {
             const active = o.value === value;
             return (
@@ -254,8 +272,9 @@ function TimeRangeDropdown({ value, options, onChange }: TimeRangeProp) {
               </button>
             );
           })}
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
