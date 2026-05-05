@@ -181,7 +181,7 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
                     (selectedKey === s.cardId ? "ring-2 ring-[var(--gold)]" : "")
                   }
                 >
-                  <CardImage cardId={s.cardId} size="custom" widthPx={9999} className="w-full" style={{ width: "100%" }} />
+                  <CardImage cardId={s.cardId} size="custom" widthPx={9999} className="w-full" style={{ width: "100%", minHeight: 0 }} />
                 </button>
                 <span className="text-xs text-muted-foreground tabular-nums">{s.count}</span>
               </div>
@@ -199,10 +199,10 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
                   }
                 >
                   <div className="absolute inset-0 -translate-x-1 -translate-y-1">
-                    <CardImage cardId={t.cardA} size="custom" widthPx={9999} style={{ width: "100%" }} />
+                    <CardImage cardId={t.cardA} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
                   </div>
                   <div className="absolute inset-0 translate-x-1 translate-y-1">
-                    <CardImage cardId={t.cardB} size="custom" widthPx={9999} style={{ width: "100%" }} />
+                    <CardImage cardId={t.cardB} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
                   </div>
                 </button>
                 <span className="text-xs text-muted-foreground tabular-nums">{t.count}</span>
@@ -221,13 +221,13 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
                   }
                 >
                   <div className="absolute inset-0 -translate-x-1.5 -translate-y-1.5">
-                    <CardImage cardId={t.cardIds[0]} size="custom" widthPx={9999} style={{ width: "100%" }} />
+                    <CardImage cardId={t.cardIds[0]} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
                   </div>
                   <div className="absolute inset-0">
-                    <CardImage cardId={t.cardIds[1]} size="custom" widthPx={9999} style={{ width: "100%" }} />
+                    <CardImage cardId={t.cardIds[1]} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
                   </div>
                   <div className="absolute inset-0 translate-x-1.5 translate-y-1.5">
-                    <CardImage cardId={t.cardIds[2]} size="custom" widthPx={9999} style={{ width: "100%" }} />
+                    <CardImage cardId={t.cardIds[2]} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
                   </div>
                 </button>
                 <span className="text-xs text-muted-foreground tabular-nums">{t.count}</span>
@@ -245,7 +245,7 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
                     (selectedKey === r.cardId ? "ring-2 ring-[var(--gold)]" : "")
                   }
                 >
-                  <CardImage cardId={r.cardId} size="custom" widthPx={9999} reversed style={{ width: "100%" }} />
+                  <CardImage cardId={r.cardId} size="custom" widthPx={9999} reversed style={{ width: "100%", minHeight: 0 }} />
                 </button>
                 <span className="text-xs text-muted-foreground tabular-nums">{r.count}</span>
               </div>
@@ -264,7 +264,7 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
       {mode === "singles" && selectedSingle ? (
         <div className="flex flex-col md:flex-row items-start gap-6">
           <div className="w-full md:w-2/5 max-w-md mx-auto md:mx-0">
-            <CardImage cardId={selectedSingle.cardId} size="custom" widthPx={9999} style={{ width: "100%" }} />
+            <CardImage cardId={selectedSingle.cardId} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
           </div>
           <div className="flex-1">
             <h3 className="text-base font-serif italic mb-2">{selectedSingle.name}</h3>
@@ -279,7 +279,7 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
           <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-2">
             {[selectedTwin.cardA, selectedTwin.cardB].map((cid) => (
               <div key={cid} className="flex-1 max-w-xs">
-                <CardImage cardId={cid} size="custom" widthPx={9999} style={{ width: "100%" }} />
+                <CardImage cardId={cid} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
               </div>
             ))}
           </div>
@@ -293,7 +293,7 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
           <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-2">
             {selectedTriplet.cardIds.map((cid) => (
               <div key={cid} className="flex-1 max-w-xs">
-                <CardImage cardId={cid} size="custom" widthPx={9999} style={{ width: "100%" }} />
+                <CardImage cardId={cid} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
               </div>
             ))}
           </div>
@@ -305,7 +305,7 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
       {mode === "reversed" && selectedReversed ? (
         <div className="flex flex-col md:flex-row items-start gap-6">
           <div className="w-full md:w-2/5 max-w-md mx-auto md:mx-0">
-            <CardImage cardId={selectedReversed.cardId} size="custom" widthPx={9999} reversed style={{ width: "100%" }} />
+            <CardImage cardId={selectedReversed.cardId} size="custom" widthPx={9999} reversed style={{ width: "100%", minHeight: 0 }} />
           </div>
           <div className="flex-1">
             <h3 className="text-base font-serif italic mb-2">{selectedReversed.name}</h3>
