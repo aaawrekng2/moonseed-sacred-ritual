@@ -30,6 +30,7 @@ import { archiveReading, daysUntilPurge, restoreReading } from "@/lib/readings-a
 import { useServerFn } from "@tanstack/react-start";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
+import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import {
   EMPTY_GLOBAL_FILTERS,
   type GlobalFilters,
@@ -2091,12 +2092,7 @@ function ReadingDetail({
   useRegisterCloseHandler(onClose);
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Reading detail"
-      className="bg-cosmos fixed inset-0 z-50 overflow-y-auto"
-    >
+    <FullScreenSheet open onClose={onClose} entry="fade" showCloseButton={false}>
       <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+56px)]">
         {isArchived && (
           <div
@@ -2541,7 +2537,7 @@ function ReadingDetail({
           deckId={reading.deck_id ?? null}
         />
       )}
-    </div>
+    </FullScreenSheet>
   );
 }
 

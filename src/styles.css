@@ -1185,6 +1185,22 @@ button:focus-visible .moon-rung-glow {
   }
 }
 
+/* FU-5 — z-index ladder. All overlay components consume these
+ * tokens instead of magic numbers. Five tiers, bottom to top:
+ * popover     — small floating UI under modals (date picker, dropdown)
+ * drawer      — right-side filter drawer, side sheets
+ * modal       — centered detail modals, full-screen flows
+ * modal-2     — nested modals (confirm-on-top-of-modal, hint-over-flow)
+ * toast       — transient notifications (top of everything)
+ */
+:root {
+  --z-popover: 50;
+  --z-drawer: 60;
+  --z-modal: 100;
+  --z-modal-nested: 200;
+  --z-toast: 300;
+}
+
 /* DA — Hide scrollbar on swipeable journal thumbnail strips. */
 .journal-thumb-strip::-webkit-scrollbar { display: none; }
 
@@ -1530,6 +1546,23 @@ button:focus-visible .moon-rung-glow {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
+
+/* FU-5 — Modal entry animations (used by Modal + FullScreenSheet). */
+@keyframes fu5-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes fu5-scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes fu5-slide-up {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fu5-animate-fade-in  { animation: fu5-fade-in 200ms ease-out; }
+.fu5-animate-scale-in { animation: fu5-scale-in 200ms ease-out; }
+.fu5-animate-slide-up { animation: fu5-slide-up 250ms ease-out; }
 
 /*
  * DO-4 — Global mobile safety: prevent any descendant from creating

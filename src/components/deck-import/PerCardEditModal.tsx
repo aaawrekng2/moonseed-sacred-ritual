@@ -13,13 +13,13 @@
  * rounded `-full.webp` shows immediately.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { Loader2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchDeckCards, type CustomDeckCard } from "@/lib/custom-decks";
 import { getCardName } from "@/lib/tarot";
 import { useConfirm } from "@/hooks/use-confirm";
+import { Modal } from "@/components/ui/modal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -588,26 +588,16 @@ export function PerCardEditModal({
 
   const cardCount = cards?.length ?? 0;
 
-  return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4">
-      <div className="flex max-h-[95vh] h-[95vh] md:h-auto md:max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-gold/30 bg-card text-foreground shadow-2xl">
-        <header className="flex items-center justify-between border-b border-border/60 px-4 py-3">
-          <div>
-            <h2 className="text-sm font-semibold">Round corners — {deckName}</h2>
-            <p className="text-xs text-muted-foreground">
-              Per-card rounding baked into a transparent-corner image at save.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md p-1.5 hover:bg-muted/40"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </header>
-
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      nested
+      size="lg"
+      title={`Round corners — ${deckName}`}
+      subtitle="Per-card rounding baked into a transparent-corner image at save."
+    >
+      <div className="flex h-[80dvh] flex-col text-foreground">
         {/* FG-2 — On mobile: preview takes the full width, card list
             becomes a horizontal scroll row UNDERNEATH. On md+: keep
             the original sidebar grid + side preview layout. */}
@@ -840,7 +830,6 @@ export function PerCardEditModal({
             )}
           </aside>
         </div>
-      </div>
       {/* FI-3 — Apply-to-all choice dialog. */}
       <AlertDialog
         open={applyDialogOpen}
@@ -916,8 +905,8 @@ export function PerCardEditModal({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>,
-    document.body,
+      </div>
+    </Modal>
   );
 }
 

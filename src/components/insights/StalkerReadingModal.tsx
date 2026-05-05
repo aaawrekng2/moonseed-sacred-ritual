@@ -4,11 +4,11 @@
  * is offered at the bottom for full editing.
  */
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { getReadingsByIds } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { CardImage } from "@/components/card/CardImage";
+import { Modal } from "@/components/ui/modal";
 
 function formatFullDate(iso: string): string {
   try {
@@ -56,58 +56,26 @@ export function StalkerReadingModal({
     };
   }, [readingId, fetchReadings]);
 
-  // FQ-5 — body scroll lock + Escape-to-close.
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
+  const subtitle =
+    reading && reading.created_at
+      ? `${formatFullDate(reading.created_at)} · ${reading.spread_type ?? "Reading"}`
+      : undefined;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/60 backdrop-blur-sm"
-    >
-      <div
-        className="relative my-8 w-full max-w-2xl rounded-lg shadow-2xl"
-        style={{ background: "var(--surface-elevated, var(--background))" }}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="sticky top-0 z-10 ml-auto flex h-10 w-10 items-center justify-center text-muted-foreground hover:text-gold"
-        >
-          <X className="h-5 w-5" />
-        </button>
-
+    <Modal open onClose={onClose} title="Reading" subtitle={subtitle} size="md">
         {loading || !reading ? (
           <div className="px-6 pb-12 text-sm italic text-muted-foreground">
             {loading ? "Loading reading…" : "Reading not found."}
           </div>
         ) : (
           <article className="px-6 pb-12">
-            <header className="mb-4">
-              <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                {formatFullDate(reading.created_at)} · {reading.spread_type ?? "Reading"}
-              </div>
-              {reading.question ? (
+            {reading.question ? (
+              <header className="mb-4">
                 <h2 className="mt-2 font-serif italic" style={{ fontSize: "var(--text-heading-sm)" }}>
                   {reading.question}
                 </h2>
-              ) : null}
-            </header>
+              </header>
+            ) : null}
 
             <div className="flex flex-wrap justify-center gap-3">
               {(reading.card_ids ?? []).map((cid: number, idx: number) => {
@@ -161,7 +129,6 @@ export function StalkerReadingModal({
             </footer>
           </article>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
