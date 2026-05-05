@@ -203,7 +203,17 @@ export function PerCardEditModal({
     setCanvasPreview(null);
     setImgDims(null);
     setRenderedDims(null);
+    // FI-2 — clear crop until imgDims arrive; we'll hydrate then.
+    setCrop(null);
   }, [activeCardId]);
+
+  // FI-2 — hydrate crop from saved coords (or default rect) once we
+  // know the natural dimensions of the loaded image.
+  useEffect(() => {
+    if (activeCardId === null || !imgDims) return;
+    const saved = savedCrops[activeCardId];
+    setCrop(saved ?? defaultCropFor(imgDims.w, imgDims.h));
+  }, [activeCardId, imgDims, savedCrops]);
 
   // FF-1 — observe rendered size of the preview IMG. Fires on initial
   // mount, modal resize, viewport rotation, and whenever the image
@@ -225,9 +235,14 @@ export function PerCardEditModal({
     setBusy(true);
     try {
       // First persist the chosen radius so the edge fn picks it up.
+      const patch: Record<string, unknown> = {
+        corner_radius_percent: radius,
+        processing_status: "pending",
+      };
+      if (crop) patch.crop_coords = crop;
       const { error: updErr } = await supabase
         .from("custom_deck_cards")
-        .update({ corner_radius_percent: radius, processing_status: "pending" })
+        .update(patch)
         .eq("deck_id", deckId)
         .eq("card_id", activeCardId);
       if (updErr) throw updErr;
@@ -255,6 +270,9 @@ export function PerCardEditModal({
         throw new Error(`${result.error ?? "Processing failed."}${stepLabel}`);
       }
       setSavedRadii((prev) => ({ ...prev, [activeCardId]: radius }));
+      if (crop) {
+        setSavedCrops((prev) => ({ ...prev, [activeCardId]: crop }));
+      }
       // Cache-bust the visible image so the new -full.webp shows.
       setVersion((v) => v + 1);
       toast.success(`${getCardName(activeCardId)} saved.`);
