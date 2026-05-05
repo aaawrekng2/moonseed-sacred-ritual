@@ -55,6 +55,29 @@ export type CommunityTheme = {
   accent: string;
   accentForeground: string;
 
+  // Popover/dropdown surfaces — used by shadcn-style popovers, dropdowns,
+  // and any floating panel that sits over the page. Usually equal to
+  // surfaceElevated but kept separate so future themes can differentiate.
+  popover: string;
+  popoverForeground: string;
+
+  // Form input surface — search bars, text fields, selects.
+  input: string;
+
+  // Foreground/text on a destructive (error) background.
+  destructiveForeground: string;
+
+  // State indicator tokens — the foundation for the active-state audit.
+  // Two pairs:
+  //   *-passive: current-tab markers, active-filter chips, current
+  //     selection highlights. Anything that's passively showing state.
+  //   *-action: primary buttons, CTAs, CLEAR FILTERS button. Anything
+  //     that's actively asking for a tap.
+  // Production themes default to: passive = neutral, action = accent.
+  // Audit themes override these to test alternative rules.
+  stateActiveBgPassive: string;
+  stateActiveFgPassive: string;
+
   /**
    * Optional radial atmosphere overlay color. Themes that want a "glow"
    * set this to an 8-digit RGBA hex (saturated mid-luminance hue with
@@ -78,6 +101,11 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surfaceOverlay: "#1a1742",
     accent: "#f59e0b", accentForeground: "#1e1b4b",
     atmosphereOverlay: "#5b21b66b",
+    popover: "#2d2664", popoverForeground: "#f5f3ff",
+    input: "#252056",
+    destructiveForeground: "#fff5f0",
+    stateActiveBgPassive: "#ffffff14",
+    stateActiveFgPassive: "#e0d8f9",
   },
   {
     key: "midnight-oracle", name: "Midnight Oracle",
@@ -92,6 +120,11 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surfaceOverlay: "#0d0d1a",
     accent: "#a78bfa", accentForeground: "#0a0a0f",
     atmosphereOverlay: "#4c1d9540",
+    popover: "#1e1e3d", popoverForeground: "#ede9fe",
+    input: "#16162e",
+    destructiveForeground: "#fff5f0",
+    stateActiveBgPassive: "#ffffff14",
+    stateActiveFgPassive: "#dcd5fb",
   },
   {
     key: "blood-moon", name: "Blood Moon",
@@ -106,6 +139,11 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surfaceOverlay: "#150000",
     accent: "#fb7185", accentForeground: "#1a0000",
     atmosphereOverlay: "#7f1d1d66",
+    popover: "#421010", popoverForeground: "#fff5f0",
+    input: "#330505",
+    destructiveForeground: "#fff5f0",
+    stateActiveBgPassive: "#ffffff14",
+    stateActiveFgPassive: "#ffe4dc",
   },
   {
     key: "citrine-dawn", name: "Citrine Dawn",
@@ -120,6 +158,11 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surfaceOverlay: "#150f06",
     accent: "#facc15", accentForeground: "#1a1308",
     atmosphereOverlay: "#a162074d",
+    popover: "#372a14", popoverForeground: "#fefce8",
+    input: "#2a1f0c",
+    destructiveForeground: "#fff5f0",
+    stateActiveBgPassive: "#ffffff14",
+    stateActiveFgPassive: "#fef3c7",
   },
   {
     key: "cups-tide", name: "Cups & Tide",
@@ -134,6 +177,11 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surfaceOverlay: "#001423",
     accent: "#67e8f9", accentForeground: "#001a2c",
     atmosphereOverlay: "#0e74904d",
+    popover: "#10374f", popoverForeground: "#ecfeff",
+    input: "#0a2a3f",
+    destructiveForeground: "#fff5f0",
+    stateActiveBgPassive: "#ffffff14",
+    stateActiveFgPassive: "#cffafe",
   },
   {
     key: "wands-ember", name: "Wands & Ember",
@@ -148,6 +196,11 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surfaceOverlay: "#170707",
     accent: "#fb923c", accentForeground: "#1c0a0a",
     atmosphereOverlay: "#9a34124d",
+    popover: "#3a1d18", popoverForeground: "#fff7ed",
+    input: "#2a1410",
+    destructiveForeground: "#fff5f0",
+    stateActiveBgPassive: "#ffffff14",
+    stateActiveFgPassive: "#ffedd5",
   },
   {
     key: "pentacles-moss", name: "Pentacles & Moss",
@@ -162,6 +215,11 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surfaceOverlay: "#07150f",
     accent: "#34d399", accentForeground: "#0a1a14",
     atmosphereOverlay: "#1665344d",
+    popover: "#173a2c", popoverForeground: "#ecfdf5",
+    input: "#102a20",
+    destructiveForeground: "#fff5f0",
+    stateActiveBgPassive: "#ffffff14",
+    stateActiveFgPassive: "#d1fae5",
   },
   {
     key: "peacocks-tail", name: "Peacock\u2019s Tail",
@@ -176,6 +234,11 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     surfaceOverlay: "#0a0719",
     accent: "#c084fc", accentForeground: "#0d0a1f",
     atmosphereOverlay: "#6b21a866",
+    popover: "#241a3f", popoverForeground: "#faf5ff",
+    input: "#1a1430",
+    destructiveForeground: "#fff5f0",
+    stateActiveBgPassive: "#ffffff14",
+    stateActiveFgPassive: "#f3e8ff",
   },
   {
     key: "nightfall", name: "Nightfall",
@@ -189,6 +252,11 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     foregroundMutedStrong: "#d1d1d6", foregroundMutedWeak: "#8e8e93",
     surfaceOverlay: "#0a0a0a",
     accent: "#0a84ff", accentForeground: "#ffffff",
+    popover: "#2c2c2e", popoverForeground: "#f5f5f7",
+    input: "#1c1c1e",
+    destructiveForeground: "#ffffff",
+    stateActiveBgPassive: "#ffffff14",
+    stateActiveFgPassive: "#d1d1d6",
   },
   {
     key: "daybreak", name: "Daybreak",
@@ -202,6 +270,56 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     foregroundMutedStrong: "#3a3a3c", foregroundMutedWeak: "#8e8e93",
     surfaceOverlay: "#f5f5f7",
     accent: "#0066cc", accentForeground: "#ffffff",
+    popover: "#ffffff", popoverForeground: "#1d1d1f",
+    input: "#f5f5f7",
+    destructiveForeground: "#ffffff",
+    stateActiveBgPassive: "#0000000a",
+    stateActiveFgPassive: "#3a3a3c",
+  },
+  // FT-1 — Audit themes. Dev-only. Inherit Mystic's base palette but
+  // override state-active tokens to test alternative rules. Hidden in
+  // production via the dev-mode filter in ThemesTab.
+  {
+    key: "audit-neutral", name: "Audit \u00b7 Neutral",
+    tagline: "Dev only — passive states use neutral, not accent.",
+    recommendedFont: "Cormorant Garamond",
+    bgLeft: "#1e1b4b", bgRight: "#2d1b69",
+    surface: "#252056", surfaceElevated: "#2d2664",
+    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
+    foreground: "#f5f3ff", foregroundMuted: "#c4b8e8",
+    background: "#1e1b4b", card: "#252056",
+    foregroundMutedStrong: "#e0d8f9", foregroundMutedWeak: "#9989c4",
+    surfaceOverlay: "#1a1742",
+    accent: "#f59e0b", accentForeground: "#1e1b4b",
+    atmosphereOverlay: "#5b21b66b",
+    popover: "#2d2664", popoverForeground: "#f5f3ff",
+    input: "#252056",
+    destructiveForeground: "#fff5f0",
+    // The variable under audit — force passive state to a pure neutral
+    // (no accent tint at all).
+    stateActiveBgPassive: "#ffffff1a",
+    stateActiveFgPassive: "#e0d8f9",
+  },
+  {
+    key: "audit-accent", name: "Audit \u00b7 Accent",
+    tagline: "Dev only — passive states use the accent color, loud.",
+    recommendedFont: "Cormorant Garamond",
+    bgLeft: "#1e1b4b", bgRight: "#2d1b69",
+    surface: "#252056", surfaceElevated: "#2d2664",
+    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
+    foreground: "#f5f3ff", foregroundMuted: "#c4b8e8",
+    background: "#1e1b4b", card: "#252056",
+    foregroundMutedStrong: "#e0d8f9", foregroundMutedWeak: "#9989c4",
+    surfaceOverlay: "#1a1742",
+    accent: "#f59e0b", accentForeground: "#1e1b4b",
+    atmosphereOverlay: "#5b21b66b",
+    popover: "#2d2664", popoverForeground: "#f5f3ff",
+    input: "#252056",
+    destructiveForeground: "#fff5f0",
+    // The variable under audit — force passive state to use the accent
+    // color heavily (mimicking Material Design defaults).
+    stateActiveBgPassive: "#f59e0b3d",
+    stateActiveFgPassive: "#f59e0b",
   },
 ];
 

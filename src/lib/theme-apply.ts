@@ -60,6 +60,18 @@ export function applyCommunityTheme(theme: CommunityTheme) {
   root.style.setProperty("--accent-foreground", theme.accentForeground);
   root.style.setProperty("--gold-foreground", theme.accentForeground);
   root.style.setProperty("--ring", `${theme.accent}99`);
+  // FT-1 — popover surfaces (dropdowns, popovers, floating panels)
+  root.style.setProperty("--popover", theme.popover);
+  root.style.setProperty("--popover-foreground", theme.popoverForeground);
+  // FT-1 — form input surface (search bars, text fields, selects)
+  root.style.setProperty("--input", theme.input);
+  // FT-1 — destructive foreground (text on error backgrounds)
+  root.style.setProperty("--destructive-foreground", theme.destructiveForeground);
+  // FT-1 — state indicator tokens (foundation for active-state audit).
+  // Production default: passive uses neutral, action uses accent.
+  // Audit themes override these to test alternative rules.
+  root.style.setProperty("--state-active-bg-passive", theme.stateActiveBgPassive);
+  root.style.setProperty("--state-active-fg-passive", theme.stateActiveFgPassive);
   // BT Fix 4A — apply the recommended heading font alongside colors.
   // Font size is intentionally NOT touched: that's a user preference
   // independent of theme.
