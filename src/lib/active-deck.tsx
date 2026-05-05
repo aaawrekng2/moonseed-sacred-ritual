@@ -286,14 +286,15 @@ export function useDeckCornerRadius(deckId: string | null | undefined): number |
  * an empty object: no radius is applied for that frame, and subsequent
  * renders with a measured widthPx will paint the radius cleanly.
  */
+// FN-1 — No CSS rounding. Per the FD architecture, rounding is baked
+// into the image file at process time, not applied in CSS. Returning
+// {} preserves every call site as a no-op. If a card hasn't been
+// processed yet, it renders as a rectangle (the original scan).
 export function cornerRadiusStyle(
-  radiusPercent: number | null,
-  widthPx?: number | null,
+  _radiusPercent: number | null,
+  _widthPx?: number | null,
 ): { borderRadius?: string } {
-  if (radiusPercent == null) return {};
-  if (typeof widthPx !== "number" || widthPx <= 0) return {};
-  const px = Math.max(0, Math.round((radiusPercent / 100) * widthPx));
-  return { borderRadius: `${px}px` };
+  return {};
 }
 
 /**
