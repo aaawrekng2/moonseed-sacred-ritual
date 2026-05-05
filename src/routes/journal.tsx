@@ -593,17 +593,16 @@ function JournalPage() {
       {/* Sticky header — title, search, filter button, tab row.
           Stays pinned while the body below scrolls. */}
       <div
-        className="sticky top-0 z-30 -mx-5 px-5 pt-[calc(env(safe-area-inset-top,0px)+12px)]"
-        style={{
-          background:
-            "linear-gradient(to bottom, color-mix(in oklab, var(--surface-overlay) 92%, transparent), transparent)",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
-        }}
+        className="page-header-glass sticky top-0 -mx-5 px-5 pt-[calc(env(safe-area-inset-top,0px)+12px)]"
+        style={{ zIndex: "var(--z-sticky-header)" }}
       >
         <h1
-          className="font-display text-2xl italic text-gold"
-          style={{ opacity: "var(--ro-plus-20)" }}
+          className="font-serif italic"
+          style={{
+            fontSize: "var(--text-heading-lg)",
+            color: "var(--color-foreground)",
+            opacity: 0.9,
+          }}
         >
           Journal
         </h1>
