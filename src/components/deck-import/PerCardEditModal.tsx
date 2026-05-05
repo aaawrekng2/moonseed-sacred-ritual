@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchDeckCards, type CustomDeckCard } from "@/lib/custom-decks";
 import { getCardName } from "@/lib/tarot";
+import { useConfirm } from "@/hooks/use-confirm";
 
 type Props = {
   deckId: string;
@@ -33,14 +34,18 @@ export function PerCardEditModal({
   defaultRadiusPercent,
   onClose,
 }: Props) {
+  const confirm = useConfirm();
   const [cards, setCards] = useState<CustomDeckCard[] | null>(null);
   const [activeCardId, setActiveCardId] = useState<number | null>(null);
   const [signedUrls, setSignedUrls] = useState<Record<number, string>>({});
   const [radius, setRadius] = useState<number>(defaultRadiusPercent);
   const [savedRadii, setSavedRadii] = useState<Record<number, number>>({});
   const [busy, setBusy] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
   const [canvasPreview, setCanvasPreview] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
+  // FG-3 — show big radius number overlay only while user is dragging.
+  const [isSliding, setIsSliding] = useState(false);
   // FE-2 — track the natural dimensions of the loaded preview so we
   // can compute a single px corner radius (rather than a percent that
   // CSS interprets per-axis and turns into an ellipse on tarot-aspect
@@ -189,19 +194,121 @@ export function PerCardEditModal({
         },
       );
       if (error) throw error;
-      const result = (data ?? {}) as { ok?: boolean; error?: string };
-      if (!result.ok) throw new Error(result.error ?? "Processing failed.");
+      const result = (data ?? {}) as {
+        ok?: boolean;
+        error?: string;
+        step?: string;
+      };
+      if (!result.ok) {
+        // FG-1 — surface the named-step from the edge function so the
+        // failure point is visible without digging through logs.
+        const stepLabel = result.step ? ` (step: ${result.step})` : "";
+        throw new Error(`${result.error ?? "Processing failed."}${stepLabel}`);
+      }
       setSavedRadii((prev) => ({ ...prev, [activeCardId]: radius }));
       // Cache-bust the visible image so the new -full.webp shows.
       setVersion((v) => v + 1);
       toast.success(`${getCardName(activeCardId)} saved.`);
     } catch (err) {
       console.error("[FD-3] save card failed", err);
-      toast.error(
-        err instanceof Error ? `Save failed: ${err.message}` : "Save failed.",
-      );
+      // FG-1 — also try to extract the step from a FunctionsHttpError
+      // body when supabase-js wraps the response.
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`Save failed: ${msg}`);
     } finally {
       setBusy(false);
+    }
+  }
+
+  // FG-4 — Apply current radius to every card in the deck, then offer
+  // to batch-process them through the edge function (single-card mode
+  // per card so the rounded -full.webp variants get baked).
+  async function handleApplyToAll() {
+    if (bulkBusy || busy) return;
+    const list = cards ?? [];
+    const total = list.length;
+    if (total === 0) return;
+
+    const ok = await confirm({
+      title: `Apply radius ${radius}% to all ${total} cards?`,
+      description:
+        "Updates the per-card setting on every photographed card in this deck.",
+      confirmLabel: "Apply to all",
+    });
+    if (!ok) return;
+
+    setBulkBusy(true);
+    try {
+      const { error } = await supabase
+        .from("custom_deck_cards")
+        .update({ corner_radius_percent: radius, processing_status: "pending" })
+        .eq("deck_id", deckId)
+        .is("archived_at", null);
+      if (error) throw error;
+
+      // Reflect locally so thumbnails get the saved-state border.
+      const next: Record<number, number> = {};
+      for (const c of list) next[c.card_id] = radius;
+      setSavedRadii((prev) => ({ ...prev, ...next }));
+      toast.success(`Radius ${radius}% set for all ${total} cards.`);
+
+      const goProcess = await confirm({
+        title: `Process all ${total} cards now?`,
+        description: "This may take several minutes. You can also do it later from Settings → Decks.",
+        confirmLabel: "Process now",
+        cancelLabel: "Not now",
+      });
+      if (!goProcess) return;
+
+      const { data: sess } = await supabase.auth.getSession();
+      const jwt = sess.session?.access_token;
+      if (!jwt) throw new Error("Not signed in.");
+
+      let done = 0;
+      let failed = 0;
+      const progressId = toast.loading(`Processing 0/${total}…`);
+      for (const c of list) {
+        try {
+          const { data, error: invErr } = await supabase.functions.invoke(
+            "generate-deck-variants",
+            {
+              body: { deckId, cardId: c.card_id },
+              headers: { Authorization: `Bearer ${jwt}` },
+            },
+          );
+          if (invErr) throw invErr;
+          const result = (data ?? {}) as { ok?: boolean; error?: string; step?: string };
+          if (!result.ok) {
+            failed++;
+            console.warn(
+              `[FG-4] card ${c.card_id} failed`,
+              result.step,
+              result.error,
+            );
+          }
+        } catch (e) {
+          failed++;
+          console.warn(`[FG-4] card ${c.card_id} threw`, e);
+        }
+        done++;
+        toast.loading(`Processing ${done}/${total}…`, { id: progressId });
+      }
+      setVersion((v) => v + 1);
+      if (failed > 0) {
+        toast.error(
+          `Processed ${done - failed}/${total}. ${failed} failed — check console.`,
+          { id: progressId },
+        );
+      } else {
+        toast.success(`All ${total} cards processed.`, { id: progressId });
+      }
+    } catch (err) {
+      console.error("[FG-4] apply-to-all failed", err);
+      toast.error(
+        err instanceof Error ? err.message : "Apply to all failed.",
+      );
+    } finally {
+      setBulkBusy(false);
     }
   }
 
@@ -222,7 +329,7 @@ export function PerCardEditModal({
 
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4">
-      <div className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-gold/30 bg-card text-foreground shadow-2xl">
+      <div className="flex max-h-[95vh] h-[95vh] md:h-auto md:max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-gold/30 bg-card text-foreground shadow-2xl">
         <header className="flex items-center justify-between border-b border-border/60 px-4 py-3">
           <div>
             <h2 className="text-sm font-semibold">Round corners — {deckName}</h2>
@@ -240,9 +347,159 @@ export function PerCardEditModal({
           </button>
         </header>
 
-        <div className="flex min-h-0 flex-1 gap-4 p-4">
-          {/* Card grid */}
-          <aside className="flex w-44 flex-col gap-2 overflow-y-auto">
+        {/* FG-2 — On mobile: preview takes the full width, card list
+            becomes a horizontal scroll row UNDERNEATH. On md+: keep
+            the original sidebar grid + side preview layout. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-4 p-4 md:flex-row">
+          {/* Editor — first on mobile (order-1), right side on desktop (order-2). */}
+          <section className="order-1 flex min-w-0 flex-1 flex-col gap-3 md:order-2">
+            {activeCardId === null ? (
+              <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+                Select a card to edit.
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">
+                    {getCardName(activeCardId)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {canvasPreview
+                      ? "Canvas preview (matches saved)"
+                      : "Live preview (CSS)"}
+                  </p>
+                </div>
+
+                <div className="relative flex items-center justify-center rounded-md bg-cosmos/40 p-4">
+                  {previewSrc ? (
+                    <img
+                      ref={imgRef}
+                      key={`${activeCardId}-${version}`}
+                      src={
+                        canvasPreview
+                          ? canvasPreview
+                          : `${previewSrc}${previewSrc.includes("?") ? "&" : "?"}v=${version}`
+                      }
+                      alt={getCardName(activeCardId)}
+                      crossOrigin="anonymous"
+                      onLoad={(e) => {
+                        const i = e.currentTarget;
+                        if (i.naturalWidth > 0 && i.naturalHeight > 0) {
+                          setImgDims({ w: i.naturalWidth, h: i.naturalHeight });
+                        }
+                      }}
+                      style={{
+                        // FE-3 — larger preview so radius changes are
+                        // clearly visible while sliding.
+                        // Slightly tighter on mobile to leave room for
+                        // the horizontal thumbnail row.
+                        maxHeight: "60vh",
+                        maxWidth: "100%",
+                        width: "auto",
+                        ...previewStyle,
+                      }}
+                    />
+                  ) : (
+                    <Loader2 className="h-5 w-5 animate-spin opacity-60" />
+                  )}
+                  {/* FG-3 — Big radius value overlay while dragging. */}
+                  {isSliding ? (
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                    >
+                      <div
+                        className="font-bold tabular-nums"
+                        style={{
+                          fontSize: "clamp(48px, 12vw, 120px)",
+                          color: "white",
+                          textShadow: "0 2px 12px rgba(0,0,0,0.7)",
+                          letterSpacing: "-0.02em",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {radius}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <label className="text-xs text-muted-foreground">
+                    Radius
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={20}
+                    step={1}
+                    value={radius}
+                    onChange={(e) => {
+                      setRadius(Number(e.target.value));
+                      setCanvasPreview(null);
+                    }}
+                    onPointerDown={() => setIsSliding(true)}
+                    onPointerUp={() => {
+                      setIsSliding(false);
+                      renderCanvasPreview();
+                    }}
+                    onPointerCancel={() => setIsSliding(false)}
+                    onKeyDown={() => setIsSliding(true)}
+                    onKeyUp={() => {
+                      setIsSliding(false);
+                      renderCanvasPreview();
+                    }}
+                    onBlur={() => setIsSliding(false)}
+                    className="flex-1"
+                    disabled={busy || bulkBusy}
+                  />
+                  <span className="w-8 text-right text-xs tabular-nums">
+                    {radius}%
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleApplyToAll}
+                    disabled={busy || bulkBusy || cardCount === 0}
+                    className="rounded-md border border-border/60 bg-muted/20 px-3 py-1.5 text-sm font-medium hover:bg-muted/40 disabled:opacity-50"
+                  >
+                    {bulkBusy ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Applying…
+                      </span>
+                    ) : (
+                      `Apply to all (${cardCount})`
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={busy || bulkBusy || activeCardId === null}
+                    className="rounded-md border border-gold/40 bg-gold/10 px-3 py-1.5 text-sm font-medium text-gold hover:bg-gold/20 disabled:opacity-50"
+                  >
+                    {busy ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
+                      </span>
+                    ) : (
+                      "Save card"
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+
+          {/* Card list — second on mobile (horizontal scroll), first on desktop (sidebar grid). */}
+          <aside
+            className={
+              "order-2 flex shrink-0 gap-2 md:order-1 " +
+              "flex-row overflow-x-auto overflow-y-hidden " +
+              "md:w-44 md:flex-col md:overflow-x-hidden md:overflow-y-auto"
+            }
+          >
             {cards === null ? (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="h-3 w-3 animate-spin" /> Loading…
@@ -252,12 +509,12 @@ export function PerCardEditModal({
                 No photographed cards in this deck yet.
               </p>
             ) : (
-              <ul className="grid grid-cols-3 gap-1.5">
+              <ul className="flex flex-row gap-1.5 md:grid md:grid-cols-3 md:gap-1.5">
                 {cards.map((c) => {
                   const isActive = c.card_id === activeCardId;
                   const isSaved = c.card_id in savedRadii;
                   return (
-                    <li key={c.id}>
+                    <li key={c.id} className="shrink-0 md:shrink">
                       <button
                         type="button"
                         onClick={() => {
@@ -265,7 +522,7 @@ export function PerCardEditModal({
                           setRadius(savedRadii[c.card_id] ?? defaultRadiusPercent);
                         }}
                         className={
-                          "block aspect-[2/3] w-full overflow-hidden rounded border-2 " +
+                          "block aspect-[2/3] h-24 overflow-hidden rounded border-2 md:h-auto md:w-full " +
                           (isActive
                             ? "border-gold"
                             : isSaved
@@ -288,101 +545,6 @@ export function PerCardEditModal({
               </ul>
             )}
           </aside>
-
-          {/* Editor */}
-          <section className="flex min-w-0 flex-1 flex-col gap-3">
-            {activeCardId === null ? (
-              <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-                Select a card to edit.
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">
-                    {getCardName(activeCardId)}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {canvasPreview
-                      ? "Canvas preview (matches saved)"
-                      : "Live preview (CSS)"}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-center rounded-md bg-cosmos/40 p-4">
-                  {previewSrc ? (
-                    <img
-                      ref={imgRef}
-                      key={`${activeCardId}-${version}`}
-                      src={
-                        canvasPreview
-                          ? canvasPreview
-                          : `${previewSrc}${previewSrc.includes("?") ? "&" : "?"}v=${version}`
-                      }
-                      alt={getCardName(activeCardId)}
-                      crossOrigin="anonymous"
-                      onLoad={(e) => {
-                        const i = e.currentTarget;
-                        if (i.naturalWidth > 0 && i.naturalHeight > 0) {
-                          setImgDims({ w: i.naturalWidth, h: i.naturalHeight });
-                        }
-                      }}
-                      style={{
-                        // FE-3 — larger preview so radius changes are
-                        // clearly visible while sliding.
-                        maxHeight: "75vh",
-                        maxWidth: "100%",
-                        width: "auto",
-                        ...previewStyle,
-                      }}
-                    />
-                  ) : (
-                    <Loader2 className="h-5 w-5 animate-spin opacity-60" />
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <label className="text-xs text-muted-foreground">
-                    Radius
-                  </label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={20}
-                    step={1}
-                    value={radius}
-                    onChange={(e) => {
-                      setRadius(Number(e.target.value));
-                      setCanvasPreview(null);
-                    }}
-                    onPointerUp={renderCanvasPreview}
-                    onKeyUp={renderCanvasPreview}
-                    className="flex-1"
-                    disabled={busy}
-                  />
-                  <span className="w-8 text-right text-xs tabular-nums">
-                    {radius}%
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={busy || activeCardId === null}
-                    className="rounded-md border border-gold/40 bg-gold/10 px-3 py-1.5 text-sm font-medium text-gold hover:bg-gold/20 disabled:opacity-50"
-                  >
-                    {busy ? (
-                      <span className="inline-flex items-center gap-2">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
-                      </span>
-                    ) : (
-                      "Save card"
-                    )}
-                  </button>
-                </div>
-              </>
-            )}
-          </section>
         </div>
       </div>
     </div>,
