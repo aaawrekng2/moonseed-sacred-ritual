@@ -296,8 +296,17 @@ export function PerCardEditModal({
                       }
                       alt={getCardName(activeCardId)}
                       crossOrigin="anonymous"
+                      onLoad={(e) => {
+                        const i = e.currentTarget;
+                        if (i.naturalWidth > 0 && i.naturalHeight > 0) {
+                          setImgDims({ w: i.naturalWidth, h: i.naturalHeight });
+                        }
+                      }}
                       style={{
-                        maxHeight: "55vh",
+                        // FE-3 — larger preview so radius changes are
+                        // clearly visible while sliding.
+                        maxHeight: "75vh",
+                        maxWidth: "100%",
                         width: "auto",
                         ...previewStyle,
                       }}
