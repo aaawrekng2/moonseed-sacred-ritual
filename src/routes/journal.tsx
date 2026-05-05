@@ -252,11 +252,11 @@ function JournalPage() {
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [view, setView] = useState<ViewMode>("readings");
   const [openId, setOpenId] = useState<string | null>(null);
-  const [filtersOpen, setFiltersOpen] = useState(false);
   // ED-2A — cache for an archived reading opened from the Archive view.
   // Active readings come from `readings`; archived rows are filtered out
   // of that list, so we lazily fetch them by id here.
   const [openOverride, setOpenOverride] = useState<ReadingRow | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Fetch readings + tags + photo counts whenever the user resolves.
   useEffect(() => {

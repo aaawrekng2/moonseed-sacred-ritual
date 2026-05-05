@@ -4,12 +4,10 @@
  * getStalkerCards / getStalkerTwins / getStalkerTriplets /
  * getReversedStalkers. Mode/cooccurrence/filter changes refetch.
  */
-import { useEffect, useMemo, useState } from "react";
-import { SlidersHorizontal, Sparkles, X as XIcon, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { CardImage } from "@/components/card/CardImage";
-import { supabase } from "@/integrations/supabase/client";
-import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import {
   getStalkerCards,
   getStalkerTwins,
@@ -35,16 +33,6 @@ import type {
 
 type Mode = "singles" | "twins" | "triplets" | "reversed";
 type Cooccurrence = "reading" | "day";
-
-// FR-1 — Real spread mode keys with display labels. Keys match the values
-// stored in readings.spread_type, labels come from SPREAD_META.
-const DRAW_TYPE_OPTIONS: Array<{ key: SpreadMode; label: string }> = [
-  { key: "single", label: SPREAD_META.single.label },
-  { key: "three", label: SPREAD_META.three.label },
-  { key: "celtic", label: SPREAD_META.celtic.label },
-  { key: "yes_no", label: SPREAD_META.yes_no.label },
-  { key: "daily", label: SPREAD_META.daily.label },
-];
 
 const TIME_RANGE_LABELS: Record<TimeRange, string> = {
   "7d": "Last 7 days",
@@ -159,36 +147,9 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
   const [mode, setMode] = useState<Mode>("singles");
   const [cooccurrence, setCooccurrence] = useState<Cooccurrence>("reading");
   const [selectedKey, setSelectedKey] = useState<string | number | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeTags, setActiveTags] = useState<string[]>([]);
-  const [activeDrawTypes, setActiveDrawTypes] = useState<SpreadMode[]>([]);
-  // FR-2 — User's actual tag library, fetched from user_tags.
-  const [userTags, setUserTags] = useState<Array<{ id: string; name: string; usage_count: number }>>([]);
   // FQ-5 — Selected occurrence opens a modal over the Stalkers tab; setting
   // null restores the underlying state untouched.
   const [openReadingId, setOpenReadingId] = useState<string | null>(null);
-
-  // FR-2 — Fetch user's actual tags (sorted by usage_count desc, top 50).
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
-      const { data, error } = await supabase
-        .from("user_tags")
-        .select("id, name, usage_count")
-        .eq("user_id", user.id)
-        .order("usage_count", { ascending: false })
-        .limit(50);
-      if (cancelled) return;
-      if (error) {
-        console.error("[FR-2] failed to fetch tags", error);
-        return;
-      }
-      setUserTags((data ?? []) as Array<{ id: string; name: string; usage_count: number }>);
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   // FP-4 — Real data via server functions. Match existing useServerFn + useEffect pattern.
   const singlesFn = useServerFn(getStalkerCards);
@@ -202,15 +163,6 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
   const [reversed, setReversed] = useState<ReversedStalkersResult | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // FP-6 — Merge parent filters with local tag/draw selections.
-  const effectiveFilters: InsightsFilters = useMemo(() => ({
-    ...filters,
-    tagIds: activeTags.length ? Array.from(new Set([...filters.tagIds, ...activeTags])) : filters.tagIds,
-    spreadTypes: activeDrawTypes.length
-      ? Array.from(new Set([...filters.spreadTypes, ...activeDrawTypes]))
-      : filters.spreadTypes,
-  }), [filters, activeTags, activeDrawTypes]);
-
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -218,19 +170,19 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
       try {
         const headers = await getAuthHeaders();
         const [s, t, tr, rv] = await Promise.all([
-          singlesFn({ data: effectiveFilters, headers }).catch((e) => {
+          singlesFn({ data: filters, headers }).catch((e) => {
             console.warn("[stalkers] singles failed", e);
             return { stalkerCards: [], topCard: null, totalReadings: 0 } satisfies StalkerCardsResult;
           }),
-          twinsFn({ data: { ...effectiveFilters, cooccurrence }, headers }).catch((e) => {
+          twinsFn({ data: { ...filters, cooccurrence }, headers }).catch((e) => {
             console.warn("[stalkers] twins failed", e);
             return { twins: [] } satisfies StalkerTwinsResult;
           }),
-          tripletsFn({ data: { ...effectiveFilters, cooccurrence }, headers }).catch((e) => {
+          tripletsFn({ data: { ...filters, cooccurrence }, headers }).catch((e) => {
             console.warn("[stalkers] triplets failed", e);
             return { triplets: [] } satisfies StalkerTripletsResult;
           }),
-          reversedFn({ data: effectiveFilters, headers }).catch((e) => {
+          reversedFn({ data: filters, headers }).catch((e) => {
             console.warn("[stalkers] reversed failed", e);
             return { reversedStalkers: [] } satisfies ReversedStalkersResult;
           }),
@@ -249,7 +201,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
     return () => {
       cancelled = true;
     };
-  }, [effectiveFilters, cooccurrence, singlesFn, twinsFn, tripletsFn, reversedFn]);
+  }, [filters, cooccurrence, singlesFn, twinsFn, tripletsFn, reversedFn]);
 
   const singlesList: StalkerCard[] = singles?.stalkerCards ?? [];
   const twinsList: StalkerTwin[] = twins?.twins ?? [];
@@ -283,35 +235,6 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
     : reversedList.length;
   const slots = Math.max(0, 5 - filledCount);
 
-  const toggleTag = (t: string) =>
-    setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
-  const toggleDrawType = (d: SpreadMode) =>
-    setActiveDrawTypes((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
-  const clearFilters = () => {
-    setActiveTags([]);
-    setActiveDrawTypes([]);
-  };
-  const hasAnyFilter = activeTags.length > 0 || activeDrawTypes.length > 0;
-
-  const activeFilterChips = useMemo(() => {
-    const chips: { key: string; label: string; clear: () => void }[] = [];
-    activeTags.forEach((t) =>
-      chips.push({
-        key: `tag-${t}`,
-        label: t,
-        clear: () => setActiveTags((prev) => prev.filter((x) => x !== t)),
-      }),
-    );
-    activeDrawTypes.forEach((dt) =>
-      chips.push({
-        key: `dt-${dt}`,
-        label: SPREAD_META[dt]?.label ?? dt,
-        clear: () => setActiveDrawTypes((prev) => prev.filter((x) => x !== dt)),
-      }),
-    );
-    return chips;
-  }, [activeTags, activeDrawTypes]);
-
   const selectedSingle = singlesList.find((s) => s.cardId === selectedKey);
   const selectedTwin = twinsList.find((t) => `${t.cardA}-${t.cardB}` === selectedKey);
   const selectedTriplet = tripletsList.find((t) => t.cardIds.join("-") === selectedKey);
@@ -332,56 +255,10 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
           {reversedCount > 0 ? (
             <Chip icon={<ReversedCardIcon />} label="Reversed" active={mode === "reversed"} onClick={() => setMode("reversed")} />
           ) : null}
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            aria-label="More filters"
-            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground"
-          >
-            <SlidersHorizontal className="h-5 w-5" />
-          </button>
         </div>
       </header>
 
       <div className="text-xs text-muted-foreground mb-3">{TIME_RANGE_LABELS[timeRange]}</div>
-
-      {activeFilterChips.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          {/* FT-1 (2A) — CLEAR FILTERS leads the row, styled like Journal's
-              leading link: uppercase, font-display, 12px, gold. */}
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="uppercase"
-            style={{
-              fontFamily: "var(--font-display, var(--font-serif))",
-              fontSize: "12px",
-              letterSpacing: "0.15em",
-              color: "var(--gold)",
-              opacity: 1,
-              fontWeight: 700,
-            }}
-          >
-            CLEAR FILTERS
-          </button>
-          {activeFilterChips.map((c) => (
-            // FT-1 (2B) — kill the pill. Plain text + X. No background, no rounded chrome.
-            <button
-              key={c.key}
-              type="button"
-              onClick={c.clear}
-              className="inline-flex items-center gap-1 text-xs transition-opacity hover:opacity-100"
-              style={{
-                color: "var(--color-foreground)",
-                opacity: 0.85,
-              }}
-            >
-              {c.label}
-              <X className="h-3 w-3 opacity-60" />
-            </button>
-          ))}
-        </div>
-      )}
 
       {(mode === "twins" || mode === "triplets") ? (
         <div className="flex items-center gap-2 mb-3">
@@ -588,139 +465,6 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
           <p className="text-xs mt-1 opacity-70">Try a wider time range or different filters.</p>
         </div>
       )}
-
-      {/* Filter drawer (matches Journal) */}
-      {drawerOpen && (
-        <>
-          <div
-            aria-hidden
-            className="fixed inset-0 z-40 bg-transparent"
-            style={{ pointerEvents: "none" }}
-          />
-          <button
-            type="button"
-            aria-label="Close filters"
-            onClick={() => setDrawerOpen(false)}
-            className="fixed top-0 z-40 h-dvh w-10 cursor-pointer bg-transparent"
-            style={{ right: "var(--journal-drawer-w)" }}
-          />
-        </>
-      )}
-      <aside
-        aria-hidden={!drawerOpen}
-        className="journal-filter-drawer fixed right-0 top-0 z-50 flex h-dvh flex-col overflow-y-auto border-l shadow-2xl transition-transform duration-300 ease-out"
-        style={{
-          width: "var(--journal-drawer-w)",
-          borderColor: "color-mix(in oklab, var(--gold) 18%, transparent)",
-          background: "var(--surface-overlay)",
-          paddingTop: "calc(env(safe-area-inset-top,0px) + 72px)",
-          paddingBottom: "calc(env(safe-area-inset-bottom,0px) + 96px)",
-          paddingLeft: 20,
-          paddingRight: 20,
-          transform: drawerOpen ? "translateX(0)" : "translateX(100%)",
-          pointerEvents: drawerOpen ? "auto" : "none",
-        }}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <h2
-            className="font-display text-[11px] uppercase tracking-[0.22em] text-gold"
-            style={{ opacity: "var(--ro-plus-30)" }}
-          >
-            Filters
-          </h2>
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(false)}
-            aria-label="Close"
-            className="rounded-full p-1 text-muted-foreground hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-          >
-            <XIcon size={16} strokeWidth={1.5} />
-          </button>
-        </div>
-
-        <div className="flex flex-col gap-5">
-          <section>
-            <h3
-              className="font-display text-[14px] uppercase tracking-[0.18em] mb-2"
-              style={{ color: "var(--accent)" }}
-            >
-              Tags
-            </h3>
-            <div className="flex flex-wrap gap-x-3 gap-y-2">
-              {userTags.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">
-                  You have no tags yet. Tag readings to filter by tag here.
-                </p>
-              ) : (
-                userTags.map((tag) => {
-                  const active = activeTags.includes(tag.name);
-                  return (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      onClick={() => toggleTag(tag.name)}
-                      className="font-display text-[13px] italic transition-colors text-foreground"
-                      style={{
-                        opacity: active ? 1 : 0.85,
-                        borderBottom: active
-                          ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
-                          : "1px solid transparent",
-                        paddingBottom: 2,
-                      }}
-                    >
-                      {tag.name}
-                      {active && <span className="ml-1 text-[10px]">×</span>}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </section>
-
-          <section>
-            <h3
-              className="font-display text-[14px] uppercase tracking-[0.18em] mb-2"
-              style={{ color: "var(--accent)" }}
-            >
-              Draw type
-            </h3>
-            <div className="flex flex-wrap gap-x-4 gap-y-2">
-              {DRAW_TYPE_OPTIONS.map(({ key, label }) => {
-                const active = activeDrawTypes.includes(key);
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => toggleDrawType(key)}
-                    className="font-display text-[12px] italic transition-colors text-foreground"
-                    style={{
-                      opacity: active ? 1 : 0.85,
-                      borderBottom: active
-                        ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
-                        : "1px solid transparent",
-                      paddingBottom: 2,
-                    }}
-                  >
-                    {label}
-                    {active && <span className="ml-1 text-[10px]">×</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {hasAnyFilter && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="self-start font-display text-[12px] uppercase tracking-[0.15em] underline-offset-2 hover:underline"
-              style={{ color: "var(--gold)", opacity: 1, fontWeight: 700 }}
-            >
-              CLEAR FILTERS
-            </button>
-          )}
-        </div>
-      </aside>
 
       {/* FQ-4/5 — Reading detail modal opens over the tab. */}
       {openReadingId && (

@@ -1,8 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/nav/BottomNav";
-import { InsightsFilterBar } from "@/components/insights/InsightsFilterBar";
+import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
+import {
+  EMPTY_GLOBAL_FILTERS,
+  type GlobalFilters,
+} from "@/lib/filters.types";
 import { HeroCard } from "@/components/insights/HeroCard";
 import { SuitBalanceChart } from "@/components/insights/SuitBalanceChart";
 import { MajorMinorChart } from "@/components/insights/MajorMinorChart";
@@ -13,7 +18,13 @@ import { TopGuideStat } from "@/components/insights/TopGuideStat";
 import { TopLensStat } from "@/components/insights/TopLensStat";
 import { getInsightsOverview, getStalkerCards } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
-import { DEFAULT_FILTERS, type InsightsFilters, type InsightsOverview, type StalkerCardsResult } from "@/lib/insights.types";
+import {
+  DEFAULT_FILTERS,
+  type InsightsFilters,
+  type InsightsOverview,
+  type StalkerCardsResult,
+  type TimeRange,
+} from "@/lib/insights.types";
 import { StalkerCardsSection } from "@/components/insights/StalkerCardsSection";
 import { CardFrequencySection } from "@/components/insights/CardFrequencySection";
 import { CardPairsSection } from "@/components/insights/CardPairsSection";
@@ -58,11 +69,43 @@ function InsightsRoute() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("overview");
   const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
+  const [userTags, setUserTags] = useState<
+    Array<{ id: string; name: string; usage_count: number }>
+  >([]);
   const [overview, setOverview] = useState<InsightsOverview | null>(null);
   const [stalkers, setStalkers] = useState<StalkerCardsResult | null>(null);
   const [loading, setLoading] = useState(true);
   const overviewFn = useServerFn(getInsightsOverview);
   const stalkerFn = useServerFn(getStalkerCards);
+
+  // FU — Lift userTags fetch up so GlobalFilterBar can render Tags section.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      const { data, error } = await supabase
+        .from("user_tags")
+        .select("id, name, usage_count")
+        .eq("user_id", user.id)
+        .order("usage_count", { ascending: false })
+        .limit(50);
+      if (cancelled) return;
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.warn("[insights] tag fetch failed", error);
+        return;
+      }
+      setUserTags(
+        (data ?? []) as Array<{ id: string; name: string; usage_count: number }>,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,6 +133,27 @@ function InsightsRoute() {
     };
   }, [filters, overviewFn, stalkerFn]);
 
+  // FU — adapt InsightsFilters ↔ GlobalFilters for the shared bar.
+  const globalFilters: GlobalFilters = {
+    ...EMPTY_GLOBAL_FILTERS,
+    timeRange: filters.timeRange,
+    tags: filters.tagIds,
+    spreadTypes: filters.spreadTypes,
+    moonPhases: filters.moonPhases,
+    deepOnly: filters.deepOnly,
+    reversedOnly: filters.reversedOnly,
+  };
+  const handleGlobalChange = (next: GlobalFilters) => {
+    setFilters({
+      ...filters,
+      tagIds: next.tags,
+      spreadTypes: next.spreadTypes,
+      moonPhases: next.moonPhases as InsightsFilters["moonPhases"],
+      deepOnly: next.deepOnly,
+      reversedOnly: next.reversedOnly,
+    });
+  };
+
   return (
     <div className="relative flex h-dvh flex-col" style={{ background: "var(--background)" }}>
       {/* EK-0 — h-dvh + flex-col so the inner <main> can own the scroll. */}
@@ -97,7 +161,41 @@ function InsightsRoute() {
       <div className="flex justify-end px-4 pt-2">
         <PremiumBadge />
       </div>
-      <InsightsFilterBar filters={filters} onChange={setFilters} hidden={tab === "recap"} />
+      {tab !== "recap" && (
+        <div
+          className="backdrop-blur-md"
+          style={{
+            background:
+              "color-mix(in oklch, var(--surface-elevated) 88%, transparent)",
+            borderBottom: "1px solid var(--border-subtle)",
+          }}
+        >
+          <GlobalFilterBar
+            filters={globalFilters}
+            onChange={handleGlobalChange}
+            sections={[
+              "tags",
+              "spreadTypes",
+              "moonPhases",
+              "depth",
+              "reversed",
+            ]}
+            timeRange={{
+              value: filters.timeRange,
+              options: [
+                { value: "7d", label: "Last 7 days" },
+                { value: "30d", label: "Last 30 days" },
+                { value: "90d", label: "Last 90 days" },
+                { value: "365d", label: "Last 365 days" },
+                { value: "all", label: "All time" },
+              ],
+              onChange: (v) =>
+                setFilters({ ...filters, timeRange: v as TimeRange }),
+            }}
+            userTags={userTags}
+          />
+        </div>
+      )}
 
       {/* Tab strip */}
       <div
