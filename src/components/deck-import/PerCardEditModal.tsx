@@ -46,6 +46,14 @@ export function PerCardEditModal({
   // CSS interprets per-axis and turns into an ellipse on tarot-aspect
   // cards).
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null);
+  // FF-1 — track the IMG's RENDERED size (not natural). Applying a
+  // natural-pixel radius to a rendered IMG that's been scaled down by
+  // maxHeight: 75vh produces visually-maxed corners far below the
+  // slider's range. Using clientWidth/Height keeps the visual radius
+  // proportional to the actual on-screen size.
+  const [renderedDims, setRenderedDims] = useState<
+    { w: number; h: number } | null
+  >(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
 
   // Load card list + per-card radii.
@@ -140,7 +148,23 @@ export function PerCardEditModal({
   useEffect(() => {
     setCanvasPreview(null);
     setImgDims(null);
+    setRenderedDims(null);
   }, [activeCardId]);
+
+  // FF-1 — observe rendered size of the preview IMG. Fires on initial
+  // mount, modal resize, viewport rotation, and whenever the image
+  // node is swapped out for a new card.
+  useEffect(() => {
+    const node = imgRef.current;
+    if (!node || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (node.clientWidth > 0 && node.clientHeight > 0) {
+        setRenderedDims({ w: node.clientWidth, h: node.clientHeight });
+      }
+    });
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, [activeCardId, previewSrc]);
 
   async function handleSave() {
     if (activeCardId === null || busy) return;
@@ -182,13 +206,13 @@ export function PerCardEditModal({
   }
 
   const previewSrc = canvasPreview ?? activeUrl;
-  // FE-2 — CSS `border-radius: N%` computes X = N% of width and
-  // Y = N% of height, producing an ellipse on non-square cards. Use
-  // a single px value derived from the image's natural smaller
-  // dimension so all four corners are TRUE circles. Mirrors the
-  // Edge Function and Canvas formula: min(w, h) * radiusPercent / 100.
-  const cssRadiusPx = imgDims
-    ? Math.round((Math.min(imgDims.w, imgDims.h) * radius) / 100)
+  // FF-1 — derive radius from RENDERED dimensions so the visible
+  // proportion matches the slider's percentage on-screen. The Canvas
+  // preview + Edge Function still use the natural-size formula
+  // (min(w,h) * radius / 100) which produces the same VISUAL ratio
+  // once the saved image is rendered at any size.
+  const cssRadiusPx = renderedDims
+    ? Math.round((Math.min(renderedDims.w, renderedDims.h) * radius) / 100)
     : 0;
   const previewStyle: React.CSSProperties = canvasPreview
     ? {} // Canvas image already has rounded transparent corners baked in.
