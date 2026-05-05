@@ -536,37 +536,8 @@ function CreateCustomGuideDialog({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Create custom guide"
-      className="modal-scrim fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: "var(--z-modal)" }}
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-2xl border border-gold/30 bg-cosmos p-5 shadow-2xl"
-        style={{ maxHeight: "90vh", overflowY: "auto" }}
-      >
-        <div className="mb-4 flex items-start justify-between">
-          <h3
-            className="text-lg italic text-gold"
-            style={{ fontFamily: "var(--font-serif)" }}
-          >
-            Forge a Custom Guide
-          </h3>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={onClose}
-            className="text-gold/60 hover:text-gold"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
+    <Modal open onClose={onClose} title="Forge a Custom Guide" size="md">
+      <div className="space-y-4 p-5">
           <div>
             <Label className="text-xs text-muted-foreground">Base guide</Label>
             <div className="mt-1 grid grid-cols-2 gap-2">
@@ -659,7 +630,7 @@ function CreateCustomGuideDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
