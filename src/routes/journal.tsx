@@ -788,9 +788,9 @@ function JournalPage() {
         ) : view === "calendar" ? (
           <CalendarView
             readings={readings}
-            activeTags={activeTags}
-            tagMode={tagMode}
-            activeDrawTypes={activeDrawTypes}
+            activeTags={journalFilters.tags}
+            tagMode={journalFilters.tagMode}
+            activeDrawTypes={journalFilters.spreadTypes as DrawTypeKey[]}
             activeDate={activeDate}
             onSelectDate={(d) => {
               setActiveDate((cur) => (cur === d ? null : d));
