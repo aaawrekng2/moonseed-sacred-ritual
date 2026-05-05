@@ -518,22 +518,26 @@ export function PerCardEditModal({
 
   // FJ-3 — count of cards with settings applied but processing pending.
   const pendingCount = useMemo(() => {
-    return (cards ?? []).filter(
-      (c) =>
-        c.processing_status === "pending" &&
-        c.corner_radius_percent != null,
-    ).length;
+    return (cards ?? []).filter((c) => {
+      const r = c as unknown as {
+        processing_status?: string;
+        corner_radius_percent?: number | null;
+      };
+      return r.processing_status === "pending" && r.corner_radius_percent != null;
+    }).length;
   }, [cards]);
 
   // FJ-3 — Resume processing handler.
   async function handleResumeProcessing() {
     if (bulkBusy || busy) return;
     const list = cards ?? [];
-    const targets = list.filter(
-      (c) =>
-        c.processing_status === "pending" &&
-        c.corner_radius_percent != null,
-    );
+    const targets = list.filter((c) => {
+      const r = c as unknown as {
+        processing_status?: string;
+        corner_radius_percent?: number | null;
+      };
+      return r.processing_status === "pending" && r.corner_radius_percent != null;
+    });
     if (targets.length === 0) return;
     setBulkBusy(true);
     try {
