@@ -1172,13 +1172,16 @@ button:focus-visible .moon-rung-glow {
   /* visual border removed in EI-3 */
 }
 
-/* Journal filter drawer width — narrow on mobile, wider on desktop */
+/* Filter drawer width — narrow on mobile, industry-standard on desktop. */
+/* Mobile: tight to fit narrow viewports. */
+/* Desktop: 380px matches Ant Design default and aligns with the */
+/* tech-industry filter-drawer norm (Linear ~360, Gmail ~320). */
 :root {
   --journal-drawer-w: min(154px, calc(100vw - 48px));
 }
 @media (min-width: 1024px) {
   :root {
-    --journal-drawer-w: 240px; /* DA — was 300px, narrower on desktop */
+    --journal-drawer-w: 380px; /* FU-4 — bumped from 240px */
   }
 }
 

@@ -205,7 +205,7 @@ function InsightsRoute() {
           background: "color-mix(in oklch, var(--surface-elevated) 85%, transparent)",
         }}
       >
-        <div className="mx-auto flex max-w-2xl items-center justify-center gap-6 overflow-x-auto px-4 py-2">
+        <div className="mx-auto flex items-center justify-center gap-6 overflow-x-auto px-4 py-2">
           {TABS.map((t) => {
             const active = tab === t.id;
             return (
@@ -233,7 +233,7 @@ function InsightsRoute() {
       </div>
 
       <main className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
-        <div className="mx-auto max-w-2xl">
+        <div className="mx-auto">
           {tab === "overview" && (
             <OverviewTab
               loading={loading}
