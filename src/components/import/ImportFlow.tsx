@@ -17,6 +17,7 @@ import { X, Upload, FileUp, Loader2, CheckCircle2, AlertTriangle } from "lucide-
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { useConfirm } from "@/hooks/use-confirm";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -369,10 +370,8 @@ export function ImportFlow({ onClose, onImported }: Props) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex flex-col"
-      style={{ background: "var(--surface-scrim)" }}
-    >
+    <FullScreenSheet open onClose={onClose} entry="fade" showCloseButton={false}>
+      <div className="flex flex-col h-full">
       <div
         className="mx-auto my-4 flex w-full max-w-3xl flex-1 flex-col overflow-hidden rounded-2xl"
         style={{
@@ -452,7 +451,8 @@ export function ImportFlow({ onClose, onImported }: Props) {
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </FullScreenSheet>
   );
 }
 
