@@ -987,7 +987,9 @@ function CropHandles({
       window.removeEventListener("pointerup", onUp);
       onRelease();
     }
-    window.addEventListener("pointermove", onMove);
+    // FK-3 — passive:false so any future preventDefault inside onMove
+    // isn't silently ignored on touch devices.
+    window.addEventListener("pointermove", onMove, { passive: false });
     window.addEventListener("pointerup", onUp);
   }
 
@@ -1018,12 +1020,15 @@ function CropHandles({
       {corners.map((k, i) => {
         const p = pts[i];
         return (
+          // FK-3 — bigger hit target (h-8 w-8 = 32px) and z-20 so
+          // pointerdown reaches the handle even when other layers
+          // (slider, IMG, polygon) sit underneath.
           <div
             key={k}
             role="slider"
             aria-label={`Crop ${k} handle`}
             onPointerDown={(e) => startDrag(e, k)}
-            className="absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-gold bg-background/90 shadow-md cursor-grab active:cursor-grabbing touch-none"
+            className="absolute z-20 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-gold bg-background/90 shadow-md cursor-grab active:cursor-grabbing touch-none"
             style={{
               left: offX + p.x,
               top: offY + p.y,
