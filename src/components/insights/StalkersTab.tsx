@@ -1,9 +1,14 @@
 /**
- * FL — Stalkers tab skeleton with hardcoded demo data.
- * Visually complete; no real cooccurrence math yet.
+ * FM — Stalkers tab visual polish on FL skeleton.
+ * - Top row: wider container, larger cards (FM-1)
+ * - Single detail: bigger, uncropped (FM-2)
+ * - Twin/Triplet detail: bigger, uncropped (FM-3)
+ * - Filter drawer matches Journal exactly (FM-4)
+ * - Page title "Stalkers" (FM-5)
+ * - Type chips drop count badges (FM-6)
  */
 import { useEffect, useMemo, useState } from "react";
-import { SlidersHorizontal, Sparkles, X } from "lucide-react";
+import { SlidersHorizontal, Sparkles, X as XIcon } from "lucide-react";
 import { CardImage } from "@/components/card/CardImage";
 import type { TimeRange } from "@/lib/insights.types";
 
@@ -45,7 +50,8 @@ const TIME_RANGE_LABELS: Record<TimeRange, string> = {
   all: "All time",
 };
 
-function Chip({ label, count, active, onClick }: { label: string; count: number; active: boolean; onClick: () => void }) {
+// FM-6 — Type chip without count badge.
+function TypeChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -57,17 +63,8 @@ function Chip({ label, count, active, onClick }: { label: string; count: number;
           : "border-border/50 text-muted-foreground hover:border-[var(--gold)]/50")
       }
     >
-      {label} · {count}
+      {label}
     </button>
-  );
-}
-
-function chipClass(active: boolean): string {
-  return (
-    "text-xs rounded-full border px-2.5 py-1 transition-colors " +
-    (active
-      ? "border-[var(--gold)] bg-[color-mix(in_oklch,var(--gold)_10%,transparent)] text-[var(--gold)]"
-      : "border-border/50 text-muted-foreground")
   );
 }
 
@@ -76,14 +73,13 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
   const [cooccurrence, setCooccurrence] = useState<Cooccurrence>("reading");
   const [selectedKey, setSelectedKey] = useState<string | number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeTags, setActiveTags] = useState<Set<string>>(new Set());
-  const [activeDrawTypes, setActiveDrawTypes] = useState<Set<string>>(new Set());
+  const [activeTags, setActiveTags] = useState<string[]>([]);
+  const [activeDrawTypes, setActiveDrawTypes] = useState<string[]>([]);
 
   const twinCount = DEMO_TWINS.length;
   const tripletCount = DEMO_TRIPLETS.length;
   const reversedCount = DEMO_REVERSED.length;
 
-  // Default-select first item when mode changes.
   useEffect(() => {
     if (mode === "singles") setSelectedKey(DEMO_SINGLES[0]?.cardId ?? null);
     else if (mode === "twins") setSelectedKey(DEMO_TWINS[0]?.id ?? null);
@@ -93,36 +89,22 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
 
   const slots = useMemo(() => {
     const filled =
-      mode === "singles"
-        ? DEMO_SINGLES.length
-        : mode === "twins"
-        ? DEMO_TWINS.length
-        : mode === "triplets"
-        ? DEMO_TRIPLETS.length
-        : DEMO_REVERSED.length;
+      mode === "singles" ? DEMO_SINGLES.length
+      : mode === "twins" ? DEMO_TWINS.length
+      : mode === "triplets" ? DEMO_TRIPLETS.length
+      : DEMO_REVERSED.length;
     return Math.max(0, 5 - filled);
   }, [mode]);
 
-  const toggleTag = (t: string) => {
-    setActiveTags((s) => {
-      const next = new Set(s);
-      if (next.has(t)) next.delete(t);
-      else next.add(t);
-      return next;
-    });
-  };
-  const toggleDrawType = (d: string) => {
-    setActiveDrawTypes((s) => {
-      const next = new Set(s);
-      if (next.has(d)) next.delete(d);
-      else next.add(d);
-      return next;
-    });
-  };
+  const toggleTag = (t: string) =>
+    setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+  const toggleDrawType = (d: string) =>
+    setActiveDrawTypes((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
   const clearFilters = () => {
-    setActiveTags(new Set());
-    setActiveDrawTypes(new Set());
+    setActiveTags([]);
+    setActiveDrawTypes([]);
   };
+  const hasAnyFilter = activeTags.length > 0 || activeDrawTypes.length > 0;
 
   const selectedSingle = DEMO_SINGLES.find((s) => s.cardId === selectedKey);
   const selectedTwin = DEMO_TWINS.find((t) => t.id === selectedKey);
@@ -131,18 +113,18 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
 
   return (
     <div className="px-4 pb-12">
-      {/* FL-2 — Header + chips */}
+      {/* FM-5 — Header */}
       <header className="flex items-center justify-between gap-3 mb-3">
-        <h2 className="text-lg font-serif italic">Stalker Cards</h2>
+        <h2 className="text-lg font-serif italic">Stalkers</h2>
         <div className="flex items-center gap-2">
           {twinCount > 0 ? (
-            <Chip label="Twins" count={twinCount} active={mode === "twins"} onClick={() => setMode(mode === "twins" ? "singles" : "twins")} />
+            <TypeChip label="Twins" active={mode === "twins"} onClick={() => setMode(mode === "twins" ? "singles" : "twins")} />
           ) : null}
           {tripletCount > 0 ? (
-            <Chip label="Triplets" count={tripletCount} active={mode === "triplets"} onClick={() => setMode(mode === "triplets" ? "singles" : "triplets")} />
+            <TypeChip label="Triplets" active={mode === "triplets"} onClick={() => setMode(mode === "triplets" ? "singles" : "triplets")} />
           ) : null}
           {reversedCount > 0 ? (
-            <Chip label="Reversed" count={reversedCount} active={mode === "reversed"} onClick={() => setMode(mode === "reversed" ? "singles" : "reversed")} />
+            <TypeChip label="Reversed" active={mode === "reversed"} onClick={() => setMode(mode === "reversed" ? "singles" : "reversed")} />
           ) : null}
           <button
             type="button"
@@ -155,10 +137,8 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
         </div>
       </header>
 
-      {/* FL-9 — Time range label */}
       <div className="text-xs text-muted-foreground mb-3">{TIME_RANGE_LABELS[timeRange]}</div>
 
-      {/* FL-3 — Cooccurrence toggle */}
       {(mode === "twins" || mode === "triplets") ? (
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs text-muted-foreground">Co-occurring in:</span>
@@ -187,104 +167,104 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
         </div>
       ) : null}
 
-      {/* FL-4 — 5-slot fixed-size top row */}
-      <div className="grid grid-cols-5 gap-2 mb-6">
-        {mode === "singles" &&
-          DEMO_SINGLES.map((s) => (
-            <div key={s.cardId} className="flex flex-col items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setSelectedKey(s.cardId)}
-                className={
-                  "aspect-[2/3] w-full overflow-hidden rounded-md " +
-                  (selectedKey === s.cardId ? "ring-2 ring-[var(--gold)]" : "")
-                }
-              >
-                <CardImage cardId={s.cardId} size="small" />
-              </button>
-              <span className="text-xs text-muted-foreground tabular-nums">{s.count}</span>
+      {/* FM-1 — Wider container so cards scale up nicely. */}
+      <div className="mx-auto w-full max-w-3xl mb-8">
+        <div className="grid grid-cols-5 gap-2 sm:gap-3 md:gap-4">
+          {mode === "singles" &&
+            DEMO_SINGLES.map((s) => (
+              <div key={s.cardId} className="flex flex-col items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedKey(s.cardId)}
+                  className={
+                    "w-full rounded-md " +
+                    (selectedKey === s.cardId ? "ring-2 ring-[var(--gold)]" : "")
+                  }
+                >
+                  <CardImage cardId={s.cardId} size="custom" widthPx={9999} className="w-full" style={{ width: "100%", minHeight: 0 }} />
+                </button>
+                <span className="text-xs text-muted-foreground tabular-nums">{s.count}</span>
+              </div>
+            ))}
+
+          {mode === "twins" &&
+            DEMO_TWINS.map((t) => (
+              <div key={t.id} className="flex flex-col items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedKey(t.id)}
+                  className={
+                    "aspect-[2/3] w-full relative rounded-md " +
+                    (selectedKey === t.id ? "ring-2 ring-[var(--gold)]" : "")
+                  }
+                >
+                  <div className="absolute inset-0 -translate-x-1 -translate-y-1">
+                    <CardImage cardId={t.cardA} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
+                  </div>
+                  <div className="absolute inset-0 translate-x-1 translate-y-1">
+                    <CardImage cardId={t.cardB} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
+                  </div>
+                </button>
+                <span className="text-xs text-muted-foreground tabular-nums">{t.count}</span>
+              </div>
+            ))}
+
+          {mode === "triplets" &&
+            DEMO_TRIPLETS.map((t) => (
+              <div key={t.id} className="flex flex-col items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedKey(t.id)}
+                  className={
+                    "aspect-[2/3] w-full relative rounded-md " +
+                    (selectedKey === t.id ? "ring-2 ring-[var(--gold)]" : "")
+                  }
+                >
+                  <div className="absolute inset-0 -translate-x-1.5 -translate-y-1.5">
+                    <CardImage cardId={t.cardIds[0]} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
+                  </div>
+                  <div className="absolute inset-0">
+                    <CardImage cardId={t.cardIds[1]} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
+                  </div>
+                  <div className="absolute inset-0 translate-x-1.5 translate-y-1.5">
+                    <CardImage cardId={t.cardIds[2]} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
+                  </div>
+                </button>
+                <span className="text-xs text-muted-foreground tabular-nums">{t.count}</span>
+              </div>
+            ))}
+
+          {mode === "reversed" &&
+            DEMO_REVERSED.map((r) => (
+              <div key={r.cardId} className="flex flex-col items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedKey(r.cardId)}
+                  className={
+                    "w-full rounded-md " +
+                    (selectedKey === r.cardId ? "ring-2 ring-[var(--gold)]" : "")
+                  }
+                >
+                  <CardImage cardId={r.cardId} size="custom" widthPx={9999} reversed style={{ width: "100%", minHeight: 0 }} />
+                </button>
+                <span className="text-xs text-muted-foreground tabular-nums">{r.count}</span>
+              </div>
+            ))}
+
+          {Array.from({ length: slots }).map((_, i) => (
+            <div key={`empty-${i}`} className="flex flex-col items-center gap-1">
+              <div className="aspect-[2/3] w-full rounded-md border border-dashed border-border/40 opacity-30" />
+              <span className="text-xs text-muted-foreground tabular-nums opacity-30">—</span>
             </div>
           ))}
-
-        {mode === "twins" &&
-          DEMO_TWINS.map((t) => (
-            <div key={t.id} className="flex flex-col items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setSelectedKey(t.id)}
-                className={
-                  "aspect-[2/3] w-full relative rounded-md " +
-                  (selectedKey === t.id ? "ring-2 ring-[var(--gold)]" : "")
-                }
-              >
-                <div className="absolute inset-0 -translate-x-1 -translate-y-1">
-                  <CardImage cardId={t.cardA} size="small" />
-                </div>
-                <div className="absolute inset-0 translate-x-1 translate-y-1">
-                  <CardImage cardId={t.cardB} size="small" />
-                </div>
-              </button>
-              <span className="text-xs text-muted-foreground tabular-nums">{t.count}</span>
-            </div>
-          ))}
-
-        {mode === "triplets" &&
-          DEMO_TRIPLETS.map((t) => (
-            <div key={t.id} className="flex flex-col items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setSelectedKey(t.id)}
-                className={
-                  "aspect-[2/3] w-full relative rounded-md " +
-                  (selectedKey === t.id ? "ring-2 ring-[var(--gold)]" : "")
-                }
-              >
-                <div className="absolute inset-0 -translate-x-1.5 -translate-y-1.5">
-                  <CardImage cardId={t.cardIds[0]} size="small" />
-                </div>
-                <div className="absolute inset-0">
-                  <CardImage cardId={t.cardIds[1]} size="small" />
-                </div>
-                <div className="absolute inset-0 translate-x-1.5 translate-y-1.5">
-                  <CardImage cardId={t.cardIds[2]} size="small" />
-                </div>
-              </button>
-              <span className="text-xs text-muted-foreground tabular-nums">{t.count}</span>
-            </div>
-          ))}
-
-        {mode === "reversed" &&
-          DEMO_REVERSED.map((r) => (
-            <div key={r.cardId} className="flex flex-col items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setSelectedKey(r.cardId)}
-                className={
-                  "aspect-[2/3] w-full overflow-hidden rounded-md " +
-                  (selectedKey === r.cardId ? "ring-2 ring-[var(--gold)]" : "")
-                }
-              >
-                <CardImage cardId={r.cardId} size="small" reversed />
-              </button>
-              <span className="text-xs text-muted-foreground tabular-nums">{r.count}</span>
-            </div>
-          ))}
-
-        {Array.from({ length: slots }).map((_, i) => (
-          <div key={`empty-${i}`} className="flex flex-col items-center gap-1">
-            <div className="aspect-[2/3] w-full rounded-md border border-dashed border-border/40 opacity-30" />
-            <span className="text-xs text-muted-foreground tabular-nums opacity-30">—</span>
-          </div>
-        ))}
+        </div>
       </div>
 
-      {/* FL-5 — Detail panel */}
+      {/* FM-2 — Single detail: larger, uncropped */}
       {mode === "singles" && selectedSingle ? (
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="w-full md:w-1/3 max-w-[12rem] mx-auto md:mx-0">
-            <div className="aspect-[2/3] w-full rounded-lg overflow-hidden">
-              <CardImage cardId={selectedSingle.cardId} size="medium" />
-            </div>
+        <div className="flex flex-col md:flex-row items-start gap-6">
+          <div className="w-full md:w-2/5 max-w-md mx-auto md:mx-0">
+            <CardImage cardId={selectedSingle.cardId} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
           </div>
           <div className="flex-1">
             <h3 className="text-base font-serif italic mb-2">{selectedSingle.name}</h3>
@@ -293,12 +273,13 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
         </div>
       ) : null}
 
+      {/* FM-3 — Twin detail: bigger */}
       {mode === "twins" && selectedTwin ? (
         <div className="flex flex-col gap-4">
-          <div className="flex justify-center gap-3">
+          <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-2">
             {[selectedTwin.cardA, selectedTwin.cardB].map((cid) => (
-              <div key={cid} className="w-24 aspect-[2/3] rounded-lg overflow-hidden">
-                <CardImage cardId={cid} size="small" />
+              <div key={cid} className="flex-1 max-w-xs">
+                <CardImage cardId={cid} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
               </div>
             ))}
           </div>
@@ -306,12 +287,13 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
         </div>
       ) : null}
 
+      {/* FM-3 — Triplet detail: bigger */}
       {mode === "triplets" && selectedTriplet ? (
         <div className="flex flex-col gap-4">
-          <div className="flex justify-center gap-3">
+          <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-2">
             {selectedTriplet.cardIds.map((cid) => (
-              <div key={cid} className="w-24 aspect-[2/3] rounded-lg overflow-hidden">
-                <CardImage cardId={cid} size="small" />
+              <div key={cid} className="flex-1 max-w-xs">
+                <CardImage cardId={cid} size="custom" widthPx={9999} style={{ width: "100%", minHeight: 0 }} />
               </div>
             ))}
           </div>
@@ -319,12 +301,11 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
         </div>
       ) : null}
 
+      {/* Reversed detail (matches single FM-2 sizing) */}
       {mode === "reversed" && selectedReversed ? (
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="w-full md:w-1/3 max-w-[12rem] mx-auto md:mx-0">
-            <div className="aspect-[2/3] w-full rounded-lg overflow-hidden">
-              <CardImage cardId={selectedReversed.cardId} size="medium" reversed />
-            </div>
+        <div className="flex flex-col md:flex-row items-start gap-6">
+          <div className="w-full md:w-2/5 max-w-md mx-auto md:mx-0">
+            <CardImage cardId={selectedReversed.cardId} size="custom" widthPx={9999} reversed style={{ width: "100%", minHeight: 0 }} />
           </div>
           <div className="flex-1">
             <h3 className="text-base font-serif italic mb-2">{selectedReversed.name}</h3>
@@ -333,7 +314,6 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
         </div>
       ) : null}
 
-      {/* FL-8 — Empty state (defensive; demo always has data) */}
       {((mode === "singles" && DEMO_SINGLES.length === 0) ||
         (mode === "twins" && DEMO_TWINS.length === 0) ||
         (mode === "triplets" && DEMO_TRIPLETS.length === 0) ||
@@ -345,66 +325,132 @@ export function StalkersTab({ timeRange }: { timeRange: TimeRange }) {
         </div>
       )}
 
-      {/* FL-6 — Filter drawer */}
-      {drawerOpen ? (
+      {/* FM-4 — Filter drawer matching Journal exactly */}
+      {drawerOpen && (
         <>
+          <div
+            aria-hidden
+            className="fixed inset-0 z-40 bg-transparent"
+            style={{ pointerEvents: "none" }}
+          />
           <button
             type="button"
             aria-label="Close filters"
             onClick={() => setDrawerOpen(false)}
-            className="fixed inset-0 z-40 bg-black/40"
+            className="fixed top-0 z-40 h-dvh w-10 cursor-pointer bg-transparent"
+            style={{ right: "var(--journal-drawer-w)" }}
           />
-          <aside className="fixed right-0 top-0 z-50 flex h-dvh w-80 max-w-[85vw] flex-col overflow-y-auto border-l border-border bg-background shadow-2xl">
-            <header className="flex items-center justify-between p-4 border-b border-border/40">
-              <h3 className="font-serif italic text-base">Filters</h3>
-              <button onClick={() => setDrawerOpen(false)} aria-label="Close" className="p-1 text-muted-foreground hover:text-foreground">
-                <X className="h-5 w-5" />
-              </button>
-            </header>
-
-            <div className="flex-1 p-4 space-y-6">
-              <section>
-                <h4 className="text-sm font-medium mb-2">Tags</h4>
-                <div className="flex flex-wrap gap-2">
-                  {DEMO_TAGS.map((t) => (
-                    <button key={t} type="button" onClick={() => toggleTag(t)} className={chipClass(activeTags.has(t))}>
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section>
-                <h4 className="text-sm font-medium mb-2">Draw Type</h4>
-                <div className="flex flex-wrap gap-2">
-                  {DRAW_TYPES.map((dt) => (
-                    <button key={dt} type="button" onClick={() => toggleDrawType(dt)} className={chipClass(activeDrawTypes.has(dt))}>
-                      {dt}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            </div>
-
-            <footer className="p-4 border-t border-border/40 flex gap-2">
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="flex-1 text-sm rounded-md border border-border/50 py-2"
-              >
-                Clear filters
-              </button>
-              <button
-                type="button"
-                onClick={() => setDrawerOpen(false)}
-                className="flex-1 text-sm rounded-md bg-[color-mix(in_oklch,var(--gold)_15%,transparent)] text-[var(--gold)] py-2"
-              >
-                Apply
-              </button>
-            </footer>
-          </aside>
         </>
-      ) : null}
+      )}
+      <aside
+        aria-hidden={!drawerOpen}
+        className="journal-filter-drawer fixed right-0 top-0 z-50 flex h-dvh flex-col overflow-y-auto border-l shadow-2xl transition-transform duration-300 ease-out"
+        style={{
+          width: "var(--journal-drawer-w)",
+          borderColor: "color-mix(in oklab, var(--gold) 18%, transparent)",
+          background: "oklch(0.08 0.03 280)",
+          paddingTop: "calc(env(safe-area-inset-top,0px) + 72px)",
+          paddingBottom: "calc(env(safe-area-inset-bottom,0px) + 96px)",
+          paddingLeft: 20,
+          paddingRight: 20,
+          transform: drawerOpen ? "translateX(0)" : "translateX(100%)",
+          pointerEvents: drawerOpen ? "auto" : "none",
+        }}
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2
+            className="font-display text-[11px] uppercase tracking-[0.22em] text-gold"
+            style={{ opacity: "var(--ro-plus-30)" }}
+          >
+            Filters
+          </h2>
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(false)}
+            aria-label="Close"
+            className="rounded-full p-1 text-muted-foreground hover:text-gold focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          >
+            <XIcon size={16} strokeWidth={1.5} />
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-5">
+          <section>
+            <h3
+              className="font-display text-[14px] uppercase tracking-[0.18em] mb-2"
+              style={{ color: "var(--accent)" }}
+            >
+              Tags
+            </h3>
+            <div className="flex flex-wrap gap-x-3 gap-y-2">
+              {DEMO_TAGS.map((t) => {
+                const active = activeTags.includes(t);
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => toggleTag(t)}
+                    className="font-display text-[13px] italic transition-colors text-foreground"
+                    style={{
+                      opacity: active ? 1 : 0.85,
+                      borderBottom: active
+                        ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
+                        : "1px solid transparent",
+                      paddingBottom: 2,
+                    }}
+                  >
+                    {t}
+                    {active && <span className="ml-1 text-[10px]">×</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          <section>
+            <h3
+              className="font-display text-[14px] uppercase tracking-[0.18em] mb-2"
+              style={{ color: "var(--accent)" }}
+            >
+              Draw type
+            </h3>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {DRAW_TYPES.map((d) => {
+                const active = activeDrawTypes.includes(d);
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => toggleDrawType(d)}
+                    className="font-display text-[12px] italic transition-colors text-foreground"
+                    style={{
+                      opacity: active ? 1 : 0.85,
+                      borderBottom: active
+                        ? "1px solid color-mix(in oklab, var(--gold) 70%, transparent)"
+                        : "1px solid transparent",
+                      paddingBottom: 2,
+                    }}
+                  >
+                    {d}
+                    {active && <span className="ml-1 text-[10px]">×</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {hasAnyFilter && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="self-start font-display text-[12px] uppercase tracking-[0.15em] underline-offset-2 hover:underline"
+              style={{ color: "#d4a843", opacity: 1, fontWeight: 700 }}
+            >
+              CLEAR FILTERS
+            </button>
+          )}
+        </div>
+      </aside>
     </div>
   );
 }
