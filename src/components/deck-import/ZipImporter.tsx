@@ -698,10 +698,11 @@ export function ZipImporter({
   // through behind the wizard.
   return (
     <div
-      className="fixed inset-0 z-[100] flex flex-col overflow-y-auto"
+      className="fixed inset-0 flex flex-col overflow-y-auto"
       style={{
         background: "var(--color-background)",
         overscrollBehavior: "contain",
+        zIndex: "var(--z-modal)",
       }}
     >
       <div className="mx-auto w-full max-w-5xl px-4">{body}</div>
@@ -1472,7 +1473,7 @@ function Workspace({
         }
         const ctx = editing;
         return (
-          <div className="fixed inset-0 z-[140]">
+          <div className="fixed inset-0" style={{ zIndex: "var(--z-modal-nested)" }}>
             <PhotoCapture
               shape={shape === "round" ? "round" : "rectangle"}
               cornerRadiusPercent={cornerRadiusPercent}
@@ -1920,8 +1921,8 @@ function CardBackPickerModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[125] flex items-center justify-center p-4"
-      style={{ background: "var(--surface-overlay, rgba(0,0,0,0.85))" }}
+      className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ background: "var(--surface-overlay, rgba(0,0,0,0.85))", zIndex: "var(--z-modal-nested)" }}
       onClick={onCancel}
     >
       <div
@@ -2039,8 +2040,8 @@ function ZoomModal({
         };
   return (
     <div
-      className="fixed inset-0 z-[120] flex flex-col items-center justify-center p-4"
-      style={{ background: "var(--surface-overlay, rgba(0,0,0,0.85))" }}
+      className="fixed inset-0 flex flex-col items-center justify-center p-4"
+      style={{ background: "var(--surface-overlay, rgba(0,0,0,0.85))", zIndex: "var(--z-modal-nested)" }}
       onClick={onBack}
     >
       <div
