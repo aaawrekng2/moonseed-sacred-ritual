@@ -15,6 +15,7 @@ import { CardPicker } from "@/components/cards/CardPicker";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { ManualSpreadSlots } from "@/components/tabletop/SpreadLayout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { useActiveDeckImage } from "@/lib/active-deck";
 import { cn } from "@/lib/utils";
 
@@ -52,7 +53,8 @@ export function ManualEntryBuilder({ spread, onCancel, onComplete }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col bg-cosmos text-foreground">
+    <FullScreenSheet open onClose={onCancel} entry="slide-up" showCloseButton={false}>
+    <div className="flex h-full w-full flex-col bg-cosmos text-foreground">
       <header className="flex items-center justify-between border-b border-border/40 px-4 py-3">
         <button
           type="button"
@@ -135,5 +137,6 @@ export function ManualEntryBuilder({ spread, onCancel, onComplete }: Props) {
         </SheetContent>
       </Sheet>
     </div>
+    </FullScreenSheet>
   );
 }
