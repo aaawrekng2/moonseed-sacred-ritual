@@ -65,3 +65,45 @@ export type StalkerCardsResult = {
   topCard: { cardId: number; count: number } | null;
   totalReadings: number;
 };
+
+// FP-1 — Cooccurrence definition for twins/triplets.
+export const COOCCURRENCE_MODES = ["reading", "day"] as const;
+export type CooccurrenceMode = (typeof COOCCURRENCE_MODES)[number];
+
+// FP-1 — Twin stalker types.
+export type StalkerTwin = {
+  cardA: number;
+  cardB: number;
+  cardAName: string;
+  cardBName: string;
+  count: number;
+  appearances: Array<{ readingId: string; date: string }>;
+};
+
+export type StalkerTwinsResult = {
+  twins: StalkerTwin[];
+};
+
+// FP-2 — Triplet stalker types.
+export type StalkerTriplet = {
+  cardIds: [number, number, number];
+  cardNames: [string, string, string];
+  count: number;
+  appearances: Array<{ readingId: string; date: string }>;
+};
+
+export type StalkerTripletsResult = {
+  triplets: StalkerTriplet[];
+};
+
+// FP-3 — Reversed stalker types.
+export type ReversedStalker = {
+  cardId: number;
+  cardName: string;
+  reversedCount: number;
+  appearances: Array<{ readingId: string; date: string }>;
+};
+
+export type ReversedStalkersResult = {
+  reversedStalkers: ReversedStalker[];
+};

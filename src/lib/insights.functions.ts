@@ -13,6 +13,9 @@ import {
   type InsightsOverview,
   type StalkerCardsResult,
   type TimeRange,
+  type StalkerTwinsResult,
+  type StalkerTripletsResult,
+  type ReversedStalkersResult,
 } from "@/lib/insights.types";
 import { getCardArcana, getCardSuit, getCardName } from "@/lib/tarot";
 import { getGuideById, LENSES } from "@/lib/guides";
@@ -43,6 +46,9 @@ function resolveMoonPhase(
 const FREE_CAP_DAYS = 90;
 const STALKER_THRESHOLD = 3;
 const STALKER_MIN_WINDOW = 5;
+// FP — thresholds for twin/triplet stalkers.
+const STALKER_TWIN_THRESHOLD = 2;
+const STALKER_TRIPLET_THRESHOLD = 2;
 
 const LENS_NAMES: Record<string, string> = {
   present_resonance: "Present Resonance",
@@ -1687,4 +1693,169 @@ export const getStalkerCardSampleQuestions = createServerFn({ method: "GET" })
       }
     }
     return { questions };
+  });
+
+// FP-1 — Twin stalker server function. Counts unordered card pairs that
+// cooccur in the same reading (or same day if cooccurrence === 'day').
+const StalkerTwinsInputSchema = InsightsFiltersSchema.extend({
+  cooccurrence: z.enum(["reading", "day"]).default("reading"),
+});
+
+export const getStalkerTwins = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => StalkerTwinsInputSchema.parse(raw))
+  .handler(async ({ data, context }): Promise<StalkerTwinsResult> => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
+    const { cooccurrence, ...rest } = data;
+    const filters = InsightsFiltersSchema.parse(rest);
+    const rows = await fetchFilteredReadings(supabase, userId, filters, days);
+    if (rows.length < STALKER_MIN_WINDOW) return { twins: [] };
+
+    type Bucket = { ids: string[]; cards: Set<number>; date: string };
+    const buckets = new Map<string, Bucket>();
+    for (const r of rows) {
+      const key = cooccurrence === "day" ? r.created_at.slice(0, 10) : r.id;
+      const existing = buckets.get(key) ?? { ids: [], cards: new Set<number>(), date: r.created_at };
+      existing.ids.push(r.id);
+      for (const cid of r.card_ids ?? []) existing.cards.add(cid);
+      buckets.set(key, existing);
+    }
+
+    const pairCounts = new Map<string, {
+      count: number;
+      cardA: number;
+      cardB: number;
+      appearances: Array<{ readingId: string; date: string }>;
+    }>();
+    for (const bucket of buckets.values()) {
+      const cards = [...bucket.cards].sort((a, b) => a - b);
+      for (let i = 0; i < cards.length; i++) {
+        for (let j = i + 1; j < cards.length; j++) {
+          const a = cards[i], bv = cards[j];
+          const key = `${a}-${bv}`;
+          const entry = pairCounts.get(key) ?? { count: 0, cardA: a, cardB: bv, appearances: [] };
+          entry.count += 1;
+          entry.appearances.push({ readingId: bucket.ids[0], date: bucket.date });
+          pairCounts.set(key, entry);
+        }
+      }
+    }
+
+    const twins = [...pairCounts.values()]
+      .filter((e) => e.count >= STALKER_TWIN_THRESHOLD)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+      .map((e) => ({
+        cardA: e.cardA,
+        cardB: e.cardB,
+        cardAName: getCardName(e.cardA),
+        cardBName: getCardName(e.cardB),
+        count: e.count,
+        appearances: e.appearances,
+      }));
+    return { twins };
+  });
+
+// FP-2 — Triplet stalker. Threshold >= 2 cooccurrences.
+export const getStalkerTriplets = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => StalkerTwinsInputSchema.parse(raw))
+  .handler(async ({ data, context }): Promise<StalkerTripletsResult> => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
+    const { cooccurrence, ...rest } = data;
+    const filters = InsightsFiltersSchema.parse(rest);
+    const rows = await fetchFilteredReadings(supabase, userId, filters, days);
+    if (rows.length < STALKER_MIN_WINDOW) return { triplets: [] };
+
+    type Bucket = { ids: string[]; cards: Set<number>; date: string };
+    const buckets = new Map<string, Bucket>();
+    for (const r of rows) {
+      const key = cooccurrence === "day" ? r.created_at.slice(0, 10) : r.id;
+      const existing = buckets.get(key) ?? { ids: [], cards: new Set<number>(), date: r.created_at };
+      existing.ids.push(r.id);
+      for (const cid of r.card_ids ?? []) existing.cards.add(cid);
+      buckets.set(key, existing);
+    }
+
+    const tripleCounts = new Map<string, {
+      count: number;
+      cards: [number, number, number];
+      appearances: Array<{ readingId: string; date: string }>;
+    }>();
+    for (const bucket of buckets.values()) {
+      const cards = [...bucket.cards].sort((a, b) => a - b);
+      for (let i = 0; i < cards.length; i++) {
+        for (let j = i + 1; j < cards.length; j++) {
+          for (let k = j + 1; k < cards.length; k++) {
+            const a = cards[i], bv = cards[j], c = cards[k];
+            const key = `${a}-${bv}-${c}`;
+            const entry = tripleCounts.get(key) ?? {
+              count: 0,
+              cards: [a, bv, c] as [number, number, number],
+              appearances: [],
+            };
+            entry.count += 1;
+            entry.appearances.push({ readingId: bucket.ids[0], date: bucket.date });
+            tripleCounts.set(key, entry);
+          }
+        }
+      }
+    }
+
+    const triplets = [...tripleCounts.values()]
+      .filter((e) => e.count >= STALKER_TRIPLET_THRESHOLD)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+      .map((e) => ({
+        cardIds: e.cards,
+        cardNames: e.cards.map(getCardName) as [string, string, string],
+        count: e.count,
+        appearances: e.appearances,
+      }));
+    return { triplets };
+  });
+
+// FP-3 — Reversed stalkers. Counts how often each card appeared reversed.
+export const getReversedStalkers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .handler(async ({ data, context }): Promise<ReversedStalkersResult> => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
+    const rows = await fetchFilteredReadings(supabase, userId, data, days);
+    if (rows.length < STALKER_MIN_WINDOW) return { reversedStalkers: [] };
+
+    const counts = new Map<number, {
+      reversedCount: number;
+      appearances: Array<{ readingId: string; date: string }>;
+    }>();
+    for (const r of rows) {
+      const cards = r.card_ids ?? [];
+      const orients = r.card_orientations ?? [];
+      if (r.card_orientations === null) continue;
+      cards.forEach((cid, idx) => {
+        if (!orients[idx]) return;
+        const entry = counts.get(cid) ?? { reversedCount: 0, appearances: [] };
+        entry.reversedCount += 1;
+        entry.appearances.push({ readingId: r.id, date: r.created_at });
+        counts.set(cid, entry);
+      });
+    }
+
+    const reversedStalkers = [...counts.entries()]
+      .filter(([, v]) => v.reversedCount >= STALKER_THRESHOLD)
+      .sort((a, b) => b[1].reversedCount - a[1].reversedCount)
+      .slice(0, 10)
+      .map(([cardId, v]) => ({
+        cardId,
+        cardName: getCardName(cardId),
+        reversedCount: v.reversedCount,
+        appearances: v.appearances,
+      }));
+    return { reversedStalkers };
   });
