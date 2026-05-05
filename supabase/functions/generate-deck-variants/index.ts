@@ -38,19 +38,36 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Image } from "https://deno.land/x/imagescript@1.2.15/mod.ts";
-// FE-1 — imagescript can decode JPEG/PNG but NOT WebP. Custom-deck
-// originals are uploaded as WebP by the import pipeline, so we use
-// imagemagick_deno to decode/encode WebP (with alpha) and fall back
-// to imagescript only for the rounded-mask + JPEG variant pipeline.
+// FH-1 — Use Supabase's officially-supported magick-wasm via npm.
+// imagemagick_deno from deno.land/x has a transitive onnxruntime
+// dep that crashes on Edge Runtime ("Web Cache is not available").
+// Reference: https://supabase.com/docs/guides/functions/examples/image-manipulation
 import {
   ImageMagick,
-  initialize,
+  initializeImageMagick,
   MagickFormat,
-} from "https://deno.land/x/imagemagick_deno@0.0.31/mod.ts";
+} from "npm:@imagemagick/magick-wasm@0.0.30";
 
 let magickReady: Promise<void> | null = null;
 function ensureMagick(): Promise<void> {
-  if (!magickReady) magickReady = initialize();
+  if (!magickReady) {
+    magickReady = (async () => {
+      try {
+        // Simple form first (library auto-locates wasm in some builds).
+        // deno-lint-ignore no-explicit-any
+        await (initializeImageMagick as any)();
+      } catch {
+        // Explicit wasm load per Supabase docs example.
+        const wasmBytes = await Deno.readFile(
+          new URL(
+            "magick.wasm",
+            import.meta.resolve("npm:@imagemagick/magick-wasm@0.0.30"),
+          ),
+        );
+        await initializeImageMagick(wasmBytes);
+      }
+    })();
+  }
   return magickReady;
 }
 
