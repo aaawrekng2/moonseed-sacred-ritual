@@ -235,10 +235,11 @@ export function FloatingMenu() {
 
   return (
     <div
-      className="fixed z-[60]"
+      className="fixed"
       style={{
         top: "calc(env(safe-area-inset-top, 0px) + 4px)",
         right: "calc(env(safe-area-inset-right, 0px) + 10px)",
+        zIndex: "var(--z-modal-nested)",
       }}
     >
       <button

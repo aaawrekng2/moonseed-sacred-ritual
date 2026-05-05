@@ -112,9 +112,12 @@ export function CardPicker({
     <div
       className={cn(
         "flex flex-col bg-[var(--color-background)] text-[var(--color-foreground)]",
-        embedded ? "absolute inset-0" : "fixed inset-0 z-[100]",
+        embedded ? "absolute inset-0" : "fixed inset-0",
       )}
-      style={{ overscrollBehavior: "contain" }}
+      style={{
+        overscrollBehavior: "contain",
+        ...(embedded ? {} : { zIndex: "var(--z-modal)" }),
+      }}
     >
       {reviewingCardId !== null && (
         <ReviewPhoto
@@ -267,8 +270,9 @@ function ConfirmReversed({
     <div
       className={cn(
         "flex flex-col bg-[var(--color-background)] text-[var(--color-foreground)]",
-        embedded ? "absolute inset-0" : "fixed inset-0 z-[100]",
+        embedded ? "absolute inset-0" : "fixed inset-0",
       )}
+      style={embedded ? undefined : { zIndex: "var(--z-modal)" }}
     >
       <div className="flex items-center justify-between border-b border-border/40 p-3">
         <button onClick={onBack} className="rounded-full p-2 hover:bg-foreground/10" aria-label="Back">
@@ -329,9 +333,10 @@ function ReviewPhoto({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[110] flex flex-col items-center justify-center p-6"
+      className="fixed inset-0 flex flex-col items-center justify-center p-6"
       style={{
         background: "color-mix(in oklab, var(--color-background) 85%, black)",
+        zIndex: "var(--z-modal-nested)",
       }}
     >
       <div

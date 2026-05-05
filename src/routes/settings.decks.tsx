@@ -1292,10 +1292,11 @@ function PerCardReviewModal({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center p-6"
+      className="fixed inset-0 flex items-center justify-center p-6"
       style={{
         background:
           "var(--surface-overlay, color-mix(in oklab, var(--color-background) 80%, black))",
+        zIndex: "var(--z-modal-nested)",
       }}
       onClick={busy ? undefined : onClose}
     >

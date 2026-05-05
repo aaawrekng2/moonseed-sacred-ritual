@@ -154,7 +154,7 @@ export function GuideSelector({
       className={
         isEmbedded
           ? "flex flex-col"
-          : "fixed inset-0 z-50 flex flex-col bg-cosmos"
+          : "fixed inset-0 flex flex-col bg-cosmos"
       }
       style={
         isEmbedded
@@ -162,6 +162,7 @@ export function GuideSelector({
           : {
               paddingTop: "calc(env(safe-area-inset-top, 0px) + 16px)",
               paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+              zIndex: "var(--z-modal)",
             }
       }
     >
@@ -534,7 +535,8 @@ function CreateCustomGuideDialog({
       role="dialog"
       aria-modal="true"
       aria-label="Create custom guide"
-      className="modal-scrim fixed inset-0 z-[60] flex items-center justify-center p-4"
+      className="modal-scrim fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: "var(--z-modal)" }}
       onClick={onClose}
     >
       <div
@@ -755,7 +757,8 @@ function EditCustomGuideDialog({
       role="dialog"
       aria-modal="true"
       aria-label="Edit custom guide"
-      className="modal-scrim fixed inset-0 z-[60] flex items-center justify-center p-4"
+      className="modal-scrim fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: "var(--z-modal)" }}
       onClick={onClose}
     >
       <div
@@ -960,7 +963,8 @@ function DeleteGuideConfirm({
       role="dialog"
       aria-modal="true"
       aria-label="Confirm delete guide"
-      className="modal-scrim fixed inset-0 z-[70] flex items-center justify-center p-4"
+      className="modal-scrim fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: "var(--z-modal-nested)" }}
       onClick={onCancel}
     >
       <div
