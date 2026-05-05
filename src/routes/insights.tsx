@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/nav/BottomNav";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
 import {
   EMPTY_GLOBAL_FILTERS,
+  hasAnyActive,
   type GlobalFilters,
 } from "@/lib/filters.types";
 import { HeroCard } from "@/components/insights/HeroCard";
@@ -238,6 +239,8 @@ function InsightsRoute() {
               loading={loading}
               overview={overview}
               stalkers={stalkers}
+              filtersActive={hasAnyActive(globalFilters)}
+              onClearFilters={() => setFilters(DEFAULT_FILTERS)}
               onTapHero={() => setTab("cards")}
               onEmptyCta={() => navigate({ to: "/" })}
             />
@@ -294,12 +297,16 @@ function OverviewTab({
   loading,
   overview,
   stalkers,
+  filtersActive,
+  onClearFilters,
   onTapHero,
   onEmptyCta,
 }: {
   loading: boolean;
   overview: InsightsOverview | null;
   stalkers: StalkerCardsResult | null;
+  filtersActive: boolean;
+  onClearFilters: () => void;
   onTapHero: () => void;
   onEmptyCta: () => void;
 }) {
@@ -323,6 +330,49 @@ function OverviewTab({
   }
 
   if (!overview || overview.totalReadings === 0) {
+    // FU-2 — Distinguish "filtered to zero" from "no readings ever".
+    if (filtersActive) {
+      return (
+        <div className="py-16 text-center">
+          <div
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-heading-sm)",
+              opacity: 0.85,
+              lineHeight: 1.5,
+            }}
+          >
+            Nothing matches these filters.
+          </div>
+          <div
+            className="mt-2"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              opacity: 0.7,
+            }}
+          >
+            Try a different selection or clear filters to see all readings.
+          </div>
+          <button
+            type="button"
+            onClick={onClearFilters}
+            className="mt-6 inline-flex items-center uppercase"
+            style={{
+              fontFamily: "var(--font-display, var(--font-serif))",
+              fontSize: "12px",
+              fontWeight: 700,
+              letterSpacing: "0.15em",
+              color: "var(--gold)",
+            }}
+          >
+            CLEAR FILTERS
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="py-16 text-center">
         <div
