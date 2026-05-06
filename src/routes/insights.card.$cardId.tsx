@@ -100,10 +100,9 @@ function StalkerDetailRoute() {
               width: 200,
               aspectRatio: "1 / 1.75",
               overflow: "hidden",
-              ...radiusStyle,
             }}
           >
-            <img src={url} alt={cardName} className="h-full w-full object-cover" style={radiusStyle} />
+            <img src={url} alt={cardName} className="h-full w-full object-cover" />
           </div>
 
           {data && (

@@ -1305,7 +1305,6 @@ function GalleryTile({
       style={{
         border:
           "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
-        ...cornerRadiusStyle(deckRadiusPx, tileW),
       }}
     >
       <CardThumb
@@ -1315,8 +1314,8 @@ function GalleryTile({
         className="h-full w-full object-cover"
         style={
           photoUrl
-            ? cornerRadiusStyle(deckRadiusPx, tileW)
-            : { opacity: "var(--ro-plus-30)", ...cornerRadiusStyle(deckRadiusPx, tileW) }
+            ? undefined
+            : { opacity: "var(--ro-plus-30)" }
         }
       />
       <div
