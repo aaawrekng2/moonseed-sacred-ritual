@@ -558,6 +558,40 @@ function DeckEditor({
         </header>
 
         <div className="space-y-4">
+          {/* 9-6-A — deck type selector. First choice in the form. */}
+          <div>
+            <span className="text-sm font-medium">Deck type</span>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {(["tarot", "oracle"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setDeckType(t)}
+                  className={cn(
+                    "rounded-md border px-3 py-2 text-sm capitalize",
+                    deckType === t
+                      ? "border-gold bg-gold/10 text-gold"
+                      : "border-border/60 text-muted-foreground hover:bg-gold/5",
+                  )}
+                >
+                  {t === "tarot" ? "Tarot (78 cards)" : "Oracle / Other"}
+                </button>
+              ))}
+            </div>
+            {deckType === "oracle" && (
+              <p
+                className="mt-2 text-xs italic"
+                style={{
+                  color: "var(--color-foreground)",
+                  opacity: 0.6,
+                  fontFamily: "var(--font-serif)",
+                }}
+              >
+                Any number of cards. You'll name each card after importing.
+              </p>
+            )}
+          </div>
+
           <label className="block">
             <span className="text-sm font-medium">Deck name</span>
             <input
