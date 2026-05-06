@@ -814,7 +814,8 @@ export function PerCardEditModal({
                         width: "auto",
                         // Phase 9-5-B Bug 2 — improve interpolation
                         // quality when the bitmap is up-scaled.
-                        imageRendering: "high-quality",
+                        imageRendering:
+                          "high-quality" as React.CSSProperties["imageRendering"],
                         ...previewStyle,
                         // Phase 9.5a — zoom/pan transform. transform-origin
                         // top-left so the wheel/pinch math (which assumes
