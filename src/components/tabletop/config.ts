@@ -21,7 +21,7 @@ export const TABLETOP_CONFIG = {
   SELECTION_GLOW_OPACITY: 0.8,
   // Slow, ceremonial flip — long enough to feel reverent without
   // dragging. Paired with sacred-reveal-lift in styles.css.
-  REVEAL_ANIMATION_MS: 1100,
+  REVEAL_ANIMATION_MS: 600,
   // Cards reveal simultaneously when the user taps Reveal — staggered
   // entrance broke the "ceremonial all-at-once" feel of multi-card spreads.
   REVEAL_STAGGER_MS: 0,
