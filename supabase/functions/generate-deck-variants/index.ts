@@ -228,6 +228,8 @@ serve(async (req) => {
       typeof body?.cardId === "number" && Number.isFinite(body.cardId)
         ? Math.floor(body.cardId)
         : null;
+    // 9-5-H — process the deck card back image (apply rounded mask).
+    const processBack = body?.processBack === true;
     // FB-6 — chunk cursor (0-indexed offset into the card list).
     const cursor =
       typeof body?.cursor === "number" && Number.isFinite(body.cursor)
@@ -246,7 +248,9 @@ serve(async (req) => {
     // 3) Verify deck ownership.
     const { data: deck, error: deckErr } = await admin
       .from("custom_decks")
-      .select("id, user_id, corner_radius_percent")
+      .select(
+        "id, user_id, corner_radius_percent, card_back_path",
+      )
       .eq("id", deckId)
       .maybeSingle();
     if (deckErr || !deck || deck.user_id !== userId) {
@@ -254,6 +258,83 @@ serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // ----------------------------------------------------------------
+    // 9-5-H — card back mode: bake the deck-level corner radius into
+    // custom_decks.card_back_path so the back matches the faces.
+    // ----------------------------------------------------------------
+    if (processBack && singleCardId === null) {
+      const backPath = (deck as { card_back_path?: string | null })
+        .card_back_path;
+      if (!backPath) {
+        return new Response(
+          JSON.stringify({ ok: true, skipped: true, reason: "no card_back_path" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const radius =
+        typeof (deck as { corner_radius_percent?: number })
+          .corner_radius_percent === "number"
+          ? (deck as { corner_radius_percent: number }).corner_radius_percent
+          : 0;
+      try {
+        const dl = await admin.storage.from(BUCKET).download(backPath);
+        if (dl.error || !dl.data) throw dl.error ?? new Error("download failed");
+        const bytes = new Uint8Array(await dl.data.arrayBuffer());
+        const decoded = await decodeAny(bytes);
+        const full = decoded.clone();
+        applyRoundedMask(full, radius);
+        const fullPng = await full.encode();
+        const fullPath = fullWebpPathFor(backPath);
+        if (!fullPath) throw new Error("unrecognized back path layout");
+        let fullBytes: Uint8Array;
+        let fullContentType = "image/webp";
+        try {
+          await ensureMagick();
+          fullBytes = await new Promise<Uint8Array>((resolve, reject) => {
+            try {
+              ImageMagick.read(fullPng, (img) => {
+                img.write(MagickFormat.Webp, (data) => {
+                  resolve(new Uint8Array(data));
+                });
+              });
+            } catch (e) {
+              reject(e);
+            }
+          });
+        } catch {
+          fullBytes = fullPng;
+          fullContentType = "image/png";
+        }
+        const upFull = await admin.storage.from(BUCKET).upload(
+          fullPath,
+          fullBytes,
+          { contentType: fullContentType, upsert: true },
+        );
+        if (upFull.error) throw upFull.error;
+        await admin
+          .from("custom_decks")
+          .update({ card_back_path: fullPath })
+          .eq("id", deckId);
+        return new Response(
+          JSON.stringify({ ok: true, mode: "back", fullPath }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      } catch (err) {
+        console.error("[generate-deck-variants] back processing failed", err);
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            mode: "back",
+            error: err instanceof Error ? err.message : String(err),
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
     }
 
     // ----------------------------------------------------------------
