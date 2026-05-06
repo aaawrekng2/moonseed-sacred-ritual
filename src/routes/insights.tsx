@@ -44,6 +44,7 @@ import { RecapTab } from "@/components/insights/RecapTab";
 import { LunationBanner } from "@/components/insights/LunationBanner";
 import { StalkersTab } from "@/components/insights/StalkersTab";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { EmptyHero } from "@/components/ui/empty-hero";
 import type { MoonPhaseName } from "@/lib/moon";
 
 export const Route = createFileRoute("/insights")({
@@ -343,75 +344,28 @@ function OverviewTab({
   }
 
   if (!overview || overview.totalReadings === 0) {
-    // FU-2 — Distinguish "filtered to zero" from "no readings ever".
+    // FU-16 — Hybrid empty: filtered-to-zero vs no-data-ever.
     if (filtersActive) {
       return (
-        <div className="py-16 text-center">
-          <div
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-heading-sm)",
-              opacity: 0.85,
-              lineHeight: 1.5,
-            }}
-          >
-            Nothing matches these filters.
-          </div>
-          <div
-            className="mt-2"
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-body-sm)",
-              opacity: 0.7,
-            }}
-          >
-            Try a different selection or clear filters to see all readings.
-          </div>
-          <button
-            type="button"
-            onClick={onClearFilters}
-            className="mt-6 inline-flex items-center uppercase"
-            style={{
-              fontFamily: "var(--font-display, var(--font-serif))",
-              fontSize: "12px",
-              fontWeight: 700,
-              letterSpacing: "0.15em",
-              color: "var(--gold)",
-            }}
-          >
-            CLEAR FILTERS
-          </button>
-        </div>
+        <EmptyHero
+          title="Nothing matches these filters."
+          subtitle="Try a different selection or clear filters to see all readings."
+          cta={{
+            label: "CLEAR FILTERS",
+            onClick: onClearFilters,
+            variant: "text",
+          }}
+        />
       );
     }
     return (
-      <div className="py-16 text-center">
-        <div
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "var(--text-heading-sm)",
-            opacity: 0.85,
-            lineHeight: 1.5,
-          }}
-        >
-          Your insights will bloom here once you've logged a few readings.
-        </div>
-        <button
-          type="button"
-          onClick={onEmptyCta}
-          className="mt-6 inline-flex items-center rounded-full px-4 py-2 text-sm"
-          style={{
-            background: "color-mix(in oklch, var(--gold) 24%, transparent)",
-            color: "var(--gold)",
-            fontStyle: "italic",
-          }}
-        >
-          Draw your first card
-        </button>
-      </div>
+      <EmptyHero
+        title="Your insights will bloom here once you've logged a few readings."
+        cta={{
+          label: "Draw your first card",
+          onClick: onEmptyCta,
+        }}
+      />
     );
   }
 

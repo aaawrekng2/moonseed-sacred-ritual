@@ -6,7 +6,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { getTagCloud } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import type { InsightsFilters } from "@/lib/insights.types";
-import { SectionHeader, EmptyNote, SkeletonRow } from "./StalkerCardsSection";
+import { SectionHeader, SkeletonRow } from "./StalkerCardsSection";
+import { EmptyNote } from "@/components/ui/empty-note";
 
 type TagItem = { tagId: string; name: string; count: number };
 

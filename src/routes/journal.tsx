@@ -33,6 +33,8 @@ import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { SearchInput } from "@/components/ui/search-input";
+import { EmptyHero } from "@/components/ui/empty-hero";
+import { EmptyNote } from "@/components/ui/empty-note";
 import {
   EMPTY_GLOBAL_FILTERS,
   type GlobalFilters,
@@ -782,6 +784,10 @@ function JournalPage() {
               setReadings((prev) => prev.filter((r) => r.id !== id));
               setArchiveCounter((c) => c + 1);
             }}
+            emptyCta={{
+              label: "Begin a reading",
+              onClick: () => navigate({ to: "/" }),
+            }}
           />
         ) : view === "gallery" ? (
           <GalleryView
@@ -900,6 +906,7 @@ function ReadingsList({
   onOpen,
   emptyOracle,
   emptyPlain,
+  emptyCta,
   onArchive,
 }: {
   items: ReadingRow[];
@@ -909,6 +916,7 @@ function ReadingsList({
   onOpen: (id: string) => void;
   emptyOracle?: string;
   emptyPlain?: string;
+  emptyCta?: { label: string; onClick: () => void };
   onArchive?: (id: string) => void;
 }) {
   if (items.length === 0) {
@@ -917,6 +925,7 @@ function ReadingsList({
         oracle={emptyOracle ?? "Your practice awaits its first telling…"}
         plain={emptyPlain ?? "No readings yet. Complete a reading to begin."}
         isOracle={isOracle}
+        cta={emptyCta}
       />
     );
   }
@@ -1406,19 +1415,14 @@ function Empty({
   oracle,
   plain,
   isOracle,
+  cta,
 }: {
   oracle: string;
   plain: string;
   isOracle: boolean;
+  cta?: { label: string; onClick: () => void };
 }) {
-  return (
-    <p
-      className="mx-auto mt-16 max-w-xs text-center font-display text-[14px] italic text-muted-foreground"
-      style={{ opacity: "var(--ro-plus-10)" }}
-    >
-      {isOracle ? oracle : plain}
-    </p>
-  );
+  return <EmptyHero title={isOracle ? oracle : plain} cta={cta} />;
 }
 
 /* ---------- Threads view (Phase 7) ---------- */
@@ -1468,34 +1472,10 @@ function ThreadsView({
 
   if (threads.length === 0 && Object.keys(patternsById).length === 0) {
     return (
-      <div className="mx-auto mt-16 flex max-w-md flex-col items-center gap-4 px-4 text-center">
-        <p
-          className="font-display italic text-gold"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-body-lg)",
-            lineHeight: 1.5,
-            opacity: "var(--ro-plus-30)",
-          }}
-        >
-          The threads are listening.
-        </p>
-        <p
-          className="font-display italic text-muted-foreground"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-body-sm)",
-            lineHeight: 1.7,
-            opacity: "var(--ro-plus-10)",
-          }}
-        >
-          This space fills slowly, and that is by design. Threads are not
-          tags or summaries — they are deeper patterns that emerge only when
-          the same symbolic current has moved through your practice more
-          than once. The cards know. When something is truly recurring, it
-          will surface here on its own.
-        </p>
-      </div>
+      <EmptyHero
+        title="The stories are listening."
+        subtitle="This space fills slowly, and that is by design. Stories are not tags or summaries — they are deeper patterns that emerge only when the same symbolic current has moved through your practice more than once. The cards know. When something is truly recurring, it will surface here on its own."
+      />
     );
   }
   // Group threads by pattern_id so patterns surface even when their only
@@ -1606,12 +1586,7 @@ function ThreadsView({
         </div>
       )}
       {filteredPatternIds.length === 0 && (
-        <p
-          className="font-display text-[12px] italic text-muted-foreground"
-          style={{ opacity: "var(--ro-plus-20)" }}
-        >
-          No patterns in this lifecycle stage yet.
-        </p>
+        <EmptyNote text="No stories in this lifecycle stage yet." />
       )}
       {filteredPatternIds.map((pid) => {
         const p = patternsById[pid];

@@ -24,6 +24,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useConfirm } from "@/hooks/use-confirm";
 import { LoadingText } from "@/components/ui/loading-text";
+import { EmptyHero } from "@/components/ui/empty-hero";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import {
   FREE_DECK_LIMIT,
@@ -222,18 +223,14 @@ function DecksPage() {
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="rounded-lg border border-dashed border-border/60 p-8 text-center">
-      <p className="mb-3 text-sm text-muted-foreground">
-        No custom decks yet. The app uses the Rider-Waite deck by default.
-      </p>
-      <button
-        type="button"
-        onClick={onCreate}
-        className="inline-flex items-center gap-2 rounded-md border border-gold/40 px-3 py-2 text-sm hover:bg-gold/10"
-      >
-        <Plus className="h-4 w-4" /> Create your first deck
-      </button>
-    </div>
+    <EmptyHero
+      title="No custom decks yet."
+      subtitle="The app uses the Rider-Waite deck by default."
+      cta={{
+        label: "Create your first deck",
+        onClick: onCreate,
+      }}
+    />
   );
 }
 

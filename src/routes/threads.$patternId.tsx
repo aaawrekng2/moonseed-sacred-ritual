@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { ReadingRow } from "@/components/ui/reading-row";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
+import { EmptyHero } from "@/components/ui/empty-hero";
 import {
   type Pattern,
   type PatternLifecycleState,
@@ -856,17 +857,7 @@ function ChamberTimeline({
   }, [readingIds]);
 
   if (rows.length === 0) {
-    return (
-      <p
-        style={{
-          marginTop: "var(--space-6, 32px)",
-          fontStyle: "italic",
-          opacity: 0.5,
-        }}
-      >
-        No readings linked yet.
-      </p>
-    );
+    return <EmptyHero title="No readings linked yet." />;
   }
 
   return (

@@ -7,7 +7,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { getGuidePreferences } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import type { InsightsFilters } from "@/lib/insights.types";
-import { SectionHeader, EmptyNote, SkeletonRow } from "./StalkerCardsSection";
+import { SectionHeader, SkeletonRow } from "./StalkerCardsSection";
+import { EmptyNote } from "@/components/ui/empty-note";
 
 // Distinct, non-suit hues. Aligned with Moonseed palette but not elemental.
 const GUIDE_COLORS = [

@@ -9,6 +9,7 @@ import type { InsightsFilters, StalkerCardsResult } from "@/lib/insights.types";
 import { StalkerSparkline } from "./StalkerSparkline";
 import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
+import { EmptyNote } from "@/components/ui/empty-note";
 
 /** EK-1 — Stalker Cards section in the Cards tab. */
 export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
@@ -218,22 +219,6 @@ export function SectionHeader({ title, caption }: { title: string; caption?: str
         </p>
       )}
     </header>
-  );
-}
-
-export function EmptyNote({ text }: { text: string }) {
-  return (
-    <div
-      className="rounded-lg p-4 text-center"
-      style={{
-        background: "var(--surface-card)",
-        fontStyle: "italic",
-        fontSize: "var(--text-body-sm)",
-        opacity: 0.75,
-      }}
-    >
-      {text}
-    </div>
   );
 }
 
