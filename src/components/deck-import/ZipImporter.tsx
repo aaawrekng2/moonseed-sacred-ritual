@@ -2262,7 +2262,7 @@ function ZoomModal({
         style={{
           width: "min(85vw, 600px)",
           maxWidth: "min(85vw, 600px)",
-          maxHeight: "70vh",
+          maxHeight: "min(70vh, calc(100vh - 180px))",
           overflow: "hidden",
           touchAction: "none",
           cursor: zoom > 1 ? "grab" : "default",
