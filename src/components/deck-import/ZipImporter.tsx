@@ -222,7 +222,9 @@ export function ZipImporter({
               rawBlob: new Blob(),
               width: 0,
               height: 0,
-              existingUrl: c.thumbnail_url || c.display_url,
+              // 9-5-E — prefer the high-res display variant for ZoomModal
+              // crispness. thumbnail_url is the lower-quality fallback.
+              existingUrl: c.display_url || c.thumbnail_url,
             };
             session.assigned[String(c.card_id)] = k;
           }
