@@ -1675,6 +1675,7 @@ function AssignedGrid({
   session,
   resolveSrc,
   hasBack,
+  existingBackUrl,
   onTap,
   onUnassign,
   cardStates,
@@ -1687,6 +1688,7 @@ function AssignedGrid({
   session: ImportSession;
   resolveSrc: (key: string) => string;
   hasBack: boolean;
+  existingBackUrl: string | null;
   onTap: (slot: string, key: string) => void;
   onUnassign: (slot: string) => void;
   cardStates: Record<string, CardState>;
@@ -1697,7 +1699,12 @@ function AssignedGrid({
   onDone: () => void;
 }) {
   const backKey = session.assigned[BACK_KEY];
-  const backSrc = backKey ? resolveSrc(backKey) : "";
+  // 9-5-I — fall back to existingBackUrl when the user hasn't reassigned
+  // a back in the current session (fresh edit-mode opens have no
+  // BACK_KEY in session.assigned even though the deck has a saved back).
+  const effectiveBackSrc = backKey
+    ? resolveSrc(backKey)
+    : (existingBackUrl ?? "");
   // BX — sub-filter by suit. Standard tarot ordering:
   // Majors 0-21, Wands 22-35, Cups 36-49, Swords 50-63, Pentacles 64-77.
   type SuitFilter = "all" | "major" | "wands" | "cups" | "swords" | "pentacles";
