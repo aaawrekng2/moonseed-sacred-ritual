@@ -18,7 +18,6 @@ import {
   X,
   Upload,
   Zap,
-  Scissors,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -252,8 +251,6 @@ function DeckRow({
   // for every card in this deck. Speeds up journal/insights renders
   // by 10-50× on decks with multi-MB scans.
   const [variantBusy, setVariantBusy] = useState(false);
-  // FD-2 — open the per-card rounded-corner editor.
-  const [showRoundEditor, setShowRoundEditor] = useState(false);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -347,7 +344,7 @@ function DeckRow({
   };
 
   return (
-    <li className="flex items-center gap-3 rounded-lg border border-border/60 bg-card p-3">
+    <li className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-3 sm:flex-row sm:items-center">
       <button
         type="button"
         onClick={onEdit}
@@ -375,73 +372,55 @@ function DeckRow({
           </p>
         </div>
       </button>
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); onToggleActive(); }}
-        className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
-      >
-        {deck.is_active ? "Deactivate" : "Set active"}
-      </button>
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); onEdit(); }}
-        className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
-      >
-        Edit
-      </button>
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); onImportZip(); }}
-        className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
-        title="Import / replace from zip"
-      >
-        <Upload className="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          void handleGenerateVariants();
-        }}
-        disabled={variantBusy}
-        className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10 disabled:opacity-50"
-        title="Optimize for fast loading (generate small/medium variants)"
-        aria-label="Optimize deck images"
-      >
-        {variantBusy ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-        ) : (
-          <Zap className="h-3.5 w-3.5" />
-        )}
-      </button>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setShowRoundEditor(true);
-        }}
-        className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
-        title="Round corners per card (FD)"
-        aria-label="Round corners per card"
-      >
-        <Scissors className="h-3.5 w-3.5" />
-      </button>
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); onDelete(); }}
-        className="rounded-md border border-destructive/40 p-1.5 text-destructive hover:bg-destructive/10"
-        aria-label="Delete deck"
-      >
-        <Trash2 className="h-4 w-4" />
-      </button>
-      {showRoundEditor ? (
-        <PerCardEditModal
-          deckId={deck.id}
-          deckName={deck.name}
-          defaultRadiusPercent={deck.corner_radius_percent ?? 4}
-          onClose={() => setShowRoundEditor(false)}
-        />
-      ) : null}
+      <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleActive(); }}
+          className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
+        >
+          {deck.is_active ? "Deactivate" : "Set active"}
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onImportZip(); }}
+          className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
+          title="Import / replace from zip"
+        >
+          <Upload className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            void handleGenerateVariants();
+          }}
+          disabled={variantBusy}
+          className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10 disabled:opacity-50"
+          title="Optimize for fast loading (generate small/medium variants)"
+          aria-label="Optimize deck images"
+        >
+          {variantBusy ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Zap className="h-3.5 w-3.5" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="rounded-md border border-destructive/40 p-1.5 text-destructive hover:bg-destructive/10"
+          aria-label="Delete deck"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
     </li>
   );
 }
@@ -1019,21 +998,16 @@ function DeckEditor({
   if (mode.kind === "workspace") {
     const deckId = mode.deckId;
     return (
-      <ZipImporter
+      <WorkspaceWithCornerEditor
         userId={userId}
         deckId={deckId}
+        deckName={name}
         shape={shape === "round" ? "round" : "rectangle"}
         cornerRadiusPercent={cornerRadius}
         existingBackUrl={deckBackUrl}
-        entryMode="edit"
-        initialPhase={mode.initialPhase}
-        deckName={name}
         existingCornerRadiusPx={cornerRadiusPx}
-        onCancel={async () => {
-          await reloadCards(deckId);
-          onClose(true);
-        }}
-        onDone={async () => {
+        initialPhase={mode.initialPhase}
+        onClose={async () => {
           await reloadCards(deckId);
           onClose(true);
         }}
@@ -1042,6 +1016,67 @@ function DeckEditor({
   }
 
   return null;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Workspace + per-card corner editor overlay (Phase 9-5-B Part 1)    */
+/* ------------------------------------------------------------------ */
+
+function WorkspaceWithCornerEditor({
+  userId,
+  deckId,
+  deckName,
+  shape,
+  cornerRadiusPercent,
+  existingBackUrl,
+  existingCornerRadiusPx,
+  initialPhase,
+  onClose,
+}: {
+  userId: string;
+  deckId: string;
+  deckName: string;
+  shape: "rectangle" | "round";
+  cornerRadiusPercent: number;
+  existingBackUrl: string | null;
+  existingCornerRadiusPx: number | null;
+  initialPhase?: "upload" | "workspace";
+  onClose: () => void | Promise<void>;
+}) {
+  const [cornerEditorOpen, setCornerEditorOpen] = useState(false);
+  return (
+    <>
+      <ZipImporter
+        userId={userId}
+        deckId={deckId}
+        shape={shape}
+        cornerRadiusPercent={cornerRadiusPercent}
+        existingBackUrl={existingBackUrl}
+        entryMode="edit"
+        initialPhase={initialPhase}
+        deckName={deckName}
+        existingCornerRadiusPx={existingCornerRadiusPx}
+        onCancel={onClose}
+        onDone={onClose}
+      />
+      <button
+        type="button"
+        onClick={() => setCornerEditorOpen(true)}
+        className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-cosmos/90 px-4 py-2 text-xs shadow-lg backdrop-blur hover:bg-gold/10"
+        title="Adjust per-card corner rounding"
+      >
+        Edit card corners
+      </button>
+      {cornerEditorOpen ? (
+        <PerCardEditModal
+          deckId={deckId}
+          deckName={deckName}
+          defaultRadiusPercent={cornerRadiusPercent}
+          onClose={() => setCornerEditorOpen(false)}
+        />
+      ) : null}
+    </>
+  );
 }
 
 /* ------------------------------------------------------------------ */

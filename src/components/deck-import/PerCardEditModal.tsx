@@ -114,6 +114,15 @@ export function PerCardEditModal({
   // the scale. Reset on card change so each card opens at 1.0/0,0.
   const [zoom, setZoom] = useState<number>(1);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Phase 9-5-B — refs mirror state so the native (non-passive) wheel
+  // listener reads current values without stale-closure bugs.
+  const zoomRef = useRef<number>(1);
+  const panRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => { panRef.current = pan; }, [pan]);
+  // Phase 9-5-B — track whether the active card's saved radius is an
+  // explicit per-card override (so we can show the Reset button).
+  const [savedOverrides, setSavedOverrides] = useState<Record<number, boolean>>({});
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchStartRef = useRef<
     | {
@@ -161,12 +170,13 @@ export function PerCardEditModal({
         // never appears on stuck decks.
         const { data: rows } = await supabase
           .from("custom_deck_cards")
-          .select("card_id, corner_radius_percent, crop_coords, processing_status")
+          .select("card_id, corner_radius_percent, crop_coords, processing_status, radius_overridden")
           .eq("deck_id", deckId)
           .is("archived_at", null);
         if (cancelled) return;
         const sr: Record<number, number> = {};
         const sc: Record<number, CropCoords> = {};
+        const so: Record<number, boolean> = {};
         for (const r of rows ?? []) {
           if (typeof r.corner_radius_percent === "number") {
             sr[r.card_id] = r.corner_radius_percent;
@@ -174,9 +184,12 @@ export function PerCardEditModal({
           if (isCropCoords(r.crop_coords)) {
             sc[r.card_id] = r.crop_coords;
           }
+          const ro = (r as { radius_overridden?: boolean | null }).radius_overridden;
+          if (typeof ro === "boolean") so[r.card_id] = ro;
         }
         setSavedRadii(sr);
         setSavedCrops(sc);
+        setSavedOverrides(so);
         // FK-1 — merge processing_status onto cards so pendingCount works
         // immediately on open (fetchDeckCards may not include it).
         const statusByCard = new Map<number, string>();
@@ -288,14 +301,17 @@ export function PerCardEditModal({
         corner_radius_percent: number;
         processing_status: string;
         crop_coords?: CropCoords;
+        radius_overridden?: boolean;
       } = {
         corner_radius_percent: radius,
         processing_status: "pending",
+        // Phase 9-5-B Part 2 — single-card save = explicit override.
+        radius_overridden: true,
       };
       if (crop) patch.crop_coords = crop;
       const { error: updErr } = await supabase
         .from("custom_deck_cards")
-        .update(patch)
+        .update(patch as never)
         .eq("deck_id", deckId)
         .eq("card_id", activeCardId);
       if (updErr) throw updErr;
@@ -326,6 +342,7 @@ export function PerCardEditModal({
       if (crop) {
         setSavedCrops((prev) => ({ ...prev, [activeCardId]: crop }));
       }
+      setSavedOverrides((prev) => ({ ...prev, [activeCardId]: true }));
       // Cache-bust the visible image so the new -full.webp shows.
       setVersion((v) => v + 1);
       toast.success(`${getCardName(activeCardId)} saved.`);
@@ -366,16 +383,20 @@ export function PerCardEditModal({
         corner_radius_percent: number;
         processing_status: string;
         crop_coords?: CropCoords;
+        radius_overridden: boolean;
       } = {
         corner_radius_percent: radius,
         processing_status: "pending",
+        // Phase 9-5-B Part 2 — Apply-to-all is a deck-level batch
+        // gesture, so it clears the per-card override flag.
+        radius_overridden: false,
       };
       if (crop) updatePatch.crop_coords = crop;
 
       const targetIds = targets.map((c) => c.card_id);
       const { error } = await supabase
         .from("custom_deck_cards")
-        .update(updatePatch)
+        .update(updatePatch as never)
         .eq("deck_id", deckId)
         .is("archived_at", null)
         .in("card_id", targetIds);
@@ -383,12 +404,15 @@ export function PerCardEditModal({
 
       const nextRadii: Record<number, number> = {};
       const nextCrops: Record<number, CropCoords> = {};
+      const nextOverrides: Record<number, boolean> = {};
       for (const c of targets) {
         nextRadii[c.card_id] = radius;
         if (crop) nextCrops[c.card_id] = crop;
+        nextOverrides[c.card_id] = false;
       }
       setSavedRadii((prev) => ({ ...prev, ...nextRadii }));
       if (crop) setSavedCrops((prev) => ({ ...prev, ...nextCrops }));
+      setSavedOverrides((prev) => ({ ...prev, ...nextOverrides }));
       toast.success(`Settings applied to ${targetCount} cards.`);
 
       const goProcess = await confirm({
@@ -615,23 +639,33 @@ export function PerCardEditModal({
   const cardCount = cards?.length ?? 0;
 
   // Phase 9.5a — wheel zoom (desktop + mac trackpad pinch).
-  function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
-    e.preventDefault();
+  // Phase 9-5-B Bug 1 — React's onWheel attaches a passive listener,
+  // so e.preventDefault() inside it is silently ignored and the page
+  // scrolls instead of zooming. Attach a NATIVE non-passive listener
+  // and read zoom/pan from refs to avoid stale closures.
+  useEffect(() => {
     const wrap = previewWrapRef.current;
     if (!wrap) return;
-    const rect = wrap.getBoundingClientRect();
-    const cursorX = e.clientX - rect.left;
-    const cursorY = e.clientY - rect.top;
-    const factor = Math.exp(-e.deltaY * 0.001);
-    const nextZoom = Math.min(8, Math.max(1, zoom * factor));
-    if (nextZoom === zoom) return;
-    const ratio = nextZoom / zoom;
-    setZoom(nextZoom);
-    setPan({
-      x: cursorX - (cursorX - pan.x) * ratio,
-      y: cursorY - (cursorY - pan.y) * ratio,
-    });
-  }
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = wrap.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left;
+      const cursorY = e.clientY - rect.top;
+      const factor = Math.exp(-e.deltaY * 0.001);
+      const cur = zoomRef.current;
+      const nextZoom = Math.min(8, Math.max(1, cur * factor));
+      if (nextZoom === cur) return;
+      const ratio = nextZoom / cur;
+      const curPan = panRef.current;
+      setZoom(nextZoom);
+      setPan({
+        x: cursorX - (cursorX - curPan.x) * ratio,
+        y: cursorY - (cursorY - curPan.y) * ratio,
+      });
+    };
+    wrap.addEventListener("wheel", onWheel, { passive: false });
+    return () => wrap.removeEventListener("wheel", onWheel);
+  }, [activeCardId]);
 
   function onPreviewPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     const target = e.target as HTMLElement;
@@ -733,7 +767,6 @@ export function PerCardEditModal({
                 <div
                   ref={previewWrapRef}
                   className="relative flex items-center justify-center rounded-md bg-cosmos/40 p-4"
-                  onWheel={handleWheel}
                   onPointerDown={onPreviewPointerDown}
                   onPointerMove={onPreviewPointerMove}
                   onPointerUp={onPreviewPointerUp}
@@ -769,16 +802,33 @@ export function PerCardEditModal({
                       style={{
                         // FE-3 — larger preview so radius changes are
                         // clearly visible while sliding.
-                        // Slightly tighter on mobile to leave room for
-                        // the horizontal thumbnail row.
-                        maxHeight: "60vh",
+                        // Phase 9-5-B Bug 2 — when zoomed, lift the
+                        // 60vh cap so the browser renders the IMG at
+                        // a larger native size, giving the compositor
+                        // more pixel data and reducing GPU-scale grain.
+                        maxHeight:
+                          zoom > 1
+                            ? `${Math.min(imgDims?.h ?? 900, 900)}px`
+                            : "60vh",
                         maxWidth: "100%",
                         width: "auto",
+                        // Phase 9-5-B Bug 2 — improve interpolation
+                        // quality when the bitmap is up-scaled.
+                        imageRendering:
+                          "high-quality" as React.CSSProperties["imageRendering"],
                         ...previewStyle,
                         // Phase 9.5a — zoom/pan transform. transform-origin
                         // top-left so the wheel/pinch math (which assumes
                         // 0,0 origin) stays simple.
-                        transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                        // Phase 9-5-B Bug 4 — only apply the transform
+                        // when we're actually zoomed/panned. Always-on
+                        // transforms force a compositor layer that
+                        // caches the bitmap and skips re-rasterizing
+                        // border-radius changes during slider drag.
+                        transform:
+                          zoom !== 1 || pan.x !== 0 || pan.y !== 0
+                            ? `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
+                            : undefined,
                         transformOrigin: "0 0",
                       }}
                     />
@@ -872,6 +922,65 @@ export function PerCardEditModal({
                     </button>
                   ) : null}
                 </div>
+                {/* Phase 9-5-B Part 2 — Reset to deck default. Only
+                    visible when the active card is an explicit
+                    per-card override. Tapping clears the override and
+                    snaps the slider to the deck baseline. */}
+                {activeCardId !== null &&
+                savedOverrides[activeCardId] === true ? (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (activeCardId === null) return;
+                        const def = defaultRadiusPercent;
+                        try {
+                          const { error } = await supabase
+                            .from("custom_deck_cards")
+                            .update(
+                              {
+                                corner_radius_percent: def,
+                                radius_overridden: false,
+                                processing_status: "pending",
+                              } as never,
+                            )
+                            .eq("deck_id", deckId)
+                            .eq("card_id", activeCardId);
+                          if (error) throw error;
+                          setRadius(def);
+                          setCanvasPreview(null);
+                          setSavedRadii((prev) => ({
+                            ...prev,
+                            [activeCardId]: def,
+                          }));
+                          setSavedOverrides((prev) => ({
+                            ...prev,
+                            [activeCardId]: false,
+                          }));
+                          toast.success("Reset to deck default.");
+                        } catch (err) {
+                          toast.error(
+                            err instanceof Error
+                              ? err.message
+                              : "Reset failed.",
+                          );
+                        }
+                      }}
+                      style={{
+                        fontSize: "var(--text-caption)",
+                        color: "var(--color-foreground)",
+                        opacity: 0.55,
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        fontStyle: "italic",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Reset to deck default
+                    </button>
+                  </div>
+                ) : null}
 
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {pendingCount > 0 ? (

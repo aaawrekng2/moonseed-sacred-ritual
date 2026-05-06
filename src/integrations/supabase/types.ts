@@ -94,6 +94,7 @@ export type Database = {
           original_path: string | null
           processed_at: string | null
           processing_status: string
+          radius_overridden: boolean
           source: string
           thumbnail_path: string
           thumbnail_url: string
@@ -113,6 +114,7 @@ export type Database = {
           original_path?: string | null
           processed_at?: string | null
           processing_status?: string
+          radius_overridden?: boolean
           source?: string
           thumbnail_path: string
           thumbnail_url: string
@@ -132,6 +134,7 @@ export type Database = {
           original_path?: string | null
           processed_at?: string | null
           processing_status?: string
+          radius_overridden?: boolean
           source?: string
           thumbnail_path?: string
           thumbnail_url?: string
