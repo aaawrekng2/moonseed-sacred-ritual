@@ -1069,7 +1069,10 @@ function Workspace({
   onRadiusSaved?: (next: number) => void;
   deckType: "tarot" | "oracle";
 }) {
-  const [tab, setTab] = useState<Tab>(entryMode === "edit" ? "assigned" : "unassigned");
+  const [tab, setTab] = useState<Tab>(
+    // 9-6-A — oracle has no Unassigned/Skipped/Default tabs.
+    entryMode === "edit" || deckType === "oracle" ? "assigned" : "unassigned",
+  );
   // 9-5-D — liveRadius is now lifted to WorkspaceWithCornerEditor.
   // We just consume cornerRadiusPercent as the live value and bubble
   // saves up via onRadiusSaved.
