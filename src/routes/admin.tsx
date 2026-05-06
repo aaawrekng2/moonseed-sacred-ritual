@@ -46,6 +46,7 @@ import {
   createAdminBackup,
   getAnonymousSessionCounts,
   getBackupDownloadUrl,
+  getPendingSignupCount,
   listAdminUsers,
   listDetectWeavesAlerts,
   previewDetectWeavesAdmin,
