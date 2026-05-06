@@ -342,6 +342,7 @@ export function PerCardEditModal({
       if (crop) {
         setSavedCrops((prev) => ({ ...prev, [activeCardId]: crop }));
       }
+      setSavedOverrides((prev) => ({ ...prev, [activeCardId]: true }));
       // Cache-bust the visible image so the new -full.webp shows.
       setVersion((v) => v + 1);
       toast.success(`${getCardName(activeCardId)} saved.`);
