@@ -28,6 +28,8 @@ export type CustomDeck = {
   is_complete: boolean;
   is_active: boolean;
   created_at: string;
+  /** 9-6-A — 'tarot' (78 cards) or 'oracle' (variable). */
+  deck_type: "tarot" | "oracle";
 };
 
 export type CustomDeckCard = {
@@ -40,6 +42,9 @@ export type CustomDeckCard = {
   thumbnail_path: string;
   source?: "photographed" | "imported" | "default";
   archived_at?: string | null;
+  /** 9-6-A — oracle decks store user-supplied per-card name + meaning. */
+  card_name?: string | null;
+  card_description?: string | null;
 };
 
 /** Per-card override map: card index (0..77) -> image URL. */
