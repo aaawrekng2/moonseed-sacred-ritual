@@ -95,6 +95,7 @@ export function ZipImporter({
   initialPhase,
   deckName,
   existingCornerRadiusPx = null,
+  onRadiusSaved,
 }: {
   userId: string;
   deckId: string;
@@ -114,6 +115,9 @@ export function ZipImporter({
   deckName?: string | null;
   /** DX — saved per-deck corner radius in px (null = app default). */
   existingCornerRadiusPx?: number | null;
+  /** 9-5-D — bubble slider saves up so parent can pass the new value
+   *  back into both ZipImporter and PerCardEditModal. */
+  onRadiusSaved?: (next: number) => void;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
