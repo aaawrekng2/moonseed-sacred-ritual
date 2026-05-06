@@ -42,7 +42,6 @@ import { LensDistribution } from "@/components/insights/LensDistribution";
 import { QuestionThemesLocked } from "@/components/insights/QuestionThemesLocked";
 import { RecapTab } from "@/components/insights/RecapTab";
 import { LunationBanner } from "@/components/insights/LunationBanner";
-import { PremiumBadge } from "@/components/insights/PremiumBadge";
 import { StalkersTab } from "@/components/insights/StalkersTab";
 import type { MoonPhaseName } from "@/lib/moon";
 
@@ -167,7 +166,15 @@ function InsightsRoute() {
         className="page-header-glass sticky top-0"
         style={{ zIndex: "var(--z-sticky-header)" }}
       >
-        <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top,0px)+12px)] pb-2">
+        <div
+          className="px-4 overflow-hidden"
+          style={{
+            paddingTop: `calc(env(safe-area-inset-top,0px) + ${collapseProgress * 12}px)`,
+            paddingBottom: `${collapseProgress * 8}px`,
+            maxHeight: `${collapseProgress * 44}px`,
+            transition: "max-height 150ms ease-out, padding 150ms ease-out",
+          }}
+        >
           <h1
             className="font-serif italic"
             style={{
@@ -175,11 +182,11 @@ function InsightsRoute() {
               color: "var(--color-foreground)",
               opacity: 0.9 * collapseProgress,
               transition: "opacity 150ms ease-out",
+              margin: 0,
             }}
           >
             Insights
           </h1>
-          <PremiumBadge />
         </div>
         {tab !== "recap" && (
           <GlobalFilterBar
