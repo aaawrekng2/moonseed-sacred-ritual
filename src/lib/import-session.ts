@@ -30,6 +30,10 @@ export interface ImportImage {
    *  custom_deck_cards rows (re-import flow). When present, rawBlob
    *  is a 1x1 placeholder and `existingUrl` should be displayed. */
   existingUrl?: string;
+  /** 9-6-A — oracle decks attach a user-editable name/description per
+   *  card. Pre-populated from filename or sidecar CSV at import. */
+  oracleName?: string;
+  oracleDescription?: string;
 }
 
 export interface EncodedAsset {
