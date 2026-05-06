@@ -20,6 +20,7 @@ import { fetchDeckCards, type CustomDeckCard } from "@/lib/custom-decks";
 import { getCardName } from "@/lib/tarot";
 import { useConfirm } from "@/hooks/use-confirm";
 import { Modal } from "@/components/ui/modal";
+import { LoadingText } from "@/components/ui/loading-text";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -785,9 +786,7 @@ export function PerCardEditModal({
             }
           >
             {cards === null ? (
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3 w-3 animate-spin" /> Loading…
-              </div>
+              <LoadingText>Loading card details…</LoadingText>
             ) : cardCount === 0 ? (
               <p className="text-xs text-muted-foreground">
                 No photographed cards in this deck yet.

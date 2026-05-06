@@ -666,7 +666,7 @@ export function ZipImporter({
   else if (phase.kind === "extracting") body = <Centered text="Reading your zip…" />;
   else if (phase.kind === "restoring")
     body = <Centered text={`Restoring previous deck… ${phase.done}/${phase.total}`} />;
-  else if (!workspace) body = <Centered text="Loading…" />;
+  else if (!workspace) body = <Centered text="Loading workspace…" />;
   else
     body = (
       <Workspace

@@ -18,6 +18,7 @@ import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { StalkerCalendar } from "./StalkerCalendar";
 import { StalkerOccurrenceList } from "./StalkerOccurrenceList";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
+import { LoadingText } from "@/components/ui/loading-text";
 import type {
   InsightsFilters,
   TimeRange,
@@ -287,7 +288,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
       ) : null}
 
       {loading && (
-        <div className="text-xs text-muted-foreground italic mb-3">Loading stalkers…</div>
+        <LoadingText className="mb-3">Loading stalkers…</LoadingText>
       )}
 
       <div className="mx-auto w-full max-w-3xl mb-8">

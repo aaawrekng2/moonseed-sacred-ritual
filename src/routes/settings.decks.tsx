@@ -23,6 +23,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useConfirm } from "@/hooks/use-confirm";
+import { LoadingText } from "@/components/ui/loading-text";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import {
   FREE_DECK_LIMIT,
@@ -190,9 +191,7 @@ function DecksPage() {
       )}
 
       {loading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-        </div>
+        <LoadingText>Loading decks…</LoadingText>
       ) : decks.length === 0 ? (
         <EmptyState onCreate={() => setView({ kind: "create" })} />
       ) : (

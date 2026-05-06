@@ -43,6 +43,7 @@ import { QuestionThemesLocked } from "@/components/insights/QuestionThemesLocked
 import { RecapTab } from "@/components/insights/RecapTab";
 import { LunationBanner } from "@/components/insights/LunationBanner";
 import { StalkersTab } from "@/components/insights/StalkersTab";
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import type { MoonPhaseName } from "@/lib/moon";
 
 export const Route = createFileRoute("/insights")({
@@ -338,22 +339,7 @@ function OverviewTab({
   onEmptyCta: () => void;
 }) {
   if (loading && !overview) {
-    return (
-      <div className="space-y-3">
-        {[0, 1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="animate-pulse"
-            style={{
-              height: i === 0 ? 220 : 160,
-              background: "var(--surface-card)",
-              borderRadius: 18,
-              opacity: 0.5,
-            }}
-          />
-        ))}
-      </div>
-    );
+    return <LoadingSkeleton heights={[220, 160, 160, 160]} />;
   }
 
   if (!overview || overview.totalReadings === 0) {

@@ -18,6 +18,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { HelpIcon } from "@/components/help/HelpIcon";
 import { CardImage } from "@/components/card/CardImage";
 import { getCardName } from "@/lib/tarot";
+import { LoadingText } from "@/components/ui/loading-text";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -826,13 +827,7 @@ export function EnrichmentPanel({
       {(photosLoading || hasPhotos) && (
         <div className="mt-5">
           {photosLoading ? (
-            <div
-              className="flex items-center gap-2 font-display text-[12px] italic text-muted-foreground"
-              style={{ opacity: "var(--ro-plus-10)" }}
-            >
-              <Loader2 size={12} strokeWidth={1.5} className="animate-spin" />
-              Loading photos…
-            </div>
+            <LoadingText>Loading photos…</LoadingText>
           ) : (
             <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
               {photos.map((p) => (

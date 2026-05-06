@@ -597,7 +597,7 @@ function DashboardTab() {
 
   if (!stats)
     return (
-      <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>Loading…</p>
+      <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>Loading stats…</p>
     );
 
   return (
@@ -1395,7 +1395,7 @@ function DetectWeavesAlertsPanel() {
           zero new weaves. Admins are also emailed when email infrastructure
           is configured.
         </p>
-        {loading && <p style={{ ...serif, opacity: 0.6 }}>Loading…</p>}
+        {loading && <p style={{ ...serif, opacity: 0.6 }}>Loading alerts…</p>}
         {error && (
           <p style={{ ...serif, color: "oklch(0.7 0.18 25)" }}>{error}</p>
         )}
@@ -3187,7 +3187,7 @@ function BackupsTab() {
         </button>
       </div>
       {loading ? (
-        <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>Loading…</p>
+        <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>Loading backups…</p>
       ) : (
         <>
           <Section
@@ -3313,7 +3313,7 @@ function AuditTab() {
           className="mt-8"
           style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}
         >
-          Loading…
+          Loading audit log…
         </p>
       ) : (
         <div className="mt-6 overflow-x-auto">

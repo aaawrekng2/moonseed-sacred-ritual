@@ -12,6 +12,7 @@ import { HelpIcon } from "@/components/help/HelpIcon";
 import { useScrollCollapse } from "@/lib/use-scroll-collapse";
 import { ReadingRow } from "@/components/ui/reading-row";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
+import { LoadingText } from "@/components/ui/loading-text";
 import {
   ReactFlow,
   Background,
@@ -234,7 +235,7 @@ function ThreadsPage() {
           Stories
         </h1>
         {loading ? (
-          <p style={{ opacity: 0.5, fontStyle: "italic" }}>Listening for threads…</p>
+          <LoadingText>Listening for threads…</LoadingText>
         ) : view === "active" ? (
           <ActiveView
             patterns={active}
@@ -509,7 +510,7 @@ function WeavesView({
 
   // Need at least 2 patterns to weave anything visible.
   if (loading) {
-    return <p style={{ opacity: 0.4, fontStyle: "italic" }}>Listening for weaves…</p>;
+    return <LoadingText>Listening for weaves…</LoadingText>;
   }
   if (patterns.length < 2) {
     return (

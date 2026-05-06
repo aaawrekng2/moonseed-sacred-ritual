@@ -7,6 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getReadingsByIds } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { ReadingRow } from "@/components/ui/reading-row";
+import { LoadingText } from "@/components/ui/loading-text";
 
 export function StalkerOccurrenceList({
   appearances,
@@ -46,9 +47,7 @@ export function StalkerOccurrenceList({
   }, [ids, fetchReadings]);
 
   if (loading) {
-    return (
-      <div className="text-xs italic text-muted-foreground">Loading occurrences…</div>
-    );
+    return <LoadingText>Loading occurrences…</LoadingText>;
   }
 
   if (readings.length === 0) {
