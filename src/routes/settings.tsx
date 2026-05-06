@@ -5,7 +5,7 @@ import {
   redirect,
   useLocation,
 } from "@tanstack/react-router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import {
   Database,
   Palette,
@@ -163,13 +163,13 @@ function SettingsLayout() {
         style={{ paddingTop: "var(--topbar-pad)" }}
       >
         <div className="mx-auto w-full max-w-5xl px-4">
-          {/* Mobile tab bar: horizontally scrollable underline. */}
-          <div className="-mx-4 mb-6 border-b border-border/40 md:hidden">
+          {/* Mobile tab bar: canonical tab strip pattern (FU-12). */}
+          <div className="-mx-4 mb-6 md:hidden">
             <div
               ref={tabBarRef}
               role="tablist"
               aria-label="Settings sections"
-              className="scrollbar-none flex gap-1 overflow-x-auto px-3"
+              className="scrollbar-none flex items-center gap-6 overflow-x-auto px-4 py-2"
             >
               {TABS.map((t) => {
                 const active = activeTab === t.key;
@@ -179,22 +179,21 @@ function SettingsLayout() {
                     to={t.to}
                     role="tab"
                     aria-selected={active}
-                    className={cn(
-                      "relative inline-flex shrink-0 items-center gap-2 whitespace-nowrap bg-transparent px-4 py-3 text-sm font-medium transition-colors",
-                      active
-                        ? "text-gold"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
+                    className="whitespace-nowrap pb-1"
+                    style={{
+                      fontFamily: "var(--tab-font-family)",
+                      fontStyle: "var(--tab-font-style)",
+                      fontSize: "var(--tab-font-size)",
+                      letterSpacing: "var(--tab-letter-spacing)",
+                      textTransform: "var(--tab-text-transform)",
+                      color: active ? "var(--tab-active-color)" : "var(--color-foreground)",
+                      opacity: active ? "var(--tab-active-opacity)" : "var(--tab-inactive-opacity)",
+                      borderBottom: active
+                        ? "1px solid var(--tab-underline-color)"
+                        : "1px solid transparent",
+                    } as CSSProperties}
                   >
-                    <span>{t.label}</span>
-                    <span
-                      className={cn(
-                        "pointer-events-none absolute inset-x-4 -bottom-px h-[2.5px] rounded-t-sm bg-gold transition-all duration-300",
-                        active
-                          ? "scale-x-100 opacity-100"
-                          : "scale-x-0 opacity-0",
-                      )}
-                    />
+                    {t.label}
                   </Link>
                 );
               })}
