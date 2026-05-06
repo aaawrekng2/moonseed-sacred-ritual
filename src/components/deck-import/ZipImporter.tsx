@@ -1842,6 +1842,7 @@ async function saveOracleCardMeta(
 function OracleWorkspace({
   session,
   deckId,
+  deckName,
   liveRadius,
   onRadiusSaved,
   existingCornerRadiusPx,
@@ -1854,6 +1855,7 @@ function OracleWorkspace({
 }: {
   session: ImportSession;
   deckId: string;
+  deckName: string | null;
   liveRadius: number;
   onRadiusSaved?: (next: number) => void;
   existingCornerRadiusPx: number | null;
@@ -1865,6 +1867,8 @@ function OracleWorkspace({
   onOpenEdit: (cardId: number, key: string) => void;
 }) {
   const [previewIdx, setPreviewIdx] = useState(0);
+  const [liveRadiusLocal, setLiveRadiusLocal] = useState(liveRadius);
+  useEffect(() => { setLiveRadiusLocal(liveRadius); }, [liveRadius]);
   const safeIdx = oracleSlotIds.length === 0
     ? 0
     : ((previewIdx % oracleSlotIds.length) + oracleSlotIds.length) % oracleSlotIds.length;
@@ -1873,23 +1877,11 @@ function OracleWorkspace({
     ? session.assigned[String(previewCardId)]
     : undefined;
   const previewSrc = previewKey ? resolveSrc(previewKey) : "";
-  const radiusStyle = liveRadius > 0
-    ? { borderRadius: `${liveRadius}%` }
-    : {};
   return (
-    <section className="py-4">
+    <section className="py-4 mx-auto w-full" style={{ maxWidth: 720 }}>
       {/* Header row */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h2
-          className="italic"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-heading-md)",
-            color: "var(--color-foreground)",
-          }}
-        >
-          Oracle deck
-        </h2>
+        <DeckNameInput deckId={deckId} initial={deckName ?? ""} placeholder="Oracle deck" />
         <div className="ml-auto flex items-center gap-4">
           {entryMode === "edit" && (
             <button
@@ -1955,7 +1947,7 @@ function OracleWorkspace({
                 width: "min(280px, 70vw)",
                 aspectRatio: "0.625",
                 background: "var(--surface-card)",
-                ...radiusStyle,
+                ...cornerRadiusStyle(liveRadiusLocal, 280),
               }}
             >
               {previewSrc ? (
@@ -1986,6 +1978,8 @@ function OracleWorkspace({
             <CornerRadiusSlider
               deckId={deckId}
               initial={existingCornerRadiusPx}
+              hidePreview={true}
+              onValueChange={(next) => setLiveRadiusLocal(next)}
               onSaved={(next) => onRadiusSaved?.(next)}
             />
           </div>
