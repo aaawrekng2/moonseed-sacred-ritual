@@ -46,6 +46,7 @@ import {
   createAdminBackup,
   getAnonymousSessionCounts,
   getBackupDownloadUrl,
+  getPendingSignupCount,
   listAdminUsers,
   listDetectWeavesAlerts,
   previewDetectWeavesAdmin,
@@ -476,6 +477,8 @@ function DashboardTab() {
     last30Days: number;
     total: number;
   } | null>(null);
+  // 9-6-F — pending signup attempts (email present, not confirmed).
+  const [pendingSignups, setPendingSignups] = useState<number | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -592,6 +595,12 @@ function DashboardTab() {
         setAnon(a);
       } catch {
         setAnon({ today: 0, last30Days: 0, total: 0 });
+      }
+      try {
+        const p = await getPendingSignupCount({ headers: await authHeaders() });
+        setPendingSignups(p.count);
+      } catch {
+        setPendingSignups(0);
       }
     })();
   }, []);
@@ -738,6 +747,25 @@ function DashboardTab() {
           }}
         >
           Anonymous sessions are excluded from the Users tab.
+        </p>
+      </section>
+
+      <section>
+        <SectionTitle>Pending signups</SectionTitle>
+        <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-3">
+          <StatCard label="Unconfirmed" value={pendingSignups ?? 0} />
+        </div>
+        <p
+          className="mt-3"
+          style={{
+            ...serif,
+            fontStyle: "italic",
+            fontSize: "var(--text-caption)",
+            opacity: 0.55,
+          }}
+        >
+          Users who started signup but haven&rsquo;t confirmed their email.
+          Excluded from the Users tab.
         </p>
       </section>
 
@@ -2381,6 +2409,21 @@ function UserDetailPage({
                 Send password reset
               </ActionBtn>
             )}
+            {user.email && !user.email_confirmed_at && (
+              <ActionBtn
+                tone="secondary"
+                disabled={busyAction !== null}
+                onClick={async () => {
+                  await runAction(
+                    "resend_confirmation",
+                    { type: "resend_confirmation", targetUserId: user.user_id },
+                    `Confirmation email resent to ${user.email}`,
+                  );
+                }}
+              >
+                Resend confirmation
+              </ActionBtn>
+            )}
             {!isSelf && (
               <ActionBtn
                 tone="secondary"
@@ -3869,6 +3912,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   deactivate_user: "Deactivate user",
   reactivate_user: "Reactivate user",
   set_note: "Set note",
+  resend_confirmation: "Resend confirmation",
   create_backup: "Create backup",
   restore_backup_requested: "Restore requested",
   run_detect_weaves: "Run detect weaves",

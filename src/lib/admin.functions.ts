@@ -117,14 +117,12 @@ export const listAdminUsers = createServerFn({ method: "GET" })
     const prefMap = new Map<string, any>();
     for (const p of prefs) prefMap.set((p as any).user_id, p);
 
-    // CR — Loosen the filter. Include any user that has an email at all
-    // (confirmed or not) so admins can see pending signup attempts.
-    // Truly anonymous sessions (no email) are still excluded and
-    // surfaced as a count on the Dashboard. Admins remain visible
-    // defensively even if email is missing.
+    // 9-6-F — Tighten filter: only confirmed users (email_confirmed_at)
+    // OR admins. Pending/abandoned signup attempts are excluded here and
+    // surfaced separately via getPendingSignupCount.
     return allUsers
       .filter((u) => {
-        if (u.email) return true;
+        if ((u as any).email_confirmed_at) return true;
         const p = prefMap.get(u.id);
         if (p?.role === "admin" || p?.role === "super_admin") return true;
         return false;
@@ -198,6 +196,38 @@ export const getAnonymousSessionCounts = createServerFn({ method: "GET" })
     return { today, last30Days, total } as const;
   });
 
+/* ---------- getPendingSignupCount (9-6-F) ---------- */
+
+/**
+ * 9-6-F — Count of users with an email but no email_confirmed_at,
+ * surfaced separately so admins can see pending signup attempts
+ * without polluting the Users tab.
+ */
+export const getPendingSignupCount = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    let count = 0;
+    let page = 1;
+    const perPage = 1000;
+    while (true) {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage,
+      });
+      if (error) throw new Error(error.message);
+      for (const u of data.users) {
+        if (u.email && !(u as any).email_confirmed_at) count += 1;
+      }
+      if (data.users.length < perPage) break;
+      page += 1;
+      if (page > 100) break;
+    }
+    return { count } as const;
+  });
+
 
 const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("grant_premium"), targetUserId: z.string().uuid(), months: z.number().int().positive() }),
@@ -214,6 +244,7 @@ const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("deactivate_user"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("reactivate_user"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("set_note"), targetUserId: z.string().uuid(), note: z.string().nullable() }),
+  z.object({ type: z.literal("resend_confirmation"), targetUserId: z.string().uuid() }),
 ]);
 
 export const adminAction = createServerFn({ method: "POST" })
@@ -408,6 +439,21 @@ export const adminAction = createServerFn({ method: "POST" })
           .update({ admin_note: data.note })
           .eq("user_id", data.targetUserId);
         await logAction(userId, actorEmail, "set_note", data.targetUserId, targetEmail, { note: data.note });
+        break;
+      }
+      case "resend_confirmation": {
+        if (!targetEmail) throw new Error("user has no email");
+        const { error: resendErr } =
+          await supabaseAdmin.auth.admin.inviteUserByEmail(targetEmail);
+        if (resendErr) throw new Error(resendErr.message);
+        await logAction(
+          userId,
+          actorEmail,
+          "resend_confirmation",
+          data.targetUserId,
+          targetEmail,
+          {},
+        );
         break;
       }
     }

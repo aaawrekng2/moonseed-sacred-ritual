@@ -1854,7 +1854,17 @@ function DeckNameInput({
   placeholder: string;
 }) {
   const [draft, setDraft] = useState(initial);
-  useEffect(() => { setDraft(initial); }, [initial]);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (!ref.current) return;
+    if (!initializedRef.current || (initial && initial !== draft)) {
+      ref.current.textContent = initial;
+      setDraft(initial);
+      initializedRef.current = true;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial]);
   const save = async (next: string) => {
     const trimmed = next.trim();
     if (!trimmed) return;
@@ -1865,16 +1875,22 @@ function DeckNameInput({
     }
   };
   return (
-    <input
-      type="text"
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
+    <div
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      role="textbox"
+      aria-label={placeholder}
+      data-placeholder={placeholder}
+      onInput={(e) => setDraft((e.target as HTMLDivElement).textContent ?? "")}
       onBlur={() => void save(draft)}
       onKeyDown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Enter") {
+          e.preventDefault();
+          (e.target as HTMLDivElement).blur();
+        }
       }}
       className="italic"
-      placeholder={placeholder}
       style={{
         fontFamily: "var(--font-serif)",
         fontSize: "var(--text-heading-md)",
@@ -1882,12 +1898,12 @@ function DeckNameInput({
         background: "transparent",
         border: "none",
         borderBottom: "1px solid var(--border-subtle)",
-        padding: "8px 4px 6px 4px",
-        lineHeight: 1.4,
+        padding: "6px 4px 12px 4px",
+        lineHeight: 1.6,
         minWidth: 200,
         outline: "none",
-        width: "100%",
         maxWidth: 480,
+        cursor: "text",
       }}
     />
   );
