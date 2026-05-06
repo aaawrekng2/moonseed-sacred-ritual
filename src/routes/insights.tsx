@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
-import { BottomNav } from "@/components/nav/BottomNav";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { useScrollCollapse } from "@/lib/use-scroll-collapse";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
@@ -316,8 +315,6 @@ function InsightsRoute() {
           {tab === "recap" && <RecapTab />}
         </div>
       </main>
-
-      <BottomNav />
     </div>
   );
 }

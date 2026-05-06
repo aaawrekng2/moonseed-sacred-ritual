@@ -1172,15 +1172,18 @@ button:focus-visible .moon-rung-glow {
 }
 
 /* FU-5 — z-index ladder. All overlay components consume these
- * tokens instead of magic numbers. Five tiers, bottom to top:
- * popover     — small floating UI under modals (date picker, dropdown)
- * drawer      — right-side filter drawer, side sheets
- * modal       — centered detail modals, full-screen flows
- * modal-2     — nested modals (confirm-on-top-of-modal, hint-over-flow)
- * toast       — transient notifications (top of everything)
+ * tokens instead of magic numbers. Six tiers, bottom to top:
+ * sticky-header — page sticky headers
+ * bottom-nav     — global bottom navigation
+ * popover        — small floating UI under modals (date picker, dropdown)
+ * drawer         — right-side filter drawer, side sheets
+ * modal          — centered detail modals, full-screen flows
+ * modal-nested   — nested modals (confirm-on-top-of-modal, hint-over-flow)
+ * toast          — transient notifications (top of everything)
  */
 :root {
-  --z-sticky-header: 30;        /* FU-7 — page sticky headers */
+  --z-sticky-header: 30;     /* FU-7 — page sticky headers */
+  --z-bottom-nav: 40;        /* FU-18 — global bottom nav */
   --z-popover: 50;
   --z-drawer: 60;
   --z-modal: 100;

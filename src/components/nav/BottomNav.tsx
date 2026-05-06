@@ -54,8 +54,9 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 border-t backdrop-blur-xl"
+      className="fixed inset-x-0 bottom-0 border-t backdrop-blur-xl"
       style={{
+        zIndex: "var(--z-bottom-nav)" as unknown as number,
         background: "color-mix(in oklch, var(--surface-elevated) 90%, transparent)",
         borderTopColor: "var(--border-default)",
         minHeight: "calc(72px + env(safe-area-inset-bottom, 0px))",
@@ -67,19 +68,15 @@ export function BottomNav() {
         style={{ height: 72, maxWidth: showThreads ? 440 : 360, gap: showThreads ? 28 : 36, paddingTop: 8 }}
       >
         {tabs.map(({ to, label, Icon, primary }) => {
-          // Settings nav nests sub-routes (/settings/profile, /settings/themes,
-          // …) so an exact-match active check left the icon perpetually
-          // un-highlighted. Use a prefix match for /settings, exact match for
-          // the others (otherwise "/" would stay active everywhere).
+          // Tabs that own sub-routes (/settings/*, /threads/*, /insights/*)
+          // need prefix matching so the icon stays highlighted on the
+          // detail pages. "/" and "/journal" don't have sub-routes; they
+          // use exact match (otherwise "/" would stay active everywhere).
           const path = location.pathname;
-          const active =
-            to === "/settings"
-              ? path === "/settings" || path.startsWith("/settings/")
-              : to === "/threads"
-              ? path === "/threads" || path.startsWith("/threads/")
-              : to === "/insights"
-              ? path === "/insights" || path.startsWith("/insights/")
-              : path === to;
+          const hasSubRoutes = to !== "/" && to !== "/journal";
+          const active = hasSubRoutes
+            ? path === to || path.startsWith(`${to}/`)
+            : path === to;
           const iconSize = primary ? 36 : 20;
           // Active = signature gold. Inactive (including Home) = neutral
           // foreground/white tint. Primary keeps a slight size advantage.

@@ -7,7 +7,6 @@ import {
   type Weave,
   lifecycleOpacity,
 } from "@/lib/patterns";
-import { BottomNav } from "@/components/nav/BottomNav";
 import { HelpIcon } from "@/components/help/HelpIcon";
 import { useScrollCollapse } from "@/lib/use-scroll-collapse";
 import { ReadingRow } from "@/components/ui/reading-row";
@@ -258,8 +257,6 @@ function ThreadsPage() {
           onClose={() => setOpenReadingId(null)}
         />
       )}
-
-      <BottomNav />
     </div>
   );
 }
