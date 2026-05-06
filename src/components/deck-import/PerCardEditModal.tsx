@@ -922,6 +922,65 @@ export function PerCardEditModal({
                     </button>
                   ) : null}
                 </div>
+                {/* Phase 9-5-B Part 2 — Reset to deck default. Only
+                    visible when the active card is an explicit
+                    per-card override. Tapping clears the override and
+                    snaps the slider to the deck baseline. */}
+                {activeCardId !== null &&
+                savedOverrides[activeCardId] === true ? (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (activeCardId === null) return;
+                        const def = defaultRadiusPercent;
+                        try {
+                          const { error } = await supabase
+                            .from("custom_deck_cards")
+                            .update(
+                              {
+                                corner_radius_percent: def,
+                                radius_overridden: false,
+                                processing_status: "pending",
+                              } as never,
+                            )
+                            .eq("deck_id", deckId)
+                            .eq("card_id", activeCardId);
+                          if (error) throw error;
+                          setRadius(def);
+                          setCanvasPreview(null);
+                          setSavedRadii((prev) => ({
+                            ...prev,
+                            [activeCardId]: def,
+                          }));
+                          setSavedOverrides((prev) => ({
+                            ...prev,
+                            [activeCardId]: false,
+                          }));
+                          toast.success("Reset to deck default.");
+                        } catch (err) {
+                          toast.error(
+                            err instanceof Error
+                              ? err.message
+                              : "Reset failed.",
+                          );
+                        }
+                      }}
+                      style={{
+                        fontSize: "var(--text-caption)",
+                        color: "var(--color-foreground)",
+                        opacity: 0.55,
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        fontStyle: "italic",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Reset to deck default
+                    </button>
+                  </div>
+                ) : null}
 
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {pendingCount > 0 ? (
