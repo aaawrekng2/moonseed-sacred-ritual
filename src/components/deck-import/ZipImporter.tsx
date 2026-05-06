@@ -803,6 +803,7 @@ export function ZipImporter({
         deckId={deckId}
         existingCornerRadiusPx={existingCornerRadiusPx}
         onRadiusSaved={onRadiusSaved}
+        deckType={deckType}
       />
     );
 
