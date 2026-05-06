@@ -11,20 +11,7 @@ import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { CardImage } from "@/components/card/CardImage";
 import { Modal } from "@/components/ui/modal";
 import { LoadingText } from "@/components/ui/loading-text";
-
-function formatFullDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  } catch {
-    return iso;
-  }
-}
+import { formatDateTime } from "@/lib/dates";
 
 export function ReadingDetailModal({
   readingId,
@@ -60,7 +47,7 @@ export function ReadingDetailModal({
 
   const subtitle =
     reading && reading.created_at
-      ? `${formatFullDate(reading.created_at)} · ${reading.spread_type ?? "Reading"}`
+      ? `${formatDateTime(reading.created_at)} · ${reading.spread_type ?? "Reading"}`
       : undefined;
 
   return (

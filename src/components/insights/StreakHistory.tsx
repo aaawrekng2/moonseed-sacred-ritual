@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getStreakHistory } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { STREAK_ELEMENT_COLORS, type StreakElement } from "@/lib/streak-phase";
+import { formatDateShort } from "@/lib/dates";
 
 type Streak = { startDate: string; endDate: string; length: number; isActive: boolean };
 
@@ -24,9 +25,7 @@ function colorFor(len: number): string {
 }
 
 function fmtRange(s: string, e: string): string {
-  const fmt = (d: string) =>
-    new Date(d).toLocaleDateString("en", { month: "short", day: "numeric" });
-  return s === e ? fmt(s) : `${fmt(s)}–${fmt(e)}`;
+  return s === e ? formatDateShort(s) : `${formatDateShort(s)}–${formatDateShort(e)}`;
 }
 
 /** EM-4 — Streak history bar timeline. */

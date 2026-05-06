@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { ReadingRow } from "@/components/ui/reading-row";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { EmptyHero } from "@/components/ui/empty-hero";
+import { formatDateShort } from "@/lib/dates";
 import {
   type Pattern,
   type PatternLifecycleState,
@@ -1140,10 +1141,7 @@ function ChamberWeaveGraph({
       id: `r:${r.id}`,
       position: { x, y },
       data: {
-        label: new Date(r.created_at).toLocaleDateString(undefined, {
-          month: "short",
-          day: "numeric",
-        }),
+        label: formatDateShort(r.created_at),
       },
       draggable: false,
       style: {

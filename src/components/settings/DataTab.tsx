@@ -49,6 +49,7 @@ import {
 import type JSZip from "jszip";
 import { ImportFlow, type ImportResult } from "@/components/import/ImportFlow";
 import { usePremium } from "@/lib/premium";
+import { formatDateTime } from "@/lib/dates";
 
 const CATEGORY_LABEL: Record<string, string> = {
   readings: "Readings",
@@ -611,7 +612,7 @@ function RestorePanel({
     const part1 =
       parts.find((p) => (p.manifest.part_index ?? 1) === 1) ?? parts[0];
     const created = part1
-      ? new Date(part1.manifest.exported_at).toLocaleString()
+      ? formatDateTime(part1.manifest.exported_at)
       : "";
     const categories = part1?.manifest.categories ?? [];
 

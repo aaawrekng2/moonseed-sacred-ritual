@@ -11,6 +11,7 @@ import { DEFAULT_FILTERS } from "@/lib/insights.types";
 import { StalkerSparkline } from "@/components/insights/StalkerSparkline";
 import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
+import { formatDateLong } from "@/lib/dates";
 
 export const Route = createFileRoute("/insights/card/$cardId")({
   component: StalkerDetailRoute,
@@ -198,7 +199,7 @@ function StalkerDetailRoute() {
                   >
                     <div>
                       <div style={{ fontStyle: "italic" }}>
-                        {new Date(a.date).toLocaleDateString()}
+                        {formatDateLong(a.date)}
                       </div>
                       <div
                         style={{

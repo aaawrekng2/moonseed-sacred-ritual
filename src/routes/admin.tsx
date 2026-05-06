@@ -28,6 +28,7 @@ import {
   UserX,
   XCircle,
 } from "lucide-react";
+import { formatDateLong, formatDateTime } from "@/lib/dates";
 import {
   Bar,
   BarChart,
@@ -762,11 +763,11 @@ function DashboardTab() {
                   style={{ borderBottom: "1px solid var(--border-subtle)" }}
                 >
                   <Td>{u.email ?? <span style={{ opacity: 0.4 }}>anon</span>}</Td>
-                  <Td>{new Date(u.created_at).toLocaleDateString()}</Td>
+                  <Td>{formatDateLong(u.created_at)}</Td>
                   <Td>{u.reading_count}</Td>
                   <Td>
                     {u.last_reading
-                      ? new Date(u.last_reading).toLocaleDateString()
+                      ? formatDateLong(u.last_reading)
                       : "—"}
                   </Td>
                 </tr>
@@ -1446,7 +1447,7 @@ function DetectWeavesAlertsPanel() {
                       marginTop: 2,
                     }}
                   >
-                    {new Date(a.created_at).toLocaleString()}
+                    {formatDateTime(a.created_at)}
                   </div>
                 </div>
                 <button
@@ -1886,7 +1887,7 @@ function UserListRow({
         <RoleBadge role={user.role} />
       </Td>
       <Td>{formatActivity(user.reading_count, user.last_reading)}</Td>
-      <Td>{new Date(user.created_at).toLocaleDateString()}</Td>
+      <Td>{formatDateLong(user.created_at)}</Td>
       <Td>{formatPremiumCell(user)}</Td>
     </tr>
   );
@@ -2264,7 +2265,7 @@ function UserDetailPage({
           >
             <RoleBadge role={user.role} />
             <span>
-              Joined {new Date(user.created_at).toLocaleDateString()}
+              Joined {formatDateLong(user.created_at)}
             </span>
             <span>· Last active {formatRelative(user.last_reading)}</span>
           </div>
@@ -2287,8 +2288,8 @@ function UserDetailPage({
                   (exp.getTime() - Date.now()) / 86_400_000,
                 );
                 if (days < 0)
-                  return `Expired on ${exp.toLocaleDateString()}`;
-                return `${exp.toLocaleDateString()} · ${days} day${days === 1 ? "" : "s"} left`;
+                  return `Expired on ${formatDateLong(exp.toISOString())}`;
+                return `${formatDateLong(exp.toISOString())} · ${days} day${days === 1 ? "" : "s"} left`;
               })()}
             />
           )}
@@ -2365,7 +2366,7 @@ function UserDetailPage({
               !user.email
                 ? "—"
                 : user.email_confirmed_at
-                  ? new Date(user.email_confirmed_at).toLocaleDateString()
+                  ? formatDateLong(user.email_confirmed_at)
                   : "no"
             }
           />
@@ -2489,7 +2490,7 @@ function UserDetailPage({
                           "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
                       }}
                     >
-                      {new Date(r.created_at).toLocaleString()}
+                      {formatDateTime(r.created_at)}
                     </span>
                   </li>
                 ))}
@@ -2761,7 +2762,7 @@ function GrantPremiumModal({
           : "Grants Premium starting today."}{" "}
         Expires on{" "}
         <strong style={{ color: "var(--accent, var(--gold))" }}>
-          {expiryDate.toLocaleDateString()}
+          {formatDateLong(expiryDate.toISOString())}
         </strong>
         .
       </p>
@@ -3095,7 +3096,7 @@ function BackupsTab() {
                 key={r.id}
                 style={{ borderBottom: "1px solid var(--border-subtle)" }}
               >
-                <Td>{new Date(r.created_at).toLocaleString()}</Td>
+                <Td>{formatDateTime(r.created_at)}</Td>
                 <Td>{fmtSize(r.size_bytes)}</Td>
                 <Td>{r.status}</Td>
                 <Td>
@@ -3336,7 +3337,7 @@ function AuditTab() {
                   key={r.id}
                   style={{ borderBottom: "1px solid var(--border-subtle)" }}
                 >
-                  <Td>{new Date(r.created_at).toLocaleString()}</Td>
+                  <Td>{formatDateTime(r.created_at)}</Td>
                   <Td>{r.admin_email ?? "—"}</Td>
                   <Td>{auditActionLabel(r.action)}</Td>
                   <Td>{r.target_email ?? "—"}</Td>
@@ -3534,7 +3535,7 @@ function HistoryModal({
                     "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
                 }}
               >
-                {new Date(r.created_at).toLocaleString()}
+                {formatDateTime(r.created_at)}
               </span>
             </li>
           ))}
