@@ -855,6 +855,22 @@ export function PerCardEditModal({
                   <span className="w-8 text-right text-xs tabular-nums">
                     {radius}%
                   </span>
+                  {zoom > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setZoom(1);
+                        setPan({ x: 0, y: 0 });
+                      }}
+                      className="text-xs italic underline-offset-4 hover:underline"
+                      style={{
+                        color: "var(--color-foreground)",
+                        opacity: 0.6,
+                      }}
+                    >
+                      Reset zoom
+                    </button>
+                  ) : null}
                 </div>
 
                 <div className="flex flex-wrap items-center justify-end gap-2">
