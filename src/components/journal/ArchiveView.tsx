@@ -28,6 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { EmptyHero } from "@/components/ui/empty-hero";
 import { spreadLabelOf } from "./archive-helpers";
 
 type ArchivedRow = {
@@ -118,13 +119,10 @@ export function ArchiveView({
 
   if (rows.length === 0) {
     return (
-      <p
-        className="mx-auto mt-16 max-w-sm text-center font-display text-[14px] italic text-muted-foreground"
-        style={{ opacity: "var(--ro-plus-20)" }}
-      >
-        Nothing here. Archived readings appear here for 30 days before
-        they&rsquo;re permanently deleted.
-      </p>
+      <EmptyHero
+        title="Nothing here."
+        subtitle="Archived readings appear here for 30 days before they’re permanently deleted."
+      />
     );
   }
 

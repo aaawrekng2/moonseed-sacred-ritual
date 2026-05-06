@@ -13,6 +13,7 @@ import { useScrollCollapse } from "@/lib/use-scroll-collapse";
 import { ReadingRow } from "@/components/ui/reading-row";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { LoadingText } from "@/components/ui/loading-text";
+import { EmptyHero } from "@/components/ui/empty-hero";
 import {
   ReactFlow,
   Background,
@@ -404,17 +405,10 @@ function ActiveView({
 }) {
   if (patterns.length === 0) {
     return (
-      <p
-        style={{
-          fontStyle: "italic",
-          color: "var(--color-foreground)",
-          opacity: 0.5,
-          textAlign: "center",
-          padding: "var(--space-6, 32px) 0",
-        }}
-      >
-        No active patterns yet. Keep drawing — they emerge in their own time.
-      </p>
+      <EmptyHero
+        title="No active stories yet."
+        subtitle="Keep drawing — they emerge in their own time."
+      />
     );
   }
   return (
@@ -608,8 +602,8 @@ function WeavesView({
         }}
       >
         {weaves.length === 0
-          ? "Patterns gathering — no weaves yet."
-          : `${weaves.length} weave${weaves.length === 1 ? "" : "s"} between your patterns.`}
+          ? "Stories gathering — no weaves yet."
+          : `${weaves.length} weave${weaves.length === 1 ? "" : "s"} between your stories.`}
       </p>
       <div
         style={{
@@ -649,19 +643,7 @@ function ArchiveView({
   onOpenReading: (readingId: string) => void;
 }) {
   if (patterns.length === 0) {
-    return (
-      <p
-        style={{
-          fontStyle: "italic",
-          color: "var(--color-foreground)",
-          opacity: 0.4,
-          textAlign: "center",
-          padding: "var(--space-6, 32px) 0",
-        }}
-      >
-        Nothing has quieted yet.
-      </p>
-    );
+    return <EmptyHero title="Nothing has quieted yet." />;
   }
   return (
     <ul
