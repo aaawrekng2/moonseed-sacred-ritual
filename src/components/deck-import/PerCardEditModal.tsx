@@ -63,6 +63,9 @@ type Props = {
   deckId: string;
   deckName: string;
   defaultRadiusPercent: number;
+  /** 9-5-D — open the modal scrolled to a specific card if provided
+   *  AND that card is in the photographed list. */
+  initialCardId?: number;
   onClose: () => void;
 };
 
@@ -70,6 +73,7 @@ export function PerCardEditModal({
   deckId,
   deckName,
   defaultRadiusPercent,
+  initialCardId,
   onClose,
 }: Props) {
   const confirm = useConfirm();
@@ -209,9 +213,13 @@ export function PerCardEditModal({
             : prev,
         );
         if (photographed.length > 0) {
-          const first = photographed[0].card_id;
-          setActiveCardId(first);
-          setRadius(sr[first] ?? defaultRadiusPercent);
+          const targetId =
+            initialCardId !== undefined &&
+            photographed.some((c) => c.card_id === initialCardId)
+              ? initialCardId
+              : photographed[0].card_id;
+          setActiveCardId(targetId);
+          setRadius(sr[targetId] ?? defaultRadiusPercent);
         }
       } catch (err) {
         console.error("[FD-2] failed to load deck cards", err);
@@ -221,7 +229,7 @@ export function PerCardEditModal({
     return () => {
       cancelled = true;
     };
-  }, [deckId, defaultRadiusPercent]);
+  }, [deckId, defaultRadiusPercent, initialCardId]);
 
   const activeUrl = useMemo(
     () => (activeCardId !== null ? signedUrls[activeCardId] ?? null : null),
