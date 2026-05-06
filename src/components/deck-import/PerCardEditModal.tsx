@@ -1235,11 +1235,33 @@ function CropHandles({
 }) {
   const [, force] = useState(0);
 
-  // Re-measure offset on each render (cheap; layout-stable).
+  // 9-5-E — stabilize bounding-rect reads. Reading getBoundingClientRect()
+  // in the render body caused handles to "snap back" mid-drag because each
+  // parent re-render produced subtly different rects. Cache rects in refs
+  // and refresh them only via useLayoutEffect / ResizeObserver.
+  const wrapRectRef = useRef<DOMRect | null>(null);
+  const imgRectRef = useRef<DOMRect | null>(null);
+
+  useLayoutEffect(() => {
+    const wrap = imgEl.parentElement;
+    if (!wrap) return;
+    const measure = () => {
+      wrapRectRef.current = wrap.getBoundingClientRect();
+      imgRectRef.current = imgEl.getBoundingClientRect();
+      force((n) => n + 1);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(wrap);
+    ro.observe(imgEl);
+    return () => ro.disconnect();
+  }, [imgEl]);
+
   const wrap = imgEl.parentElement;
   if (!wrap) return null;
-  const wrapRect = wrap.getBoundingClientRect();
-  const imgRect = imgEl.getBoundingClientRect();
+  const wrapRect = wrapRectRef.current;
+  const imgRect = imgRectRef.current;
+  if (!wrapRect || !imgRect) return null;
   const offX = imgRect.left - wrapRect.left;
   const offY = imgRect.top - wrapRect.top;
 
@@ -1324,12 +1346,14 @@ function CropHandles({
           // FK-3 — bigger hit target (h-8 w-8 = 32px) and z-20 so
           // pointerdown reaches the handle even when other layers
           // (slider, IMG, polygon) sit underneath.
+          // 9-5-E — shrink to 20px on desktop (sm:) where pointer precision
+          // matters more than touch target size.
           <div
             key={k}
             role="slider"
             aria-label={`Crop ${k} handle`}
             onPointerDown={(e) => startDrag(e, k)}
-            className="absolute z-20 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-gold bg-background/90 shadow-md cursor-grab active:cursor-grabbing touch-none"
+            className="absolute z-20 h-8 w-8 sm:h-5 sm:w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-gold bg-background/90 shadow-md cursor-grab active:cursor-grabbing touch-none"
             style={{
               left: offX + p.x,
               top: offY + p.y,
