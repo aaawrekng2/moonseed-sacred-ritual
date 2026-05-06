@@ -1035,6 +1035,51 @@ export function PerCardEditModal({
                     )}
                   </button>
                 </div>
+
+                {batchProgress && (
+                  <div
+                    className="mt-3 rounded-md border p-3"
+                    style={{
+                      borderColor: "var(--border-subtle)",
+                      background: "var(--surface-card)",
+                    }}
+                  >
+                    <div
+                      className="mb-2 flex items-center justify-between"
+                      style={{
+                        fontSize: "var(--text-body-sm)",
+                        color: "var(--color-foreground)",
+                      }}
+                    >
+                      <span>Processing cards…</span>
+                      <span style={{ opacity: 0.7 }}>
+                        {batchProgress.done} / {batchProgress.total}
+                      </span>
+                    </div>
+                    <div
+                      className="h-1.5 w-full overflow-hidden rounded-full"
+                      style={{ background: "var(--border-subtle)" }}
+                    >
+                      <div
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{
+                          width: `${Math.round((batchProgress.done / batchProgress.total) * 100)}%`,
+                          background: "var(--accent)",
+                        }}
+                      />
+                    </div>
+                    <p
+                      className="mt-1.5"
+                      style={{
+                        fontSize: "var(--text-caption)",
+                        color: "var(--color-foreground)",
+                        opacity: 0.6,
+                      }}
+                    >
+                      {batchProgress.total - batchProgress.done} remaining
+                    </p>
+                  </div>
+                )}
               </>
             )}
           </section>
@@ -1096,7 +1141,7 @@ export function PerCardEditModal({
         open={applyDialogOpen}
         onOpenChange={(o) => { if (!o) setApplyDialogOpen(false); }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent style={{ zIndex: 300 }}>
           <AlertDialogHeader>
             <AlertDialogTitle>Apply settings to which cards?</AlertDialogTitle>
             <AlertDialogDescription>
