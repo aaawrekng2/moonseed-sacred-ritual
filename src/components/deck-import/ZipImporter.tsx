@@ -2318,11 +2318,15 @@ function ZoomModal({
             <button
               type="button"
               onClick={onReassign}
-              className="rounded-md px-4 py-2 font-medium"
               style={{
-                background: "var(--accent)",
-                color: "var(--accent-foreground, #000)",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
                 fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "4px 8px",
               }}
             >
               Reassign to different card
@@ -2330,8 +2334,16 @@ function ZoomModal({
             <button
               type="button"
               onClick={onSendBackToUnassigned}
-              className="rounded-md px-4 py-2"
-              style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "4px 8px",
+              }}
             >
               Send back to unassigned
             </button>
