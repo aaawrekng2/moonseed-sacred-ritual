@@ -381,6 +381,7 @@ export function ZipImporter({
         const sorted = [...names].sort((a, b) =>
           a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
         );
+        const assetStore = ensureAssetStore(session);
         sorted.forEach((name, idx) => {
           const key = filenameToKey.get(name);
           if (!key) return;
@@ -391,6 +392,7 @@ export function ZipImporter({
             const meta = oracleMeta.get(stem);
             img.oracleName = meta?.name ?? oracleNameFromFilename(name);
             img.oracleDescription = meta?.description ?? "";
+            assetStore[key] = img;
           }
           session.assigned[String(cardId)] = key;
           // Move out of unassigned — oracle has no slot picker.
