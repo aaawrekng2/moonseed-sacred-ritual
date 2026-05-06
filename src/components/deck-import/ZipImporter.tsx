@@ -55,7 +55,6 @@ import {
   getSnapshot,
   restoreSnapshot,
 } from "@/lib/import-snapshot";
-import { CornerRadiusSlider } from "./CornerRadiusSlider";
 import { PerCardEditModal } from "./PerCardEditModal";
 
 const ZIP_MAX_BYTES = 20 * 1024 * 1024;
