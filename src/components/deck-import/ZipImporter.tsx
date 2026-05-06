@@ -1492,8 +1492,7 @@ function Workspace({
       {/* BN Fix 1 — Edit / 4-corner crop refine overlay */}
       {editing && (() => {
         const img = findImage(session, editing.imageKey);
-        if (!img || img.existingUrl) {
-          // Can't refine an EXISTING:* synthetic — close.
+        if (!img) {
           setEditing(null);
           return null;
         }
@@ -1519,6 +1518,17 @@ function Workspace({
           </div>
         );
       })()}
+
+      {/* 9-5-D — PerCardEditModal for EXISTING (saved) card edits */}
+      {editingExistingCardId !== null && (
+        <PerCardEditModal
+          deckId={deckId}
+          deckName={deckName ?? ""}
+          defaultRadiusPercent={liveRadius}
+          initialCardId={editingExistingCardId}
+          onClose={() => setEditingExistingCardId(null)}
+        />
+      )}
 
       {/* BN Fix 2 — inline picker for assigning to a default slot */}
       {defaultPickerCardId !== null && (
