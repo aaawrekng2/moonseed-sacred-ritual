@@ -1202,6 +1202,23 @@ button:focus-visible .moon-rung-glow {
   --z-toast: 300;
 }
 
+/* FU-12 — canonical tab strip tokens. Consumed by Insights,
+ * Journal, Threads, and Settings tab strips so all four routes
+ * use one source of truth for sizing / case / color / opacity.
+ * Update these to change the pattern app-wide.
+ */
+:root {
+  --tab-font-family: var(--font-display, var(--font-serif));
+  --tab-font-style: italic;
+  --tab-font-size: 13px;
+  --tab-text-transform: none;
+  --tab-letter-spacing: normal;
+  --tab-active-color: var(--accent, var(--gold));
+  --tab-inactive-opacity: var(--ro-plus-10, 0.55);
+  --tab-active-opacity: var(--ro-plus-40, 1);
+  --tab-underline-color: color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent);
+}
+
 /* DA — Hide scrollbar on swipeable journal thumbnail strips. */
 .journal-thumb-strip::-webkit-scrollbar { display: none; }
 
