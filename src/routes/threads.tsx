@@ -204,6 +204,20 @@ function ThreadsPage() {
           padding: "var(--space-4, 16px)",
         }}
       >
+        {/* FU-8 — Large title at top of content (iOS large-to-compact pattern) */}
+        <h1
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-display, 32px)",
+            color: "var(--color-foreground)",
+            opacity: 0.9,
+            lineHeight: 1.1,
+            margin: "0 0 var(--space-4, 16px) 0",
+          }}
+        >
+          Stories
+        </h1>
         {loading ? (
           <p style={{ opacity: 0.5, fontStyle: "italic" }}>Listening for threads…</p>
         ) : view === "active" ? (
