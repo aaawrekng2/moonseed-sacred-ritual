@@ -108,6 +108,27 @@ export function PerCardEditModal({
   const imgRef = useRef<HTMLImageElement | null>(null);
   const previewWrapRef = useRef<HTMLDivElement | null>(null);
 
+  // Phase 9.5a — zoom/pan transform applied to the preview IMG.
+  // zoom is a multiplier (1 = native fit-to-viewport size). pan is
+  // pixel offset in screen space, applied as a CSS translate before
+  // the scale. Reset on card change so each card opens at 1.0/0,0.
+  const [zoom, setZoom] = useState<number>(1);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchStartRef = useRef<
+    | {
+        dist: number;
+        mid: { x: number; y: number };
+        zoom: number;
+        pan: { x: number; y: number };
+      }
+    | null
+  >(null);
+  const panStartRef = useRef<
+    | { pointer: { x: number; y: number }; pan: { x: number; y: number } }
+    | null
+  >(null);
+
   // Load card list + per-card radii.
   useEffect(() => {
     let cancelled = false;
