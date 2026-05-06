@@ -536,6 +536,7 @@ export function PerCardEditModal({
           console.warn(`[FJ-1] card ${c.card_id} threw`, e);
         }
         done++;
+        setBatchProgress({ done, total: targetCount });
       }
 
       // Re-fetch saved state from DB so UI reflects reality.
@@ -594,6 +595,7 @@ export function PerCardEditModal({
       }
     } finally {
       setBatchAbort(null);
+      setBatchProgress(null);
     }
   }
 
