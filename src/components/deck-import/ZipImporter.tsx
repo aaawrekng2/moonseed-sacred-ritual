@@ -56,6 +56,7 @@ import {
   restoreSnapshot,
 } from "@/lib/import-snapshot";
 import { CornerRadiusSlider } from "./CornerRadiusSlider";
+import { PerCardEditModal } from "./PerCardEditModal";
 
 const ZIP_MAX_BYTES = 20 * 1024 * 1024;
 const VALID_EXT = /\.(png|jpe?g|webp|gif)$/i;
@@ -94,6 +95,7 @@ export function ZipImporter({
   initialPhase,
   deckName,
   existingCornerRadiusPx = null,
+  onRadiusSaved,
 }: {
   userId: string;
   deckId: string;
@@ -113,6 +115,9 @@ export function ZipImporter({
   deckName?: string | null;
   /** DX — saved per-deck corner radius in px (null = app default). */
   existingCornerRadiusPx?: number | null;
+  /** 9-5-D — bubble slider saves up so parent can pass the new value
+   *  back into both ZipImporter and PerCardEditModal. */
+  onRadiusSaved?: (next: number) => void;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
@@ -691,6 +696,7 @@ export function ZipImporter({
         onSwitchToUpload={() => setPhase({ kind: "upload", resumable: false })}
         deckId={deckId}
         existingCornerRadiusPx={existingCornerRadiusPx}
+        onRadiusSaved={onRadiusSaved}
       />
     );
 
@@ -929,6 +935,7 @@ function Workspace({
   onSwitchToUpload,
   deckId,
   existingCornerRadiusPx,
+  onRadiusSaved,
 }: {
   session: ImportSession;
   onAssign: (imageKey: string, cardId: number | "BACK") => void;
@@ -951,12 +958,18 @@ function Workspace({
   onSwitchToUpload: () => void;
   deckId: string;
   existingCornerRadiusPx: number | null;
+  onRadiusSaved?: (next: number) => void;
 }) {
   const [tab, setTab] = useState<Tab>(entryMode === "edit" ? "assigned" : "unassigned");
-  // 9-5-C — live corner-radius state so CornerRadiusSlider's onSaved
-  // updates the ZoomModal preview immediately, without page reload.
-  const [liveRadius, setLiveRadius] = useState<number>(cornerRadiusPercent);
-  useEffect(() => { setLiveRadius(cornerRadiusPercent); }, [cornerRadiusPercent]);
+  // 9-5-D — liveRadius is now lifted to WorkspaceWithCornerEditor.
+  // We just consume cornerRadiusPercent as the live value and bubble
+  // saves up via onRadiusSaved.
+  const liveRadius = cornerRadiusPercent;
+  // 9-5-D — when the user taps Edit on an EXISTING card in the zoom
+  // modal, route them to PerCardEditModal (which loads the saved
+  // image from storage) rather than PhotoCapture (which needs a raw
+  // blob that doesn't exist for saved cards).
+  const [editingExistingCardId, setEditingExistingCardId] = useState<number | null>(null);
   // Zoom modal context: which image, opened from which filter view.
   const [zoom, setZoom] = useState<
     | null
@@ -1298,7 +1311,7 @@ function Workspace({
         <CornerRadiusSlider
           deckId={deckId}
           initial={existingCornerRadiusPx}
-          onSaved={(next) => setLiveRadius(next)}
+          onSaved={(next) => onRadiusSaved?.(next)}
         />
       )}
 
@@ -1402,16 +1415,24 @@ function Workspace({
           context={zoom.from}
           canUseAsBack={zoom.from === "unassigned" && !hasBack}
           canEdit={
-            // EXISTING markers have no real raw blob to refine.
-            !zoom.imageKey.startsWith("EXISTING:")
+            // 9-5-D — Edit is shown for all cards in edit mode (EXISTING
+            // cards route to PerCardEditModal). In import mode, only raw
+            // blobs (non-EXISTING) can be refined.
+            entryMode === "edit" || !zoom.imageKey.startsWith("EXISTING:")
           }
           shape={shape}
           cornerRadiusPercent={liveRadius}
           onBack={() => setZoom(null)}
           onEdit={() => {
             const ctx = zoom;
-            setZoom(null);
-            setEditing({ imageKey: ctx.imageKey, previousZoom: ctx });
+            if (ctx.imageKey.startsWith("EXISTING:")) {
+              const cardId = parseInt(ctx.imageKey.replace("EXISTING:", ""), 10);
+              setZoom(null);
+              if (Number.isFinite(cardId)) setEditingExistingCardId(cardId);
+            } else {
+              setZoom(null);
+              setEditing({ imageKey: ctx.imageKey, previousZoom: ctx });
+            }
           }}
           onPickCard={() => {
             const ctx = zoom;
@@ -1471,8 +1492,7 @@ function Workspace({
       {/* BN Fix 1 — Edit / 4-corner crop refine overlay */}
       {editing && (() => {
         const img = findImage(session, editing.imageKey);
-        if (!img || img.existingUrl) {
-          // Can't refine an EXISTING:* synthetic — close.
+        if (!img) {
           setEditing(null);
           return null;
         }
@@ -1498,6 +1518,17 @@ function Workspace({
           </div>
         );
       })()}
+
+      {/* 9-5-D — PerCardEditModal for EXISTING (saved) card edits */}
+      {editingExistingCardId !== null && (
+        <PerCardEditModal
+          deckId={deckId}
+          deckName={deckName ?? ""}
+          defaultRadiusPercent={liveRadius}
+          initialCardId={editingExistingCardId}
+          onClose={() => setEditingExistingCardId(null)}
+        />
+      )}
 
       {/* BN Fix 2 — inline picker for assigning to a default slot */}
       {defaultPickerCardId !== null && (
