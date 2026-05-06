@@ -641,9 +641,11 @@ function WeavesView({
 function ArchiveView({
   patterns,
   readingsByPattern,
+  onOpenReading,
 }: {
   patterns: Pattern[];
   readingsByPattern: Map<string, PatternReading[]>;
+  onOpenReading: (readingId: string) => void;
 }) {
   if (patterns.length === 0) {
     return (
@@ -673,7 +675,11 @@ function ArchiveView({
     >
       {patterns.map((p) => (
         <li key={p.id}>
-          <PatternCard pattern={p} readings={readingsByPattern.get(p.id) ?? []} />
+          <PatternCard
+            pattern={p}
+            readings={readingsByPattern.get(p.id) ?? []}
+            onOpenReading={onOpenReading}
+          />
         </li>
       ))}
     </ul>
