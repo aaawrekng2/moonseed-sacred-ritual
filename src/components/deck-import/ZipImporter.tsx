@@ -60,6 +60,48 @@ import { PerCardEditModal } from "./PerCardEditModal";
 
 const ZIP_MAX_BYTES = 20 * 1024 * 1024;
 const VALID_EXT = /\.(png|jpe?g|webp|gif)$/i;
+/** 9-6-A — oracle card_id base. Sits well above tarot's 0–77 range. */
+const ORACLE_ID_BASE = 1000;
+
+/** 9-6-A — Parse a sidecar CSV (filename,name,description) bundled in
+ *  an oracle deck zip. Header order is flexible; matching is by lower-
+ *  cased filename stem (no extension). */
+function parseCsvMetadata(
+  csvText: string,
+): Map<string, { name: string; description: string }> {
+  const lines = csvText.trim().split(/\r?\n/);
+  if (lines.length < 2) return new Map();
+  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  const fiIdx = headers.indexOf("filename");
+  const nameIdx = headers.indexOf("name");
+  const descIdx = headers.indexOf("description");
+  const map = new Map<string, { name: string; description: string }>();
+  if (fiIdx < 0) return map;
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i]
+      .split(",")
+      .map((c) => c.trim().replace(/^"|"$/g, ""));
+    const filenameRaw = cols[fiIdx] ?? "";
+    const stem = filenameRaw.replace(/\.[^.]+$/, "").toLowerCase();
+    if (!stem) continue;
+    map.set(stem, {
+      name: nameIdx >= 0 ? cols[nameIdx] ?? filenameRaw : filenameRaw,
+      description: descIdx >= 0 ? cols[descIdx] ?? "" : "",
+    });
+  }
+  return map;
+}
+
+/** Default oracle name from a filename: stem with separators replaced
+ *  by spaces, title-cased. */
+function oracleNameFromFilename(filename: string): string {
+  const stem = filename.replace(/\.[^.]+$/, "");
+  const cleaned = stem.replace(/[_\-]+/g, " ").trim();
+  return cleaned
+    .split(/\s+/)
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : ""))
+    .join(" ");
+}
 
 type Phase =
   | { kind: "loading" }
