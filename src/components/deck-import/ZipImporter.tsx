@@ -343,8 +343,20 @@ export function ZipImporter({
       });
       const session = makeEmptySession(deckId);
       const rawByName = new Map<string, Blob>();
+      // 9-6-A — collect optional sidecar CSV for oracle metadata.
+      let oracleMeta: Map<string, { name: string; description: string }> =
+        new Map();
       for (const entry of entries) {
         const base = entry.name.split("/").pop() ?? entry.name;
+        if (deckType === "oracle" && /\.csv$/i.test(base)) {
+          try {
+            const text = await entry.async("string");
+            oracleMeta = parseCsvMetadata(text);
+          } catch {
+            /* non-fatal */
+          }
+          continue;
+        }
         if (!VALID_EXT.test(base)) continue;
         const blob = await entry.async("blob");
         rawByName.set(base, blob);
@@ -355,8 +367,6 @@ export function ZipImporter({
         return;
       }
       const names = Array.from(rawByName.keys());
-      const match = matchFilenames(names);
-      // Auto-assign matched cards.
       const filenameToKey = new Map<string, string>();
       for (const [name, blob] of rawByName) {
         const key = await computeImageKey(name, blob);
@@ -364,23 +374,48 @@ export function ZipImporter({
         const img = await makeImportImage(key, name, blob);
         session.unassigned[key] = img;
       }
-      for (const [filename, cardId] of match.assignments) {
-        const key = filenameToKey.get(filename);
-        if (!key) continue;
-        session.assigned[String(cardId)] = key;
-      }
-      if (match.cardBackFile) {
-        const key = filenameToKey.get(match.cardBackFile);
-        if (key) session.assigned[BACK_KEY] = key;
-      }
-      // Auto-detect any "back*"-named files even if matcher missed them.
-      if (!session.assigned[BACK_KEY]) {
-        for (const name of names) {
-          if (isCardBackFilename(name)) {
-            const k = filenameToKey.get(name);
-            if (k) {
-              session.assigned[BACK_KEY] = k;
-              break;
+      if (deckType === "oracle") {
+        // 9-6-A — Oracle: skip the matcher. Sort alphabetically and
+        // assign sequential IDs starting at ORACLE_ID_BASE. All images
+        // land directly in `assigned`.
+        const sorted = [...names].sort((a, b) =>
+          a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+        );
+        sorted.forEach((name, idx) => {
+          const key = filenameToKey.get(name);
+          if (!key) return;
+          const cardId = ORACLE_ID_BASE + idx;
+          const img = session.unassigned[key];
+          if (img) {
+            const stem = name.replace(/\.[^.]+$/, "").toLowerCase();
+            const meta = oracleMeta.get(stem);
+            img.oracleName = meta?.name ?? oracleNameFromFilename(name);
+            img.oracleDescription = meta?.description ?? "";
+          }
+          session.assigned[String(cardId)] = key;
+          // Move out of unassigned — oracle has no slot picker.
+          delete session.unassigned[key];
+        });
+      } else {
+        const match = matchFilenames(names);
+        for (const [filename, cardId] of match.assignments) {
+          const key = filenameToKey.get(filename);
+          if (!key) continue;
+          session.assigned[String(cardId)] = key;
+        }
+        if (match.cardBackFile) {
+          const key = filenameToKey.get(match.cardBackFile);
+          if (key) session.assigned[BACK_KEY] = key;
+        }
+        // Auto-detect any "back*"-named files even if matcher missed them.
+        if (!session.assigned[BACK_KEY]) {
+          for (const name of names) {
+            if (isCardBackFilename(name)) {
+              const k = filenameToKey.get(name);
+              if (k) {
+                session.assigned[BACK_KEY] = k;
+                break;
+              }
             }
           }
         }
@@ -418,7 +453,7 @@ export function ZipImporter({
       toast.error("Couldn't read that zip.");
       setPhase({ kind: "upload", resumable: false });
     }
-  }, [deckId, shape, cornerRadiusPercent, entryMode]);
+  }, [deckId, shape, cornerRadiusPercent, entryMode, deckType]);
 
   /* ---------- Mutators ---------- */
   /**
