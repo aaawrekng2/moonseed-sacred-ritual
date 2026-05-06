@@ -52,7 +52,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={confirm}>
       {children}
       <AlertDialog open={!!state} onOpenChange={(o) => { if (!o) close(false); }}>
-        <AlertDialogContent style={{ zIndex: "var(--z-modal-nested, 300)" }}>
+        <AlertDialogContent style={{ zIndex: 300 }}>
           <AlertDialogHeader>
             <AlertDialogTitle>{state?.opts.title}</AlertDialogTitle>
             {state?.opts.description && (

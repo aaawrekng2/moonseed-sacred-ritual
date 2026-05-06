@@ -12,7 +12,7 @@
  * success the IMG src is bumped with a cache-buster so the new
  * rounded `-full.webp` shows immediately.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,6 +89,11 @@ export function PerCardEditModal({
   const [bulkBusy, setBulkBusy] = useState(false);
   // FJ-1 — abort controller for batch processing (Cancel button).
   const [batchAbort, setBatchAbort] = useState<AbortController | null>(null);
+  // 9-5-E — inline batch progress UI (replaces toast.loading per-card spam).
+  const [batchProgress, setBatchProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   // FI-3 — choice dialog state for "Apply to all".
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [applyScope, setApplyScope] = useState<"unsaved" | "all">("unsaved");
@@ -469,16 +474,13 @@ export function PerCardEditModal({
         },
       },
     });
+    // 9-5-E — drive inline progress bar.
+    setBatchProgress({ done: 0, total: targetCount });
 
     try {
       for (let i = 0; i < targets.length; i++) {
         if (cancelled) break;
         const c = targets[i];
-
-        toast.loading(
-          `Processing ${i + 1}/${targetCount} (${getCardName(c.card_id)})…`,
-          { id: progressId },
-        );
 
         const timeoutController = new AbortController();
         const timeoutId = setTimeout(() => timeoutController.abort(), 60000);
