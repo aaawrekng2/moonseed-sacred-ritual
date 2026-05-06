@@ -1839,10 +1839,20 @@ function AssignedGrid({
     { id: "swords", label: "Swords" },
     { id: "pentacles", label: "Pentacles" },
   ];
+  // 9-6-A — Oracle decks render only their assigned slots in numeric
+  // order; there's no fixed 78-slot grid and no suit chips.
+  const oracleSlotIds = useMemo(() => {
+    if (deckType !== "oracle") return [] as number[];
+    return Object.keys(session.assigned)
+      .filter((s) => s !== BACK_KEY)
+      .map((s) => Number(s))
+      .filter((n) => Number.isFinite(n))
+      .sort((a, b) => a - b);
+  }, [session.assigned, deckType]);
   return (
     <>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        {SUIT_CHIPS.map((c) => (
+        {deckType === "tarot" && SUIT_CHIPS.map((c) => (
           <Chip
             key={c.id}
             active={suitFilter === c.id}
