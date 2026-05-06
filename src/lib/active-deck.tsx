@@ -165,7 +165,7 @@ export function useActiveCardBackUrl(): string | null {
  * DX/DY — Per-deck CSS corner radius for the active deck. The stored
  * integer is now a PERCENTAGE (0–15, 0%-15%) rather than pixels —
  * percentage scales proportionally across all card sizes. Returns null
- * if the seeker has no override saved. Pair with {@link cornerRadiusStyle}.
+ * if the seeker has no override saved.
  */
 export function useActiveDeckCornerRadius(): number | null {
   const { imageMap } = useActiveDeck();
@@ -261,40 +261,6 @@ export function useDeckCornerRadius(deckId: string | null | undefined): number |
   }, [deckId]);
 
   return value;
-}
-
-/**
- * DZ-1 — Inline CSS for applying a saved deck corner radius.
- *
- * Storage is a PERCENTAGE (0–15) interpreted as a fraction of the card
- * WIDTH. To produce TRUE CIRCULAR corners on a non-square rectangle we
- * use CSS's "X% / Y%" border-radius syntax (horizontal radius is % of
- * width, vertical radius is % of height). For a tarot card with aspect
- * ratio W/H ≈ 0.583, the vertical % must be radiusPercent / aspect to
- * match the same pixel radius on both axes.
- *
- * Callers may pass a `widthPx` (when known) to switch to an exact pixel
- * value, or override the default tarot aspect via `aspect` (W/H) for
- * non-standard card shapes (square, round, etc.).
- */
-/**
- * EE-1 — Pixel-only border-radius. Asymmetric % fallback removed because
- * rendered card containers have varying aspect ratios (gallery
- * aspect-square, padded slots, share canvases) that don't always match
- * the assumed tarot aspect — producing elliptical corners. If widthPx
- * isn't provided or is 0 (initial render before measurement), returns
- * an empty object: no radius is applied for that frame, and subsequent
- * renders with a measured widthPx will paint the radius cleanly.
- */
-// FN-1 — No CSS rounding. Per the FD architecture, rounding is baked
-// into the image file at process time, not applied in CSS. Returning
-// {} preserves every call site as a no-op. If a card hasn't been
-// processed yet, it renders as a rectangle (the original scan).
-export function cornerRadiusStyle(
-  _radiusPercent: number | null,
-  _widthPx?: number | null,
-): { borderRadius?: string } {
-  return {};
 }
 
 /**
