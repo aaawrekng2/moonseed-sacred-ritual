@@ -250,6 +250,10 @@ export function PerCardEditModal({
     setRenderedDims(null);
     // FI-2 — clear crop until imgDims arrive; we'll hydrate then.
     setCrop(null);
+    // Phase 9.5a — reset zoom/pan when switching cards so each card
+    // opens at native fit-to-viewport size with no offset.
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
   }, [activeCardId]);
 
   // FI-2 — hydrate crop from saved coords (or default rect) once we
