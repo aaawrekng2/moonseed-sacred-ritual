@@ -935,6 +935,7 @@ function Workspace({
   onSwitchToUpload,
   deckId,
   existingCornerRadiusPx,
+  onRadiusSaved,
 }: {
   session: ImportSession;
   onAssign: (imageKey: string, cardId: number | "BACK") => void;
