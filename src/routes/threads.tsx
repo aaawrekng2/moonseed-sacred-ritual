@@ -10,6 +10,7 @@ import {
 import { firstCardName, formatRelativeTime } from "@/lib/utils";
 import { BottomNav } from "@/components/nav/BottomNav";
 import { HelpIcon } from "@/components/help/HelpIcon";
+import { useScrollCollapse } from "@/lib/use-scroll-collapse";
 import {
   ReactFlow,
   Background,
@@ -64,6 +65,8 @@ type PatternReading = {
 function ThreadsPage() {
   const { user } = useAuth();
   const [view, setView] = useState<View>("active");
+  // FU-8 — iOS large-to-compact title collapse (window scroll).
+  const collapseProgress = useScrollCollapse(undefined, 40);
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [readings, setReadings] = useState<PatternReading[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,10 +143,11 @@ function ThreadsPage() {
             style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: "var(--text-heading-lg)",
+              fontSize: "var(--text-heading-sm)",
               color: "var(--color-foreground)",
-              opacity: 0.9,
+              opacity: 0.9 * collapseProgress,
               margin: 0,
+              transition: "opacity 150ms ease-out",
             }}
           >
             Stories
@@ -200,6 +204,20 @@ function ThreadsPage() {
           padding: "var(--space-4, 16px)",
         }}
       >
+        {/* FU-8 — Large title at top of content (iOS large-to-compact pattern) */}
+        <h1
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-display, 32px)",
+            color: "var(--color-foreground)",
+            opacity: 0.9,
+            lineHeight: 1.1,
+            margin: "0 0 var(--space-4, 16px) 0",
+          }}
+        >
+          Stories
+        </h1>
         {loading ? (
           <p style={{ opacity: 0.5, fontStyle: "italic" }}>Listening for threads…</p>
         ) : view === "active" ? (

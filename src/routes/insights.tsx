@@ -1,8 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/nav/BottomNav";
+import { HorizontalScroll } from "@/components/HorizontalScroll";
+import { useScrollCollapse } from "@/lib/use-scroll-collapse";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
 import {
   EMPTY_GLOBAL_FILTERS,
@@ -70,6 +72,8 @@ function InsightsRoute() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("overview");
   const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
+  const scrollRef = useRef<HTMLElement | null>(null);
+  const collapseProgress = useScrollCollapse(scrollRef, 40);
   const [userTags, setUserTags] = useState<
     Array<{ id: string; name: string; usage_count: number }>
   >([]);
@@ -167,9 +171,10 @@ function InsightsRoute() {
           <h1
             className="font-serif italic"
             style={{
-              fontSize: "var(--text-heading-lg)",
+              fontSize: "var(--text-heading-sm)",
               color: "var(--color-foreground)",
-              opacity: 0.9,
+              opacity: 0.9 * collapseProgress,
+              transition: "opacity 150ms ease-out",
             }}
           >
             Insights
@@ -203,7 +208,7 @@ function InsightsRoute() {
           />
         )}
         {/* Tab strip */}
-        <div className="mx-auto flex items-center justify-center gap-6 overflow-x-auto px-4 py-2">
+        <HorizontalScroll className="py-2" contentClassName="items-center gap-6 px-4">
           {TABS.map((t) => {
             const active = tab === t.id;
             return (
@@ -227,10 +232,24 @@ function InsightsRoute() {
               </button>
             );
           })}
-        </div>
+        </HorizontalScroll>
       </div>
 
-      <main className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
+      <main
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 pb-28 pt-4"
+      >
+        <h1
+          className="font-serif italic mb-4"
+          style={{
+            fontSize: "var(--text-display, 32px)",
+            color: "var(--color-foreground)",
+            opacity: 0.9,
+            lineHeight: 1.1,
+          }}
+        >
+          Insights
+        </h1>
         <div className="mx-auto">
           {tab === "overview" && (
             <OverviewTab

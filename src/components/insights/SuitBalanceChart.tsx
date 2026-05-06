@@ -59,8 +59,14 @@ export function SuitBalanceChart({
         }}
       >
         {entries.map((e) => (
-          <div key={e.key} className="capitalize">
-            {e.key} {Math.round(e.value)}%
+          <div
+            key={e.key}
+            className="flex flex-col items-start gap-0.5 capitalize"
+          >
+            <span>{e.key}</span>
+            <span className="tabular-nums" style={{ opacity: 0.8 }}>
+              {Math.round(e.value)}%
+            </span>
           </div>
         ))}
       </div>

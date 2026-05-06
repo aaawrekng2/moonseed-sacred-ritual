@@ -23,6 +23,7 @@ import {
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
+import { useScrollCollapse } from "@/lib/use-scroll-collapse";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CardZoomModal } from "@/components/tabletop/CardZoomModal";
 import { ArchiveView } from "@/components/journal/ArchiveView";
@@ -228,6 +229,9 @@ function JournalPage() {
   const { isOracle } = useOracleMode();
   const { batch: batchParam } = Route.useSearch();
   const navigate = useNavigate();
+  // FU-8 — iOS large-to-compact title collapse driven by main scroll.
+  const scrollRef = useRef<HTMLElement | null>(null);
+  const collapseProgress = useScrollCollapse(scrollRef, 40);
   const [batchMeta, setBatchMeta] = useState<{
     sourceFormat: string;
     createdAt: string;
@@ -589,7 +593,7 @@ function JournalPage() {
 
   return (
     <div className="bg-cosmos relative flex h-dvh">
-    <main className="relative h-dvh flex-1 overflow-y-auto px-5 pb-28">
+    <main ref={scrollRef} className="relative h-dvh flex-1 overflow-y-auto px-5 pb-28">
       {/* Sticky header — title, search, filter button, tab row.
           Stays pinned while the body below scrolls. */}
       <div
@@ -599,9 +603,10 @@ function JournalPage() {
         <h1
           className="font-serif italic"
           style={{
-            fontSize: "var(--text-heading-lg)",
+            fontSize: "var(--text-heading-sm)",
             color: "var(--color-foreground)",
-            opacity: 0.9,
+            opacity: 0.9 * collapseProgress,
+            transition: "opacity 150ms ease-out",
           }}
         >
           Journal
@@ -704,8 +709,21 @@ function JournalPage() {
         <div className="h-3" />
       </div>
 
+      {/* FU-8 — Large title at top of content (iOS large-to-compact pattern) */}
+      <h1
+        className="font-serif italic mt-4 mb-2"
+        style={{
+          fontSize: "var(--text-display, 32px)",
+          color: "var(--color-foreground)",
+          opacity: 0.9,
+          lineHeight: 1.1,
+        }}
+      >
+        Journal
+      </h1>
+
       {/* Body */}
-      <div className="mt-6">
+      <div className="mt-4">
         {batchParam && (
           <div
             className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg px-3 py-2"
@@ -1866,14 +1884,16 @@ function CalendarView({
               onClick={() => onSelectDate(c.key)}
               className={cn(
                 "relative flex aspect-square items-center justify-center rounded-md text-[13px] transition-colors",
-                selected ? "bg-gold/15 text-gold" : "text-foreground",
+                selected
+                  ? "bg-gold/15 text-gold"
+                  : isToday
+                    ? "bg-gold/10 text-gold"
+                    : "text-foreground",
               )}
               style={{
                 border: selected
                   ? "1px solid color-mix(in oklab, var(--gold) 50%, transparent)"
-                  : isToday
-                    ? "1px solid color-mix(in oklab, var(--gold) 25%, transparent)"
-                    : "1px solid transparent",
+                  : "1px solid transparent",
                 opacity: count > 0 ? "var(--ro-plus-30)" : "var(--ro-plus-0)",
               }}
             >
