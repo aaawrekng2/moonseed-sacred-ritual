@@ -2117,6 +2117,7 @@ function OracleRow({
     color: "var(--color-foreground)",
     padding: "4px 0",
     outline: "none",
+    textTransform: "none",
   };
   return (
     <div
@@ -2158,7 +2159,7 @@ function OracleRow({
           rows={2}
           onChange={(e) => setDescription(e.target.value)}
           onBlur={() => void saveOracleCardMeta(deckId, cardId, name, description)}
-          style={{ ...inputBase, resize: "vertical" }}
+          style={{ ...inputBase, resize: "vertical", fontStyle: "italic", textTransform: "none" }}
         />
       </div>
       <button
