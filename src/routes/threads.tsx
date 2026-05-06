@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import {
@@ -184,23 +184,24 @@ function ThreadsPage() {
                   type="button"
                   onClick={() => setView(v)}
                   style={{
-                    fontFamily: "var(--font-display, inherit)",
-                    fontSize: "var(--text-caption)",
-                    letterSpacing: "0.18em",
-                    textTransform: "uppercase",
+                    fontFamily: "var(--tab-font-family)",
+                    fontStyle: "var(--tab-font-style)",
+                    fontSize: "var(--tab-font-size)",
+                    letterSpacing: "var(--tab-letter-spacing)",
+                    textTransform: "var(--tab-text-transform)",
                     background: "none",
                     border: "none",
                     padding: "4px 0",
-                    color: isActive ? "var(--accent, var(--gold))" : "var(--color-foreground)",
-                    opacity: isActive ? 1 : 0.55,
+                    color: isActive ? "var(--tab-active-color)" : "var(--color-foreground)",
+                    opacity: isActive ? "var(--tab-active-opacity)" : "var(--tab-inactive-opacity)",
                     borderBottom: isActive
-                      ? "1px solid var(--accent, var(--gold))"
+                      ? "1px solid var(--tab-underline-color)"
                       : "1px solid transparent",
                     cursor: "pointer",
-                  }}
+                  } as CSSProperties}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  {v}
+                  {v.charAt(0).toUpperCase() + v.slice(1)}
                 </button>
               );
             })}

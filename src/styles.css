@@ -329,20 +329,6 @@ code, pre, kbd {
   padding: 1.25rem;
   backdrop-filter: blur(12px);
 }
-.settings-tabbar {
-  background: var(--background);
-}
-.settings-tab {
-  border: 1px solid transparent;
-  color: var(--muted-foreground);
-  transition: color 300ms ease, background-color 300ms ease, border-color 300ms ease, box-shadow 300ms ease;
-}
-.settings-tab[data-active="true"] {
-  border-color: oklch(0.82 0.14 82 / 0.40);
-  background: oklch(0.82 0.14 82 / 0.12);
-  color: var(--gold);
-  box-shadow: 0 0 22px oklch(0.82 0.14 82 / 0.10);
-}
 
 @keyframes pulse-gold {
   0%, 100% { opacity: 1; transform: scale(1); }
@@ -1200,6 +1186,23 @@ button:focus-visible .moon-rung-glow {
   --z-modal: 100;
   --z-modal-nested: 200;
   --z-toast: 300;
+}
+
+/* FU-12 — canonical tab strip tokens. Consumed by Insights,
+ * Journal, Threads, and Settings tab strips so all four routes
+ * use one source of truth for sizing / case / color / opacity.
+ * Update these to change the pattern app-wide.
+ */
+:root {
+  --tab-font-family: var(--font-display, var(--font-serif));
+  --tab-font-style: italic;
+  --tab-font-size: 13px;
+  --tab-text-transform: none;
+  --tab-letter-spacing: normal;
+  --tab-active-color: var(--accent, var(--gold));
+  --tab-inactive-opacity: var(--ro-plus-10, 0.55);
+  --tab-active-opacity: var(--ro-plus-40, 1);
+  --tab-underline-color: color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent);
 }
 
 /* DA — Hide scrollbar on swipeable journal thumbnail strips. */

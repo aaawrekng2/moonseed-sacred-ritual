@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNav } from "@/components/nav/BottomNav";
@@ -226,15 +226,17 @@ function InsightsRoute() {
                 onClick={() => setTab(t.id)}
                 className="whitespace-nowrap pb-1"
                 style={{
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: "var(--text-caption, 0.75rem)",
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  color: active ? "var(--gold)" : "var(--color-foreground)",
-                  opacity: active ? 1 : 0.55,
-                  borderBottom: active ? "1px solid var(--gold)" : "1px solid transparent",
-                }}
+                  fontFamily: "var(--tab-font-family)",
+                  fontStyle: "var(--tab-font-style)",
+                  fontSize: "var(--tab-font-size)",
+                  letterSpacing: "var(--tab-letter-spacing)",
+                  textTransform: "var(--tab-text-transform)",
+                  color: active ? "var(--tab-active-color)" : "var(--color-foreground)",
+                  opacity: active ? "var(--tab-active-opacity)" : "var(--tab-inactive-opacity)",
+                  borderBottom: active
+                    ? "1px solid var(--tab-underline-color)"
+                    : "1px solid transparent",
+                } as CSSProperties}
               >
                 {t.label}
               </button>

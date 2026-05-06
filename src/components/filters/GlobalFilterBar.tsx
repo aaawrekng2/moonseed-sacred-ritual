@@ -125,7 +125,7 @@ export function GlobalFilterBar({
   return (
     <>
       <div
-        className="mx-auto flex max-w-2xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2"
+        className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2"
         style={{ minHeight: 44 }}
       >
         <button
