@@ -1347,6 +1347,7 @@ function Workspace({
             }
           }}
           onImportZip={onSwitchToUpload}
+          onDone={onCancel}
         />
       )}
       {tab === "skipped" && (
@@ -1658,6 +1659,7 @@ function AssignedGrid({
   entryMode,
   onTapEmpty,
   onImportZip,
+  onDone,
 }: {
   session: ImportSession;
   resolveSrc: (key: string) => string;
@@ -1669,6 +1671,7 @@ function AssignedGrid({
   entryMode: "import" | "edit";
   onTapEmpty: (cardId: number) => void;
   onImportZip: () => void;
+  onDone: () => void;
 }) {
   const backKey = session.assigned[BACK_KEY];
   const backSrc = backKey ? resolveSrc(backKey) : "";
@@ -1728,7 +1731,7 @@ function AssignedGrid({
         )}
         <button
           type="button"
-          onClick={onCancel}
+          onClick={onDone}
           style={{
             fontFamily: "var(--font-serif)",
             fontSize: "var(--text-body-sm)",
