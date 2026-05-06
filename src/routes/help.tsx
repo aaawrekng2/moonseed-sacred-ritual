@@ -6,12 +6,13 @@
  */
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import {
   HELP_ARTICLES,
   HELP_CATEGORIES,
   getArticlesByCategory,
 } from "@/lib/help-articles";
+import { SearchInput } from "@/components/ui/search-input";
 
 export const Route = createFileRoute("/help")({
   component: HelpHub,
@@ -58,27 +59,12 @@ function HelpHub() {
         </h1>
       </div>
 
-      <div
-        className="flex items-center gap-2 rounded-xl px-3 py-2 mb-7"
-        style={{
-          background: "var(--surface-card)",
-          border: "1px solid var(--border-default)",
-        }}
-      >
-        <Search size={14} strokeWidth={1.5} style={{ opacity: 0.5 }} />
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search help"
-          className="flex-1 bg-transparent focus:outline-none"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-body)",
-            color: "var(--foreground)",
-          }}
-        />
-      </div>
+      <SearchInput
+        value={query}
+        onChange={setQuery}
+        placeholder="Search help"
+        className="mb-7"
+      />
 
       {matches ? (
         <section>

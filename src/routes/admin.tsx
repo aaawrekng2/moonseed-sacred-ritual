@@ -56,6 +56,7 @@ import {
 import { setDevMode } from "@/components/dev/DevOverlay";
 import { useConfirm } from "@/hooks/use-confirm";
 import { toast } from "sonner";
+import { SearchInput } from "@/components/ui/search-input";
 
 /**
  * Fetch the current Supabase access token and return a headers object
@@ -1720,21 +1721,13 @@ function UsersTab({
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3">
-        <input
-          type="search"
-          placeholder="Search by email…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 bg-transparent py-2"
-          style={{
-            ...serif,
-            fontSize: "var(--text-body)",
-            color: "var(--foreground)",
-            borderBottom: "1px solid var(--border-subtle)",
-            outline: "none",
-            minWidth: 240,
-          }}
-        />
+        <div className="flex-1" style={{ minWidth: 240 }}>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search by email…"
+          />
+        </div>
         <FilterSelect
           label="Role"
           value={roleFilter}

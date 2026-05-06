@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Search, Sparkles, X as XIcon } from "lucide-react";
+import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Sparkles, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -32,6 +32,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
+import { SearchInput } from "@/components/ui/search-input";
 import {
   EMPTY_GLOBAL_FILTERS,
   type GlobalFilters,
@@ -629,28 +630,12 @@ function JournalPage() {
         </div>
 
       {/* Search */}
-      <div className="mt-2 flex items-center gap-2">
-        <Search
-          size={14}
-          strokeWidth={1.5}
-          className="text-gold"
-          style={{ opacity: "var(--ro-plus-10)" }}
-          aria-hidden
-        />
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={
-            isOracle ? "Search your practice…" : "Search readings…"
-          }
-          className="w-full bg-transparent py-1 font-display text-[15px] italic text-foreground placeholder:text-muted-foreground/70 focus:outline-none"
-          style={{
-            borderBottom:
-              "1px solid color-mix(in oklab, var(--gold) 20%, transparent)",
-          }}
-        />
-      </div>
+      <SearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder={isOracle ? "Search your practice…" : "Search readings…"}
+        className="mt-2"
+      />
 
       {/* FU-3 — Unified filter pattern via GlobalFilterBar. */}
       <GlobalFilterBar

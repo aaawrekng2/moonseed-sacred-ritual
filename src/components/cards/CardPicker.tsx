@@ -11,9 +11,10 @@
  *                       confirmation step before firing onSelect.
  */
 import { useMemo, useState } from "react";
-import { Check, ChevronLeft, Lock, Search, X } from "lucide-react";
+import { Check, ChevronLeft, Lock, X } from "lucide-react";
 import { TAROT_DECK, getCardName, getCardImagePath } from "@/lib/tarot";
 import { cn } from "@/lib/utils";
+import { SearchInput } from "@/components/ui/search-input";
 
 export type CardPickerMode = "photography" | "manual-entry";
 
@@ -157,15 +158,11 @@ export function CardPicker({
 
       {/* Search + filters */}
       <div className="space-y-2 border-b border-border/40 p-3">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 opacity-50" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search 78 cards…"
-            className="w-full rounded-md border border-border/40 bg-foreground/5 px-9 py-2 text-sm outline-none focus:border-foreground/30"
-          />
-        </div>
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          placeholder="Search 78 cards…"
+        />
         <div className="flex flex-wrap gap-1.5">
           {SUITS.map((s) => (
             <button

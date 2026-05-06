@@ -5,7 +5,7 @@ import {
   redirect,
   useLocation,
 } from "@tanstack/react-router";
-import { useEffect, useRef, type CSSProperties } from "react";
+import { type CSSProperties } from "react";
 import {
   Database,
   Palette,
@@ -23,6 +23,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { supabase } from "@/lib/supabase";
+import { HorizontalScroll } from "@/components/HorizontalScroll";
 
 /**
  * /settings — layout route. The route itself redirects to
@@ -103,49 +104,11 @@ function SettingsLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const activeTab = tabFromPath(location.pathname);
-  const tabBarRef = useRef<HTMLDivElement | null>(null);
 
   // Register the X close affordance with the global FloatingMenu so
   // settings still gets a one-tap exit without owning a per-screen
   // top-bar cluster.
   useRegisterCloseHandler(() => void navigate({ to: "/" }));
-
-  // First-visit horizontal scroll hint (mobile tab bar) — mirrors the source.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const HINT_KEY = "moonseed.settings.tabsHintShown";
-    try {
-      if (localStorage.getItem(HINT_KEY)) return;
-    } catch {
-      return;
-    }
-    const el = tabBarRef.current;
-    if (!el) return;
-    if (el.scrollWidth <= el.clientWidth + 4) {
-      try {
-        localStorage.setItem(HINT_KEY, "1");
-      } catch {
-        /* noop */
-      }
-      return;
-    }
-    const t1 = window.setTimeout(
-      () => el.scrollTo({ left: 40, behavior: "smooth" }),
-      450,
-    );
-    const t2 = window.setTimeout(() => {
-      el.scrollTo({ left: 0, behavior: "smooth" });
-      try {
-        localStorage.setItem(HINT_KEY, "1");
-      } catch {
-        /* noop */
-      }
-    }, 1100);
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-    };
-  }, []);
 
   if (authLoading || !user) return null;
 
@@ -164,13 +127,8 @@ function SettingsLayout() {
       >
         <div className="mx-auto w-full max-w-5xl px-4">
           {/* Mobile tab bar: canonical tab strip pattern (FU-12). */}
-          <div className="-mx-4 mb-6 md:hidden">
-            <div
-              ref={tabBarRef}
-              role="tablist"
-              aria-label="Settings sections"
-              className="scrollbar-none flex items-center gap-6 overflow-x-auto px-4 py-2"
-            >
+          <div className="-mx-4 mb-6 md:hidden" role="tablist" aria-label="Settings sections">
+            <HorizontalScroll className="py-2" contentClassName="items-center gap-6 px-4">
               {TABS.map((t) => {
                 const active = activeTab === t.key;
                 return (
@@ -197,7 +155,7 @@ function SettingsLayout() {
                   </Link>
                 );
               })}
-            </div>
+            </HorizontalScroll>
           </div>
 
           {/* Desktop two-column shell: sidebar + content */}
