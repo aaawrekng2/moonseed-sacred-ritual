@@ -1419,6 +1419,7 @@ function Workspace({
         <OracleWorkspace
           session={session}
           deckId={deckId}
+          deckName={deckName}
           liveRadius={liveRadius}
           onRadiusSaved={onRadiusSaved}
           existingCornerRadiusPx={existingCornerRadiusPx}
