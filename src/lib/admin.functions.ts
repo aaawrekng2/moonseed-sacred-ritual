@@ -117,14 +117,12 @@ export const listAdminUsers = createServerFn({ method: "GET" })
     const prefMap = new Map<string, any>();
     for (const p of prefs) prefMap.set((p as any).user_id, p);
 
-    // CR — Loosen the filter. Include any user that has an email at all
-    // (confirmed or not) so admins can see pending signup attempts.
-    // Truly anonymous sessions (no email) are still excluded and
-    // surfaced as a count on the Dashboard. Admins remain visible
-    // defensively even if email is missing.
+    // 9-6-F — Tighten filter: only confirmed users (email_confirmed_at)
+    // OR admins. Pending/abandoned signup attempts are excluded here and
+    // surfaced separately via getPendingSignupCount.
     return allUsers
       .filter((u) => {
-        if (u.email) return true;
+        if ((u as any).email_confirmed_at) return true;
         const p = prefMap.get(u.id);
         if (p?.role === "admin" || p?.role === "super_admin") return true;
         return false;
