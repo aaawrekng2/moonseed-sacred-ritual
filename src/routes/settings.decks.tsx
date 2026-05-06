@@ -455,6 +455,11 @@ function DeckEditor({
   const [shape, setShape] = useState<CustomDeck["shape"]>(existing?.shape ?? "rectangle");
   const [cornerRadius, setCornerRadius] = useState(existing?.corner_radius_percent ?? 4);
   const cornerRadiusPx = existing?.corner_radius_px ?? null;
+  // 9-6-A — deck type chosen at creation time. Drives oracle-vs-tarot
+  // import flow downstream (skip matcher, hide suit chips, etc.).
+  const [deckType, setDeckType] = useState<"tarot" | "oracle">(
+    existing?.deck_type ?? "tarot",
+  );
   const [mode, setMode] = useState<EditorMode>(
     existing
       ? {
@@ -553,6 +558,40 @@ function DeckEditor({
         </header>
 
         <div className="space-y-4">
+          {/* 9-6-A — deck type selector. First choice in the form. */}
+          <div>
+            <span className="text-sm font-medium">Deck type</span>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {(["tarot", "oracle"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setDeckType(t)}
+                  className={cn(
+                    "rounded-md border px-3 py-2 text-sm capitalize",
+                    deckType === t
+                      ? "border-gold bg-gold/10 text-gold"
+                      : "border-border/60 text-muted-foreground hover:bg-gold/5",
+                  )}
+                >
+                  {t === "tarot" ? "Tarot (78 cards)" : "Oracle / Other"}
+                </button>
+              ))}
+            </div>
+            {deckType === "oracle" && (
+              <p
+                className="mt-2 text-xs italic"
+                style={{
+                  color: "var(--color-foreground)",
+                  opacity: 0.6,
+                  fontFamily: "var(--font-serif)",
+                }}
+              >
+                Any number of cards. You'll name each card after importing.
+              </p>
+            )}
+          </div>
+
           <label className="block">
             <span className="text-sm font-medium">Deck name</span>
             <input
@@ -647,6 +686,7 @@ function DeckEditor({
                     name: name.trim(),
                     shape,
                     corner_radius_percent: cornerRadius,
+                    deck_type: deckType,
                   })
                   .select("*")
                   .single();
@@ -682,6 +722,7 @@ function DeckEditor({
                       name: name.trim(),
                       shape,
                       corner_radius_percent: cornerRadius,
+                      deck_type: deckType,
                     })
                     .select("*")
                     .single();
@@ -984,6 +1025,7 @@ function DeckEditor({
         initialPhase="upload"
         deckName={name}
         existingCornerRadiusPx={cornerRadiusPx}
+        deckType={deckType}
         onCancel={() => onClose(true)}
         onDone={async () => {
           await reloadCards(deckId);
@@ -1006,6 +1048,7 @@ function DeckEditor({
         existingBackUrl={deckBackUrl}
         existingCornerRadiusPx={cornerRadiusPx}
         initialPhase={mode.initialPhase}
+        deckType={existing?.deck_type ?? deckType}
         onClose={async () => {
           await reloadCards(deckId);
           onClose(true);
@@ -1030,6 +1073,7 @@ function WorkspaceWithCornerEditor({
   existingBackUrl,
   existingCornerRadiusPx,
   initialPhase,
+  deckType,
   onClose,
 }: {
   userId: string;
@@ -1040,6 +1084,7 @@ function WorkspaceWithCornerEditor({
   existingBackUrl: string | null;
   existingCornerRadiusPx: number | null;
   initialPhase?: "upload" | "workspace";
+  deckType: "tarot" | "oracle";
   onClose: () => void | Promise<void>;
 }) {
   // 9-5-D — liveRadius is owned here so both ZipImporter (preview)
@@ -1058,6 +1103,7 @@ function WorkspaceWithCornerEditor({
       initialPhase={initialPhase}
       deckName={deckName}
       existingCornerRadiusPx={existingCornerRadiusPx}
+      deckType={deckType}
       onRadiusSaved={(next) => setLiveRadius(next)}
       onCancel={onClose}
       onDone={onClose}

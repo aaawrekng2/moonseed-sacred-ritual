@@ -83,7 +83,9 @@ export type Database = {
       custom_deck_cards: {
         Row: {
           archived_at: string | null
+          card_description: string | null
           card_id: number
+          card_name: string | null
           corner_radius_percent: number | null
           created_at: string
           crop_coords: Json | null
@@ -103,7 +105,9 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          card_description?: string | null
           card_id: number
+          card_name?: string | null
           corner_radius_percent?: number | null
           created_at?: string
           crop_coords?: Json | null
@@ -123,7 +127,9 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          card_description?: string | null
           card_id?: number
+          card_name?: string | null
           corner_radius_percent?: number | null
           created_at?: string
           crop_coords?: Json | null
@@ -161,6 +167,7 @@ export type Database = {
           corner_radius_percent: number
           corner_radius_px: number | null
           created_at: string
+          deck_type: string
           height_inches: number | null
           id: string
           is_active: boolean
@@ -180,6 +187,7 @@ export type Database = {
           corner_radius_percent?: number
           corner_radius_px?: number | null
           created_at?: string
+          deck_type?: string
           height_inches?: number | null
           id?: string
           is_active?: boolean
@@ -199,6 +207,7 @@ export type Database = {
           corner_radius_percent?: number
           corner_radius_px?: number | null
           created_at?: string
+          deck_type?: string
           height_inches?: number | null
           id?: string
           is_active?: boolean

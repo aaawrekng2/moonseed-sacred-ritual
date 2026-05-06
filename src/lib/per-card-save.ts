@@ -172,6 +172,9 @@ async function doSaveCard(args: SaveCardArgs): Promise<SaveResult> {
           display_path: uploaded.displayPath,
           thumbnail_path: uploaded.thumbnailPath,
           source: "imported",
+          // 9-6-A — oracle cards carry user-editable name/meaning.
+          card_name: image.oracleName ?? null,
+          card_description: image.oracleDescription ?? null,
         })
         .select();
       if (insertErr) {

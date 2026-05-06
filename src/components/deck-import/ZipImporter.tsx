@@ -60,6 +60,48 @@ import { PerCardEditModal } from "./PerCardEditModal";
 
 const ZIP_MAX_BYTES = 20 * 1024 * 1024;
 const VALID_EXT = /\.(png|jpe?g|webp|gif)$/i;
+/** 9-6-A — oracle card_id base. Sits well above tarot's 0–77 range. */
+const ORACLE_ID_BASE = 1000;
+
+/** 9-6-A — Parse a sidecar CSV (filename,name,description) bundled in
+ *  an oracle deck zip. Header order is flexible; matching is by lower-
+ *  cased filename stem (no extension). */
+function parseCsvMetadata(
+  csvText: string,
+): Map<string, { name: string; description: string }> {
+  const lines = csvText.trim().split(/\r?\n/);
+  if (lines.length < 2) return new Map();
+  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  const fiIdx = headers.indexOf("filename");
+  const nameIdx = headers.indexOf("name");
+  const descIdx = headers.indexOf("description");
+  const map = new Map<string, { name: string; description: string }>();
+  if (fiIdx < 0) return map;
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i]
+      .split(",")
+      .map((c) => c.trim().replace(/^"|"$/g, ""));
+    const filenameRaw = cols[fiIdx] ?? "";
+    const stem = filenameRaw.replace(/\.[^.]+$/, "").toLowerCase();
+    if (!stem) continue;
+    map.set(stem, {
+      name: nameIdx >= 0 ? cols[nameIdx] ?? filenameRaw : filenameRaw,
+      description: descIdx >= 0 ? cols[descIdx] ?? "" : "",
+    });
+  }
+  return map;
+}
+
+/** Default oracle name from a filename: stem with separators replaced
+ *  by spaces, title-cased. */
+function oracleNameFromFilename(filename: string): string {
+  const stem = filename.replace(/\.[^.]+$/, "");
+  const cleaned = stem.replace(/[_\-]+/g, " ").trim();
+  return cleaned
+    .split(/\s+/)
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : ""))
+    .join(" ");
+}
 
 type Phase =
   | { kind: "loading" }
@@ -96,6 +138,7 @@ export function ZipImporter({
   deckName,
   existingCornerRadiusPx = null,
   onRadiusSaved,
+  deckType = "tarot",
 }: {
   userId: string;
   deckId: string;
@@ -118,6 +161,8 @@ export function ZipImporter({
   /** 9-5-D — bubble slider saves up so parent can pass the new value
    *  back into both ZipImporter and PerCardEditModal. */
   onRadiusSaved?: (next: number) => void;
+  /** 9-6-A — 'tarot' (78 fixed slots) or 'oracle' (variable, IDs 1000+). */
+  deckType?: "tarot" | "oracle";
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
@@ -298,8 +343,20 @@ export function ZipImporter({
       });
       const session = makeEmptySession(deckId);
       const rawByName = new Map<string, Blob>();
+      // 9-6-A — collect optional sidecar CSV for oracle metadata.
+      let oracleMeta: Map<string, { name: string; description: string }> =
+        new Map();
       for (const entry of entries) {
         const base = entry.name.split("/").pop() ?? entry.name;
+        if (deckType === "oracle" && /\.csv$/i.test(base)) {
+          try {
+            const text = await entry.async("string");
+            oracleMeta = parseCsvMetadata(text);
+          } catch {
+            /* non-fatal */
+          }
+          continue;
+        }
         if (!VALID_EXT.test(base)) continue;
         const blob = await entry.async("blob");
         rawByName.set(base, blob);
@@ -310,8 +367,6 @@ export function ZipImporter({
         return;
       }
       const names = Array.from(rawByName.keys());
-      const match = matchFilenames(names);
-      // Auto-assign matched cards.
       const filenameToKey = new Map<string, string>();
       for (const [name, blob] of rawByName) {
         const key = await computeImageKey(name, blob);
@@ -319,23 +374,50 @@ export function ZipImporter({
         const img = await makeImportImage(key, name, blob);
         session.unassigned[key] = img;
       }
-      for (const [filename, cardId] of match.assignments) {
-        const key = filenameToKey.get(filename);
-        if (!key) continue;
-        session.assigned[String(cardId)] = key;
-      }
-      if (match.cardBackFile) {
-        const key = filenameToKey.get(match.cardBackFile);
-        if (key) session.assigned[BACK_KEY] = key;
-      }
-      // Auto-detect any "back*"-named files even if matcher missed them.
-      if (!session.assigned[BACK_KEY]) {
-        for (const name of names) {
-          if (isCardBackFilename(name)) {
-            const k = filenameToKey.get(name);
-            if (k) {
-              session.assigned[BACK_KEY] = k;
-              break;
+      if (deckType === "oracle") {
+        // 9-6-A — Oracle: skip the matcher. Sort alphabetically and
+        // assign sequential IDs starting at ORACLE_ID_BASE. All images
+        // land directly in `assigned`.
+        const sorted = [...names].sort((a, b) =>
+          a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+        );
+        const assetStore = ensureAssetStore(session);
+        sorted.forEach((name, idx) => {
+          const key = filenameToKey.get(name);
+          if (!key) return;
+          const cardId = ORACLE_ID_BASE + idx;
+          const img = session.unassigned[key];
+          if (img) {
+            const stem = name.replace(/\.[^.]+$/, "").toLowerCase();
+            const meta = oracleMeta.get(stem);
+            img.oracleName = meta?.name ?? oracleNameFromFilename(name);
+            img.oracleDescription = meta?.description ?? "";
+            assetStore[key] = img;
+          }
+          session.assigned[String(cardId)] = key;
+          // Move out of unassigned — oracle has no slot picker.
+          delete session.unassigned[key];
+        });
+      } else {
+        const match = matchFilenames(names);
+        for (const [filename, cardId] of match.assignments) {
+          const key = filenameToKey.get(filename);
+          if (!key) continue;
+          session.assigned[String(cardId)] = key;
+        }
+        if (match.cardBackFile) {
+          const key = filenameToKey.get(match.cardBackFile);
+          if (key) session.assigned[BACK_KEY] = key;
+        }
+        // Auto-detect any "back*"-named files even if matcher missed them.
+        if (!session.assigned[BACK_KEY]) {
+          for (const name of names) {
+            if (isCardBackFilename(name)) {
+              const k = filenameToKey.get(name);
+              if (k) {
+                session.assigned[BACK_KEY] = k;
+                break;
+              }
             }
           }
         }
@@ -373,7 +455,7 @@ export function ZipImporter({
       toast.error("Couldn't read that zip.");
       setPhase({ kind: "upload", resumable: false });
     }
-  }, [deckId, shape, cornerRadiusPercent, entryMode]);
+  }, [deckId, shape, cornerRadiusPercent, entryMode, deckType]);
 
   /* ---------- Mutators ---------- */
   /**
@@ -721,6 +803,7 @@ export function ZipImporter({
         deckId={deckId}
         existingCornerRadiusPx={existingCornerRadiusPx}
         onRadiusSaved={onRadiusSaved}
+        deckType={deckType}
       />
     );
 
@@ -960,6 +1043,7 @@ function Workspace({
   deckId,
   existingCornerRadiusPx,
   onRadiusSaved,
+  deckType,
 }: {
   session: ImportSession;
   onAssign: (imageKey: string, cardId: number | "BACK") => void;
@@ -983,8 +1067,12 @@ function Workspace({
   deckId: string;
   existingCornerRadiusPx: number | null;
   onRadiusSaved?: (next: number) => void;
+  deckType: "tarot" | "oracle";
 }) {
-  const [tab, setTab] = useState<Tab>(entryMode === "edit" ? "assigned" : "unassigned");
+  const [tab, setTab] = useState<Tab>(
+    // 9-6-A — oracle has no Unassigned/Skipped/Default tabs.
+    entryMode === "edit" || deckType === "oracle" ? "assigned" : "unassigned",
+  );
   // 9-5-D — liveRadius is now lifted to WorkspaceWithCornerEditor.
   // We just consume cornerRadiusPercent as the live value and bubble
   // saves up via onRadiusSaved.
@@ -1156,8 +1244,15 @@ function Workspace({
     for (const slot of numericAssigned) {
       if (cardStates[slot] === undefined) n += 1;
     }
-    return Math.min(78, n);
-  }, [cardStates, numericAssigned]);
+    // 9-6-A — oracle decks have no fixed cap; cap tarot at 78.
+    return deckType === "oracle" ? n : Math.min(78, n);
+  }, [cardStates, numericAssigned, deckType]);
+
+  // 9-6-A — total card count for the status line. Tarot is always 78;
+  // oracle uses however many slots the user has assigned.
+  const totalCardCount = deckType === "oracle"
+    ? numericAssigned.length
+    : 78;
 
   // BN Fix 2 — set of card_ids that will be customized (non-default)
   // after save. Defined here so both the chip count and the Default
@@ -1170,7 +1265,9 @@ function Workspace({
     }
     return set;
   }, [session.assigned]);
-  const defaultCount = 78 - customizedCardIds.size;
+  // 9-6-A — Default tab is tarot-only (the 78 default cards). Oracle
+  // decks have no notion of "the default deck" to fall back to.
+  const defaultCount = deckType === "tarot" ? 78 - customizedCardIds.size : 0;
 
   const photographedIds = useMemo(
     () => numericAssigned.map((s) => Number(s)),
@@ -1285,7 +1382,11 @@ function Workspace({
           }}
         >
           <span>
-            {savedCount}/78 cards · {hasBack ? "back set" : "no back"} ·{" "}
+            {deckType === "oracle"
+              ? `${savedCount} card${savedCount === 1 ? "" : "s"}`
+              : `${savedCount}/${totalCardCount} cards`}
+            {" · "}
+            {hasBack ? "back set" : "no back"} ·{" "}
           </span>
           {failedCount > 0 ? (
             <span style={{ color: "var(--destructive)" }}>{failedCount} failed</span>
@@ -1295,7 +1396,7 @@ function Workspace({
         </div>
 
         {/* Tab chips — hidden in edit mode (Assigned only). */}
-        {entryMode === "import" ? (
+        {entryMode === "import" && deckType === "tarot" ? (
           <HorizontalScroll
             className="mt-3"
             contentClassName="gap-2"
@@ -1376,6 +1477,8 @@ function Workspace({
           }}
           onImportZip={onSwitchToUpload}
           onDone={onCancel}
+          deckType={deckType}
+          deckId={deckId}
         />
       )}
       {tab === "skipped" && (
@@ -1689,6 +1792,8 @@ function AssignedGrid({
   onTapEmpty,
   onImportZip,
   onDone,
+  deckType,
+  deckId,
 }: {
   session: ImportSession;
   resolveSrc: (key: string) => string;
@@ -1702,6 +1807,8 @@ function AssignedGrid({
   onTapEmpty: (cardId: number) => void;
   onImportZip: () => void;
   onDone: () => void;
+  deckType: "tarot" | "oracle";
+  deckId: string;
 }) {
   const backKey = session.assigned[BACK_KEY];
   // 9-5-I — fall back to existingBackUrl when the user hasn't reassigned
@@ -1732,10 +1839,20 @@ function AssignedGrid({
     { id: "swords", label: "Swords" },
     { id: "pentacles", label: "Pentacles" },
   ];
+  // 9-6-A — Oracle decks render only their assigned slots in numeric
+  // order; there's no fixed 78-slot grid and no suit chips.
+  const oracleSlotIds = useMemo(() => {
+    if (deckType !== "oracle") return [] as number[];
+    return Object.keys(session.assigned)
+      .filter((s) => s !== BACK_KEY)
+      .map((s) => Number(s))
+      .filter((n) => Number.isFinite(n))
+      .sort((a, b) => a - b);
+  }, [session.assigned, deckType]);
   return (
     <>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        {SUIT_CHIPS.map((c) => (
+        {deckType === "tarot" && SUIT_CHIPS.map((c) => (
           <Chip
             key={c.id}
             active={suitFilter === c.id}
@@ -1818,8 +1935,10 @@ function AssignedGrid({
           </ThumbnailIconButton>
         </div>
       )}
-      {Array.from({ length: 78 }, (_, i) => {
-        if (!inFilter(i)) return null;
+      {(deckType === "oracle"
+        ? oracleSlotIds
+        : Array.from({ length: 78 }, (_, i) => i).filter(inFilter)
+      ).map((i) => {
         const slot = String(i);
         const key = session.assigned[slot];
         const src = key ? resolveSrc(key) : "";
@@ -1827,6 +1946,12 @@ function AssignedGrid({
         const slotState = cardStates[slot];
         const isFailed = slotState === "failed";
         const isSaving = slotState === "saving";
+        // 9-6-A — oracle cards display the user-supplied name (or a
+        // generated default) instead of a tarot card name.
+        const oracleImg = key ? findImage(session, key) : null;
+        const displayName = deckType === "oracle"
+          ? (oracleImg?.oracleName?.trim() || `Card ${i - 999}`)
+          : getCardName(i);
         return (
           <div key={i} className="relative">
             <button
@@ -1842,7 +1967,7 @@ function AssignedGrid({
                 if (isFailed) onRetrySlot(slot);
                 else onTap(slot, key);
               }}
-              aria-label={key ? getCardName(i) : `${getCardName(i)} — empty, tap to assign`}
+              aria-label={key ? displayName : `${displayName} — empty, tap to assign`}
               className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
               style={{
                 borderColor: isFailed
@@ -1853,18 +1978,18 @@ function AssignedGrid({
                 borderWidth: isFailed ? 2 : 1,
                 background: "var(--surface-card)",
               }}
-              title={isFailed ? `${getCardName(i)} — tap to retry save` : getCardName(i)}
+              title={isFailed ? `${displayName} — tap to retry save` : displayName}
             >
               {src ? (
-                <img src={src} alt={getCardName(i)} className="h-full w-full object-cover" />
-              ) : (
+                <img src={src} alt={displayName} className="h-full w-full object-cover" />
+              ) : deckType === "tarot" ? (
                 <img
                   src={getCardImagePath(i)}
                   alt={getCardName(i)}
                   className="h-full w-full object-cover"
                   style={{ opacity: 0.25, filter: "grayscale(100%)" }}
                 />
-              )}
+              ) : null}
               {isSaving && (
                 <span className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.30)" }}>
                   <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#fff" }} />
@@ -1888,6 +2013,20 @@ function AssignedGrid({
                 </span>
               )}
             </button>
+            {deckType === "oracle" && key && (
+              <p
+                className="mt-1 truncate text-center italic"
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "var(--text-body-sm)",
+                  color: "var(--color-foreground)",
+                  opacity: 0.85,
+                }}
+                title={displayName}
+              >
+                {displayName}
+              </p>
+            )}
             {key && (
               <ThumbnailIconButton
                 aria-label={`Unassign ${getCardName(i)}`}
