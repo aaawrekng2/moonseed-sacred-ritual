@@ -8,7 +8,14 @@ import { useOracleMode } from "@/lib/use-oracle-mode";
 import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import { getGuideById } from "@/lib/guides";
 import { getCardName } from "@/lib/tarot";
-import { cn, firstCardName, formatRelativeTime } from "@/lib/utils";
+import { cn, firstCardName } from "@/lib/utils";
+import {
+  formatTimeAgo,
+  formatDateShort,
+  formatDateLong,
+  formatDateTime,
+  formatMonthYear,
+} from "@/lib/dates";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { useDeckImage, useDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
@@ -190,22 +197,6 @@ type PatternRow = {
 };
 
 /* ---------- Helpers ---------- */
-
-function relativeTime(iso: string): string {
-  const d = new Date(iso).getTime();
-  const now = Date.now();
-  const diff = Math.max(0, now - d);
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const days = Math.floor(h / 24);
-  if (days < 7) return `${days}d ago`;
-  if (days < 30) return `${Math.floor(days / 7)}w ago`;
-  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
-  return `${Math.floor(days / 365)}y ago`;
-}
 
 function spreadLabel(spread: string): string {
   if (isValidSpreadMode(spread)) return SPREAD_META[spread as SpreadMode].label;
@@ -655,10 +646,7 @@ function JournalPage() {
               style={{ opacity: "var(--ro-plus-20)" }}
             >
               <XIcon size={11} strokeWidth={1.5} />
-              {new Date(activeDate + "T12:00:00").toLocaleDateString(undefined, {
-                month: "short",
-                day: "numeric",
-              })}
+              {formatDateShort(new Date(activeDate + "T12:00:00").toISOString())}
             </button>
           ) : null
         }
@@ -746,13 +734,7 @@ function JournalPage() {
               {batchMeta
                 ? `Showing ${filtered.length.toLocaleString()} reading${
                     filtered.length === 1 ? "" : "s"
-                  } imported from ${batchMeta.sourceFormat} on ${new Date(
-                    batchMeta.createdAt,
-                  ).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}`
+                  } imported from ${batchMeta.sourceFormat} on ${formatDateLong(batchMeta.createdAt)}`
                 : "No readings found for this import."}
             </span>
             <button
@@ -1064,7 +1046,7 @@ function ReadingCard({
               {spreadLabel(reading.spread_type)}
             </span>
             <span style={{ opacity: "var(--ro-plus-20)" }}>
-              {relativeTime(reading.created_at)}
+              {formatTimeAgo(reading.created_at)}
             </span>
           </div>
           <div
@@ -1347,7 +1329,7 @@ function GalleryTile({
         }}
       >
         <span>{spreadLabel(reading.spread_type)}</span>
-        <span>{relativeTime(reading.created_at)}</span>
+        <span>{formatTimeAgo(reading.created_at)}</span>
       </div>
     </button>
   );
@@ -1384,7 +1366,7 @@ function NotesView({
           >
             <div className="flex items-baseline gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
               <span style={{ opacity: "var(--ro-plus-20)" }}>
-                {relativeTime(r.created_at)}
+                {formatTimeAgo(r.created_at)}
               </span>
               <span style={{ opacity: "var(--ro-plus-30)" }}>
                 {spreadLabel(r.spread_type)}
@@ -1703,7 +1685,7 @@ function ThreadsView({
                             whiteSpace: "nowrap",
                           }}
                         >
-                          {formatRelativeTime(r.created_at)}
+                          {formatTimeAgo(r.created_at)}
                         </span>
                       </button>
                     </li>
@@ -1792,10 +1774,7 @@ function CalendarView({
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
-  const monthLabel = cursor.toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-  });
+  const monthLabel = formatMonthYear(cursor.toISOString());
   const firstWeekday = new Date(year, month, 1).getDay(); // 0..6 Sun..Sat
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells: Array<{ day: number; key: string } | null> = [];
@@ -2136,10 +2115,7 @@ function ReadingDetail({
                 ·
               </span>
               <span style={{ opacity: "var(--ro-plus-20)" }}>
-                {new Date(reading.created_at).toLocaleString(undefined, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                })}
+                {formatDateTime(reading.created_at)}
               </span>
             </div>
             {/* EA-7 — mirror the row's right-cluster indicators at the top of the detail. */}
