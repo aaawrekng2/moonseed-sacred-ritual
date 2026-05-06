@@ -1415,16 +1415,24 @@ function Workspace({
           context={zoom.from}
           canUseAsBack={zoom.from === "unassigned" && !hasBack}
           canEdit={
-            // EXISTING markers have no real raw blob to refine.
-            !zoom.imageKey.startsWith("EXISTING:")
+            // 9-5-D — Edit is shown for all cards in edit mode (EXISTING
+            // cards route to PerCardEditModal). In import mode, only raw
+            // blobs (non-EXISTING) can be refined.
+            entryMode === "edit" || !zoom.imageKey.startsWith("EXISTING:")
           }
           shape={shape}
           cornerRadiusPercent={liveRadius}
           onBack={() => setZoom(null)}
           onEdit={() => {
             const ctx = zoom;
-            setZoom(null);
-            setEditing({ imageKey: ctx.imageKey, previousZoom: ctx });
+            if (ctx.imageKey.startsWith("EXISTING:")) {
+              const cardId = parseInt(ctx.imageKey.replace("EXISTING:", ""), 10);
+              setZoom(null);
+              if (Number.isFinite(cardId)) setEditingExistingCardId(cardId);
+            } else {
+              setZoom(null);
+              setEditing({ imageKey: ctx.imageKey, previousZoom: ctx });
+            }
           }}
           onPickCard={() => {
             const ctx = zoom;
