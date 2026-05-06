@@ -214,6 +214,24 @@ export function ZipImporter({
           // polluting the Unassigned bucket.
           const session = makeEmptySession(deckId);
           const assets = ensureAssetStore(session);
+          // 9-5-I — sign URLs from display_path so processed (-full.webp,
+          // rounded) variants show up in the grid. The edge function
+          // patches display_path but never touches display_url, so the
+          // stored URL still points at the original unrounded image.
+          const paths = existingCards
+            .map((c) => c.display_path)
+            .filter((p): p is string => !!p);
+          const signedMap = new Map<string, string>();
+          if (paths.length > 0) {
+            const { data: signed } = await supabase.storage
+              .from("custom-deck-images")
+              .createSignedUrls(paths, 60 * 60 * 24 * 365);
+            for (const entry of signed ?? []) {
+              if (entry.signedUrl && entry.path) {
+                signedMap.set(entry.path, entry.signedUrl);
+              }
+            }
+          }
           for (const c of existingCards) {
             const k = `EXISTING:${c.card_id}`;
             assets[k] = {
@@ -222,9 +240,13 @@ export function ZipImporter({
               rawBlob: new Blob(),
               width: 0,
               height: 0,
-              // 9-5-E — prefer the high-res display variant for ZoomModal
-              // crispness. thumbnail_url is the lower-quality fallback.
-              existingUrl: c.display_url || c.thumbnail_url,
+              // 9-5-I — fresh signed URL from display_path (post-process
+              // -full.webp variant) wins; fall back to the legacy
+              // display_url / thumbnail_url for unprocessed rows.
+              existingUrl:
+                signedMap.get(c.display_path ?? "") ||
+                c.display_url ||
+                c.thumbnail_url,
             };
             session.assigned[String(c.card_id)] = k;
           }
