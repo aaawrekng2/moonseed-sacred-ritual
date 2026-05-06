@@ -3096,7 +3096,7 @@ function BackupsTab() {
                 key={r.id}
                 style={{ borderBottom: "1px solid var(--border-subtle)" }}
               >
-                <Td>{new Date(r.created_at).toLocaleString()}</Td>
+                <Td>{formatDateTime(r.created_at)}</Td>
                 <Td>{fmtSize(r.size_bytes)}</Td>
                 <Td>{r.status}</Td>
                 <Td>
@@ -3337,7 +3337,7 @@ function AuditTab() {
                   key={r.id}
                   style={{ borderBottom: "1px solid var(--border-subtle)" }}
                 >
-                  <Td>{new Date(r.created_at).toLocaleString()}</Td>
+                  <Td>{formatDateTime(r.created_at)}</Td>
                   <Td>{r.admin_email ?? "—"}</Td>
                   <Td>{auditActionLabel(r.action)}</Td>
                   <Td>{r.target_email ?? "—"}</Td>
@@ -3535,7 +3535,7 @@ function HistoryModal({
                     "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
                 }}
               >
-                {new Date(r.created_at).toLocaleString()}
+                {formatDateTime(r.created_at)}
               </span>
             </li>
           ))}
