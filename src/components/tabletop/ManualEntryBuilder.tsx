@@ -113,6 +113,10 @@ export function ManualEntryBuilder({ spread, onCancel, onComplete }: Props) {
         <SheetContent
           side="bottom"
           className="h-[75vh] rounded-t-2xl p-0"
+          // Phase 9.5a — the picker must stack above the FullScreenSheet
+          // (z-modal=100) that wraps ManualEntryBuilder. SheetContent's
+          // default z-drawer=60 hides the picker behind the wrapper.
+          style={{ zIndex: "var(--z-modal-nested)" as unknown as number }}
         >
           {pickerSlot !== null && (
             <CardPicker

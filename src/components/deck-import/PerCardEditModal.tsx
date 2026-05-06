@@ -108,6 +108,27 @@ export function PerCardEditModal({
   const imgRef = useRef<HTMLImageElement | null>(null);
   const previewWrapRef = useRef<HTMLDivElement | null>(null);
 
+  // Phase 9.5a — zoom/pan transform applied to the preview IMG.
+  // zoom is a multiplier (1 = native fit-to-viewport size). pan is
+  // pixel offset in screen space, applied as a CSS translate before
+  // the scale. Reset on card change so each card opens at 1.0/0,0.
+  const [zoom, setZoom] = useState<number>(1);
+  const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchStartRef = useRef<
+    | {
+        dist: number;
+        mid: { x: number; y: number };
+        zoom: number;
+        pan: { x: number; y: number };
+      }
+    | null
+  >(null);
+  const panStartRef = useRef<
+    | { pointer: { x: number; y: number }; pan: { x: number; y: number } }
+    | null
+  >(null);
+
   // Load card list + per-card radii.
   useEffect(() => {
     let cancelled = false;
@@ -229,6 +250,10 @@ export function PerCardEditModal({
     setRenderedDims(null);
     // FI-2 — clear crop until imgDims arrive; we'll hydrate then.
     setCrop(null);
+    // Phase 9.5a — reset zoom/pan when switching cards so each card
+    // opens at native fit-to-viewport size with no offset.
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
   }, [activeCardId]);
 
   // FI-2 — hydrate crop from saved coords (or default rect) once we
@@ -589,6 +614,86 @@ export function PerCardEditModal({
 
   const cardCount = cards?.length ?? 0;
 
+  // Phase 9.5a — wheel zoom (desktop + mac trackpad pinch).
+  function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const wrap = previewWrapRef.current;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const cursorX = e.clientX - rect.left;
+    const cursorY = e.clientY - rect.top;
+    const factor = Math.exp(-e.deltaY * 0.001);
+    const nextZoom = Math.min(8, Math.max(1, zoom * factor));
+    if (nextZoom === zoom) return;
+    const ratio = nextZoom / zoom;
+    setZoom(nextZoom);
+    setPan({
+      x: cursorX - (cursorX - pan.x) * ratio,
+      y: cursorY - (cursorY - pan.y) * ratio,
+    });
+  }
+
+  function onPreviewPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    const target = e.target as HTMLElement;
+    if (target.closest('[role="slider"], button, input')) return;
+    const wrap = previewWrapRef.current;
+    if (!wrap) return;
+    wrap.setPointerCapture(e.pointerId);
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 2) {
+      const [a, b] = Array.from(pointersRef.current.values());
+      pinchStartRef.current = {
+        dist: Math.hypot(b.x - a.x, b.y - a.y),
+        mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+        zoom,
+        pan: { ...pan },
+      };
+      panStartRef.current = null;
+    } else if (pointersRef.current.size === 1) {
+      panStartRef.current = {
+        pointer: { x: e.clientX, y: e.clientY },
+        pan: { ...pan },
+      };
+    }
+  }
+
+  function onPreviewPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 2 && pinchStartRef.current) {
+      const [a, b] = Array.from(pointersRef.current.values());
+      const dist = Math.hypot(b.x - a.x, b.y - a.y);
+      const start = pinchStartRef.current;
+      const wrap = previewWrapRef.current;
+      if (!wrap) return;
+      const rect = wrap.getBoundingClientRect();
+      const midX = start.mid.x - rect.left;
+      const midY = start.mid.y - rect.top;
+      const nextZoom = Math.min(
+        8,
+        Math.max(1, start.zoom * (dist / start.dist)),
+      );
+      const ratio = nextZoom / start.zoom;
+      setZoom(nextZoom);
+      setPan({
+        x: midX - (midX - start.pan.x) * ratio,
+        y: midY - (midY - start.pan.y) * ratio,
+      });
+    } else if (pointersRef.current.size === 1 && panStartRef.current) {
+      const start = panStartRef.current;
+      setPan({
+        x: start.pan.x + (e.clientX - start.pointer.x),
+        y: start.pan.y + (e.clientY - start.pointer.y),
+      });
+    }
+  }
+
+  function onPreviewPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchStartRef.current = null;
+    if (pointersRef.current.size < 1) panStartRef.current = null;
+  }
+
   return (
     <Modal
       open
@@ -628,6 +733,21 @@ export function PerCardEditModal({
                 <div
                   ref={previewWrapRef}
                   className="relative flex items-center justify-center rounded-md bg-cosmos/40 p-4"
+                  onWheel={handleWheel}
+                  onPointerDown={onPreviewPointerDown}
+                  onPointerMove={onPreviewPointerMove}
+                  onPointerUp={onPreviewPointerUp}
+                  onPointerCancel={onPreviewPointerUp}
+                  style={{
+                    touchAction: "none",
+                    overflow: "hidden",
+                    cursor:
+                      zoom > 1
+                        ? pointersRef.current.size === 1
+                          ? "grabbing"
+                          : "grab"
+                        : "default",
+                  }}
                 >
                   {previewSrc ? (
                     <img
@@ -655,6 +775,11 @@ export function PerCardEditModal({
                         maxWidth: "100%",
                         width: "auto",
                         ...previewStyle,
+                        // Phase 9.5a — zoom/pan transform. transform-origin
+                        // top-left so the wheel/pinch math (which assumes
+                        // 0,0 origin) stays simple.
+                        transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                        transformOrigin: "0 0",
                       }}
                     />
                   ) : (
@@ -730,6 +855,22 @@ export function PerCardEditModal({
                   <span className="w-8 text-right text-xs tabular-nums">
                     {radius}%
                   </span>
+                  {zoom > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setZoom(1);
+                        setPan({ x: 0, y: 0 });
+                      }}
+                      className="text-xs italic underline-offset-4 hover:underline"
+                      style={{
+                        color: "var(--color-foreground)",
+                        opacity: 0.6,
+                      }}
+                    >
+                      Reset zoom
+                    </button>
+                  ) : null}
                 </div>
 
                 <div className="flex flex-wrap items-center justify-end gap-2">
@@ -938,8 +1079,11 @@ function CropHandles({
 
   function natToRendered(p: { x: number; y: number }) {
     return {
-      x: (p.x / imgDims.w) * renderedDims.w,
-      y: (p.y / imgDims.h) * renderedDims.h,
+      // Phase 9.5a — use imgRect (post-transform) instead of
+      // renderedDims (pre-transform). Handles follow zoom/pan because
+      // the IMG's bounding rect reflects the CSS transform.
+      x: (p.x / imgDims.w) * imgRect.width,
+      y: (p.y / imgDims.h) * imgRect.height,
     };
   }
 
@@ -957,8 +1101,11 @@ function CropHandles({
     function onMove(ev: PointerEvent) {
       const dxRendered = ev.clientX - startX;
       const dyRendered = ev.clientY - startY;
-      const dxNatural = (dxRendered / renderedDims.w) * imgDims.w;
-      const dyNatural = (dyRendered / renderedDims.h) * imgDims.h;
+      // Phase 9.5a — read the current bounding rect on each move so
+      // any concurrent zoom/pan stays consistent with the drag math.
+      const liveRect = imgEl.getBoundingClientRect();
+      const dxNatural = (dxRendered / liveRect.width) * imgDims.w;
+      const dyNatural = (dyRendered / liveRect.height) * imgDims.h;
       const next: CropCoords = {
         ...latest,
         [corner]: {
@@ -992,8 +1139,8 @@ function CropHandles({
         style={{
           left: offX,
           top: offY,
-          width: renderedDims.w,
-          height: renderedDims.h,
+          width: imgRect.width,
+          height: imgRect.height,
         }}
       >
         <polygon
