@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { getCardName } from "@/lib/tarot";
-import { useActiveCardBackUrl, useActiveDeckImage, useActiveDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
+import { useActiveCardBackUrl, useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -418,7 +418,6 @@ function CardFace({
         </div>
         <div
           className="flip-face front overflow-hidden bg-card"
-          style={cornerRadiusStyle(deckRadiusPx, sizing.w)}
         >
           {/* Always render the face image so it's preloaded before the flip
               animation begins — otherwise the first reveal shows a blank
@@ -431,7 +430,6 @@ function CardFace({
             style={{
               transform: pick.isReversed ? "rotate(180deg)" : undefined,
               transition: "transform 600ms ease-out",
-              ...cornerRadiusStyle(deckRadiusPx, sizing.w),
             }}
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).style.display = "none";
@@ -875,7 +873,6 @@ export function ManualSpreadSlots({
         transform: rotated ? "rotate(90deg)" : undefined,
         transformOrigin: "center center",
         boxShadow: pick ? "0 6px 18px rgba(0,0,0,0.5)" : undefined,
-        ...(pick ? cornerRadiusStyle(deckRadiusPx, sizing.w) : {}),
       }}
     >
       {pick ? (
@@ -883,7 +880,7 @@ export function ManualSpreadSlots({
           src={cardImg(pick.cardIndex)}
           alt={getCardName(pick.cardIndex)}
           className="h-full w-full object-contain"
-          style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined, ...cornerRadiusStyle(deckRadiusPx, sizing.w) }}
+          style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
         />
       ) : (
         <span className="absolute inset-0 flex items-center justify-center text-[18px] font-light text-foreground/50">+</span>

@@ -18,7 +18,7 @@ import {
 } from "@/lib/dates";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
-import { useDeckImage, useDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
+import { useDeckImage, useDeckCornerRadius } from "@/lib/active-deck";
 import { CardImage } from "@/components/card/CardImage";
 import { useElementWidth } from "@/lib/use-element-width";
 import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";

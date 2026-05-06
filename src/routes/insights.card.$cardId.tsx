@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, X, Lock } from "lucide-react";
 import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
-import { useActiveDeckImage, useActiveDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
+import { useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
 import { useElementWidth } from "@/lib/use-element-width";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { DEFAULT_FILTERS } from "@/lib/insights.types";
@@ -41,7 +41,8 @@ function StalkerDetailRoute() {
   const resolveImage = useActiveDeckImage();
   const radiusPct = useActiveDeckCornerRadius();
   const { ref, width } = useElementWidth<HTMLDivElement>();
-  const radiusStyle = cornerRadiusStyle(radiusPct, width || 200);
+  void radiusPct;
+  void width;
   const { user } = useAuth();
   const { isPremium } = usePremium(user?.id);
 
