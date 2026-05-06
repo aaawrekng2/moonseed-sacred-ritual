@@ -129,14 +129,14 @@ function ThreadsPage() {
         className="page-header-glass sticky top-0"
         style={{
           zIndex: "var(--z-sticky-header)",
-          paddingTop: "calc(env(safe-area-inset-top, 0px) + var(--space-4, 16px))",
+          paddingTop: "env(safe-area-inset-top, 0px)",
         }}
       >
         <div
           style={{
             maxWidth: 720,
             margin: "0 auto",
-            padding: "0 var(--space-4, 16px) var(--space-3, 12px)",
+            padding: "0 var(--space-4, 16px)",
           }}
         >
           <h1
