@@ -42,7 +42,6 @@ import { LensDistribution } from "@/components/insights/LensDistribution";
 import { QuestionThemesLocked } from "@/components/insights/QuestionThemesLocked";
 import { RecapTab } from "@/components/insights/RecapTab";
 import { LunationBanner } from "@/components/insights/LunationBanner";
-import { PremiumBadge } from "@/components/insights/PremiumBadge";
 import { StalkersTab } from "@/components/insights/StalkersTab";
 import type { MoonPhaseName } from "@/lib/moon";
 
