@@ -24,7 +24,7 @@
  *      immediately via per-card-save; no batch commit step.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Loader2, RotateCcw, Upload, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Loader2, Pencil, RotateCcw, Upload, X } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -1498,14 +1498,9 @@ function Workspace({
         </button>
       )}
 
-      {/* DX — Card corner radius slider (edit mode only). */}
-      {entryMode === "edit" && (
-        <CornerRadiusSlider
-          deckId={deckId}
-          initial={existingCornerRadiusPx}
-          onSaved={(next) => onRadiusSaved?.(next)}
-        />
-      )}
+      {/* 9-6-C — Top-level CornerRadiusSlider removed. Tarot uses
+          PerCardEditModal's "Apply to all"; Oracle has its own slider
+          inside OracleWorkspace below. */}
 
       {/* Tab body */}
       {tab === "unassigned" && (
