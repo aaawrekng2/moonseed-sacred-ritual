@@ -301,14 +301,17 @@ export function PerCardEditModal({
         corner_radius_percent: number;
         processing_status: string;
         crop_coords?: CropCoords;
+        radius_overridden?: boolean;
       } = {
         corner_radius_percent: radius,
         processing_status: "pending",
+        // Phase 9-5-B Part 2 — single-card save = explicit override.
+        radius_overridden: true,
       };
       if (crop) patch.crop_coords = crop;
       const { error: updErr } = await supabase
         .from("custom_deck_cards")
-        .update(patch)
+        .update(patch as never)
         .eq("deck_id", deckId)
         .eq("card_id", activeCardId);
       if (updErr) throw updErr;
