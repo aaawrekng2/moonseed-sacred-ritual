@@ -139,20 +139,31 @@ function ThreadsPage() {
             padding: "0 var(--space-4, 16px)",
           }}
         >
-          <h1
+          <div
+            className="overflow-hidden flex items-center"
             style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-heading-sm)",
-              color: "var(--color-foreground)",
-              opacity: 0.9 * collapseProgress,
-              margin: 0,
-              transition: "opacity 150ms ease-out",
+              paddingTop: `${collapseProgress * 6}px`,
+              paddingBottom: `${collapseProgress * 6}px`,
+              maxHeight: `${collapseProgress * 32}px`,
+              transition: "max-height 150ms ease-out, padding 150ms ease-out",
             }}
           >
-            Stories
-            <HelpIcon articleId="stories" size={16} />
-          </h1>
+            <h1
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-heading-sm)",
+                color: "var(--color-foreground)",
+                opacity: 0.9 * collapseProgress,
+                margin: 0,
+                lineHeight: 1,
+                transition: "opacity 150ms ease-out",
+              }}
+            >
+              Stories
+              <HelpIcon articleId="stories" size={16} />
+            </h1>
+          </div>
           <nav
             aria-label="Stories views"
             style={{
@@ -212,7 +223,7 @@ function ThreadsPage() {
             fontSize: "var(--text-display, 32px)",
             color: "var(--color-foreground)",
             opacity: 0.9,
-            lineHeight: 1.1,
+            lineHeight: 1.25,
             margin: "0 0 var(--space-4, 16px) 0",
           }}
         >
