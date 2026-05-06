@@ -265,169 +265,141 @@ function ThreadsPage() {
 function PatternCard({
   pattern,
   readings,
+  onOpenReading,
 }: {
   pattern: Pattern;
   readings: PatternReading[];
+  onOpenReading: (readingId: string) => void;
 }) {
   const count = readings.length || pattern.reading_ids.length;
   return (
-    <Link
-      to="/threads/$patternId"
-      params={{ patternId: pattern.id }}
+    <div
       style={{
-        display: "block",
         padding: "var(--space-4, 16px)",
         borderRadius: "var(--radius-lg, 14px)",
         background: "var(--surface-card, rgba(255,255,255,0.03))",
         border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
-        textDecoration: "none",
-        color: "inherit",
-        cursor: "pointer",
-        touchAction: "manipulation",
-        WebkitTapHighlightColor: "transparent",
-        userSelect: "none",
       }}
     >
-      <section
+      <Link
+        to="/threads/$patternId"
+        params={{ patternId: pattern.id }}
         style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "var(--space-3, 12px)",
+          display: "block",
+          textDecoration: "none",
+          color: "inherit",
+          cursor: "pointer",
+          touchAction: "manipulation",
+          WebkitTapHighlightColor: "transparent",
+          userSelect: "none",
         }}
       >
-        <div
+        <section
           style={{
             display: "flex",
-            alignItems: "baseline",
-            justifyContent: "space-between",
+            flexDirection: "column",
             gap: "var(--space-3, 12px)",
           }}
         >
-          <h3
+          <div
             style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-heading-sm, 17px)",
-              color: "var(--color-foreground)",
-              margin: 0,
-              opacity: pattern.is_user_named ? 1 : 0.85,
-            }}
-          >
-            {pattern.name}
-          </h3>
-          <span
-            style={{
-              fontSize: "var(--text-caption)",
-              textTransform: "uppercase",
-              letterSpacing: "0.2em",
-              color: "var(--accent, var(--gold))",
-              opacity: 0.6,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {pattern.lifecycle_state} · {count} {count === 1 ? "reading" : "readings"}
-          </span>
-        </div>
-        {pattern.description && pattern.description.trim() && (
-          <p
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontSize: "var(--text-body-sm)",
-              lineHeight: 1.6,
-              color: "var(--color-foreground)",
-              opacity: 0.8,
-              margin: 0,
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {pattern.description}
-          </p>
-        )}
-        {readings.length > 0 && (
-          <ul
-            style={{
-              listStyle: "none",
-              margin: 0,
-              padding: 0,
               display: "flex",
-              flexDirection: "column",
-              gap: "var(--space-1, 6px)",
+              alignItems: "baseline",
+              justifyContent: "space-between",
+              gap: "var(--space-3, 12px)",
             }}
           >
-            {readings.slice(0, 6).map((r) => {
-              const hasQuestion = !!r.question?.trim();
-              const label = hasQuestion
-                ? `"${r.question!.trim()}"`
-                : firstCardName(r.card_ids);
-              return (
-                <li key={r.id}>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "baseline",
-                      justifyContent: "space-between",
-                      gap: "var(--space-3, 12px)",
-                      width: "100%",
-                      padding: "var(--space-2, 8px) var(--space-3, 12px)",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: "var(--font-serif)",
-                        fontStyle: hasQuestion ? "italic" : "normal",
-                        fontSize: "var(--text-body-sm)",
-                        color: "var(--color-foreground)",
-                        opacity: 0.85,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {label}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "var(--text-caption)",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.15em",
-                        color: "var(--color-foreground)",
-                        opacity: 0.5,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {formatRelativeTime(r.created_at)}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-            {readings.length > 6 && (
-              <li
-                style={{
-                  padding: "0 var(--space-3, 12px)",
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: "var(--text-caption)",
-                  color: "var(--color-foreground)",
-                  opacity: 0.5,
-                }}
-              >
-                + {readings.length - 6} more
-              </li>
-            )}
-          </ul>
-        )}
-      </section>
-    </Link>
+            <h3
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-heading-sm, 17px)",
+                color: "var(--color-foreground)",
+                margin: 0,
+                opacity: pattern.is_user_named ? 1 : 0.85,
+              }}
+            >
+              {pattern.name}
+            </h3>
+            <span
+              style={{
+                fontSize: "var(--text-caption)",
+                textTransform: "uppercase",
+                letterSpacing: "0.2em",
+                color: "var(--accent, var(--gold))",
+                opacity: 0.6,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {pattern.lifecycle_state} · {count} {count === 1 ? "reading" : "readings"}
+            </span>
+          </div>
+          {pattern.description && pattern.description.trim() && (
+            <p
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-body-sm)",
+                lineHeight: 1.6,
+                color: "var(--color-foreground)",
+                opacity: 0.8,
+                margin: 0,
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {pattern.description}
+            </p>
+          )}
+        </section>
+      </Link>
+      {readings.length > 0 && (
+        <ul
+          style={{
+            listStyle: "none",
+            margin: "var(--space-3, 12px) 0 0",
+            padding: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {readings.slice(0, 6).map((r) => (
+            <li key={r.id}>
+              <ReadingRow
+                readingId={r.id}
+                question={r.question}
+                cardIds={r.card_ids}
+                createdAt={r.created_at}
+                onOpen={onOpenReading}
+              />
+            </li>
+          ))}
+          {readings.length > 6 && (
+            <li
+              style={{
+                padding: "var(--space-2, 8px) var(--space-3, 12px)",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-caption)",
+                color: "var(--color-foreground)",
+                opacity: 0.5,
+              }}
+            >
+              + {readings.length - 6} more
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
   );
 }
 
 function ActiveView({
   patterns,
   readingsByPattern,
+  onOpenReading,
 }: {
   patterns: Pattern[];
   readingsByPattern: Map<string, PatternReading[]>;
+  onOpenReading: (readingId: string) => void;
 }) {
   if (patterns.length === 0) {
     return (
@@ -456,7 +428,11 @@ function ActiveView({
     >
       {patterns.map((p) => (
         <li key={p.id}>
-          <PatternCard pattern={p} readings={readingsByPattern.get(p.id) ?? []} />
+          <PatternCard
+            pattern={p}
+            readings={readingsByPattern.get(p.id) ?? []}
+            onOpenReading={onOpenReading}
+          />
         </li>
       ))}
     </ul>
