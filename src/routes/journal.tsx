@@ -597,20 +597,33 @@ function JournalPage() {
       {/* Sticky header — title, search, filter button, tab row.
           Stays pinned while the body below scrolls. */}
       <div
-        className="page-header-glass sticky top-0 -mx-5 px-5 pt-[calc(env(safe-area-inset-top,0px)+12px)]"
-        style={{ zIndex: "var(--z-sticky-header)" }}
+        className="page-header-glass sticky top-0 -mx-5 px-5"
+        style={{
+          zIndex: "var(--z-sticky-header)",
+          paddingTop: "env(safe-area-inset-top, 0px)",
+        }}
       >
-        <h1
-          className="font-serif italic"
+        <div
+          className="overflow-hidden"
           style={{
-            fontSize: "var(--text-heading-sm)",
-            color: "var(--color-foreground)",
-            opacity: 0.9 * collapseProgress,
-            transition: "opacity 150ms ease-out",
+            paddingTop: `${collapseProgress * 12}px`,
+            maxHeight: `${collapseProgress * 36}px`,
+            transition: "max-height 150ms ease-out, padding 150ms ease-out",
           }}
         >
-          Journal
-        </h1>
+          <h1
+            className="font-serif italic"
+            style={{
+              fontSize: "var(--text-heading-sm)",
+              color: "var(--color-foreground)",
+              opacity: 0.9 * collapseProgress,
+              transition: "opacity 150ms ease-out",
+              margin: 0,
+            }}
+          >
+            Journal
+          </h1>
+        </div>
 
       {/* Search */}
       <div className="mt-2 flex items-center gap-2">
