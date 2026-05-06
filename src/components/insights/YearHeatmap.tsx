@@ -68,7 +68,7 @@ export function YearHeatmap({ filters }: { filters: InsightsFilters }) {
   weeks.forEach((w, col) => {
     for (const d of w) {
       if (d && d.date.endsWith("-01")) {
-        const m = new Date(d.date).toLocaleString("en", { month: "short" });
+        const m = new Date(d.date).toLocaleString(undefined, { month: "short" });
         monthLabels.push({ col, label: m });
         break;
       }

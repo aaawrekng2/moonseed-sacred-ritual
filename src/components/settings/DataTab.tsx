@@ -611,7 +611,7 @@ function RestorePanel({
     const part1 =
       parts.find((p) => (p.manifest.part_index ?? 1) === 1) ?? parts[0];
     const created = part1
-      ? new Date(part1.manifest.exported_at).toLocaleString()
+      ? formatDateTime(part1.manifest.exported_at)
       : "";
     const categories = part1?.manifest.categories ?? [];
 

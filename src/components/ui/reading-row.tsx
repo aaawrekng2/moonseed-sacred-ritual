@@ -1,5 +1,6 @@
 import { ChevronRight } from "lucide-react";
-import { firstCardName, formatRelativeTime } from "@/lib/utils";
+import { firstCardName } from "@/lib/utils";
+import { formatTimeAgo } from "@/lib/dates";
 
 type ReadingRowProps = {
   readingId: string;
@@ -65,7 +66,7 @@ export function ReadingRow({
           fontFamily: "var(--font-sans, inherit)",
         }}
       >
-        {formatRelativeTime(createdAt)}
+        {formatTimeAgo(createdAt)}
       </span>
       <ChevronRight
         size={14}

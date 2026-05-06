@@ -10,6 +10,7 @@ import { Archive as ArchiveIcon, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
+import { formatDateLong } from "@/lib/dates";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   daysUntilPurge,
@@ -288,7 +289,7 @@ function ArchiveRow({
         >
           <span>{spreadLabelOf(row.spread_type)}</span>
           <span style={{ opacity: 0.7 }}>
-            archived {new Date(row.archived_at).toLocaleDateString()}
+            archived {formatDateLong(row.archived_at)}
           </span>
         </div>
         {row.question && (

@@ -198,26 +198,6 @@ export function usePatternsCount(userId: string | undefined): {
   return { count, loading };
 }
 
-/**
- * Format a relative time span like "2 weeks ago" or "Active since March".
- */
-export function formatTimeAgo(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  const day = 86_400_000;
-  if (ms < day) return "today";
-  if (ms < 7 * day) return `${Math.floor(ms / day)} day${Math.floor(ms / day) === 1 ? "" : "s"} ago`;
-  if (ms < 30 * day) {
-    const weeks = Math.floor(ms / (7 * day));
-    return `${weeks} week${weeks === 1 ? "" : "s"} ago`;
-  }
-  if (ms < 365 * day) {
-    const months = Math.floor(ms / (30 * day));
-    return `${months} month${months === 1 ? "" : "s"} ago`;
-  }
-  const years = Math.floor(ms / (365 * day));
-  return `${years} year${years === 1 ? "" : "s"} ago`;
-}
-
 export function formatMonthSince(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
@@ -226,19 +206,4 @@ export function formatMonthSince(iso: string): string {
     month: "long",
     ...(sameYear ? {} : { year: "numeric" }),
   });
-}
-
-export function formatDateSpan(startIso: string, endIso: string | null): string {
-  const start = new Date(startIso);
-  const end = endIso ? new Date(endIso) : new Date();
-  const sameYear = start.getFullYear() === end.getFullYear();
-  const startStr = start.toLocaleDateString(undefined, {
-    month: "short",
-    ...(sameYear ? {} : { year: "numeric" }),
-  });
-  const endStr = end.toLocaleDateString(undefined, {
-    month: "short",
-    year: "numeric",
-  });
-  return `${startStr} – ${endStr}`;
 }
