@@ -1043,39 +1043,26 @@ function WorkspaceWithCornerEditor({
   initialPhase?: "upload" | "workspace";
   onClose: () => void | Promise<void>;
 }) {
-  const [cornerEditorOpen, setCornerEditorOpen] = useState(false);
+  // 9-5-D — liveRadius is owned here so both ZipImporter (preview)
+  // and any per-card editor opened from inside it see the freshly
+  // saved value without a page reload.
+  const [liveRadius, setLiveRadius] = useState(cornerRadiusPercent);
+  useEffect(() => { setLiveRadius(cornerRadiusPercent); }, [cornerRadiusPercent]);
   return (
-    <>
-      <ZipImporter
-        userId={userId}
-        deckId={deckId}
-        shape={shape}
-        cornerRadiusPercent={cornerRadiusPercent}
-        existingBackUrl={existingBackUrl}
-        entryMode="edit"
-        initialPhase={initialPhase}
-        deckName={deckName}
-        existingCornerRadiusPx={existingCornerRadiusPx}
-        onCancel={onClose}
-        onDone={onClose}
-      />
-      <button
-        type="button"
-        onClick={() => setCornerEditorOpen(true)}
-        className="fixed bottom-6 right-6 z-40 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-cosmos/90 px-4 py-2 text-xs shadow-lg backdrop-blur hover:bg-gold/10"
-        title="Adjust per-card corner rounding"
-      >
-        Edit card corners
-      </button>
-      {cornerEditorOpen ? (
-        <PerCardEditModal
-          deckId={deckId}
-          deckName={deckName}
-          defaultRadiusPercent={cornerRadiusPercent}
-          onClose={() => setCornerEditorOpen(false)}
-        />
-      ) : null}
-    </>
+    <ZipImporter
+      userId={userId}
+      deckId={deckId}
+      shape={shape}
+      cornerRadiusPercent={liveRadius}
+      existingBackUrl={existingBackUrl}
+      entryMode="edit"
+      initialPhase={initialPhase}
+      deckName={deckName}
+      existingCornerRadiusPx={existingCornerRadiusPx}
+      onRadiusSaved={(next) => setLiveRadius(next)}
+      onCancel={onClose}
+      onDone={onClose}
+    />
   );
 }
 
