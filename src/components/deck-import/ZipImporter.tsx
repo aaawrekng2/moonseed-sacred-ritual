@@ -47,7 +47,6 @@ import {
 } from "@/lib/import-session";
 import { EncodingQueue } from "@/lib/deck-image-pipeline";
 import { fetchDeckCards } from "@/lib/custom-decks";
-import { cornerRadiusStyle } from "@/lib/active-deck";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { saveCard, removeCard, type SaveResult } from "@/lib/per-card-save";
 import {
