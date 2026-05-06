@@ -236,7 +236,7 @@ function InsightsRoute() {
                   borderBottom: active
                     ? "1px solid var(--tab-underline-color)"
                     : "1px solid transparent",
-                }}
+                } as React.CSSProperties}
               >
                 {t.label}
               </button>
