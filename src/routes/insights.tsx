@@ -167,11 +167,11 @@ function InsightsRoute() {
         style={{ zIndex: "var(--z-sticky-header)" }}
       >
         <div
-          className="px-4 overflow-hidden"
+          className="px-4 overflow-hidden flex items-center"
           style={{
-            paddingTop: `calc(env(safe-area-inset-top,0px) + ${collapseProgress * 12}px)`,
-            paddingBottom: `${collapseProgress * 8}px`,
-            maxHeight: `${collapseProgress * 44}px`,
+            paddingTop: `calc(env(safe-area-inset-top,0px) + ${collapseProgress * 6}px)`,
+            paddingBottom: `${collapseProgress * 6}px`,
+            maxHeight: `${collapseProgress * 32}px`,
             transition: "max-height 150ms ease-out, padding 150ms ease-out",
           }}
         >
@@ -183,6 +183,7 @@ function InsightsRoute() {
               opacity: 0.9 * collapseProgress,
               transition: "opacity 150ms ease-out",
               margin: 0,
+              lineHeight: 1,
             }}
           >
             Insights
@@ -252,7 +253,7 @@ function InsightsRoute() {
             fontSize: "var(--text-display, 32px)",
             color: "var(--color-foreground)",
             opacity: 0.9,
-            lineHeight: 1.1,
+            lineHeight: 1.25,
           }}
         >
           Insights

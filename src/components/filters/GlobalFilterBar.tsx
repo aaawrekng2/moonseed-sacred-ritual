@@ -128,6 +128,16 @@ export function GlobalFilterBar({
         className="mx-auto flex max-w-2xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2"
         style={{ minHeight: 44 }}
       >
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Filters"
+          className="shrink-0 inline-flex items-center justify-center p-1 rounded-md transition-opacity"
+          style={{ color: "var(--color-foreground)", opacity: 0.7 }}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+        </button>
+
         {timeRange && <TimeRangeDropdown {...timeRange} />}
 
         {showClear && (
@@ -161,16 +171,6 @@ export function GlobalFilterBar({
         ))}
 
         {trailingChips}
-
-        <button
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          aria-label="Filters"
-          className="ml-auto p-1.5 rounded-md transition-opacity"
-          style={{ color: "var(--color-foreground)", opacity: 0.7 }}
-        >
-          <SlidersHorizontal className="h-5 w-5" />
-        </button>
       </div>
 
       <FilterDrawer

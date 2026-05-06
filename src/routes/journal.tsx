@@ -604,10 +604,11 @@ function JournalPage() {
         }}
       >
         <div
-          className="overflow-hidden"
+          className="overflow-hidden flex items-center"
           style={{
-            paddingTop: `${collapseProgress * 12}px`,
-            maxHeight: `${collapseProgress * 36}px`,
+            paddingTop: `${collapseProgress * 6}px`,
+            paddingBottom: `${collapseProgress * 6}px`,
+            maxHeight: `${collapseProgress * 32}px`,
             transition: "max-height 150ms ease-out, padding 150ms ease-out",
           }}
         >
@@ -619,6 +620,7 @@ function JournalPage() {
               opacity: 0.9 * collapseProgress,
               transition: "opacity 150ms ease-out",
               margin: 0,
+              lineHeight: 1,
             }}
           >
             Journal
@@ -729,7 +731,7 @@ function JournalPage() {
           fontSize: "var(--text-display, 32px)",
           color: "var(--color-foreground)",
           opacity: 0.9,
-          lineHeight: 1.1,
+          lineHeight: 1.25,
         }}
       >
         Journal
