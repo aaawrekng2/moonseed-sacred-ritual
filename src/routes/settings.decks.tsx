@@ -1025,6 +1025,7 @@ function DeckEditor({
         initialPhase="upload"
         deckName={name}
         existingCornerRadiusPx={cornerRadiusPx}
+        deckType={deckType}
         onCancel={() => onClose(true)}
         onDone={async () => {
           await reloadCards(deckId);
@@ -1047,6 +1048,7 @@ function DeckEditor({
         existingBackUrl={deckBackUrl}
         existingCornerRadiusPx={cornerRadiusPx}
         initialPhase={mode.initialPhase}
+        deckType={existing?.deck_type ?? deckType}
         onClose={async () => {
           await reloadCards(deckId);
           onClose(true);
