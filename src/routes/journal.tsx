@@ -709,8 +709,21 @@ function JournalPage() {
         <div className="h-3" />
       </div>
 
+      {/* FU-8 — Large title at top of content (iOS large-to-compact pattern) */}
+      <h1
+        className="font-serif italic mt-4 mb-2"
+        style={{
+          fontSize: "var(--text-display, 32px)",
+          color: "var(--color-foreground)",
+          opacity: 0.9,
+          lineHeight: 1.1,
+        }}
+      >
+        Journal
+      </h1>
+
       {/* Body */}
-      <div className="mt-6">
+      <div className="mt-4">
         {batchParam && (
           <div
             className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg px-3 py-2"
