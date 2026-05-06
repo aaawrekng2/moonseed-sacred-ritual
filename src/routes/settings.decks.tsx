@@ -686,6 +686,7 @@ function DeckEditor({
                     name: name.trim(),
                     shape,
                     corner_radius_percent: cornerRadius,
+                    deck_type: deckType,
                   })
                   .select("*")
                   .single();
@@ -721,6 +722,7 @@ function DeckEditor({
                       name: name.trim(),
                       shape,
                       corner_radius_percent: cornerRadius,
+                      deck_type: deckType,
                     })
                     .select("*")
                     .single();
