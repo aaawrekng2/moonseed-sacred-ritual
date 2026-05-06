@@ -23,6 +23,7 @@ import {
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
+import { useScrollCollapse } from "@/lib/use-scroll-collapse";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CardZoomModal } from "@/components/tabletop/CardZoomModal";
 import { ArchiveView } from "@/components/journal/ArchiveView";
