@@ -953,6 +953,10 @@ function Workspace({
   existingCornerRadiusPx: number | null;
 }) {
   const [tab, setTab] = useState<Tab>(entryMode === "edit" ? "assigned" : "unassigned");
+  // 9-5-C — live corner-radius state so CornerRadiusSlider's onSaved
+  // updates the ZoomModal preview immediately, without page reload.
+  const [liveRadius, setLiveRadius] = useState<number>(cornerRadiusPercent);
+  useEffect(() => { setLiveRadius(cornerRadiusPercent); }, [cornerRadiusPercent]);
   // Zoom modal context: which image, opened from which filter view.
   const [zoom, setZoom] = useState<
     | null
