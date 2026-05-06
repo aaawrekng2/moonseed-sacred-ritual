@@ -1079,8 +1079,11 @@ function CropHandles({
 
   function natToRendered(p: { x: number; y: number }) {
     return {
-      x: (p.x / imgDims.w) * renderedDims.w,
-      y: (p.y / imgDims.h) * renderedDims.h,
+      // Phase 9.5a — use imgRect (post-transform) instead of
+      // renderedDims (pre-transform). Handles follow zoom/pan because
+      // the IMG's bounding rect reflects the CSS transform.
+      x: (p.x / imgDims.w) * imgRect.width,
+      y: (p.y / imgDims.h) * imgRect.height,
     };
   }
 
@@ -1098,8 +1101,11 @@ function CropHandles({
     function onMove(ev: PointerEvent) {
       const dxRendered = ev.clientX - startX;
       const dyRendered = ev.clientY - startY;
-      const dxNatural = (dxRendered / renderedDims.w) * imgDims.w;
-      const dyNatural = (dyRendered / renderedDims.h) * imgDims.h;
+      // Phase 9.5a — read the current bounding rect on each move so
+      // any concurrent zoom/pan stays consistent with the drag math.
+      const liveRect = imgEl.getBoundingClientRect();
+      const dxNatural = (dxRendered / liveRect.width) * imgDims.w;
+      const dyNatural = (dyRendered / liveRect.height) * imgDims.h;
       const next: CropCoords = {
         ...latest,
         [corner]: {
@@ -1133,8 +1139,8 @@ function CropHandles({
         style={{
           left: offX,
           top: offY,
-          width: renderedDims.w,
-          height: renderedDims.h,
+          width: imgRect.width,
+          height: imgRect.height,
         }}
       >
         <polygon
