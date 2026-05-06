@@ -227,16 +227,64 @@ export function ZipImporter({
         // phase even when a deck already has saved cards. The user
         // explicitly asked for the file-picker flow.
         if (initialPhase === "upload") {
-          // Still hydrate cardStates from existing rows so the workspace
-          // (after they pick a zip) shows them as 'saved'.
+          // 9-6-B — pre-populate session.assigned with EXISTING:* markers so
+          // the workspace shows current saved card images instead of default
+          // Rider-Waite fallbacks while the user picks a replacement zip.
           try {
             const existingCards = await fetchDeckCards(deckId);
             if (cancelled) return;
             const seeded: Record<string, CardState> = {};
             for (const c of existingCards) seeded[String(c.card_id)] = "saved";
             if (Object.keys(seeded).length > 0) setCardStates(seeded);
-          } catch {
-            /* non-fatal */
+
+            const paths = existingCards
+              .map((c) => c.display_path)
+              .filter((p): p is string => !!p);
+            const signedMap = new Map<string, string>();
+            if (paths.length > 0) {
+              const { data: signed } = await supabase.storage
+                .from("custom-deck-images")
+                .createSignedUrls(paths, 60 * 60 * 24 * 365);
+              for (const entry of signed ?? []) {
+                if (entry.signedUrl && entry.path) {
+                  signedMap.set(entry.path, entry.signedUrl);
+                }
+              }
+            }
+
+            const session = makeEmptySession(deckId);
+            const assets = ensureAssetStore(session);
+            for (const c of existingCards) {
+              const k = `EXISTING:${c.card_id}`;
+              const isOracle = c.card_id >= 1000;
+              const displayName =
+                c.card_name ??
+                (isOracle
+                  ? `Card ${c.card_id - 999}`
+                  : getCardName(c.card_id));
+              assets[k] = {
+                key: k,
+                filename: `${displayName} (current)`,
+                rawBlob: new Blob(),
+                width: 0,
+                height: 0,
+                existingUrl:
+                  signedMap.get(c.display_path ?? "") ||
+                  c.display_url ||
+                  c.thumbnail_url,
+                ...(isOracle
+                  ? {
+                      oracleName: c.card_name ?? "",
+                      oracleDescription: c.card_description ?? "",
+                    }
+                  : {}),
+              };
+              session.assigned[String(c.card_id)] = k;
+            }
+            await saveSession(session);
+            setWorkspace({ session });
+          } catch (e) {
+            console.error("[ZipImporter] upload-phase prepopulate failed", e);
           }
           setPhase({ kind: "upload", resumable: false });
           return;
@@ -279,9 +327,17 @@ export function ZipImporter({
           }
           for (const c of existingCards) {
             const k = `EXISTING:${c.card_id}`;
+            const isOracle = c.card_id >= 1000;
+            // 9-6-B — oracle cards have user-supplied names; getCardName only
+            // covers tarot IDs 0–77, so fall back appropriately.
+            const displayName =
+              c.card_name ??
+              (isOracle
+                ? `Card ${c.card_id - 999}`
+                : getCardName(c.card_id));
             assets[k] = {
               key: k,
-              filename: `${getCardName(c.card_id)} (current)`,
+              filename: `${displayName} (current)`,
               rawBlob: new Blob(),
               width: 0,
               height: 0,
@@ -292,6 +348,12 @@ export function ZipImporter({
                 signedMap.get(c.display_path ?? "") ||
                 c.display_url ||
                 c.thumbnail_url,
+              ...(isOracle
+                ? {
+                    oracleName: c.card_name ?? "",
+                    oracleDescription: c.card_description ?? "",
+                  }
+                : {}),
             };
             session.assigned[String(c.card_id)] = k;
           }
