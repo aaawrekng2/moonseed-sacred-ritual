@@ -1,0 +1,2 @@
+alter table public.custom_deck_cards drop constraint if exists custom_deck_cards_card_id_check;
+alter table public.custom_deck_cards add constraint custom_deck_cards_card_id_check check (card_id >= 0);
