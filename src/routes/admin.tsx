@@ -477,6 +477,8 @@ function DashboardTab() {
     last30Days: number;
     total: number;
   } | null>(null);
+  // 9-6-F — pending signup attempts (email present, not confirmed).
+  const [pendingSignups, setPendingSignups] = useState<number | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -593,6 +595,12 @@ function DashboardTab() {
         setAnon(a);
       } catch {
         setAnon({ today: 0, last30Days: 0, total: 0 });
+      }
+      try {
+        const p = await getPendingSignupCount({ headers: await authHeaders() });
+        setPendingSignups(p.count);
+      } catch {
+        setPendingSignups(0);
       }
     })();
   }, []);
