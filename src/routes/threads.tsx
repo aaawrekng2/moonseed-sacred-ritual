@@ -71,6 +71,8 @@ function ThreadsPage() {
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [readings, setReadings] = useState<PatternReading[]>([]);
   const [loading, setLoading] = useState(true);
+  // FU-14 — Reading detail modal state shared across active/archive views.
+  const [openReadingId, setOpenReadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -234,11 +236,26 @@ function ThreadsPage() {
         {loading ? (
           <p style={{ opacity: 0.5, fontStyle: "italic" }}>Listening for threads…</p>
         ) : view === "active" ? (
-          <ActiveView patterns={active} readingsByPattern={readingsByPattern} />
+          <ActiveView
+            patterns={active}
+            readingsByPattern={readingsByPattern}
+            onOpenReading={setOpenReadingId}
+          />
         ) : (
-          <ArchiveView patterns={archived} readingsByPattern={readingsByPattern} />
+          <ArchiveView
+            patterns={archived}
+            readingsByPattern={readingsByPattern}
+            onOpenReading={setOpenReadingId}
+          />
         )}
       </main>
+
+      {openReadingId && (
+        <ReadingDetailModal
+          readingId={openReadingId}
+          onClose={() => setOpenReadingId(null)}
+        />
+      )}
 
       <BottomNav />
     </div>
