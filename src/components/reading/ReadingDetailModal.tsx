@@ -10,6 +10,7 @@ import { getReadingsByIds } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { CardImage } from "@/components/card/CardImage";
 import { Modal } from "@/components/ui/modal";
+import { LoadingText } from "@/components/ui/loading-text";
 
 function formatFullDate(iso: string): string {
   try {
@@ -64,9 +65,13 @@ export function ReadingDetailModal({
 
   return (
     <Modal open onClose={onClose} title="Reading" subtitle={subtitle} size="md">
-        {loading || !reading ? (
+        {loading ? (
+          <div className="px-6 pb-12">
+            <LoadingText>Loading reading…</LoadingText>
+          </div>
+        ) : !reading ? (
           <div className="px-6 pb-12 text-sm italic text-muted-foreground">
-            {loading ? "Loading reading…" : "Reading not found."}
+            Reading not found.
           </div>
         ) : (
           <article className="px-6 pb-12">
