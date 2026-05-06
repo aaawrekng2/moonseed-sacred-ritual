@@ -751,6 +751,25 @@ function DashboardTab() {
       </section>
 
       <section>
+        <SectionTitle>Pending signups</SectionTitle>
+        <div className="mt-4 grid grid-cols-2 gap-4 md:grid-cols-3">
+          <StatCard label="Unconfirmed" value={pendingSignups ?? 0} />
+        </div>
+        <p
+          className="mt-3"
+          style={{
+            ...serif,
+            fontStyle: "italic",
+            fontSize: "var(--text-caption)",
+            opacity: 0.55,
+          }}
+        >
+          Users who started signup but haven&rsquo;t confirmed their email.
+          Excluded from the Users tab.
+        </p>
+      </section>
+
+      <section>
         <SectionTitle>Recent signups</SectionTitle>
         <div className="mt-4 overflow-x-auto">
           <table
