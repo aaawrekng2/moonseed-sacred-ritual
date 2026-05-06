@@ -696,6 +696,8 @@ export function ZipImporter({
         onSwitchToUpload={() => setPhase({ kind: "upload", resumable: false })}
         deckId={deckId}
         existingCornerRadiusPx={existingCornerRadiusPx}
+        deckName={deckName ?? null}
+        onRadiusSaved={onRadiusSaved}
       />
     );
 
