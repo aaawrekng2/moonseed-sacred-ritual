@@ -17,7 +17,7 @@ import {
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { StalkerCalendar } from "./StalkerCalendar";
 import { StalkerOccurrenceList } from "./StalkerOccurrenceList";
-import { StalkerReadingModal } from "./StalkerReadingModal";
+import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import type {
   InsightsFilters,
   TimeRange,
@@ -468,7 +468,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
 
       {/* FQ-4/5 — Reading detail modal opens over the tab. */}
       {openReadingId && (
-        <StalkerReadingModal
+        <ReadingDetailModal
           readingId={openReadingId}
           onClose={() => setOpenReadingId(null)}
         />
