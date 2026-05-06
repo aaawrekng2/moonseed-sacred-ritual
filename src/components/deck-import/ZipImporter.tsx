@@ -2366,12 +2366,15 @@ function ZoomModal({
           <button
             type="button"
             onClick={onEdit}
-            className="rounded-md border px-4 py-2"
             style={{
-              background: "var(--accent)",
-              borderColor: "var(--accent)",
-              color: "var(--accent-foreground)",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
               fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "4px 8px",
             }}
           >
             Edit
@@ -2380,8 +2383,16 @@ function ZoomModal({
         <button
           type="button"
           onClick={onBack}
-          className="rounded-md px-4 py-2"
-          style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            color: "var(--color-foreground)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: "4px 8px",
+          }}
         >
           Back
         </button>
