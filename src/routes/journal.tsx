@@ -1866,14 +1866,16 @@ function CalendarView({
               onClick={() => onSelectDate(c.key)}
               className={cn(
                 "relative flex aspect-square items-center justify-center rounded-md text-[13px] transition-colors",
-                selected ? "bg-gold/15 text-gold" : "text-foreground",
+                selected
+                  ? "bg-gold/15 text-gold"
+                  : isToday
+                    ? "bg-gold/10 text-gold"
+                    : "text-foreground",
               )}
               style={{
                 border: selected
                   ? "1px solid color-mix(in oklab, var(--gold) 50%, transparent)"
-                  : isToday
-                    ? "1px solid color-mix(in oklab, var(--gold) 25%, transparent)"
-                    : "1px solid transparent",
+                  : "1px solid transparent",
                 opacity: count > 0 ? "var(--ro-plus-30)" : "var(--ro-plus-0)",
               }}
             >

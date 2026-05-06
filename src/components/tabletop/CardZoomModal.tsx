@@ -65,7 +65,7 @@ export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomMod
   const useSpecific = deckId != null && deckId !== "";
   const deckRadius = useSpecific ? specificRadius : activeRadius;
   return (
-    <FullScreenSheet open onClose={onClose} entry="fade" showCloseButton>
+    <FullScreenSheet open onClose={onClose} entry="fade" showCloseButton={false}>
       <div
         className="flex h-full flex-col items-center justify-center gap-4 p-4"
         onClick={onClose}

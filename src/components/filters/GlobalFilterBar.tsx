@@ -259,7 +259,7 @@ function TimeRangeDropdown({ value, options, onChange }: TimeRangeProp) {
                   onChange(o.value);
                   setOpen(false);
                 }}
-                className="block w-full px-3 py-1.5 text-left text-xs"
+                className="block w-full px-3 py-1 text-left text-xs"
                 style={{
                   color: active ? "var(--gold)" : "var(--color-foreground)",
                   opacity: active ? 1 : 0.85,
