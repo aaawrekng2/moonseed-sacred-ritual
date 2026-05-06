@@ -1043,6 +1043,7 @@ function Workspace({
   deckId,
   existingCornerRadiusPx,
   onRadiusSaved,
+  deckType,
 }: {
   session: ImportSession;
   onAssign: (imageKey: string, cardId: number | "BACK") => void;
@@ -1066,6 +1067,7 @@ function Workspace({
   deckId: string;
   existingCornerRadiusPx: number | null;
   onRadiusSaved?: (next: number) => void;
+  deckType: "tarot" | "oracle";
 }) {
   const [tab, setTab] = useState<Tab>(entryMode === "edit" ? "assigned" : "unassigned");
   // 9-5-D — liveRadius is now lifted to WorkspaceWithCornerEditor.
