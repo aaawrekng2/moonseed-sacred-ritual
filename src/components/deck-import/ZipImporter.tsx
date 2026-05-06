@@ -1085,6 +1085,11 @@ function Workspace({
   const resolveZoomSrc = useCallback(
     (key: string): { src: string; revoke: boolean } => {
       if (!key) return { src: "", revoke: false };
+      // 9-5-I — synthetic key for the deck-level card back when no
+      // BACK_KEY assignment exists in the current session.
+      if (key === "EXISTING:BACK") {
+        return { src: existingBackUrl ?? "", revoke: false };
+      }
       if (key.startsWith("EXISTING:")) {
         const img = findImage(session, key);
         return { src: img?.existingUrl ?? "", revoke: false };
