@@ -6,7 +6,8 @@ import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { getCardName } from "@/lib/tarot";
 import { CardImage } from "@/components/card/CardImage";
 import type { InsightsFilters } from "@/lib/insights.types";
-import { SectionHeader, EmptyNote, SkeletonRow } from "./StalkerCardsSection";
+import { SectionHeader, SkeletonRow } from "./StalkerCardsSection";
+import { EmptyNote } from "@/components/ui/empty-note";
 
 type Mode = "bar" | "grid" | "deck";
 

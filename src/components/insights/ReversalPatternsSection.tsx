@@ -5,7 +5,8 @@ import { getReversalPatterns } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { CardImage } from "@/components/card/CardImage";
 import type { InsightsFilters } from "@/lib/insights.types";
-import { SectionHeader, EmptyNote, SkeletonRow } from "./StalkerCardsSection";
+import { SectionHeader, SkeletonRow } from "./StalkerCardsSection";
+import { EmptyNote } from "@/components/ui/empty-note";
 import { useTrackReversals } from "@/lib/use-track-reversals";
 
 type Pattern = {
