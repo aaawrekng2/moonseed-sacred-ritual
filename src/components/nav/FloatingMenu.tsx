@@ -277,7 +277,7 @@ export function FloatingMenu() {
           display: "flex",
           alignItems: "center",
           gap: 2,
-          padding: "4px 8px",
+          padding: "2px 6px",
           borderRadius: 999,
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
@@ -474,7 +474,7 @@ function MenuButton({
       type="button"
       aria-label={ariaLabel}
       onClick={onClick}
-      className="flex h-11 w-11 items-center justify-center rounded-full text-gold transition-colors hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+      className="flex h-8 w-8 items-center justify-center rounded-full text-gold transition-colors hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
     >
       {children}
     </button>
