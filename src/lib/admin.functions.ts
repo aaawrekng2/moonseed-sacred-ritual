@@ -196,6 +196,38 @@ export const getAnonymousSessionCounts = createServerFn({ method: "GET" })
     return { today, last30Days, total } as const;
   });
 
+/* ---------- getPendingSignupCount (9-6-F) ---------- */
+
+/**
+ * 9-6-F — Count of users with an email but no email_confirmed_at,
+ * surfaced separately so admins can see pending signup attempts
+ * without polluting the Users tab.
+ */
+export const getPendingSignupCount = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    let count = 0;
+    let page = 1;
+    const perPage = 1000;
+    while (true) {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage,
+      });
+      if (error) throw new Error(error.message);
+      for (const u of data.users) {
+        if (u.email && !(u as any).email_confirmed_at) count += 1;
+      }
+      if (data.users.length < perPage) break;
+      page += 1;
+      if (page > 100) break;
+    }
+    return { count } as const;
+  });
+
 
 const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("grant_premium"), targetUserId: z.string().uuid(), months: z.number().int().positive() }),
@@ -212,6 +244,7 @@ const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("deactivate_user"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("reactivate_user"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("set_note"), targetUserId: z.string().uuid(), note: z.string().nullable() }),
+  z.object({ type: z.literal("resend_confirmation"), targetUserId: z.string().uuid() }),
 ]);
 
 export const adminAction = createServerFn({ method: "POST" })
