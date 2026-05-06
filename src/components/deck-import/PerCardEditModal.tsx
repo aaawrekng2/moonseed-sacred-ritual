@@ -639,23 +639,33 @@ export function PerCardEditModal({
   const cardCount = cards?.length ?? 0;
 
   // Phase 9.5a — wheel zoom (desktop + mac trackpad pinch).
-  function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
-    e.preventDefault();
+  // Phase 9-5-B Bug 1 — React's onWheel attaches a passive listener,
+  // so e.preventDefault() inside it is silently ignored and the page
+  // scrolls instead of zooming. Attach a NATIVE non-passive listener
+  // and read zoom/pan from refs to avoid stale closures.
+  useEffect(() => {
     const wrap = previewWrapRef.current;
     if (!wrap) return;
-    const rect = wrap.getBoundingClientRect();
-    const cursorX = e.clientX - rect.left;
-    const cursorY = e.clientY - rect.top;
-    const factor = Math.exp(-e.deltaY * 0.001);
-    const nextZoom = Math.min(8, Math.max(1, zoom * factor));
-    if (nextZoom === zoom) return;
-    const ratio = nextZoom / zoom;
-    setZoom(nextZoom);
-    setPan({
-      x: cursorX - (cursorX - pan.x) * ratio,
-      y: cursorY - (cursorY - pan.y) * ratio,
-    });
-  }
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = wrap.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left;
+      const cursorY = e.clientY - rect.top;
+      const factor = Math.exp(-e.deltaY * 0.001);
+      const cur = zoomRef.current;
+      const nextZoom = Math.min(8, Math.max(1, cur * factor));
+      if (nextZoom === cur) return;
+      const ratio = nextZoom / cur;
+      const curPan = panRef.current;
+      setZoom(nextZoom);
+      setPan({
+        x: cursorX - (cursorX - curPan.x) * ratio,
+        y: cursorY - (cursorY - curPan.y) * ratio,
+      });
+    };
+    wrap.addEventListener("wheel", onWheel, { passive: false });
+    return () => wrap.removeEventListener("wheel", onWheel);
+  }, [activeCardId]);
 
   function onPreviewPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     const target = e.target as HTMLElement;
