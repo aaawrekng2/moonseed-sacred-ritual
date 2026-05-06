@@ -957,12 +957,18 @@ function Workspace({
   onSwitchToUpload: () => void;
   deckId: string;
   existingCornerRadiusPx: number | null;
+  onRadiusSaved?: (next: number) => void;
 }) {
   const [tab, setTab] = useState<Tab>(entryMode === "edit" ? "assigned" : "unassigned");
-  // 9-5-C — live corner-radius state so CornerRadiusSlider's onSaved
-  // updates the ZoomModal preview immediately, without page reload.
-  const [liveRadius, setLiveRadius] = useState<number>(cornerRadiusPercent);
-  useEffect(() => { setLiveRadius(cornerRadiusPercent); }, [cornerRadiusPercent]);
+  // 9-5-D — liveRadius is now lifted to WorkspaceWithCornerEditor.
+  // We just consume cornerRadiusPercent as the live value and bubble
+  // saves up via onRadiusSaved.
+  const liveRadius = cornerRadiusPercent;
+  // 9-5-D — when the user taps Edit on an EXISTING card in the zoom
+  // modal, route them to PerCardEditModal (which loads the saved
+  // image from storage) rather than PhotoCapture (which needs a raw
+  // blob that doesn't exist for saved cards).
+  const [editingExistingCardId, setEditingExistingCardId] = useState<number | null>(null);
   // Zoom modal context: which image, opened from which filter view.
   const [zoom, setZoom] = useState<
     | null
