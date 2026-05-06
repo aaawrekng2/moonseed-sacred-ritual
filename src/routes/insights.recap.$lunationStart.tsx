@@ -13,6 +13,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { X, Lock } from "lucide-react";
+import { formatDateLong } from "@/lib/dates";
 import { getLunationRecap, getLunationReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { CardImage } from "@/components/card/CardImage";
@@ -755,17 +756,7 @@ function SlideSaveShareDone({
           </div>
           <div style={{ color: "#cea85c", fontSize: 36, marginTop: 18 }}>Your Lunation</div>
           <div style={{ opacity: 0.7, fontSize: 14, marginTop: 6 }}>
-            {new Date(data.lunationStart).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}{" "}
-            –{" "}
-            {new Date(data.lunationEnd).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })}
+            {formatDateLong(data.lunationStart)}{" "}–{" "}{formatDateLong(data.lunationEnd)}
           </div>
         </div>
         <div style={{ textAlign: "center" }}>
