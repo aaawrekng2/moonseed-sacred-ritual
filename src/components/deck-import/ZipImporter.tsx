@@ -214,6 +214,24 @@ export function ZipImporter({
           // polluting the Unassigned bucket.
           const session = makeEmptySession(deckId);
           const assets = ensureAssetStore(session);
+          // 9-5-I — sign URLs from display_path so processed (-full.webp,
+          // rounded) variants show up in the grid. The edge function
+          // patches display_path but never touches display_url, so the
+          // stored URL still points at the original unrounded image.
+          const paths = existingCards
+            .map((c) => c.display_path)
+            .filter((p): p is string => !!p);
+          const signedMap = new Map<string, string>();
+          if (paths.length > 0) {
+            const { data: signed } = await supabase.storage
+              .from("custom-deck-images")
+              .createSignedUrls(paths, 60 * 60 * 24 * 365);
+            for (const entry of signed ?? []) {
+              if (entry.signedUrl && entry.path) {
+                signedMap.set(entry.path, entry.signedUrl);
+              }
+            }
+          }
           for (const c of existingCards) {
             const k = `EXISTING:${c.card_id}`;
             assets[k] = {
@@ -222,9 +240,13 @@ export function ZipImporter({
               rawBlob: new Blob(),
               width: 0,
               height: 0,
-              // 9-5-E — prefer the high-res display variant for ZoomModal
-              // crispness. thumbnail_url is the lower-quality fallback.
-              existingUrl: c.display_url || c.thumbnail_url,
+              // 9-5-I — fresh signed URL from display_path (post-process
+              // -full.webp variant) wins; fall back to the legacy
+              // display_url / thumbnail_url for unprocessed rows.
+              existingUrl:
+                signedMap.get(c.display_path ?? "") ||
+                c.display_url ||
+                c.thumbnail_url,
             };
             session.assigned[String(c.card_id)] = k;
           }
@@ -1063,6 +1085,11 @@ function Workspace({
   const resolveZoomSrc = useCallback(
     (key: string): { src: string; revoke: boolean } => {
       if (!key) return { src: "", revoke: false };
+      // 9-5-I — synthetic key for the deck-level card back when no
+      // BACK_KEY assignment exists in the current session.
+      if (key === "EXISTING:BACK") {
+        return { src: existingBackUrl ?? "", revoke: false };
+      }
       if (key.startsWith("EXISTING:")) {
         const img = findImage(session, key);
         return { src: img?.existingUrl ?? "", revoke: false };
@@ -1333,6 +1360,7 @@ function Workspace({
           session={session}
           resolveSrc={resolveSrc}
           hasBack={hasBack}
+          existingBackUrl={existingBackUrl ?? null}
           onTap={(slot, key) => setZoom({ imageKey: key, from: "assigned", slot })}
           onUnassign={onUnassign}
           cardStates={cardStates}
@@ -1652,6 +1680,7 @@ function AssignedGrid({
   session,
   resolveSrc,
   hasBack,
+  existingBackUrl,
   onTap,
   onUnassign,
   cardStates,
@@ -1664,6 +1693,7 @@ function AssignedGrid({
   session: ImportSession;
   resolveSrc: (key: string) => string;
   hasBack: boolean;
+  existingBackUrl: string | null;
   onTap: (slot: string, key: string) => void;
   onUnassign: (slot: string) => void;
   cardStates: Record<string, CardState>;
@@ -1674,7 +1704,12 @@ function AssignedGrid({
   onDone: () => void;
 }) {
   const backKey = session.assigned[BACK_KEY];
-  const backSrc = backKey ? resolveSrc(backKey) : "";
+  // 9-5-I — fall back to existingBackUrl when the user hasn't reassigned
+  // a back in the current session (fresh edit-mode opens have no
+  // BACK_KEY in session.assigned even though the deck has a saved back).
+  const effectiveBackSrc = backKey
+    ? resolveSrc(backKey)
+    : (existingBackUrl ?? "");
   // BX — sub-filter by suit. Standard tarot ordering:
   // Majors 0-21, Wands 22-35, Cups 36-49, Swords 50-63, Pentacles 64-77.
   type SuitFilter = "all" | "major" | "wands" | "cups" | "swords" | "pentacles";
@@ -1749,11 +1784,11 @@ function AssignedGrid({
         </button>
       </div>
     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
-      {suitFilter === "all" && hasBack && backKey && (
+      {suitFilter === "all" && hasBack && (
         <div className="relative">
           <button
             type="button"
-            onClick={() => onTap(BACK_KEY, backKey)}
+            onClick={() => onTap(BACK_KEY, backKey ?? "EXISTING:BACK")}
             className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
             style={{
               borderColor: "var(--accent)",
@@ -1761,8 +1796,8 @@ function AssignedGrid({
             }}
             title="Card Back — tap to view"
           >
-            {backSrc && (
-              <img src={backSrc} alt="Card Back" className="h-full w-full object-cover" />
+            {effectiveBackSrc && (
+              <img src={effectiveBackSrc} alt="Card Back" className="h-full w-full object-cover" />
             )}
             <span
               className="absolute inset-x-0 bottom-0 px-1 py-0.5 text-center text-[9px] uppercase tracking-wider"
@@ -2192,7 +2227,7 @@ function ZoomModal({
           clipPath: "circle(50%)",
           width: "100%",
           height: "auto",
-          maxHeight: zoom > 1 ? "900px" : "70vh",
+          maxHeight: zoom > 1 ? "900px" : "min(70vh, calc(100vh - 180px))",
           objectFit: "contain",
           display: "block",
           imageRendering: "high-quality" as React.CSSProperties["imageRendering"],
@@ -2202,7 +2237,7 @@ function ZoomModal({
       : {
           width: "100%",
           height: "auto",
-          maxHeight: zoom > 1 ? "900px" : "70vh",
+          maxHeight: zoom > 1 ? "900px" : "min(70vh, calc(100vh - 180px))",
           objectFit: "contain",
           display: "block",
           borderRadius: `${(cornerRadiusPercent / 100) * 200}px`,
@@ -2227,7 +2262,7 @@ function ZoomModal({
         style={{
           width: "min(85vw, 600px)",
           maxWidth: "min(85vw, 600px)",
-          maxHeight: "70vh",
+          maxHeight: "min(70vh, calc(100vh - 180px))",
           overflow: "hidden",
           touchAction: "none",
           cursor: zoom > 1 ? "grab" : "default",
@@ -2283,11 +2318,15 @@ function ZoomModal({
             <button
               type="button"
               onClick={onReassign}
-              className="rounded-md px-4 py-2 font-medium"
               style={{
-                background: "var(--accent)",
-                color: "var(--accent-foreground, #000)",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
                 fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "4px 8px",
               }}
             >
               Reassign to different card
@@ -2295,8 +2334,16 @@ function ZoomModal({
             <button
               type="button"
               onClick={onSendBackToUnassigned}
-              className="rounded-md px-4 py-2"
-              style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "4px 8px",
+              }}
             >
               Send back to unassigned
             </button>
@@ -2331,12 +2378,15 @@ function ZoomModal({
           <button
             type="button"
             onClick={onEdit}
-            className="rounded-md border px-4 py-2"
             style={{
-              background: "var(--accent)",
-              borderColor: "var(--accent)",
-              color: "var(--accent-foreground)",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
               fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "4px 8px",
             }}
           >
             Edit
@@ -2345,8 +2395,16 @@ function ZoomModal({
         <button
           type="button"
           onClick={onBack}
-          className="rounded-md px-4 py-2"
-          style={{ color: "var(--color-foreground)", fontSize: "var(--text-body-sm)" }}
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            color: "var(--color-foreground)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: "4px 8px",
+          }}
         >
           Back
         </button>
