@@ -114,6 +114,15 @@ export function PerCardEditModal({
   // the scale. Reset on card change so each card opens at 1.0/0,0.
   const [zoom, setZoom] = useState<number>(1);
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Phase 9-5-B — refs mirror state so the native (non-passive) wheel
+  // listener reads current values without stale-closure bugs.
+  const zoomRef = useRef<number>(1);
+  const panRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => { panRef.current = pan; }, [pan]);
+  // Phase 9-5-B — track whether the active card's saved radius is an
+  // explicit per-card override (so we can show the Reset button).
+  const [savedOverrides, setSavedOverrides] = useState<Record<number, boolean>>({});
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchStartRef = useRef<
     | {
