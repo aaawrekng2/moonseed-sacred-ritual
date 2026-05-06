@@ -1379,7 +1379,11 @@ function Workspace({
           }}
         >
           <span>
-            {savedCount}/78 cards · {hasBack ? "back set" : "no back"} ·{" "}
+            {deckType === "oracle"
+              ? `${savedCount} card${savedCount === 1 ? "" : "s"}`
+              : `${savedCount}/${totalCardCount} cards`}
+            {" · "}
+            {hasBack ? "back set" : "no back"} ·{" "}
           </span>
           {failedCount > 0 ? (
             <span style={{ color: "var(--destructive)" }}>{failedCount} failed</span>
@@ -1389,7 +1393,7 @@ function Workspace({
         </div>
 
         {/* Tab chips — hidden in edit mode (Assigned only). */}
-        {entryMode === "import" ? (
+        {entryMode === "import" && deckType === "tarot" ? (
           <HorizontalScroll
             className="mt-3"
             contentClassName="gap-2"
