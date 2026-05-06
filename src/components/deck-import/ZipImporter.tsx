@@ -47,6 +47,7 @@ import {
 } from "@/lib/import-session";
 import { EncodingQueue } from "@/lib/deck-image-pipeline";
 import { fetchDeckCards } from "@/lib/custom-decks";
+import { cornerRadiusStyle } from "@/lib/active-deck";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { saveCard, removeCard, type SaveResult } from "@/lib/per-card-save";
 import {
@@ -1418,6 +1419,7 @@ function Workspace({
         <OracleWorkspace
           session={session}
           deckId={deckId}
+          deckName={deckName}
           liveRadius={liveRadius}
           onRadiusSaved={onRadiusSaved}
           existingCornerRadiusPx={existingCornerRadiusPx}
@@ -1464,18 +1466,20 @@ function Workspace({
         }}
       >
         <div className="flex flex-wrap items-center gap-3">
-          <h2
-            className="italic"
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontSize: "var(--text-heading-md)",
-              color: "var(--color-foreground)",
-            }}
-          >
-            {entryMode === "edit"
-              ? deckName?.trim() || "Edit deck"
-              : "Import workspace"}
-          </h2>
+          {entryMode === "edit" ? (
+            <DeckNameInput deckId={deckId} initial={deckName ?? ""} placeholder="Edit deck" />
+          ) : (
+            <h2
+              className="italic"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-heading-md)",
+                color: "var(--color-foreground)",
+              }}
+            >
+              Import workspace
+            </h2>
+          )}
           <div className="ml-auto">
             <SaveStatusIndicator
               status={status}
@@ -1836,9 +1840,60 @@ async function saveOracleCardMeta(
   }
 }
 
+/**
+ * 9-6-D — Inline editable deck name. Saves on blur to custom_decks.name.
+ * Used in both Oracle and Tarot workspace headers.
+ */
+function DeckNameInput({
+  deckId,
+  initial,
+  placeholder,
+}: {
+  deckId: string;
+  initial: string;
+  placeholder: string;
+}) {
+  const [draft, setDraft] = useState(initial);
+  useEffect(() => { setDraft(initial); }, [initial]);
+  const save = async (next: string) => {
+    const trimmed = next.trim();
+    if (!trimmed) return;
+    try {
+      await supabase.from("custom_decks").update({ name: trimmed }).eq("id", deckId);
+    } catch (e) {
+      console.warn("[deck name save]", e);
+    }
+  };
+  return (
+    <input
+      type="text"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => void save(draft)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
+      className="italic"
+      placeholder={placeholder}
+      style={{
+        fontFamily: "var(--font-serif)",
+        fontSize: "var(--text-heading-md)",
+        color: "var(--color-foreground)",
+        background: "transparent",
+        border: "none",
+        borderBottom: "1px solid var(--border-subtle)",
+        padding: "2px 4px",
+        minWidth: 200,
+        outline: "none",
+      }}
+    />
+  );
+}
+
 function OracleWorkspace({
   session,
   deckId,
+  deckName,
   liveRadius,
   onRadiusSaved,
   existingCornerRadiusPx,
@@ -1851,6 +1906,7 @@ function OracleWorkspace({
 }: {
   session: ImportSession;
   deckId: string;
+  deckName: string | null;
   liveRadius: number;
   onRadiusSaved?: (next: number) => void;
   existingCornerRadiusPx: number | null;
@@ -1862,6 +1918,8 @@ function OracleWorkspace({
   onOpenEdit: (cardId: number, key: string) => void;
 }) {
   const [previewIdx, setPreviewIdx] = useState(0);
+  const [liveRadiusLocal, setLiveRadiusLocal] = useState(liveRadius);
+  useEffect(() => { setLiveRadiusLocal(liveRadius); }, [liveRadius]);
   const safeIdx = oracleSlotIds.length === 0
     ? 0
     : ((previewIdx % oracleSlotIds.length) + oracleSlotIds.length) % oracleSlotIds.length;
@@ -1870,23 +1928,11 @@ function OracleWorkspace({
     ? session.assigned[String(previewCardId)]
     : undefined;
   const previewSrc = previewKey ? resolveSrc(previewKey) : "";
-  const radiusStyle = liveRadius > 0
-    ? { borderRadius: `${liveRadius}%` }
-    : {};
   return (
-    <section className="py-4">
+    <section className="py-4 mx-auto w-full" style={{ maxWidth: 720 }}>
       {/* Header row */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h2
-          className="italic"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontSize: "var(--text-heading-md)",
-            color: "var(--color-foreground)",
-          }}
-        >
-          Oracle deck
-        </h2>
+        <DeckNameInput deckId={deckId} initial={deckName ?? ""} placeholder="Oracle deck" />
         <div className="ml-auto flex items-center gap-4">
           {entryMode === "edit" && (
             <button
@@ -1952,7 +1998,7 @@ function OracleWorkspace({
                 width: "min(280px, 70vw)",
                 aspectRatio: "0.625",
                 background: "var(--surface-card)",
-                ...radiusStyle,
+                ...cornerRadiusStyle(liveRadiusLocal, 280),
               }}
             >
               {previewSrc ? (
@@ -1983,6 +2029,8 @@ function OracleWorkspace({
             <CornerRadiusSlider
               deckId={deckId}
               initial={existingCornerRadiusPx}
+              hidePreview={true}
+              onValueChange={(next) => setLiveRadiusLocal(next)}
               onSaved={(next) => onRadiusSaved?.(next)}
             />
           </div>
@@ -2069,6 +2117,7 @@ function OracleRow({
     color: "var(--color-foreground)",
     padding: "4px 0",
     outline: "none",
+    textTransform: "none",
   };
   return (
     <div
@@ -2110,7 +2159,7 @@ function OracleRow({
           rows={2}
           onChange={(e) => setDescription(e.target.value)}
           onBlur={() => void saveOracleCardMeta(deckId, cardId, name, description)}
-          style={{ ...inputBase, resize: "vertical" }}
+          style={{ ...inputBase, resize: "vertical", fontStyle: "italic", textTransform: "none" }}
         />
       </div>
       <button

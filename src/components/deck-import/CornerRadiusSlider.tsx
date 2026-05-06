@@ -24,12 +24,18 @@ export function CornerRadiusSlider({
   deckId,
   initial,
   onSaved,
+  hidePreview,
+  onValueChange,
 }: {
   deckId: string;
   /** Saved value from `custom_decks.corner_radius_px` (null = use default). */
   initial: number | null;
   /** Notify parent so subsequent renders use the new value immediately. */
   onSaved?: (next: number) => void;
+  /** 9-6-D — Skip the internal card preview entirely. The caller owns its own. */
+  hidePreview?: boolean;
+  /** 9-6-D — Fires on every drag tick so the parent can preview live. */
+  onValueChange?: (next: number) => void;
 }) {
   const [value, setValue] = useState<number>(initial ?? APP_DEFAULT_CARD_RADIUS_PCT);
   const [cards, setCards] = useState<CustomDeckCard[]>([]);
@@ -68,6 +74,11 @@ export function CornerRadiusSlider({
   const safeIdx = ((previewIdx % previewCards.length) + previewCards.length) % previewCards.length;
   const preview = previewCards[safeIdx];
   const canNavigate = previewCards.length > 1;
+
+  const handleSliderChange = (next: number) => {
+    setValue(next);
+    onValueChange?.(next);
+  };
 
   const save = async () => {
     setSaving(true);
@@ -114,6 +125,7 @@ export function CornerRadiusSlider({
       </header>
 
       {/* Preview */}
+      {!hidePreview && (
       <div className="mb-3 flex flex-col items-center gap-2">
         <div className="flex items-center gap-3">
           <button
@@ -176,6 +188,7 @@ export function CornerRadiusSlider({
           {value}%
         </div>
       </div>
+      )}
 
       {/* Slider */}
       <label className="block">
@@ -195,7 +208,7 @@ export function CornerRadiusSlider({
           max={20}
           step={1}
           value={value}
-          onChange={(e) => setValue(Number(e.target.value))}
+          onChange={(e) => handleSliderChange(Number(e.target.value))}
           className="block w-full"
           aria-label="Card corner radius slider"
         />
@@ -218,11 +231,15 @@ export function CornerRadiusSlider({
           type="button"
           onClick={() => void save()}
           disabled={saving}
-          className="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium disabled:opacity-50"
+          className="inline-flex items-center gap-2 italic disabled:opacity-50"
           style={{
-            background: "var(--accent)",
-            color: "var(--accent-foreground, #000)",
-            borderRadius: "var(--radius-md, 8px)",
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-body-sm)",
+            color: "var(--accent)",
+            background: "none",
+            border: "none",
+            padding: "4px 0",
+            cursor: saving ? "wait" : "pointer",
           }}
         >
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
