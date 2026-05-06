@@ -2409,6 +2409,21 @@ function UserDetailPage({
                 Send password reset
               </ActionBtn>
             )}
+            {user.email && !user.email_confirmed_at && (
+              <ActionBtn
+                tone="secondary"
+                disabled={busyAction !== null}
+                onClick={async () => {
+                  await runAction(
+                    "resend_confirmation",
+                    { type: "resend_confirmation", targetUserId: user.user_id },
+                    `Confirmation email resent to ${user.email}`,
+                  );
+                }}
+              >
+                Resend confirmation
+              </ActionBtn>
+            )}
             {!isSelf && (
               <ActionBtn
                 tone="secondary"
