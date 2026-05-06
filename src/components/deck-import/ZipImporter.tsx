@@ -1882,9 +1882,12 @@ function DeckNameInput({
         background: "transparent",
         border: "none",
         borderBottom: "1px solid var(--border-subtle)",
-        padding: "2px 4px",
+        padding: "8px 4px 6px 4px",
+        lineHeight: 1.4,
         minWidth: 200,
         outline: "none",
+        width: "100%",
+        maxWidth: 480,
       }}
     />
   );

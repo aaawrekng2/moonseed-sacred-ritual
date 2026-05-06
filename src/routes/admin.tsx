@@ -2674,20 +2674,20 @@ function ActionBtn({
   const colors =
     tone === "primary"
       ? {
-          color: "#0f1117",
-          background: "var(--accent, var(--gold))",
-          border: "1px solid var(--accent, var(--gold))",
+          color: "#0a0a14",
+          background: "var(--gold, oklch(0.82 0.14 82))",
+          border: "1px solid var(--gold, oklch(0.82 0.14 82))",
         }
       : tone === "destructive"
         ? {
-            color: "oklch(0.78 0.18 25)",
+            color: "oklch(0.85 0.18 25)",
             background: "transparent",
-            border: "1px solid oklch(0.5 0.15 25)",
+            border: "1px solid oklch(0.55 0.18 25)",
           }
         : {
-            color: "var(--foreground)",
+            color: "var(--color-foreground)",
             background: "transparent",
-            border: "1px solid var(--border-subtle)",
+            border: "1px solid var(--border-default)",
           };
   return (
     <button
