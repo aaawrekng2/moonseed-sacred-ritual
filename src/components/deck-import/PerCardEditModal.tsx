@@ -170,12 +170,13 @@ export function PerCardEditModal({
         // never appears on stuck decks.
         const { data: rows } = await supabase
           .from("custom_deck_cards")
-          .select("card_id, corner_radius_percent, crop_coords, processing_status")
+          .select("card_id, corner_radius_percent, crop_coords, processing_status, radius_overridden")
           .eq("deck_id", deckId)
           .is("archived_at", null);
         if (cancelled) return;
         const sr: Record<number, number> = {};
         const sc: Record<number, CropCoords> = {};
+        const so: Record<number, boolean> = {};
         for (const r of rows ?? []) {
           if (typeof r.corner_radius_percent === "number") {
             sr[r.card_id] = r.corner_radius_percent;
@@ -183,9 +184,12 @@ export function PerCardEditModal({
           if (isCropCoords(r.crop_coords)) {
             sc[r.card_id] = r.crop_coords;
           }
+          const ro = (r as { radius_overridden?: boolean | null }).radius_overridden;
+          if (typeof ro === "boolean") so[r.card_id] = ro;
         }
         setSavedRadii(sr);
         setSavedCrops(sc);
+        setSavedOverrides(so);
         // FK-1 — merge processing_status onto cards so pendingCount works
         // immediately on open (fetchDeckCards may not include it).
         const statusByCard = new Map<number, string>();
