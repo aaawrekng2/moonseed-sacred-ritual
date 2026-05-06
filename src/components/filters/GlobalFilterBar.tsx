@@ -224,7 +224,7 @@ function TimeRangeDropdown({ value, options, onChange }: TimeRangeProp) {
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1 px-1 py-0.5 text-xs"
+        className="inline-flex items-center gap-1 text-xs"
         style={{
           color: "var(--color-foreground)",
           opacity: 0.85,

@@ -9,7 +9,6 @@ import { OracleModeProvider } from "@/lib/use-oracle-mode";
 import { useTapToPeek } from "@/lib/use-tap-to-peek";
 import { usePWA } from "@/lib/use-pwa";
 import { FloatingMenu } from "@/components/nav/FloatingMenu";
-import { GlobalHelpButton } from "@/components/nav/GlobalHelpButton";
 import { FloatingMenuProvider } from "@/lib/floating-menu-context";
 import { useThemeFontSync } from "@/lib/use-theme-font-sync";
 import { Toaster } from "@/components/ui/sonner";
@@ -255,7 +254,6 @@ function RootComponent() {
           style={{ maxWidth: 1280 }}
         >
           <FloatingMenu />
-          <GlobalHelpButton />
           <Outlet />
           <BottomNavGate />
           <DevOverlay />

@@ -237,7 +237,7 @@ export function FloatingMenu() {
     <div
       className="fixed"
       style={{
-        top: "calc(env(safe-area-inset-top, 0px) + 4px)",
+        top: "env(safe-area-inset-top, 0px)",
         right: "calc(env(safe-area-inset-right, 0px) + 10px)",
         zIndex: "var(--z-modal-nested)",
       }}
@@ -255,8 +255,8 @@ export function FloatingMenu() {
           color: "var(--gold)",
           fontSize: "var(--text-heading-md)",
           letterSpacing: 2,
-          height: 44,
-          minWidth: 44,
+          height: 32,
+          minWidth: 32,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -297,18 +297,20 @@ export function FloatingMenu() {
             : "opacity 600ms ease, transform 600ms cubic-bezier(0.22, 1, 0.36, 1)",
         }}
       >
-          {helpHandler && (
-            <MenuButton
-              onClick={(e) => {
+          <MenuButton
+            onClick={(e) => {
+              if (helpHandler) {
                 helpHandler();
-                showLabel("Help", e);
-                resetTimer();
-              }}
-              ariaLabel="Help"
-            >
-              <HelpCircle size={17} strokeWidth={1.5} />
-            </MenuButton>
-          )}
+              } else {
+                void navigate({ to: "/help" });
+              }
+              showLabel("Help", e);
+              resetTimer();
+            }}
+            ariaLabel="Help"
+          >
+            <HelpCircle size={17} strokeWidth={1.5} />
+          </MenuButton>
 
           {copyText && (
             <MenuButton

@@ -592,17 +592,18 @@ function JournalPage() {
   );
 
   return (
-    <div className="bg-cosmos relative flex h-dvh">
-    <main ref={scrollRef} className="relative h-dvh flex-1 overflow-y-auto px-5 pb-28">
+    <div className="bg-cosmos relative flex h-dvh flex-col">
       {/* Sticky header — title, search, filter button, tab row.
-          Stays pinned while the body below scrolls. */}
+          Sits OUTSIDE <main> so its glass blends with the route bg
+          rather than scrolling content (FU-11). */}
       <div
-        className="page-header-glass sticky top-0 -mx-5 px-5"
+        className="page-header-glass sticky top-0"
         style={{
           zIndex: "var(--z-sticky-header)",
           paddingTop: "env(safe-area-inset-top, 0px)",
         }}
       >
+        <div className="px-5">
         <div
           className="overflow-hidden flex items-center"
           style={{
@@ -722,7 +723,9 @@ function JournalPage() {
         })}
       </HorizontalScroll>
         <div className="h-3" />
+        </div>
       </div>
+      <main ref={scrollRef} className="flex-1 overflow-y-auto px-5 pb-28">
 
       {/* FU-8 — Large title at top of content (iOS large-to-compact pattern) */}
       <h1
