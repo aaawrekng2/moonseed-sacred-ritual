@@ -104,6 +104,8 @@ function PatternChamber() {
     prevRetiredAt: string | null;
   } | null>(null);
   const [undoing, setUndoing] = useState(false);
+  // FU-14 — Reading detail modal state for the pattern timeline.
+  const [openReadingId, setOpenReadingId] = useState<string | null>(null);
 
   const noteHasUnsavedChanges = () => {
     const original = (pattern?.description ?? "").trim();
@@ -474,11 +476,21 @@ function PatternChamber() {
         )
       )}
 
-      <ChamberTimeline readingIds={pattern.reading_ids} />
+      <ChamberTimeline
+        readingIds={pattern.reading_ids}
+        onOpenReading={setOpenReadingId}
+      />
 
       <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
 
       <ChamberWeaveGraph pattern={pattern} userId={user?.id} />
+
+      {openReadingId && (
+        <ReadingDetailModal
+          readingId={openReadingId}
+          onClose={() => setOpenReadingId(null)}
+        />
+      )}
     </div>
   );
 }
