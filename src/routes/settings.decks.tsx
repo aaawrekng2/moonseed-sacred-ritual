@@ -625,44 +625,7 @@ function DeckEditor({
             </div>
           </div>
 
-          {shape !== "round" && (
-            <div>
-              <span className="text-sm font-medium">
-                Corner radius — {cornerRadius}%
-              </span>
-              <div className="mt-2 grid grid-cols-4 gap-2">
-                {CORNER_PRESETS.map((p) => {
-                  const active = cornerRadius === p.value;
-                  return (
-                    <button
-                      key={p.label}
-                      type="button"
-                      onClick={() => setCornerRadius(p.value)}
-                      className={cn(
-                        "rounded-md border px-2 py-2 text-xs",
-                        active
-                          ? "border-gold bg-gold/10 text-gold"
-                          : "border-border/60 text-muted-foreground hover:bg-gold/5",
-                      )}
-                    >
-                      {p.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={20}
-                step={1}
-                value={cornerRadius}
-                onChange={(e) => setCornerRadius(Number(e.target.value))}
-                className="mt-2 block w-full"
-                aria-label="Corner radius slider"
-              />
-              <CornerRadiusPreview cornerRadiusPercent={cornerRadius} />
-            </div>
-          )}
+          {/* 9-6-C — corner radius moved to workspace (per-card or oracle slider). */}
 
           {shape === "round" && (
             <div className="text-center">

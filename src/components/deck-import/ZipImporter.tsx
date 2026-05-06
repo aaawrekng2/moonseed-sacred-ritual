@@ -24,7 +24,7 @@
  *      immediately via per-card-save; no batch commit step.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Check, Loader2, RotateCcw, Upload, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Loader2, Pencil, RotateCcw, Upload, X } from "lucide-react";
 import JSZip from "jszip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -1398,6 +1398,55 @@ function Workspace({
   // CB — batch Save handler removed. Per-card autosave handles writes
   // continuously; the workspace footer now exposes Discard + Close only.
 
+  // 9-6-C — Oracle deck slot IDs (sorted), used by the dedicated
+  // OracleWorkspace renderer below.
+  const oracleSlotIds = useMemo(() => {
+    if (deckType !== "oracle") return [] as number[];
+    return Object.keys(session.assigned)
+      .filter((s) => s !== BACK_KEY)
+      .map((s) => Number(s))
+      .filter((n) => Number.isFinite(n))
+      .sort((a, b) => a - b);
+  }, [session.assigned, deckType]);
+
+  // 9-6-C — Oracle deck gets a purpose-built workspace: a large preview
+  // card with chevron navigation, a corner-radius slider, and a
+  // scrollable card list with inline name + meaning inputs.
+  if (deckType === "oracle") {
+    return (
+      <>
+        <OracleWorkspace
+          session={session}
+          deckId={deckId}
+          liveRadius={liveRadius}
+          onRadiusSaved={onRadiusSaved}
+          existingCornerRadiusPx={existingCornerRadiusPx}
+          oracleSlotIds={oracleSlotIds}
+          resolveSrc={resolveSrc}
+          onDone={onCancel}
+          entryMode={entryMode}
+          onImportZip={onSwitchToUpload}
+          onOpenEdit={(cardId: number, key: string) => {
+            if (key.startsWith("EXISTING:")) {
+              setEditingExistingCardId(cardId);
+            } else {
+              setZoom({ imageKey: key, from: "assigned", slot: String(cardId) });
+            }
+          }}
+        />
+        {editingExistingCardId !== null && (
+          <PerCardEditModal
+            deckId={deckId}
+            deckName={deckName ?? ""}
+            defaultRadiusPercent={liveRadius}
+            initialCardId={editingExistingCardId}
+            onClose={() => setEditingExistingCardId(null)}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <section className="py-4">
       {/* CC G1 — Sticky workspace header. Title + status indicator on
@@ -1444,9 +1493,7 @@ function Workspace({
           }}
         >
           <span>
-            {deckType === "oracle"
-              ? `${savedCount} card${savedCount === 1 ? "" : "s"}`
-              : `${savedCount}/${totalCardCount} cards`}
+            {`${savedCount}/${totalCardCount} cards`}
             {" · "}
             {hasBack ? "back set" : "no back"} ·{" "}
           </span>
@@ -1498,14 +1545,9 @@ function Workspace({
         </button>
       )}
 
-      {/* DX — Card corner radius slider (edit mode only). */}
-      {entryMode === "edit" && (
-        <CornerRadiusSlider
-          deckId={deckId}
-          initial={existingCornerRadiusPx}
-          onSaved={(next) => onRadiusSaved?.(next)}
-        />
-      )}
+      {/* 9-6-C — Top-level CornerRadiusSlider removed. Tarot uses
+          PerCardEditModal's "Apply to all"; Oracle has its own slider
+          inside OracleWorkspace below. */}
 
       {/* Tab body */}
       {tab === "unassigned" && (
@@ -1767,6 +1809,327 @@ function Chip({
     >
       {children}
     </button>
+  );
+}
+
+/* ================================================================== */
+/*  OracleWorkspace — purpose-built oracle review screen (9-6-C)       */
+/* ================================================================== */
+
+async function saveOracleCardMeta(
+  deckId: string,
+  cardId: number,
+  name: string,
+  description: string,
+) {
+  try {
+    await supabase
+      .from("custom_deck_cards")
+      .update({
+        card_name: name.trim() || null,
+        card_description: description.trim() || null,
+      })
+      .eq("deck_id", deckId)
+      .eq("card_id", cardId);
+  } catch (e) {
+    console.warn("[oracle] saveOracleCardMeta failed", e);
+  }
+}
+
+function OracleWorkspace({
+  session,
+  deckId,
+  liveRadius,
+  onRadiusSaved,
+  existingCornerRadiusPx,
+  oracleSlotIds,
+  resolveSrc,
+  onDone,
+  entryMode,
+  onImportZip,
+  onOpenEdit,
+}: {
+  session: ImportSession;
+  deckId: string;
+  liveRadius: number;
+  onRadiusSaved?: (next: number) => void;
+  existingCornerRadiusPx: number | null;
+  oracleSlotIds: number[];
+  resolveSrc: (key: string) => string;
+  onDone: () => void;
+  entryMode: "import" | "edit";
+  onImportZip: () => void;
+  onOpenEdit: (cardId: number, key: string) => void;
+}) {
+  const [previewIdx, setPreviewIdx] = useState(0);
+  const safeIdx = oracleSlotIds.length === 0
+    ? 0
+    : ((previewIdx % oracleSlotIds.length) + oracleSlotIds.length) % oracleSlotIds.length;
+  const previewCardId = oracleSlotIds[safeIdx];
+  const previewKey = previewCardId !== undefined
+    ? session.assigned[String(previewCardId)]
+    : undefined;
+  const previewSrc = previewKey ? resolveSrc(previewKey) : "";
+  const radiusStyle = liveRadius > 0
+    ? { borderRadius: `${liveRadius}%` }
+    : {};
+  return (
+    <section className="py-4">
+      {/* Header row */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <h2
+          className="italic"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-heading-md)",
+            color: "var(--color-foreground)",
+          }}
+        >
+          Oracle deck
+        </h2>
+        <div className="ml-auto flex items-center gap-4">
+          {entryMode === "edit" && (
+            <button
+              type="button"
+              onClick={onImportZip}
+              className="inline-flex items-center gap-1 italic"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground)",
+                opacity: 0.85,
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+              }}
+            >
+              <Upload className="h-3.5 w-3.5" /> Import / replace from zip
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onDone}
+            className="italic"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              opacity: 0.7,
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+            }}
+          >
+            Done
+          </button>
+        </div>
+      </div>
+
+      {/* Section 2 — preview card with chevrons + corner radius slider */}
+      {oracleSlotIds.length > 0 && (
+        <div className="mb-6 flex flex-col items-center">
+          <div className="flex w-full items-center justify-center gap-3">
+            <button
+              type="button"
+              aria-label="Previous card"
+              onClick={() => setPreviewIdx((i) => i - 1)}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--color-foreground)",
+                opacity: 0.6,
+                padding: 8,
+              }}
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </button>
+            <div
+              className="overflow-hidden"
+              style={{
+                width: "min(280px, 70vw)",
+                aspectRatio: "0.625",
+                background: "var(--surface-card)",
+                ...radiusStyle,
+              }}
+            >
+              {previewSrc ? (
+                <img
+                  src={previewSrc}
+                  alt="Card preview"
+                  className="h-full w-full object-cover"
+                />
+              ) : null}
+            </div>
+            <button
+              type="button"
+              aria-label="Next card"
+              onClick={() => setPreviewIdx((i) => i + 1)}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--color-foreground)",
+                opacity: 0.6,
+                padding: 8,
+              }}
+            >
+              <ChevronRight className="h-6 w-6" />
+            </button>
+          </div>
+          <div className="mt-4 w-full max-w-md">
+            <CornerRadiusSlider
+              deckId={deckId}
+              initial={existingCornerRadiusPx}
+              onSaved={(next) => onRadiusSaved?.(next)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Section 3 — scrollable list of cards */}
+      <div className="mt-4">
+        {oracleSlotIds.length === 0 ? (
+          <p
+            className="py-8 text-center italic"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              opacity: 0.85,
+            }}
+          >
+            No cards yet — import a zip to get started.
+          </p>
+        ) : (
+          oracleSlotIds.map((cardId, idx) => {
+            const key = session.assigned[String(cardId)];
+            if (!key) return null;
+            const img = findImage(session, key);
+            const src = resolveSrc(key);
+            const filenameStem = (img?.filename ?? "")
+              .replace(/\s*\(current\)$/, "")
+              .replace(/\.[^.]+$/, "");
+            return (
+              <OracleRow
+                key={cardId}
+                deckId={deckId}
+                cardId={cardId}
+                src={src}
+                liveRadius={liveRadius}
+                placeholderName={filenameStem}
+                initialName={img?.oracleName ?? ""}
+                initialDescription={img?.oracleDescription ?? ""}
+                onOpenEdit={() => {
+                  setPreviewIdx(idx);
+                  onOpenEdit(cardId, key);
+                }}
+              />
+            );
+          })
+        )}
+      </div>
+    </section>
+  );
+}
+
+function OracleRow({
+  deckId,
+  cardId,
+  src,
+  liveRadius,
+  placeholderName,
+  initialName,
+  initialDescription,
+  onOpenEdit,
+}: {
+  deckId: string;
+  cardId: number;
+  src: string;
+  liveRadius: number;
+  placeholderName: string;
+  initialName: string;
+  initialDescription: string;
+  onOpenEdit: () => void;
+}) {
+  const [name, setName] = useState(initialName);
+  const [description, setDescription] = useState(initialDescription);
+  useEffect(() => setName(initialName), [initialName]);
+  useEffect(() => setDescription(initialDescription), [initialDescription]);
+  const radiusStyle = liveRadius > 0 ? { borderRadius: `${liveRadius}%` } : {};
+  const inputBase: React.CSSProperties = {
+    width: "100%",
+    background: "transparent",
+    border: "none",
+    borderBottom: "1px solid var(--border-default)",
+    fontFamily: "var(--font-serif)",
+    fontSize: "var(--text-body-sm)",
+    color: "var(--color-foreground)",
+    padding: "4px 0",
+    outline: "none",
+  };
+  return (
+    <div
+      className="flex items-start gap-3 py-3"
+      style={{ borderBottom: "1px solid var(--border-subtle)" }}
+    >
+      <button
+        type="button"
+        onClick={onOpenEdit}
+        className="flex-shrink-0 overflow-hidden"
+        style={{
+          width: 64,
+          aspectRatio: "0.625",
+          background: "var(--surface-card)",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          ...radiusStyle,
+        }}
+        aria-label={`Edit ${name || placeholderName}`}
+      >
+        {src ? (
+          <img src={src} alt={name || placeholderName} className="h-full w-full object-cover" />
+        ) : null}
+      </button>
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <input
+          type="text"
+          value={name}
+          placeholder={placeholderName}
+          onFocus={(e) => e.target.select()}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={() => void saveOracleCardMeta(deckId, cardId, name, description)}
+          style={{ ...inputBase, fontStyle: "italic" }}
+        />
+        <textarea
+          value={description}
+          placeholder="Optional meaning…"
+          rows={2}
+          onChange={(e) => setDescription(e.target.value)}
+          onBlur={() => void saveOracleCardMeta(deckId, cardId, name, description)}
+          style={{ ...inputBase, resize: "vertical" }}
+        />
+      </div>
+      <button
+        type="button"
+        onClick={onOpenEdit}
+        aria-label="Edit card image"
+        className="flex-shrink-0"
+        style={{
+          background: "none",
+          border: "none",
+          padding: 6,
+          cursor: "pointer",
+          color: "var(--color-foreground)",
+          opacity: 0.6,
+        }}
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
+    </div>
   );
 }
 
