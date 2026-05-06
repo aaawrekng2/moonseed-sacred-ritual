@@ -263,14 +263,17 @@ export const adminAction = createServerFn({ method: "POST" })
         expires.setMonth(expires.getMonth() + data.months);
         await supabaseAdmin
           .from("user_preferences")
-          .update({
-            is_premium: true,
-            subscription_type: "gifted",
-            premium_since: new Date().toISOString(),
-            premium_expires_at: expires.toISOString(),
-            gifted_by: userId,
-          })
-          .eq("user_id", data.targetUserId);
+          .upsert(
+            {
+              user_id: data.targetUserId,
+              is_premium: true,
+              subscription_type: "gifted",
+              premium_since: new Date().toISOString(),
+              premium_expires_at: expires.toISOString(),
+              gifted_by: userId,
+            },
+            { onConflict: "user_id" },
+          );
         await logAction(userId, actorEmail, "grant_premium", data.targetUserId, targetEmail, { months: data.months });
         break;
       }
@@ -291,12 +294,15 @@ export const adminAction = createServerFn({ method: "POST" })
         base.setMonth(base.getMonth() + data.months);
         await supabaseAdmin
           .from("user_preferences")
-          .update({
-            is_premium: true,
-            subscription_type: "gifted",
-            premium_expires_at: base.toISOString(),
-          })
-          .eq("user_id", data.targetUserId);
+          .upsert(
+            {
+              user_id: data.targetUserId,
+              is_premium: true,
+              subscription_type: "gifted",
+              premium_expires_at: base.toISOString(),
+            },
+            { onConflict: "user_id" },
+          );
         await logAction(
           userId,
           actorEmail,
@@ -315,12 +321,15 @@ export const adminAction = createServerFn({ method: "POST" })
           .maybeSingle();
         await supabaseAdmin
           .from("user_preferences")
-          .update({
-            is_premium: false,
-            subscription_type: "none",
-            premium_expires_at: null,
-          })
-          .eq("user_id", data.targetUserId);
+          .upsert(
+            {
+              user_id: data.targetUserId,
+              is_premium: false,
+              subscription_type: "none",
+              premium_expires_at: null,
+            },
+            { onConflict: "user_id" },
+          );
         await logAction(userId, actorEmail, "revoke_premium", data.targetUserId, targetEmail, {
           previous_expires_at:
             (prevRow as { premium_expires_at?: string | null } | null)

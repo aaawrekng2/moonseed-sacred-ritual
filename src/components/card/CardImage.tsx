@@ -24,7 +24,6 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { CardBack } from "@/components/cards/CardBack";
 import {
-  cornerRadiusStyle,
   useActiveCardBackUrl,
   useActiveDeckCornerRadius,
   useActiveDeckImage,
@@ -200,7 +199,8 @@ export function CardImage({
   const deckRadius = useSpecific ? specificRadius : activeRadius;
 
   const width = resolveWidth(size, widthPx);
-  const radiusStyle = cornerRadiusStyle(deckRadius, width);
+  const radiusStyle: CSSProperties = {};
+  void deckRadius;
 
   // EY-2 — No hardcoded aspect ratio. The IMG sources its own
   // natural dimensions; the wrapper hugs the IMG. This means the

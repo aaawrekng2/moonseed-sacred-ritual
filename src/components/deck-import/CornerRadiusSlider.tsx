@@ -11,7 +11,7 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchDeckCards, type CustomDeckCard } from "@/lib/custom-decks";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
-import { useActiveDeck, cornerRadiusStyle } from "@/lib/active-deck";
+import { useActiveDeck } from "@/lib/active-deck";
 
 /**
  * App default corner radius (PERCENTAGE) for cards when the deck has no
@@ -145,16 +145,14 @@ export function CornerRadiusSlider({
               aspectRatio: "1 / 1.75",
               borderColor: "var(--border-subtle)",
               background: "var(--cosmos, #0a0a14)",
-              // EH-1 — use cornerRadiusStyle so preview matches runtime
-              // pixel math (kills the elliptical `${value}%` bug).
-              ...cornerRadiusStyle(value, 200),
+              borderRadius: `${(value / 100) * 200}px`,
             }}
           >
             <img
               src={preview.src}
               alt={getCardName(preview.cardId)}
               className="h-full w-full object-cover"
-              style={cornerRadiusStyle(value, 200)}
+              style={{ borderRadius: `${(value / 100) * 200}px` }}
               loading="lazy"
               onError={(e) => {
                 // Fallback to default art if a saved URL is broken.

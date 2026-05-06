@@ -47,7 +47,6 @@ import {
 } from "@/lib/import-session";
 import { EncodingQueue } from "@/lib/deck-image-pipeline";
 import { fetchDeckCards } from "@/lib/custom-decks";
-import { cornerRadiusStyle } from "@/lib/active-deck";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { saveCard, removeCard, type SaveResult } from "@/lib/per-card-save";
 import {
@@ -1425,6 +1424,7 @@ function Workspace({
           existingCornerRadiusPx={existingCornerRadiusPx}
           oracleSlotIds={oracleSlotIds}
           resolveSrc={resolveSrc}
+          resolveZoomSrc={resolveZoomSrc}
           onDone={onCancel}
           entryMode={entryMode}
           onImportZip={onSwitchToUpload}
@@ -1882,9 +1882,12 @@ function DeckNameInput({
         background: "transparent",
         border: "none",
         borderBottom: "1px solid var(--border-subtle)",
-        padding: "2px 4px",
+        padding: "8px 4px 6px 4px",
+        lineHeight: 1.4,
         minWidth: 200,
         outline: "none",
+        width: "100%",
+        maxWidth: 480,
       }}
     />
   );
@@ -1899,6 +1902,7 @@ function OracleWorkspace({
   existingCornerRadiusPx,
   oracleSlotIds,
   resolveSrc,
+  resolveZoomSrc,
   onDone,
   entryMode,
   onImportZip,
@@ -1912,6 +1916,7 @@ function OracleWorkspace({
   existingCornerRadiusPx: number | null;
   oracleSlotIds: number[];
   resolveSrc: (key: string) => string;
+  resolveZoomSrc: (key: string) => { src: string; revoke: boolean };
   onDone: () => void;
   entryMode: "import" | "edit";
   onImportZip: () => void;
@@ -1927,7 +1932,18 @@ function OracleWorkspace({
   const previewKey = previewCardId !== undefined
     ? session.assigned[String(previewCardId)]
     : undefined;
-  const previewSrc = previewKey ? resolveSrc(previewKey) : "";
+  const previewZoom = previewKey ? resolveZoomSrc(previewKey) : null;
+  const previewSrc = previewZoom?.src ?? "";
+  useEffect(() => {
+    return () => {
+      if (previewZoom?.revoke && previewZoom.src) {
+        try { URL.revokeObjectURL(previewZoom.src); } catch { /* */ }
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewKey]);
+  const heroWidth = 280;
+  const heroRadius = `${(liveRadiusLocal / 100) * heroWidth}px`;
   return (
     <section className="py-4 mx-auto w-full" style={{ maxWidth: 720 }}>
       {/* Header row */}
@@ -1993,19 +2009,24 @@ function OracleWorkspace({
               <ChevronLeft className="h-6 w-6" />
             </button>
             <div
-              className="overflow-hidden"
               style={{
                 width: "min(280px, 70vw)",
-                aspectRatio: "0.625",
-                background: "var(--surface-card)",
-                ...cornerRadiusStyle(liveRadiusLocal, 280),
+                background: "transparent",
+                overflow: "hidden",
+                borderRadius: heroRadius,
               }}
             >
               {previewSrc ? (
                 <img
                   src={previewSrc}
                   alt="Card preview"
-                  className="h-full w-full object-cover"
+                  className="block"
+                  style={{
+                    width: "100%",
+                    height: "auto",
+                    display: "block",
+                    borderRadius: heroRadius,
+                  }}
                 />
               ) : null}
             </div>

@@ -3,8 +3,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 /**
  * EB-1 — Returns the current measured width of `ref.current` in
  * pixels. Initial value is 0 until the element mounts; updates on
- * resize via ResizeObserver. Used by card-rendering sites to feed
- * cornerRadiusStyle(percent, widthPx) for true circular corners.
+ * resize via ResizeObserver.
  */
 export function useElementWidth<T extends HTMLElement = HTMLElement>(): {
   ref: RefObject<T | null>;

@@ -1,6 +1,5 @@
 import type { CardBackId } from "@/lib/card-backs";
 import { cn } from "@/lib/utils";
-import { cornerRadiusStyle } from "@/lib/active-deck";
 
 /**
  * Card-back palette.
@@ -410,9 +409,8 @@ export function CardBack({ id = "celestial", imageUrl, width = 160, className, a
   const height = Math.round(width * RATIO);
   const style = STYLES[id];
   const m = scaleMetrics(width);
-  const radiusOverride = cornerRadiusStyle(cornerRadiusPercent ?? null, width);
-  const effectiveRadius =
-    radiusOverride.borderRadius ?? `${m.radius}px`;
+  void cornerRadiusPercent;
+  const effectiveRadius = `${m.radius}px`;
   // BX — custom deck back overrides the procedural artwork.
   if (imageUrl) {
     return (

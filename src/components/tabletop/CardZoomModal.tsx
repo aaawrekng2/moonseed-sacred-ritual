@@ -14,7 +14,6 @@ import { useEffect, useState } from "react";
 import { CardImage } from "@/components/card/CardImage";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import {
-  cornerRadiusStyle,
   useActiveDeckCornerRadius,
   useDeckCornerRadius,
 } from "@/lib/active-deck";
@@ -77,7 +76,6 @@ export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomMod
             onClose();
           }}
           style={{
-            ...cornerRadiusStyle(deckRadius, imgW),
             boxShadow: "0 0 80px -10px rgba(212,175,55,0.5)",
             transition: "transform 300ms ease",
           }}

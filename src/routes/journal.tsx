@@ -18,7 +18,7 @@ import {
 } from "@/lib/dates";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
-import { useDeckImage, useDeckCornerRadius, cornerRadiusStyle } from "@/lib/active-deck";
+import { useDeckImage, useDeckCornerRadius } from "@/lib/active-deck";
 import { CardImage } from "@/components/card/CardImage";
 import { useElementWidth } from "@/lib/use-element-width";
 import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
@@ -1305,7 +1305,6 @@ function GalleryTile({
       style={{
         border:
           "1px solid color-mix(in oklab, var(--gold) 12%, transparent)",
-        ...cornerRadiusStyle(deckRadiusPx, tileW),
       }}
     >
       <CardThumb
@@ -1315,8 +1314,8 @@ function GalleryTile({
         className="h-full w-full object-cover"
         style={
           photoUrl
-            ? cornerRadiusStyle(deckRadiusPx, tileW)
-            : { opacity: "var(--ro-plus-30)", ...cornerRadiusStyle(deckRadiusPx, tileW) }
+            ? undefined
+            : { opacity: "var(--ro-plus-30)" }
         }
       />
       <div
