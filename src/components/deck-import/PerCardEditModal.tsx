@@ -802,16 +802,32 @@ export function PerCardEditModal({
                       style={{
                         // FE-3 — larger preview so radius changes are
                         // clearly visible while sliding.
-                        // Slightly tighter on mobile to leave room for
-                        // the horizontal thumbnail row.
-                        maxHeight: "60vh",
+                        // Phase 9-5-B Bug 2 — when zoomed, lift the
+                        // 60vh cap so the browser renders the IMG at
+                        // a larger native size, giving the compositor
+                        // more pixel data and reducing GPU-scale grain.
+                        maxHeight:
+                          zoom > 1
+                            ? `${Math.min(imgDims?.h ?? 900, 900)}px`
+                            : "60vh",
                         maxWidth: "100%",
                         width: "auto",
+                        // Phase 9-5-B Bug 2 — improve interpolation
+                        // quality when the bitmap is up-scaled.
+                        imageRendering: "high-quality",
                         ...previewStyle,
                         // Phase 9.5a — zoom/pan transform. transform-origin
                         // top-left so the wheel/pinch math (which assumes
                         // 0,0 origin) stays simple.
-                        transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                        // Phase 9-5-B Bug 4 — only apply the transform
+                        // when we're actually zoomed/panned. Always-on
+                        // transforms force a compositor layer that
+                        // caches the bitmap and skips re-rasterizing
+                        // border-radius changes during slider drag.
+                        transform:
+                          zoom !== 1 || pan.x !== 0 || pan.y !== 0
+                            ? `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
+                            : undefined,
                         transformOrigin: "0 0",
                       }}
                     />
