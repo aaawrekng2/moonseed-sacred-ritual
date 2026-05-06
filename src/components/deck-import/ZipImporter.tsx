@@ -1465,18 +1465,20 @@ function Workspace({
         }}
       >
         <div className="flex flex-wrap items-center gap-3">
-          <h2
-            className="italic"
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontSize: "var(--text-heading-md)",
-              color: "var(--color-foreground)",
-            }}
-          >
-            {entryMode === "edit"
-              ? deckName?.trim() || "Edit deck"
-              : "Import workspace"}
-          </h2>
+          {entryMode === "edit" ? (
+            <DeckNameInput deckId={deckId} initial={deckName ?? ""} placeholder="Edit deck" />
+          ) : (
+            <h2
+              className="italic"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-heading-md)",
+                color: "var(--color-foreground)",
+              }}
+            >
+              Import workspace
+            </h2>
+          )}
           <div className="ml-auto">
             <SaveStatusIndicator
               status={status}
