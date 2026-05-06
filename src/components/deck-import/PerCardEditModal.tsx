@@ -614,6 +614,86 @@ export function PerCardEditModal({
 
   const cardCount = cards?.length ?? 0;
 
+  // Phase 9.5a — wheel zoom (desktop + mac trackpad pinch).
+  function handleWheel(e: React.WheelEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const wrap = previewWrapRef.current;
+    if (!wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const cursorX = e.clientX - rect.left;
+    const cursorY = e.clientY - rect.top;
+    const factor = Math.exp(-e.deltaY * 0.001);
+    const nextZoom = Math.min(8, Math.max(1, zoom * factor));
+    if (nextZoom === zoom) return;
+    const ratio = nextZoom / zoom;
+    setZoom(nextZoom);
+    setPan({
+      x: cursorX - (cursorX - pan.x) * ratio,
+      y: cursorY - (cursorY - pan.y) * ratio,
+    });
+  }
+
+  function onPreviewPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    const target = e.target as HTMLElement;
+    if (target.closest('[role="slider"], button, input')) return;
+    const wrap = previewWrapRef.current;
+    if (!wrap) return;
+    wrap.setPointerCapture(e.pointerId);
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 2) {
+      const [a, b] = Array.from(pointersRef.current.values());
+      pinchStartRef.current = {
+        dist: Math.hypot(b.x - a.x, b.y - a.y),
+        mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+        zoom,
+        pan: { ...pan },
+      };
+      panStartRef.current = null;
+    } else if (pointersRef.current.size === 1) {
+      panStartRef.current = {
+        pointer: { x: e.clientX, y: e.clientY },
+        pan: { ...pan },
+      };
+    }
+  }
+
+  function onPreviewPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 2 && pinchStartRef.current) {
+      const [a, b] = Array.from(pointersRef.current.values());
+      const dist = Math.hypot(b.x - a.x, b.y - a.y);
+      const start = pinchStartRef.current;
+      const wrap = previewWrapRef.current;
+      if (!wrap) return;
+      const rect = wrap.getBoundingClientRect();
+      const midX = start.mid.x - rect.left;
+      const midY = start.mid.y - rect.top;
+      const nextZoom = Math.min(
+        8,
+        Math.max(1, start.zoom * (dist / start.dist)),
+      );
+      const ratio = nextZoom / start.zoom;
+      setZoom(nextZoom);
+      setPan({
+        x: midX - (midX - start.pan.x) * ratio,
+        y: midY - (midY - start.pan.y) * ratio,
+      });
+    } else if (pointersRef.current.size === 1 && panStartRef.current) {
+      const start = panStartRef.current;
+      setPan({
+        x: start.pan.x + (e.clientX - start.pointer.x),
+        y: start.pan.y + (e.clientY - start.pointer.y),
+      });
+    }
+  }
+
+  function onPreviewPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchStartRef.current = null;
+    if (pointersRef.current.size < 1) panStartRef.current = null;
+  }
+
   return (
     <Modal
       open
