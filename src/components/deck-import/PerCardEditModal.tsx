@@ -1259,9 +1259,11 @@ function CropHandles({
 
   const wrap = imgEl.parentElement;
   if (!wrap) return null;
-  const wrapRect = wrapRectRef.current;
-  const imgRect = imgRectRef.current;
-  if (!wrapRect || !imgRect) return null;
+  const wrapRectMaybe = wrapRectRef.current;
+  const imgRectMaybe = imgRectRef.current;
+  if (!wrapRectMaybe || !imgRectMaybe) return null;
+  const wrapRect: DOMRect = wrapRectMaybe;
+  const imgRect: DOMRect = imgRectMaybe;
   const offX = imgRect.left - wrapRect.left;
   const offY = imgRect.top - wrapRect.top;
 
