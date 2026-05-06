@@ -1840,6 +1840,56 @@ async function saveOracleCardMeta(
   }
 }
 
+/**
+ * 9-6-D — Inline editable deck name. Saves on blur to custom_decks.name.
+ * Used in both Oracle and Tarot workspace headers.
+ */
+function DeckNameInput({
+  deckId,
+  initial,
+  placeholder,
+}: {
+  deckId: string;
+  initial: string;
+  placeholder: string;
+}) {
+  const [draft, setDraft] = useState(initial);
+  useEffect(() => { setDraft(initial); }, [initial]);
+  const save = async (next: string) => {
+    const trimmed = next.trim();
+    if (!trimmed) return;
+    try {
+      await supabase.from("custom_decks").update({ name: trimmed }).eq("id", deckId);
+    } catch (e) {
+      console.warn("[deck name save]", e);
+    }
+  };
+  return (
+    <input
+      type="text"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => void save(draft)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
+      className="italic"
+      placeholder={placeholder}
+      style={{
+        fontFamily: "var(--font-serif)",
+        fontSize: "var(--text-heading-md)",
+        color: "var(--color-foreground)",
+        background: "transparent",
+        border: "none",
+        borderBottom: "1px solid var(--border-subtle)",
+        padding: "2px 4px",
+        minWidth: 200,
+        outline: "none",
+      }}
+    />
+  );
+}
+
 function OracleWorkspace({
   session,
   deckId,
