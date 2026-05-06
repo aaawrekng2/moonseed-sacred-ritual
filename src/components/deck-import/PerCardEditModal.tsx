@@ -383,16 +383,20 @@ export function PerCardEditModal({
         corner_radius_percent: number;
         processing_status: string;
         crop_coords?: CropCoords;
+        radius_overridden: boolean;
       } = {
         corner_radius_percent: radius,
         processing_status: "pending",
+        // Phase 9-5-B Part 2 — Apply-to-all is a deck-level batch
+        // gesture, so it clears the per-card override flag.
+        radius_overridden: false,
       };
       if (crop) updatePatch.crop_coords = crop;
 
       const targetIds = targets.map((c) => c.card_id);
       const { error } = await supabase
         .from("custom_deck_cards")
-        .update(updatePatch)
+        .update(updatePatch as never)
         .eq("deck_id", deckId)
         .is("archived_at", null)
         .in("card_id", targetIds);
@@ -400,12 +404,15 @@ export function PerCardEditModal({
 
       const nextRadii: Record<number, number> = {};
       const nextCrops: Record<number, CropCoords> = {};
+      const nextOverrides: Record<number, boolean> = {};
       for (const c of targets) {
         nextRadii[c.card_id] = radius;
         if (crop) nextCrops[c.card_id] = crop;
+        nextOverrides[c.card_id] = false;
       }
       setSavedRadii((prev) => ({ ...prev, ...nextRadii }));
       if (crop) setSavedCrops((prev) => ({ ...prev, ...nextCrops }));
+      setSavedOverrides((prev) => ({ ...prev, ...nextOverrides }));
       toast.success(`Settings applied to ${targetCount} cards.`);
 
       const goProcess = await confirm({
