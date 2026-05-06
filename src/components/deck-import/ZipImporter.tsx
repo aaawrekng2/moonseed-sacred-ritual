@@ -1241,8 +1241,15 @@ function Workspace({
     for (const slot of numericAssigned) {
       if (cardStates[slot] === undefined) n += 1;
     }
-    return Math.min(78, n);
-  }, [cardStates, numericAssigned]);
+    // 9-6-A — oracle decks have no fixed cap; cap tarot at 78.
+    return deckType === "oracle" ? n : Math.min(78, n);
+  }, [cardStates, numericAssigned, deckType]);
+
+  // 9-6-A — total card count for the status line. Tarot is always 78;
+  // oracle uses however many slots the user has assigned.
+  const totalCardCount = deckType === "oracle"
+    ? numericAssigned.length
+    : 78;
 
   // BN Fix 2 — set of card_ids that will be customized (non-default)
   // after save. Defined here so both the chip count and the Default
@@ -1255,7 +1262,9 @@ function Workspace({
     }
     return set;
   }, [session.assigned]);
-  const defaultCount = 78 - customizedCardIds.size;
+  // 9-6-A — Default tab is tarot-only (the 78 default cards). Oracle
+  // decks have no notion of "the default deck" to fall back to.
+  const defaultCount = deckType === "tarot" ? 78 - customizedCardIds.size : 0;
 
   const photographedIds = useMemo(
     () => numericAssigned.map((s) => Number(s)),
