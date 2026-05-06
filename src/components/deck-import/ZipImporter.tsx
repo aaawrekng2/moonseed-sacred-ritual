@@ -1477,6 +1477,8 @@ function Workspace({
           }}
           onImportZip={onSwitchToUpload}
           onDone={onCancel}
+          deckType={deckType}
+          deckId={deckId}
         />
       )}
       {tab === "skipped" && (
