@@ -1073,6 +1073,7 @@ function WorkspaceWithCornerEditor({
   existingBackUrl,
   existingCornerRadiusPx,
   initialPhase,
+  deckType,
   onClose,
 }: {
   userId: string;
@@ -1083,6 +1084,7 @@ function WorkspaceWithCornerEditor({
   existingBackUrl: string | null;
   existingCornerRadiusPx: number | null;
   initialPhase?: "upload" | "workspace";
+  deckType: "tarot" | "oracle";
   onClose: () => void | Promise<void>;
 }) {
   // 9-5-D — liveRadius is owned here so both ZipImporter (preview)
@@ -1101,6 +1103,7 @@ function WorkspaceWithCornerEditor({
       initialPhase={initialPhase}
       deckName={deckName}
       existingCornerRadiusPx={existingCornerRadiusPx}
+      deckType={deckType}
       onRadiusSaved={(next) => setLiveRadius(next)}
       onCancel={onClose}
       onDone={onClose}
