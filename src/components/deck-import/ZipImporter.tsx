@@ -1310,7 +1310,7 @@ function Workspace({
         <CornerRadiusSlider
           deckId={deckId}
           initial={existingCornerRadiusPx}
-          onSaved={(next) => setLiveRadius(next)}
+          onSaved={(next) => onRadiusSaved?.(next)}
         />
       )}
 
