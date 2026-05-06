@@ -441,6 +441,21 @@ export const adminAction = createServerFn({ method: "POST" })
         await logAction(userId, actorEmail, "set_note", data.targetUserId, targetEmail, { note: data.note });
         break;
       }
+      case "resend_confirmation": {
+        if (!targetEmail) throw new Error("user has no email");
+        const { error: resendErr } =
+          await supabaseAdmin.auth.admin.inviteUserByEmail(targetEmail);
+        if (resendErr) throw new Error(resendErr.message);
+        await logAction(
+          userId,
+          actorEmail,
+          "resend_confirmation",
+          data.targetUserId,
+          targetEmail,
+          {},
+        );
+        break;
+      }
     }
 
     return { ok: true } as const;
