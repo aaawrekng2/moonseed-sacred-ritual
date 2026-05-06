@@ -12,7 +12,7 @@
  * success the IMG src is bumped with a cache-buster so the new
  * rounded `-full.webp` shows immediately.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,6 +89,11 @@ export function PerCardEditModal({
   const [bulkBusy, setBulkBusy] = useState(false);
   // FJ-1 — abort controller for batch processing (Cancel button).
   const [batchAbort, setBatchAbort] = useState<AbortController | null>(null);
+  // 9-5-E — inline batch progress UI (replaces toast.loading per-card spam).
+  const [batchProgress, setBatchProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   // FI-3 — choice dialog state for "Apply to all".
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [applyScope, setApplyScope] = useState<"unsaved" | "all">("unsaved");
@@ -469,16 +474,13 @@ export function PerCardEditModal({
         },
       },
     });
+    // 9-5-E — drive inline progress bar.
+    setBatchProgress({ done: 0, total: targetCount });
 
     try {
       for (let i = 0; i < targets.length; i++) {
         if (cancelled) break;
         const c = targets[i];
-
-        toast.loading(
-          `Processing ${i + 1}/${targetCount} (${getCardName(c.card_id)})…`,
-          { id: progressId },
-        );
 
         const timeoutController = new AbortController();
         const timeoutId = setTimeout(() => timeoutController.abort(), 60000);
@@ -534,6 +536,7 @@ export function PerCardEditModal({
           console.warn(`[FJ-1] card ${c.card_id} threw`, e);
         }
         done++;
+        setBatchProgress({ done, total: targetCount });
       }
 
       // Re-fetch saved state from DB so UI reflects reality.
@@ -592,6 +595,7 @@ export function PerCardEditModal({
       }
     } finally {
       setBatchAbort(null);
+      setBatchProgress(null);
     }
   }
 
@@ -1031,6 +1035,51 @@ export function PerCardEditModal({
                     )}
                   </button>
                 </div>
+
+                {batchProgress && (
+                  <div
+                    className="mt-3 rounded-md border p-3"
+                    style={{
+                      borderColor: "var(--border-subtle)",
+                      background: "var(--surface-card)",
+                    }}
+                  >
+                    <div
+                      className="mb-2 flex items-center justify-between"
+                      style={{
+                        fontSize: "var(--text-body-sm)",
+                        color: "var(--color-foreground)",
+                      }}
+                    >
+                      <span>Processing cards…</span>
+                      <span style={{ opacity: 0.7 }}>
+                        {batchProgress.done} / {batchProgress.total}
+                      </span>
+                    </div>
+                    <div
+                      className="h-1.5 w-full overflow-hidden rounded-full"
+                      style={{ background: "var(--border-subtle)" }}
+                    >
+                      <div
+                        className="h-full rounded-full transition-all duration-300"
+                        style={{
+                          width: `${Math.round((batchProgress.done / batchProgress.total) * 100)}%`,
+                          background: "var(--accent)",
+                        }}
+                      />
+                    </div>
+                    <p
+                      className="mt-1.5"
+                      style={{
+                        fontSize: "var(--text-caption)",
+                        color: "var(--color-foreground)",
+                        opacity: 0.6,
+                      }}
+                    >
+                      {batchProgress.total - batchProgress.done} remaining
+                    </p>
+                  </div>
+                )}
               </>
             )}
           </section>
@@ -1092,7 +1141,7 @@ export function PerCardEditModal({
         open={applyDialogOpen}
         onOpenChange={(o) => { if (!o) setApplyDialogOpen(false); }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent style={{ zIndex: 300 }}>
           <AlertDialogHeader>
             <AlertDialogTitle>Apply settings to which cards?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -1186,11 +1235,35 @@ function CropHandles({
 }) {
   const [, force] = useState(0);
 
-  // Re-measure offset on each render (cheap; layout-stable).
+  // 9-5-E — stabilize bounding-rect reads. Reading getBoundingClientRect()
+  // in the render body caused handles to "snap back" mid-drag because each
+  // parent re-render produced subtly different rects. Cache rects in refs
+  // and refresh them only via useLayoutEffect / ResizeObserver.
+  const wrapRectRef = useRef<DOMRect | null>(null);
+  const imgRectRef = useRef<DOMRect | null>(null);
+
+  useLayoutEffect(() => {
+    const wrap = imgEl.parentElement;
+    if (!wrap) return;
+    const measure = () => {
+      wrapRectRef.current = wrap.getBoundingClientRect();
+      imgRectRef.current = imgEl.getBoundingClientRect();
+      force((n) => n + 1);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(wrap);
+    ro.observe(imgEl);
+    return () => ro.disconnect();
+  }, [imgEl]);
+
   const wrap = imgEl.parentElement;
   if (!wrap) return null;
-  const wrapRect = wrap.getBoundingClientRect();
-  const imgRect = imgEl.getBoundingClientRect();
+  const wrapRectMaybe = wrapRectRef.current;
+  const imgRectMaybe = imgRectRef.current;
+  if (!wrapRectMaybe || !imgRectMaybe) return null;
+  const wrapRect: DOMRect = wrapRectMaybe;
+  const imgRect: DOMRect = imgRectMaybe;
   const offX = imgRect.left - wrapRect.left;
   const offY = imgRect.top - wrapRect.top;
 
@@ -1275,12 +1348,14 @@ function CropHandles({
           // FK-3 — bigger hit target (h-8 w-8 = 32px) and z-20 so
           // pointerdown reaches the handle even when other layers
           // (slider, IMG, polygon) sit underneath.
+          // 9-5-E — shrink to 20px on desktop (sm:) where pointer precision
+          // matters more than touch target size.
           <div
             key={k}
             role="slider"
             aria-label={`Crop ${k} handle`}
             onPointerDown={(e) => startDrag(e, k)}
-            className="absolute z-20 h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-gold bg-background/90 shadow-md cursor-grab active:cursor-grabbing touch-none"
+            className="absolute z-20 h-8 w-8 sm:h-5 sm:w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-gold bg-background/90 shadow-md cursor-grab active:cursor-grabbing touch-none"
             style={{
               left: offX + p.x,
               top: offY + p.y,
