@@ -455,6 +455,11 @@ function DeckEditor({
   const [shape, setShape] = useState<CustomDeck["shape"]>(existing?.shape ?? "rectangle");
   const [cornerRadius, setCornerRadius] = useState(existing?.corner_radius_percent ?? 4);
   const cornerRadiusPx = existing?.corner_radius_px ?? null;
+  // 9-6-A — deck type chosen at creation time. Drives oracle-vs-tarot
+  // import flow downstream (skip matcher, hide suit chips, etc.).
+  const [deckType, setDeckType] = useState<"tarot" | "oracle">(
+    existing?.deck_type ?? "tarot",
+  );
   const [mode, setMode] = useState<EditorMode>(
     existing
       ? {
