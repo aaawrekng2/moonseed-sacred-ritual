@@ -733,6 +733,21 @@ export function PerCardEditModal({
                 <div
                   ref={previewWrapRef}
                   className="relative flex items-center justify-center rounded-md bg-cosmos/40 p-4"
+                  onWheel={handleWheel}
+                  onPointerDown={onPreviewPointerDown}
+                  onPointerMove={onPreviewPointerMove}
+                  onPointerUp={onPreviewPointerUp}
+                  onPointerCancel={onPreviewPointerUp}
+                  style={{
+                    touchAction: "none",
+                    overflow: "hidden",
+                    cursor:
+                      zoom > 1
+                        ? pointersRef.current.size === 1
+                          ? "grabbing"
+                          : "grab"
+                        : "default",
+                  }}
                 >
                   {previewSrc ? (
                     <img
@@ -760,6 +775,11 @@ export function PerCardEditModal({
                         maxWidth: "100%",
                         width: "auto",
                         ...previewStyle,
+                        // Phase 9.5a — zoom/pan transform. transform-origin
+                        // top-left so the wheel/pinch math (which assumes
+                        // 0,0 origin) stays simple.
+                        transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                        transformOrigin: "0 0",
                       }}
                     />
                   ) : (
