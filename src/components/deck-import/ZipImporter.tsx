@@ -1779,11 +1779,11 @@ function AssignedGrid({
         </button>
       </div>
     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
-      {suitFilter === "all" && hasBack && backKey && (
+      {suitFilter === "all" && hasBack && (
         <div className="relative">
           <button
             type="button"
-            onClick={() => onTap(BACK_KEY, backKey)}
+            onClick={() => onTap(BACK_KEY, backKey ?? "EXISTING:BACK")}
             className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
             style={{
               borderColor: "var(--accent)",
@@ -1791,8 +1791,8 @@ function AssignedGrid({
             }}
             title="Card Back — tap to view"
           >
-            {backSrc && (
-              <img src={backSrc} alt="Card Back" className="h-full w-full object-cover" />
+            {effectiveBackSrc && (
+              <img src={effectiveBackSrc} alt="Card Back" className="h-full w-full object-cover" />
             )}
             <span
               className="absolute inset-x-0 bottom-0 px-1 py-0.5 text-center text-[9px] uppercase tracking-wider"
