@@ -2025,23 +2025,136 @@ function ZoomModal({
   onEdit: () => void;
   onSendBackToUnassigned: () => void;
 }) {
+  // 9-5-C — wheel-zoom + pinch-zoom + pan inside the full-screen ZoomModal.
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const zoomRef = useRef(1);
+  const panRef = useRef({ x: 0, y: 0 });
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchStartRef = useRef<
+    { dist: number; zoom: number; pan: { x: number; y: number } } | null
+  >(null);
+  const panStartRef = useRef<
+    { pointer: { x: number; y: number }; pan: { x: number; y: number } } | null
+  >(null);
+
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => { panRef.current = pan; }, [pan]);
+
+  // Native non-passive wheel listener so preventDefault() actually stops
+  // page scroll while the user zooms.
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = wrap.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const factor = Math.exp(-e.deltaY * 0.001);
+      const curZoom = zoomRef.current;
+      const curPan = panRef.current;
+      const next = Math.min(8, Math.max(1, curZoom * factor));
+      if (next === curZoom) return;
+      const ratio = next / curZoom;
+      const newPan = {
+        x: cx - (cx - curPan.x) * ratio,
+        y: cy - (cy - curPan.y) * ratio,
+      };
+      setZoom(next);
+      setPan(newPan);
+      zoomRef.current = next;
+      panRef.current = newPan;
+    };
+    wrap.addEventListener("wheel", handler, { passive: false });
+    return () => wrap.removeEventListener("wheel", handler);
+  }, []);
+
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    wrap.setPointerCapture(e.pointerId);
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 2) {
+      const [a, b] = Array.from(pointersRef.current.values());
+      pinchStartRef.current = {
+        dist: Math.hypot(b.x - a.x, b.y - a.y),
+        zoom: zoomRef.current,
+        pan: { ...panRef.current },
+      };
+      panStartRef.current = null;
+    } else {
+      panStartRef.current = {
+        pointer: { x: e.clientX, y: e.clientY },
+        pan: { ...panRef.current },
+      };
+    }
+  }
+
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinchStartRef.current && pointersRef.current.size === 2) {
+      const [a, b] = Array.from(pointersRef.current.values());
+      const dist = Math.hypot(b.x - a.x, b.y - a.y);
+      const next = Math.min(
+        8,
+        Math.max(1, pinchStartRef.current.zoom * (dist / pinchStartRef.current.dist)),
+      );
+      const ratio = next / pinchStartRef.current.zoom;
+      const mid = pinchStartRef.current.pan;
+      const newPan = { x: mid.x * ratio, y: mid.y * ratio };
+      setZoom(next);
+      setPan(newPan);
+      zoomRef.current = next;
+      panRef.current = newPan;
+    } else if (panStartRef.current && pointersRef.current.size === 1 && zoomRef.current > 1) {
+      const dx = e.clientX - panStartRef.current.pointer.x;
+      const dy = e.clientY - panStartRef.current.pointer.y;
+      const newPan = {
+        x: panStartRef.current.pan.x + dx,
+        y: panStartRef.current.pan.y + dy,
+      };
+      setPan(newPan);
+      panRef.current = newPan;
+    }
+  }
+
+  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchStartRef.current = null;
+    if (pointersRef.current.size === 0) panStartRef.current = null;
+  }
+
+  const transform =
+    zoom !== 1 || pan.x !== 0 || pan.y !== 0
+      ? `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
+      : undefined;
+
   const imgStyle: React.CSSProperties =
     shape === "round"
       ? {
           clipPath: "circle(50%)",
           width: "100%",
           height: "auto",
-          maxHeight: "70vh",
+          maxHeight: zoom > 1 ? "900px" : "70vh",
           objectFit: "contain",
           display: "block",
+          imageRendering: "high-quality" as React.CSSProperties["imageRendering"],
+          transform,
+          transformOrigin: "0 0",
         }
       : {
           width: "100%",
           height: "auto",
-          maxHeight: "70vh",
+          maxHeight: zoom > 1 ? "900px" : "70vh",
           objectFit: "contain",
           display: "block",
           borderRadius: `${(cornerRadiusPercent / 100) * 200}px`,
+          imageRendering: "high-quality" as React.CSSProperties["imageRendering"],
+          transform,
+          transformOrigin: "0 0",
         };
   return (
     <div
@@ -2050,11 +2163,21 @@ function ZoomModal({
       onClick={onBack}
     >
       <div
+        ref={wrapRef}
         onClick={(e) => e.stopPropagation()}
+        onDoubleClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
         style={{
           width: "min(85vw, 600px)",
           maxWidth: "min(85vw, 600px)",
           maxHeight: "70vh",
+          overflow: "hidden",
+          touchAction: "none",
+          cursor: zoom > 1 ? "grab" : "default",
+          position: "relative",
         }}
       >
         <img src={src} alt="" style={imgStyle} />
