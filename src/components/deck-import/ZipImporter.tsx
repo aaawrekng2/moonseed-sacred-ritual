@@ -1355,6 +1355,7 @@ function Workspace({
           session={session}
           resolveSrc={resolveSrc}
           hasBack={hasBack}
+          existingBackUrl={existingBackUrl ?? null}
           onTap={(slot, key) => setZoom({ imageKey: key, from: "assigned", slot })}
           onUnassign={onUnassign}
           cardStates={cardStates}
