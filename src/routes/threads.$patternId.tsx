@@ -1,8 +1,10 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ChevronLeft, Pencil, Archive, StickyNote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { ReadingRow } from "@/components/ui/reading-row";
+import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import {
   type Pattern,
   type PatternLifecycleState,
