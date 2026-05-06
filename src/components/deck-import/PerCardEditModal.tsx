@@ -767,7 +767,6 @@ export function PerCardEditModal({
                 <div
                   ref={previewWrapRef}
                   className="relative flex items-center justify-center rounded-md bg-cosmos/40 p-4"
-                  onWheel={handleWheel}
                   onPointerDown={onPreviewPointerDown}
                   onPointerMove={onPreviewPointerMove}
                   onPointerUp={onPreviewPointerUp}
