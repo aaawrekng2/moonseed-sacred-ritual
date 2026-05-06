@@ -229,6 +229,9 @@ function JournalPage() {
   const { isOracle } = useOracleMode();
   const { batch: batchParam } = Route.useSearch();
   const navigate = useNavigate();
+  // FU-8 — iOS large-to-compact title collapse driven by main scroll.
+  const scrollRef = useRef<HTMLElement | null>(null);
+  const collapseProgress = useScrollCollapse(scrollRef, 40);
   const [batchMeta, setBatchMeta] = useState<{
     sourceFormat: string;
     createdAt: string;
@@ -590,7 +593,7 @@ function JournalPage() {
 
   return (
     <div className="bg-cosmos relative flex h-dvh">
-    <main className="relative h-dvh flex-1 overflow-y-auto px-5 pb-28">
+    <main ref={scrollRef} className="relative h-dvh flex-1 overflow-y-auto px-5 pb-28">
       {/* Sticky header — title, search, filter button, tab row.
           Stays pinned while the body below scrolls. */}
       <div
@@ -600,9 +603,10 @@ function JournalPage() {
         <h1
           className="font-serif italic"
           style={{
-            fontSize: "var(--text-heading-lg)",
+            fontSize: "var(--text-heading-sm)",
             color: "var(--color-foreground)",
-            opacity: 0.9,
+            opacity: 0.9 * collapseProgress,
+            transition: "opacity 150ms ease-out",
           }}
         >
           Journal
