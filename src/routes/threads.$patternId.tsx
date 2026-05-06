@@ -1,8 +1,10 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ChevronLeft, Pencil, Archive, StickyNote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { ReadingRow } from "@/components/ui/reading-row";
+import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import {
   type Pattern,
   type PatternLifecycleState,
@@ -102,6 +104,8 @@ function PatternChamber() {
     prevRetiredAt: string | null;
   } | null>(null);
   const [undoing, setUndoing] = useState(false);
+  // FU-14 — Reading detail modal state for the pattern timeline.
+  const [openReadingId, setOpenReadingId] = useState<string | null>(null);
 
   const noteHasUnsavedChanges = () => {
     const original = (pattern?.description ?? "").trim();
@@ -472,11 +476,21 @@ function PatternChamber() {
         )
       )}
 
-      <ChamberTimeline readingIds={pattern.reading_ids} />
+      <ChamberTimeline
+        readingIds={pattern.reading_ids}
+        onOpenReading={setOpenReadingId}
+      />
 
       <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
 
       <ChamberWeaveGraph pattern={pattern} userId={user?.id} />
+
+      {openReadingId && (
+        <ReadingDetailModal
+          readingId={openReadingId}
+          onClose={() => setOpenReadingId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -804,7 +818,13 @@ function ChamberCardEvidence({
   );
 }
 
-function ChamberTimeline({ readingIds }: { readingIds: string[] }) {
+function ChamberTimeline({
+  readingIds,
+  onOpenReading,
+}: {
+  readingIds: string[];
+  onOpenReading: (readingId: string) => void;
+}) {
   const [rows, setRows] = useState<
     Array<{ id: string; created_at: string; spread_type: string; card_ids: number[]; interpretation: string | null }>
   >([]);
@@ -855,60 +875,21 @@ function ChamberTimeline({ readingIds }: { readingIds: string[] }) {
         listStyle: "none",
         padding: 0,
         margin: "var(--space-6, 32px) 0 0",
-        display: "grid",
-        gap: "var(--space-4, 16px)",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      {rows.map((r) => {
-        const snippet = (r.interpretation ?? "")
-          .replace(/\s+/g, " ")
-          .trim()
-          .split(/(?<=\.)\s+/)
-          .slice(0, 2)
-          .join(" ");
-        return (
-          <li key={r.id}>
-            <Link
-              to="/journal"
-              search={{ readingId: r.id } as never}
-              style={{ textDecoration: "none", color: "inherit", display: "block" }}
-            >
-              <div
-                style={{
-                  fontSize: "var(--text-caption)",
-                  letterSpacing: "0.16em",
-                  textTransform: "uppercase",
-                  opacity: 0.55,
-                }}
-              >
-                {new Date(r.created_at).toLocaleDateString()}
-              </div>
-              <div
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontSize: "var(--text-body)",
-                  marginTop: 2,
-                  opacity: 0.85,
-                }}
-              >
-                {r.spread_type} · {r.card_ids.length} card{r.card_ids.length === 1 ? "" : "s"}
-              </div>
-              {snippet && (
-                <div
-                  style={{
-                    fontStyle: "italic",
-                    fontSize: "var(--text-body-sm)",
-                    opacity: 0.65,
-                    marginTop: 4,
-                  }}
-                >
-                  {snippet}
-                </div>
-              )}
-            </Link>
-          </li>
-        );
-      })}
+      {rows.map((r) => (
+        <li key={r.id}>
+          <ReadingRow
+            readingId={r.id}
+            question={null}
+            cardIds={r.card_ids}
+            createdAt={r.created_at}
+            onOpen={onOpenReading}
+          />
+        </li>
+      ))}
     </ol>
   );
 }

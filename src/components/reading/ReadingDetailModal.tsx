@@ -1,7 +1,8 @@
 /**
- * FQ-4 — Read-only reading detail modal opened from a stalker occurrence.
- * Intentionally lighter than the Journal editor; deep-linking to Journal
- * is offered at the bottom for full editing.
+ * Read-only reading detail modal opened from any reading row.
+ * Used by Stalkers occurrence list, Stories pattern preview rows,
+ * and pattern detail timeline. Deep-linking to Journal is offered
+ * at the bottom for full editing.
  */
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -24,7 +25,7 @@ function formatFullDate(iso: string): string {
   }
 }
 
-export function StalkerReadingModal({
+export function ReadingDetailModal({
   readingId,
   onClose,
 }: {
@@ -46,7 +47,7 @@ export function StalkerReadingModal({
         setReading(res.readings?.[0] ?? null);
       } catch (e) {
         // eslint-disable-next-line no-console
-        console.warn("[stalkers] reading fetch failed", e);
+        console.warn("[reading-detail] fetch failed", e);
       } finally {
         if (!cancelled) setLoading(false);
       }

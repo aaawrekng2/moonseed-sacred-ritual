@@ -1,29 +1,12 @@
 /**
- * FQ-3 — Occurrence list. Loads the underlying readings for a stalker's
- * appearances and renders a tappable row for each.
+ * FU-14 — Occurrence list. Loads the underlying readings for a stalker's
+ * appearances and renders a tappable canonical ReadingRow for each.
  */
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { getReadingsByIds } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
-
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
-}
-
-function truncate(s: string, max: number): string {
-  if (s.length <= max) return s;
-  return s.slice(0, max - 1).trimEnd() + "…";
-}
+import { ReadingRow } from "@/components/ui/reading-row";
 
 export function StalkerOccurrenceList({
   appearances,
@@ -82,23 +65,16 @@ export function StalkerOccurrenceList({
       >
         Occurrences ({readings.length})
       </h4>
-      <ul className="flex flex-col divide-y divide-border/20">
+      <ul className="flex flex-col">
         {readings.map((r) => (
           <li key={r.id}>
-            <button
-              type="button"
-              onClick={() => onOpenReading(r.id)}
-              className="flex w-full items-center justify-between gap-3 rounded px-2 py-2 text-left transition-colors hover:bg-muted/30"
-            >
-              <div className="flex flex-col">
-                <span className="text-sm">{formatDate(r.created_at)}</span>
-                <span className="text-xs text-muted-foreground">
-                  {r.spread_type ?? "Reading"}
-                  {r.question ? ` · ${truncate(r.question, 60)}` : ""}
-                </span>
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </button>
+            <ReadingRow
+              readingId={r.id}
+              question={r.question ?? null}
+              cardIds={r.card_ids ?? []}
+              createdAt={r.created_at}
+              onOpen={onOpenReading}
+            />
           </li>
         ))}
       </ul>
