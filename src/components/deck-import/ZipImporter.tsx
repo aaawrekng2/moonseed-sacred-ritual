@@ -1935,8 +1935,10 @@ function AssignedGrid({
           </ThumbnailIconButton>
         </div>
       )}
-      {Array.from({ length: 78 }, (_, i) => {
-        if (!inFilter(i)) return null;
+      {(deckType === "oracle"
+        ? oracleSlotIds
+        : Array.from({ length: 78 }, (_, i) => i).filter(inFilter)
+      ).map((i) => {
         const slot = String(i);
         const key = session.assigned[slot];
         const src = key ? resolveSrc(key) : "";
@@ -1944,6 +1946,12 @@ function AssignedGrid({
         const slotState = cardStates[slot];
         const isFailed = slotState === "failed";
         const isSaving = slotState === "saving";
+        // 9-6-A — oracle cards display the user-supplied name (or a
+        // generated default) instead of a tarot card name.
+        const oracleImg = key ? findImage(session, key) : null;
+        const displayName = deckType === "oracle"
+          ? (oracleImg?.oracleName?.trim() || `Card ${i - 999}`)
+          : getCardName(i);
         return (
           <div key={i} className="relative">
             <button
@@ -1959,7 +1967,7 @@ function AssignedGrid({
                 if (isFailed) onRetrySlot(slot);
                 else onTap(slot, key);
               }}
-              aria-label={key ? getCardName(i) : `${getCardName(i)} — empty, tap to assign`}
+              aria-label={key ? displayName : `${displayName} — empty, tap to assign`}
               className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
               style={{
                 borderColor: isFailed
@@ -1970,18 +1978,18 @@ function AssignedGrid({
                 borderWidth: isFailed ? 2 : 1,
                 background: "var(--surface-card)",
               }}
-              title={isFailed ? `${getCardName(i)} — tap to retry save` : getCardName(i)}
+              title={isFailed ? `${displayName} — tap to retry save` : displayName}
             >
               {src ? (
-                <img src={src} alt={getCardName(i)} className="h-full w-full object-cover" />
-              ) : (
+                <img src={src} alt={displayName} className="h-full w-full object-cover" />
+              ) : deckType === "tarot" ? (
                 <img
                   src={getCardImagePath(i)}
                   alt={getCardName(i)}
                   className="h-full w-full object-cover"
                   style={{ opacity: 0.25, filter: "grayscale(100%)" }}
                 />
-              )}
+              ) : null}
               {isSaving && (
                 <span className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.30)" }}>
                   <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#fff" }} />
@@ -2005,6 +2013,20 @@ function AssignedGrid({
                 </span>
               )}
             </button>
+            {deckType === "oracle" && key && (
+              <p
+                className="mt-1 truncate text-center italic"
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "var(--text-body-sm)",
+                  color: "var(--color-foreground)",
+                  opacity: 0.85,
+                }}
+                title={displayName}
+              >
+                {displayName}
+              </p>
+            )}
             {key && (
               <ThumbnailIconButton
                 aria-label={`Unassign ${getCardName(i)}`}
