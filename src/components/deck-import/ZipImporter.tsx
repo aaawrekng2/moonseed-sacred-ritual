@@ -1493,9 +1493,7 @@ function Workspace({
           }}
         >
           <span>
-            {deckType === "oracle"
-              ? `${savedCount} card${savedCount === 1 ? "" : "s"}`
-              : `${savedCount}/${totalCardCount} cards`}
+            {`${savedCount}/${totalCardCount} cards`}
             {" · "}
             {hasBack ? "back set" : "no back"} ·{" "}
           </span>
