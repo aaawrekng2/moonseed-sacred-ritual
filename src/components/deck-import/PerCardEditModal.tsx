@@ -536,6 +536,25 @@ export function PerCardEditModal({
         setBatchProgress({ done, total: targetCount });
       }
 
+      // 9-5-H — after successful per-card loop, process the card back so
+      // its corner radius matches. Non-fatal: failure does not affect
+      // the per-card results.
+      if (!cancelled && failed === 0) {
+        try {
+          const jwt = (await supabase.auth.getSession()).data.session
+            ?.access_token;
+          await supabase.functions.invoke("generate-deck-variants", {
+            body: { deckId, processBack: true },
+            headers: jwt ? { Authorization: `Bearer ${jwt}` } : undefined,
+          });
+        } catch (backErr) {
+          console.warn(
+            "[processCards] card back processing failed:",
+            backErr,
+          );
+        }
+      }
+
       // Re-fetch saved state from DB so UI reflects reality.
       try {
         const { data: rows } = await supabase

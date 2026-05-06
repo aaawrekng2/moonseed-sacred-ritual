@@ -332,7 +332,7 @@ export function variantUrlFor(
     const path = url.pathname;
     // Match "<...>/card-N-TS(-thumb)?.<ext>" at the end of the path.
     const m = path.match(
-      /^(.*\/card-\d+-\d+)(?:-thumb)?\.(?:webp|png|jpe?g)$/i,
+      /^(.*\/card-\d+-\d+)(?:-thumb|-full)?\.(?:webp|png|jpe?g)$/i,
     );
     if (!m) return originalUrl;
     // FD-3 — `-full.webp` is the rounded-alpha master baked at

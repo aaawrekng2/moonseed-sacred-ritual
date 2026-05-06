@@ -18,7 +18,7 @@ const SUIT_SHORT: Record<keyof typeof SUIT_COLORS, string> = {
   wands: "Wands",
   cups: "Cups",
   swords: "Swords",
-  pentacles: "Pent.",
+  pentacles: "Pents",
 };
 
 export function SuitBalanceChart({
@@ -70,8 +70,7 @@ export function SuitBalanceChart({
             key={e.key}
             className="flex flex-col items-start gap-0.5"
           >
-            <span className="sm:hidden">{SUIT_SHORT[e.key]}</span>
-            <span className="hidden sm:inline capitalize">{e.key}</span>
+            <span>{SUIT_SHORT[e.key]}</span>
             <span className="tabular-nums" style={{ opacity: 0.8 }}>
               {Math.round(e.value)}%
             </span>

@@ -125,8 +125,8 @@ export function FloatingMenu() {
       fadeTimer.current = window.setTimeout(() => {
         setOpen(false);
         setPhase("closed");
-      }, 800);
-    }, 1200);
+      }, 500);
+    }, 800);
   };
 
   // Reset the auto-close timer whenever the user interacts with an icon
@@ -141,8 +141,8 @@ export function FloatingMenu() {
       fadeTimer.current = window.setTimeout(() => {
         setOpen(false);
         setPhase("closed");
-      }, 800);
-    }, 1200);
+      }, 500);
+    }, 800);
   };
 
   // Briefly show a small italic label below the pill describing the

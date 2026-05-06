@@ -1347,6 +1347,7 @@ function Workspace({
             }
           }}
           onImportZip={onSwitchToUpload}
+          onDone={onCancel}
         />
       )}
       {tab === "skipped" && (
@@ -1658,6 +1659,7 @@ function AssignedGrid({
   entryMode,
   onTapEmpty,
   onImportZip,
+  onDone,
 }: {
   session: ImportSession;
   resolveSrc: (key: string) => string;
@@ -1669,6 +1671,7 @@ function AssignedGrid({
   entryMode: "import" | "edit";
   onTapEmpty: (cardId: number) => void;
   onImportZip: () => void;
+  onDone: () => void;
 }) {
   const backKey = session.assigned[BACK_KEY];
   const backSrc = backKey ? resolveSrc(backKey) : "";
@@ -1726,6 +1729,24 @@ function AssignedGrid({
             <Upload className="h-3.5 w-3.5" /> Import / replace from zip
           </button>
         )}
+        <button
+          type="button"
+          onClick={onDone}
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-body-sm)",
+            fontStyle: "italic",
+            color: "var(--color-foreground)",
+            opacity: 0.7,
+            cursor: "pointer",
+            background: "none",
+            border: "none",
+            padding: 0,
+            marginLeft: entryMode === "edit" ? 8 : "auto",
+          }}
+        >
+          Done
+        </button>
       </div>
     <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
       {suitFilter === "all" && hasBack && backKey && (
