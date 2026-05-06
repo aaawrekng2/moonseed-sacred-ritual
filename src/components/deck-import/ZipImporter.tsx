@@ -1406,7 +1406,7 @@ function Workspace({
             !zoom.imageKey.startsWith("EXISTING:")
           }
           shape={shape}
-          cornerRadiusPercent={cornerRadiusPercent}
+          cornerRadiusPercent={liveRadius}
           onBack={() => setZoom(null)}
           onEdit={() => {
             const ctx = zoom;
