@@ -96,6 +96,7 @@ export function ZipImporter({
   deckName,
   existingCornerRadiusPx = null,
   onRadiusSaved,
+  deckType = "tarot",
 }: {
   userId: string;
   deckId: string;
@@ -118,6 +119,8 @@ export function ZipImporter({
   /** 9-5-D — bubble slider saves up so parent can pass the new value
    *  back into both ZipImporter and PerCardEditModal. */
   onRadiusSaved?: (next: number) => void;
+  /** 9-6-A — 'tarot' (78 fixed slots) or 'oracle' (variable, IDs 1000+). */
+  deckType?: "tarot" | "oracle";
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
