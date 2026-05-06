@@ -1398,6 +1398,55 @@ function Workspace({
   // CB — batch Save handler removed. Per-card autosave handles writes
   // continuously; the workspace footer now exposes Discard + Close only.
 
+  // 9-6-C — Oracle deck slot IDs (sorted), used by the dedicated
+  // OracleWorkspace renderer below.
+  const oracleSlotIds = useMemo(() => {
+    if (deckType !== "oracle") return [] as number[];
+    return Object.keys(session.assigned)
+      .filter((s) => s !== BACK_KEY)
+      .map((s) => Number(s))
+      .filter((n) => Number.isFinite(n))
+      .sort((a, b) => a - b);
+  }, [session.assigned, deckType]);
+
+  // 9-6-C — Oracle deck gets a purpose-built workspace: a large preview
+  // card with chevron navigation, a corner-radius slider, and a
+  // scrollable card list with inline name + meaning inputs.
+  if (deckType === "oracle") {
+    return (
+      <>
+        <OracleWorkspace
+          session={session}
+          deckId={deckId}
+          liveRadius={liveRadius}
+          onRadiusSaved={onRadiusSaved}
+          existingCornerRadiusPx={existingCornerRadiusPx}
+          oracleSlotIds={oracleSlotIds}
+          resolveSrc={resolveSrc}
+          onDone={onCancel}
+          entryMode={entryMode}
+          onImportZip={onSwitchToUpload}
+          onOpenEdit={(cardId, key) => {
+            if (key.startsWith("EXISTING:")) {
+              setEditingExistingCardId(cardId);
+            } else {
+              setZoom({ imageKey: key, from: "assigned", slot: String(cardId) });
+            }
+          }}
+        />
+        {editingExistingCardId !== null && (
+          <PerCardEditModal
+            deckId={deckId}
+            deckName={deckName ?? ""}
+            defaultRadiusPercent={liveRadius}
+            initialCardId={editingExistingCardId}
+            onClose={() => setEditingExistingCardId(null)}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <section className="py-4">
       {/* CC G1 — Sticky workspace header. Title + status indicator on
