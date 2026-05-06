@@ -2227,7 +2227,7 @@ function ZoomModal({
           clipPath: "circle(50%)",
           width: "100%",
           height: "auto",
-          maxHeight: zoom > 1 ? "900px" : "70vh",
+          maxHeight: zoom > 1 ? "900px" : "min(70vh, calc(100vh - 180px))",
           objectFit: "contain",
           display: "block",
           imageRendering: "high-quality" as React.CSSProperties["imageRendering"],
@@ -2237,7 +2237,7 @@ function ZoomModal({
       : {
           width: "100%",
           height: "auto",
-          maxHeight: zoom > 1 ? "900px" : "70vh",
+          maxHeight: zoom > 1 ? "900px" : "min(70vh, calc(100vh - 180px))",
           objectFit: "contain",
           display: "block",
           borderRadius: `${(cornerRadiusPercent / 100) * 200}px`,
