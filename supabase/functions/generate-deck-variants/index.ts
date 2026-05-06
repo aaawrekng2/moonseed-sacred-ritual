@@ -370,6 +370,7 @@ serve(async (req) => {
           processing_status: "saved",
           processed_at: new Date().toISOString(),
           corner_radius_percent: radius,
+          display_path: fullPath,
         };
         if (!row.original_path && row.display_path) {
           patch.original_path = row.display_path;

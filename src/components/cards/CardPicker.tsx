@@ -183,7 +183,7 @@ export function CardPicker({
 
       {/* Grid */}
       <div className="flex-1 overflow-y-auto p-3">
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10">
           {cards.map(({ idx, name }) => {
             const isExcluded = mode === "manual-entry" && excluded.has(idx);
             const isShot = mode === "photography" && photographed.has(idx);
@@ -301,13 +301,14 @@ function ConfirmReversed({
         <div className="flex gap-3">
           <button
             onClick={onBack}
-            className="rounded-full border border-border/60 px-5 py-2 text-sm hover:bg-foreground/10"
+            className="font-display italic text-sm opacity-70 hover:opacity-100 transition-opacity"
           >
             Back
           </button>
           <button
             onClick={onConfirm}
-            className="rounded-full bg-accent px-5 py-2 text-sm font-medium text-accent-foreground hover:bg-accent/90"
+            className="font-display italic text-sm"
+            style={{ color: "var(--accent)" }}
           >
             Confirm
           </button>

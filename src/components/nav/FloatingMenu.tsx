@@ -125,8 +125,8 @@ export function FloatingMenu() {
       fadeTimer.current = window.setTimeout(() => {
         setOpen(false);
         setPhase("closed");
-      }, 2500);
-    }, 2500);
+      }, 800);
+    }, 1200);
   };
 
   // Reset the auto-close timer whenever the user interacts with an icon
@@ -141,8 +141,8 @@ export function FloatingMenu() {
       fadeTimer.current = window.setTimeout(() => {
         setOpen(false);
         setPhase("closed");
-      }, 2500);
-    }, 2500);
+      }, 800);
+    }, 1200);
   };
 
   // Briefly show a small italic label below the pill describing the
@@ -474,7 +474,7 @@ function MenuButton({
       type="button"
       aria-label={ariaLabel}
       onClick={onClick}
-      className="flex h-8 w-8 items-center justify-center rounded-full text-gold transition-colors hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+      className="flex h-7 w-7 items-center justify-center rounded-full text-gold transition-colors hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
     >
       {children}
     </button>

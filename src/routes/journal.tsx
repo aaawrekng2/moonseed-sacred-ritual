@@ -655,7 +655,7 @@ function JournalPage() {
       {/* View tabs — icons only on mobile (< sm), label-only at sm+.
           BO Fix 1 — wrapped in HorizontalScroll so the row gets edge
           fades + chevron affordance when the six tabs overflow. */}
-      <HorizontalScroll className="mt-5" contentClassName="items-center gap-5">
+      <HorizontalScroll className="mt-2" contentClassName="items-center gap-5">
         {(
           [
             ["readings", "Readings", BookOpen],

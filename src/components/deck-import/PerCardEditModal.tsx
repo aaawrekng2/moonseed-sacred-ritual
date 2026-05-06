@@ -94,6 +94,11 @@ export function PerCardEditModal({
     done: number;
     total: number;
   } | null>(null);
+  // 9-5-G — inline final-result message replacing batch toasts.
+  const [batchResult, setBatchResult] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
   // FI-3 — choice dialog state for "Apply to all".
   const [applyDialogOpen, setApplyDialogOpen] = useState(false);
   const [applyScope, setApplyScope] = useState<"unsaved" | "all">("unsaved");
@@ -464,18 +469,10 @@ export function PerCardEditModal({
     let failed = 0;
     let cancelled = false;
 
-    const progressId = toast.loading(`Starting… 0/${targetCount}`, {
-      duration: Infinity,
-      cancel: {
-        label: "Cancel",
-        onClick: () => {
-          cancelled = true;
-          abortController.abort();
-        },
-      },
-    });
     // 9-5-E — drive inline progress bar.
     setBatchProgress({ done: 0, total: targetCount });
+    // 9-5-G — clear any previous batch result when a new batch starts.
+    setBatchResult(null);
 
     try {
       for (let i = 0; i < targets.length; i++) {
@@ -578,19 +575,19 @@ export function PerCardEditModal({
       setVersion((v) => v + 1);
 
       if (cancelled) {
-        toast.warning(
-          `Cancelled. Processed ${done - failed}/${targetCount}.`,
-          { id: progressId, duration: 4000 },
-        );
+        setBatchResult({
+          ok: false,
+          message: `Cancelled. Processed ${done - failed}/${targetCount}.`,
+        });
       } else if (failed > 0) {
-        toast.error(
-          `Processed ${done - failed}/${targetCount}. ${failed} failed — check console.`,
-          { id: progressId, duration: 5000 },
-        );
+        setBatchResult({
+          ok: false,
+          message: "Some cards failed. Try again.",
+        });
       } else {
-        toast.success(`All ${targetCount} cards processed.`, {
-          id: progressId,
-          duration: 4000,
+        setBatchResult({
+          ok: true,
+          message: `${done} cards processed.`,
         });
       }
     } finally {
@@ -1079,6 +1076,21 @@ export function PerCardEditModal({
                       {batchProgress.total - batchProgress.done} remaining
                     </p>
                   </div>
+                )}
+
+                {!batchProgress && batchResult && (
+                  <p
+                    className="mt-3 italic"
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontSize: "var(--text-body-sm)",
+                      color: batchResult.ok
+                        ? "var(--color-foreground)"
+                        : "var(--accent)",
+                    }}
+                  >
+                    {batchResult.message}
+                  </p>
                 )}
               </>
             )}
