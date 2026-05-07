@@ -16,7 +16,6 @@ import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { ManualSpreadSlots } from "@/components/tabletop/SpreadLayout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
-import { useActiveDeckImage } from "@/lib/active-deck";
 import { cn } from "@/lib/utils";
 
 export type ManualPick = { id: number; cardIndex: number; isReversed: boolean };
@@ -32,14 +31,22 @@ export function ManualEntryBuilder({ spread, onCancel, onComplete }: Props) {
   const meta = SPREAD_META[spread];
   const required = meta.count;
   const labels = meta.positions ?? [];
-  // CE Group 2 — manual entry honors the seeker's active custom deck
-  // imagery instead of always rendering Rider-Waite defaults.
-  const cardImg = useActiveDeckImage();
 
   const [picks, setPicks] = useState<(ManualPick | null)[]>(
     Array.from({ length: required }, () => null),
   );
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
+  // 9-6-G — per-slot deck override; null = active deck.
+  const [slotDeckIds, setSlotDeckIds] = useState<(string | null)[]>(
+    Array.from({ length: required }, () => null),
+  );
+
+  const handleSlotDeckChange = (deckId: string | null) => {
+    if (pickerSlot === null) return;
+    const next = [...slotDeckIds];
+    next[pickerSlot] = deckId;
+    setSlotDeckIds(next);
+  };
 
   const allFilled = picks.every((p) => p !== null);
   const placedIds = picks.filter((p): p is ManualPick => !!p).map((p) => p.cardIndex);
@@ -122,7 +129,8 @@ export function ManualEntryBuilder({ spread, onCancel, onComplete }: Props) {
             <CardPicker
               mode="manual-entry"
               embedded
-              resolveImageSrc={(cardIndex) => cardImg(cardIndex, "thumbnail")}
+              deckId={slotDeckIds[pickerSlot]}
+              onDeckChange={handleSlotDeckChange}
               excludeCardIds={placedIds}
               // CE Group 3 — manual entry logs a physical reading where
               // reversal is part of what happened. Always offer the
