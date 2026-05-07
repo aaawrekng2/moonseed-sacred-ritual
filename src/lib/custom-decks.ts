@@ -123,14 +123,34 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
     }
   }
   if (allPaths.length > 0) {
-    const { data: signed } = await supabase.storage
-      .from("custom-deck-images")
-      .createSignedUrls(allPaths, yearSecs);
-    for (const entry of signed ?? []) {
-      if (!entry.signedUrl || !entry.path) continue;
-      const meta = pathToCard.get(entry.path);
-      if (!meta) continue;
-      map[meta.kind][meta.cardId] = entry.signedUrl;
+    // 9-6-I — wrap batch sign in try/catch; storage occasionally
+    // returns 504s. Fall back to stored display_url/thumbnail_url
+    // for any cards we couldn't sign.
+    try {
+      const { data: signed, error } = await supabase.storage
+        .from("custom-deck-images")
+        .createSignedUrls(allPaths, yearSecs);
+      if (error) {
+        console.warn("[buildDeckImageMap] batch sign failed", error);
+      } else {
+        for (const entry of signed ?? []) {
+          if (!entry.signedUrl || !entry.path) continue;
+          const meta = pathToCard.get(entry.path);
+          if (!meta) continue;
+          map[meta.kind][meta.cardId] = entry.signedUrl;
+        }
+      }
+    } catch (err) {
+      console.warn("[buildDeckImageMap] batch sign threw", err);
+    }
+    for (const c of cards) {
+      if (c.source === "default") continue;
+      if (!map.display[c.card_id] && c.display_url) {
+        map.display[c.card_id] = c.display_url;
+      }
+      if (!map.thumbnail[c.card_id] && c.thumbnail_url) {
+        map.thumbnail[c.card_id] = c.thumbnail_url;
+      }
     }
   }
   // Pull the deck row separately for back image.
@@ -141,10 +161,21 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
     .maybeSingle();
   const backPath = (deck as { card_back_path?: string | null } | null)?.card_back_path ?? null;
   if (backPath) {
-    const { data: signed } = await supabase.storage
-      .from("custom-deck-images")
-      .createSignedUrl(backPath, yearSecs);
-    map.back = signed?.signedUrl ?? (deck?.card_back_url as string | null | undefined) ?? null;
+    // 9-6-I — wrap back sign in try/catch with fallback to stored URL.
+    try {
+      const { data: signed, error } = await supabase.storage
+        .from("custom-deck-images")
+        .createSignedUrl(backPath, yearSecs);
+      if (error) {
+        console.warn("[buildDeckImageMap] back sign failed", error);
+        map.back = (deck?.card_back_url as string | null | undefined) ?? null;
+      } else {
+        map.back = signed?.signedUrl ?? (deck?.card_back_url as string | null | undefined) ?? null;
+      }
+    } catch (err) {
+      console.warn("[buildDeckImageMap] back sign threw", err);
+      map.back = (deck?.card_back_url as string | null | undefined) ?? null;
+    }
   } else {
     map.back = (deck?.card_back_url as string | null | undefined) ?? null;
   }

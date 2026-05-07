@@ -601,13 +601,19 @@ export function ZipImporter({
           s.unassigned[displaced] = displacedImg;
         }
       }
-      // Remove imageKey from any other slot it may have occupied. Track
-      // it so the autosave below can also clear that slot in Supabase.
-      for (const k of Object.keys(s.assigned)) {
-        if (s.assigned[k] === imageKey && k !== slot) {
-          displacedSlot = k;
-          displacedKey = imageKey;
-          delete s.assigned[k];
+      // 9-6-I — assigning TO the BACK slot must NOT remove the image
+      // from any numeric card slot it currently occupies. card_back_path
+      // is a separate field on custom_decks; using a card image as the
+      // back is a copy/reference, not a move. For numeric assignments,
+      // keep the original displacement behavior so the same image isn't
+      // shown on two cards at once.
+      if (slot !== BACK_KEY) {
+        for (const k of Object.keys(s.assigned)) {
+          if (s.assigned[k] === imageKey && k !== slot) {
+            displacedSlot = k;
+            displacedKey = imageKey;
+            delete s.assigned[k];
+          }
         }
       }
       s.assigned[slot] = imageKey;
@@ -1970,6 +1976,10 @@ function OracleWorkspace({
   const [liveRadiusLocal, setLiveRadiusLocal] = useState(liveRadius);
   useEffect(() => { setLiveRadiusLocal(liveRadius); }, [liveRadius]);
   const [showBackPicker, setShowBackPicker] = useState(false);
+  // 9-6-I — optimistic local override so picking a card-back updates
+  // the hero immediately, before the parent re-fetches the deck row.
+  const [localBackUrl, setLocalBackUrl] = useState<string | null>(null);
+  const effectiveBackUrl = localBackUrl ?? existingBackUrl;
   const safeIdx = oracleSlotIds.length === 0
     ? 0
     : ((previewIdx % oracleSlotIds.length) + oracleSlotIds.length) % oracleSlotIds.length;
@@ -2116,11 +2126,11 @@ function OracleWorkspace({
         >
           Card back
         </h3>
-        {existingBackUrl ? (
+        {effectiveBackUrl ? (
           <>
             <div style={{ width: "min(280px, 70vw)" }}>
               <img
-                src={existingBackUrl}
+                src={effectiveBackUrl}
                 alt="Card back"
                 style={{
                   width: "100%",
@@ -2222,6 +2232,9 @@ function OracleWorkspace({
           resolveSrc={resolveSrc}
           onPick={(k) => {
             onAssign(k, "BACK");
+            // 9-6-I — optimistically reflect the chosen image in the hero.
+            const resolved = resolveSrc(k);
+            if (resolved) setLocalBackUrl(resolved);
             setShowBackPicker(false);
           }}
           onCancel={() => setShowBackPicker(false)}

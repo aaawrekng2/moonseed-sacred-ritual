@@ -582,57 +582,48 @@ function Index() {
             })()}
           </DialogDescription>
         </DialogHeader>
+        {/* 9-6-I — editorial restraint: single italic line with day count,
+            "Longest" only shown when it differs from current. */}
         <div
-          className="grid grid-cols-2 gap-4 py-2"
+          className="flex flex-col items-center gap-6 py-4"
           style={{ fontFamily: "var(--font-serif)" }}
         >
-          <div className="text-center">
-            <div
+          <div className="flex items-baseline gap-3">
+            <span
               style={{
-                fontSize: "32px",
-                color: "var(--gold)",
+                fontSize: "var(--text-display, 48px)",
+                color: "var(--accent, var(--gold))",
+                fontStyle: "italic",
                 lineHeight: 1,
               }}
             >
               {currentStreak}
-            </div>
-            <div
+            </span>
+            <span
               style={{
-                fontSize: "var(--text-caption)",
+                fontSize: "var(--text-body-sm)",
                 color: "var(--foreground)",
                 opacity: 0.6,
-                marginTop: 4,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
+                fontStyle: "italic",
               }}
             >
-              Current
-            </div>
+              day{currentStreak === 1 ? "" : "s"} of practice
+            </span>
           </div>
-          <div className="text-center">
-            <div
+          {longestStreak > currentStreak ? (
+            <p
               style={{
-                fontSize: "32px",
+                fontSize: "var(--text-body-sm)",
                 color: "var(--foreground)",
-                opacity: 0.85,
-                lineHeight: 1,
+                opacity: 0.5,
+                fontStyle: "italic",
+                textAlign: "center",
+                margin: 0,
               }}
             >
-              {longestStreak}
-            </div>
-            <div
-              style={{
-                fontSize: "var(--text-caption)",
-                color: "var(--foreground)",
-                opacity: 0.6,
-                marginTop: 4,
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-              }}
-            >
-              Longest
-            </div>
-          </div>
+              Longest: {longestStreak} day{longestStreak === 1 ? "" : "s"}
+            </p>
+          ) : null}
         </div>
         <p
           className="text-center"

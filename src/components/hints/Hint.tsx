@@ -21,8 +21,10 @@ import {
 import { X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const ANON_LS_KEY = "moonseed.hardDismissedHints";
+const userLsKey = (userId: string) => `moonseed:hard-dismiss:${userId}`;
 
 function readAnonHardDismissed(): Record<string, boolean> {
   if (typeof window === "undefined") return {};
@@ -53,6 +55,17 @@ export async function isHintHardDismissed(
   userId: string | null,
 ): Promise<boolean> {
   if (!userId) return !!readAnonHardDismissed()[hintId];
+  // 9-6-I — check per-user localStorage backup first so dismissal sticks
+  // even if the DB write previously failed.
+  try {
+    const raw = window.localStorage.getItem(userLsKey(userId));
+    if (raw) {
+      const cur = JSON.parse(raw) as Record<string, boolean>;
+      if (cur[hintId]) return true;
+    }
+  } catch {
+    /* ignore */
+  }
   const { data } = await supabase
     .from("user_preferences")
     .select("dismissed_hints")
@@ -68,21 +81,33 @@ async function markHintHardDismissed(
   hintId: string,
   userId: string | null,
 ): Promise<void> {
+  // 9-6-I — always write a localStorage backup keyed by userId (or anon
+  // bucket). Visible toast on every DB error path so silent failures
+  // become impossible.
+  if (userId) {
+    try {
+      const k = userLsKey(userId);
+      const raw = window.localStorage.getItem(k);
+      const cur = raw ? (JSON.parse(raw) as Record<string, boolean>) : {};
+      window.localStorage.setItem(k, JSON.stringify({ ...cur, [hintId]: true }));
+    } catch {
+      /* ignore */
+    }
+  }
   if (!userId) {
     const cur = readAnonHardDismissed();
     writeAnonHardDismissed({ ...cur, [hintId]: true });
     return;
   }
-  // 9-6-H — explicit insert/update branch with error logging. Some RLS
-  // setups treat upsert's INSERT path differently than UPDATE; logging
-  // either failure surfaces the real cause when persistence breaks.
   const { data: existing, error: selErr } = await supabase
     .from("user_preferences")
     .select("user_id, dismissed_hints")
     .eq("user_id", userId)
     .maybeSingle();
   if (selErr) {
-    console.warn("[markHintHardDismissed] select error", selErr);
+    toast.error(`Hint dismissal SELECT failed: ${selErr.message}`);
+    console.error("[markHintHardDismissed] select error", selErr);
+    return;
   }
   const cur =
     ((existing as { dismissed_hints?: Record<string, boolean> } | null)
@@ -93,12 +118,18 @@ async function markHintHardDismissed(
       .from("user_preferences")
       .update({ dismissed_hints: next } as never)
       .eq("user_id", userId);
-    if (updErr) console.warn("[markHintHardDismissed] update error", updErr);
+    if (updErr) {
+      toast.error(`Hint dismissal UPDATE failed: ${updErr.message}`);
+      console.error("[markHintHardDismissed] update error", updErr);
+    }
   } else {
     const { error: insErr } = await supabase
       .from("user_preferences")
       .insert({ user_id: userId, dismissed_hints: next } as never);
-    if (insErr) console.warn("[markHintHardDismissed] insert error", insErr);
+    if (insErr) {
+      toast.error(`Hint dismissal INSERT failed: ${insErr.message}`);
+      console.error("[markHintHardDismissed] insert error", insErr);
+    }
   }
 }
 
