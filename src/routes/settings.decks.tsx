@@ -36,6 +36,7 @@ import {
   type CustomDeckCard,
 } from "@/lib/custom-decks";
 import { useActiveDeck } from "@/lib/active-deck";
+import { variantUrlFor } from "@/lib/active-deck";
 import { PhotoCapture } from "@/components/photo/PhotoCapture";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
@@ -425,7 +426,12 @@ function DeckRow({
         <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-cosmos">
           {deck.card_back_thumb_url || deck.card_back_url ? (
             <img
-              src={(deck.card_back_thumb_url ?? deck.card_back_url) as string}
+              src={
+                (variantUrlFor(
+                  deck.card_back_thumb_url ?? deck.card_back_url,
+                  "full",
+                ) ?? (deck.card_back_thumb_url ?? deck.card_back_url)) as string
+              }
               alt={`${deck.name} card back`}
               className="h-full w-full object-cover"
             />

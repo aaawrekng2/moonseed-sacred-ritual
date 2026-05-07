@@ -192,6 +192,27 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   // so they don't render as huge percentages on existing rows.
   map.cornerRadiusPercent =
     typeof cr === "number" ? Math.max(0, Math.min(20, Math.round(cr))) : null;
+  // 9-6-P — diagnostic: how many cards have been processed by the
+  // edge function (and therefore have the corner-cropped variant)
+  // versus how many are still on the raw upload.
+  try {
+    const totalCards = cards.filter((c) => c.source !== "default").length;
+    const processedCards = cards.filter(
+      (c) =>
+        c.source !== "default" &&
+        (c as { processing_status?: string }).processing_status === "saved",
+    ).length;
+    console.log(
+      "[buildDeckImageMap] deck=",
+      deckId,
+      "processed=",
+      processedCards,
+      "of",
+      totalCards,
+    );
+  } catch {
+    // ignore logging errors
+  }
   return map;
 }
 

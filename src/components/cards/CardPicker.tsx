@@ -15,7 +15,7 @@ import { Check, ChevronDown, ChevronLeft, Lock, X } from "lucide-react";
 import { TAROT_DECK, getCardName, getCardImagePath } from "@/lib/tarot";
 import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/ui/search-input";
-import { useActiveDeckImage, useDeckImage } from "@/lib/active-deck";
+import { useActiveDeckImage, useDeckImage, variantUrlFor } from "@/lib/active-deck";
 import { useAuth } from "@/lib/auth";
 import {
   fetchUserDecks,
