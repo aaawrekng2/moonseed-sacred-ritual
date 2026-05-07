@@ -825,11 +825,12 @@ function DeckEditor({
             </div>
           )}
 
+          {/* 9-6-O — desktop only; sticky version below is mobile only. */}
           <button
             type="button"
             disabled={saving || !name.trim()}
             onClick={handleContinue}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-6 py-3 text-base font-medium hover:bg-gold/20 disabled:opacity-50"
+            className="hidden sm:inline-flex w-full items-center justify-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-6 py-3 text-base font-medium hover:bg-gold/20 disabled:opacity-50"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Continue → photograph cards
@@ -879,7 +880,7 @@ function DeckEditor({
           </div>
 
           <div
-            className="sticky bottom-0 -mx-4 mt-6 border-t px-4 py-3"
+            className="sticky bottom-0 -mx-4 mt-6 border-t px-4 py-3 sm:hidden"
             style={{
               background: "var(--background)",
               borderColor: "var(--border-subtle)",
