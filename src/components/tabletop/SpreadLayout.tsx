@@ -905,44 +905,65 @@ export function ManualSpreadSlots({
   }, [uniqueKey]);
 
   const resolveForPick = (pick: NonNullable<ManualSlotPick>): string => {
-    if (!pick.deckId) return activeResolve(pick.cardIndex);
+    // 9-6-O — slot tiles are small; pull the thumbnail variant rather
+    // than the multi-MB display image.
+    if (!pick.deckId) return activeResolve(pick.cardIndex, "thumbnail");
     const map = deckMaps[pick.deckId];
-    return resolveCardImage(pick.cardIndex, map ?? null, "display");
+    return resolveCardImage(pick.cardIndex, map ?? null, "thumbnail");
   };
   const nameForPick = (pick: NonNullable<ManualSlotPick>): string =>
     pick.cardName ?? getCardName(pick.cardIndex) ?? `Card ${pick.cardIndex}`;
 
-  const Slot = ({ pick, slotIndex, rotated }: { pick: ManualSlotPick; slotIndex: number; rotated?: boolean }) => (
-    <button
-      type="button"
-      onClick={() => onSlotTap(slotIndex)}
-      aria-label={pick ? `Replace ${nameForPick(pick)}` : `Pick card for ${labels[slotIndex] ?? `position ${slotIndex + 1}`}`}
-      className={cn(
-        "relative transition active:scale-[0.98]",
-        pick
-          ? "overflow-hidden"
-          : "border-2 border-dashed border-foreground/25 bg-foreground/[0.04] hover:border-gold/50 hover:bg-gold/5",
-      )}
-      style={{
-        width: sizing.w,
-        height: sizing.h,
-        transform: rotated ? "rotate(90deg)" : undefined,
-        transformOrigin: "center center",
-        boxShadow: pick ? "0 6px 18px rgba(0,0,0,0.5)" : undefined,
-      }}
-    >
-      {pick ? (
-        <img
-          src={resolveForPick(pick)}
-          alt={nameForPick(pick)}
-          className="h-full w-full object-contain"
-          style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
-        />
-      ) : (
-        <span className="absolute inset-0 flex items-center justify-center text-[18px] font-light text-foreground/50">+</span>
-      )}
-    </button>
-  );
+  // 9-6-O — track natural aspect of each picked image so the slot
+  // adapts to non-tarot card shapes (oracle decks). Empty slots keep
+  // the standard 5:8 placeholder so the dashed target reads as a card.
+  const [pickAspects, setPickAspects] = useState<Record<number, number>>({});
+  const defaultAspect = sizing.w / sizing.h;
+
+  const Slot = ({ pick, slotIndex, rotated }: { pick: ManualSlotPick; slotIndex: number; rotated?: boolean }) => {
+    const aspect = pick ? pickAspects[slotIndex] ?? defaultAspect : defaultAspect;
+    const height = pick ? Math.round(sizing.w / aspect) : sizing.h;
+    return (
+      <button
+        type="button"
+        onClick={() => onSlotTap(slotIndex)}
+        aria-label={pick ? `Replace ${nameForPick(pick)}` : `Pick card for ${labels[slotIndex] ?? `position ${slotIndex + 1}`}`}
+        className={cn(
+          "relative transition active:scale-[0.98]",
+          pick
+            ? "overflow-hidden"
+            : "border-2 border-dashed border-foreground/25 bg-foreground/[0.04] hover:border-gold/50 hover:bg-gold/5",
+        )}
+        style={{
+          width: sizing.w,
+          height,
+          transform: rotated ? "rotate(90deg)" : undefined,
+          transformOrigin: "center center",
+          boxShadow: pick ? "0 6px 18px rgba(0,0,0,0.5)" : undefined,
+        }}
+      >
+        {pick ? (
+          <img
+            src={resolveForPick(pick)}
+            alt={nameForPick(pick)}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              if (img.naturalWidth && img.naturalHeight) {
+                const a = img.naturalWidth / img.naturalHeight;
+                setPickAspects((prev) =>
+                  prev[slotIndex] === a ? prev : { ...prev, [slotIndex]: a },
+                );
+              }
+            }}
+            className="h-full w-full object-cover"
+            style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
+          />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center text-[18px] font-light text-foreground/50">+</span>
+        )}
+      </button>
+    );
+  };
 
   if (spread === "celtic") {
     const colGap = Math.round(sizing.w * 0.35);
