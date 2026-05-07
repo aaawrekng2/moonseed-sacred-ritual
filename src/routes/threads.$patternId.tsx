@@ -1,5 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  generatePatternInterpretation,
+  type PatternInterpretation,
+} from "@/lib/pattern-interpretation.functions";
 import { ChevronLeft, Pencil, Archive, StickyNote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -481,6 +486,11 @@ function PatternChamber() {
       <ChamberTimeline
         readingIds={pattern.reading_ids}
         onOpenReading={setOpenReadingId}
+      />
+
+      <PatternSynthesis
+        patternId={pattern.id}
+        readingCount={pattern.reading_ids.length}
       />
 
       <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
