@@ -54,6 +54,10 @@ export async function isHintHardDismissed(
   hintId: string,
   userId: string | null,
 ): Promise<boolean> {
+  // 9-6-J — diagnostic: log which userId the read path is using.
+  console.log(
+    `[isHintHardDismissed] hintId=${hintId} userId=${userId ?? "null"}`,
+  );
   if (!userId) return !!readAnonHardDismissed()[hintId];
   // 9-6-I — check per-user localStorage backup first so dismissal sticks
   // even if the DB write previously failed.
@@ -222,6 +226,11 @@ export function Hint({
 
   const dismissSoft = () => close();
   const dismissHard = () => {
+    // 9-6-J — temporary alert diagnostic to confirm the click handler
+    // fires AND the userId at write time. Compare with the
+    // [isHintHardDismissed] log on next refresh.
+    // eslint-disable-next-line no-alert
+    alert(`[dismissHard] hintId=${hintId} userId=${user?.id ?? "null"}`);
     void markHintHardDismissed(hintId, user?.id ?? null);
     close();
   };
