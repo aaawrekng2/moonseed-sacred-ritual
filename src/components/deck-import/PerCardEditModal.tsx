@@ -382,6 +382,10 @@ export function PerCardEditModal({
         const result = (data ?? {}) as { ok?: boolean; error?: string };
         if (!result.ok) throw new Error(result.error ?? "Processing failed.");
         setVersion((v) => v + 1);
+        // 9-6-J — Fix 7: notify ActiveDeckProvider to refetch.
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("arcana:deck-back-updated"));
+        }
         toast.success("Card back saved.");
         return;
       }
