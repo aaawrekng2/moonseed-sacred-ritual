@@ -662,11 +662,16 @@ function DeckEditor({
   );
   const [mode, setMode] = useState<EditorMode>(
     existing
-      ? {
-          kind: "workspace",
-          deckId: existing.id,
-          initialPhase: startInUploadPhase ? "upload" : "workspace",
-        }
+      ? startInUploadPhase
+        ? {
+            kind: "workspace",
+            deckId: existing.id,
+            initialPhase: "upload",
+          }
+        : // 9-6-V — landing on the saved-cards grid for existing decks
+          // matches user intent ("Edit" should show what's saved, not
+          // re-open the import workspace with default ghosts).
+          { kind: "grid", deckId: existing.id }
       : { kind: "details" },
   );
   // EH-4 — wire FloatingMenu X icon to close back to deck list when
