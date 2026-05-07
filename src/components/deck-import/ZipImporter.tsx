@@ -2516,6 +2516,7 @@ function AssignedGrid({
   onDone,
   deckType,
   deckId,
+  onTapBack,
 }: {
   session: ImportSession;
   resolveSrc: (key: string) => string;
@@ -2531,6 +2532,7 @@ function AssignedGrid({
   onDone: () => void;
   deckType: "tarot" | "oracle";
   deckId: string;
+  onTapBack: () => void;
 }) {
   const backKey = session.assigned[BACK_KEY];
   // 9-5-I — fall back to existingBackUrl when the user hasn't reassigned
