@@ -119,6 +119,7 @@ const corsHeaders = {
 type CardRow = {
   card_id: number;
   display_path: string | null;
+  corner_radius_percent?: number | null;
 };
 
 type VariantSpec = { suffix: "sm" | "md"; width: number };
@@ -145,10 +146,11 @@ const WORKING_WIDTH = 600;
 function variantPathFor(originalPath: string, suffix: "sm" | "md"): string | null {
   // Match `<...>/card-N-TS(-thumb)?.<ext>` and replace the filename.
   const m = originalPath.match(
-    /^(.*\/card-\d+-\d+)(?:-thumb)?\.(?:webp|png|jpe?g)$/i,
+    /^(.*\/card-\d+-\d+)(?:-thumb|-full)?\.(?:webp|png|jpe?g)$/i,
   );
   if (!m) return null;
-  return `${m[1]}-${suffix}.jpg`;
+  // 9-6-W — variants are now WebP with rounded alpha mask baked in.
+  return `${m[1]}-${suffix}.webp`;
 }
 
 // FD-3 — alpha WebP variant. Same filename stem, `-full.webp`.
@@ -461,13 +463,33 @@ serve(async (req) => {
           const ratio = v.width / workingForVariants.width;
           const targetH = Math.max(1, Math.round(workingForVariants.height * ratio));
           const small = workingForVariants.clone().resize(v.width, targetH);
-          const jpeg = await small.encodeJPEG(85);
+          // 9-6-W — apply rounded alpha mask BEFORE encoding to WebP so
+          // sm/md variants share the same rounded silhouette as -full.webp.
+          if (radius > 0) applyRoundedMask(small, radius);
+          const smallPng = await small.encode();
+          await ensureMagick();
+          const webpBytes: Uint8Array = await new Promise((resolve, reject) => {
+            try {
+              ImageMagick.read(smallPng, (img) => {
+                img.write(MagickFormat.Webp, (data) =>
+                  resolve(new Uint8Array(data)),
+                );
+              });
+            } catch (e) {
+              reject(e);
+            }
+          });
           const upV = await admin.storage.from(BUCKET).upload(
             vPath,
-            jpeg,
-            { contentType: "image/jpeg", upsert: true },
+            webpBytes,
+            { contentType: "image/webp", upsert: true },
           );
           if (upV.error) throw upV.error;
+          // 9-6-W — best-effort cleanup of legacy .jpg sibling.
+          await admin.storage
+            .from(BUCKET)
+            .remove([vPath.replace(/\.webp$/, ".jpg")])
+            .catch(() => {});
         }
 
         step = "db_update";
@@ -526,7 +548,7 @@ serve(async (req) => {
     // 4) List active cards for the deck.
     const { data: cards, error: cardsErr } = await admin
       .from("custom_deck_cards")
-      .select("card_id, display_path")
+      .select("card_id, display_path, corner_radius_percent")
       .eq("deck_id", deckId)
       .is("archived_at", null)
       .order("card_id", { ascending: true });
@@ -553,6 +575,7 @@ serve(async (req) => {
         continue;
       }
       let sourceBytes: Uint8Array | null = null;
+      let decodedSource: Image | null = null;
       try {
         // 9-6-R — short-circuit if BOTH variants already exist; avoids
         // a full download + decode just to discover everything is done.
@@ -574,6 +597,11 @@ serve(async (req) => {
           skipped += VARIANTS.length;
           continue;
         }
+        // 9-6-W — per-card override falls back to deck-level radius.
+        const radius =
+          typeof c.corner_radius_percent === "number"
+            ? c.corner_radius_percent
+            : (deck as { corner_radius_percent?: number }).corner_radius_percent ?? 0;
         for (const v of VARIANTS) {
           const variantPath = variantPathFor(c.display_path, v.suffix);
           if (!variantPath) {
@@ -609,20 +637,24 @@ serve(async (req) => {
             }
             sourceBytes = new Uint8Array(await dl.data.arrayBuffer());
             await ensureMagick();
+            // 9-6-W — decode once via imagescript so we can apply the
+            // rounded alpha mask before re-encoding to WebP per variant.
+            decodedSource = await decodeAny(sourceBytes);
           }
 
-          // 9-6-S — pure ImageMagick pipeline. Decode + resize +
-          // JPEG encode all happen in WASM, no imagescript JS loops.
-          const jpeg = await new Promise<Uint8Array>((resolve, reject) => {
+          // 9-6-W — resize via imagescript, apply rounded alpha mask,
+          // then re-encode through ImageMagick for WebP (preserves alpha).
+          const ratio = v.width / decodedSource!.width;
+          const targetH = Math.max(1, Math.round(decodedSource!.height * ratio));
+          const resized = decodedSource!.clone().resize(v.width, targetH);
+          if (radius > 0) applyRoundedMask(resized, radius);
+          const png = await resized.encode();
+          const webpBytes: Uint8Array = await new Promise((resolve, reject) => {
             try {
-              ImageMagick.read(sourceBytes!, (img) => {
-                const ratio = v.width / img.width;
-                const targetH = Math.max(1, Math.round(img.height * ratio));
-                img.resize(v.width, targetH);
-                img.quality = 85;
-                img.write(MagickFormat.Jpeg, (data) => {
-                  resolve(new Uint8Array(data));
-                });
+              ImageMagick.read(png, (img) => {
+                img.write(MagickFormat.Webp, (data) =>
+                  resolve(new Uint8Array(data)),
+                );
               });
             } catch (e) {
               reject(e);
@@ -631,11 +663,16 @@ serve(async (req) => {
 
           const up = await admin.storage
             .from(BUCKET)
-            .upload(variantPath, jpeg, {
-              contentType: "image/jpeg",
-              upsert: false,
+            .upload(variantPath, webpBytes, {
+              contentType: "image/webp",
+              upsert: true,
             });
           if (up.error) throw up.error;
+          // Best-effort cleanup of legacy .jpg sibling.
+          await admin.storage
+            .from(BUCKET)
+            .remove([variantPath.replace(/\.webp$/, ".jpg")])
+            .catch(() => {});
           generated++;
         }
       } catch (err) {
@@ -649,6 +686,7 @@ serve(async (req) => {
       } finally {
         // 9-6-S — drop reference to source bytes so they're GC-eligible.
         sourceBytes = null;
+        decodedSource = null;
       }
     }
 

@@ -94,6 +94,12 @@
      button's rectangle. The 1px gold ring + inset highlight from the
      box-shadow variant cannot be replicated with filter alone. */
   --tabletop-card-drop-shadow:  drop-shadow(0 2px 8px oklch(0 0 0 / 0.45));
+  /* 9-6-W — emphasis effect for picked/placed cards. Default is the
+     gold glow chain (works on dark themes). Light themes (Daybreak)
+     override via applyCommunityTheme to a deeper drop-shadow. */
+  --card-emphasis-filter:
+    drop-shadow(0 0 8px color-mix(in oklab, var(--gold) 55%, transparent))
+    drop-shadow(0 0 24px color-mix(in oklab, var(--gold) 30%, transparent));
   --accent-transition:
     color 300ms ease, background-color 300ms ease,
     border-color 300ms ease, fill 300ms ease,

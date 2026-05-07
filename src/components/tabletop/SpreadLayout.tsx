@@ -991,7 +991,9 @@ export function ManualSpreadSlots({
           height,
           transform: rotated ? "rotate(90deg)" : undefined,
           transformOrigin: "center center",
-          boxShadow: pick ? "0 6px 18px rgba(0,0,0,0.5)" : undefined,
+          // 9-6-W — filter follows the card's painted alpha so the
+          // emphasis hugs the silhouette; the variable adapts per theme.
+          filter: pick ? "var(--card-emphasis-filter)" : undefined,
         }}
       >
         {pick ? (

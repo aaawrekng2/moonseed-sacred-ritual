@@ -41,6 +41,7 @@ import { PhotoCapture } from "@/components/photo/PhotoCapture";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
 import { ZipImporter } from "@/components/deck-import/ZipImporter";
+import { PerCardEditModal } from "@/components/deck-import/PerCardEditModal";
 import { deleteSession, getSession } from "@/lib/import-session";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -462,7 +463,12 @@ function DeckRow({
             )}
           </div>
           <p className="text-[11px] text-muted-foreground sm:text-xs">
-            {count === null ? "…" : `${count}/78 customized`} · {deck.shape}
+            {count === null
+              ? "…"
+              : deck.deck_type === "oracle"
+                ? `${count} cards`
+                : `${count}/78 customized`}{" "}
+            · {deck.shape}
           </p>
         </div>
       </button>
@@ -687,6 +693,8 @@ function DeckEditor({
   );
   // Grid-view "Retake / Done" review modal — Stamp BI Fix 2.
   const [reviewingCardId, setReviewingCardId] = useState<number | null>(null);
+  // 9-6-W — tap a tile to open the per-card crop + radius editor.
+  const [editingCardId, setEditingCardId] = useState<number | null>(null);
   // BL Fix 8 — resume-prompt state
   const [resumePrompt, setResumePrompt] = useState<
     | null
@@ -953,7 +961,9 @@ function DeckEditor({
         <header className="mb-6">
           <h1 className="truncate text-2xl font-semibold">{name}</h1>
           <p className="text-sm text-muted-foreground">
-            {photographedIds.length}/78 cards customized
+          {deckType === "oracle"
+            ? `${photographedIds.length} cards`
+            : `${photographedIds.length}/78 cards customized`}
           </p>
         </header>
 
@@ -987,13 +997,17 @@ function DeckEditor({
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
           {Array.from({ length: 78 }, (_, i) => {
             const photo = photographedMap.get(i);
+            const rawSrc = photo?.thumbnail_url ?? photo?.display_url ?? null;
+            const tileSrc = rawSrc
+              ? variantUrlFor(rawSrc, "md") ?? rawSrc
+              : getCardImagePath(i);
             return (
               <button
                 key={i}
                 type="button"
                 onClick={() => {
                   if (photo) {
-                    setReviewingCardId(i);
+                    setEditingCardId(i);
                   } else {
                     setMode({ kind: "capture", deckId, cardId: i });
                   }
@@ -1002,7 +1016,7 @@ function DeckEditor({
                 title={getCardName(i)}
               >
                 <img
-                  src={photo?.thumbnail_url ?? getCardImagePath(i)}
+                  src={tileSrc}
                   alt={getCardName(i)}
                   className="h-full w-full object-contain"
                   style={{ opacity: photo ? 1 : 0.3 }}
@@ -1047,6 +1061,19 @@ function DeckEditor({
             />
           );
         })()}
+
+        {editingCardId !== null && (
+          <PerCardEditModal
+            deckId={deckId}
+            deckName={name}
+            defaultRadiusPercent={cornerRadius}
+            initialCardId={editingCardId}
+            onClose={async () => {
+              setEditingCardId(null);
+              await reloadCards(deckId);
+            }}
+          />
+        )}
 
         {resumePrompt && createPortal(
           <div

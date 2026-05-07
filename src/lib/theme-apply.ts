@@ -86,4 +86,16 @@ export function applyCommunityTheme(theme: CommunityTheme) {
   if (theme.recommendedFont) {
     applyHeadingFont(theme.recommendedFont);
   }
+  // 9-6-W — light themes (Daybreak) need a deeper drop-shadow instead of
+  // a gold glow so the placed-card emphasis isn't washed out by a bright
+  // background. Other themes inherit the default gold-glow chain defined
+  // in styles.css.
+  if (theme.key === "daybreak") {
+    root.style.setProperty(
+      "--card-emphasis-filter",
+      "drop-shadow(0 4px 12px rgba(0,0,0,0.35)) drop-shadow(0 8px 24px rgba(0,0,0,0.25))",
+    );
+  } else {
+    root.style.removeProperty("--card-emphasis-filter");
+  }
 }
