@@ -1454,22 +1454,38 @@ function CropHandles({
       {corners.map((k, i) => {
         const p = pts[i];
         return (
-          // FK-3 — bigger hit target (h-8 w-8 = 32px) and z-20 so
-          // pointerdown reaches the handle even when other layers
-          // (slider, IMG, polygon) sit underneath.
-          // 9-5-E — shrink to 20px on desktop (sm:) where pointer precision
-          // matters more than touch target size.
+          // 9-6-I — 36px invisible hit target with a smaller visible
+          // circle inside, so handles look compact but stay reliable
+          // for touch.
           <div
             key={k}
             role="slider"
             aria-label={`Crop ${k} handle`}
             onPointerDown={(e) => startDrag(e, k)}
-            className="absolute z-20 h-8 w-8 sm:h-5 sm:w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-gold bg-background/90 shadow-md cursor-grab active:cursor-grabbing touch-none"
+            className="absolute z-30 -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing touch-none"
             style={{
               left: offX + p.x,
               top: offY + p.y,
+              width: 36,
+              height: 36,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
-          />
+          >
+            <div
+              aria-hidden
+              style={{
+                width: "min(24px, 6vw)",
+                height: "min(24px, 6vw)",
+                borderRadius: "50%",
+                border: "2px solid var(--gold)",
+                background: "rgba(255,255,255,0.9)",
+                boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
+                pointerEvents: "none",
+              }}
+            />
+          </div>
         );
       })}
     </>
