@@ -12,6 +12,7 @@ import {
   Camera,
   Check,
   Loader2,
+  MoreVertical,
   Plus,
   Star,
   Trash2,
@@ -250,6 +251,19 @@ function DeckRow({
   // for every card in this deck. Speeds up journal/insights renders
   // by 10-50× on decks with multi-MB scans.
   const [variantBusy, setVariantBusy] = useState(false);
+  // 9-6-L — mobile overflow menu for the deck row's actions.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDocDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocDown);
+    return () => document.removeEventListener("mousedown", onDocDown);
+  }, [menuOpen]);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
