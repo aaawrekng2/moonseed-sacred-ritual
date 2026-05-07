@@ -185,19 +185,49 @@ async function doSaveCard(args: SaveCardArgs): Promise<SaveResult> {
     // 9-6-P — auto-trigger the corner-cropped -full.webp variant so
     // every consumer immediately sees the processed image, not the raw
     // upload. Fire-and-forget — never block the save UI.
-    try {
-      if (cardId !== "BACK") {
-        const { data: sess } = await supabase.auth.getSession();
-        const jwt = sess.session?.access_token;
-        if (jwt) {
-          void supabase.functions.invoke("generate-deck-variants", {
-            body: { deckId, cardId },
-            headers: { Authorization: `Bearer ${jwt}` },
-          });
+    // 9-6-X — fire-and-forget with retry-once. Saves stay fast;
+    // failures surface to the console; the Optimize button
+    // (batch reconciler) is the safety net.
+    if (cardId !== "BACK") {
+      const fireAndForgetWithRetry = async () => {
+        try {
+          const { data: sess } = await supabase.auth.getSession();
+          const jwt = sess.session?.access_token;
+          if (!jwt) return;
+          const result = await supabase.functions.invoke(
+            "generate-deck-variants",
+            {
+              body: { deckId, cardId },
+              headers: { Authorization: `Bearer ${jwt}` },
+            },
+          );
+          if (result.error) {
+            console.warn(
+              "[CB-save] auto-variant first attempt failed; retrying",
+              { cardId, error: result.error },
+            );
+            await new Promise((r) => setTimeout(r, 1500));
+            const retry = await supabase.functions.invoke(
+              "generate-deck-variants",
+              {
+                body: { deckId, cardId },
+                headers: { Authorization: `Bearer ${jwt}` },
+              },
+            );
+            if (retry.error) {
+              console.error("[CB-save] auto-variant final failure", {
+                cardId,
+                error: retry.error,
+              });
+            } else {
+              console.log("[CB-save] auto-variant retry succeeded", { cardId });
+            }
+          }
+        } catch (err) {
+          console.warn("[CB-save] auto-variant invoke threw", err);
         }
-      }
-    } catch (err) {
-      console.warn("[CB-save] auto-variant invoke failed", err);
+      };
+      void fireAndForgetWithRetry();
     }
     console.log("[CB-save] OK", { cardId, cardKey });
     return { cardKey, cardId, status: "saved" };
