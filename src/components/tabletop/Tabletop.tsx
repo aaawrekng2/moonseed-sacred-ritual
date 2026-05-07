@@ -166,18 +166,38 @@ export function Tabletop({
     return () => ro.disconnect();
   }, []);
 
-  // 9-6-G — when manual entry closes, the scatter container remounts
-  // as a new DOM element. The above measure useEffect ([] deps) only
-  // ran against the original mount, so size/containerOrigin were stale
-  // (or null) and cards collapsed to x:0,y:0. Force a re-measure on
-  // every flip to false.
+  // 9-6-H — when manual entry closes, the scatter container remounts.
+  // Defer measurement to a requestAnimationFrame loop until the rect
+  // reports non-zero dimensions; reading getBoundingClientRect() too
+  // early can return { width: 0, height: 0 } and collapse all cards to
+  // (0,0). Also reset the initializedRef flag so initialScatter
+  // recomputes against the freshly-measured container.
   useEffect(() => {
     if (manualOpen) return;
-    const el = containerRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    setContainerOrigin({ left: r.left, top: r.top });
-    setSize({ w: r.width, h: r.height });
+    let cancelled = false;
+    let raf: number | null = null;
+    const tryMeasure = () => {
+      if (cancelled) return;
+      const el = containerRef.current;
+      if (!el) {
+        raf = requestAnimationFrame(tryMeasure);
+        return;
+      }
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) {
+        raf = requestAnimationFrame(tryMeasure);
+        return;
+      }
+      setContainerOrigin({ left: r.left, top: r.top });
+      setSize({ w: r.width, h: r.height });
+      // Force initialScatter rebuild branch in the effect at line ~705.
+      initializedRef.current = false;
+    };
+    raf = requestAnimationFrame(tryMeasure);
+    return () => {
+      cancelled = true;
+      if (raf !== null) cancelAnimationFrame(raf);
+    };
   }, [manualOpen]);
 
   useEffect(() => {
