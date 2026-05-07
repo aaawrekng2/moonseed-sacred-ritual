@@ -2084,6 +2084,55 @@ function OracleWorkspace({
         </div>
       )}
 
+      {/* 9-6-G — Card back picker tile (Oracle) */}
+      <div className="my-6 flex flex-col items-center gap-3">
+        <h3
+          className="italic"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-heading-sm)",
+            color: "var(--color-foreground)",
+            opacity: 0.85,
+          }}
+        >
+          Card back
+        </h3>
+        <button
+          type="button"
+          onClick={() => setShowBackPicker(true)}
+          style={{
+            width: 140,
+            background: "var(--surface-card)",
+            border: "1px solid var(--border-subtle)",
+            overflow: "hidden",
+            borderRadius: heroRadius,
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          {existingBackUrl ? (
+            <img
+              src={existingBackUrl}
+              alt="Card back"
+              style={{ width: "100%", height: "auto", display: "block", borderRadius: heroRadius }}
+            />
+          ) : (
+            <div
+              style={{
+                padding: "40px 16px",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground)",
+                opacity: 0.6,
+              }}
+            >
+              Tap to choose
+            </div>
+          )}
+        </button>
+      </div>
+
       {/* Section 3 — scrollable list of cards */}
       <div className="mt-4">
         {oracleSlotIds.length === 0 ? (
@@ -2126,6 +2175,20 @@ function OracleWorkspace({
           })
         )}
       </div>
+      {showBackPicker && (
+        <CardBackPickerModal
+          unassignedKeys={unassignedKeys}
+          assignedKeys={oracleSlotIds
+            .map((id) => session.assigned[String(id)])
+            .filter(Boolean) as string[]}
+          resolveSrc={resolveSrc}
+          onPick={(k) => {
+            onAssign(k, "BACK");
+            setShowBackPicker(false);
+          }}
+          onCancel={() => setShowBackPicker(false)}
+        />
+      )}
     </section>
   );
 }
