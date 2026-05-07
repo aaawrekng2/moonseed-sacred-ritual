@@ -1062,6 +1062,21 @@ function DeckEditor({
           );
         })()}
 
+        {editingCardId !== null && (
+          <PerCardEditModal
+            deckId={deckId}
+            deckName={name}
+            defaultRadiusPercent={cornerRadius}
+            initialCardId={editingCardId}
+            onClose={async () => {
+              const id = editingCardId;
+              setEditingCardId(null);
+              await reloadCards(deckId);
+              void id;
+            }}
+          />
+        )}
+
         {resumePrompt && createPortal(
           <div
             className="fixed inset-0 z-[115] flex items-center justify-center p-6"
