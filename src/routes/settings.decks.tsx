@@ -310,6 +310,9 @@ function DeckRow({
   // for every card in this deck. Speeds up journal/insights renders
   // by 10-50× on decks with multi-MB scans.
   const [variantBusy, setVariantBusy] = useState(false);
+  // 9-6-Q — track last failed cursor so user can resume optimize
+  // from where it left off rather than restart at 0.
+  const [lastFailedCursor, setLastFailedCursor] = useState<number | null>(null);
   // 9-6-L — mobile overflow menu for the deck row's actions.
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -337,7 +340,7 @@ function DeckRow({
     };
   }, [deck.id]);
 
-  const handleGenerateVariants = async () => {
+  const handleGenerateVariants = async (startCursor: number = 0) => {
     if (variantBusy) return;
     setVariantBusy(true);
     // FB-6 — loop chunked invocations until the function reports
@@ -345,6 +348,7 @@ function DeckRow({
     // under the Edge Function timeout. Progress is surfaced via a
     // single toast id that updates as chunks complete.
     const progressToastId = toast.loading("Optimizing deck images…");
+    let cursor: number | null = startCursor;
     try {
       const { data: sess } = await supabase.auth.getSession();
       const jwt = sess.session?.access_token;
@@ -353,7 +357,6 @@ function DeckRow({
         toast.error("Sign in required.");
         return;
       }
-      let cursor: number | null = 0;
       let totalGenerated = 0;
       let totalSkipped = 0;
       let totalFailed = 0;
@@ -377,7 +380,11 @@ function DeckRow({
           totalCards?: number;
           processed?: number;
           nextCursor?: number | null;
+          errors?: { card_id: number; reason: string }[];
         };
+        if (Array.isArray(summary.errors) && summary.errors.length > 0) {
+          console.error("[Optimize] per-card errors", summary.errors);
+        }
         totalGenerated += summary.generated ?? 0;
         totalSkipped += summary.skipped ?? 0;
         totalFailed += summary.failed ?? 0;
@@ -402,13 +409,19 @@ function DeckRow({
             (totalFailed > 0 ? ` · ${totalFailed} failed` : ""),
         );
       }
+      setLastFailedCursor(null);
     } catch (err) {
       toast.dismiss(progressToastId);
-      console.error("[EZ-7] variant generation failed", err);
+      console.error("[EZ-7] variant generation failed", {
+        deckId: deck.id,
+        cursor,
+        error: err,
+      });
+      setLastFailedCursor(cursor as number);
       toast.error(
         err instanceof Error
-          ? `Optimize failed: ${err.message}`
-          : "Optimize failed.",
+          ? `Optimize failed at card ${cursor}: ${err.message}`
+          : `Optimize failed at card ${cursor}.`,
       );
     } finally {
       setVariantBusy(false);
@@ -527,6 +540,20 @@ function DeckRow({
             >
               {variantBusy ? "Optimizing…" : "Optimize images"}
             </button>
+            {lastFailedCursor !== null && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  void handleGenerateVariants(lastFailedCursor);
+                }}
+                disabled={variantBusy}
+                className="rounded px-2 py-1.5 text-left text-sm hover:bg-foreground/10 disabled:opacity-50"
+              >
+                Resume optimize (from card {lastFailedCursor})
+              </button>
+            )}
             <button
               type="button"
               onClick={(e) => {
