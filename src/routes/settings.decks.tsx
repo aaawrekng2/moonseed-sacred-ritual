@@ -1069,10 +1069,8 @@ function DeckEditor({
             defaultRadiusPercent={cornerRadius}
             initialCardId={editingCardId}
             onClose={async () => {
-              const id = editingCardId;
               setEditingCardId(null);
               await reloadCards(deckId);
-              void id;
             }}
           />
         )}
