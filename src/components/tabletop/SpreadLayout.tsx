@@ -3,6 +3,11 @@ import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { getCardName } from "@/lib/tarot";
 import { useActiveCardBackUrl, useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
+import {
+  buildDeckImageMap,
+  resolveCardImage,
+  type DeckImageMap,
+} from "@/lib/custom-decks";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -837,7 +842,13 @@ function CelticCross({
 /*  (Phase 9.5b Fix 5).                                                   */
 /* ====================================================================== */
 
-type ManualSlotPick = { cardIndex: number; isReversed: boolean } | null;
+type ManualSlotPick = {
+  cardIndex: number;
+  isReversed: boolean;
+  /** 9-6-M — null = active deck. */
+  deckId?: string | null;
+  cardName?: string;
+} | null;
 
 export function ManualSpreadSlots({
   spread,
@@ -853,8 +864,51 @@ export function ManualSpreadSlots({
   const meta = SPREAD_META[spread];
   const labels = meta.positions ?? meta.positionsShort ?? [];
   const sizing = useMemo(() => spreadSizing(spread), [spread]);
-  const cardImg = useActiveDeckImage();
+  const activeResolve = useActiveDeckImage();
   const deckRadiusPx = useActiveDeckCornerRadius();
+
+  // 9-6-M — load image maps for any non-active deck IDs the picks reference.
+  const uniqueDeckIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          picks
+            .map((p) => p?.deckId ?? null)
+            .filter((d): d is string => !!d),
+        ),
+      ),
+    [picks],
+  );
+  const uniqueKey = uniqueDeckIds.join(",");
+  const [deckMaps, setDeckMaps] = useState<Record<string, DeckImageMap>>({});
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(
+      uniqueDeckIds.map(async (id) => {
+        const map = await buildDeckImageMap(id);
+        return [id, map] as const;
+      }),
+    ).then((entries) => {
+      if (cancelled) return;
+      const next: Record<string, DeckImageMap> = {};
+      for (const [id, map] of entries) {
+        if (map) next[id] = map;
+      }
+      setDeckMaps(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uniqueKey]);
+
+  const resolveForPick = (pick: NonNullable<ManualSlotPick>): string => {
+    if (!pick.deckId) return activeResolve(pick.cardIndex);
+    const map = deckMaps[pick.deckId];
+    return resolveCardImage(pick.cardIndex, map ?? null, "display");
+  };
+  const nameForPick = (pick: NonNullable<ManualSlotPick>): string =>
+    pick.cardName ?? getCardName(pick.cardIndex) ?? `Card ${pick.cardIndex}`;
 
   const Slot = ({ pick, slotIndex, rotated }: { pick: ManualSlotPick; slotIndex: number; rotated?: boolean }) => (
     <button
@@ -877,8 +931,8 @@ export function ManualSpreadSlots({
     >
       {pick ? (
         <img
-          src={cardImg(pick.cardIndex)}
-          alt={getCardName(pick.cardIndex)}
+          src={resolveForPick(pick)}
+          alt={nameForPick(pick)}
           className="h-full w-full object-contain"
           style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
         />
