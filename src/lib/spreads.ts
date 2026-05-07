@@ -1,4 +1,4 @@
-export type SpreadMode = "daily" | "single" | "three" | "celtic" | "yes_no";
+export type SpreadMode = "daily" | "single" | "three" | "celtic" | "yes_no" | "custom";
 
 export const SPREAD_META: Record<
   SpreadMode,
@@ -73,6 +73,9 @@ export const SPREAD_META: Record<
     ],
   },
   yes_no: { label: "Yes / No", count: 1, description: "A single guiding card" },
+  // 9-6-O — Custom: count is a placeholder; the runtime count comes
+  // from the URL search param ?n= (1-10).
+  custom: { label: "Custom", count: 1, description: "Pick how many cards." },
 };
 
 export function getSpreadCount(mode: SpreadMode): number {
@@ -84,10 +87,11 @@ export function getSpreadCount(mode: SpreadMode): number {
  * Single-card flows (daily / single / yes_no) keep the existing in-place
  * selection feel — no slot rail.
  */
-export function spreadUsesSlots(mode: SpreadMode): boolean {
+export function spreadUsesSlots(mode: SpreadMode, count?: number): boolean {
+  if (mode === "custom") return (count ?? 1) >= 2;
   return mode === "three" || mode === "celtic";
 }
 
 export function isValidSpreadMode(v: string | undefined | null): v is SpreadMode {
-  return v === "daily" || v === "single" || v === "three" || v === "celtic" || v === "yes_no";
+  return v === "daily" || v === "single" || v === "three" || v === "celtic" || v === "yes_no" || v === "custom";
 }
