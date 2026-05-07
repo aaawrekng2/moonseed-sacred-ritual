@@ -1083,7 +1083,7 @@ export function ManualSpreadSlots({
 
   if (spread === "three") {
     return (
-      <div className="flex items-start gap-6">
+      <div className="flex items-end gap-6">
         {picks.map((pick, i) => (
           <div key={i} className="flex flex-col items-center gap-2">
             <Slot pick={pick} slotIndex={i} />
@@ -1104,7 +1104,7 @@ export function ManualSpreadSlots({
 
   if (spread === "custom") {
     return (
-      <div className="flex flex-wrap items-start justify-center gap-4">
+      <div className="flex flex-wrap items-end justify-center gap-4">
         {picks.map((pick, i) => (
           <div key={i} className="flex flex-col items-center gap-2">
             <Slot pick={pick} slotIndex={i} />

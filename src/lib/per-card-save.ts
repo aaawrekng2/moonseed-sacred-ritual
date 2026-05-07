@@ -182,6 +182,23 @@ async function doSaveCard(args: SaveCardArgs): Promise<SaveResult> {
         throw insertErr;
       }
     }
+    // 9-6-P — auto-trigger the corner-cropped -full.webp variant so
+    // every consumer immediately sees the processed image, not the raw
+    // upload. Fire-and-forget — never block the save UI.
+    try {
+      if (cardId !== "BACK") {
+        const { data: sess } = await supabase.auth.getSession();
+        const jwt = sess.session?.access_token;
+        if (jwt) {
+          void supabase.functions.invoke("generate-deck-variants", {
+            body: { deckId, cardId },
+            headers: { Authorization: `Bearer ${jwt}` },
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("[CB-save] auto-variant invoke failed", err);
+    }
     console.log("[CB-save] OK", { cardId, cardKey });
     return { cardKey, cardId, status: "saved" };
   } catch (err) {

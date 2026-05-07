@@ -36,6 +36,7 @@ import {
   type CustomDeckCard,
 } from "@/lib/custom-decks";
 import { useActiveDeck } from "@/lib/active-deck";
+import { variantUrlFor } from "@/lib/active-deck";
 import { PhotoCapture } from "@/components/photo/PhotoCapture";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
@@ -425,7 +426,12 @@ function DeckRow({
         <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-cosmos">
           {deck.card_back_thumb_url || deck.card_back_url ? (
             <img
-              src={(deck.card_back_thumb_url ?? deck.card_back_url) as string}
+              src={
+                (variantUrlFor(
+                  deck.card_back_thumb_url ?? deck.card_back_url,
+                  "full",
+                ) ?? (deck.card_back_thumb_url ?? deck.card_back_url)) as string
+              }
               alt={`${deck.name} card back`}
               className="h-full w-full object-cover"
             />
@@ -879,9 +885,11 @@ function DeckEditor({
             </button>
           </div>
 
+          {/* 9-6-P — sticky Continue: anchored above bottom nav, smaller. */}
           <div
-            className="sticky bottom-0 -mx-4 mt-6 border-t px-4 py-3 sm:hidden"
+            className="sticky -mx-4 mt-6 border-t px-4 py-2 sm:hidden"
             style={{
+              bottom: "calc(64px + env(safe-area-inset-bottom, 0px))",
               background: "var(--background)",
               borderColor: "var(--border-subtle)",
             }}
@@ -890,7 +898,7 @@ function DeckEditor({
               type="button"
               disabled={saving || !name.trim()}
               onClick={handleContinue}
-              className="flex w-full items-center justify-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-6 py-3 text-base font-medium hover:bg-gold/20 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-4 py-2 text-sm font-medium hover:bg-gold/20 disabled:opacity-50"
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               Continue → photograph cards
