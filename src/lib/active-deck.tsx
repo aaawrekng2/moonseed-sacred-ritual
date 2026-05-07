@@ -320,7 +320,7 @@ export function variantUrlFor(
     const newPath =
       variant === "full"
         ? `${m[1]}-full.webp`
-        : `${m[1]}-${variant}.jpg`;
+        : `${m[1]}-${variant}.webp`; // 9-6-W — was .jpg
     url.pathname = newPath;
     return url.toString();
   } catch {
