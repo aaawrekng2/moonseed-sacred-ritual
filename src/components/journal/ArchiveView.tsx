@@ -60,8 +60,16 @@ export function ArchiveView({
 
   const load = useCallback(async () => {
     const headers = await getAuthHeaders();
-    const res = await fetchFn({ headers });
-    setRows((res.readings ?? []) as ArchivedRow[]);
+    try {
+      const res = await fetchFn({ headers });
+      if (res.error) {
+        toast.error(`Couldn't load archive: ${res.error}`);
+      }
+      setRows((res.readings ?? []) as ArchivedRow[]);
+    } catch (err) {
+      toast.error(`Couldn't load archive: ${(err as Error).message}`);
+      setRows([]);
+    }
   }, [fetchFn]);
 
   useEffect(() => {
