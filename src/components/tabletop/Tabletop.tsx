@@ -166,6 +166,20 @@ export function Tabletop({
     return () => ro.disconnect();
   }, []);
 
+  // 9-6-G — when manual entry closes, the scatter container remounts
+  // as a new DOM element. The above measure useEffect ([] deps) only
+  // ran against the original mount, so size/containerOrigin were stale
+  // (or null) and cards collapsed to x:0,y:0. Force a re-measure on
+  // every flip to false.
+  useEffect(() => {
+    if (manualOpen) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setContainerOrigin({ left: r.left, top: r.top });
+    setSize({ w: r.width, h: r.height });
+  }, [manualOpen]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const update = () => setViewportW(window.innerWidth);
