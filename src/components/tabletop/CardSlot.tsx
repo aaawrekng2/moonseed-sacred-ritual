@@ -687,7 +687,7 @@ export function CardSlot({
           // rectangle. Eliminates the "frame around the card" artifact
           // when the card's natural aspect ≠ CARD_ASPECT_RATIO.
           filter: isSelected
-            ? "var(--tabletop-card-drop-shadow) drop-shadow(0 0 6px var(--gold)) drop-shadow(0 0 12px var(--gold))"
+            ? "var(--tabletop-card-drop-shadow) var(--card-emphasis-filter)"
             : "var(--tabletop-card-drop-shadow)",
           opacity: isSelected ? TABLETOP_CONFIG.SELECTION_GLOW_OPACITY + 0.2 : 1,
         }}
