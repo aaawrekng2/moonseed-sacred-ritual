@@ -2654,15 +2654,20 @@ function SaveStatusIndicator({
 
 function CardBackPickerModal({
   unassignedKeys,
+  assignedKeys = [],
   resolveSrc,
   onPick,
   onCancel,
 }: {
   unassignedKeys: string[];
+  assignedKeys?: string[];
   resolveSrc: (key: string) => string;
   onPick: (key: string) => void;
   onCancel: () => void;
 }) {
+  // 9-6-G — also allow picking from already-assigned card images
+  // (oracle decks have no unassigned pool; every image is assigned).
+  const allKeys = Array.from(new Set([...unassignedKeys, ...assignedKeys]));
   return (
     <div
       className="fixed inset-0 flex items-center justify-center p-4"
@@ -2688,7 +2693,7 @@ function CardBackPickerModal({
           Pick a card back
         </h3>
         <div className="flex-1 overflow-y-auto">
-          {unassignedKeys.length === 0 ? (
+          {allKeys.length === 0 ? (
             <p
               className="italic"
               style={{
@@ -2698,11 +2703,11 @@ function CardBackPickerModal({
                 opacity: 0.7,
               }}
             >
-              No unassigned images to choose from.
+              No images to choose from.
             </p>
           ) : (
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {unassignedKeys.map((k) => {
+              {allKeys.map((k) => {
                 const src = resolveSrc(k);
                 return (
                   <button
