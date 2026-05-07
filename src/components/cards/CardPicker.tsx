@@ -26,6 +26,19 @@ import {
 
 export type CardPickerMode = "photography" | "manual-entry";
 
+/** 9-6-N — derive a human name from an oracle card's filename slug. */
+function deriveNameFromPath(path: string | null | undefined): string | null {
+  if (!path) return null;
+  const stem = path.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "";
+  if (!stem) return null;
+  return (
+    stem
+      .replace(/[-_]+/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .trim() || null
+  );
+}
+
 export type CardPickerProps = {
   mode: CardPickerMode;
   /** Card ids (0..77) considered "already photographed" in photography mode. */
@@ -161,8 +174,13 @@ export function CardPicker({
       return deckCards
         .map((c) => ({
           idx: c.card_id,
-          name: c.card_name ?? getCardName(c.card_id) ?? `Card ${c.card_id}`,
-          src: c.display_url,
+          name:
+            c.card_name ??
+            deriveNameFromPath(c.display_path) ??
+            getCardName(c.card_id) ??
+            `Card ${c.card_id}`,
+          // 9-6-N — prefer thumbnail to avoid loading multi-MB grid tiles.
+          src: c.thumbnail_url ?? c.display_url,
         }))
         .filter(({ name }) => !q || name.toLowerCase().includes(q));
     }
