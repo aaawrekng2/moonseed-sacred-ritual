@@ -1728,7 +1728,7 @@ function Workspace({
       <div
         className="sticky left-0 right-0 mt-4 -mx-3 border-t px-3 py-2"
         style={{
-          bottom: "calc(64px + env(safe-area-inset-bottom, 0px))",
+          bottom: "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px))",
           background: "var(--surface-elevated, var(--background))",
           borderColor: "var(--border-subtle)",
           zIndex: 10,
@@ -3098,7 +3098,7 @@ function ZoomModal({
           clipPath: "circle(50%)",
           width: "100%",
           height: "auto",
-          maxHeight: zoom > 1 ? "900px" : "min(70vh, calc(100vh - 180px))",
+          maxHeight: zoom > 1 ? "1200px" : "min(80vh, calc(100vh - 180px))",
           objectFit: "contain",
           display: "block",
           imageRendering: "high-quality" as React.CSSProperties["imageRendering"],
@@ -3108,7 +3108,7 @@ function ZoomModal({
       : {
           width: "100%",
           height: "auto",
-          maxHeight: zoom > 1 ? "900px" : "min(70vh, calc(100vh - 180px))",
+          maxHeight: zoom > 1 ? "1200px" : "min(80vh, calc(100vh - 180px))",
           objectFit: "contain",
           display: "block",
           borderRadius: `${(cornerRadiusPercent / 100) * 200}px`,
@@ -3131,9 +3131,9 @@ function ZoomModal({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         style={{
-          width: "min(85vw, 600px)",
-          maxWidth: "min(85vw, 600px)",
-          maxHeight: "min(70vh, calc(100vh - 180px))",
+          width: "min(85vw, 900px)",
+          maxWidth: "min(85vw, 900px)",
+          maxHeight: "min(80vh, calc(100vh - 180px))",
           overflow: "hidden",
           touchAction: "none",
           cursor: zoom > 1 ? "grab" : "default",

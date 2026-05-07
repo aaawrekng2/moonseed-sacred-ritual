@@ -916,7 +916,7 @@ function DeckEditor({
           <div
             className="sticky -mx-4 mt-6 border-t px-4 py-2 sm:hidden"
             style={{
-              bottom: "calc(64px + env(safe-area-inset-bottom, 0px))",
+              bottom: "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px))",
               background: "var(--background)",
               borderColor: "var(--border-subtle)",
             }}
