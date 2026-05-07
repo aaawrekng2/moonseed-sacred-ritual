@@ -540,6 +540,20 @@ function DeckRow({
             >
               {variantBusy ? "Optimizing…" : "Optimize images"}
             </button>
+            {lastFailedCursor !== null && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  void handleGenerateVariants(lastFailedCursor);
+                }}
+                disabled={variantBusy}
+                className="rounded px-2 py-1.5 text-left text-sm hover:bg-foreground/10 disabled:opacity-50"
+              >
+                Resume optimize (from card {lastFailedCursor})
+              </button>
+            )}
             <button
               type="button"
               onClick={(e) => {
