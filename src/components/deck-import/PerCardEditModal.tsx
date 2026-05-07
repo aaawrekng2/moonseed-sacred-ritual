@@ -1023,8 +1023,27 @@ export function PerCardEditModal({
                   {crop && imgDims ? (
                     <button
                       type="button"
-                      onClick={() => {
-                        setCrop(defaultCropFor(imgDims.w, imgDims.h));
+                      onClick={async () => {
+                        const def = defaultCropFor(imgDims.w, imgDims.h);
+                        setCrop(def);
+                        // 9-6-J — also clear saved crop in DB so the
+                        // reset survives reopen of the same card.
+                        if (activeCardId !== null && !backMode) {
+                          try {
+                            await supabase
+                              .from("custom_deck_cards")
+                              .update({ crop_coords: null } as never)
+                              .eq("deck_id", deckId)
+                              .eq("card_id", activeCardId);
+                            setSavedCrops((prev) => {
+                              const next = { ...prev };
+                              delete next[activeCardId];
+                              return next;
+                            });
+                          } catch (err) {
+                            console.warn("[Reset crop] DB clear failed", err);
+                          }
+                        }
                         renderCanvasPreview();
                       }}
                       className="text-xs italic underline-offset-4 hover:underline"
