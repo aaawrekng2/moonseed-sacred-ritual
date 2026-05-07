@@ -956,6 +956,7 @@ export function ManualSpreadSlots({
             cardIndex={picks[i]!.cardIndex}
             isReversed={!!picks[i]!.isReversed}
             cardWidth={sizing.w}
+            nameOverride={picks[i]!.cardName}
           />
         )}
       </div>
@@ -997,6 +998,7 @@ export function ManualSpreadSlots({
                   cardIndex={picks[i]!.cardIndex}
                   isReversed={!!picks[i]!.isReversed}
                   cardWidth={sizing.w}
+                  nameOverride={picks[i]!.cardName}
                 />
               )}
             </div>
@@ -1018,6 +1020,7 @@ export function ManualSpreadSlots({
                 cardIndex={pick.cardIndex}
                 isReversed={!!pick.isReversed}
                 cardWidth={sizing.w}
+                nameOverride={pick.cardName}
               />
             )}
           </div>
@@ -1036,6 +1039,7 @@ export function ManualSpreadSlots({
           cardIndex={picks[0]!.cardIndex}
           isReversed={!!picks[0]!.isReversed}
           cardWidth={sizing.w}
+          nameOverride={picks[0]!.cardName}
         />
       )}
     </div>
