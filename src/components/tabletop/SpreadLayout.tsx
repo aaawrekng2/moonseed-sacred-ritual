@@ -268,7 +268,10 @@ function SpreadContent({
 }) {
   // Pick a card width that fits the spread + viewport. Celtic Cross has
   // the densest layout so it gets the smallest cards.
-  const sizing = useMemo(() => spreadSizing(spread), [spread]);
+  const sizing = useMemo(
+    () => spreadSizing(spread, picks.length),
+    [spread, picks.length],
+  );
   // CM Group 2 — reveal phase = all slots filled but not every card flipped.
   const required = picks.length;
   const revealedCount = revealedFlags.filter(Boolean).length;
@@ -309,6 +312,38 @@ function SpreadContent({
       />
     );
   }
+  if (spread === "custom") {
+    return (
+      <div className="flex flex-wrap items-start justify-center gap-4">
+        {picks.map((pick, i) => (
+          <div key={pick.id} className="flex flex-col items-center gap-2">
+            <CardFace
+              pick={pick}
+              cardBack={cardBack}
+              revealed={!!revealedFlags[i]}
+              isNext={nextIndex === i}
+              isWrong={wrongIndex === i}
+              onTap={() => onTap(i)}
+              sizing={sizing}
+              emergeDelayMs={i * 80}
+              isRevealPhase={isRevealPhase}
+              onZoom={onZoom}
+            />
+            {showLabels && (
+              <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
+            )}
+            {showLabels && revealedFlags[i] && (
+              <CardNameLabel
+                cardIndex={pick.cardIndex}
+                isReversed={!!pick.isReversed}
+                cardWidth={sizing.w}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
   // single / daily / yes_no — one large card centered.
   return (
     <SingleCard
@@ -327,7 +362,7 @@ function SpreadContent({
 
 type Sizing = { w: number; h: number };
 
-function spreadSizing(spread: SpreadMode): Sizing {
+function spreadSizing(spread: SpreadMode, count?: number): Sizing {
   // Tuned per layout density. Heights derived from CARD_ASPECT_RATIO 1.75.
   // 3-card sizing is now responsive and matches ReadingScreen's CardStrip
   // exactly, so the cards do not resize when the inline reading flow
@@ -339,6 +374,14 @@ function spreadSizing(spread: SpreadMode): Sizing {
       return { w: 56, h: 98 };
     case "three":
       return isMobile ? { w: 100, h: 175 } : { w: 112, h: 196 };
+    case "custom": {
+      // 9-6-O — scale down as count grows; wrap-friendly sizing.
+      const n = count ?? 3;
+      if (n <= 1) return isMobile ? { w: 180, h: 315 } : { w: 160, h: 280 };
+      if (n <= 3) return isMobile ? { w: 100, h: 175 } : { w: 112, h: 196 };
+      if (n <= 6) return isMobile ? { w: 80, h: 140 } : { w: 96, h: 168 };
+      return { w: 64, h: 112 };
+    }
     default:
       return isMobile ? { w: 180, h: 315 } : { w: 160, h: 280 };
   }
