@@ -959,7 +959,9 @@ function DeckEditor({
         <header className="mb-6">
           <h1 className="truncate text-2xl font-semibold">{name}</h1>
           <p className="text-sm text-muted-foreground">
-            {photographedIds.length}/78 cards customized
+          {deckType === "oracle"
+            ? `${photographedIds.length} cards`
+            : `${photographedIds.length}/78 cards customized`}
           </p>
         </header>
 
@@ -993,6 +995,10 @@ function DeckEditor({
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
           {Array.from({ length: 78 }, (_, i) => {
             const photo = photographedMap.get(i);
+            const rawSrc = photo?.thumbnail_url ?? photo?.display_url ?? null;
+            const tileSrc = rawSrc
+              ? variantUrlFor(rawSrc, "md") ?? rawSrc
+              : getCardImagePath(i);
             return (
               <button
                 key={i}
@@ -1008,7 +1014,7 @@ function DeckEditor({
                 title={getCardName(i)}
               >
                 <img
-                  src={photo?.thumbnail_url ?? getCardImagePath(i)}
+                  src={tileSrc}
                   alt={getCardName(i)}
                   className="h-full w-full object-contain"
                   style={{ opacity: photo ? 1 : 0.3 }}
