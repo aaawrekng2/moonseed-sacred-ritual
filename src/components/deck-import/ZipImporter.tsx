@@ -1723,6 +1723,31 @@ function Workspace({
         </button>
       </div>
 
+      {/* 9-6-N — sticky bottom Done. Always visible while scrolling
+          long deck pages so the user doesn't have to scroll to exit. */}
+      <div
+        className="sticky bottom-0 left-0 right-0 mt-4 -mx-3 border-t px-3 py-3"
+        style={{
+          background: "var(--surface-elevated, var(--background))",
+          borderColor: "var(--border-subtle)",
+          zIndex: 10,
+        }}
+      >
+        <button
+          type="button"
+          onClick={onCancel}
+          className="w-full px-4 py-3 font-medium"
+          style={{
+            background: "var(--accent)",
+            color: "var(--accent-foreground, #000)",
+            fontSize: "var(--text-body)",
+            borderRadius: 8,
+          }}
+        >
+          Done
+        </button>
+      </div>
+
       {/* Zoom modal (BL Fix 1, 3, 4) */}
       {zoom && (
         <ZoomModal
