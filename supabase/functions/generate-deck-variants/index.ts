@@ -119,6 +119,7 @@ const corsHeaders = {
 type CardRow = {
   card_id: number;
   display_path: string | null;
+  corner_radius_percent?: number | null;
 };
 
 type VariantSpec = { suffix: "sm" | "md"; width: number };
@@ -145,10 +146,11 @@ const WORKING_WIDTH = 600;
 function variantPathFor(originalPath: string, suffix: "sm" | "md"): string | null {
   // Match `<...>/card-N-TS(-thumb)?.<ext>` and replace the filename.
   const m = originalPath.match(
-    /^(.*\/card-\d+-\d+)(?:-thumb)?\.(?:webp|png|jpe?g)$/i,
+    /^(.*\/card-\d+-\d+)(?:-thumb|-full)?\.(?:webp|png|jpe?g)$/i,
   );
   if (!m) return null;
-  return `${m[1]}-${suffix}.jpg`;
+  // 9-6-W — variants are now WebP with rounded alpha mask baked in.
+  return `${m[1]}-${suffix}.webp`;
 }
 
 // FD-3 — alpha WebP variant. Same filename stem, `-full.webp`.
