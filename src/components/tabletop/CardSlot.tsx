@@ -94,7 +94,9 @@ export function CardSlot({
   // for one frame) creates a jarring disappear/reappear flicker.
   const skipFlight = isSelected && card.isDragDrop === true;
   const flying = isSelected && slotRect !== null && !skipFlight;
-  const glow = `0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD}px var(--gold)`;
+  // 9-6-V — selection glow is now expressed via filter: drop-shadow on
+  // the card wrapper (see render below). The old box-shadow `glow`
+  // string is no longer needed.
 
   // Ref to the root button so we can measure its viewport rect before the
   // flight begins (FLIP-style: capture First, set Last, animate transform).
