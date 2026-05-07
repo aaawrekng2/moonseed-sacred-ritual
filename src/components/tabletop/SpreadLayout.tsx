@@ -1106,9 +1106,13 @@ export function ManualSpreadSlots({
 
   if (spread === "custom") {
     return (
-      <div className="flex flex-wrap items-end justify-center gap-4">
+      <div className="flex flex-nowrap items-end justify-center gap-4 overflow-x-auto px-2">
         {picks.map((pick, i) => (
-          <div key={i} className="flex flex-col items-center gap-2">
+          <div
+            key={i}
+            className="flex flex-col items-center gap-2"
+            style={{ flex: "0 0 auto" }}
+          >
             <Slot pick={pick} slotIndex={i} />
             {showLabels && (
               <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
