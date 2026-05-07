@@ -332,6 +332,15 @@ export function PerCardEditModal({
     setCrop(saved ?? defaultCropFor(imgDims.w, imgDims.h));
   }, [activeCardId, imgDims, savedCrops]);
 
+  // 9-6-J — Re-render the canvas preview whenever crop coords change
+  // so dragged corners reflect on the rasterized output (not just on
+  // pointerup). Also clears the cached preview so the live IMG (with
+  // crop overlay) is shown during interaction.
+  useEffect(() => {
+    if (!crop) return;
+    setCanvasPreview(null);
+  }, [crop]);
+
   // FF-1 — observe rendered size of the preview IMG. Fires on initial
   // mount, modal resize, viewport rotation, and whenever the image
   // node is swapped out for a new card.
