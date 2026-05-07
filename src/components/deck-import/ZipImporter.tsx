@@ -541,6 +541,11 @@ export function ZipImporter({
           opts: { shape, cornerRadiusPercent },
         });
         setSlotState(slot, res.status === "saved" ? "saved" : "failed");
+        // 9-6-J — Fix 7: notify ActiveDeckProvider when the deck back
+        // image is updated so the home hero re-fetches.
+        if (cardId === "BACK" && res.status === "saved" && typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("arcana:deck-back-updated"));
+        }
       } catch (err) {
         console.error("[CB-save] runSave threw", err);
         setSlotState(slot, "failed");
