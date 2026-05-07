@@ -1084,7 +1084,7 @@ export function PerCardEditModal({
                       Resume processing ({pendingCount} pending)
                     </button>
                   ) : null}
-                  <button
+                  {!backMode && <button
                     type="button"
                     onClick={handleApplyToAll}
                     disabled={busy || bulkBusy || cardCount === 0}
@@ -1097,7 +1097,7 @@ export function PerCardEditModal({
                     ) : (
                       `Apply to all (${cardCount})`
                     )}
-                  </button>
+                  </button>}
                   <button
                     type="button"
                     onClick={handleSave}
@@ -1109,7 +1109,7 @@ export function PerCardEditModal({
                         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
                       </span>
                     ) : (
-                      "Save card"
+                      backMode ? "Save back" : "Save card"
                     )}
                   </button>
                 </div>
@@ -1178,7 +1178,7 @@ export function PerCardEditModal({
           </section>
 
           {/* Card list — second on mobile (horizontal scroll), first on desktop (sidebar grid). */}
-          <aside
+          {!backMode && <aside
             className={
               "order-2 flex shrink-0 gap-2 md:order-1 " +
               "flex-row overflow-x-auto overflow-y-hidden " +
@@ -1227,7 +1227,7 @@ export function PerCardEditModal({
                 })}
               </ul>
             )}
-          </aside>
+          </aside>}
         </div>
       {/* FI-3 — Apply-to-all choice dialog. */}
       <AlertDialog
