@@ -197,6 +197,18 @@ function DecksPage() {
         <EmptyState onCreate={() => setView({ kind: "create" })} />
       ) : (
         <ul className="space-y-3">
+          {/* 9-6-N — Rider-Waite default pseudo-row. Tapping it
+              clears the active flag on all custom decks, restoring
+              the default tarot deck. The 'active' badge appears here
+              when no custom deck is is_active. */}
+          <DefaultDeckRow
+            anyActive={decks.some((d) => d.is_active)}
+            onActivate={async () => {
+              if (!user) return;
+              await setActiveDeck(user.id, null);
+              await Promise.all([load(), refreshActiveDeck()]);
+            }}
+          />
           {decks.map((d) => (
             <DeckRow
               key={d.id}
