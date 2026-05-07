@@ -462,7 +462,12 @@ function DeckRow({
             )}
           </div>
           <p className="text-[11px] text-muted-foreground sm:text-xs">
-            {count === null ? "…" : `${count}/78 customized`} · {deck.shape}
+            {count === null
+              ? "…"
+              : deck.deck_type === "oracle"
+                ? `${count} cards`
+                : `${count}/78 customized`}{" "}
+            · {deck.shape}
           </p>
         </div>
       </button>
