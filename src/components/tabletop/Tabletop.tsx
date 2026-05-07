@@ -62,10 +62,11 @@ export function Tabletop({
   const [manualOpen, setManualOpen] = useState(false);
   // DZ-2 — Manual-draw hint, anchored to the "Manual entry" button.
   // Fired by an event from draw.tsx after the question modal closes.
-  const { user: authUser } = useAuth();
+  const { user: authUser, loading: authLoading } = useAuth();
   const manualBtnRef = useRef<HTMLButtonElement | null>(null);
   const [showManualHint, setShowManualHint] = useState(false);
   useEffect(() => {
+    if (authLoading) return; // 9-6-K — wait for auth before checking dismissal
     const onTrigger = async () => {
       const dismissed = await isHintHardDismissed(
         "manual_draw_choose_cards",
@@ -79,7 +80,7 @@ export function Tabletop({
     return () => {
       window.removeEventListener("moonseed:question-modal-closed", onTrigger);
     };
-  }, [authUser]);
+  }, [authUser, authLoading]);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
