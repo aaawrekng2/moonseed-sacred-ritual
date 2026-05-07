@@ -444,12 +444,20 @@ serve(async (req) => {
         if (upFull.error) throw upFull.error;
 
         step = "variants";
+        // 9-6-R — downscale once for variant generation. `full` (full-res
+        // with mask) is still needed for the -full.webp upload above.
+        const workingForVariants = decoded.width > WORKING_WIDTH
+          ? decoded.clone().resize(
+              WORKING_WIDTH,
+              Math.max(1, Math.round(decoded.height * (WORKING_WIDTH / decoded.width))),
+            )
+          : decoded;
         for (const v of VARIANTS) {
           const vPath = variantPathFor(row.display_path ?? sourcePath, v.suffix);
           if (!vPath) continue;
-          const ratio = v.width / decoded.width;
-          const targetH = Math.max(1, Math.round(decoded.height * ratio));
-          const small = decoded.clone().resize(v.width, targetH);
+          const ratio = v.width / workingForVariants.width;
+          const targetH = Math.max(1, Math.round(workingForVariants.height * ratio));
+          const small = workingForVariants.clone().resize(v.width, targetH);
           const jpeg = await small.encodeJPEG(85);
           const upV = await admin.storage.from(BUCKET).upload(
             vPath,
