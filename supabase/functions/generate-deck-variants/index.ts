@@ -548,7 +548,7 @@ serve(async (req) => {
     // 4) List active cards for the deck.
     const { data: cards, error: cardsErr } = await admin
       .from("custom_deck_cards")
-      .select("card_id, display_path, corner_radius_percent")
+      .select("id, card_id, display_path, original_path, corner_radius_percent")
       .eq("deck_id", deckId)
       .is("archived_at", null)
       .order("card_id", { ascending: true });
@@ -560,7 +560,10 @@ serve(async (req) => {
     }
 
     // FB-6 — slice this invocation's batch off the full list.
-    const allCards = (cards ?? []) as CardRow[];
+    const allCards = (cards ?? []) as (CardRow & {
+      id?: string;
+      original_path?: string | null;
+    })[];
     const totalCards = allCards.length;
     const batch = allCards.slice(cursor, cursor + BATCH_SIZE);
 
@@ -577,8 +580,22 @@ serve(async (req) => {
       let sourceBytes: Uint8Array | null = null;
       let decodedSource: Image | null = null;
       try {
-        // 9-6-R — short-circuit if BOTH variants already exist; avoids
-        // a full download + decode just to discover everything is done.
+        // 9-6-X — also reconcile -full.webp. Auto-trigger can silently fail;
+        // Optimize is the safety-net that ensures every card has its full
+        // master plus sm/md variants.
+        const fullPath = fullWebpPathFor(c.display_path);
+        let needsFull = false;
+        if (fullPath) {
+          const dir = fullPath.substring(0, fullPath.lastIndexOf("/"));
+          const filename = fullPath.substring(fullPath.lastIndexOf("/") + 1);
+          const { data: existing } = await admin.storage
+            .from(BUCKET)
+            .list(dir, { limit: 100, search: filename });
+          needsFull = !(existing ?? []).some((row) => row.name === filename);
+        }
+
+        // 9-6-R — short-circuit if BOTH sm/md variants already exist;
+        // combined with !needsFull below this avoids a download.
         let bothExist = true;
         for (const v of VARIANTS) {
           const variantPath = variantPathFor(c.display_path, v.suffix);
@@ -593,7 +610,7 @@ serve(async (req) => {
             break;
           }
         }
-        if (bothExist) {
+        if (bothExist && !needsFull) {
           skipped += VARIANTS.length;
           continue;
         }
@@ -602,6 +619,56 @@ serve(async (req) => {
           typeof c.corner_radius_percent === "number"
             ? c.corner_radius_percent
             : (deck as { corner_radius_percent?: number }).corner_radius_percent ?? 0;
+
+        // Source download + decode happens at most once per card.
+        const ensureSource = async () => {
+          if (decodedSource) return;
+          const sourcePath = c.original_path ?? c.display_path!;
+          const dl = await admin.storage.from(BUCKET).download(sourcePath);
+          if (dl.error || !dl.data) {
+            throw dl.error ?? new Error("download failed");
+          }
+          sourceBytes = new Uint8Array(await dl.data.arrayBuffer());
+          await ensureMagick();
+          decodedSource = await decodeAny(sourceBytes);
+        };
+
+        // 9-6-X — generate -full.webp if missing.
+        if (needsFull && fullPath) {
+          await ensureSource();
+          const full = decodedSource!.clone();
+          if (radius > 0) applyRoundedMask(full, radius);
+          const fullPng = await full.encode();
+          const fullBytes: Uint8Array = await new Promise(
+            (resolve, reject) => {
+              try {
+                ImageMagick.read(fullPng, (img) => {
+                  img.write(MagickFormat.Webp, (data) =>
+                    resolve(new Uint8Array(data)),
+                  );
+                });
+              } catch (e) {
+                reject(e);
+              }
+            },
+          );
+          const upFull = await admin.storage
+            .from(BUCKET)
+            .upload(fullPath, fullBytes, {
+              contentType: "image/webp",
+              upsert: true,
+            });
+          if (upFull.error) throw upFull.error;
+          // Patch display_path to point at -full.webp (matches single-card mode).
+          if (c.id) {
+            await admin
+              .from("custom_deck_cards")
+              .update({ display_path: fullPath })
+              .eq("id", c.id);
+          }
+          generated++;
+        }
+
         for (const v of VARIANTS) {
           const variantPath = variantPathFor(c.display_path, v.suffix);
           if (!variantPath) {
@@ -628,19 +695,7 @@ serve(async (req) => {
             continue;
           }
 
-          if (!sourceBytes) {
-            const dl = await admin.storage
-              .from(BUCKET)
-              .download(c.display_path);
-            if (dl.error || !dl.data) {
-              throw dl.error ?? new Error("download failed");
-            }
-            sourceBytes = new Uint8Array(await dl.data.arrayBuffer());
-            await ensureMagick();
-            // 9-6-W — decode once via imagescript so we can apply the
-            // rounded alpha mask before re-encoding to WebP per variant.
-            decodedSource = await decodeAny(sourceBytes);
-          }
+          await ensureSource();
 
           // 9-6-W — resize via imagescript, apply rounded alpha mask,
           // then re-encode through ImageMagick for WebP (preserves alpha).
