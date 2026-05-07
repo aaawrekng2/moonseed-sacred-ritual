@@ -181,6 +181,7 @@ export function CardPicker({
         onConfirm={() => onSelect(pendingId, pendingReversed)}
         resolveImageSrc={(i) => resolveImg(i, "display")}
         embedded={embedded}
+        deckId={deckId ?? null}
       />
     );
   }
@@ -312,7 +313,10 @@ export function CardPicker({
                     src={src}
                     alt=""
                     loading="lazy"
-                    className="h-full w-full object-cover"
+                    className={cn(
+                      "h-full w-full",
+                      deckId ? "object-contain" : "object-cover",
+                    )}
                     style={
                       dimDefault
                         ? { opacity: 0.3, filter: "grayscale(100%)" }
@@ -361,6 +365,7 @@ function ConfirmReversed({
   onConfirm,
   resolveImageSrc,
   embedded = false,
+  deckId = null,
 }: {
   cardIndex: number;
   name: string;
@@ -370,6 +375,7 @@ function ConfirmReversed({
   onConfirm: () => void;
   resolveImageSrc?: (cardIndex: number) => string;
   embedded?: boolean;
+  deckId?: string | null;
 }) {
   const src = resolveImageSrc ? resolveImageSrc(cardIndex) : getCardImagePath(cardIndex);
   return (
@@ -394,7 +400,10 @@ function ConfirmReversed({
             <img
               src={src}
               alt=""
-              className="h-full w-full object-cover"
+              className={cn(
+                "h-full w-full",
+                deckId ? "object-contain" : "object-cover",
+              )}
               style={{ transform: isReversed ? "rotate(180deg)" : undefined }}
             />
           </div>
