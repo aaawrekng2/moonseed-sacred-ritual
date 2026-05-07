@@ -2084,7 +2084,7 @@ function OracleWorkspace({
         </div>
       )}
 
-      {/* 9-6-G — Card back picker tile (Oracle) */}
+      {/* 9-6-H — Card back: hero-size when picked, dashed tile when empty. */}
       <div className="my-6 flex flex-col items-center gap-3">
         <h3
           className="italic"
@@ -2097,40 +2097,59 @@ function OracleWorkspace({
         >
           Card back
         </h3>
-        <button
-          type="button"
-          onClick={() => setShowBackPicker(true)}
-          style={{
-            width: 140,
-            background: "var(--surface-card)",
-            border: "1px solid var(--border-subtle)",
-            overflow: "hidden",
-            borderRadius: heroRadius,
-            cursor: "pointer",
-            padding: 0,
-          }}
-        >
-          {existingBackUrl ? (
-            <img
-              src={existingBackUrl}
-              alt="Card back"
-              style={{ width: "100%", height: "auto", display: "block", borderRadius: heroRadius }}
-            />
-          ) : (
-            <div
+        {existingBackUrl ? (
+          <>
+            <div style={{ width: "min(280px, 70vw)" }}>
+              <img
+                src={existingBackUrl}
+                alt="Card back"
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  display: "block",
+                  borderRadius: heroRadius,
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowBackPicker(true)}
               style={{
-                padding: "40px 16px",
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
                 fontSize: "var(--text-body-sm)",
                 color: "var(--color-foreground)",
                 opacity: 0.6,
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "4px 0",
               }}
             >
-              Tap to choose
-            </div>
-          )}
-        </button>
+              Tap to choose another
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowBackPicker(true)}
+            style={{
+              width: "min(280px, 70vw)",
+              aspectRatio: "0.625",
+              background: "var(--surface-card)",
+              border: "1px dashed var(--border-subtle)",
+              borderRadius: heroRadius,
+              cursor: "pointer",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              opacity: 0.6,
+            }}
+          >
+            Tap to choose card back
+          </button>
+        )}
       </div>
 
       {/* Section 3 — scrollable list of cards */}
