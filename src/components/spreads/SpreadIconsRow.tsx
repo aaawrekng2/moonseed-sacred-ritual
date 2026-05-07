@@ -48,6 +48,18 @@ function DiamondGlyph() {
   );
 }
 
+// 9-6-O — Custom: small grid glyph hinting "pick how many".
+function CustomGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" opacity="0.4" />
+    </svg>
+  );
+}
+
 const SPREADS: {
   id: SpreadMode;
   label: string;
@@ -78,6 +90,12 @@ const SPREADS: {
     Glyph: DiamondGlyph,
     hint: "Quick directional pull.",
   },
+  {
+    id: "custom",
+    label: "Custom",
+    Glyph: CustomGlyph,
+    hint: "Pick how many cards (1-10).",
+  },
 ];
 
 export function SpreadIconsRow({
@@ -91,10 +109,10 @@ export function SpreadIconsRow({
   // remain for screen readers.
   return (
     <div
-      className="grid grid-cols-4 px-6 pb-4"
+      className="grid grid-cols-5 px-6 pb-4"
       style={{
         opacity: "var(--ro-plus-20)",
-        maxWidth: 380,
+        maxWidth: 460,
         width: "100%",
         margin: "0 auto",
       }}

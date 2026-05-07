@@ -4,6 +4,8 @@ import type { SpreadMode } from "@/lib/spreads";
 export type TabletopProps = {
   spread: SpreadMode;
   onExit: () => void;
+  /** 9-6-O — Custom spread cardinality (1-10). Ignored unless spread === "custom". */
+  customCount?: number;
   /**
    * Called when the reading is ready to display.
    *  - mode "reveal": user tapped Reveal first; cards are flipped face-up

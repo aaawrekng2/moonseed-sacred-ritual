@@ -12,13 +12,17 @@ import { updateUserPreferences } from "@/lib/user-preferences-write";
 import { generateOrientations } from "@/lib/tarot-mechanics";
 import { useActiveDeck } from "@/lib/active-deck";
 
-type Search = { spread?: string; question?: string };
+type Search = { spread?: string; question?: string; n?: number };
 
 export const Route = createFileRoute("/draw")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     spread: typeof s.spread === "string" ? s.spread : undefined,
     question:
       typeof s.question === "string" && s.question.trim().length > 0 ? s.question : undefined,
+    n:
+      typeof s.n === "number" && s.n >= 1 && s.n <= 10
+        ? Math.round(s.n)
+        : undefined,
   }),
   component: DrawPage,
 });
@@ -27,6 +31,8 @@ function DrawPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const spread: SpreadMode = isValidSpreadMode(search.spread) ? search.spread : "daily";
+  // 9-6-O — Custom spread cardinality, threaded through the draw flow.
+  const customCount = spread === "custom" ? Math.max(1, Math.min(10, search.n ?? 3)) : undefined;
   const { recordDraw } = useStreak();
 
   const [picks, setPicks] = useState<
@@ -127,11 +133,13 @@ function DrawPage() {
           question={question || undefined}
           entryMode={entryMode}
           deckId={activeDeckId}
+          customCount={customCount}
         />
       ) : (
         <Tabletop
           spread={spread}
           onExit={exit}
+          customCount={customCount}
           onComplete={(p, mode, meta) => {
             // Phase 9.55 — assign orientation per card based on the
             // seeker's preference. `generateOrientations` returns

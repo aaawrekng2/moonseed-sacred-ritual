@@ -131,6 +131,9 @@ function Index() {
   // EG-3 — first-time onboarding hint anchored to the spread icons row.
   const drawTypeRowRef = useRef<HTMLDivElement | null>(null);
   const [showDrawTypeHint, setShowDrawTypeHint] = useState(false);
+  // 9-6-O — Custom spread: prompt for card count before navigating.
+  const [customCountOpen, setCustomCountOpen] = useState(false);
+  const [customCount, setCustomCount] = useState<number>(3);
   const { user, loading: authLoading } = useAuth();
   const { effectiveTz } = useTimezone();
   const isAnonymous = !user?.email;
@@ -544,6 +547,10 @@ function Index() {
           <SpreadIconsRow
             onSelect={(spread) => {
               setShowDrawTypeHint(false);
+              if (spread === "custom") {
+                setCustomCountOpen(true);
+                return;
+              }
               navigate({
                 to: "/draw",
                 search: { spread },
@@ -563,6 +570,67 @@ function Index() {
         onDismiss={() => setShowDrawTypeHint(false)}
       />
     )}
+    {/* 9-6-O — Custom spread count picker */}
+    <Dialog open={customCountOpen} onOpenChange={setCustomCountOpen}>
+      <DialogContent className="max-w-xs">
+        <DialogHeader>
+          <DialogTitle
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              color: "var(--gold)",
+              textAlign: "center",
+            }}
+          >
+            How many cards?
+          </DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col items-center gap-4 pt-2">
+          <span
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-display, 48px)",
+              color: "var(--accent, var(--gold))",
+              fontStyle: "italic",
+              lineHeight: 1,
+            }}
+          >
+            {customCount}
+          </span>
+          <input
+            type="range"
+            min={1}
+            max={10}
+            step={1}
+            value={customCount}
+            onChange={(e) => setCustomCount(Number(e.target.value))}
+            className="w-full"
+            aria-label="Number of cards"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setCustomCountOpen(false);
+              navigate({
+                to: "/draw",
+                search: { spread: "custom", n: customCount },
+              });
+            }}
+            className="px-6 py-2 italic"
+            style={{
+              fontFamily: "var(--font-serif)",
+              color: "var(--accent, var(--gold))",
+              fontSize: "var(--text-body)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            Begin draw
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
     {/* EE-8 — Streak detail modal */}
     <Dialog open={streakModalOpen} onOpenChange={setStreakModalOpen}>
       <DialogContent className="max-w-sm">

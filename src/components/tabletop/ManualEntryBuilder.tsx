@@ -32,11 +32,15 @@ type Props = {
   onCancel: () => void;
   /** Fires once every slot has a card and the seeker hits Done. */
   onComplete: (picks: ManualPick[]) => void;
+  /** 9-6-O — Custom spread cardinality (1-10). */
+  customCount?: number;
 };
 
-export function ManualEntryBuilder({ spread, onCancel, onComplete }: Props) {
+export function ManualEntryBuilder({ spread, onCancel, onComplete, customCount }: Props) {
   const meta = SPREAD_META[spread];
-  const required = meta.count;
+  const required = spread === "custom"
+    ? Math.max(1, Math.min(10, customCount ?? 3))
+    : meta.count;
   const labels = meta.positions ?? [];
 
   const [picks, setPicks] = useState<(ManualPick | null)[]>(
@@ -105,6 +109,7 @@ export function ManualEntryBuilder({ spread, onCancel, onComplete }: Props) {
             same spread the seeker is about to read. */}
         <ManualSpreadSlots
           spread={spread}
+          customCount={required}
           picks={picks.map((p) =>
             p
               ? {

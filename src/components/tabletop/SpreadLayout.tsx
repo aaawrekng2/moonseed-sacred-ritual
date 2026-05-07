@@ -45,6 +45,8 @@ type Props = {
    */
   entryMode?: "digital" | "manual";
   deckId?: string | null;
+  /** 9-6-O — Custom spread cardinality (1-10). */
+  customCount?: number;
 };
 
 /**
@@ -60,6 +62,7 @@ export function SpreadLayout({
   question,
   entryMode,
   deckId,
+  customCount,
 }: Props) {
   const meta = SPREAD_META[spread];
   // BX — Tabletop / draw stays portrait-only.
@@ -265,7 +268,10 @@ function SpreadContent({
 }) {
   // Pick a card width that fits the spread + viewport. Celtic Cross has
   // the densest layout so it gets the smallest cards.
-  const sizing = useMemo(() => spreadSizing(spread), [spread]);
+  const sizing = useMemo(
+    () => spreadSizing(spread, picks.length),
+    [spread, picks.length],
+  );
   // CM Group 2 — reveal phase = all slots filled but not every card flipped.
   const required = picks.length;
   const revealedCount = revealedFlags.filter(Boolean).length;
@@ -306,6 +312,38 @@ function SpreadContent({
       />
     );
   }
+  if (spread === "custom") {
+    return (
+      <div className="flex flex-wrap items-start justify-center gap-4">
+        {picks.map((pick, i) => (
+          <div key={pick.id} className="flex flex-col items-center gap-2">
+            <CardFace
+              pick={pick}
+              cardBack={cardBack}
+              revealed={!!revealedFlags[i]}
+              isNext={nextIndex === i}
+              isWrong={wrongIndex === i}
+              onTap={() => onTap(i)}
+              sizing={sizing}
+              emergeDelayMs={i * 80}
+              isRevealPhase={isRevealPhase}
+              onZoom={onZoom}
+            />
+            {showLabels && (
+              <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
+            )}
+            {showLabels && revealedFlags[i] && (
+              <CardNameLabel
+                cardIndex={pick.cardIndex}
+                isReversed={!!pick.isReversed}
+                cardWidth={sizing.w}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
   // single / daily / yes_no — one large card centered.
   return (
     <SingleCard
@@ -324,7 +362,7 @@ function SpreadContent({
 
 type Sizing = { w: number; h: number };
 
-function spreadSizing(spread: SpreadMode): Sizing {
+function spreadSizing(spread: SpreadMode, count?: number): Sizing {
   // Tuned per layout density. Heights derived from CARD_ASPECT_RATIO 1.75.
   // 3-card sizing is now responsive and matches ReadingScreen's CardStrip
   // exactly, so the cards do not resize when the inline reading flow
@@ -336,6 +374,14 @@ function spreadSizing(spread: SpreadMode): Sizing {
       return { w: 56, h: 98 };
     case "three":
       return isMobile ? { w: 100, h: 175 } : { w: 112, h: 196 };
+    case "custom": {
+      // 9-6-O — scale down as count grows; wrap-friendly sizing.
+      const n = count ?? 3;
+      if (n <= 1) return isMobile ? { w: 180, h: 315 } : { w: 160, h: 280 };
+      if (n <= 3) return isMobile ? { w: 100, h: 175 } : { w: 112, h: 196 };
+      if (n <= 6) return isMobile ? { w: 80, h: 140 } : { w: 96, h: 168 };
+      return { w: 64, h: 112 };
+    }
     default:
       return isMobile ? { w: 180, h: 315 } : { w: 160, h: 280 };
   }
@@ -857,15 +903,21 @@ export function ManualSpreadSlots({
   picks,
   onSlotTap,
   showLabels = true,
+  customCount,
 }: {
   spread: SpreadMode;
   picks: ManualSlotPick[];
   onSlotTap: (slotIndex: number) => void;
   showLabels?: boolean;
+  /** 9-6-O — used when spread === "custom". */
+  customCount?: number;
 }) {
   const meta = SPREAD_META[spread];
   const labels = meta.positions ?? meta.positionsShort ?? [];
-  const sizing = useMemo(() => spreadSizing(spread), [spread]);
+  const sizing = useMemo(
+    () => spreadSizing(spread, customCount),
+    [spread, customCount],
+  );
   const activeResolve = useActiveDeckImage();
   const deckRadiusPx = useActiveDeckCornerRadius();
 
@@ -905,44 +957,65 @@ export function ManualSpreadSlots({
   }, [uniqueKey]);
 
   const resolveForPick = (pick: NonNullable<ManualSlotPick>): string => {
-    if (!pick.deckId) return activeResolve(pick.cardIndex);
+    // 9-6-O — slot tiles are small; pull the thumbnail variant rather
+    // than the multi-MB display image.
+    if (!pick.deckId) return activeResolve(pick.cardIndex, "thumbnail");
     const map = deckMaps[pick.deckId];
-    return resolveCardImage(pick.cardIndex, map ?? null, "display");
+    return resolveCardImage(pick.cardIndex, map ?? null, "thumbnail");
   };
   const nameForPick = (pick: NonNullable<ManualSlotPick>): string =>
     pick.cardName ?? getCardName(pick.cardIndex) ?? `Card ${pick.cardIndex}`;
 
-  const Slot = ({ pick, slotIndex, rotated }: { pick: ManualSlotPick; slotIndex: number; rotated?: boolean }) => (
-    <button
-      type="button"
-      onClick={() => onSlotTap(slotIndex)}
-      aria-label={pick ? `Replace ${nameForPick(pick)}` : `Pick card for ${labels[slotIndex] ?? `position ${slotIndex + 1}`}`}
-      className={cn(
-        "relative transition active:scale-[0.98]",
-        pick
-          ? "overflow-hidden"
-          : "border-2 border-dashed border-foreground/25 bg-foreground/[0.04] hover:border-gold/50 hover:bg-gold/5",
-      )}
-      style={{
-        width: sizing.w,
-        height: sizing.h,
-        transform: rotated ? "rotate(90deg)" : undefined,
-        transformOrigin: "center center",
-        boxShadow: pick ? "0 6px 18px rgba(0,0,0,0.5)" : undefined,
-      }}
-    >
-      {pick ? (
-        <img
-          src={resolveForPick(pick)}
-          alt={nameForPick(pick)}
-          className="h-full w-full object-contain"
-          style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
-        />
-      ) : (
-        <span className="absolute inset-0 flex items-center justify-center text-[18px] font-light text-foreground/50">+</span>
-      )}
-    </button>
-  );
+  // 9-6-O — track natural aspect of each picked image so the slot
+  // adapts to non-tarot card shapes (oracle decks). Empty slots keep
+  // the standard 5:8 placeholder so the dashed target reads as a card.
+  const [pickAspects, setPickAspects] = useState<Record<number, number>>({});
+  const defaultAspect = sizing.w / sizing.h;
+
+  const Slot = ({ pick, slotIndex, rotated }: { pick: ManualSlotPick; slotIndex: number; rotated?: boolean }) => {
+    const aspect = pick ? pickAspects[slotIndex] ?? defaultAspect : defaultAspect;
+    const height = pick ? Math.round(sizing.w / aspect) : sizing.h;
+    return (
+      <button
+        type="button"
+        onClick={() => onSlotTap(slotIndex)}
+        aria-label={pick ? `Replace ${nameForPick(pick)}` : `Pick card for ${labels[slotIndex] ?? `position ${slotIndex + 1}`}`}
+        className={cn(
+          "relative transition active:scale-[0.98]",
+          pick
+            ? "overflow-hidden"
+            : "border-2 border-dashed border-foreground/25 bg-foreground/[0.04] hover:border-gold/50 hover:bg-gold/5",
+        )}
+        style={{
+          width: sizing.w,
+          height,
+          transform: rotated ? "rotate(90deg)" : undefined,
+          transformOrigin: "center center",
+          boxShadow: pick ? "0 6px 18px rgba(0,0,0,0.5)" : undefined,
+        }}
+      >
+        {pick ? (
+          <img
+            src={resolveForPick(pick)}
+            alt={nameForPick(pick)}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              if (img.naturalWidth && img.naturalHeight) {
+                const a = img.naturalWidth / img.naturalHeight;
+                setPickAspects((prev) =>
+                  prev[slotIndex] === a ? prev : { ...prev, [slotIndex]: a },
+                );
+              }
+            }}
+            className="h-full w-full object-cover"
+            style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
+          />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center text-[18px] font-light text-foreground/50">+</span>
+        )}
+      </button>
+    );
+  };
 
   if (spread === "celtic") {
     const colGap = Math.round(sizing.w * 0.35);
@@ -1015,6 +1088,29 @@ export function ManualSpreadSlots({
           <div key={i} className="flex flex-col items-center gap-2">
             <Slot pick={pick} slotIndex={i} />
             {showLabels && <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
+            {showLabels && pick && (
+              <CardNameLabel
+                cardIndex={pick.cardIndex}
+                isReversed={!!pick.isReversed}
+                cardWidth={sizing.w}
+                nameOverride={pick.cardName}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (spread === "custom") {
+    return (
+      <div className="flex flex-wrap items-start justify-center gap-4">
+        {picks.map((pick, i) => (
+          <div key={i} className="flex flex-col items-center gap-2">
+            <Slot pick={pick} slotIndex={i} />
+            {showLabels && (
+              <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
+            )}
             {showLabels && pick && (
               <CardNameLabel
                 cardIndex={pick.cardIndex}
