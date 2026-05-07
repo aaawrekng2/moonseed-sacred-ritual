@@ -916,11 +916,11 @@ export function ManualSpreadSlots({
     <button
       type="button"
       onClick={() => onSlotTap(slotIndex)}
-      aria-label={pick ? `Replace ${getCardName(pick.cardIndex)}` : `Pick card for ${labels[slotIndex] ?? `position ${slotIndex + 1}`}`}
+      aria-label={pick ? `Replace ${nameForPick(pick)}` : `Pick card for ${labels[slotIndex] ?? `position ${slotIndex + 1}`}`}
       className={cn(
         "relative transition active:scale-[0.98]",
         pick
-          ? "overflow-hidden bg-card"
+          ? "overflow-hidden"
           : "border-2 border-dashed border-foreground/25 bg-foreground/[0.04] hover:border-gold/50 hover:bg-gold/5",
       )}
       style={{
