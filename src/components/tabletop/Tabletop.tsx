@@ -52,10 +52,12 @@ export function Tabletop({
   spread,
   onExit,
   onComplete,
+  customCount,
 }: TabletopProps) {
   const meta = SPREAD_META[spread];
-  const required = meta.count;
-  const usesSlots = spreadUsesSlots(spread);
+  // 9-6-O — Custom spread overrides the meta count with the user's pick.
+  const required = spread === "custom" ? Math.max(1, Math.min(10, customCount ?? 3)) : meta.count;
+  const usesSlots = spreadUsesSlots(spread, required);
 
   // AU — Manual card entry. Bypass the scatter and let the seeker pick
   // cards from a 78-card grid (used for logging a physical reading).
@@ -998,6 +1000,7 @@ export function Tabletop({
       // never bleed through behind the manual entry UI.
       <ManualEntryBuilder
         spread={spread}
+        customCount={customCount}
         onCancel={() => setManualOpen(false)}
         onComplete={(picks) => {
           setManualOpen(false);
