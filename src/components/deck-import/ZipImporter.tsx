@@ -1428,6 +1428,9 @@ function Workspace({
           onDone={onCancel}
           entryMode={entryMode}
           onImportZip={onSwitchToUpload}
+          existingBackUrl={existingBackUrl ?? null}
+          unassignedKeys={unassignedKeys}
+          onAssign={onAssign}
           onOpenEdit={(cardId: number, key: string) => {
             if (key.startsWith("EXISTING:")) {
               setEditingExistingCardId(cardId);
