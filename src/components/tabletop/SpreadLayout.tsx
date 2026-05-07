@@ -914,7 +914,10 @@ export function ManualSpreadSlots({
 }) {
   const meta = SPREAD_META[spread];
   const labels = meta.positions ?? meta.positionsShort ?? [];
-  const sizing = useMemo(() => spreadSizing(spread), [spread]);
+  const sizing = useMemo(
+    () => spreadSizing(spread, customCount),
+    [spread, customCount],
+  );
   const activeResolve = useActiveDeckImage();
   const deckRadiusPx = useActiveDeckCornerRadius();
 
