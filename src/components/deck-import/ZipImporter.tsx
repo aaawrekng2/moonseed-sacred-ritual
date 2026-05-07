@@ -1925,6 +1925,9 @@ function OracleWorkspace({
   onDone,
   entryMode,
   onImportZip,
+  existingBackUrl,
+  unassignedKeys,
+  onAssign,
   onOpenEdit,
 }: {
   session: ImportSession;
@@ -1939,11 +1942,15 @@ function OracleWorkspace({
   onDone: () => void;
   entryMode: "import" | "edit";
   onImportZip: () => void;
+  existingBackUrl: string | null;
+  unassignedKeys: string[];
+  onAssign: (imageKey: string, cardId: number | "BACK") => void;
   onOpenEdit: (cardId: number, key: string) => void;
 }) {
   const [previewIdx, setPreviewIdx] = useState(0);
   const [liveRadiusLocal, setLiveRadiusLocal] = useState(liveRadius);
   useEffect(() => { setLiveRadiusLocal(liveRadius); }, [liveRadius]);
+  const [showBackPicker, setShowBackPicker] = useState(false);
   const safeIdx = oracleSlotIds.length === 0
     ? 0
     : ((previewIdx % oracleSlotIds.length) + oracleSlotIds.length) % oracleSlotIds.length;
