@@ -9,6 +9,7 @@ import { useElementWidth } from "@/lib/use-element-width";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { DEFAULT_FILTERS } from "@/lib/insights.types";
 import { StalkerSparkline } from "@/components/insights/StalkerSparkline";
+import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
 import { formatDateLong } from "@/lib/dates";
