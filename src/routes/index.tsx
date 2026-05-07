@@ -735,10 +735,10 @@ function Index() {
               style={{
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                fontSize: "var(--text-body-lg)",
+                fontSize: "var(--text-heading-sm)",
                 fontWeight: 600,
-                color: "var(--foreground)",
-                opacity: 0.95,
+                color: "var(--accent)",
+                margin: 0,
               }}
             >
               Pull a card today to keep the moon waxing.
