@@ -16,9 +16,16 @@ import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { ManualSpreadSlots } from "@/components/tabletop/SpreadLayout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
-import { cn } from "@/lib/utils";
 
-export type ManualPick = { id: number; cardIndex: number; isReversed: boolean };
+export type ManualPick = {
+  id: number;
+  cardIndex: number;
+  isReversed: boolean;
+  /** 9-6-M — null = active deck. */
+  deckId: string | null;
+  /** 9-6-M — name resolved from deck (oracle uses user-supplied names). */
+  cardName: string;
+};
 
 type Props = {
   spread: SpreadMode;
@@ -51,10 +58,21 @@ export function ManualEntryBuilder({ spread, onCancel, onComplete }: Props) {
   const allFilled = picks.every((p) => p !== null);
   const placedIds = picks.filter((p): p is ManualPick => !!p).map((p) => p.cardIndex);
 
-  const handlePick = (cardIndex: number, isReversed: boolean) => {
+  const handlePick = (
+    cardIndex: number,
+    isReversed: boolean,
+    deckId: string | null,
+    cardName: string,
+  ) => {
     if (pickerSlot === null) return;
     const next = [...picks];
-    next[pickerSlot] = { id: pickerSlot, cardIndex, isReversed };
+    next[pickerSlot] = {
+      id: Date.now() + pickerSlot,
+      cardIndex,
+      isReversed,
+      deckId,
+      cardName,
+    };
     setPicks(next);
     setPickerSlot(null);
   };
@@ -88,7 +106,14 @@ export function ManualEntryBuilder({ spread, onCancel, onComplete }: Props) {
         <ManualSpreadSlots
           spread={spread}
           picks={picks.map((p) =>
-            p ? { cardIndex: p.cardIndex, isReversed: p.isReversed } : null,
+            p
+              ? {
+                  cardIndex: p.cardIndex,
+                  isReversed: p.isReversed,
+                  deckId: p.deckId,
+                  cardName: p.cardName,
+                }
+              : null,
           )}
           onSlotTap={(idx) => setPickerSlot(idx)}
         />
@@ -100,12 +125,17 @@ export function ManualEntryBuilder({ spread, onCancel, onComplete }: Props) {
             if (!allFilled) return;
             onComplete(picks.filter((p): p is ManualPick => !!p));
           }}
-          className={cn(
-            "rounded-full px-6 py-2.5 text-sm font-medium transition",
-            allFilled
-              ? "bg-gold text-cosmos hover:bg-gold/90"
-              : "cursor-not-allowed bg-foreground/10 text-foreground/40",
-          )}
+          className="px-6 py-2 transition disabled:cursor-not-allowed"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body)",
+            color: allFilled ? "var(--accent)" : "var(--color-foreground)",
+            opacity: allFilled ? 1 : 0.4,
+            background: "none",
+            border: "none",
+            textShadow: allFilled ? "0 0 12px var(--accent-faint)" : undefined,
+          }}
         >
           Done · view reading
         </button>
