@@ -1660,6 +1660,7 @@ function Workspace({
           onDone={onCancel}
           deckType={deckType}
           deckId={deckId}
+          onTapBack={() => setShowBackPicker(true)}
         />
       )}
       {tab === "skipped" && (
