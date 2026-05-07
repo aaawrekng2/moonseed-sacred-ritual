@@ -549,8 +549,28 @@ serve(async (req) => {
         skipped++;
         continue;
       }
-      let decoded: Image | null = null;
+      let working: Image | null = null;
       try {
+        // 9-6-R — short-circuit if BOTH variants already exist; avoids
+        // a full download + decode just to discover everything is done.
+        let bothExist = true;
+        for (const v of VARIANTS) {
+          const variantPath = variantPathFor(c.display_path, v.suffix);
+          if (!variantPath) { bothExist = false; break; }
+          const dir = variantPath.substring(0, variantPath.lastIndexOf("/"));
+          const filename = variantPath.substring(variantPath.lastIndexOf("/") + 1);
+          const { data: existing } = await admin.storage
+            .from(BUCKET)
+            .list(dir, { limit: 100, search: filename });
+          if (!(existing ?? []).some((row) => row.name === filename)) {
+            bothExist = false;
+            break;
+          }
+        }
+        if (bothExist) {
+          skipped += VARIANTS.length;
+          continue;
+        }
         for (const v of VARIANTS) {
           const variantPath = variantPathFor(c.display_path, v.suffix);
           if (!variantPath) {
@@ -577,7 +597,7 @@ serve(async (req) => {
             continue;
           }
 
-          if (!decoded) {
+          if (!working) {
             const dl = await admin.storage
               .from(BUCKET)
               .download(c.display_path);
@@ -585,12 +605,22 @@ serve(async (req) => {
               throw dl.error ?? new Error("download failed");
             }
             const bytes = new Uint8Array(await dl.data.arrayBuffer());
-            decoded = await decodeAny(bytes);
+            const fullDecoded = await decodeAny(bytes);
+            // 9-6-R — immediately downscale to WORKING_WIDTH so the
+            // full-res RGBA buffer (potentially 50+ MB) is GC-eligible
+            // before we generate variants.
+            if (fullDecoded.width > WORKING_WIDTH) {
+              const ratio = WORKING_WIDTH / fullDecoded.width;
+              const targetH = Math.max(1, Math.round(fullDecoded.height * ratio));
+              working = fullDecoded.clone().resize(WORKING_WIDTH, targetH);
+            } else {
+              working = fullDecoded;
+            }
           }
 
-          const ratio = v.width / decoded.width;
-          const targetH = Math.max(1, Math.round(decoded.height * ratio));
-          const resized = decoded.clone().resize(v.width, targetH);
+          const ratio = v.width / working.width;
+          const targetH = Math.max(1, Math.round(working.height * ratio));
+          const resized = working.clone().resize(v.width, targetH);
           const jpeg = await resized.encodeJPEG(85);
 
           const up = await admin.storage
@@ -611,10 +641,9 @@ serve(async (req) => {
           reason,
         );
       } finally {
-        // 9-6-Q — explicit cleanup so the Image's pixel buffer is
-        // eligible for GC before the next iteration. Prevents OOM
-        // on long batches of large oracle images.
-        decoded = null;
+        // 9-6-R — explicit cleanup so the Image's pixel buffer is
+        // eligible for GC before the next iteration.
+        working = null;
       }
     }
 
