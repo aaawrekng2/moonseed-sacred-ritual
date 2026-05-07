@@ -45,6 +45,8 @@ type Props = {
    */
   entryMode?: "digital" | "manual";
   deckId?: string | null;
+  /** 9-6-O — Custom spread cardinality (1-10). */
+  customCount?: number;
 };
 
 /**
@@ -60,6 +62,7 @@ export function SpreadLayout({
   question,
   entryMode,
   deckId,
+  customCount,
 }: Props) {
   const meta = SPREAD_META[spread];
   // BX — Tabletop / draw stays portrait-only.
