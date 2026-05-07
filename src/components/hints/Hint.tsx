@@ -83,8 +83,13 @@ async function markHintHardDismissed(
       ?.dismissed_hints) ?? {};
   await supabase
     .from("user_preferences")
-    .update({ dismissed_hints: { ...cur, [hintId]: true } } as never)
-    .eq("user_id", userId);
+    .upsert(
+      {
+        user_id: userId,
+        dismissed_hints: { ...cur, [hintId]: true },
+      } as never,
+      { onConflict: "user_id" },
+    );
 }
 
 export type HintPosition = "top" | "bottom" | "left" | "right";
