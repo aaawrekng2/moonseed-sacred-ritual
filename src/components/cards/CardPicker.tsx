@@ -10,8 +10,8 @@
  *                       and locked. Optionally surfaces a 'Reversed?'
  *                       confirmation step before firing onSelect.
  */
-import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronLeft, Lock, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, ChevronLeft, Lock, X } from "lucide-react";
 import { TAROT_DECK, getCardName, getCardImagePath } from "@/lib/tarot";
 import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/ui/search-input";
@@ -104,6 +104,23 @@ export function CardPicker({
   };
   const activeDeckObj = decks.find((d) => d.id === deckId);
   const isOracleDeck = activeDeckObj?.deck_type === "oracle";
+
+  // 9-6-M — custom deck-picker dropdown (replaces unstylable native <select>).
+  const [deckPickerOpen, setDeckPickerOpen] = useState(false);
+  const deckPickerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!deckPickerOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (
+        deckPickerRef.current &&
+        !deckPickerRef.current.contains(e.target as Node)
+      ) {
+        setDeckPickerOpen(false);
+      }
+    };
+    window.addEventListener("mousedown", onClick);
+    return () => window.removeEventListener("mousedown", onClick);
+  }, [deckPickerOpen]);
 
   // 9-6-H — when a custom deck is selected, render that deck's actual
   // cards (not the 78 fixed tarot indices). Critical for oracle decks
@@ -231,7 +248,7 @@ export function CardPicker({
 
       {/* Search + filters */}
       <div className="space-y-2 border-b border-border/40 p-3">
-        {onDeckChange && decks.length > 1 && (
+        {onDeckChange && decks.length > 0 && (
           <div
             className="mb-3 flex items-center gap-2"
             style={{
@@ -241,27 +258,72 @@ export function CardPicker({
             }}
           >
             <span style={{ opacity: 0.7 }}>Deck:</span>
-            <select
-              value={deckId ?? ""}
-              onChange={(e) => onDeckChange(e.target.value || null)}
-              style={{
-                background: "transparent",
-                border: "none",
-                borderBottom: "1px solid var(--border-subtle)",
-                padding: "4px 8px",
-                fontFamily: "inherit",
-                fontSize: "inherit",
-                color: "inherit",
-                fontStyle: "italic",
-                cursor: "pointer",
-                outline: "none",
-              }}
-            >
-              <option value="">Active deck</option>
-              {decks.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </select>
+            <div className="relative" ref={deckPickerRef}>
+              <button
+                type="button"
+                onClick={() => setDeckPickerOpen((v) => !v)}
+                className="flex items-center gap-2 rounded-md border px-2 py-1"
+                style={{
+                  background: "var(--surface-card)",
+                  borderColor: "var(--border-subtle)",
+                  fontStyle: "italic",
+                  color: "inherit",
+                }}
+              >
+                {activeDeckObj?.card_back_thumb_url || activeDeckObj?.card_back_url ? (
+                  <img
+                    src={(activeDeckObj.card_back_thumb_url ?? activeDeckObj.card_back_url) as string}
+                    alt=""
+                    className="h-6 w-6 rounded object-cover"
+                  />
+                ) : null}
+                <span>{activeDeckObj?.name ?? "Active deck"}</span>
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </button>
+              {deckPickerOpen && (
+                <div
+                  className="absolute left-0 top-full mt-1 flex min-w-[200px] flex-col rounded-md border p-1 shadow-lg"
+                  style={{
+                    background: "var(--surface-elevated, var(--background))",
+                    borderColor: "var(--border-subtle)",
+                    zIndex: "var(--z-popover, 50)" as unknown as number,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDeckChange(null);
+                      setDeckPickerOpen(false);
+                    }}
+                    className="rounded px-2 py-1.5 text-left text-sm italic hover:bg-foreground/10"
+                  >
+                    Active deck
+                  </button>
+                  {decks.map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => {
+                        onDeckChange(d.id);
+                        setDeckPickerOpen(false);
+                      }}
+                      className="flex items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-foreground/10"
+                    >
+                      {d.card_back_thumb_url || d.card_back_url ? (
+                        <img
+                          src={(d.card_back_thumb_url ?? d.card_back_url) as string}
+                          alt=""
+                          className="h-8 w-8 rounded object-cover"
+                        />
+                      ) : (
+                        <div className="h-8 w-8 rounded bg-foreground/10" />
+                      )}
+                      <span>{d.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
         <SearchInput
