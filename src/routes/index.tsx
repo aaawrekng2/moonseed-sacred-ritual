@@ -131,6 +131,9 @@ function Index() {
   // EG-3 — first-time onboarding hint anchored to the spread icons row.
   const drawTypeRowRef = useRef<HTMLDivElement | null>(null);
   const [showDrawTypeHint, setShowDrawTypeHint] = useState(false);
+  // 9-6-O — Custom spread: prompt for card count before navigating.
+  const [customCountOpen, setCustomCountOpen] = useState(false);
+  const [customCount, setCustomCount] = useState<number>(3);
   const { user, loading: authLoading } = useAuth();
   const { effectiveTz } = useTimezone();
   const isAnonymous = !user?.email;
@@ -544,6 +547,10 @@ function Index() {
           <SpreadIconsRow
             onSelect={(spread) => {
               setShowDrawTypeHint(false);
+              if (spread === "custom") {
+                setCustomCountOpen(true);
+                return;
+              }
               navigate({
                 to: "/draw",
                 search: { spread },
