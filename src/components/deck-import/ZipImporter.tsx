@@ -1976,6 +1976,10 @@ function OracleWorkspace({
   const [liveRadiusLocal, setLiveRadiusLocal] = useState(liveRadius);
   useEffect(() => { setLiveRadiusLocal(liveRadius); }, [liveRadius]);
   const [showBackPicker, setShowBackPicker] = useState(false);
+  // 9-6-I — optimistic local override so picking a card-back updates
+  // the hero immediately, before the parent re-fetches the deck row.
+  const [localBackUrl, setLocalBackUrl] = useState<string | null>(null);
+  const effectiveBackUrl = localBackUrl ?? existingBackUrl;
   const safeIdx = oracleSlotIds.length === 0
     ? 0
     : ((previewIdx % oracleSlotIds.length) + oracleSlotIds.length) % oracleSlotIds.length;
@@ -2122,11 +2126,11 @@ function OracleWorkspace({
         >
           Card back
         </h3>
-        {existingBackUrl ? (
+        {effectiveBackUrl ? (
           <>
             <div style={{ width: "min(280px, 70vw)" }}>
               <img
-                src={existingBackUrl}
+                src={effectiveBackUrl}
                 alt="Card back"
                 style={{
                   width: "100%",
@@ -2228,6 +2232,9 @@ function OracleWorkspace({
           resolveSrc={resolveSrc}
           onPick={(k) => {
             onAssign(k, "BACK");
+            // 9-6-I — optimistically reflect the chosen image in the hero.
+            const resolved = resolveSrc(k);
+            if (resolved) setLocalBackUrl(resolved);
             setShowBackPicker(false);
           }}
           onCancel={() => setShowBackPicker(false)}
