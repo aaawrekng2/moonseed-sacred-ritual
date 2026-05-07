@@ -732,38 +732,8 @@ function DeckEditor({
             </div>
           )}
 
-          <button
-            type="button"
-            disabled={saving || !name.trim()}
-            onClick={async () => {
-              setSaving(true);
-              try {
-                const { data, error } = await supabase
-                  .from("custom_decks")
-                  .insert({
-                    user_id: userId,
-                    name: name.trim(),
-                    shape,
-                    corner_radius_percent: cornerRadius,
-                    deck_type: deckType,
-                  })
-                  .select("*")
-                  .single();
-                if (error) throw error;
-                // Fix 5 — go straight to card-back capture so the user
-                // sees their deck "exist" in the app immediately.
-                setMode({ kind: "back-capture", deckId: (data as CustomDeck).id });
-              } catch (err) {
-                toast.error(`Couldn't create deck: ${(err as Error).message}`);
-              } finally {
-                setSaving(false);
-              }
-            }}
-            className="inline-flex items-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-4 py-2 text-sm font-medium hover:bg-gold/20 disabled:opacity-50"
-          >
-            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            Continue → photograph cards
-          </button>
+          {(() => null)()}
+          <ContinueButton saving={saving} disabled={saving || !name.trim()} onClick={handleContinue} />
 
           {/* Bulk import entry — Stamp BH. Creates the deck row first so a
               cancelled import still leaves a recoverable empty deck. */}
