@@ -357,7 +357,7 @@ function DeckRow({
   };
 
   return (
-    <li className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-3 sm:flex-row sm:items-center">
+    <li className="flex flex-row items-center gap-3 rounded-lg border border-border/60 bg-card p-3">
       <button
         type="button"
         onClick={onEdit}
@@ -378,7 +378,7 @@ function DeckRow({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="truncate text-sm font-medium sm:text-base">{deck.name}</p>
-            {deck.is_active && (
+            {deck.is_active && deck.deck_type !== "oracle" && (
               <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-gold">
                 <Star className="h-3 w-3" /> Active
               </span>
@@ -407,30 +407,26 @@ function DeckRow({
         {menuOpen && (
           <div
             role="menu"
-            className="absolute right-0 top-full z-20 mt-1 flex min-w-[180px] flex-col rounded-md border border-border/60 bg-popover p-1 shadow-lg"
+            className="absolute right-0 top-full mt-1 flex min-w-[180px] flex-col rounded-md border p-1 shadow-lg"
+            style={{
+              background: "var(--surface-elevated, var(--background))",
+              borderColor: "var(--border-subtle)",
+              zIndex: "var(--z-popover, 50)" as unknown as number,
+            }}
           >
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuOpen(false);
-                onToggleActive();
-              }}
-              className="rounded px-2 py-1.5 text-left text-sm hover:bg-foreground/10"
-            >
-              {deck.is_active ? "Deactivate" : "Set active"}
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuOpen(false);
-                onEdit();
-              }}
-              className="rounded px-2 py-1.5 text-left text-sm hover:bg-foreground/10"
-            >
-              Edit
-            </button>
+            {deck.deck_type !== "oracle" && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onToggleActive();
+                }}
+                className="rounded px-2 py-1.5 text-left text-sm hover:bg-foreground/10"
+              >
+                {deck.is_active ? "Deactivate" : "Set active"}
+              </button>
+            )}
             <button
               type="button"
               onClick={(e) => {
@@ -470,13 +466,15 @@ function DeckRow({
       </div>
       {/* Desktop: original button group */}
       <div className="hidden flex-wrap items-center gap-2 sm:flex sm:flex-nowrap">
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onToggleActive(); }}
-          className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
-        >
-          {deck.is_active ? "Deactivate" : "Set active"}
-        </button>
+        {deck.deck_type !== "oracle" && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggleActive(); }}
+            className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10"
+          >
+            {deck.is_active ? "Deactivate" : "Set active"}
+          </button>
+        )}
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
@@ -642,6 +640,28 @@ function DeckEditor({
 
   // ---------- Step 1: deck details ----------
   if (mode.kind === "details") {
+    const handleContinue = async () => {
+      setSaving(true);
+      try {
+        const { data, error } = await supabase
+          .from("custom_decks")
+          .insert({
+            user_id: userId,
+            name: name.trim(),
+            shape,
+            corner_radius_percent: cornerRadius,
+            deck_type: deckType,
+          })
+          .select("*")
+          .single();
+        if (error) throw error;
+        setMode({ kind: "back-capture", deckId: (data as CustomDeck).id });
+      } catch (err) {
+        toast.error(`Couldn't create deck: ${(err as Error).message}`);
+      } finally {
+        setSaving(false);
+      }
+    };
     return (
       <section className="py-6">
         <header className="mb-6 flex items-center justify-between">
@@ -737,31 +757,8 @@ function DeckEditor({
           <button
             type="button"
             disabled={saving || !name.trim()}
-            onClick={async () => {
-              setSaving(true);
-              try {
-                const { data, error } = await supabase
-                  .from("custom_decks")
-                  .insert({
-                    user_id: userId,
-                    name: name.trim(),
-                    shape,
-                    corner_radius_percent: cornerRadius,
-                    deck_type: deckType,
-                  })
-                  .select("*")
-                  .single();
-                if (error) throw error;
-                // Fix 5 — go straight to card-back capture so the user
-                // sees their deck "exist" in the app immediately.
-                setMode({ kind: "back-capture", deckId: (data as CustomDeck).id });
-              } catch (err) {
-                toast.error(`Couldn't create deck: ${(err as Error).message}`);
-              } finally {
-                setSaving(false);
-              }
-            }}
-            className="inline-flex items-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-4 py-2 text-sm font-medium hover:bg-gold/20 disabled:opacity-50"
+            onClick={handleContinue}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-6 py-3 text-base font-medium hover:bg-gold/20 disabled:opacity-50"
           >
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
             Continue → photograph cards
@@ -807,6 +804,24 @@ function DeckEditor({
               }}
             >
               Already have your deck digitized? Import from zip
+            </button>
+          </div>
+
+          <div
+            className="sticky bottom-0 -mx-4 mt-6 border-t px-4 py-3"
+            style={{
+              background: "var(--background)",
+              borderColor: "var(--border-subtle)",
+            }}
+          >
+            <button
+              type="button"
+              disabled={saving || !name.trim()}
+              onClick={handleContinue}
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-6 py-3 text-base font-medium hover:bg-gold/20 disabled:opacity-50"
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              Continue → photograph cards
             </button>
           </div>
         </div>

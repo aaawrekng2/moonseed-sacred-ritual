@@ -87,6 +87,16 @@ export const fetchArchivedReadings = createServerFn({ method: "GET" })
       .eq("user_id", userId)
       .not("archived_at", "is", null)
       .order("archived_at", { ascending: false });
+    if (error) {
+      console.error("[fetchArchivedReadings] error", error);
+    } else {
+      console.log(
+        "[fetchArchivedReadings] userId=",
+        userId,
+        "count=",
+        data?.length ?? 0,
+      );
+    }
     return { readings: data ?? [], error: error?.message ?? null };
   });
 

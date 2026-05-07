@@ -124,7 +124,7 @@ function Index() {
     return () => window.clearTimeout(t);
   }, [deckLoading]);
   const navigate = useNavigate();
-  const { currentStreak, longestStreak } = useStreak();
+  const { currentStreak, longestStreak, lastDrawDate } = useStreak();
   // EG-4 — Streak glyph is locked to streak progression (NOT today's
   // sky moon phase). The MoonCarousel handles current-phase display.
   const [streakModalOpen, setStreakModalOpen] = useState(false);
@@ -719,18 +719,32 @@ function Index() {
             </div>
           );
         })()}
-        <p
-          className="text-center"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "var(--text-body-sm)",
-            color: "var(--foreground)",
-            opacity: 0.7,
-          }}
-        >
-          Pull a card today to keep the moon waxing.
-        </p>
+        {(() => {
+          const today = (() => {
+            const d = new Date();
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            return `${y}-${m}-${day}`;
+          })();
+          const hasDrawnToday = lastDrawDate === today;
+          if (hasDrawnToday || currentStreak <= 0) return null;
+          return (
+            <p
+              className="text-center"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body-lg)",
+                fontWeight: 600,
+                color: "var(--foreground)",
+                opacity: 0.95,
+              }}
+            >
+              Pull a card today to keep the moon waxing.
+            </p>
+          );
+        })()}
       </DialogContent>
     </Dialog>
     </>

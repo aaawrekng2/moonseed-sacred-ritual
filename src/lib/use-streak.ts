@@ -27,6 +27,7 @@ type StreakRow = {
 export function useStreak(): {
   currentStreak: number;
   longestStreak: number;
+  lastDrawDate: string | null;
   loading: boolean;
   recordDraw: () => Promise<void>;
 } {
@@ -91,5 +92,5 @@ export function useStreak(): {
     );
   }, [user, lastDrawDate, currentStreak, longestStreak]);
 
-  return { currentStreak, longestStreak, loading, recordDraw };
+  return { currentStreak, longestStreak, lastDrawDate, loading, recordDraw };
 }
