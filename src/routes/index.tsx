@@ -124,7 +124,7 @@ function Index() {
     return () => window.clearTimeout(t);
   }, [deckLoading]);
   const navigate = useNavigate();
-  const { currentStreak, longestStreak } = useStreak();
+  const { currentStreak, longestStreak, lastDrawDate } = useStreak();
   // EG-4 — Streak glyph is locked to streak progression (NOT today's
   // sky moon phase). The MoonCarousel handles current-phase display.
   const [streakModalOpen, setStreakModalOpen] = useState(false);
