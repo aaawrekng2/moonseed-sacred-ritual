@@ -713,7 +713,7 @@ export function ZipImporter({
       }
       return prev;
     });
-  }, [mutate, shape, cornerRadiusPercent, runSave, runRemove]);
+  }, [mutate, shape, cornerRadiusPercent, runSave, runRemove, beginSave, endSave, deckId]);
 
   const handleSkip = useCallback((imageKey: string) => {
     mutate((s) => {
