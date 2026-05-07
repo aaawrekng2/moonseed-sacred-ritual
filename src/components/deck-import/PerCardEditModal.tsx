@@ -1011,6 +1011,22 @@ export function PerCardEditModal({
                       Reset zoom
                     </button>
                   ) : null}
+                  {crop && imgDims ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCrop(defaultCropFor(imgDims.w, imgDims.h));
+                        renderCanvasPreview();
+                      }}
+                      className="text-xs italic underline-offset-4 hover:underline"
+                      style={{
+                        color: "var(--color-foreground)",
+                        opacity: 0.6,
+                      }}
+                    >
+                      Reset crop
+                    </button>
+                  ) : null}
                 </div>
                 {/* Phase 9-5-B Part 2 — Reset to deck default. Only
                     visible when the active card is an explicit
