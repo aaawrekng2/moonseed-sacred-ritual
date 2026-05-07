@@ -418,15 +418,12 @@ export function CardPicker({
                 )}
                 style={{ touchAction: "manipulation" }}
               >
-                <div className="relative aspect-[0.625] w-full bg-black">
+                <div className="relative aspect-[0.625] w-full">
                   <img
                     src={src}
                     alt=""
                     loading="lazy"
-                    className={cn(
-                      "h-full w-full",
-                      deckId ? "object-contain" : "object-cover",
-                    )}
+                    className="h-full w-full object-contain"
                     style={
                       dimDefault
                         ? { opacity: 0.3, filter: "grayscale(100%)" }
@@ -506,17 +503,12 @@ function ConfirmReversed({
       {/* 9-6-H — tighter sizing so Back/Confirm fit on short bottom sheets. */}
       <div className="flex flex-col items-center justify-start gap-3 p-4">
         <div className="w-32">
-          <div className="aspect-[0.625] overflow-hidden rounded-xl border border-border/40 bg-black shadow-xl">
-            <img
-              src={src}
-              alt=""
-              className={cn(
-                "h-full w-full",
-                deckId ? "object-contain" : "object-cover",
-              )}
-              style={{ transform: isReversed ? "rotate(180deg)" : undefined }}
-            />
-          </div>
+          <AdaptiveCardImage
+            src={src}
+            reversed={isReversed}
+            borderRadius={12}
+            className="border border-border/40 shadow-xl"
+          />
         </div>
         <label className="flex cursor-pointer items-center gap-2 text-sm">
           <input
@@ -578,12 +570,12 @@ function ReviewPhoto({
           {getCardName(cardIndex)}
         </div>
         <div className="w-56">
-          <div
-            className="aspect-[0.625] overflow-hidden rounded-lg border"
-            style={{ borderColor: "var(--border-subtle)", background: "#000" }}
-          >
-            <img src={src} alt="" className="h-full w-full object-cover" />
-          </div>
+          <AdaptiveCardImage
+            src={src}
+            borderRadius={8}
+            className="border"
+            style={{ borderColor: "var(--border-subtle)" }}
+          />
         </div>
         <div className="flex w-full gap-3">
           <button
