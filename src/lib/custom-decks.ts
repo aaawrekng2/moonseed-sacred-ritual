@@ -143,14 +143,19 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
     } catch (err) {
       console.warn("[buildDeckImageMap] batch sign threw", err);
     }
-    for (const c of cards) {
-      if (c.source === "default") continue;
-      if (!map.display[c.card_id] && c.display_url) {
-        map.display[c.card_id] = c.display_url;
-      }
-      if (!map.thumbnail[c.card_id] && c.thumbnail_url) {
-        map.thumbnail[c.card_id] = c.thumbnail_url;
-      }
+  }
+  // 9-6-J — ALWAYS run the stored-URL fallback, not just inside the
+  // catch path. Batch sign can succeed without returning entries for
+  // every requested path; without this, oracle cards (IDs ≥ 1000)
+  // get no display URL and resolveCardImage previously fell through
+  // to /cards/card-1009.jpg (404).
+  for (const c of cards) {
+    if (c.source === "default") continue;
+    if (!map.display[c.card_id] && c.display_url) {
+      map.display[c.card_id] = c.display_url;
+    }
+    if (!map.thumbnail[c.card_id] && c.thumbnail_url) {
+      map.thumbnail[c.card_id] = c.thumbnail_url;
     }
   }
   // Pull the deck row separately for back image.
@@ -204,7 +209,13 @@ export function resolveCardImage(
   size: "display" | "thumbnail" = "display",
 ): string {
   const override = map ? map[size][cardIndex] : undefined;
-  return override ?? getDefaultCardImagePath(cardIndex);
+  if (override) return override;
+  // 9-6-J — oracle card IDs (≥ 1000) have no Rider-Waite default.
+  // Returning the constructed `/cards/card-1009.jpg` path produces a
+  // hard 404 in the network panel. Return an empty string so the
+  // consumer renders a placeholder/empty card instead.
+  if (cardIndex >= 1000) return "";
+  return getDefaultCardImagePath(cardIndex);
 }
 
 /**
