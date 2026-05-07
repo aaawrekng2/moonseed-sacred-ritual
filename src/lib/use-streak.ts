@@ -37,31 +37,42 @@ export function useStreak(): {
   const [lastDrawDate, setLastDrawDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (authLoading) return;
+  const loadStreak = useCallback(async () => {
     if (!user) {
+      setCurrentStreak(0);
+      setLongestStreak(0);
+      setLastDrawDate(null);
       setLoading(false);
       return;
     }
-    let cancelled = false;
-    void (async () => {
-      const { data } = await supabase
-        .from("user_streaks")
-        .select("current_streak, longest_streak, last_draw_date")
-        .eq("user_id", user.id)
-        .maybeSingle<StreakRow>();
-      if (cancelled) return;
-      if (data) {
-        setCurrentStreak(data.current_streak);
-        setLongestStreak(data.longest_streak);
-        setLastDrawDate(data.last_draw_date);
-      }
-      setLoading(false);
-    })();
-    return () => {
-      cancelled = true;
+    const { data } = await supabase
+      .from("user_streaks")
+      .select("current_streak, longest_streak, last_draw_date")
+      .eq("user_id", user.id)
+      .maybeSingle<StreakRow>();
+    if (data) {
+      setCurrentStreak(data.current_streak);
+      setLongestStreak(data.longest_streak);
+      setLastDrawDate(data.last_draw_date);
+    }
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    void loadStreak();
+  }, [authLoading, loadStreak]);
+
+  // 9-6-N — listen for cross-instance updates so the home page's
+  // streak modal sees today's draw recorded by /draw.
+  useEffect(() => {
+    const onUpdate = () => {
+      void loadStreak();
     };
-  }, [user, authLoading]);
+    window.addEventListener("arcana:streak-updated", onUpdate);
+    return () =>
+      window.removeEventListener("arcana:streak-updated", onUpdate);
+  }, [loadStreak]);
 
   const recordDraw = useCallback(async () => {
     if (!user) return;
@@ -90,6 +101,10 @@ export function useStreak(): {
       },
       { onConflict: "user_id" },
     );
+    // 9-6-N — notify other useStreak instances to refetch.
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("arcana:streak-updated"));
+    }
   }, [user, lastDrawDate, currentStreak, longestStreak]);
 
   return { currentStreak, longestStreak, lastDrawDate, loading, recordDraw };
