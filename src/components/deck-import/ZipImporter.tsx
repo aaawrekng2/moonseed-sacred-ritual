@@ -1724,11 +1724,11 @@ function Workspace({
         </button>
       </div>
 
-      {/* 9-6-N — sticky bottom Done. Always visible while scrolling
-          long deck pages so the user doesn't have to scroll to exit. */}
+      {/* 9-6-P — sticky bottom Done: anchored above bottom nav, smaller. */}
       <div
-        className="sticky bottom-0 left-0 right-0 mt-4 -mx-3 border-t px-3 py-3"
+        className="sticky left-0 right-0 mt-4 -mx-3 border-t px-3 py-2"
         style={{
+          bottom: "calc(64px + env(safe-area-inset-bottom, 0px))",
           background: "var(--surface-elevated, var(--background))",
           borderColor: "var(--border-subtle)",
           zIndex: 10,
@@ -1737,11 +1737,11 @@ function Workspace({
         <button
           type="button"
           onClick={onCancel}
-          className="w-full px-4 py-3 font-medium"
+          className="w-full px-4 py-2 font-medium"
           style={{
             background: "var(--accent)",
             color: "var(--accent-foreground, #000)",
-            fontSize: "var(--text-body)",
+            fontSize: "var(--text-body-sm)",
             borderRadius: 8,
           }}
         >
