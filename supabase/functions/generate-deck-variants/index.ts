@@ -140,7 +140,7 @@ const BATCH_SIZE = 1;
 // 9-6-R — downscale source to this width immediately after decode.
 // 2x our largest variant (400px) for downscale quality, but small
 // enough to keep raw RGBA buffers ~MB instead of tens of MB.
-const WORKING_WIDTH = 800;
+const WORKING_WIDTH = 600;
 
 function variantPathFor(originalPath: string, suffix: "sm" | "md"): string | null {
   // Match `<...>/card-N-TS(-thumb)?.<ext>` and replace the filename.
