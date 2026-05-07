@@ -36,7 +36,12 @@ export type CardPickerProps = {
   showReversedToggle?: boolean;
   /** Optional override for the per-card thumbnail src (used by deck photography). */
   resolveImageSrc?: (cardIndex: number) => string;
-  onSelect: (cardIndex: number, isReversed: boolean) => void;
+  onSelect: (
+    cardIndex: number,
+    isReversed: boolean,
+    deckId: string | null,
+    cardName: string,
+  ) => void;
   onCancel: () => void;
   /** Optional title shown in the header. */
   title?: string;
@@ -183,7 +188,13 @@ export function CardPicker({
       setPendingReversed(false);
       return;
     }
-    onSelect(cardIndex, false);
+    const item = cards.find((c) => c.idx === cardIndex);
+    onSelect(
+      cardIndex,
+      false,
+      deckId ?? null,
+      item?.name ?? getCardName(cardIndex) ?? `Card ${cardIndex}`,
+    );
   };
 
   if (pendingId !== null) {
@@ -195,7 +206,14 @@ export function CardPicker({
         isReversed={pendingReversed}
         onToggle={setPendingReversed}
         onBack={() => setPendingId(null)}
-        onConfirm={() => onSelect(pendingId, pendingReversed)}
+        onConfirm={() =>
+          onSelect(
+            pendingId,
+            pendingReversed,
+            deckId ?? null,
+            pendingItem?.name ?? getCardName(pendingId) ?? `Card ${pendingId}`,
+          )
+        }
         resolveImageSrc={(i) => resolveImg(i, "display")}
         embedded={embedded}
         deckId={deckId ?? null}
@@ -221,7 +239,12 @@ export function CardPicker({
           onRetake={() => {
             const id = reviewingCardId;
             setReviewingCardId(null);
-            onSelect(id, false);
+            onSelect(
+              id,
+              false,
+              deckId ?? null,
+              getCardName(id) ?? `Card ${id}`,
+            );
           }}
           onDone={() => setReviewingCardId(null)}
         />
