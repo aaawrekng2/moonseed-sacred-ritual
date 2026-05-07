@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 type EmptyHeroCta = {
   label: string;
@@ -13,8 +13,9 @@ type EmptyHeroProps = {
   /** Headline. Italic serif, var(--text-heading-sm), opacity 0.85. */
   title: string;
   /** Optional supporting prose. Italic serif, var(--text-body-sm),
-   * opacity 0.7, lineHeight 1.7, max-w-md. */
-  subtitle?: string;
+   * opacity 0.7, lineHeight 1.7, max-w-md. ReactNode so callers can
+   * pass multi-paragraph explanations. */
+  subtitle?: ReactNode;
   /** Optional call-to-action button. */
   cta?: EmptyHeroCta;
   className?: string;
