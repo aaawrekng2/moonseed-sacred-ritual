@@ -639,6 +639,54 @@ export function ZipImporter({
         if (img) void runSave(slot, img, imageKey);
         return cur;
       });
+    } else if (slot === BACK_KEY) {
+      // 9-6-J — picking an EXISTING (already-saved) card image as the
+      // deck back. The image is already in storage, so we just copy
+      // its display_path/url onto custom_decks.card_back_* without
+      // re-uploading.
+      const sourceCardId = parseInt(
+        imageKey.replace("EXISTING:", ""),
+        10,
+      );
+      if (Number.isFinite(sourceCardId)) {
+        beginSave();
+        void (async () => {
+          try {
+            const { data: row } = await supabase
+              .from("custom_deck_cards")
+              .select("display_url, display_path, thumbnail_url, thumbnail_path")
+              .eq("deck_id", deckId)
+              .eq("card_id", sourceCardId)
+              .is("archived_at", null)
+              .maybeSingle();
+            if (row) {
+              const r = row as {
+                display_url: string | null;
+                display_path: string | null;
+                thumbnail_url: string | null;
+                thumbnail_path: string | null;
+              };
+              await supabase
+                .from("custom_decks")
+                .update({
+                  card_back_url: r.display_url,
+                  card_back_path: r.display_path,
+                  card_back_thumb_url: r.thumbnail_url,
+                  card_back_thumb_path: r.thumbnail_path,
+                } as never)
+                .eq("id", deckId);
+              // 9-6-J — Fix 7: notify listeners so the home hero refetches.
+              if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("arcana:deck-back-updated"));
+              }
+            }
+          } catch (err) {
+            console.warn("[BACK from EXISTING] persist failed", err);
+          } finally {
+            endSave();
+          }
+        })();
+      }
     }
     // CB — if we displaced an image from another slot, archive that
     // slot's row in Supabase too.
