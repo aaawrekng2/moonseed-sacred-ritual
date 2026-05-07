@@ -130,9 +130,12 @@ const VARIANTS: VariantSpec[] = [
 // FB-6 — process cards in CHUNKS to stay well under the 150s
 // Edge Function timeout. The client (Settings → Decks Optimize
 // button) loops the call with the returned cursor until null.
-// 9-6-R — reduced to 3 to give the Deno worker headroom for cold
-// starts and ImageMagick WebP overhead even with downscaled working images.
-const BATCH_SIZE = 3;
+// 9-6-S — reduced to 1. WORKER_RESOURCE_LIMIT (CPU time) was triggering
+// at BATCH_SIZE=3 on oracle decks. The batch loop now uses pure
+// ImageMagick (WASM) for resize/encode, which is dramatically faster
+// than imagescript's JS pipeline, but a single card per invocation
+// still gives the safest CPU budget.
+const BATCH_SIZE = 1;
 
 // 9-6-R — downscale source to this width immediately after decode.
 // 2x our largest variant (400px) for downscale quality, but small
@@ -549,7 +552,7 @@ serve(async (req) => {
         skipped++;
         continue;
       }
-      let working: Image | null = null;
+      let sourceBytes: Uint8Array | null = null;
       try {
         // 9-6-R — short-circuit if BOTH variants already exist; avoids
         // a full download + decode just to discover everything is done.
@@ -597,31 +600,34 @@ serve(async (req) => {
             continue;
           }
 
-          if (!working) {
+          if (!sourceBytes) {
             const dl = await admin.storage
               .from(BUCKET)
               .download(c.display_path);
             if (dl.error || !dl.data) {
               throw dl.error ?? new Error("download failed");
             }
-            const bytes = new Uint8Array(await dl.data.arrayBuffer());
-            const fullDecoded = await decodeAny(bytes);
-            // 9-6-R — immediately downscale to WORKING_WIDTH so the
-            // full-res RGBA buffer (potentially 50+ MB) is GC-eligible
-            // before we generate variants.
-            if (fullDecoded.width > WORKING_WIDTH) {
-              const ratio = WORKING_WIDTH / fullDecoded.width;
-              const targetH = Math.max(1, Math.round(fullDecoded.height * ratio));
-              working = fullDecoded.clone().resize(WORKING_WIDTH, targetH);
-            } else {
-              working = fullDecoded;
-            }
+            sourceBytes = new Uint8Array(await dl.data.arrayBuffer());
+            await ensureMagick();
           }
 
-          const ratio = v.width / working.width;
-          const targetH = Math.max(1, Math.round(working.height * ratio));
-          const resized = working.clone().resize(v.width, targetH);
-          const jpeg = await resized.encodeJPEG(85);
+          // 9-6-S — pure ImageMagick pipeline. Decode + resize +
+          // JPEG encode all happen in WASM, no imagescript JS loops.
+          const jpeg = await new Promise<Uint8Array>((resolve, reject) => {
+            try {
+              ImageMagick.read(sourceBytes!, (img) => {
+                const ratio = v.width / img.width;
+                const targetH = Math.max(1, Math.round(img.height * ratio));
+                img.resize(v.width, targetH);
+                img.quality = 85;
+                img.write(MagickFormat.Jpeg, (data) => {
+                  resolve(new Uint8Array(data));
+                });
+              });
+            } catch (e) {
+              reject(e);
+            }
+          });
 
           const up = await admin.storage
             .from(BUCKET)
@@ -641,9 +647,8 @@ serve(async (req) => {
           reason,
         );
       } finally {
-        // 9-6-R — explicit cleanup so the Image's pixel buffer is
-        // eligible for GC before the next iteration.
-        working = null;
+        // 9-6-S — drop reference to source bytes so they're GC-eligible.
+        sourceBytes = null;
       }
     }
 
