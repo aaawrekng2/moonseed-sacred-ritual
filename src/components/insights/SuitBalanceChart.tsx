@@ -57,7 +57,7 @@ export function SuitBalanceChart({
         ))}
       </div>
       <div
-        className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-4"
+        className="mt-2 grid grid-cols-4 gap-1"
         style={{
           fontSize: "var(--text-caption, 0.65rem)",
           color: "var(--color-foreground)",
@@ -68,7 +68,7 @@ export function SuitBalanceChart({
         {entries.map((e) => (
           <div
             key={e.key}
-            className="flex flex-row items-center justify-between gap-2 sm:flex-col sm:items-start sm:justify-start sm:gap-0.5"
+            className="flex flex-col items-start justify-start gap-0.5"
           >
             <span>{SUIT_LABEL[e.key]}</span>
             <span className="tabular-nums" style={{ opacity: 0.8 }}>

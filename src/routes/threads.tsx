@@ -403,8 +403,17 @@ function ActiveView({
   if (patterns.length === 0) {
     return (
       <EmptyHero
-        title="No active stories yet."
-        subtitle="Keep drawing — they emerge in their own time."
+        title="No stories yet."
+        subtitle={
+          <>
+            <p style={{ margin: 0 }}>
+              Stories emerge when the same cards return across multiple readings.
+            </p>
+            <p style={{ marginTop: 8, opacity: 0.8 }}>
+              Keep drawing — patterns reveal themselves over time.
+            </p>
+          </>
+        }
       />
     );
   }

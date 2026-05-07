@@ -3,7 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { MoonStreakIcon } from "@/components/streak/MoonStreakIcon";
-import { streakPhaseState } from "@/lib/streak-phase";
+import {
+  streakPhaseState,
+  STREAK_ELEMENT_COLORS,
+  type StreakElement,
+} from "@/lib/streak-phase";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { CardImage } from "@/components/card/CardImage";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
@@ -582,49 +586,134 @@ function Index() {
             })()}
           </DialogDescription>
         </DialogHeader>
-        {/* 9-6-I — editorial restraint: single italic line with day count,
-            "Longest" only shown when it differs from current. */}
-        <div
-          className="flex flex-col items-center gap-6 py-4"
-          style={{ fontFamily: "var(--font-serif)" }}
-        >
-          <div className="flex items-baseline gap-3">
-            <span
-              style={{
-                fontSize: "var(--text-display, 48px)",
-                color: "var(--accent, var(--gold))",
-                fontStyle: "italic",
-                lineHeight: 1,
-              }}
+        {/* 9-6-J — full Earth → Water → Air → Fire phase ladder. */}
+        {(() => {
+          const phases: { element: StreakElement; label: string; range: [number, number] }[] = [
+            { element: "earth", label: "Earth", range: [1, 12] },
+            { element: "water", label: "Water", range: [13, 24] },
+            { element: "air", label: "Air", range: [25, 36] },
+            { element: "fire", label: "Fire", range: [37, 48] },
+          ];
+          const { element: currentElement } = streakPhaseState(currentStreak);
+          return (
+            <div
+              className="flex flex-col items-center gap-6 py-4"
+              style={{ fontFamily: "var(--font-serif)" }}
             >
-              {currentStreak}
-            </span>
-            <span
-              style={{
-                fontSize: "var(--text-body-sm)",
-                color: "var(--foreground)",
-                opacity: 0.6,
-                fontStyle: "italic",
-              }}
-            >
-              day{currentStreak === 1 ? "" : "s"} of practice
-            </span>
-          </div>
-          {longestStreak > currentStreak ? (
-            <p
-              style={{
-                fontSize: "var(--text-body-sm)",
-                color: "var(--foreground)",
-                opacity: 0.5,
-                fontStyle: "italic",
-                textAlign: "center",
-                margin: 0,
-              }}
-            >
-              Longest: {longestStreak} day{longestStreak === 1 ? "" : "s"}
-            </p>
-          ) : null}
-        </div>
+              <div className="flex items-baseline gap-3">
+                <span
+                  style={{
+                    fontSize: "var(--text-display, 48px)",
+                    color: "var(--accent, var(--gold))",
+                    fontStyle: "italic",
+                    lineHeight: 1,
+                  }}
+                >
+                  {currentStreak}
+                </span>
+                <span
+                  style={{
+                    fontSize: "var(--text-body-sm)",
+                    color: "var(--foreground)",
+                    opacity: 0.6,
+                    fontStyle: "italic",
+                  }}
+                >
+                  day{currentStreak === 1 ? "" : "s"} of practice
+                </span>
+              </div>
+              <div className="flex w-full flex-col gap-3">
+                {phases.map((phase) => {
+                  const isActive = currentElement === phase.element;
+                  const isComplete = currentStreak > phase.range[1];
+                  const inProgress = isActive
+                    ? Math.min(
+                        100,
+                        ((currentStreak - phase.range[0] + 1) / 12) * 100,
+                      )
+                    : isComplete
+                      ? 100
+                      : 0;
+                  const elementColor = STREAK_ELEMENT_COLORS[phase.element];
+                  return (
+                    <div key={phase.element} className="flex flex-col gap-1">
+                      <div className="flex items-baseline justify-between">
+                        <span
+                          style={{
+                            fontStyle: "italic",
+                            fontSize: "var(--text-body-sm)",
+                            color: isActive
+                              ? elementColor
+                              : "var(--foreground)",
+                            opacity: isActive ? 1 : isComplete ? 0.7 : 0.4,
+                          }}
+                        >
+                          Phase: {phase.label}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "var(--text-caption)",
+                            color: "var(--foreground)",
+                            opacity: 0.5,
+                          }}
+                        >
+                          days {phase.range[0]}–{phase.range[1]}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          height: 4,
+                          width: "100%",
+                          background:
+                            "color-mix(in oklab, var(--foreground) 15%, transparent)",
+                          borderRadius: 999,
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: "100%",
+                            width: `${inProgress}%`,
+                            background: elementColor,
+                            transition: "width 200ms ease-out",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {currentStreak >= 48 ? (
+                <p
+                  style={{
+                    fontSize: "var(--text-body-sm)",
+                    color: STREAK_ELEMENT_COLORS.fire,
+                    fontStyle: "italic",
+                    textAlign: "center",
+                    opacity: 0.85,
+                    margin: 0,
+                  }}
+                >
+                  The fire holds. Practice continues.
+                </p>
+              ) : null}
+              {longestStreak > currentStreak ? (
+                <p
+                  style={{
+                    fontSize: "var(--text-body-sm)",
+                    color: "var(--foreground)",
+                    opacity: 0.5,
+                    fontStyle: "italic",
+                    textAlign: "center",
+                    margin: 0,
+                  }}
+                >
+                  Longest: {longestStreak} day{longestStreak === 1 ? "" : "s"}
+                </p>
+              ) : null}
+            </div>
+          );
+        })()}
         <p
           className="text-center"
           style={{

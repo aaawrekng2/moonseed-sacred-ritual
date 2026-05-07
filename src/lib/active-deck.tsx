@@ -81,6 +81,10 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(
     () => readCachedDeck().deck === null,
   );
+  // 9-6-J — bumped by the global "arcana:deck-back-updated" event so
+  // edits to the active deck's card back invalidate the cached image
+  // map and the home hero re-fetches.
+  const [refreshTick, setRefreshTick] = useState(0);
 
   const refresh = useCallback(async () => {
     // EE-3 — While auth is still resolving, keep loading=true so the
@@ -124,7 +128,16 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, refreshTick]);
+
+  // 9-6-J — re-fetch when any code path edits the deck back image.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onUpdate = () => setRefreshTick((n) => n + 1);
+    window.addEventListener("arcana:deck-back-updated", onUpdate);
+    return () =>
+      window.removeEventListener("arcana:deck-back-updated", onUpdate);
+  }, []);
 
   const value = useMemo<Ctx>(
     () => ({ activeDeck, imageMap, loading, refresh }),

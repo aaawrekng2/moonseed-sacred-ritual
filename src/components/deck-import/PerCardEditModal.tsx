@@ -332,6 +332,15 @@ export function PerCardEditModal({
     setCrop(saved ?? defaultCropFor(imgDims.w, imgDims.h));
   }, [activeCardId, imgDims, savedCrops]);
 
+  // 9-6-J — Re-render the canvas preview whenever crop coords change
+  // so dragged corners reflect on the rasterized output (not just on
+  // pointerup). Also clears the cached preview so the live IMG (with
+  // crop overlay) is shown during interaction.
+  useEffect(() => {
+    if (!crop) return;
+    setCanvasPreview(null);
+  }, [crop]);
+
   // FF-1 — observe rendered size of the preview IMG. Fires on initial
   // mount, modal resize, viewport rotation, and whenever the image
   // node is swapped out for a new card.
@@ -373,6 +382,10 @@ export function PerCardEditModal({
         const result = (data ?? {}) as { ok?: boolean; error?: string };
         if (!result.ok) throw new Error(result.error ?? "Processing failed.");
         setVersion((v) => v + 1);
+        // 9-6-J — Fix 7: notify ActiveDeckProvider to refetch.
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("arcana:deck-back-updated"));
+        }
         toast.success("Card back saved.");
         return;
       }
@@ -1014,8 +1027,27 @@ export function PerCardEditModal({
                   {crop && imgDims ? (
                     <button
                       type="button"
-                      onClick={() => {
-                        setCrop(defaultCropFor(imgDims.w, imgDims.h));
+                      onClick={async () => {
+                        const def = defaultCropFor(imgDims.w, imgDims.h);
+                        setCrop(def);
+                        // 9-6-J — also clear saved crop in DB so the
+                        // reset survives reopen of the same card.
+                        if (activeCardId !== null && !backMode) {
+                          try {
+                            await supabase
+                              .from("custom_deck_cards")
+                              .update({ crop_coords: null } as never)
+                              .eq("deck_id", deckId)
+                              .eq("card_id", activeCardId);
+                            setSavedCrops((prev) => {
+                              const next = { ...prev };
+                              delete next[activeCardId];
+                              return next;
+                            });
+                          } catch (err) {
+                            console.warn("[Reset crop] DB clear failed", err);
+                          }
+                        }
                         renderCanvasPreview();
                       }}
                       className="text-xs italic underline-offset-4 hover:underline"
