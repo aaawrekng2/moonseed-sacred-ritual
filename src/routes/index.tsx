@@ -3,7 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { MoonCarousel } from "@/components/moon/MoonCarousel";
 import { MoonStreakIcon } from "@/components/streak/MoonStreakIcon";
-import { streakPhaseState } from "@/lib/streak-phase";
+import {
+  streakPhaseState,
+  STREAK_ELEMENT_COLORS,
+  type StreakElement,
+} from "@/lib/streak-phase";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { CardImage } from "@/components/card/CardImage";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
