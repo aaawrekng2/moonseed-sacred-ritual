@@ -179,7 +179,6 @@ export function CardImage({
   // letterbox inside the wrapper.
   const [faceAspect, setFaceAspect] = useState<number | null>(null);
   const [backAspect, setBackAspect] = useState<number | null>(null);
-  const imgAspect = faceAspect;
 
   useEffect(() => {
     setFaceAspect(null);
