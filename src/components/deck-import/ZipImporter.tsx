@@ -2630,13 +2630,15 @@ function AssignedGrid({
         <div className="relative">
           <button
             type="button"
-            onClick={() => onTap(BACK_KEY, backKey ?? "EXISTING:BACK")}
+            // 9-6-O — tapping the back tile reopens the picker so the
+            // user can pick a different back, instead of zooming.
+            onClick={onTapBack}
             className="relative block aspect-[0.625] w-full overflow-hidden rounded border"
             style={{
               borderColor: "var(--accent)",
               background: "var(--surface-card)",
             }}
-            title="Card Back — tap to view"
+            title="Card Back — tap to choose a different one"
           >
             {effectiveBackSrc && (
               <img src={effectiveBackSrc} alt="Card Back" className="h-full w-full object-cover" />
