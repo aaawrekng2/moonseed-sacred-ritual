@@ -693,6 +693,8 @@ function DeckEditor({
   );
   // Grid-view "Retake / Done" review modal — Stamp BI Fix 2.
   const [reviewingCardId, setReviewingCardId] = useState<number | null>(null);
+  // 9-6-W — tap a tile to open the per-card crop + radius editor.
+  const [editingCardId, setEditingCardId] = useState<number | null>(null);
   // BL Fix 8 — resume-prompt state
   const [resumePrompt, setResumePrompt] = useState<
     | null
