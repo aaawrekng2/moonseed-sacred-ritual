@@ -73,23 +73,33 @@ async function markHintHardDismissed(
     writeAnonHardDismissed({ ...cur, [hintId]: true });
     return;
   }
-  const { data } = await supabase
+  // 9-6-H — explicit insert/update branch with error logging. Some RLS
+  // setups treat upsert's INSERT path differently than UPDATE; logging
+  // either failure surfaces the real cause when persistence breaks.
+  const { data: existing, error: selErr } = await supabase
     .from("user_preferences")
-    .select("dismissed_hints")
+    .select("user_id, dismissed_hints")
     .eq("user_id", userId)
     .maybeSingle();
+  if (selErr) {
+    console.warn("[markHintHardDismissed] select error", selErr);
+  }
   const cur =
-    ((data as { dismissed_hints?: Record<string, boolean> } | null)
+    ((existing as { dismissed_hints?: Record<string, boolean> } | null)
       ?.dismissed_hints) ?? {};
-  await supabase
-    .from("user_preferences")
-    .upsert(
-      {
-        user_id: userId,
-        dismissed_hints: { ...cur, [hintId]: true },
-      } as never,
-      { onConflict: "user_id" },
-    );
+  const next = { ...cur, [hintId]: true };
+  if (existing) {
+    const { error: updErr } = await supabase
+      .from("user_preferences")
+      .update({ dismissed_hints: next } as never)
+      .eq("user_id", userId);
+    if (updErr) console.warn("[markHintHardDismissed] update error", updErr);
+  } else {
+    const { error: insErr } = await supabase
+      .from("user_preferences")
+      .insert({ user_id: userId, dismissed_hints: next } as never);
+    if (insErr) console.warn("[markHintHardDismissed] insert error", insErr);
+  }
 }
 
 export type HintPosition = "top" | "bottom" | "left" | "right";

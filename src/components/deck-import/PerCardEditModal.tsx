@@ -66,6 +66,10 @@ type Props = {
   /** 9-5-D — open the modal scrolled to a specific card if provided
    *  AND that card is in the photographed list. */
   initialCardId?: number;
+  /** 9-6-H — when true, edit the deck's card back instead of a card.
+   *  Card list is hidden, Apply-to-all is hidden, and Save writes to
+   *  custom_decks.card_back_path via the processBack edge fn path. */
+  backMode?: boolean;
   onClose: () => void;
 };
 
@@ -74,6 +78,7 @@ export function PerCardEditModal({
   deckName,
   defaultRadiusPercent,
   initialCardId,
+  backMode = false,
   onClose,
 }: Props) {
   const confirm = useConfirm();
@@ -157,6 +162,38 @@ export function PerCardEditModal({
     let cancelled = false;
     void (async () => {
       try {
+        // 9-6-H — backMode: load card_back_path off the deck row instead
+        // of the card list.
+        if (backMode) {
+          const { data: deck } = await supabase
+            .from("custom_decks")
+            .select("card_back_path, card_back_url, corner_radius_percent")
+            .eq("id", deckId)
+            .maybeSingle();
+          if (cancelled) return;
+          const path = (deck as { card_back_path?: string | null } | null)
+            ?.card_back_path ?? null;
+          let url: string | null =
+            ((deck as { card_back_url?: string | null } | null)
+              ?.card_back_url) ?? null;
+          if (path) {
+            const { data: signed } = await supabase.storage
+              .from("custom-deck-images")
+              .createSignedUrl(path, 60 * 60);
+            if (signed?.signedUrl) url = signed.signedUrl;
+          }
+          if (cancelled) return;
+          // Use a sentinel id (-1) for the back so existing render code
+          // (which keys on activeCardId) keeps working without rewrites.
+          const BACK_ID = -1;
+          if (url) setSignedUrls({ [BACK_ID]: url });
+          setCards([]);
+          setActiveCardId(BACK_ID);
+          const cr = (deck as { corner_radius_percent?: number | null } | null)
+            ?.corner_radius_percent;
+          setRadius(typeof cr === "number" ? cr : defaultRadiusPercent);
+          return;
+        }
         const list = await fetchDeckCards(deckId);
         if (cancelled) return;
         const photographed = list
@@ -239,7 +276,7 @@ export function PerCardEditModal({
     return () => {
       cancelled = true;
     };
-  }, [deckId, defaultRadiusPercent, initialCardId]);
+  }, [deckId, defaultRadiusPercent, initialCardId, backMode]);
 
   const activeUrl = useMemo(
     () => (activeCardId !== null ? signedUrls[activeCardId] ?? null : null),
@@ -314,6 +351,31 @@ export function PerCardEditModal({
     if (activeCardId === null || busy) return;
     setBusy(true);
     try {
+      // 9-6-H — backMode save: write radius to custom_decks and ask the
+      // edge function to bake the card back image.
+      if (backMode) {
+        const { error: updErr } = await supabase
+          .from("custom_decks")
+          .update({ corner_radius_percent: radius } as never)
+          .eq("id", deckId);
+        if (updErr) throw updErr;
+        const { data: sess } = await supabase.auth.getSession();
+        const jwt = sess.session?.access_token;
+        if (!jwt) throw new Error("Not signed in.");
+        const { data, error } = await supabase.functions.invoke(
+          "generate-deck-variants",
+          {
+            body: { deckId, processBack: true },
+            headers: { Authorization: `Bearer ${jwt}` },
+          },
+        );
+        if (error) throw error;
+        const result = (data ?? {}) as { ok?: boolean; error?: string };
+        if (!result.ok) throw new Error(result.error ?? "Processing failed.");
+        setVersion((v) => v + 1);
+        toast.success("Card back saved.");
+        return;
+      }
       // First persist the chosen radius so the edge fn picks it up.
       const patch: {
         corner_radius_percent: number;
@@ -762,7 +824,7 @@ export function PerCardEditModal({
       onClose={onClose}
       nested
       size="lg"
-      title={`Round corners — ${deckName}`}
+      title={backMode ? `Card back — ${deckName}` : `Round corners — ${deckName}`}
       subtitle="Per-card rounding baked into a transparent-corner image at save."
     >
       <div className="flex h-[80dvh] flex-col text-foreground">
@@ -783,7 +845,7 @@ export function PerCardEditModal({
               <>
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium">
-                    {getCardName(activeCardId)}
+                    {backMode ? "Card back" : getCardName(activeCardId)}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {canvasPreview
@@ -1022,7 +1084,7 @@ export function PerCardEditModal({
                       Resume processing ({pendingCount} pending)
                     </button>
                   ) : null}
-                  <button
+                  {!backMode && <button
                     type="button"
                     onClick={handleApplyToAll}
                     disabled={busy || bulkBusy || cardCount === 0}
@@ -1035,7 +1097,7 @@ export function PerCardEditModal({
                     ) : (
                       `Apply to all (${cardCount})`
                     )}
-                  </button>
+                  </button>}
                   <button
                     type="button"
                     onClick={handleSave}
@@ -1047,7 +1109,7 @@ export function PerCardEditModal({
                         <Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…
                       </span>
                     ) : (
-                      "Save card"
+                      backMode ? "Save back" : "Save card"
                     )}
                   </button>
                 </div>
@@ -1116,7 +1178,7 @@ export function PerCardEditModal({
           </section>
 
           {/* Card list — second on mobile (horizontal scroll), first on desktop (sidebar grid). */}
-          <aside
+          {!backMode && <aside
             className={
               "order-2 flex shrink-0 gap-2 md:order-1 " +
               "flex-row overflow-x-auto overflow-y-hidden " +
@@ -1154,7 +1216,7 @@ export function PerCardEditModal({
                       >
                         {signedUrls[c.card_id] ? (
                           <img
-                            src={signedUrls[c.card_id]}
+                    src={signedUrls[c.card_id]}
                             alt=""
                             className="h-full w-full object-cover"
                           />
@@ -1165,7 +1227,7 @@ export function PerCardEditModal({
                 })}
               </ul>
             )}
-          </aside>
+          </aside>}
         </div>
       {/* FI-3 — Apply-to-all choice dialog. */}
       <AlertDialog

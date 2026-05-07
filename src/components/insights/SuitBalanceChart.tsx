@@ -14,11 +14,11 @@ const CAPTIONS: Record<keyof typeof SUIT_COLORS, string> = {
   pentacles: "Pentacles-heavy: the body and the material call.",
 };
 
-const SUIT_SHORT: Record<keyof typeof SUIT_COLORS, string> = {
+const SUIT_LABEL: Record<keyof typeof SUIT_COLORS, string> = {
   wands: "Wands",
   cups: "Cups",
   swords: "Swords",
-  pentacles: "Pents",
+  pentacles: "Pentacles",
 };
 
 export function SuitBalanceChart({
@@ -57,7 +57,7 @@ export function SuitBalanceChart({
         ))}
       </div>
       <div
-        className="mt-2 grid grid-cols-4 gap-1"
+        className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-4"
         style={{
           fontSize: "var(--text-caption, 0.65rem)",
           color: "var(--color-foreground)",
@@ -68,9 +68,9 @@ export function SuitBalanceChart({
         {entries.map((e) => (
           <div
             key={e.key}
-            className="flex flex-col items-start gap-0.5"
+            className="flex flex-row items-center justify-between gap-2 sm:flex-col sm:items-start sm:justify-start sm:gap-0.5"
           >
-            <span>{SUIT_SHORT[e.key]}</span>
+            <span>{SUIT_LABEL[e.key]}</span>
             <span className="tabular-nums" style={{ opacity: 0.8 }}>
               {Math.round(e.value)}%
             </span>
