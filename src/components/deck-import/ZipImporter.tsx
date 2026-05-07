@@ -1144,6 +1144,8 @@ function Workspace({
   // image from storage) rather than PhotoCapture (which needs a raw
   // blob that doesn't exist for saved cards).
   const [editingExistingCardId, setEditingExistingCardId] = useState<number | null>(null);
+  // 9-6-H — opens PerCardEditModal in backMode for the deck card-back image.
+  const [editingBack, setEditingBack] = useState(false);
   // Zoom modal context: which image, opened from which filter view.
   const [zoom, setZoom] = useState<
     | null
@@ -1670,6 +1672,13 @@ function Workspace({
           onBack={() => setZoom(null)}
           onEdit={() => {
             const ctx = zoom;
+            // 9-6-H — route card-back edits to PerCardEditModal in backMode
+            // so the corner-radius slider applies to the deck back image.
+            if (ctx.imageKey === "EXISTING:BACK" || ctx.slot === BACK_KEY) {
+              setZoom(null);
+              setEditingBack(true);
+              return;
+            }
             if (ctx.imageKey.startsWith("EXISTING:")) {
               const cardId = parseInt(ctx.imageKey.replace("EXISTING:", ""), 10);
               setZoom(null);
@@ -1772,6 +1781,16 @@ function Workspace({
           defaultRadiusPercent={liveRadius}
           initialCardId={editingExistingCardId}
           onClose={() => setEditingExistingCardId(null)}
+        />
+      )}
+
+      {editingBack && (
+        <PerCardEditModal
+          deckId={deckId}
+          deckName={deckName ?? ""}
+          defaultRadiusPercent={liveRadius}
+          backMode
+          onClose={() => setEditingBack(false)}
         />
       )}
 
