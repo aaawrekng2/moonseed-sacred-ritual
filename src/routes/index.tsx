@@ -135,6 +135,27 @@ function Index() {
   const [customCountOpen, setCustomCountOpen] = useState(false);
   const [customCount, setCustomCount] = useState<number>(3);
   const { user, loading: authLoading } = useAuth();
+  // 9-6-P — hydrate last-used custom card count for this user.
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("custom_draw_count")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const saved = (data as { custom_draw_count?: number } | null)
+        ?.custom_draw_count;
+      if (typeof saved === "number" && saved >= 1 && saved <= 10) {
+        setCustomCount(saved);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
   const { effectiveTz } = useTimezone();
   const isAnonymous = !user?.email;
   // CV — Live moon prefs so the master toggle / carousel sub-toggle
@@ -611,6 +632,18 @@ function Index() {
             type="button"
             onClick={() => {
               setCustomCountOpen(false);
+              // 9-6-P — persist last-used custom count for next time.
+              if (user?.id) {
+                void supabase
+                  .from("user_preferences")
+                  .upsert(
+                    {
+                      user_id: user.id,
+                      custom_draw_count: customCount,
+                    } as never,
+                    { onConflict: "user_id" },
+                  );
+              }
               navigate({
                 to: "/draw",
                 search: { spread: "custom", n: customCount },
