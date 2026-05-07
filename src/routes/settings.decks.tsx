@@ -13,6 +13,7 @@ import {
   Check,
   Loader2,
   MoreVertical,
+  Pencil,
   Plus,
   Star,
   Trash2,
@@ -388,6 +389,19 @@ function DeckRow({
             {count === null ? "…" : `${count}/78 customized`} · {deck.shape}
           </p>
         </div>
+      </button>
+      {/* 9-6-N — visible Edit pencil on mobile so the row's primary
+          action is discoverable without opening the overflow menu. */}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onEdit();
+        }}
+        className="rounded-md p-1.5 hover:bg-foreground/10 sm:hidden"
+        aria-label={`Edit ${deck.name}`}
+      >
+        <Pencil className="h-4 w-4" />
       </button>
       {/* Mobile: compact overflow menu */}
       <div className="relative flex sm:hidden" ref={menuRef}>
