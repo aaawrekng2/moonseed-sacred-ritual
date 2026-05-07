@@ -806,6 +806,24 @@ function DeckEditor({
               Already have your deck digitized? Import from zip
             </button>
           </div>
+
+          <div
+            className="sticky bottom-0 -mx-4 mt-6 border-t px-4 py-3"
+            style={{
+              background: "var(--background)",
+              borderColor: "var(--border-subtle)",
+            }}
+          >
+            <button
+              type="button"
+              disabled={saving || !name.trim()}
+              onClick={handleContinue}
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-6 py-3 text-base font-medium hover:bg-gold/20 disabled:opacity-50"
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              Continue → photograph cards
+            </button>
+          </div>
         </div>
       </section>
     );
