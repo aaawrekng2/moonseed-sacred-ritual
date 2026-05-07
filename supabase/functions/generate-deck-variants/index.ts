@@ -463,13 +463,33 @@ serve(async (req) => {
           const ratio = v.width / workingForVariants.width;
           const targetH = Math.max(1, Math.round(workingForVariants.height * ratio));
           const small = workingForVariants.clone().resize(v.width, targetH);
-          const jpeg = await small.encodeJPEG(85);
+          // 9-6-W — apply rounded alpha mask BEFORE encoding to WebP so
+          // sm/md variants share the same rounded silhouette as -full.webp.
+          if (radius > 0) applyRoundedMask(small, radius);
+          const smallPng = await small.encode();
+          await ensureMagick();
+          const webpBytes: Uint8Array = await new Promise((resolve, reject) => {
+            try {
+              ImageMagick.read(smallPng, (img) => {
+                img.write(MagickFormat.Webp, (data) =>
+                  resolve(new Uint8Array(data)),
+                );
+              });
+            } catch (e) {
+              reject(e);
+            }
+          });
           const upV = await admin.storage.from(BUCKET).upload(
             vPath,
-            jpeg,
-            { contentType: "image/jpeg", upsert: true },
+            webpBytes,
+            { contentType: "image/webp", upsert: true },
           );
           if (upV.error) throw upV.error;
+          // 9-6-W — best-effort cleanup of legacy .jpg sibling.
+          await admin.storage
+            .from(BUCKET)
+            .remove([vPath.replace(/\.webp$/, ".jpg")])
+            .catch(() => {});
         }
 
         step = "db_update";
