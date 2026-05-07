@@ -824,7 +824,7 @@ export function PerCardEditModal({
       onClose={onClose}
       nested
       size="lg"
-      title={`Round corners — ${deckName}`}
+      title={backMode ? `Card back — ${deckName}` : `Round corners — ${deckName}`}
       subtitle="Per-card rounding baked into a transparent-corner image at save."
     >
       <div className="flex h-[80dvh] flex-col text-foreground">
@@ -845,7 +845,7 @@ export function PerCardEditModal({
               <>
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium">
-                    {getCardName(activeCardId)}
+                    {backMode ? "Card back" : getCardName(activeCardId)}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {canvasPreview
@@ -1216,7 +1216,7 @@ export function PerCardEditModal({
                       >
                         {signedUrls[c.card_id] ? (
                           <img
-                            src={signedUrls[c.card_id]}
+                    src={signedUrls[c.card_id]}
                             alt=""
                             className="h-full w-full object-cover"
                           />
