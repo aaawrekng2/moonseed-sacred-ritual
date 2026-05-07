@@ -601,13 +601,19 @@ export function ZipImporter({
           s.unassigned[displaced] = displacedImg;
         }
       }
-      // Remove imageKey from any other slot it may have occupied. Track
-      // it so the autosave below can also clear that slot in Supabase.
-      for (const k of Object.keys(s.assigned)) {
-        if (s.assigned[k] === imageKey && k !== slot) {
-          displacedSlot = k;
-          displacedKey = imageKey;
-          delete s.assigned[k];
+      // 9-6-I — assigning TO the BACK slot must NOT remove the image
+      // from any numeric card slot it currently occupies. card_back_path
+      // is a separate field on custom_decks; using a card image as the
+      // back is a copy/reference, not a move. For numeric assignments,
+      // keep the original displacement behavior so the same image isn't
+      // shown on two cards at once.
+      if (slot !== BACK_KEY) {
+        for (const k of Object.keys(s.assigned)) {
+          if (s.assigned[k] === imageKey && k !== slot) {
+            displacedSlot = k;
+            displacedKey = imageKey;
+            delete s.assigned[k];
+          }
         }
       }
       s.assigned[slot] = imageKey;
