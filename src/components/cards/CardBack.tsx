@@ -64,6 +64,12 @@ interface Props {
    * face cards' radius (Home gateway, slot rail).
    */
   cornerRadiusPercent?: number | null;
+  /**
+   * 9-6-V — Reports the natural aspect (height/width) of a custom
+   * back image once it loads, so a parent flip wrapper can size to
+   * match. No-op when no `imageUrl` is provided.
+   */
+  onAspectMeasured?: (aspect: number) => void;
 }
 
 const RATIO = 1.75;
@@ -406,7 +412,7 @@ const STYLES: Record<
   verdant: SHARED_STYLE,
 };
 
-export function CardBack({ id = "celestial", imageUrl, width = 160, className, ariaLabel, neutralBorder, cornerRadiusPercent }: Props) {
+export function CardBack({ id = "celestial", imageUrl, width = 160, className, ariaLabel, neutralBorder, cornerRadiusPercent, onAspectMeasured }: Props) {
   const [imgAspect, setImgAspect] = useState<number | null>(null);
   // 9-6-T — track natural aspect; fall back to typical tarot 5:8 (1.6).
   const fallbackAspect = imageUrl ? 1.6 : RATIO;
@@ -437,7 +443,9 @@ export function CardBack({ id = "celestial", imageUrl, width = 160, className, a
           onLoad={(e) => {
             const img = e.currentTarget;
             if (img.naturalWidth && img.naturalHeight) {
-              setImgAspect(img.naturalHeight / img.naturalWidth);
+              const a = img.naturalHeight / img.naturalWidth;
+              setImgAspect(a);
+              onAspectMeasured?.(a);
             }
           }}
           // 9-6-T — never crop card-back art.
