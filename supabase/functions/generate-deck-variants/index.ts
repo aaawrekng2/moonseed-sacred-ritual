@@ -124,7 +124,9 @@ const VARIANTS: VariantSpec[] = [
 // FB-6 — process cards in CHUNKS to stay well under the 150s
 // Edge Function timeout. The client (Settings → Decks Optimize
 // button) loops the call with the returned cursor until null.
-const BATCH_SIZE = 12;
+// 9-6-Q — reduced from 12 to 6 to lower per-invocation memory
+// pressure (Deno worker OOM seen on oracle decks at ~card 51).
+const BATCH_SIZE = 6;
 
 function variantPathFor(originalPath: string, suffix: "sm" | "md"): string | null {
   // Match `<...>/card-N-TS(-thumb)?.<ext>` and replace the filename.
@@ -528,11 +530,8 @@ serve(async (req) => {
         skipped++;
         continue;
       }
+      let decoded: Image | null = null;
       try {
-        // Lazy decode — only read the original once, even though we
-        // produce two variants from it.
-        let decoded: Image | null = null;
-
         for (const v of VARIANTS) {
           const variantPath = variantPathFor(c.display_path, v.suffix);
           if (!variantPath) {
@@ -586,10 +585,17 @@ serve(async (req) => {
         }
       } catch (err) {
         failed++;
-        errors.push({
-          card_id: c.card_id,
-          reason: err instanceof Error ? err.message : String(err),
-        });
+        const reason = err instanceof Error ? err.message : String(err);
+        errors.push({ card_id: c.card_id, reason });
+        console.error(
+          `[generate-deck-variants] card ${c.card_id} failed:`,
+          reason,
+        );
+      } finally {
+        // 9-6-Q — explicit cleanup so the Image's pixel buffer is
+        // eligible for GC before the next iteration. Prevents OOM
+        // on long batches of large oracle images.
+        decoded = null;
       }
     }
 
