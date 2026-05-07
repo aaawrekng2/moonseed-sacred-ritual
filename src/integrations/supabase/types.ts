@@ -724,6 +724,7 @@ export type Database = {
           birth_time: string | null
           card_back: string
           community_theme: string | null
+          custom_draw_count: number | null
           default_life_area: string
           default_share_color: string
           default_spread: string
@@ -786,6 +787,7 @@ export type Database = {
           birth_time?: string | null
           card_back?: string
           community_theme?: string | null
+          custom_draw_count?: number | null
           default_life_area?: string
           default_share_color?: string
           default_spread?: string
@@ -848,6 +850,7 @@ export type Database = {
           birth_time?: string | null
           card_back?: string
           community_theme?: string | null
+          custom_draw_count?: number | null
           default_life_area?: string
           default_share_color?: string
           default_spread?: string
