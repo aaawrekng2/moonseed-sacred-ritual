@@ -53,6 +53,8 @@
 
 :root {
   --radius: 0.625rem;
+  /* 9-6-T — global bottom-nav height (used by sticky bars). */
+  --bottom-nav-height: 72px;
   --background:                oklch(0.14 0.04 280);
   --foreground:                oklch(0.95 0.02 80);
   --card:                      oklch(0.20 0.045 282);

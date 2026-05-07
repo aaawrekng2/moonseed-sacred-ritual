@@ -1,5 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  generatePatternInterpretation,
+  type PatternInterpretation,
+} from "@/lib/pattern-interpretation.functions";
 import { ChevronLeft, Pencil, Archive, StickyNote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -483,6 +488,11 @@ function PatternChamber() {
         onOpenReading={setOpenReadingId}
       />
 
+      <PatternSynthesis
+        patternId={pattern.id}
+        readingCount={pattern.reading_ids.length}
+      />
+
       <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
 
       <ChamberWeaveGraph pattern={pattern} userId={user?.id} />
@@ -821,6 +831,146 @@ function ChamberCardEvidence({
 }
 
 function ChamberTimeline({
+  readingIds,
+  onOpenReading,
+}: {
+  readingIds: string[];
+  onOpenReading: (readingId: string) => void;
+}) {
+  return _ChamberTimeline({ readingIds, onOpenReading });
+}
+
+function PatternSynthesis({
+  patternId,
+  readingCount,
+}: {
+  patternId: string;
+  readingCount: number;
+}) {
+  const [state, setState] = useState<
+    | { kind: "idle" }
+    | { kind: "loading" }
+    | { kind: "ready"; data: PatternInterpretation }
+    | { kind: "error"; message: string }
+  >({ kind: "idle" });
+  const generate = useServerFn(generatePatternInterpretation);
+  useEffect(() => {
+    if (readingCount === 0) return;
+    let cancelled = false;
+    setState({ kind: "loading" });
+    void (async () => {
+      try {
+        const res = await generate({ data: { patternId } });
+        if (cancelled) return;
+        if (res.ok) setState({ kind: "ready", data: res.interpretation });
+        else setState({ kind: "error", message: res.error });
+      } catch (e) {
+        if (cancelled) return;
+        setState({
+          kind: "error",
+          message: e instanceof Error ? e.message : "Could not synthesize.",
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [patternId, readingCount, generate]);
+  if (readingCount === 0) return null;
+  return (
+    <section
+      style={{
+        marginTop: "var(--space-6, 32px)",
+        padding: "var(--space-4, 16px)",
+        borderRadius: "var(--radius-lg, 14px)",
+        background: "var(--surface-card, rgba(255,255,255,0.03))",
+        border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
+      }}
+    >
+      <h2
+        style={{
+          margin: 0,
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-heading-sm)",
+          color: "var(--accent, var(--gold))",
+        }}
+      >
+        Synthesis
+      </h2>
+      {state.kind === "loading" && (
+        <p style={{ marginTop: 12, opacity: 0.6, fontStyle: "italic" }}>
+          Listening for the through-line…
+        </p>
+      )}
+      {state.kind === "error" && (
+        <p style={{ marginTop: 12, opacity: 0.6, fontStyle: "italic" }}>
+          {state.message}
+        </p>
+      )}
+      {state.kind === "ready" && (
+        <div style={{ marginTop: 12 }}>
+          <p
+            style={{
+              whiteSpace: "pre-wrap",
+              fontSize: "var(--text-body)",
+              lineHeight: 1.6,
+              color: "var(--color-foreground)",
+            }}
+          >
+            {state.data.body}
+          </p>
+          {state.data.key_cards.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: "var(--text-body-sm)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.18em",
+                  opacity: 0.7,
+                }}
+              >
+                Key cards
+              </h3>
+              <ul style={{ marginTop: 8, paddingLeft: 18 }}>
+                {state.data.key_cards.map((kc, i) => (
+                  <li key={i} style={{ marginBottom: 4 }}>
+                    <strong>{kc.card}</strong> — <span style={{ opacity: 0.85 }}>{kc.meaning}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {state.data.reflective_prompts.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: "var(--text-body-sm)",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.18em",
+                  opacity: 0.7,
+                }}
+              >
+                Reflective prompts
+              </h3>
+              <ul style={{ marginTop: 8, paddingLeft: 18 }}>
+                {state.data.reflective_prompts.map((p, i) => (
+                  <li key={i} style={{ marginBottom: 4, fontStyle: "italic" }}>
+                    {p}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function _ChamberTimeline({
   readingIds,
   onOpenReading,
 }: {

@@ -1,0 +1,1 @@
+ALTER TABLE public.patterns ADD COLUMN IF NOT EXISTS interpretation jsonb;

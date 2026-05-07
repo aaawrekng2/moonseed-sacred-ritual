@@ -151,7 +151,7 @@ export function CornerRadiusSlider({
             <img
               src={preview.src}
               alt={getCardName(preview.cardId)}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
               style={{ borderRadius: `${(value / 100) * 200}px` }}
               loading="lazy"
               onError={(e) => {

@@ -1,5 +1,6 @@
 import type { CardBackId } from "@/lib/card-backs";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 /**
  * Card-back palette.
@@ -406,12 +407,18 @@ const STYLES: Record<
 };
 
 export function CardBack({ id = "celestial", imageUrl, width = 160, className, ariaLabel, neutralBorder, cornerRadiusPercent }: Props) {
-  const height = Math.round(width * RATIO);
+  const [imgAspect, setImgAspect] = useState<number | null>(null);
+  // 9-6-T — track natural aspect; fall back to typical tarot 5:8 (1.6).
+  const fallbackAspect = imageUrl ? 1.6 : RATIO;
+  const aspect = imgAspect ?? fallbackAspect;
+  const height = Math.round(width * aspect);
   const style = STYLES[id];
   const m = scaleMetrics(width);
-  void cornerRadiusPercent;
-  const effectiveRadius = `${m.radius}px`;
-  // BX — custom deck back overrides the procedural artwork.
+  const effectiveRadius =
+    cornerRadiusPercent != null
+      ? `${(cornerRadiusPercent / 100) * Math.min(width, height)}px`
+      : `${m.radius}px`;
+  // BX — custom deck back overrides procedural artwork.
   if (imageUrl) {
     return (
       <div
@@ -422,20 +429,22 @@ export function CardBack({ id = "celestial", imageUrl, width = 160, className, a
           width,
           height,
           borderRadius: effectiveRadius,
-          // 9-6-G — background removed: a solid surface-card showed
-          // as a dark rectangle along the bottom during card flips
-          // when the IMG natural aspect was shorter than the wrapper.
         }}
       >
         <img
           src={imageUrl}
           alt={ariaLabel ?? "Card back"}
-          // 9-6-G — fill the wrapper with object-fit:cover so the
-          // back paints to every edge (no surface-card peek).
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            if (img.naturalWidth && img.naturalHeight) {
+              setImgAspect(img.naturalHeight / img.naturalWidth);
+            }
+          }}
+          // 9-6-T — never crop card-back art.
           style={{
             width: "100%",
             height: "100%",
-            objectFit: "cover",
+            objectFit: "contain",
             display: "block",
           }}
           draggable={false}
