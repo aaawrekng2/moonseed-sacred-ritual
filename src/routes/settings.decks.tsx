@@ -1007,7 +1007,7 @@ function DeckEditor({
                 type="button"
                 onClick={() => {
                   if (photo) {
-                    setReviewingCardId(i);
+                    setEditingCardId(i);
                   } else {
                     setMode({ kind: "capture", deckId, cardId: i });
                   }
