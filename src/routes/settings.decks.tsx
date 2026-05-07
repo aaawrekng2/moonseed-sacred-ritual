@@ -640,6 +640,28 @@ function DeckEditor({
 
   // ---------- Step 1: deck details ----------
   if (mode.kind === "details") {
+    const handleContinue = async () => {
+      setSaving(true);
+      try {
+        const { data, error } = await supabase
+          .from("custom_decks")
+          .insert({
+            user_id: userId,
+            name: name.trim(),
+            shape,
+            corner_radius_percent: cornerRadius,
+            deck_type: deckType,
+          })
+          .select("*")
+          .single();
+        if (error) throw error;
+        setMode({ kind: "back-capture", deckId: (data as CustomDeck).id });
+      } catch (err) {
+        toast.error(`Couldn't create deck: ${(err as Error).message}`);
+      } finally {
+        setSaving(false);
+      }
+    };
     return (
       <section className="py-6">
         <header className="mb-6 flex items-center justify-between">
