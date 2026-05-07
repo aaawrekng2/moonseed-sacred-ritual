@@ -377,19 +377,99 @@ function DeckRow({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="truncate font-medium">{deck.name}</p>
+            <p className="truncate text-sm font-medium sm:text-base">{deck.name}</p>
             {deck.is_active && (
               <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-gold">
                 <Star className="h-3 w-3" /> Active
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground sm:text-xs">
             {count === null ? "…" : `${count}/78 customized`} · {deck.shape}
           </p>
         </div>
       </button>
-      <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+      {/* Mobile: compact overflow menu */}
+      <div className="relative flex sm:hidden" ref={menuRef}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen((v) => !v);
+          }}
+          className="rounded-md p-1.5 hover:bg-foreground/10"
+          aria-label="Deck actions"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+        >
+          <MoreVertical className="h-4 w-4" />
+        </button>
+        {menuOpen && (
+          <div
+            role="menu"
+            className="absolute right-0 top-full z-20 mt-1 flex min-w-[180px] flex-col rounded-md border border-border/60 bg-popover p-1 shadow-lg"
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                onToggleActive();
+              }}
+              className="rounded px-2 py-1.5 text-left text-sm hover:bg-foreground/10"
+            >
+              {deck.is_active ? "Deactivate" : "Set active"}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                onEdit();
+              }}
+              className="rounded px-2 py-1.5 text-left text-sm hover:bg-foreground/10"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                onImportZip();
+              }}
+              className="rounded px-2 py-1.5 text-left text-sm hover:bg-foreground/10"
+            >
+              Replace from zip
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                void handleGenerateVariants();
+              }}
+              disabled={variantBusy}
+              className="rounded px-2 py-1.5 text-left text-sm hover:bg-foreground/10 disabled:opacity-50"
+            >
+              {variantBusy ? "Optimizing…" : "Optimize images"}
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                onDelete();
+              }}
+              className="rounded px-2 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10"
+            >
+              Delete deck
+            </button>
+          </div>
+        )}
+      </div>
+      {/* Desktop: original button group */}
+      <div className="hidden flex-wrap items-center gap-2 sm:flex sm:flex-nowrap">
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggleActive(); }}
