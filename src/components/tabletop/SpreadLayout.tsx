@@ -514,10 +514,12 @@ function CardNameLabel({
   cardIndex,
   isReversed,
   cardWidth,
+  nameOverride,
 }: {
   cardIndex: number;
   isReversed: boolean;
   cardWidth: number;
+  nameOverride?: string;
 }) {
   return (
     <div
@@ -538,7 +540,7 @@ function CardNameLabel({
           width: "100%",
         }}
       >
-        {getCardName(cardIndex)}
+        {nameOverride ?? getCardName(cardIndex)}
       </span>
       {isReversed && (
         <span
@@ -914,11 +916,11 @@ export function ManualSpreadSlots({
     <button
       type="button"
       onClick={() => onSlotTap(slotIndex)}
-      aria-label={pick ? `Replace ${getCardName(pick.cardIndex)}` : `Pick card for ${labels[slotIndex] ?? `position ${slotIndex + 1}`}`}
+      aria-label={pick ? `Replace ${nameForPick(pick)}` : `Pick card for ${labels[slotIndex] ?? `position ${slotIndex + 1}`}`}
       className={cn(
         "relative transition active:scale-[0.98]",
         pick
-          ? "overflow-hidden bg-card"
+          ? "overflow-hidden"
           : "border-2 border-dashed border-foreground/25 bg-foreground/[0.04] hover:border-gold/50 hover:bg-gold/5",
       )}
       style={{
@@ -954,6 +956,7 @@ export function ManualSpreadSlots({
             cardIndex={picks[i]!.cardIndex}
             isReversed={!!picks[i]!.isReversed}
             cardWidth={sizing.w}
+            nameOverride={picks[i]!.cardName}
           />
         )}
       </div>
@@ -995,6 +998,7 @@ export function ManualSpreadSlots({
                   cardIndex={picks[i]!.cardIndex}
                   isReversed={!!picks[i]!.isReversed}
                   cardWidth={sizing.w}
+                  nameOverride={picks[i]!.cardName}
                 />
               )}
             </div>
@@ -1016,6 +1020,7 @@ export function ManualSpreadSlots({
                 cardIndex={pick.cardIndex}
                 isReversed={!!pick.isReversed}
                 cardWidth={sizing.w}
+                nameOverride={pick.cardName}
               />
             )}
           </div>
@@ -1034,6 +1039,7 @@ export function ManualSpreadSlots({
           cardIndex={picks[0]!.cardIndex}
           isReversed={!!picks[0]!.isReversed}
           cardWidth={sizing.w}
+          nameOverride={picks[0]!.cardName}
         />
       )}
     </div>
