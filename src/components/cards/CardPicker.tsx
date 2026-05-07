@@ -10,11 +10,14 @@
  *                       and locked. Optionally surfaces a 'Reversed?'
  *                       confirmation step before firing onSelect.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, Lock, X } from "lucide-react";
 import { TAROT_DECK, getCardName, getCardImagePath } from "@/lib/tarot";
 import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/ui/search-input";
+import { useActiveDeckImage, useDeckImage } from "@/lib/active-deck";
+import { useAuth } from "@/lib/auth";
+import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
 
 export type CardPickerMode = "photography" | "manual-entry";
 
@@ -39,6 +42,10 @@ export type CardPickerProps = {
    * visible above it.
    */
   embedded?: boolean;
+  /** 9-6-G — when set, renders a per-slot deck switcher dropdown.
+   *  `deckId` is the currently selected deck (null = active deck). */
+  deckId?: string | null;
+  onDeckChange?: (deckId: string | null) => void;
 };
 
 type Suit = "All" | "Major Arcana" | "Wands" | "Cups" | "Swords" | "Pentacles";
@@ -61,12 +68,37 @@ export function CardPicker({
   onCancel,
   title,
   embedded = false,
+  deckId,
+  onDeckChange,
 }: CardPickerProps) {
   const [query, setQuery] = useState("");
   const [suit, setSuit] = useState<Suit>("All");
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [pendingReversed, setPendingReversed] = useState(false);
   const [reviewingCardId, setReviewingCardId] = useState<number | null>(null);
+
+  // 9-6-G — per-slot deck switching. Both hooks must run unconditionally.
+  const { user } = useAuth();
+  const [decks, setDecks] = useState<CustomDeck[]>([]);
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    void fetchUserDecks(user.id).then((d) => {
+      if (!cancelled) setDecks(d);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+  const activeResolve = useActiveDeckImage();
+  const specificResolve = useDeckImage(deckId ?? null);
+  const resolveImg = (idx: number, size: "display" | "thumbnail" = "thumbnail") => {
+    if (resolveImageSrc) return resolveImageSrc(idx);
+    if (deckId) return specificResolve(idx, size) ?? getCardImagePath(idx);
+    return activeResolve(idx, size);
+  };
+  const activeDeckObj = decks.find((d) => d.id === deckId);
+  const isOracleDeck = activeDeckObj?.deck_type === "oracle";
 
   const photographed = useMemo(() => new Set(photographedIds), [photographedIds]);
   const excluded = useMemo(() => new Set(excludeCardIds), [excludeCardIds]);
@@ -103,7 +135,7 @@ export function CardPicker({
         onToggle={setPendingReversed}
         onBack={() => setPendingId(null)}
         onConfirm={() => onSelect(pendingId, pendingReversed)}
-        resolveImageSrc={resolveImageSrc}
+        resolveImageSrc={(i) => resolveImg(i, "display")}
         embedded={embedded}
       />
     );
@@ -123,11 +155,7 @@ export function CardPicker({
       {reviewingCardId !== null && (
         <ReviewPhoto
           cardIndex={reviewingCardId}
-          src={
-            resolveImageSrc
-              ? resolveImageSrc(reviewingCardId)
-              : getCardImagePath(reviewingCardId)
-          }
+          src={resolveImg(reviewingCardId, "display")}
           onRetake={() => {
             const id = reviewingCardId;
             setReviewingCardId(null);
@@ -158,27 +186,62 @@ export function CardPicker({
 
       {/* Search + filters */}
       <div className="space-y-2 border-b border-border/40 p-3">
+        {onDeckChange && decks.length > 1 && (
+          <div
+            className="mb-3 flex items-center gap-2"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+            }}
+          >
+            <span style={{ opacity: 0.7 }}>Deck:</span>
+            <select
+              value={deckId ?? ""}
+              onChange={(e) => onDeckChange(e.target.value || null)}
+              style={{
+                background: "transparent",
+                border: "none",
+                borderBottom: "1px solid var(--border-subtle)",
+                padding: "4px 8px",
+                fontFamily: "inherit",
+                fontSize: "inherit",
+                color: "inherit",
+                fontStyle: "italic",
+                cursor: "pointer",
+                outline: "none",
+              }}
+            >
+              <option value="">Active deck</option>
+              {decks.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <SearchInput
           value={query}
           onChange={setQuery}
           placeholder="Search 78 cards…"
         />
-        <div className="flex flex-wrap gap-1.5">
-          {SUITS.map((s) => (
-            <button
-              key={s}
-              onClick={() => setSuit(s)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs",
-                suit === s
-                  ? "border-foreground/60 bg-foreground/15"
-                  : "border-border/60 bg-transparent hover:bg-foreground/10",
-              )}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
+        {!isOracleDeck && (
+          <div className="flex flex-wrap gap-1.5">
+            {SUITS.map((s) => (
+              <button
+                key={s}
+                onClick={() => setSuit(s)}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs",
+                  suit === s
+                    ? "border-foreground/60 bg-foreground/15"
+                    : "border-border/60 bg-transparent hover:bg-foreground/10",
+                )}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Grid */}
@@ -187,7 +250,7 @@ export function CardPicker({
           {cards.map(({ idx, name }) => {
             const isExcluded = mode === "manual-entry" && excluded.has(idx);
             const isShot = mode === "photography" && photographed.has(idx);
-            const src = resolveImageSrc ? resolveImageSrc(idx) : getCardImagePath(idx);
+            const src = resolveImg(idx, "thumbnail");
             const dimDefault = mode === "photography" && !isShot;
             return (
               <button

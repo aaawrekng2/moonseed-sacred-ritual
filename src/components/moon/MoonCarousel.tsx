@@ -794,16 +794,9 @@ function CenterCard({
         {isToday ? "Today" : formatShortDate(info.date, timeZone)}
       </span>
       <div
-        className={cn(
-          "w-full rounded-2xl px-3 py-4 sm:px-4 transition-all duration-200",
-          // ES-3 — selected/today cell drops the bg-card/60 + backdrop-blur
-          // entirely so today reads as page-background, matching the
-          // adjacent days. Unselected days keep their card backdrop +
-          // ambient shadow so they read as secondary cards.
-          selected
-            ? ""
-            : "bg-card/60 backdrop-blur-sm shadow-[0_8px_30px_-12px_rgba(212,175,55,0.4)]",
-        )}
+        className="w-full rounded-2xl px-3 py-4 sm:px-4 transition-all duration-200"
+        // 9-6-G — center card always renders without bg-card backdrop
+        // so it reads as part of the cosmos gradient (no dark window).
       >
         {/* No keyed remount here — the wrapper stays mounted across day
             changes so swipes update content in place without a visual cut. */}

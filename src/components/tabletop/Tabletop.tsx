@@ -166,6 +166,20 @@ export function Tabletop({
     return () => ro.disconnect();
   }, []);
 
+  // 9-6-G — when manual entry closes, the scatter container remounts
+  // as a new DOM element. The above measure useEffect ([] deps) only
+  // ran against the original mount, so size/containerOrigin were stale
+  // (or null) and cards collapsed to x:0,y:0. Force a re-measure on
+  // every flip to false.
+  useEffect(() => {
+    if (manualOpen) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    setContainerOrigin({ left: r.left, top: r.top });
+    setSize({ w: r.width, h: r.height });
+  }, [manualOpen]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const update = () => setViewportW(window.innerWidth);
@@ -1152,28 +1166,8 @@ export function Tabletop({
             containerOrigin={containerOrigin}
           />
         ))}
-        {/* Drop-target ghost. Subtle dashed outline at the clamped
-            landing point so the user sees exactly where a release on
-            the table would snap to. Hidden whenever the pointer is
-            over a slot — the slot's own gold halo is the preview in
-            that case. */}
-        {tableGhost && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute animate-fade-in"
-            style={{
-              left: tableGhost.x,
-              top: tableGhost.y,
-              width: cardW,
-              height: cardH,
-              borderRadius: 10,
-              border: "1.5px dashed color-mix(in oklab, var(--gold) 70%, transparent)",
-              background: "color-mix(in oklab, var(--gold) 6%, transparent)",
-              boxShadow: "0 0 12px color-mix(in oklab, var(--gold) 25%, transparent)",
-              transition: "left 80ms linear, top 80ms linear",
-            }}
-          />
-        )}
+        {/* 9-6-G — tableGhost dashed outline removed. The slot rail's
+            own highlight is sufficient destination feedback. */}
       </div>
 
       {(() => {

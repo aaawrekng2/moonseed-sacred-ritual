@@ -1428,6 +1428,9 @@ function Workspace({
           onDone={onCancel}
           entryMode={entryMode}
           onImportZip={onSwitchToUpload}
+          existingBackUrl={existingBackUrl ?? null}
+          unassignedKeys={unassignedKeys}
+          onAssign={onAssign}
           onOpenEdit={(cardId: number, key: string) => {
             if (key.startsWith("EXISTING:")) {
               setEditingExistingCardId(cardId);
@@ -1922,6 +1925,9 @@ function OracleWorkspace({
   onDone,
   entryMode,
   onImportZip,
+  existingBackUrl,
+  unassignedKeys,
+  onAssign,
   onOpenEdit,
 }: {
   session: ImportSession;
@@ -1936,11 +1942,15 @@ function OracleWorkspace({
   onDone: () => void;
   entryMode: "import" | "edit";
   onImportZip: () => void;
+  existingBackUrl: string | null;
+  unassignedKeys: string[];
+  onAssign: (imageKey: string, cardId: number | "BACK") => void;
   onOpenEdit: (cardId: number, key: string) => void;
 }) {
   const [previewIdx, setPreviewIdx] = useState(0);
   const [liveRadiusLocal, setLiveRadiusLocal] = useState(liveRadius);
   useEffect(() => { setLiveRadiusLocal(liveRadius); }, [liveRadius]);
+  const [showBackPicker, setShowBackPicker] = useState(false);
   const safeIdx = oracleSlotIds.length === 0
     ? 0
     : ((previewIdx % oracleSlotIds.length) + oracleSlotIds.length) % oracleSlotIds.length;
@@ -2074,6 +2084,55 @@ function OracleWorkspace({
         </div>
       )}
 
+      {/* 9-6-G — Card back picker tile (Oracle) */}
+      <div className="my-6 flex flex-col items-center gap-3">
+        <h3
+          className="italic"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-heading-sm)",
+            color: "var(--color-foreground)",
+            opacity: 0.85,
+          }}
+        >
+          Card back
+        </h3>
+        <button
+          type="button"
+          onClick={() => setShowBackPicker(true)}
+          style={{
+            width: 140,
+            background: "var(--surface-card)",
+            border: "1px solid var(--border-subtle)",
+            overflow: "hidden",
+            borderRadius: heroRadius,
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
+          {existingBackUrl ? (
+            <img
+              src={existingBackUrl}
+              alt="Card back"
+              style={{ width: "100%", height: "auto", display: "block", borderRadius: heroRadius }}
+            />
+          ) : (
+            <div
+              style={{
+                padding: "40px 16px",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground)",
+                opacity: 0.6,
+              }}
+            >
+              Tap to choose
+            </div>
+          )}
+        </button>
+      </div>
+
       {/* Section 3 — scrollable list of cards */}
       <div className="mt-4">
         {oracleSlotIds.length === 0 ? (
@@ -2116,6 +2175,20 @@ function OracleWorkspace({
           })
         )}
       </div>
+      {showBackPicker && (
+        <CardBackPickerModal
+          unassignedKeys={unassignedKeys}
+          assignedKeys={oracleSlotIds
+            .map((id) => session.assigned[String(id)])
+            .filter(Boolean) as string[]}
+          resolveSrc={resolveSrc}
+          onPick={(k) => {
+            onAssign(k, "BACK");
+            setShowBackPicker(false);
+          }}
+          onCancel={() => setShowBackPicker(false)}
+        />
+      )}
     </section>
   );
 }
@@ -2654,15 +2727,20 @@ function SaveStatusIndicator({
 
 function CardBackPickerModal({
   unassignedKeys,
+  assignedKeys = [],
   resolveSrc,
   onPick,
   onCancel,
 }: {
   unassignedKeys: string[];
+  assignedKeys?: string[];
   resolveSrc: (key: string) => string;
   onPick: (key: string) => void;
   onCancel: () => void;
 }) {
+  // 9-6-G — also allow picking from already-assigned card images
+  // (oracle decks have no unassigned pool; every image is assigned).
+  const allKeys = Array.from(new Set([...unassignedKeys, ...assignedKeys]));
   return (
     <div
       className="fixed inset-0 flex items-center justify-center p-4"
@@ -2688,7 +2766,7 @@ function CardBackPickerModal({
           Pick a card back
         </h3>
         <div className="flex-1 overflow-y-auto">
-          {unassignedKeys.length === 0 ? (
+          {allKeys.length === 0 ? (
             <p
               className="italic"
               style={{
@@ -2698,11 +2776,11 @@ function CardBackPickerModal({
                 opacity: 0.7,
               }}
             >
-              No unassigned images to choose from.
+              No images to choose from.
             </p>
           ) : (
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-              {unassignedKeys.map((k) => {
+              {allKeys.map((k) => {
                 const src = resolveSrc(k);
                 return (
                   <button
