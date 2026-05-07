@@ -860,11 +860,14 @@ export function ManualSpreadSlots({
   picks,
   onSlotTap,
   showLabels = true,
+  customCount,
 }: {
   spread: SpreadMode;
   picks: ManualSlotPick[];
   onSlotTap: (slotIndex: number) => void;
   showLabels?: boolean;
+  /** 9-6-O — used when spread === "custom". */
+  customCount?: number;
 }) {
   const meta = SPREAD_META[spread];
   const labels = meta.positions ?? meta.positionsShort ?? [];
