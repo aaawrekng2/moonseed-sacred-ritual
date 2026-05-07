@@ -1166,28 +1166,8 @@ export function Tabletop({
             containerOrigin={containerOrigin}
           />
         ))}
-        {/* Drop-target ghost. Subtle dashed outline at the clamped
-            landing point so the user sees exactly where a release on
-            the table would snap to. Hidden whenever the pointer is
-            over a slot — the slot's own gold halo is the preview in
-            that case. */}
-        {tableGhost && (
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute animate-fade-in"
-            style={{
-              left: tableGhost.x,
-              top: tableGhost.y,
-              width: cardW,
-              height: cardH,
-              borderRadius: 10,
-              border: "1.5px dashed color-mix(in oklab, var(--gold) 70%, transparent)",
-              background: "color-mix(in oklab, var(--gold) 6%, transparent)",
-              boxShadow: "0 0 12px color-mix(in oklab, var(--gold) 25%, transparent)",
-              transition: "left 80ms linear, top 80ms linear",
-            }}
-          />
-        )}
+        {/* 9-6-G — tableGhost dashed outline removed. The slot rail's
+            own highlight is sufficient destination feedback. */}
       </div>
 
       {(() => {
