@@ -754,8 +754,15 @@ function DeckEditor({
             </div>
           )}
 
-          {(() => null)()}
-          <ContinueButton saving={saving} disabled={saving || !name.trim()} onClick={handleContinue} />
+          <button
+            type="button"
+            disabled={saving || !name.trim()}
+            onClick={handleContinue}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-6 py-3 text-base font-medium hover:bg-gold/20 disabled:opacity-50"
+          >
+            {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+            Continue → photograph cards
+          </button>
 
           {/* Bulk import entry — Stamp BH. Creates the deck row first so a
               cancelled import still leaves a recoverable empty deck. */}
