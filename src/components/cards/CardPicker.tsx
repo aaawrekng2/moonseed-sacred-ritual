@@ -232,7 +232,9 @@ export function CardPicker({
             pendingItem?.name ?? getCardName(pendingId) ?? `Card ${pendingId}`,
           )
         }
-        resolveImageSrc={(i) => resolveImg(i, "display")}
+        // 9-6-O — use thumbnail for the post-pick confirmation preview;
+        // the full-size display URL is wasteful here.
+        resolveImageSrc={(i) => resolveImg(i, "thumbnail")}
         embedded={embedded}
         deckId={deckId ?? null}
       />
