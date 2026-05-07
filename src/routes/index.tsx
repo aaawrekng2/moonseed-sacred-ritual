@@ -131,7 +131,7 @@ function Index() {
   // EG-3 — first-time onboarding hint anchored to the spread icons row.
   const drawTypeRowRef = useRef<HTMLDivElement | null>(null);
   const [showDrawTypeHint, setShowDrawTypeHint] = useState(false);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { effectiveTz } = useTimezone();
   const isAnonymous = !user?.email;
   // CV — Live moon prefs so the master toggle / carousel sub-toggle
@@ -330,6 +330,11 @@ function Index() {
 
   // EG-3 — Mount the draw-type hint only when not hard-dismissed.
   useEffect(() => {
+    // 9-6-K — wait for auth to resolve before checking dismissal.
+    // The first render fires with user=null (auth still loading)
+    // and would query the anonymous bucket, miss the signed-in
+    // user's localStorage dismissal, and mount the hint.
+    if (authLoading) return;
     let cancelled = false;
     void (async () => {
       const dismissed = await isHintHardDismissed(
@@ -341,7 +346,7 @@ function Index() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [user, authLoading]);
 
   // EW-2 — CardImage handles its own image-load shimmer. We only need
   // a shimmer here while the active deck is still resolving so the

@@ -226,11 +226,6 @@ export function Hint({
 
   const dismissSoft = () => close();
   const dismissHard = () => {
-    // 9-6-J — temporary alert diagnostic to confirm the click handler
-    // fires AND the userId at write time. Compare with the
-    // [isHintHardDismissed] log on next refresh.
-    // eslint-disable-next-line no-alert
-    alert(`[dismissHard] hintId=${hintId} userId=${user?.id ?? "null"}`);
     void markHintHardDismissed(hintId, user?.id ?? null);
     close();
   };
