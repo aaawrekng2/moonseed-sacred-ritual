@@ -548,7 +548,7 @@ serve(async (req) => {
     // 4) List active cards for the deck.
     const { data: cards, error: cardsErr } = await admin
       .from("custom_deck_cards")
-      .select("card_id, display_path")
+      .select("card_id, display_path, corner_radius_percent")
       .eq("deck_id", deckId)
       .is("archived_at", null)
       .order("card_id", { ascending: true });
