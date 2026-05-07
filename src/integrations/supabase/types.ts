@@ -477,6 +477,7 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          interpretation: Json | null
           is_premium: boolean
           is_user_named: boolean
           lifecycle_state: string
@@ -491,6 +492,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          interpretation?: Json | null
           is_premium?: boolean
           is_user_named?: boolean
           lifecycle_state?: string
@@ -505,6 +507,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           id?: string
+          interpretation?: Json | null
           is_premium?: boolean
           is_user_named?: boolean
           lifecycle_state?: string
