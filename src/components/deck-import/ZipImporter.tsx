@@ -2389,7 +2389,7 @@ function OracleRow({
         aria-label={`Edit ${name || placeholderName}`}
       >
         {src ? (
-          <img src={src} alt={name || placeholderName} className="h-full w-full object-cover" />
+          <img src={src} alt={name || placeholderName} className="h-full w-full object-contain" />
         ) : null}
       </button>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -2480,7 +2480,7 @@ function ImageGrid({
               }}
             >
               {src ? (
-                <img src={src} alt={img?.filename ?? ""} className="h-full w-full object-cover" />
+                <img src={src} alt={img?.filename ?? ""} className="h-full w-full object-contain" />
               ) : null}
             </button>
             {variant === "skipped" && onAction && (
@@ -2641,7 +2641,7 @@ function AssignedGrid({
             title="Card Back — tap to choose a different one"
           >
             {effectiveBackSrc && (
-              <img src={effectiveBackSrc} alt="Card Back" className="h-full w-full object-cover" />
+              <img src={effectiveBackSrc} alt="Card Back" className="h-full w-full object-contain" />
             )}
             <span
               className="absolute inset-x-0 bottom-0 px-1 py-0.5 text-center text-[9px] uppercase tracking-wider"
@@ -2708,12 +2708,12 @@ function AssignedGrid({
               title={isFailed ? `${displayName} — tap to retry save` : displayName}
             >
               {src ? (
-                <img src={src} alt={displayName} className="h-full w-full object-cover" />
+                <img src={src} alt={displayName} className="h-full w-full object-contain" />
               ) : deckType === "tarot" ? (
                 <img
                   src={getCardImagePath(i)}
                   alt={getCardName(i)}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                   style={{ opacity: 0.25, filter: "grayscale(100%)" }}
                 />
               ) : null}
@@ -3338,13 +3338,13 @@ function DefaultGrid({
                 <img
                   src={src}
                   alt={getCardName(i)}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                 />
               ) : (
                 <img
                   src={getCardImagePath(i)}
                   alt={getCardName(i)}
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-contain"
                   style={{ opacity: 0.65 }}
                 />
               )}
