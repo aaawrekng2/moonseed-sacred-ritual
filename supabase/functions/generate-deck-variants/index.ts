@@ -81,7 +81,13 @@ function ensureMagick(): Promise<void> {
  * can take over for the rounded-mask and resize work it does well.
  */
 async function decodeAny(bytes: Uint8Array): Promise<Image> {
-  // Quick sniff: WebP files start with "RIFF....WEBP".
+  // 9-6-R — try imagescript directly first. Avoids the PNG round-trip's
+  // ~30 MB intermediate buffer when imagescript can decode the WebP itself.
+  try {
+    return await Image.decode(bytes);
+  } catch {
+    // Fall through to ImageMagick path.
+  }
   const isWebp =
     bytes.length >= 12 &&
     bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
@@ -124,9 +130,14 @@ const VARIANTS: VariantSpec[] = [
 // FB-6 — process cards in CHUNKS to stay well under the 150s
 // Edge Function timeout. The client (Settings → Decks Optimize
 // button) loops the call with the returned cursor until null.
-// 9-6-Q — reduced from 12 to 6 to lower per-invocation memory
-// pressure (Deno worker OOM seen on oracle decks at ~card 51).
-const BATCH_SIZE = 6;
+// 9-6-R — reduced to 3 to give the Deno worker headroom for cold
+// starts and ImageMagick WebP overhead even with downscaled working images.
+const BATCH_SIZE = 3;
+
+// 9-6-R — downscale source to this width immediately after decode.
+// 2x our largest variant (400px) for downscale quality, but small
+// enough to keep raw RGBA buffers ~MB instead of tens of MB.
+const WORKING_WIDTH = 800;
 
 function variantPathFor(originalPath: string, suffix: "sm" | "md"): string | null {
   // Match `<...>/card-N-TS(-thumb)?.<ext>` and replace the filename.
