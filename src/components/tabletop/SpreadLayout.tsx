@@ -1102,6 +1102,29 @@ export function ManualSpreadSlots({
     );
   }
 
+  if (spread === "custom") {
+    return (
+      <div className="flex flex-wrap items-start justify-center gap-4">
+        {picks.map((pick, i) => (
+          <div key={i} className="flex flex-col items-center gap-2">
+            <Slot pick={pick} slotIndex={i} />
+            {showLabels && (
+              <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
+            )}
+            {showLabels && pick && (
+              <CardNameLabel
+                cardIndex={pick.cardIndex}
+                isReversed={!!pick.isReversed}
+                cardWidth={sizing.w}
+                nameOverride={pick.cardName}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   // single / daily / yes_no
   return (
     <div className="flex flex-col items-center gap-3">
