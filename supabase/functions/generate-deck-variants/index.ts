@@ -81,7 +81,13 @@ function ensureMagick(): Promise<void> {
  * can take over for the rounded-mask and resize work it does well.
  */
 async function decodeAny(bytes: Uint8Array): Promise<Image> {
-  // Quick sniff: WebP files start with "RIFF....WEBP".
+  // 9-6-R — try imagescript directly first. Avoids the PNG round-trip's
+  // ~30 MB intermediate buffer when imagescript can decode the WebP itself.
+  try {
+    return await Image.decode(bytes);
+  } catch {
+    // Fall through to ImageMagick path.
+  }
   const isWebp =
     bytes.length >= 12 &&
     bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
@@ -124,9 +130,14 @@ const VARIANTS: VariantSpec[] = [
 // FB-6 — process cards in CHUNKS to stay well under the 150s
 // Edge Function timeout. The client (Settings → Decks Optimize
 // button) loops the call with the returned cursor until null.
-// 9-6-Q — reduced from 12 to 6 to lower per-invocation memory
-// pressure (Deno worker OOM seen on oracle decks at ~card 51).
-const BATCH_SIZE = 6;
+// 9-6-R — reduced to 3 to give the Deno worker headroom for cold
+// starts and ImageMagick WebP overhead even with downscaled working images.
+const BATCH_SIZE = 3;
+
+// 9-6-R — downscale source to this width immediately after decode.
+// 2x our largest variant (400px) for downscale quality, but small
+// enough to keep raw RGBA buffers ~MB instead of tens of MB.
+const WORKING_WIDTH = 800;
 
 function variantPathFor(originalPath: string, suffix: "sm" | "md"): string | null {
   // Match `<...>/card-N-TS(-thumb)?.<ext>` and replace the filename.
@@ -433,12 +444,20 @@ serve(async (req) => {
         if (upFull.error) throw upFull.error;
 
         step = "variants";
+        // 9-6-R — downscale once for variant generation. `full` (full-res
+        // with mask) is still needed for the -full.webp upload above.
+        const workingForVariants = decoded.width > WORKING_WIDTH
+          ? decoded.clone().resize(
+              WORKING_WIDTH,
+              Math.max(1, Math.round(decoded.height * (WORKING_WIDTH / decoded.width))),
+            )
+          : decoded;
         for (const v of VARIANTS) {
           const vPath = variantPathFor(row.display_path ?? sourcePath, v.suffix);
           if (!vPath) continue;
-          const ratio = v.width / decoded.width;
-          const targetH = Math.max(1, Math.round(decoded.height * ratio));
-          const small = decoded.clone().resize(v.width, targetH);
+          const ratio = v.width / workingForVariants.width;
+          const targetH = Math.max(1, Math.round(workingForVariants.height * ratio));
+          const small = workingForVariants.clone().resize(v.width, targetH);
           const jpeg = await small.encodeJPEG(85);
           const upV = await admin.storage.from(BUCKET).upload(
             vPath,
@@ -530,8 +549,28 @@ serve(async (req) => {
         skipped++;
         continue;
       }
-      let decoded: Image | null = null;
+      let working: Image | null = null;
       try {
+        // 9-6-R — short-circuit if BOTH variants already exist; avoids
+        // a full download + decode just to discover everything is done.
+        let bothExist = true;
+        for (const v of VARIANTS) {
+          const variantPath = variantPathFor(c.display_path, v.suffix);
+          if (!variantPath) { bothExist = false; break; }
+          const dir = variantPath.substring(0, variantPath.lastIndexOf("/"));
+          const filename = variantPath.substring(variantPath.lastIndexOf("/") + 1);
+          const { data: existing } = await admin.storage
+            .from(BUCKET)
+            .list(dir, { limit: 100, search: filename });
+          if (!(existing ?? []).some((row) => row.name === filename)) {
+            bothExist = false;
+            break;
+          }
+        }
+        if (bothExist) {
+          skipped += VARIANTS.length;
+          continue;
+        }
         for (const v of VARIANTS) {
           const variantPath = variantPathFor(c.display_path, v.suffix);
           if (!variantPath) {
@@ -558,7 +597,7 @@ serve(async (req) => {
             continue;
           }
 
-          if (!decoded) {
+          if (!working) {
             const dl = await admin.storage
               .from(BUCKET)
               .download(c.display_path);
@@ -566,12 +605,22 @@ serve(async (req) => {
               throw dl.error ?? new Error("download failed");
             }
             const bytes = new Uint8Array(await dl.data.arrayBuffer());
-            decoded = await decodeAny(bytes);
+            const fullDecoded = await decodeAny(bytes);
+            // 9-6-R — immediately downscale to WORKING_WIDTH so the
+            // full-res RGBA buffer (potentially 50+ MB) is GC-eligible
+            // before we generate variants.
+            if (fullDecoded.width > WORKING_WIDTH) {
+              const ratio = WORKING_WIDTH / fullDecoded.width;
+              const targetH = Math.max(1, Math.round(fullDecoded.height * ratio));
+              working = fullDecoded.clone().resize(WORKING_WIDTH, targetH);
+            } else {
+              working = fullDecoded;
+            }
           }
 
-          const ratio = v.width / decoded.width;
-          const targetH = Math.max(1, Math.round(decoded.height * ratio));
-          const resized = decoded.clone().resize(v.width, targetH);
+          const ratio = v.width / working.width;
+          const targetH = Math.max(1, Math.round(working.height * ratio));
+          const resized = working.clone().resize(v.width, targetH);
           const jpeg = await resized.encodeJPEG(85);
 
           const up = await admin.storage
@@ -592,10 +641,9 @@ serve(async (req) => {
           reason,
         );
       } finally {
-        // 9-6-Q — explicit cleanup so the Image's pixel buffer is
-        // eligible for GC before the next iteration. Prevents OOM
-        // on long batches of large oracle images.
-        decoded = null;
+        // 9-6-R — explicit cleanup so the Image's pixel buffer is
+        // eligible for GC before the next iteration.
+        working = null;
       }
     }
 
