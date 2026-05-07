@@ -180,7 +180,12 @@ export function CardPicker({
             getCardName(c.card_id) ??
             `Card ${c.card_id}`,
           // 9-6-N — prefer thumbnail to avoid loading multi-MB grid tiles.
-          src: c.thumbnail_url ?? c.display_url,
+          // 9-6-P — route through variantUrlFor so the picker grid shows
+          // the corner-cropped -full.webp variant rather than the raw
+          // upload (relevant before the edge function rewrites URLs).
+          src:
+            variantUrlFor(c.thumbnail_url ?? c.display_url, "full") ??
+            (c.thumbnail_url ?? c.display_url),
         }))
         .filter(({ name }) => !q || name.toLowerCase().includes(q));
     }
