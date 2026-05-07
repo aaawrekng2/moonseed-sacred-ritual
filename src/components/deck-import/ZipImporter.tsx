@@ -597,7 +597,16 @@ export function ZipImporter({
       const displaced = s.assigned[slot];
       if (displaced && displaced !== imageKey) {
         const displacedImg = findImage(s, displaced);
-        if (displacedImg && !displaced.startsWith("EXISTING:")) {
+        // 9-6-J — if we're displacing the BACK slot's prior image and
+        // that same imageKey is ALSO assigned to a numeric card slot,
+        // do NOT move it to unassigned — it's still serving as a card.
+        // Otherwise the card image would vanish from the picker.
+        const isStillACard =
+          slot === BACK_KEY &&
+          Object.entries(s.assigned).some(
+            ([k, v]) => k !== slot && v === displaced,
+          );
+        if (displacedImg && !displaced.startsWith("EXISTING:") && !isStillACard) {
           s.unassigned[displaced] = displacedImg;
         }
       }
