@@ -89,6 +89,11 @@
   --tabletop-max-width:         1280px;
   --tabletop-page-bg:           oklch(0.14 0.04 280);
   --tabletop-card-shadow:       0 2px 8px oklch(0 0 0 / 0.4), 0 0 0 1px oklch(0.82 0.14 82 / 0.12), inset 0 1px 0 oklch(1 0 0 / 0.04);
+  /* 9-6-V — drop-shadow follows the actual painted pixels, so the
+     shadow hugs the card silhouette regardless of the wrapping
+     button's rectangle. The 1px gold ring + inset highlight from the
+     box-shadow variant cannot be replicated with filter alone. */
+  --tabletop-card-drop-shadow:  drop-shadow(0 2px 8px oklch(0 0 0 / 0.45));
   --accent-transition:
     color 300ms ease, background-color 300ms ease,
     border-color 300ms ease, fill 300ms ease,
