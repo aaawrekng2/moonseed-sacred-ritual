@@ -829,6 +829,23 @@ function Index() {
             return `${y}-${m}-${day}`;
           })();
           const hasDrawnToday = lastDrawDate === today;
+          if (hasDrawnToday && currentStreak > 0) {
+            return (
+              <p
+                className="text-center"
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-heading-sm)",
+                  fontWeight: 600,
+                  color: "var(--accent)",
+                  margin: 0,
+                }}
+              >
+                Today's draw is recorded. The moon waxes.
+              </p>
+            );
+          }
           if (hasDrawnToday || currentStreak <= 0) return null;
           return (
             <p
