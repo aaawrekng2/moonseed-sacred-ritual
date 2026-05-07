@@ -17,7 +17,12 @@ import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/ui/search-input";
 import { useActiveDeckImage, useDeckImage } from "@/lib/active-deck";
 import { useAuth } from "@/lib/auth";
-import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
+import {
+  fetchUserDecks,
+  fetchDeckCards,
+  type CustomDeck,
+  type CustomDeckCard,
+} from "@/lib/custom-decks";
 
 export type CardPickerMode = "photography" | "manual-entry";
 
@@ -100,18 +105,55 @@ export function CardPicker({
   const activeDeckObj = decks.find((d) => d.id === deckId);
   const isOracleDeck = activeDeckObj?.deck_type === "oracle";
 
+  // 9-6-H — when a custom deck is selected, render that deck's actual
+  // cards (not the 78 fixed tarot indices). Critical for oracle decks
+  // whose cards have user-supplied names and ids starting at 1000.
+  const [deckCards, setDeckCards] = useState<CustomDeckCard[]>([]);
+  useEffect(() => {
+    if (!deckId) {
+      setDeckCards([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchDeckCards(deckId).then((cards) => {
+      if (!cancelled) {
+        setDeckCards(
+          cards
+            .filter((c) => c.source !== "default")
+            .sort((a, b) => a.card_id - b.card_id),
+        );
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [deckId]);
+
   const photographed = useMemo(() => new Set(photographedIds), [photographedIds]);
   const excluded = useMemo(() => new Set(excludeCardIds), [excludeCardIds]);
 
+  // 9-6-H — gridItems unify default tarot + custom-deck rendering.
   const cards = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return TAROT_DECK.map((name, idx) => ({ idx, name }))
-      .filter(({ idx, name }) => {
-        if (suit !== "All" && suitOf(idx) !== suit) return false;
-        if (q && !name.toLowerCase().includes(q)) return false;
-        return true;
-      });
-  }, [query, suit]);
+    if (deckId && deckCards.length > 0) {
+      return deckCards
+        .map((c) => ({
+          idx: c.card_id,
+          name: c.card_name ?? getCardName(c.card_id) ?? `Card ${c.card_id}`,
+          src: c.display_url,
+        }))
+        .filter(({ name }) => !q || name.toLowerCase().includes(q));
+    }
+    return TAROT_DECK.map((name, idx) => ({
+      idx,
+      name,
+      src: undefined as string | undefined,
+    })).filter(({ idx, name }) => {
+      if (suit !== "All" && suitOf(idx) !== suit) return false;
+      if (q && !name.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [query, suit, deckId, deckCards]);
 
   const handleTap = (cardIndex: number) => {
     if (mode === "manual-entry" && excluded.has(cardIndex)) return;
@@ -128,9 +170,11 @@ export function CardPicker({
   };
 
   if (pendingId !== null) {
+    const pendingItem = cards.find((c) => c.idx === pendingId);
     return (
       <ConfirmReversed
         cardIndex={pendingId}
+        name={pendingItem?.name ?? getCardName(pendingId)}
         isReversed={pendingReversed}
         onToggle={setPendingReversed}
         onBack={() => setPendingId(null)}
@@ -247,10 +291,10 @@ export function CardPicker({
       {/* Grid */}
       <div className="flex-1 overflow-y-auto p-3">
         <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10">
-          {cards.map(({ idx, name }) => {
+          {cards.map(({ idx, name, src: itemSrc }) => {
             const isExcluded = mode === "manual-entry" && excluded.has(idx);
             const isShot = mode === "photography" && photographed.has(idx);
-            const src = resolveImg(idx, "thumbnail");
+            const src = itemSrc ?? resolveImg(idx, "thumbnail");
             const dimDefault = mode === "photography" && !isShot;
             return (
               <button
@@ -310,6 +354,7 @@ export function CardPicker({
 
 function ConfirmReversed({
   cardIndex,
+  name,
   isReversed,
   onToggle,
   onBack,
@@ -318,6 +363,7 @@ function ConfirmReversed({
   embedded = false,
 }: {
   cardIndex: number;
+  name: string;
   isReversed: boolean;
   onToggle: (v: boolean) => void;
   onBack: () => void;
@@ -338,11 +384,12 @@ function ConfirmReversed({
         <button onClick={onBack} className="rounded-full p-2 hover:bg-foreground/10" aria-label="Back">
           <ChevronLeft className="h-5 w-5" />
         </button>
-        <div className="text-sm uppercase tracking-[0.25em] opacity-70">{getCardName(cardIndex)}</div>
+        <div className="text-sm uppercase tracking-[0.25em] opacity-70">{name}</div>
         <div className="w-9" />
       </div>
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
-        <div className="w-44">
+      {/* 9-6-H — tighter sizing so Back/Confirm fit on short bottom sheets. */}
+      <div className="flex flex-col items-center justify-start gap-3 p-4">
+        <div className="w-32">
           <div className="aspect-[0.625] overflow-hidden rounded-xl border border-border/40 bg-black shadow-xl">
             <img
               src={src}
@@ -352,7 +399,7 @@ function ConfirmReversed({
             />
           </div>
         </div>
-        <label className="flex cursor-pointer items-center gap-3 text-sm">
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
           <input
             type="checkbox"
             checked={isReversed}
