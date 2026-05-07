@@ -76,8 +76,12 @@ export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomMod
             onClose();
           }}
           style={{
-            boxShadow: "0 0 80px -10px rgba(212,175,55,0.5)",
-            transition: "transform 300ms ease",
+            // 9-6-V — drop-shadow follows the rounded card silhouette,
+            // eliminating the dark triangular corners that box-shadow
+            // painted around the wrapper rectangle.
+            filter:
+              "drop-shadow(0 0 30px rgba(212,175,55,0.5)) drop-shadow(0 0 60px rgba(212,175,55,0.3))",
+            transition: "transform 300ms ease, filter 300ms ease",
           }}
         >
           <CardImage

@@ -1,7 +1,8 @@
 import type { CardState, TabletopSession } from "./types";
 
 export const TABLETOP_CONFIG = {
-  CARD_ASPECT_RATIO: 1.75,
+  // 9-6-V — was 1.75; closer to typical tarot 5:8 (1.6).
+  CARD_ASPECT_RATIO: 1.6,
   // Cards on the table spawn at random tilts between ±6° to give the
   // scatter an organic, hand-tossed feel. The adaptive curve below scales
   // this down on narrow portrait widths so cards don't visually overflow.

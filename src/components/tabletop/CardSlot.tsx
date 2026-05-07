@@ -94,7 +94,9 @@ export function CardSlot({
   // for one frame) creates a jarring disappear/reappear flicker.
   const skipFlight = isSelected && card.isDragDrop === true;
   const flying = isSelected && slotRect !== null && !skipFlight;
-  const glow = `0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD}px var(--gold)`;
+  // 9-6-V — selection glow is now expressed via filter: drop-shadow on
+  // the card wrapper (see render below). The old box-shadow `glow`
+  // string is no longer needed.
 
   // Ref to the root button so we can measure its viewport rect before the
   // flight begins (FLIP-style: capture First, set Last, animate transform).
@@ -679,9 +681,14 @@ export function CardSlot({
             flightPhase === "arrived" || flightPhase === "returning"
               ? `transform ${flightMs}ms cubic-bezier(0.22,1,0.36,1)`
               : undefined,
-          boxShadow: isSelected
-            ? `var(--tabletop-card-shadow), ${glow}, 0 0 ${TABLETOP_CONFIG.SELECTION_GLOW_SPREAD * 2}px var(--gold)`
-            : "var(--tabletop-card-shadow)",
+          // 9-6-V — drop-shadow follows the painted alpha of the card
+          // image, so the shadow / gold halo hugs the actual card
+          // silhouette instead of the (potentially taller) button
+          // rectangle. Eliminates the "frame around the card" artifact
+          // when the card's natural aspect ≠ CARD_ASPECT_RATIO.
+          filter: isSelected
+            ? "var(--tabletop-card-drop-shadow) drop-shadow(0 0 6px var(--gold)) drop-shadow(0 0 12px var(--gold))"
+            : "var(--tabletop-card-drop-shadow)",
           opacity: isSelected ? TABLETOP_CONFIG.SELECTION_GLOW_OPACITY + 0.2 : 1,
         }}
       >

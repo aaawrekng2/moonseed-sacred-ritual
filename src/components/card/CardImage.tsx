@@ -173,16 +173,16 @@ export function CardImage({
   const [variantFailedFor, setVariantFailedFor] = useState<string | null>(null);
   const devMode = useDevMode();
 
-  // FC-1 — Track the IMG's natural aspect ratio so the flipped
-  // wrapper can size to match exactly. Until measured, fall back
-  // to a sensible 1.6 default (typical tarot card height/width).
-  const [imgAspect, setImgAspect] = useState<number | null>(null);
+  // FC-1 / 9-6-V — Track BOTH face and back natural aspects so the
+  // flip wrapper matches whichever side is currently showing. Without
+  // this, a back image with a different aspect than the face will
+  // letterbox inside the wrapper.
+  const [faceAspect, setFaceAspect] = useState<number | null>(null);
+  const [backAspect, setBackAspect] = useState<number | null>(null);
 
-  // FC-1 — Reset measurement when the card identity / image source
-  // changes so each card gets measured fresh (custom decks may have
-  // varied aspect ratios per scan).
   useEffect(() => {
-    setImgAspect(null);
+    setFaceAspect(null);
+    setBackAspect(null);
     setImageLoaded(false);
   }, [cardId, deckId]);
 
@@ -265,8 +265,11 @@ export function CardImage({
   // and size the OUTER wrapper to width × aspect, so the
   // absolutely-positioned faces fit perfectly with no letterbox.
   if (typeof flipped === "boolean" && typeof cardId === "number") {
-    const aspectRatio = imgAspect ?? 1.6;
-    const wrapperHeight = Math.round(width * aspectRatio);
+    // 9-6-V — pick the aspect of whichever side is currently showing.
+    const activeAspect = flipped
+      ? (faceAspect ?? backAspect ?? 1.6)
+      : (backAspect ?? faceAspect ?? 1.6);
+    const wrapperHeight = Math.round(width * activeAspect);
     return (
       <div
         className={className}
@@ -293,6 +296,7 @@ export function CardImage({
               imageUrl={customBackUrl ?? undefined}
               width={width}
               cornerRadiusPercent={deckRadius}
+              onAspectMeasured={(a) => setBackAspect(a)}
               className="h-full w-full"
             />
             {DEV_BACK_OUTLINE ? (
@@ -323,7 +327,7 @@ export function CardImage({
                   // wrapper can match the IMG's true shape.
                   const img = e.currentTarget;
                   if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                    setImgAspect(img.naturalHeight / img.naturalWidth);
+                    setFaceAspect(img.naturalHeight / img.naturalWidth);
                   }
                   setImageLoaded(true);
                 }}
