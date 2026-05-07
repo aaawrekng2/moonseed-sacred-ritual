@@ -514,10 +514,12 @@ function CardNameLabel({
   cardIndex,
   isReversed,
   cardWidth,
+  nameOverride,
 }: {
   cardIndex: number;
   isReversed: boolean;
   cardWidth: number;
+  nameOverride?: string;
 }) {
   return (
     <div
@@ -538,7 +540,7 @@ function CardNameLabel({
           width: "100%",
         }}
       >
-        {getCardName(cardIndex)}
+        {nameOverride ?? getCardName(cardIndex)}
       </span>
       {isReversed && (
         <span
