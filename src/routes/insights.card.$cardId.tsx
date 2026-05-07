@@ -94,15 +94,8 @@ function StalkerDetailRoute() {
 
       <main className="flex-1 overflow-y-auto px-5 pb-12 pt-4">
         <div className="mx-auto flex max-w-md flex-col items-center gap-4">
-          <div
-            ref={ref}
-            style={{
-              width: 200,
-              aspectRatio: "1 / 1.75",
-              overflow: "hidden",
-            }}
-          >
-            <img src={url} alt={cardName} className="h-full w-full object-cover" />
+          <div ref={ref} style={{ width: 200 }}>
+            <AdaptiveCardImage src={url} alt={cardName} />
           </div>
 
           {data && (

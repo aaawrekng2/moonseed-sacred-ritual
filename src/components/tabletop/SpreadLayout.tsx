@@ -1007,7 +1007,7 @@ export function ManualSpreadSlots({
                 );
               }
             }}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-contain"
             style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
           />
         ) : (

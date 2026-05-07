@@ -993,15 +993,13 @@ function DeckEditor({
                     setMode({ kind: "capture", deckId, cardId: i });
                   }
                 }}
-                className="group relative aspect-[2/3] overflow-hidden rounded border border-border/60 bg-cosmos"
+                className="group relative aspect-[2/3] overflow-hidden rounded border border-border/60"
                 title={getCardName(i)}
               >
                 <img
                   src={photo?.thumbnail_url ?? getCardImagePath(i)}
                   alt={getCardName(i)}
-                  className={cn(
-                    "h-full w-full object-cover",
-                  )}
+                  className="h-full w-full object-contain"
                   style={{ opacity: photo ? 1 : 0.3 }}
                   loading="lazy"
                 />
@@ -1401,7 +1399,7 @@ function CornerRadiusPreview({ cornerRadiusPercent }: { cornerRadiusPercent: num
         <img
           src={getCardImagePath(SAMPLE_PREVIEW_CARD_ID)}
           alt="Sample card preview"
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain"
           style={{ borderRadius: radiusPx }}
           loading="lazy"
         />
@@ -1427,7 +1425,7 @@ function RoundShapePreview() {
         <img
           src={getCardImagePath(SAMPLE_PREVIEW_CARD_ID)}
           alt="Round sample card preview"
-          className="h-full w-full object-cover"
+          className="h-full w-full object-contain"
           loading="lazy"
         />
       </div>

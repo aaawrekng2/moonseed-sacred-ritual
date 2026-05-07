@@ -1266,7 +1266,7 @@ export function PerCardEditModal({
                           <img
                     src={signedUrls[c.card_id]}
                             alt=""
-                            className="h-full w-full object-cover"
+                            className="h-full w-full object-contain"
                           />
                         ) : null}
                       </button>
@@ -1508,8 +1508,8 @@ function CropHandles({
             <div
               aria-hidden
               style={{
-                width: "min(24px, 6vw)",
-                height: "min(24px, 6vw)",
+                width: "min(18px, 5vw)",
+                height: "min(18px, 5vw)",
                 borderRadius: "50%",
                 border: "2px solid var(--gold)",
                 background: "rgba(255,255,255,0.9)",
