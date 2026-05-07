@@ -136,18 +136,27 @@ function Index() {
   const [customCount, setCustomCount] = useState<number>(3);
   const { user, loading: authLoading } = useAuth();
   // 9-6-P — hydrate last-used custom card count for this user.
+  // 9-6-X — diagnostic logging on read path.
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log("[custom_count.hydrate] skip — no user.id");
+      return;
+    }
     let cancelled = false;
     void (async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("user_preferences")
         .select("custom_draw_count")
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
+      if (error) {
+        console.warn("[custom_count.hydrate] read error", error);
+        return;
+      }
       const saved = (data as { custom_draw_count?: number } | null)
         ?.custom_draw_count;
+      console.log("[custom_count.hydrate]", { user_id: user.id, saved });
       if (typeof saved === "number" && saved >= 1 && saved <= 10) {
         setCustomCount(saved);
       }
@@ -630,11 +639,12 @@ function Index() {
           />
           <button
             type="button"
-            onClick={() => {
+            onClick={async () => {
               setCustomCountOpen(false);
               // 9-6-P — persist last-used custom count for next time.
+              // 9-6-X — await + log so failures are visible.
               if (user?.id) {
-                void supabase
+                const { error } = await supabase
                   .from("user_preferences")
                   .upsert(
                     {
@@ -643,6 +653,13 @@ function Index() {
                     } as never,
                     { onConflict: "user_id" },
                   );
+                console.log("[custom_count.save]", {
+                  user_id: user.id,
+                  customCount,
+                  error,
+                });
+              } else {
+                console.warn("[custom_count.save] skip — no user.id");
               }
               navigate({
                 to: "/draw",
