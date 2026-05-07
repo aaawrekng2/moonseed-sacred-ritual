@@ -246,6 +246,56 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
   );
 }
 
+/**
+ * 9-6-N — Default Rider-Waite pseudo-row. Lives at the top of the
+ * My Decks list and represents the "no custom deck active" fallback.
+ */
+function DefaultDeckRow({
+  anyActive,
+  onActivate,
+}: {
+  anyActive: boolean;
+  onActivate: () => void | Promise<void>;
+}) {
+  const isActive = !anyActive;
+  return (
+    <li className="flex flex-row items-center gap-3 rounded-lg border border-border/60 bg-card p-3">
+      <button
+        type="button"
+        onClick={() => {
+          if (anyActive) void onActivate();
+        }}
+        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        aria-label="Use default Rider-Waite deck"
+      >
+        <div
+          className="h-14 w-14 shrink-0 rounded-md border border-border/60 bg-cosmos"
+          style={{
+            backgroundImage: "url(/cards/back.jpg)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-medium sm:text-base">
+              Rider-Waite (default)
+            </p>
+            {isActive && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-gold">
+                <Star className="h-3 w-3" /> Active
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-muted-foreground sm:text-xs">
+            78 cards · classic tarot
+          </p>
+        </div>
+      </button>
+    </li>
+  );
+}
+
 function DeckRow({
   deck,
   onEdit,
