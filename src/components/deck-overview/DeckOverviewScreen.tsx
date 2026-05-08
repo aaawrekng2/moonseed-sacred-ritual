@@ -788,6 +788,39 @@ export function DeckOverviewScreen({
         </div>
       )}
 
+      {/* 26-05-08-J — Fix 4: failed-card recovery banner. */}
+      {procStatus && procStatus.failed > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-yellow-500/40 bg-yellow-500/5 p-3">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-500" />
+          <div className="min-w-0 flex-1 text-sm">
+            <strong>
+              {procStatus.failed} card
+              {procStatus.failed === 1 ? "" : "s"} didn&rsquo;t process.
+            </strong>{" "}
+            <span className="text-muted-foreground">
+              The original images are still saved — try again or re-upload
+              the zip.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleReoptimize()}
+            disabled={reoptimizing || busy}
+            className="text-sm italic underline disabled:opacity-50"
+          >
+            Retry
+          </button>
+          <button
+            type="button"
+            onClick={handleReuploadZip}
+            disabled={busy}
+            className="text-sm italic underline disabled:opacity-50"
+          >
+            Upload zip again
+          </button>
+        </div>
+      )}
+
       {/* Prominent CTAs for empty decks */}
       {showProminentCTAs && (
         <div className="mb-6 flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/60 bg-foreground/[0.02] p-6 text-center">
