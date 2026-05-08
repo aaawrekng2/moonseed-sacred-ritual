@@ -290,6 +290,7 @@ function JournalPage() {
             .from("reading_photos")
             .select("reading_id,storage_path,created_at")
             .eq("user_id", user.id)
+            .is("archived_at", null)
             .order("created_at", { ascending: true }),
         ]);
       if (cancelled) return;
