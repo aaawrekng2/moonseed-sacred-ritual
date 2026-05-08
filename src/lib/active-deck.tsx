@@ -342,3 +342,28 @@ export function variantUrlFor(
     return originalUrl;
   }
 }
+
+/**
+ * 9-6-AF — PNG fallback URL for the same variant tier. The Edge
+ * Function falls back to PNG bytes at a `.png` path when WebP
+ * encoding fails. Consumers should try the .webp URL first and
+ * fall back to this helper on `onError` before the original.
+ */
+export function variantUrlPngFallback(
+  originalUrl: string | null | undefined,
+  variant: "sm" | "md" | "full",
+): string | null {
+  if (!originalUrl) return null;
+  if (!originalUrl.includes("/custom-deck-images/")) return null;
+  try {
+    const url = new URL(originalUrl);
+    const m = url.pathname.match(
+      /^(.*\/card-\d+-\d+)(?:-thumb|-full)?\.(?:webp|png|jpe?g)$/i,
+    );
+    if (!m) return null;
+    url.pathname = `${m[1]}-${variant}.png`;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}

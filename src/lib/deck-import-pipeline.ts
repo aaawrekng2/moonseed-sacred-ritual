@@ -270,6 +270,21 @@ export function processImportAssets(
     }
   }
 
+  // 9-6-AF — if exactly 1 file remains unmatched after a complete
+  // 78-card match AND no back was named recognizably, treat the
+  // lone leftover as the card back.
+  if (!cardBackKey) {
+    const assignedKeysSoFar = new Set(Object.values(assigned));
+    const leftover = assets.filter((a) => !assignedKeysSoFar.has(a.key));
+    const numericMatched = Object.keys(assigned).filter(
+      (k) => k !== BACK_KEY,
+    ).length;
+    if (numericMatched === 78 && leftover.length === 1) {
+      cardBackKey = leftover[0].key;
+      assigned[BACK_KEY] = leftover[0].key;
+    }
+  }
+
   // Anything not assigned is unmatched.
   const assignedKeys = new Set(Object.values(assigned));
   for (const asset of assets) {

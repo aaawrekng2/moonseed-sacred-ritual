@@ -8,10 +8,10 @@ import {
 import { ChevronLeft, Pencil, Archive, StickyNote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { ReadingRow } from "@/components/ui/reading-row";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { EmptyHero } from "@/components/ui/empty-hero";
-import { formatDateShort } from "@/lib/dates";
+import { formatDateShort, formatDateLong } from "@/lib/dates";
+import { CardImage } from "@/components/card/CardImage";
 import {
   type Pattern,
   type PatternLifecycleState,
@@ -490,20 +490,20 @@ function PatternChamber() {
         )
       )}
 
-      {/* 9-6-AC — synthesis leads; readings list follows. */}
+      {/* 9-6-AF — synthesis → card evidence → weaves → readings list at bottom. */}
       <PatternSynthesis
         patternId={pattern.id}
         readingCount={pattern.reading_ids.length}
       />
 
+      <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
+
+      <ChamberWeaveGraph pattern={pattern} userId={user?.id} />
+
       <ChamberTimeline
         readingIds={pattern.reading_ids}
         onOpenReading={setOpenReadingId}
       />
-
-      <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
-
-      <ChamberWeaveGraph pattern={pattern} userId={user?.id} />
 
       {openReadingId && (
         <ReadingDetailModal
@@ -1042,7 +1042,7 @@ function _ChamberTimeline({
   onOpenReading: (readingId: string) => void;
 }) {
   const [rows, setRows] = useState<
-    Array<{ id: string; created_at: string; spread_type: string; card_ids: number[]; interpretation: string | null }>
+    Array<{ id: string; created_at: string; spread_type: string; card_ids: number[]; question: string | null; interpretation: string | null }>
   >([]);
 
   useEffect(() => {
@@ -1051,7 +1051,7 @@ function _ChamberTimeline({
     void (async () => {
       const { data } = await supabase
         .from("readings")
-        .select("id, created_at, spread_type, card_ids, interpretation")
+        .select("id, created_at, spread_type, card_ids, question, interpretation")
         .in("id", readingIds)
         .is("archived_at", null)
         .order("created_at", { ascending: false });
@@ -1062,6 +1062,7 @@ function _ChamberTimeline({
           created_at: r.created_at as string,
           spread_type: r.spread_type as string,
           card_ids: (r.card_ids as number[]) ?? [],
+          question: (r.question as string | null) ?? null,
           interpretation: (r.interpretation as string | null) ?? null,
         })),
       );
@@ -1071,32 +1072,125 @@ function _ChamberTimeline({
     };
   }, [readingIds]);
 
-  if (rows.length === 0) {
-    return <EmptyHero title="No readings linked yet." />;
-  }
+  if (rows.length === 0) return null;
 
   return (
-    <ol
+    <section style={{ marginTop: "var(--space-8, 48px)" }}>
+      <h2
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-heading-md)",
+          color: "var(--color-foreground)",
+          opacity: 0.85,
+          marginBottom: "var(--space-4, 16px)",
+        }}
+      >
+        The readings in this story
+      </h2>
+      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        {rows.map((r) => (
+          <li
+            key={r.id}
+            style={{
+              borderBottom: "0.5px solid var(--border-subtle)",
+              padding: "var(--space-4, 16px) 0",
+            }}
+          >
+            <ReadingExcerptCard reading={r} onOpen={onOpenReading} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function ReadingExcerptCard({
+  reading,
+  onOpen,
+}: {
+  reading: {
+    id: string;
+    created_at: string;
+    spread_type: string;
+    card_ids: number[];
+    question: string | null;
+    interpretation: string | null;
+  };
+  onOpen: (id: string) => void;
+}) {
+  const keyCardId = reading.card_ids[0];
+  const dateLabel = formatDateLong(reading.created_at).toUpperCase();
+  const spreadLabel = reading.spread_type.replace(/_/g, " ").toUpperCase();
+  const excerpt = (() => {
+    if (!reading.interpretation) return null;
+    const stripped = reading.interpretation
+      .replace(/[*_#`]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    const first = stripped.match(/^[^.!?]+[.!?]/)?.[0] ?? stripped;
+    return first.length > 140 ? first.slice(0, 137) + "…" : first;
+  })();
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(reading.id)}
       style={{
-        listStyle: "none",
-        padding: 0,
-        margin: "var(--space-6, 32px) 0 0",
         display: "flex",
-        flexDirection: "column",
+        gap: "var(--space-3, 12px)",
+        width: "100%",
+        padding: 0,
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        textAlign: "left",
       }}
     >
-      {rows.map((r) => (
-        <li key={r.id}>
-          <ReadingRow
-            readingId={r.id}
-            question={null}
-            cardIds={r.card_ids}
-            createdAt={r.created_at}
-            onOpen={onOpenReading}
-          />
-        </li>
-      ))}
-    </ol>
+      {keyCardId !== undefined && (
+        <div style={{ flex: "none" }}>
+          <CardImage cardId={keyCardId} size="thumbnail" />
+        </div>
+      )}
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <p
+          style={{
+            margin: 0,
+            fontSize: "var(--text-caption)",
+            letterSpacing: "0.15em",
+            color: "var(--accent, var(--gold))",
+            opacity: 0.7,
+          }}
+        >
+          {dateLabel} · {spreadLabel}
+        </p>
+        {reading.question && (
+          <p
+            style={{
+              margin: "4px 0 0",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body)",
+              color: "var(--color-foreground)",
+            }}
+          >
+            “{reading.question}”
+          </p>
+        )}
+        {excerpt && (
+          <p
+            style={{
+              margin: "6px 0 0",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              opacity: 0.65,
+              lineHeight: 1.5,
+            }}
+          >
+            {excerpt}
+          </p>
+        )}
+      </div>
+    </button>
   );
 }
 

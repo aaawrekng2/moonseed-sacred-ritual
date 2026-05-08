@@ -31,6 +31,7 @@ import {
   useDeckCornerRadius,
   useDeckImage,
   variantUrlFor,
+  variantUrlPngFallback,
 } from "@/lib/active-deck";
 import type { CardBackId } from "@/lib/card-backs";
 import { getCardName } from "@/lib/tarot";
@@ -168,10 +169,12 @@ export function CardImage({
   const specificRadius = useDeckCornerRadius(deckId ?? null);
   const customBackUrl = useActiveCardBackUrl();
   const [imageLoaded, setImageLoaded] = useState(false);
-  // EZ-7 — When the variant URL 404s (deck hasn't been backfilled),
-  // retry once with the original. State is keyed off the resolved
-  // src so deck/card swaps reset cleanly.
-  const [variantFailedFor, setVariantFailedFor] = useState<string | null>(null);
+  // 9-6-AF — fallback ladder for variant resolution. `null` = trying
+  // the .webp variant. `"png"` = .webp 404'd, trying .png variant.
+  // `"all"` = both variants failed, falling back to the original.
+  const [variantFailedFor, setVariantFailedFor] = useState<
+    null | "png" | "all"
+  >(null);
   const devMode = useDevMode();
 
   // FC-1 / 9-6-V — Track BOTH face and back natural aspects so the
@@ -192,6 +195,7 @@ export function CardImage({
     setFaceAspect(cachedFaceAspect);
     setBackAspect(null);
     setImageLoaded(false);
+    setVariantFailedFor(null);
   }, [cardId, deckId, cachedFaceAspect]);
 
   // EY-1 — Saturated diagnostic colors. The card art still
@@ -257,9 +261,17 @@ export function CardImage({
   // variantFailedFor and we re-render with the original.
   const variantTier = SIZE_TO_VARIANT[size];
   const variantSrc = variantUrlFor(baseFaceSrc, variantTier);
+  // 9-6-AF — try .webp variant → .png variant → original. Tracks
+  // which step we've fallen through to via `variantFailedFor`.
+  const variantPngSrc =
+    variantTier === "full"
+      ? null
+      : variantUrlPngFallback(baseFaceSrc, variantTier);
   const faceSrc =
-    variantFailedFor && variantFailedFor === variantSrc
-      ? baseFaceSrc
+    variantFailedFor === "png" || variantFailedFor === "all"
+      ? variantFailedFor === "all"
+        ? baseFaceSrc
+        : variantPngSrc ?? baseFaceSrc
       : variantSrc;
 
   const showFaceShimmer =
@@ -340,13 +352,19 @@ export function CardImage({
                   setImageLoaded(true);
                 }}
                 onError={() => {
+                  // 9-6-AF — try .png variant before original.
                   if (
                     variantTier !== "full" &&
-                    baseFaceSrc &&
-                    faceSrc !== baseFaceSrc &&
-                    variantFailedFor !== variantSrc
+                    variantFailedFor === null &&
+                    variantPngSrc
                   ) {
-                    setVariantFailedFor(variantSrc);
+                    setVariantFailedFor("png");
+                  } else if (
+                    variantFailedFor !== "all" &&
+                    baseFaceSrc &&
+                    faceSrc !== baseFaceSrc
+                  ) {
+                    setVariantFailedFor("all");
                   } else {
                     setImageLoaded(true);
                   }
@@ -409,16 +427,20 @@ export function CardImage({
             loading="lazy"
             onLoad={() => setImageLoaded(true)}
             onError={() => {
-              // EZ-7 — Variant 404? Try the original once.
+              // 9-6-AF — try .png variant before original.
               if (
                 variantTier !== "full" &&
-                baseFaceSrc &&
-                faceSrc !== baseFaceSrc &&
-                variantFailedFor !== variantSrc
+                variantFailedFor === null &&
+                variantPngSrc
               ) {
-                setVariantFailedFor(variantSrc);
+                setVariantFailedFor("png");
+              } else if (
+                variantFailedFor !== "all" &&
+                baseFaceSrc &&
+                faceSrc !== baseFaceSrc
+              ) {
+                setVariantFailedFor("all");
               } else {
-                // Original also failed — give up and clear shimmer.
                 setImageLoaded(true);
               }
             }}

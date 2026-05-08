@@ -304,7 +304,7 @@ serve(async (req) => {
         const full = decoded.clone();
         applyRoundedMask(full, radius);
         const fullPng = await full.encode();
-        const fullPath = fullWebpPathFor(backPath);
+        let fullPath = fullWebpPathFor(backPath);
         if (!fullPath) throw new Error("unrecognized back path layout");
         let fullBytes: Uint8Array;
         let fullContentType = "image/webp";
@@ -321,9 +321,19 @@ serve(async (req) => {
               reject(e);
             }
           });
-        } catch {
+        } catch (e) {
+          console.error(
+            "[generate-deck-variants] back WebP encode failed; falling back to PNG",
+            {
+              error: e instanceof Error ? e.message : String(e),
+              stack: e instanceof Error ? e.stack : undefined,
+            },
+          );
           fullBytes = fullPng;
           fullContentType = "image/png";
+          // 9-6-AF — write PNG bytes to a .png path so Chrome ORB
+          // doesn't block the response on extension/content mismatch.
+          fullPath = fullPath.replace(/\.webp$/, ".png");
         }
         const upFull = await admin.storage.from(BUCKET).upload(
           fullPath,
@@ -331,6 +341,12 @@ serve(async (req) => {
           { contentType: fullContentType, upsert: true },
         );
         if (upFull.error) throw upFull.error;
+        if (fullContentType === "image/png") {
+          await admin.storage
+            .from(BUCKET)
+            .remove([fullPath.replace(/\.png$/, ".webp")])
+            .catch(() => {});
+        }
         await admin
           .from("custom_decks")
           .update({ card_back_path: fullPath })
@@ -427,9 +443,13 @@ serve(async (req) => {
             }
           });
         } catch (webpErr) {
-          console.warn(
-            "[generate-deck-variants] WebP encode failed; falling back to PNG",
-            webpErr,
+          console.error(
+            "[generate-deck-variants] single-card WebP encode failed; falling back to PNG",
+            {
+              cardId: row.card_id,
+              error: webpErr instanceof Error ? webpErr.message : String(webpErr),
+              stack: webpErr instanceof Error ? webpErr.stack : undefined,
+            },
           );
           usedFallbackPng = true;
           fullBytes = fullPng;
@@ -437,8 +457,15 @@ serve(async (req) => {
         }
 
         step = "resolve_full_path";
-        const fullPath = fullWebpPathFor(row.display_path ?? sourcePath);
+        let fullPath = fullWebpPathFor(row.display_path ?? sourcePath);
         if (!fullPath) throw new Error("unrecognized path layout");
+        // 9-6-AF — when the WebP encoder failed and we're uploading raw
+        // PNG bytes, write to a `.png` path. Chrome's Opaque Response
+        // Blocking refuses to render `image/png` bytes served from a
+        // `.webp` URL, which broke EVERY image after import.
+        if (fullContentType === "image/png") {
+          fullPath = fullPath.replace(/\.webp$/, ".png");
+        }
 
         step = "upload_full";
         const upFull = await admin.storage.from(BUCKET).upload(
@@ -447,6 +474,13 @@ serve(async (req) => {
           { contentType: fullContentType, upsert: true },
         );
         if (upFull.error) throw upFull.error;
+        if (fullContentType === "image/png") {
+          // Remove any stale .webp sibling from a previous run.
+          await admin.storage
+            .from(BUCKET)
+            .remove([fullPath.replace(/\.png$/, ".webp")])
+            .catch(() => {});
+        }
 
         step = "variants";
         // 9-6-R — downscale once for variant generation. `full` (full-res
@@ -458,7 +492,7 @@ serve(async (req) => {
             )
           : decoded;
         for (const v of VARIANTS) {
-          const vPath = variantPathFor(row.display_path ?? sourcePath, v.suffix);
+          let vPath = variantPathFor(row.display_path ?? sourcePath, v.suffix);
           if (!vPath) continue;
           const ratio = v.width / workingForVariants.width;
           const targetH = Math.max(1, Math.round(workingForVariants.height * ratio));
@@ -467,28 +501,50 @@ serve(async (req) => {
           // sm/md variants share the same rounded silhouette as -full.webp.
           if (radius > 0) applyRoundedMask(small, radius);
           const smallPng = await small.encode();
-          await ensureMagick();
-          const webpBytes: Uint8Array = await new Promise((resolve, reject) => {
-            try {
-              ImageMagick.read(smallPng, (img) => {
-                img.write(MagickFormat.Webp, (data) =>
-                  resolve(new Uint8Array(data)),
-                );
-              });
-            } catch (e) {
-              reject(e);
-            }
-          });
+          let vBytes: Uint8Array;
+          let vContentType = "image/webp";
+          try {
+            await ensureMagick();
+            vBytes = await new Promise<Uint8Array>((resolve, reject) => {
+              try {
+                ImageMagick.read(smallPng, (img) => {
+                  img.write(MagickFormat.Webp, (data) =>
+                    resolve(new Uint8Array(data)),
+                  );
+                });
+              } catch (e) {
+                reject(e);
+              }
+            });
+          } catch (e) {
+            // 9-6-AF — same PNG fallback for sm/md variants.
+            console.error(
+              "[generate-deck-variants] variant WebP encode failed; falling back to PNG",
+              {
+                cardId: row.card_id,
+                variant: v.suffix,
+                error: e instanceof Error ? e.message : String(e),
+              },
+            );
+            vBytes = smallPng;
+            vContentType = "image/png";
+            vPath = vPath.replace(/\.webp$/, ".png");
+          }
           const upV = await admin.storage.from(BUCKET).upload(
             vPath,
-            webpBytes,
-            { contentType: "image/webp", upsert: true },
+            vBytes,
+            { contentType: vContentType, upsert: true },
           );
           if (upV.error) throw upV.error;
-          // 9-6-W — best-effort cleanup of legacy .jpg sibling.
+          // 9-6-W / 9-6-AF — best-effort cleanup of stale siblings.
           await admin.storage
             .from(BUCKET)
-            .remove([vPath.replace(/\.webp$/, ".jpg")])
+            .remove([
+              vPath.replace(/\.(webp|png)$/, ".jpg"),
+              vContentType === "image/png"
+                ? vPath.replace(/\.png$/, ".webp")
+                : vPath.replace(/\.webp$/, ".png"),
+            ])
             .catch(() => {});
         }
 
@@ -621,7 +677,7 @@ serve(async (req) => {
         };
 
         for (const v of VARIANTS) {
-          const variantPath = variantPathFor(c.display_path, v.suffix);
+          let variantPath = variantPathFor(c.display_path, v.suffix);
           if (!variantPath) {
             failed++;
             errors.push({
@@ -655,29 +711,50 @@ serve(async (req) => {
           const resized = decodedSource!.clone().resize(v.width, targetH);
           if (radius > 0) applyRoundedMask(resized, radius);
           const png = await resized.encode();
-          const webpBytes: Uint8Array = await new Promise((resolve, reject) => {
-            try {
-              ImageMagick.read(png, (img) => {
-                img.write(MagickFormat.Webp, (data) =>
-                  resolve(new Uint8Array(data)),
-                );
-              });
-            } catch (e) {
-              reject(e);
-            }
-          });
+          let outBytes: Uint8Array;
+          let outContentType = "image/webp";
+          try {
+            outBytes = await new Promise<Uint8Array>((resolve, reject) => {
+              try {
+                ImageMagick.read(png, (img) => {
+                  img.write(MagickFormat.Webp, (data) =>
+                    resolve(new Uint8Array(data)),
+                  );
+                });
+              } catch (e) {
+                reject(e);
+              }
+            });
+          } catch (e) {
+            // 9-6-AF — PNG fallback for batch-mode variants.
+            console.error(
+              "[generate-deck-variants] batch variant WebP encode failed; falling back to PNG",
+              {
+                cardId: c.card_id,
+                variant: v.suffix,
+                error: e instanceof Error ? e.message : String(e),
+              },
+            );
+            outBytes = png;
+            outContentType = "image/png";
+            variantPath = variantPath.replace(/\.webp$/, ".png");
+          }
 
           const up = await admin.storage
             .from(BUCKET)
-            .upload(variantPath, webpBytes, {
-              contentType: "image/webp",
+            .upload(variantPath, outBytes, {
+              contentType: outContentType,
               upsert: true,
             });
           if (up.error) throw up.error;
-          // Best-effort cleanup of legacy .jpg sibling.
           await admin.storage
             .from(BUCKET)
-            .remove([variantPath.replace(/\.webp$/, ".jpg")])
+            .remove([
+              variantPath.replace(/\.(webp|png)$/, ".jpg"),
+              outContentType === "image/png"
+                ? variantPath.replace(/\.png$/, ".webp")
+                : variantPath.replace(/\.webp$/, ".png"),
+            ])
             .catch(() => {});
           generated++;
         }
