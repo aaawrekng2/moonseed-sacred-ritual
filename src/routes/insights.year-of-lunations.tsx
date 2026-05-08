@@ -138,13 +138,14 @@ function YearOfLunationsRoute() {
       />
 
       <div
-        className="pointer-events-none relative z-[1] flex flex-1 justify-center px-6"
+        className="relative z-[1] flex flex-1 justify-center px-6"
         style={{
           overflowY: "auto",
           overscrollBehaviorY: "contain",
           alignItems: "safe center",
           paddingTop: "calc(env(safe-area-inset-top, 0px) + 64px)",
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 32px)",
+          pointerEvents: "none",
         }}
       >
         {loading && <Caption>Reading the year…</Caption>}
