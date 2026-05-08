@@ -499,7 +499,7 @@ function Index() {
             <MoonStreakIcon streakDays={currentStreak} size={20} />
             <span
               style={{
-                fontSize: "13px",
+                fontSize: "var(--text-body-sm)",
                 color: "var(--gold)",
                 opacity: "var(--ro-plus-20)",
                 fontFamily: "var(--font-serif)",
