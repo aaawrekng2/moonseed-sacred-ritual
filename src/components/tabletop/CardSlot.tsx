@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { getCardName } from "@/lib/tarot";
 import { CardImage } from "@/components/card/CardImage";
 import type { CardBackId } from "@/lib/card-backs";
+import { useActiveDeckImage, variantUrlFor } from "@/lib/active-deck";
 import { cn } from "@/lib/utils";
 import { TABLETOP_CONFIG } from "./config";
 import type { CardState } from "./types";
