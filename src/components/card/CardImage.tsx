@@ -351,13 +351,19 @@ export function CardImage({
                   setImageLoaded(true);
                 }}
                 onError={() => {
+                  // 9-6-AF — try .png variant before original.
                   if (
                     variantTier !== "full" &&
-                    baseFaceSrc &&
-                    faceSrc !== baseFaceSrc &&
-                    variantFailedFor !== variantSrc
+                    variantFailedFor === null &&
+                    variantPngSrc
                   ) {
-                    setVariantFailedFor(variantSrc);
+                    setVariantFailedFor("png");
+                  } else if (
+                    variantFailedFor !== "all" &&
+                    baseFaceSrc &&
+                    faceSrc !== baseFaceSrc
+                  ) {
+                    setVariantFailedFor("all");
                   } else {
                     setImageLoaded(true);
                   }
@@ -420,16 +426,20 @@ export function CardImage({
             loading="lazy"
             onLoad={() => setImageLoaded(true)}
             onError={() => {
-              // EZ-7 — Variant 404? Try the original once.
+              // 9-6-AF — try .png variant before original.
               if (
                 variantTier !== "full" &&
-                baseFaceSrc &&
-                faceSrc !== baseFaceSrc &&
-                variantFailedFor !== variantSrc
+                variantFailedFor === null &&
+                variantPngSrc
               ) {
-                setVariantFailedFor(variantSrc);
+                setVariantFailedFor("png");
+              } else if (
+                variantFailedFor !== "all" &&
+                baseFaceSrc &&
+                faceSrc !== baseFaceSrc
+              ) {
+                setVariantFailedFor("all");
               } else {
-                // Original also failed — give up and clear shimmer.
                 setImageLoaded(true);
               }
             }}
