@@ -82,6 +82,7 @@ type PatternReading = {
 
 function ThreadsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [view, setView] = useState<View>("active");
   // FU-8 — iOS large-to-compact title collapse (window scroll).
   const collapseProgress = useScrollCollapse(undefined, 40);
@@ -126,13 +127,30 @@ function ThreadsPage() {
     ["quieting", "retired"].includes(p.lifecycle_state),
   );
 
-  const readingsByPattern = new Map<string, PatternReading[]>();
+  // 9-6-AF — Per-pattern reading counts only; the list view no longer
+  // renders nested readings under each pattern.
+  const readingCountByPattern = new Map<string, number>();
   for (const r of readings) {
     if (!r.pattern_id) continue;
-    const arr = readingsByPattern.get(r.pattern_id) ?? [];
-    arr.push(r);
-    readingsByPattern.set(r.pattern_id, arr);
+    readingCountByPattern.set(
+      r.pattern_id,
+      (readingCountByPattern.get(r.pattern_id) ?? 0) + 1,
+    );
   }
+  void readings;
+
+  // 9-6-AF — auto-redirect when there's exactly one active story.
+  useEffect(() => {
+    if (loading) return;
+    if (view !== "active") return;
+    if (active.length === 1) {
+      void navigate({
+        to: "/threads/$patternId",
+        params: { patternId: active[0].id },
+        replace: true,
+      });
+    }
+  }, [loading, active, view, navigate]);
 
   return (
     <div
