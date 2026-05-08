@@ -1169,6 +1169,7 @@ function _ChamberTimeline({
 function ReadingExcerptCard({
   reading,
   onOpen,
+  connector,
 }: {
   reading: {
     id: string;
@@ -1179,16 +1180,26 @@ function ReadingExcerptCard({
     interpretation: string | null;
   };
   onOpen: (id: string) => void;
+  connector?: string;
 }) {
   const keyCardId = reading.card_ids[0];
   const dateLabel = formatDateLong(reading.created_at).toUpperCase();
   const spreadLabel = reading.spread_type.replace(/_/g, " ").toUpperCase();
   const excerpt = (() => {
     if (!reading.interpretation) return null;
-    const stripped = reading.interpretation
+    let stripped = reading.interpretation
       .replace(/[*_#`]/g, "")
       .replace(/\s+/g, " ")
       .trim();
+    // 9-6-AH continuation — strip leading position labels
+    // (Past:/Present:/Future:/etc.) so the snippet doesn't lead with
+    // bleed-through from the spread structure. Loop in case multiple
+    // labels stack at the start.
+    const POSITION_LABEL_PREFIX =
+      /^(Past|Present|Future|Significator|Crosses|Crowns|Foundation|Behind|Before|Self|House|Hopes|Outcome)\s*[:\-—]\s*/i;
+    while (POSITION_LABEL_PREFIX.test(stripped)) {
+      stripped = stripped.replace(POSITION_LABEL_PREFIX, "");
+    }
     // 9-6-AG — pull up to 3 sentences, cap around 420 chars.
     const sentences = stripped.match(/[^.!?]+[.!?]+/g) ?? [stripped];
     const firstThree = sentences.slice(0, 3).join(" ").trim();
@@ -1240,6 +1251,21 @@ function ReadingExcerptCard({
             }}
           >
             “{reading.question}”
+          </p>
+        )}
+        {connector && (
+          <p
+            style={{
+              margin: "var(--space-2, 8px) 0 0",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--accent, var(--gold))",
+              opacity: 0.85,
+              lineHeight: 1.5,
+            }}
+          >
+            {connector}
           </p>
         )}
         {excerpt && (
