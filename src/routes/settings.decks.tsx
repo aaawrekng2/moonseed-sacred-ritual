@@ -1442,6 +1442,89 @@ function DeckEditor({
   return null;
 }
 
+function ResumePromptModal({
+  assigned,
+  unassigned,
+  skipped,
+  onResume,
+  onDiscard,
+}: {
+  assigned: number;
+  unassigned: number;
+  skipped: number;
+  onResume: () => void;
+  onDiscard: () => void | Promise<void>;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[115] flex items-center justify-center p-6"
+      style={{
+        background:
+          "var(--surface-overlay, color-mix(in oklab, var(--color-background) 80%, black))",
+      }}
+    >
+      <div
+        className="flex w-full max-w-sm flex-col gap-4 rounded-xl border"
+        style={{
+          background: "var(--surface-card)",
+          borderColor: "var(--border-subtle)",
+          color: "var(--color-foreground)",
+          padding: "var(--space-5, 1.25rem)",
+          borderRadius: "var(--radius-lg, 0.75rem)",
+        }}
+      >
+        <h3
+          className="italic"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-heading-sm)",
+          }}
+        >
+          Resume your import?
+        </h3>
+        <p style={{ fontSize: "var(--text-body-sm)" }}>
+          You have an in-progress import for this deck ({assigned} assigned,{" "}
+          {unassigned} unassigned, {skipped} skipped).
+        </p>
+        <p
+          style={{
+            fontSize: "var(--text-caption)",
+            opacity: 0.6,
+            fontStyle: "italic",
+          }}
+        >
+          Available on this device only
+        </p>
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={onResume}
+            className="rounded-md px-4 py-2 font-medium"
+            style={{
+              background: "var(--accent)",
+              color: "var(--accent-foreground, #000)",
+              fontSize: "var(--text-body-sm)",
+            }}
+          >
+            Resume
+          </button>
+          <button
+            type="button"
+            onClick={() => void onDiscard()}
+            className="rounded-md px-4 py-2"
+            style={{
+              fontSize: "var(--text-body-sm)",
+              background: "transparent",
+            }}
+          >
+            Discard and start over
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Workspace + per-card corner editor overlay (Phase 9-5-B Part 1)    */
 /* ------------------------------------------------------------------ */
