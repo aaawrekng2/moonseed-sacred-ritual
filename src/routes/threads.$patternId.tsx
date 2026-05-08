@@ -490,20 +490,20 @@ function PatternChamber() {
         )
       )}
 
-      {/* 9-6-AC — synthesis leads; readings list follows. */}
+      {/* 9-6-AF — synthesis → card evidence → weaves → readings list at bottom. */}
       <PatternSynthesis
         patternId={pattern.id}
         readingCount={pattern.reading_ids.length}
       />
 
+      <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
+
+      <ChamberWeaveGraph pattern={pattern} userId={user?.id} />
+
       <ChamberTimeline
         readingIds={pattern.reading_ids}
         onOpenReading={setOpenReadingId}
       />
-
-      <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
-
-      <ChamberWeaveGraph pattern={pattern} userId={user?.id} />
 
       {openReadingId && (
         <ReadingDetailModal
