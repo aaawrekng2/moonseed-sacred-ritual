@@ -912,16 +912,71 @@ function PatternSynthesis({
       )}
       {state.kind === "ready" && (
         <div style={{ marginTop: 12 }}>
-          <p
-            style={{
-              whiteSpace: "pre-wrap",
-              fontSize: "var(--text-body)",
-              lineHeight: 1.6,
-              color: "var(--color-foreground)",
-            }}
-          >
-            {state.data.body}
-          </p>
+          {state.data.whatThisIs ? (
+            <div style={{ marginBottom: 20 }}>
+              <h3
+                style={{
+                  margin: 0,
+                  marginBottom: 6,
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                  letterSpacing: "0.06em",
+                  opacity: 0.7,
+                }}
+              >
+                What this story is
+              </h3>
+              <p
+                style={{
+                  whiteSpace: "pre-wrap",
+                  fontSize: "var(--text-body)",
+                  lineHeight: 1.7,
+                  fontFamily: "var(--font-serif)",
+                }}
+              >
+                {state.data.whatThisIs}
+              </p>
+            </div>
+          ) : null}
+          {state.data.whatItCouldMean ? (
+            <div style={{ marginBottom: 20 }}>
+              <h3
+                style={{
+                  margin: 0,
+                  marginBottom: 6,
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                  letterSpacing: "0.06em",
+                  opacity: 0.7,
+                }}
+              >
+                What it could mean
+              </h3>
+              <p
+                style={{
+                  whiteSpace: "pre-wrap",
+                  fontSize: "var(--text-body)",
+                  lineHeight: 1.7,
+                  fontFamily: "var(--font-serif)",
+                }}
+              >
+                {state.data.whatItCouldMean}
+              </p>
+            </div>
+          ) : state.data.body ? (
+            <p
+              style={{
+                whiteSpace: "pre-wrap",
+                fontSize: "var(--text-body)",
+                lineHeight: 1.6,
+                color: "var(--color-foreground)",
+              }}
+            >
+              {state.data.body}
+            </p>
+          ) : null}
           {state.data.key_cards.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <h3

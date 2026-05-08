@@ -8,7 +8,7 @@
  */
 import type { CSSProperties, ReactNode } from "react";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
-import { useDeckImage, useDeckCornerRadius } from "@/lib/active-deck";
+import { useDeckImage, useDeckCornerRadius, useActiveDeck, useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
 import type { SharePick } from "../share-types";
 import type { ShareLevel } from "../share-types";
 import { getSigilForLevel, SigilWithGlow } from "../sigils";
@@ -245,9 +245,17 @@ export function ShareCardRow({
   const gap = n > 1 ? 24 : 0;
   const cardWidth = Math.min(360, Math.floor((maxWidth - gap * (n - 1)) / n));
   const cardHeight = Math.round(cardWidth * cardAspect);
-  // DN-7 — useDeckImage gives a deck-aware resolver with default fallback.
-  const getImage = useDeckImage(deckId ?? null);
-  const deckRadiusPx = useDeckCornerRadius(deckId ?? null);
+  // 9-6-AC — When the reading carries no saved deck_id (legacy
+  // readings or default deck), fall back to the seeker's currently
+  // active custom deck so share cards reflect their real artwork
+  // rather than the Rider-Waite default.
+  const { activeDeck } = useActiveDeck();
+  const effectiveDeckId = deckId ?? activeDeck?.id ?? null;
+  const getImage = useDeckImage(effectiveDeckId);
+  const getActive = useActiveDeckImage();
+  const deckRadiusPx = useDeckCornerRadius(effectiveDeckId);
+  const activeRadiusPx = useActiveDeckCornerRadius();
+  const radiusPx = deckRadiusPx ?? activeRadiusPx;
   return (
     <div
       style={{
@@ -278,13 +286,17 @@ export function ShareCardRow({
               // hardcoded cosmic dark, so themed previews match in-app.
               background: "var(--background)",
               borderRadius:
-                deckRadiusPx != null
-                  ? `${(deckRadiusPx / 100) * cardWidth}px`
+                radiusPx != null
+                  ? `${(radiusPx / 100) * cardWidth}px`
                   : 16,
             }}
           >
             <img
-              src={getImage(p.cardIndex) ?? getCardImagePath(p.cardIndex)}
+              src={
+                getImage(p.cardIndex) ??
+                getActive(p.cardIndex) ??
+                getCardImagePath(p.cardIndex)
+              }
               alt=""
               crossOrigin="anonymous"
               style={{

@@ -245,6 +245,7 @@ export function EnrichmentPanel({
         .from("reading_photos")
         .select("id,storage_path,caption,created_at")
         .eq("reading_id", reading.id)
+        .is("archived_at", null)
         .order("created_at", { ascending: true });
       if (cancelled) return;
       if (error) {
@@ -498,9 +499,12 @@ export function EnrichmentPanel({
     const nextPhotos = photos.filter((p) => p.id !== photo.id);
     setPhotos(nextPhotos);
     onPhotoCountChange(reading.id, nextPhotos.length);
+    // 9-6-AC — soft-delete to archive instead of hard delete. The
+    // storage object stays so the user can restore from Settings →
+    // Data → Photo archive.
     const { error } = await supabase
       .from("reading_photos")
-      .delete()
+      .update({ archived_at: new Date().toISOString() })
       .eq("id", photo.id);
     if (error) {
       // rollback on failure
@@ -508,7 +512,6 @@ export function EnrichmentPanel({
       onPhotoCountChange(reading.id, prevPhotos.length);
       return;
     }
-    void supabase.storage.from("reading-photos").remove([photo.storage_path]);
   };
 
   /* ---------- Derived ---------- */
