@@ -39,7 +39,7 @@ import {
   type CustomDeck,
   type CustomDeckCard,
 } from "@/lib/custom-decks";
-import { variantUrlFor } from "@/lib/active-deck";
+import { variantUrlFor, variantUrlPngFallback } from "@/lib/active-deck";
 import { removeCard as removeCardSave, saveCard } from "@/lib/per-card-save";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { PerCardEditModal } from "@/components/deck-import/PerCardEditModal";
@@ -130,6 +130,8 @@ export function DeckOverviewScreen({
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialActionFiredRef = useRef(false);
+  // 9-6-AG — set true to abort the variants pass mid-loop.
+  const cancelImportRef = useRef(false);
   const deckType = deck.deck_type ?? "tarot";
 
   const reload = async () => {
@@ -247,6 +249,7 @@ export function DeckOverviewScreen({
       toast.error("Please upload a .zip file.");
       return;
     }
+    cancelImportRef.current = false;
     setBusy(true);
     setImportProgress({ phase: "extract", current: 0, total: 1 });
     try {
@@ -314,13 +317,37 @@ export function DeckOverviewScreen({
         if (jwt) {
           let vDone = 0;
           for (const cardId of savedCardIds) {
-            try {
-              await supabase.functions.invoke("generate-deck-variants", {
-                body: { deckId, cardId },
-                headers: { Authorization: `Bearer ${jwt}` },
-              });
-            } catch (err) {
-              console.warn("[DeckOverview] variant gen failed", { cardId, err });
+            if (cancelImportRef.current) {
+              console.log("[DeckOverview] import cancelled by user during variants pass");
+              break;
+            }
+            // 9-6-AG — retry once with 1.5s backoff. CPU-exceeded blips
+            // and transient network errors no longer leave gaps.
+            let success = false;
+            for (let attempt = 0; attempt < 2 && !success; attempt++) {
+              try {
+                const result = await supabase.functions.invoke(
+                  "generate-deck-variants",
+                  {
+                    body: { deckId, cardId },
+                    headers: { Authorization: `Bearer ${jwt}` },
+                  },
+                );
+                if (!result.error) {
+                  success = true;
+                } else if (attempt === 0) {
+                  console.warn("[DeckOverview] variant gen attempt 1 failed, retrying", { cardId, error: result.error });
+                  await new Promise((r) => setTimeout(r, 1500));
+                } else {
+                  console.error("[DeckOverview] variant gen retry failed", { cardId, error: result.error });
+                }
+              } catch (err) {
+                if (attempt === 0) {
+                  await new Promise((r) => setTimeout(r, 1500));
+                } else {
+                  console.warn("[DeckOverview] variant gen failed", { cardId, err });
+                }
+              }
             }
             vDone++;
             setImportProgress({ phase: "variants", current: vDone, total: savedCardIds.length });
@@ -328,9 +355,13 @@ export function DeckOverviewScreen({
         }
       }
       await reload();
-      toast.success(
-        `Matched ${result.matchedCount} of ${totalSlots || result.matchedCount} cards`,
-      );
+      if (cancelImportRef.current) {
+        toast.message("Import cancelled. Saved cards remain. Re-run Optimize to generate the rest.");
+      } else {
+        toast.success(
+          `Matched ${result.matchedCount} of ${totalSlots || result.matchedCount} cards`,
+        );
+      }
     } catch (err) {
       if (err instanceof ZipTooLargeError || err instanceof ZipEmptyError) {
         toast.error(err.message);
@@ -672,9 +703,6 @@ export function DeckOverviewScreen({
             }
             const photo = tile.photo;
             const rawSrc = photo.thumbnail_url ?? photo.display_url ?? null;
-            const tileSrc = rawSrc
-              ? variantUrlFor(rawSrc, "md") ?? rawSrc
-              : null;
             const label =
               photo.card_name ??
               (tile.cardId < 1000
@@ -696,13 +724,8 @@ export function DeckOverviewScreen({
                 )}
                 title={isAmbiguous ? `${label} · low-confidence match` : label}
               >
-                {tileSrc && (
-                  <img
-                    src={tileSrc}
-                    alt={label}
-                    className="h-full w-full object-contain"
-                    loading="lazy"
-                  />
+                {rawSrc && (
+                  <TileImage rawSrc={rawSrc} alt={label} />
                 )}
                 {isAmbiguous ? (
                   <span className="absolute right-1 top-1 rounded-full bg-yellow-500/90 p-0.5 text-cosmos">
@@ -924,6 +947,17 @@ export function DeckOverviewScreen({
               <p className="mt-2 text-[11px] italic text-muted-foreground">
                 Keep this screen open until the import finishes.
               </p>
+              {importProgress.phase === "variants" && (
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => { cancelImportRef.current = true; }}
+                    className="text-xs italic text-muted-foreground underline"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
           </div>,
           document.body,
@@ -935,6 +969,33 @@ export function DeckOverviewScreen({
 function firstEmptyTarotId(photoMap: Map<number, CustomDeckCard>): number {
   for (let i = 0; i < 78; i++) if (!photoMap.has(i)) return i;
   return 0;
+}
+
+/**
+ * 9-6-AG — Tile <img> with .webp → .png → original fallback chain.
+ * Mirrors CardImage's logic but works directly off a storage URL so
+ * it covers oracle slots (cardId >= 1000) too.
+ */
+function TileImage({ rawSrc, alt }: { rawSrc: string; alt: string }) {
+  const [failedFor, setFailedFor] = useState<null | "webp" | "png">(null);
+  const webpSrc = variantUrlFor(rawSrc, "md");
+  const pngSrc = variantUrlPngFallback(rawSrc, "md");
+  const src =
+    failedFor === null ? (webpSrc ?? rawSrc)
+    : failedFor === "webp" ? (pngSrc ?? rawSrc)
+    : rawSrc;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="h-full w-full object-contain"
+      loading="lazy"
+      onError={() => {
+        if (failedFor === null) setFailedFor("webp");
+        else if (failedFor === "webp") setFailedFor("png");
+      }}
+    />
+  );
 }
 
 function ActionSheet({

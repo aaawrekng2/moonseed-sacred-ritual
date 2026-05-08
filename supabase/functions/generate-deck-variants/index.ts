@@ -143,6 +143,15 @@ const BATCH_SIZE = 1;
 // enough to keep raw RGBA buffers ~MB instead of tens of MB.
 const WORKING_WIDTH = 600;
 
+// 9-6-AG — cap the working resolution for the -full.webp encode.
+// The decode + applyRoundedMask + encode-PNG + re-encode-WebP chain
+// at full source resolution (often 2000+ px) was burning the entire
+// 2s edge-function CPU quota and tripping CPU_TIME_EXCEEDED on bulk
+// imports. 1500px keeps the result indistinguishable from full-res
+// for typical card display sizes (max ~800-1200 px) while cutting
+// CPU work by ~4x.
+const FULL_WIDTH_CAP = 1500;
+
 function variantPathFor(originalPath: string, suffix: "sm" | "md"): string | null {
   // Match `<...>/card-N-TS(-thumb)?.<ext>` and replace the filename.
   const m = originalPath.match(
@@ -301,7 +310,13 @@ serve(async (req) => {
         if (dl.error || !dl.data) throw dl.error ?? new Error("download failed");
         const bytes = new Uint8Array(await dl.data.arrayBuffer());
         const decoded = await decodeAny(bytes);
-        const full = decoded.clone();
+        // 9-6-AG — downscale before mask + encode to stay under CPU quota.
+        const full = decoded.width > FULL_WIDTH_CAP
+          ? decoded.clone().resize(
+              FULL_WIDTH_CAP,
+              Math.max(1, Math.round(decoded.height * (FULL_WIDTH_CAP / decoded.width))),
+            )
+          : decoded.clone();
         applyRoundedMask(full, radius);
         const fullPng = await full.encode();
         let fullPath = fullWebpPathFor(backPath);
@@ -407,26 +422,41 @@ serve(async (req) => {
       // can pinpoint exactly where the single-card pipeline fails.
       let step = "start";
       let usedFallbackPng = false;
+      const tStart = Date.now();
+      console.log(`[gdv] start cardId=${row.card_id} deckId=${deckId} radius=${radius}`);
       try {
         step = "download_source";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         const dl = await admin.storage.from(BUCKET).download(sourcePath);
         if (dl.error || !dl.data) throw dl.error ?? new Error("download failed");
 
         step = "decode_source";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         const bytes = new Uint8Array(await dl.data.arrayBuffer());
         const decoded = await decodeAny(bytes);
 
-        step = "apply_mask";
-        const full = decoded.clone();
+        step = "prepare_full";
+        console.log(`[gdv] step=${step} cardId=${row.card_id} srcW=${decoded.width}`);
+        // 9-6-AG — downscale to FULL_WIDTH_CAP BEFORE mask + encode.
+        // This is the single biggest CPU win: avoids running the
+        // pixel-walk mask and PNG encode on 2000-3000 px sources.
+        const full = decoded.width > FULL_WIDTH_CAP
+          ? decoded.clone().resize(
+              FULL_WIDTH_CAP,
+              Math.max(1, Math.round(decoded.height * (FULL_WIDTH_CAP / decoded.width))),
+            )
+          : decoded.clone();
         applyRoundedMask(full, radius);
 
         step = "encode_png";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         const fullPng = await full.encode();
 
         // FG-1 — try WebP via imagemagick; fall back to PNG bytes
         // (still alpha-correct) under a .webp filename if the WebP
         // encoder is missing or throws on this Magick build.
         step = "reencode_webp";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         let fullBytes: Uint8Array;
         let fullContentType = "image/webp";
         try {
@@ -457,6 +487,7 @@ serve(async (req) => {
         }
 
         step = "resolve_full_path";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         let fullPath = fullWebpPathFor(row.display_path ?? sourcePath);
         if (!fullPath) throw new Error("unrecognized path layout");
         // 9-6-AF — when the WebP encoder failed and we're uploading raw
@@ -468,6 +499,7 @@ serve(async (req) => {
         }
 
         step = "upload_full";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         const upFull = await admin.storage.from(BUCKET).upload(
           fullPath,
           fullBytes,
@@ -483,6 +515,7 @@ serve(async (req) => {
         }
 
         step = "variants";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         // 9-6-R — downscale once for variant generation. `full` (full-res
         // with mask) is still needed for the -full.webp upload above.
         const workingForVariants = decoded.width > WORKING_WIDTH
@@ -549,6 +582,7 @@ serve(async (req) => {
         }
 
         step = "db_update";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         const patch: Record<string, unknown> = {
           processing_status: "saved",
           processed_at: new Date().toISOString(),
@@ -564,6 +598,7 @@ serve(async (req) => {
           .eq("id", row.id);
         if (updErr) throw updErr;
 
+        console.log(`[gdv] success cardId=${row.card_id} elapsedMs=${Date.now() - tStart}`);
         return new Response(
           JSON.stringify({
             ok: true,
@@ -706,9 +741,17 @@ serve(async (req) => {
 
           // 9-6-W — resize via imagescript, apply rounded alpha mask,
           // then re-encode through ImageMagick for WebP (preserves alpha).
-          const ratio = v.width / decodedSource!.width;
-          const targetH = Math.max(1, Math.round(decodedSource!.height * ratio));
-          const resized = decodedSource!.clone().resize(v.width, targetH);
+          // 9-6-AG — work from a downscaled buffer (matches WORKING_WIDTH
+          // logic in single-card mode) to keep CPU well under budget.
+          const srcForBatch = decodedSource!.width > WORKING_WIDTH
+            ? decodedSource!.clone().resize(
+                WORKING_WIDTH,
+                Math.max(1, Math.round(decodedSource!.height * (WORKING_WIDTH / decodedSource!.width))),
+              )
+            : decodedSource!;
+          const ratio = v.width / srcForBatch.width;
+          const targetH = Math.max(1, Math.round(srcForBatch.height * ratio));
+          const resized = srcForBatch.clone().resize(v.width, targetH);
           if (radius > 0) applyRoundedMask(resized, radius);
           const png = await resized.encode();
           let outBytes: Uint8Array;
