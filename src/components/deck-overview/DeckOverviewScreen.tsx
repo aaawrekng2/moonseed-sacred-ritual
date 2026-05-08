@@ -31,11 +31,14 @@ import {
   Trash2,
   Upload,
   X,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchDeckCards,
+  fetchDeckProcessingStatus,
+  type DeckProcessingStatus,
   type CustomDeck,
   type CustomDeckCard,
 } from "@/lib/custom-decks";
@@ -112,6 +115,11 @@ export function DeckOverviewScreen({
   const [draftName, setDraftName] = useState(name);
   const [savingName, setSavingName] = useState(false);
   const [busy, setBusy] = useState(false);
+  // 9-6-AH — live processing status for the Re-optimize button.
+  const [procStatus, setProcStatus] = useState<DeckProcessingStatus | null>(
+    null,
+  );
+  const [reoptimizing, setReoptimizing] = useState(false);
 
   const [importResult, setImportResult] = useState<ImportSessionResult | null>(
     null,
@@ -144,6 +152,24 @@ export function DeckOverviewScreen({
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deckId]);
+
+  // 9-6-AH — poll background processing status so the Re-optimize
+  // button can surface when there are pending or failed cards.
+  useEffect(() => {
+    let cancelled = false;
+    const expected = deckType === "oracle" ? cards.length : 78;
+    if (expected === 0) return;
+    const tick = async () => {
+      const s = await fetchDeckProcessingStatus(deckId, expected);
+      if (!cancelled) setProcStatus(s);
+    };
+    void tick();
+    const interval = setInterval(tick, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [deckId, deckType, cards.length]);
 
   useEffect(() => {
     setDraftName(name);
@@ -243,6 +269,41 @@ export function DeckOverviewScreen({
   };
 
   const triggerUpload = () => fileInputRef.current?.click();
+
+  /**
+   * 9-6-AH — Re-optimize: reset any failed cards back to 'pending' with
+   * attempts=0 so the background queue picks them up, then ping the
+   * queue once to give it an immediate kick.
+   */
+  const handleReoptimize = async () => {
+    if (reoptimizing) return;
+    setReoptimizing(true);
+    try {
+      const { error: resetErr } = await supabase
+        .from("custom_deck_cards")
+        .update({
+          processing_status: "pending",
+          variant_attempts: 0,
+          variant_last_attempt_at: null,
+        })
+        .eq("deck_id", deckId)
+        .is("archived_at", null)
+        .in("processing_status", ["pending", "failed"]);
+      if (resetErr) throw resetErr;
+      // Kick the queue once. It's verify_jwt=false; service-role anon is fine.
+      try {
+        await supabase.functions.invoke("process-variant-queue", {});
+      } catch {
+        /* non-fatal — pg_cron will pick it up within 30s */
+      }
+      toast.success("Re-optimizing in the background.");
+    } catch (err) {
+      console.error("[Re-optimize] failed", err);
+      toast.error("Couldn't queue re-optimize.");
+    } finally {
+      setReoptimizing(false);
+    }
+  };
 
   const handleZipUpload = async (file: File) => {
     if (!file.name.toLowerCase().endsWith(".zip")) {
@@ -395,6 +456,27 @@ export function DeckOverviewScreen({
 
   const headerButtons = (
     <div className="flex items-center gap-2">
+      {procStatus && !procStatus.isComplete && (
+        <button
+          type="button"
+          onClick={() => void handleReoptimize()}
+          disabled={reoptimizing}
+          className="inline-flex items-center gap-1.5 rounded-md border border-gold/40 px-2.5 py-1.5 text-xs hover:bg-gold/10 disabled:opacity-50"
+          aria-label="Re-optimize deck images"
+          title={
+            procStatus.failed > 0
+              ? `Retry ${procStatus.failed} failed card${procStatus.failed === 1 ? "" : "s"}`
+              : `${procStatus.pending} card${procStatus.pending === 1 ? "" : "s"} still processing`
+          }
+        >
+          {reoptimizing ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Zap className="h-4 w-4" />
+          )}
+          <span className="hidden sm:inline">Re-optimize</span>
+        </button>
+      )}
       <button
         type="button"
         onClick={() =>

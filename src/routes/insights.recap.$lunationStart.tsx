@@ -179,7 +179,16 @@ function LunationRecapRoute() {
         style={{ background: "transparent" }}
       />
 
-      <div className="pointer-events-none relative z-[1] flex flex-1 items-center justify-center px-6">
+      <div
+        className="relative z-[1] flex flex-1 justify-center px-6"
+        style={{
+          overflowY: "auto",
+          overscrollBehaviorY: "contain",
+          alignItems: "safe center",
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 64px)",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 32px)",
+        }}
+      >
         {loading && (
           <div
             style={{
