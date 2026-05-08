@@ -422,26 +422,41 @@ serve(async (req) => {
       // can pinpoint exactly where the single-card pipeline fails.
       let step = "start";
       let usedFallbackPng = false;
+      const tStart = Date.now();
+      console.log(`[gdv] start cardId=${row.card_id} deckId=${deckId} radius=${radius}`);
       try {
         step = "download_source";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         const dl = await admin.storage.from(BUCKET).download(sourcePath);
         if (dl.error || !dl.data) throw dl.error ?? new Error("download failed");
 
         step = "decode_source";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         const bytes = new Uint8Array(await dl.data.arrayBuffer());
         const decoded = await decodeAny(bytes);
 
-        step = "apply_mask";
-        const full = decoded.clone();
+        step = "prepare_full";
+        console.log(`[gdv] step=${step} cardId=${row.card_id} srcW=${decoded.width}`);
+        // 9-6-AG — downscale to FULL_WIDTH_CAP BEFORE mask + encode.
+        // This is the single biggest CPU win: avoids running the
+        // pixel-walk mask and PNG encode on 2000-3000 px sources.
+        const full = decoded.width > FULL_WIDTH_CAP
+          ? decoded.clone().resize(
+              FULL_WIDTH_CAP,
+              Math.max(1, Math.round(decoded.height * (FULL_WIDTH_CAP / decoded.width))),
+            )
+          : decoded.clone();
         applyRoundedMask(full, radius);
 
         step = "encode_png";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         const fullPng = await full.encode();
 
         // FG-1 — try WebP via imagemagick; fall back to PNG bytes
         // (still alpha-correct) under a .webp filename if the WebP
         // encoder is missing or throws on this Magick build.
         step = "reencode_webp";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         let fullBytes: Uint8Array;
         let fullContentType = "image/webp";
         try {
@@ -472,6 +487,7 @@ serve(async (req) => {
         }
 
         step = "resolve_full_path";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         let fullPath = fullWebpPathFor(row.display_path ?? sourcePath);
         if (!fullPath) throw new Error("unrecognized path layout");
         // 9-6-AF — when the WebP encoder failed and we're uploading raw
@@ -483,6 +499,7 @@ serve(async (req) => {
         }
 
         step = "upload_full";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         const upFull = await admin.storage.from(BUCKET).upload(
           fullPath,
           fullBytes,
@@ -498,6 +515,7 @@ serve(async (req) => {
         }
 
         step = "variants";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         // 9-6-R — downscale once for variant generation. `full` (full-res
         // with mask) is still needed for the -full.webp upload above.
         const workingForVariants = decoded.width > WORKING_WIDTH
@@ -564,6 +582,7 @@ serve(async (req) => {
         }
 
         step = "db_update";
+        console.log(`[gdv] step=${step} cardId=${row.card_id}`);
         const patch: Record<string, unknown> = {
           processing_status: "saved",
           processed_at: new Date().toISOString(),
@@ -579,6 +598,7 @@ serve(async (req) => {
           .eq("id", row.id);
         if (updErr) throw updErr;
 
+        console.log(`[gdv] success cardId=${row.card_id} elapsedMs=${Date.now() - tStart}`);
         return new Response(
           JSON.stringify({
             ok: true,
