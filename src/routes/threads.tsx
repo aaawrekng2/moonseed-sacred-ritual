@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useMatches } from "@tanstack/react-router";
 import { useEffect, useState, type CSSProperties } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/threads")({
       { name: "description", content: "Symbolic Stories weaving across your readings." },
     ],
   }),
-  component: ThreadsPage,
+  component: ThreadsLayout,
   errorComponent: ({ error }) => (
     <div style={{ padding: 24, fontStyle: "italic", opacity: 0.6, textAlign: "center" }}>
       <div>Something stirred and settled.</div>
@@ -55,6 +55,15 @@ export const Route = createFileRoute("/threads")({
 });
 
 type View = "active" | "weaves" | "archive";
+
+function ThreadsLayout() {
+  const matches = useMatches();
+  const hasChildRoute = matches.some(
+    (m) => m.routeId !== "/threads" && m.routeId.startsWith("/threads"),
+  );
+  if (hasChildRoute) return <Outlet />;
+  return <ThreadsPage />;
+}
 
 type PatternReading = {
   id: string;
@@ -235,7 +244,7 @@ function ThreadsPage() {
           Stories
         </h1>
         {loading ? (
-          <LoadingText>Listening for threads…</LoadingText>
+          <LoadingText>Listening for stories…</LoadingText>
         ) : view === "active" ? (
           <ActiveView
             patterns={active}
