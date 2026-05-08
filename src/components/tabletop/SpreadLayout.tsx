@@ -1106,27 +1106,37 @@ export function ManualSpreadSlots({
 
   if (spread === "custom") {
     return (
-      <div className="flex flex-nowrap items-end justify-center gap-4 overflow-x-auto px-2">
-        {picks.map((pick, i) => (
-          <div
-            key={i}
-            className="flex flex-col items-center gap-2"
-            style={{ flex: "0 0 auto" }}
-          >
-            <Slot pick={pick} slotIndex={i} />
-            {showLabels && (
-              <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
-            )}
-            {showLabels && pick && (
-              <CardNameLabel
-                cardIndex={pick.cardIndex}
-                isReversed={!!pick.isReversed}
-                cardWidth={sizing.w}
-                nameOverride={pick.cardName}
-              />
-            )}
+      // 9-6-Y — split into two rows so card BOTTOMS stay aligned
+      // regardless of label-line-count differences.
+      <div className="flex flex-col items-center gap-2 overflow-x-auto px-2">
+        <div className="flex flex-nowrap items-end justify-center gap-4">
+          {picks.map((pick, i) => (
+            <div key={`card-${i}`} style={{ flex: "0 0 auto" }}>
+              <Slot pick={pick} slotIndex={i} />
+            </div>
+          ))}
+        </div>
+        {showLabels && (
+          <div className="flex flex-nowrap items-start justify-center gap-4">
+            {picks.map((pick, i) => (
+              <div
+                key={`label-${i}`}
+                className="flex flex-col items-center gap-1"
+                style={{ flex: "0 0 auto", width: sizing.w }}
+              >
+                <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
+                {pick && (
+                  <CardNameLabel
+                    cardIndex={pick.cardIndex}
+                    isReversed={!!pick.isReversed}
+                    cardWidth={sizing.w}
+                    nameOverride={pick.cardName}
+                  />
+                )}
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     );
   }
