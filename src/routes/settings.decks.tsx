@@ -534,10 +534,17 @@ function DeckRow({
 
   return (
     <li className="flex flex-row items-center gap-3 rounded-lg border border-border/60 bg-card p-3">
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onEdit}
-        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onEdit();
+          }
+        }}
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left"
         aria-label={`Edit ${deck.name}`}
       >
         <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-cosmos">
@@ -611,7 +618,7 @@ function DeckRow({
               </div>
             )}
         </div>
-      </button>
+      </div>
       {/* 9-6-N — visible Edit pencil on mobile so the row's primary
           action is discoverable without opening the overflow menu. */}
       <button
