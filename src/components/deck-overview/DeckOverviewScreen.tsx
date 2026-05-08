@@ -575,6 +575,10 @@ export function DeckOverviewScreen({
           <p className="text-[11px] italic text-muted-foreground">
             Upload one image, many, or a zip
           </p>
+          <p className="text-[11px] italic text-muted-foreground">
+            A full 78-card import takes about 2-3 minutes. Don&rsquo;t close
+            this window.
+          </p>
         </div>
       )}
 
