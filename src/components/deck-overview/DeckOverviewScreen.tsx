@@ -947,6 +947,17 @@ export function DeckOverviewScreen({
               <p className="mt-2 text-[11px] italic text-muted-foreground">
                 Keep this screen open until the import finishes.
               </p>
+              {importProgress.phase === "variants" && (
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => { cancelImportRef.current = true; }}
+                    className="text-xs italic text-muted-foreground underline"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
           </div>,
           document.body,
