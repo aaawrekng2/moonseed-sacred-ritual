@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   generatePatternInterpretation,
@@ -13,6 +13,7 @@ import { EmptyHero } from "@/components/ui/empty-hero";
 import { LoadingText } from "@/components/ui/loading-text";
 import { formatDateShort, formatDateLong } from "@/lib/dates";
 import { CardImage } from "@/components/card/CardImage";
+import { getCardName } from "@/lib/tarot";
 import {
   type Pattern,
   type PatternLifecycleState,
