@@ -1067,6 +1067,26 @@ function ReadingCard({
             {reading.moon_phase && <span aria-hidden>·</span>}
             <span>{guide.name}</span>
           </div>
+          {(hasPhoto || hasNote || hasQuestion || hasTags) && (
+            <div
+              className="mt-1 flex items-center gap-2 text-muted-foreground"
+              style={{ opacity: "var(--ro-plus-20)" }}
+              aria-label="Reading content indicators"
+            >
+              {hasQuestion && (
+                <HelpCircle size={12} strokeWidth={1.5} aria-label="Has question" />
+              )}
+              {hasNote && (
+                <StickyNote size={12} strokeWidth={1.5} aria-label="Has note" />
+              )}
+              {hasPhoto && (
+                <Camera size={12} strokeWidth={1.5} aria-label="Has photo" />
+              )}
+              {hasTags && (
+                <TagIcon size={12} strokeWidth={1.5} aria-label="Has tags" />
+              )}
+            </div>
+          )}
         </div>
         {/* EA-6 — unified right-edge state cluster. */}
         <div className="flex items-center gap-1.5 shrink-0">
