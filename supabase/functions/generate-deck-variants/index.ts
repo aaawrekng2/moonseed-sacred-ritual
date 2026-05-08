@@ -741,9 +741,17 @@ serve(async (req) => {
 
           // 9-6-W — resize via imagescript, apply rounded alpha mask,
           // then re-encode through ImageMagick for WebP (preserves alpha).
-          const ratio = v.width / decodedSource!.width;
-          const targetH = Math.max(1, Math.round(decodedSource!.height * ratio));
-          const resized = decodedSource!.clone().resize(v.width, targetH);
+          // 9-6-AG — work from a downscaled buffer (matches WORKING_WIDTH
+          // logic in single-card mode) to keep CPU well under budget.
+          const srcForBatch = decodedSource!.width > WORKING_WIDTH
+            ? decodedSource!.clone().resize(
+                WORKING_WIDTH,
+                Math.max(1, Math.round(decodedSource!.height * (WORKING_WIDTH / decodedSource!.width))),
+              )
+            : decodedSource!;
+          const ratio = v.width / srcForBatch.width;
+          const targetH = Math.max(1, Math.round(srcForBatch.height * ratio));
+          const resized = srcForBatch.clone().resize(v.width, targetH);
           if (radius > 0) applyRoundedMask(resized, radius);
           const png = await resized.encode();
           let outBytes: Uint8Array;
