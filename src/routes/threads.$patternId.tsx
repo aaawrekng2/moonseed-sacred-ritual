@@ -119,6 +119,48 @@ function PatternChamber() {
   // then propagated here so per-reading connectors can flow into the
   // ChamberTimeline excerpt cards.
   const [synthesis, setSynthesis] = useState<PatternInterpretation | null>(null);
+  // 26-05-08-J — lift the full-row reading fetch up so EvidenceSection,
+  // PatternStrengthBanner, and ChamberTimeline all share one query.
+  const [chamberReadings, setChamberReadings] = useState<Array<{
+    id: string;
+    created_at: string;
+    spread_type: string;
+    card_ids: number[];
+    question: string | null;
+    note: string | null;
+    interpretation: string | null;
+  }> | null>(null);
+
+  useEffect(() => {
+    if (!pattern || pattern.reading_ids.length === 0) {
+      setChamberReadings([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("readings")
+        .select("id, created_at, spread_type, card_ids, question, note, interpretation")
+        .in("id", pattern.reading_ids)
+        .is("archived_at", null)
+        .order("created_at", { ascending: false });
+      if (cancelled) return;
+      setChamberReadings(
+        (data ?? []).map((r) => ({
+          id: r.id as string,
+          created_at: r.created_at as string,
+          spread_type: r.spread_type as string,
+          card_ids: (r.card_ids as number[]) ?? [],
+          question: (r.question as string | null) ?? null,
+          note: (r.note as string | null) ?? null,
+          interpretation: (r.interpretation as string | null) ?? null,
+        })),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pattern?.id, pattern?.reading_ids.join(",")]);
 
   const noteHasUnsavedChanges = () => {
     const original = (pattern?.description ?? "").trim();
