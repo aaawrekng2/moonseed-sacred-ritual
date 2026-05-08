@@ -848,6 +848,70 @@ export function DeckOverviewScreen({
           </div>,
           document.body,
         )}
+
+      {/* 9-6-AE — Zip-import progress modal */}
+      {importProgress &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[130] flex items-center justify-center"
+            style={{
+              background: "color-mix(in oklab, var(--color-background) 70%, black)",
+            }}
+          >
+            <div
+              className="w-full max-w-sm rounded-xl border p-5"
+              style={{
+                borderColor: "var(--border-subtle)",
+                background: "var(--surface-card, var(--background))",
+              }}
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <Loader2 className="h-4 w-4 animate-spin text-gold" />
+                <p className="text-sm font-medium">
+                  {importProgress.phase === "extract" && "Reading zip…"}
+                  {importProgress.phase === "match" && "Matching filenames…"}
+                  {importProgress.phase === "upload" &&
+                    `Uploading ${importProgress.current} of ${importProgress.total}…`}
+                  {importProgress.phase === "variants" &&
+                    `Generating variants ${importProgress.current} of ${importProgress.total}…`}
+                </p>
+              </div>
+              <div
+                className="h-1.5 w-full overflow-hidden rounded-full"
+                style={{
+                  background: "color-mix(in oklab, var(--gold) 12%, transparent)",
+                }}
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={importProgress.total || 1}
+                aria-valuenow={importProgress.current}
+              >
+                <div
+                  className="h-full transition-[width] duration-200 ease-out"
+                  style={{
+                    width: `${
+                      importProgress.total
+                        ? Math.max(
+                            2,
+                            Math.min(
+                              100,
+                              (importProgress.current / importProgress.total) * 100,
+                            ),
+                          )
+                        : 4
+                    }%`,
+                    background: "var(--gold)",
+                    opacity: 0.85,
+                  }}
+                />
+              </div>
+              <p className="mt-2 text-[11px] italic text-muted-foreground">
+                Keep this screen open until the import finishes.
+              </p>
+            </div>
+          </div>,
+          document.body,
+        )}
     </section>
   );
 }
