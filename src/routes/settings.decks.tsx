@@ -32,6 +32,8 @@ import {
   fetchDeckCards,
   fetchUserDecks,
   setActiveDeck,
+  fetchDeckProcessingStatus,
+  type DeckProcessingStatus,
   type CustomDeck,
   type CustomDeckCard,
 } from "@/lib/custom-decks";
