@@ -1152,7 +1152,13 @@ function _ChamberTimeline({
               padding: "var(--space-4, 16px) 0",
             }}
           >
-            <ReadingExcerptCard reading={r} onOpen={onOpenReading} />
+            <ReadingExcerptCard
+              reading={r}
+              onOpen={onOpenReading}
+              connector={
+                readingConnections?.find((c) => c.readingId === r.id)?.connector
+              }
+            />
           </li>
         ))}
       </ul>
