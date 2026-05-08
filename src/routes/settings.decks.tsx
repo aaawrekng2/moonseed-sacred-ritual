@@ -1025,8 +1025,6 @@ function DeckEditor({
               setMode({ kind: "capture", deckId, cardId: action.cardId });
             } else if (action.kind === "capture-back") {
               setMode({ kind: "back-capture", deckId });
-            } else if (action.kind === "upload") {
-              setMode({ kind: "import", deckId });
             }
           }}
         />
