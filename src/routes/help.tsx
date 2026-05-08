@@ -33,9 +33,15 @@ function HelpHub() {
 
   return (
     <div
-      className="min-h-screen w-full px-5 pt-6 pb-24"
-      style={{ color: "var(--color-foreground)" }}
+      className="w-full"
+      style={{
+        color: "var(--color-foreground)",
+        height: "100dvh",
+        overflowY: "auto",
+        overscrollBehaviorY: "contain",
+      }}
     >
+      <div className="px-5 pt-6 pb-24">
       <div className="flex items-center gap-3 mb-6">
         <Link
           to="/"
