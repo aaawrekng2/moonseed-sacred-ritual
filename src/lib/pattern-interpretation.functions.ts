@@ -30,6 +30,17 @@ export type PatternInterpretation = {
   key_cards: { card: string; meaning: string }[];
   reflective_prompts: string[];
   /**
+   * 26-05-08-J — 2-4 verbatim phrases pulled from the seeker's
+   * questions/notes across the readings in this pattern. Each entry
+   * carries the source reading id + ISO date for attribution.
+   */
+  yourWords?: Array<{
+    quote: string;
+    source: "question" | "note";
+    readingId: string;
+    date: string;
+  }>;
+  /**
    * 9-6-AH continuation — per-reading connector sentence. One entry per
    * reading id linked to the pattern, explaining why THAT specific
    * reading belongs to this story.
@@ -73,7 +84,7 @@ export const generatePatternInterpretation = createServerFn({ method: "POST" })
       }
       const { data: readings } = await supabase
         .from("readings")
-        .select("id, created_at, spread_type, card_ids, interpretation, question")
+        .select("id, created_at, spread_type, card_ids, interpretation, question, note")
         .in("id", readingIds)
         .is("archived_at", null)
         .order("created_at", { ascending: true });
@@ -84,6 +95,7 @@ export const generatePatternInterpretation = createServerFn({ method: "POST" })
         card_ids: number[];
         interpretation: string | null;
         question: string | null;
+        note: string | null;
       }>;
       if (rows.length === 0) {
         return { ok: false, error: "Linked readings could not be loaded." };
@@ -94,19 +106,21 @@ export const generatePatternInterpretation = createServerFn({ method: "POST" })
           .join(", ");
         const date = new Date(r.created_at).toISOString().slice(0, 10);
         const interp = (r.interpretation ?? "").trim().slice(0, 800);
-        return `Reading ${i + 1} id=${r.id} (${date}, ${r.spread_type}) cards=${cards} question=${r.question ?? "(none)"}\n${interp}`;
+        const note = (r.note ?? "").trim().slice(0, 200);
+        return `Reading ${i + 1} id=${r.id} (${date}, ${r.spread_type}) cards=${cards} question=${r.question ? '"' + r.question + '"' : "(none)"} note=${note ? '"' + note + '"' : "(none)"}\n${interp}`;
       });
       const userPrompt =
         `Story: "${pattern.name}"\n` +
         (pattern.description ? `Seeker's note: ${pattern.description}\n` : "") +
         `\nLinked readings (${rows.length}):\n\n${summaries.join("\n\n---\n\n")}\n\n` +
         `Reply ONLY with valid JSON of shape:\n` +
-        `{ "whyHeadline": string, "whatThisIs": string, "whatItCouldMean": string, "key_cards": [{ "card": string, "meaning": string }], "reflective_prompts": [string, string, string], "readingConnections": [{ "readingId": string, "connector": string }] }\n\n` +
+        `{ "whyHeadline": string, "whatThisIs": string, "whatItCouldMean": string, "key_cards": [{ "card": string, "meaning": string }], "reflective_prompts": [string, string, string], "yourWords": [{ "quote": string, "source": "question" | "note", "readingId": string, "date": string }], "readingConnections": [{ "readingId": string, "connector": string }] }\n\n` +
         `whyHeadline (1-2 sentences, BOLD AND DECLARATIVE): The single "why this story exists" line. Lead with the cards: e.g. "The Emperor and Tower keep emerging because authority structures are crumbling. The cards speak of foundations cracking, of choice meeting consequence." Be specific. Be vivid. NOT vague ("a pattern is forming"). Name the cards by name. Name the theme. This sentence is the entire elevator pitch for why this story exists.\n\n` +
         `whatThisIs (4-6 sentences): Name what the recurring story IS in vivid, image-rich tarot voice. Which cards return? What shape does the pattern carve in their practice? Lead with the spell — "A pattern stirs…" or "The cards keep returning to…" — then show the seeker the architecture of what's emerging. Be specific about cards, themes, what the seeker is being shown. Don't summarize; reveal.\n\n` +
         `whatItCouldMean (4-6 sentences): What is the seeker being asked to see, become, or release? Speak in possibilities, not predictions, but with conviction. Use imagery from the cards themselves — if Death recurs, speak of endings becoming gates; if the Tower keeps appearing, name the structures cracking. Two paragraphs of vivid invocation, not hedged advice. Tarot speaks. Let it speak.\n\n` +
         `key_cards: 2-4 cards that anchor the pattern, each with a 1-sentence meaning specific to THIS seeker's recurrence (not generic dictionary definition).\n\n` +
         `reflective_prompts: 3 questions that crack the seeker open. Not safe questions. Questions that touch the heart of what's surfacing.\n\n` +
+        `yourWords (2-4 entries): From the seeker's questions and notes above, extract the most meaningful, evocative, or repeated phrases. Choose phrases that reveal the seeker's emotional core or the architecture of the pattern. NOT mundane ("good morning"). YES vivid and specific ("why does my father not see me?", "something has to break"). Return the EXACT phrase as the seeker wrote it. source="question" if pulled from a question, source="note" if from a note. readingId is the id of the reading containing this phrase. date is the ISO created_at of that reading. Cap quotes at ~120 characters; trim with ellipsis if longer. If there are no meaningful phrases, return an empty array.\n\n` +
         `readingConnections: For EACH reading id listed above, output one connector sentence — vivid, specific to THAT reading, explaining why it belongs to this story. NOT generic ("this reading shows the pattern"). Specific (e.g. "In this Celtic Cross, Death anchors the past — the seeker named what is dying first, then drew the Tower in the future."). Use the exact id strings from the listing.`;
       const systemPrompt =
         "You are a tarot oracle. You speak in invocational, present-tense, " +
@@ -164,6 +178,21 @@ export const generatePatternInterpretation = createServerFn({ method: "POST" })
           typeof parsed?.body !== "string")
       ) {
         return { ok: false, error: "Interpretation was malformed." };
+      }
+      // 26-05-08-J — sanitize yourWords (filter malformed entries, cap 4).
+      if (parsed.yourWords && Array.isArray(parsed.yourWords)) {
+        parsed.yourWords = parsed.yourWords
+          .filter(
+            (w) =>
+              typeof w?.quote === "string" &&
+              w.quote.length > 0 &&
+              (w.source === "question" || w.source === "note") &&
+              typeof w?.readingId === "string" &&
+              typeof w?.date === "string",
+          )
+          .slice(0, 4);
+      } else {
+        parsed.yourWords = [];
       }
       await supabase
         .from("patterns")
