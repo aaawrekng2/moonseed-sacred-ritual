@@ -145,7 +145,6 @@ function YearOfLunationsRoute() {
           alignItems: "safe center",
           paddingTop: "calc(env(safe-area-inset-top, 0px) + 64px)",
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 32px)",
-          pointerEvents: "none",
         }}
       >
         {loading && <Caption>Reading the year…</Caption>}
