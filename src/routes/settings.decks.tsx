@@ -42,6 +42,7 @@ import { CardPicker } from "@/components/cards/CardPicker";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
 import { ZipImporter } from "@/components/deck-import/ZipImporter";
 import { PerCardEditModal } from "@/components/deck-import/PerCardEditModal";
+import { DeckOverviewScreen } from "@/components/deck-overview/DeckOverviewScreen";
 import { deleteSession, getSession } from "@/lib/import-session";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -1001,6 +1002,53 @@ function DeckEditor({
   // ---------- Step 2: card grid (overview + entry to picker) ----------
   if (mode.kind === "grid") {
     const deckId = mode.deckId;
+    if (!existing) return null;
+    return (
+      <>
+        <DeckOverviewScreen
+          userId={userId}
+          deckId={deckId}
+          deck={{ ...existing, name, card_back_url: deckBackUrl } as CustomDeck}
+          name={name}
+          defaultRadiusPercent={cornerRadius}
+          onNameChange={(next) => setName(next)}
+          onClose={() => onClose(true)}
+          onAction={(action) => {
+            if (action.kind === "capture-card") {
+              setMode({ kind: "capture", deckId, cardId: action.cardId });
+            } else if (action.kind === "capture-back") {
+              setMode({ kind: "back-capture", deckId });
+            } else if (action.kind === "upload") {
+              setMode({ kind: "import", deckId });
+            }
+          }}
+        />
+        {resumePrompt && createPortal(
+          <ResumePromptModal
+            assigned={resumePrompt.assigned}
+            unassigned={resumePrompt.unassigned}
+            skipped={resumePrompt.skipped}
+            onResume={() => {
+              setResumePrompt(null);
+              setMode({ kind: "import", deckId });
+            }}
+            onDiscard={async () => {
+              if (!existing) return;
+              await deleteSession(existing.id);
+              setResumePrompt(null);
+              toast("Import session discarded");
+            }}
+          />,
+          document.body,
+        )}
+      </>
+    );
+  }
+
+  // legacy grid retained below for reference; replaced by DeckOverviewScreen above.
+  // eslint-disable-next-line no-constant-condition
+  if (false as boolean) {
+    const deckId = (mode as { deckId: string }).deckId;
     const photographedMap = new Map<number, CustomDeckCard>(
       cards.map((c) => [c.card_id, c]),
     );
@@ -1392,6 +1440,89 @@ function DeckEditor({
   }
 
   return null;
+}
+
+function ResumePromptModal({
+  assigned,
+  unassigned,
+  skipped,
+  onResume,
+  onDiscard,
+}: {
+  assigned: number;
+  unassigned: number;
+  skipped: number;
+  onResume: () => void;
+  onDiscard: () => void | Promise<void>;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[115] flex items-center justify-center p-6"
+      style={{
+        background:
+          "var(--surface-overlay, color-mix(in oklab, var(--color-background) 80%, black))",
+      }}
+    >
+      <div
+        className="flex w-full max-w-sm flex-col gap-4 rounded-xl border"
+        style={{
+          background: "var(--surface-card)",
+          borderColor: "var(--border-subtle)",
+          color: "var(--color-foreground)",
+          padding: "var(--space-5, 1.25rem)",
+          borderRadius: "var(--radius-lg, 0.75rem)",
+        }}
+      >
+        <h3
+          className="italic"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontSize: "var(--text-heading-sm)",
+          }}
+        >
+          Resume your import?
+        </h3>
+        <p style={{ fontSize: "var(--text-body-sm)" }}>
+          You have an in-progress import for this deck ({assigned} assigned,{" "}
+          {unassigned} unassigned, {skipped} skipped).
+        </p>
+        <p
+          style={{
+            fontSize: "var(--text-caption)",
+            opacity: 0.6,
+            fontStyle: "italic",
+          }}
+        >
+          Available on this device only
+        </p>
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={onResume}
+            className="rounded-md px-4 py-2 font-medium"
+            style={{
+              background: "var(--accent)",
+              color: "var(--accent-foreground, #000)",
+              fontSize: "var(--text-body-sm)",
+            }}
+          >
+            Resume
+          </button>
+          <button
+            type="button"
+            onClick={() => void onDiscard()}
+            className="rounded-md px-4 py-2"
+            style={{
+              fontSize: "var(--text-body-sm)",
+              background: "transparent",
+            }}
+          >
+            Discard and start over
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */
