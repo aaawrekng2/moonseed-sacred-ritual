@@ -169,10 +169,12 @@ export function CardImage({
   const specificRadius = useDeckCornerRadius(deckId ?? null);
   const customBackUrl = useActiveCardBackUrl();
   const [imageLoaded, setImageLoaded] = useState(false);
-  // EZ-7 — When the variant URL 404s (deck hasn't been backfilled),
-  // retry once with the original. State is keyed off the resolved
-  // src so deck/card swaps reset cleanly.
-  const [variantFailedFor, setVariantFailedFor] = useState<string | null>(null);
+  // 9-6-AF — fallback ladder for variant resolution. `null` = trying
+  // the .webp variant. `"png"` = .webp 404'd, trying .png variant.
+  // `"all"` = both variants failed, falling back to the original.
+  const [variantFailedFor, setVariantFailedFor] = useState<
+    null | "png" | "all"
+  >(null);
   const devMode = useDevMode();
 
   // FC-1 / 9-6-V — Track BOTH face and back natural aspects so the
