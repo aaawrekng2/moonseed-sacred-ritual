@@ -8,10 +8,10 @@ import {
 import { ChevronLeft, Pencil, Archive, StickyNote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { ReadingRow } from "@/components/ui/reading-row";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { EmptyHero } from "@/components/ui/empty-hero";
-import { formatDateShort } from "@/lib/dates";
+import { formatDateShort, formatDateLong } from "@/lib/dates";
+import { CardImage } from "@/components/card/CardImage";
 import {
   type Pattern,
   type PatternLifecycleState,
