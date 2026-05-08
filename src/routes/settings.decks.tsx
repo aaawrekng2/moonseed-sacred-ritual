@@ -42,6 +42,7 @@ import { CardPicker } from "@/components/cards/CardPicker";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
 import { ZipImporter } from "@/components/deck-import/ZipImporter";
 import { PerCardEditModal } from "@/components/deck-import/PerCardEditModal";
+import { DeckOverviewScreen } from "@/components/deck-overview/DeckOverviewScreen";
 import { deleteSession, getSession } from "@/lib/import-session";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
