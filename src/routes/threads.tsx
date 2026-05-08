@@ -276,14 +276,12 @@ function ThreadsPage() {
         ) : view === "active" ? (
           <ActiveView
             patterns={active}
-            readingsByPattern={readingsByPattern}
-            onOpenReading={setOpenReadingId}
+            readingCountByPattern={readingCountByPattern}
           />
         ) : (
           <ArchiveView
             patterns={archived}
-            readingsByPattern={readingsByPattern}
-            onOpenReading={setOpenReadingId}
+            readingCountByPattern={readingCountByPattern}
           />
         )}
       </main>
@@ -298,144 +296,71 @@ function ThreadsPage() {
   );
 }
 
-function PatternCard({
+// 9-6-AF — Simplified pattern row. Readings live on the detail page.
+function PatternRow({
   pattern,
-  readings,
-  onOpenReading,
+  readingCount,
 }: {
   pattern: Pattern;
-  readings: PatternReading[];
-  onOpenReading: (readingId: string) => void;
+  readingCount: number;
 }) {
-  const count = readings.length || pattern.reading_ids.length;
+  const count = readingCount || pattern.reading_ids.length;
   return (
-    <div
+    <Link
+      to="/threads/$patternId"
+      params={{ patternId: pattern.id }}
       style={{
-        padding: "var(--space-4, 16px)",
-        borderRadius: "var(--radius-lg, 14px)",
-        background: "var(--surface-card, rgba(255,255,255,0.03))",
-        border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "var(--space-3, 12px)",
+        padding: "var(--space-4, 16px) 0",
+        borderBottom: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
+        textDecoration: "none",
+        color: "inherit",
+        cursor: "pointer",
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+        userSelect: "none",
       }}
     >
-      <Link
-        to="/threads/$patternId"
-        params={{ patternId: pattern.id }}
-        style={{
-          display: "block",
-          textDecoration: "none",
-          color: "inherit",
-          cursor: "pointer",
-          touchAction: "manipulation",
-          WebkitTapHighlightColor: "transparent",
-          userSelect: "none",
-        }}
-      >
-        <section
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <p
           style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-3, 12px)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-heading-sm, 17px)",
+            color: "var(--color-foreground)",
+            margin: 0,
+            opacity: pattern.is_user_named ? 1 : 0.9,
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              gap: "var(--space-3, 12px)",
-            }}
-          >
-            <h3
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-heading-sm, 17px)",
-                color: "var(--color-foreground)",
-                margin: 0,
-                opacity: pattern.is_user_named ? 1 : 0.85,
-              }}
-            >
-              {pattern.name}
-            </h3>
-            <span
-              style={{
-                fontSize: "var(--text-caption)",
-                textTransform: "uppercase",
-                letterSpacing: "0.2em",
-                color: "var(--accent, var(--gold))",
-                opacity: 0.6,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {pattern.lifecycle_state} · {count} {count === 1 ? "reading" : "readings"}
-            </span>
-          </div>
-          {pattern.description && pattern.description.trim() && (
-            <p
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontSize: "var(--text-body-sm)",
-                lineHeight: 1.6,
-                color: "var(--color-foreground)",
-                opacity: 0.8,
-                margin: 0,
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {pattern.description}
-            </p>
-          )}
-        </section>
-      </Link>
-      {readings.length > 0 && (
-        <ul
+          {pattern.name}
+        </p>
+        <p
           style={{
-            listStyle: "none",
-            margin: "var(--space-3, 12px) 0 0",
-            padding: 0,
-            display: "flex",
-            flexDirection: "column",
+            margin: "4px 0 0",
+            fontSize: "var(--text-caption)",
+            color: "var(--color-foreground)",
+            opacity: 0.6,
           }}
         >
-          {readings.slice(0, 6).map((r) => (
-            <li key={r.id}>
-              <ReadingRow
-                readingId={r.id}
-                question={r.question}
-                cardIds={r.card_ids}
-                createdAt={r.created_at}
-                onOpen={onOpenReading}
-              />
-            </li>
-          ))}
-          {readings.length > 6 && (
-            <li
-              style={{
-                padding: "var(--space-2, 8px) var(--space-3, 12px)",
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-caption)",
-                color: "var(--color-foreground)",
-                opacity: 0.5,
-              }}
-            >
-              + {readings.length - 6} more
-            </li>
-          )}
-        </ul>
-      )}
-    </div>
+          {count} {count === 1 ? "reading" : "readings"}
+          {" · since "}
+          {formatMonthSince(pattern.detected_at)}
+        </p>
+      </div>
+      <ChevronRight size={16} className="text-muted-foreground" />
+    </Link>
   );
 }
 
 function ActiveView({
   patterns,
-  readingsByPattern,
-  onOpenReading,
+  readingCountByPattern,
 }: {
   patterns: Pattern[];
-  readingsByPattern: Map<string, PatternReading[]>;
-  onOpenReading: (readingId: string) => void;
+  readingCountByPattern: Map<string, number>;
 }) {
   if (patterns.length === 0) {
     return (
@@ -455,21 +380,12 @@ function ActiveView({
     );
   }
   return (
-    <ul
-      style={{
-        listStyle: "none",
-        margin: 0,
-        padding: 0,
-        display: "grid",
-        gap: "var(--space-3, 12px)",
-      }}
-    >
+    <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
       {patterns.map((p) => (
         <li key={p.id}>
-          <PatternCard
+          <PatternRow
             pattern={p}
-            readings={readingsByPattern.get(p.id) ?? []}
-            onOpenReading={onOpenReading}
+            readingCount={readingCountByPattern.get(p.id) ?? 0}
           />
         </li>
       ))}
@@ -678,33 +594,21 @@ function WeavesView({
 
 function ArchiveView({
   patterns,
-  readingsByPattern,
-  onOpenReading,
+  readingCountByPattern,
 }: {
   patterns: Pattern[];
-  readingsByPattern: Map<string, PatternReading[]>;
-  onOpenReading: (readingId: string) => void;
+  readingCountByPattern: Map<string, number>;
 }) {
   if (patterns.length === 0) {
     return <EmptyHero title="Nothing has quieted yet." />;
   }
   return (
-    <ul
-      style={{
-        listStyle: "none",
-        margin: 0,
-        padding: 0,
-        display: "grid",
-        gap: "var(--space-3, 12px)",
-        opacity: 0.85,
-      }}
-    >
+    <ul style={{ listStyle: "none", margin: 0, padding: 0, opacity: 0.85 }}>
       {patterns.map((p) => (
         <li key={p.id}>
-          <PatternCard
+          <PatternRow
             pattern={p}
-            readings={readingsByPattern.get(p.id) ?? []}
-            onOpenReading={onOpenReading}
+            readingCount={readingCountByPattern.get(p.id) ?? 0}
           />
         </li>
       ))}
