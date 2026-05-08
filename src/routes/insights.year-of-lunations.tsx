@@ -137,7 +137,16 @@ function YearOfLunationsRoute() {
         className="absolute inset-y-0 right-0 z-0 w-1/3"
       />
 
-      <div className="pointer-events-none relative z-[1] flex flex-1 items-center justify-center px-6">
+      <div
+        className="pointer-events-none relative z-[1] flex flex-1 justify-center px-6"
+        style={{
+          overflowY: "auto",
+          overscrollBehaviorY: "contain",
+          alignItems: "safe center",
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 64px)",
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 32px)",
+        }}
+      >
         {loading && <Caption>Reading the year…</Caption>}
         {!loading && err === "not_enough_lunations" && (
           <Caption>You need at least 13 lunations of history. Keep practicing — the moon is patient.</Caption>
