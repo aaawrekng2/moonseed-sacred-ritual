@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { EmptyHero } from "@/components/ui/empty-hero";
+import { LoadingText } from "@/components/ui/loading-text";
 import { formatDateShort, formatDateLong } from "@/lib/dates";
 import { CardImage } from "@/components/card/CardImage";
 import {
@@ -251,8 +252,8 @@ function PatternChamber() {
 
   if (!pattern) {
     return (
-      <div style={{ padding: 24, fontStyle: "italic", opacity: 0.5 }}>
-        Listening…
+      <div style={{ padding: 24 }}>
+        <LoadingText>Loading story…</LoadingText>
       </div>
     );
   }
@@ -897,9 +898,9 @@ function PatternSynthesis({
       }}
     >
       {state.kind === "loading" && (
-        <p style={{ marginTop: 12, opacity: 0.6, fontStyle: "italic" }}>
-          Listening for the through-line…
-        </p>
+        <div style={{ marginTop: 12 }}>
+          <LoadingText>Synthesizing the through-line…</LoadingText>
+        </div>
       )}
       {state.kind === "error" && (
         <p style={{ marginTop: 12, opacity: 0.6, fontStyle: "italic" }}>
