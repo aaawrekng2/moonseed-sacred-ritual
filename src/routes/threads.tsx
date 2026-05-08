@@ -1,4 +1,10 @@
-import { createFileRoute, Link, Outlet, useMatches } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  useMatches,
+  useNavigate,
+} from "@tanstack/react-router";
 import { useEffect, useState, type CSSProperties } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -6,13 +12,14 @@ import {
   type Pattern,
   type Weave,
   lifecycleOpacity,
+  formatMonthSince,
 } from "@/lib/patterns";
 import { HelpIcon } from "@/components/help/HelpIcon";
 import { useScrollCollapse } from "@/lib/use-scroll-collapse";
-import { ReadingRow } from "@/components/ui/reading-row";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { LoadingText } from "@/components/ui/loading-text";
 import { EmptyHero } from "@/components/ui/empty-hero";
+import { ChevronRight } from "lucide-react";
 import {
   ReactFlow,
   Background,
