@@ -25,6 +25,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { CardBack } from "@/components/cards/CardBack";
 import {
   useActiveCardBackUrl,
+  useActiveDeckCardAspect,
   useActiveDeckCornerRadius,
   useActiveDeckImage,
   useDeckCornerRadius,
@@ -177,14 +178,21 @@ export function CardImage({
   // flip wrapper matches whichever side is currently showing. Without
   // this, a back image with a different aspect than the face will
   // letterbox inside the wrapper.
-  const [faceAspect, setFaceAspect] = useState<number | null>(null);
+  // 9-6-Y — seed face aspect from the deck-image cache so the wrapper
+  // renders at the correct height on FIRST PAINT.
+  const cachedFaceAspect = useActiveDeckCardAspect(
+    typeof cardId === "number" ? cardId : null,
+  );
+  const [faceAspect, setFaceAspect] = useState<number | null>(
+    cachedFaceAspect,
+  );
   const [backAspect, setBackAspect] = useState<number | null>(null);
 
   useEffect(() => {
-    setFaceAspect(null);
+    setFaceAspect(cachedFaceAspect);
     setBackAspect(null);
     setImageLoaded(false);
-  }, [cardId, deckId]);
+  }, [cardId, deckId, cachedFaceAspect]);
 
   // EY-1 — Saturated diagnostic colors. The card art still
   // shows through the IMG layer at 50% opacity; everything else
