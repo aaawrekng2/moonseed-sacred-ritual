@@ -220,31 +220,41 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const jwt = authHeader.replace(/^Bearer\s+/i, "");
-    if (!jwt) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // 1) Identify the caller from the JWT.
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: `Bearer ${jwt}` } },
-    });
-    const { data: userData, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userData?.user) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // 9-6-AH — server-to-server invocation from the background
+    // queue (process-variant-queue) authenticates with the service-
+    // role key and supplies the row's user_id via x-queue-user-id.
+    // Otherwise we identify the caller from a user JWT.
+    const queueInternal = req.headers.get("x-queue-internal") === "1";
+    const queueUserId = req.headers.get("x-queue-user-id") ?? "";
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const jwt = authHeader.replace(/^Bearer\s+/i, "");
+    let userId: string;
+    if (queueInternal && jwt === serviceKey && queueUserId) {
+      userId = queueUserId;
+    } else {
+      if (!jwt) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const userClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: `Bearer ${jwt}` } },
       });
+      const { data: userData, error: userErr } =
+        await userClient.auth.getUser();
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userId = userData.user.id;
     }
-    const userId = userData.user.id;
 
     const body = await req.json().catch(() => ({}));
     const deckId = typeof body?.deckId === "string" ? body.deckId : null;
