@@ -1090,9 +1090,11 @@ function PatternSynthesis({
 function _ChamberTimeline({
   readingIds,
   onOpenReading,
+  readingConnections,
 }: {
   readingIds: string[];
   onOpenReading: (readingId: string) => void;
+  readingConnections?: Array<{ readingId: string; connector: string }>;
 }) {
   const [rows, setRows] = useState<
     Array<{ id: string; created_at: string; spread_type: string; card_ids: number[]; question: string | null; interpretation: string | null }>
