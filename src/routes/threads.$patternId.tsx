@@ -340,6 +340,12 @@ function PatternChamber() {
         <ChevronLeft size={16} /> Threads
       </button>
 
+      {/* 26-05-08-J — Fix 9: deterministic strength banner at the top. */}
+      <PatternStrengthBanner
+        readingCount={pattern.reading_ids.length}
+        spanDays={computeSpanDays(chamberReadings, pattern.created_at)}
+      />
+
       {editing ? (
         <input
           autoFocus
