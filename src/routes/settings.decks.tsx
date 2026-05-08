@@ -222,6 +222,32 @@ function DecksPage() {
               onImportZip={() => setView({ kind: "edit-import", deck: d })}
               onToggleActive={() => void handleSetActive(d)}
               onDelete={() => void handleDelete(d)}
+              onRetryFailed={async (deckId: string) => {
+                try {
+                  await supabase
+                    .from("custom_deck_cards")
+                    .update({
+                      processing_status: "pending",
+                      variant_attempts: 0,
+                      variant_last_attempt_at: null,
+                    })
+                    .eq("deck_id", deckId)
+                    .is("archived_at", null)
+                    .in("processing_status", ["pending", "failed"]);
+                  try {
+                    await supabase.functions.invoke(
+                      "process-variant-queue",
+                      {},
+                    );
+                  } catch {
+                    /* non-fatal */
+                  }
+                  toast.success("Re-optimizing in the background.");
+                } catch (err) {
+                  console.error("[Retry failed] error", err);
+                  toast.error("Couldn't queue retry.");
+                }
+              }}
             />
           ))}
         </ul>
