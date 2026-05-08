@@ -1117,8 +1117,13 @@ function ReadingExcerptCard({
       .replace(/[*_#`]/g, "")
       .replace(/\s+/g, " ")
       .trim();
-    const first = stripped.match(/^[^.!?]+[.!?]/)?.[0] ?? stripped;
-    return first.length > 140 ? first.slice(0, 137) + "…" : first;
+    // 9-6-AG — pull up to 3 sentences, cap around 420 chars.
+    const sentences = stripped.match(/[^.!?]+[.!?]+/g) ?? [stripped];
+    const firstThree = sentences.slice(0, 3).join(" ").trim();
+    if (firstThree.length <= 420) return firstThree;
+    const truncated = firstThree.slice(0, 420);
+    const lastSpace = truncated.lastIndexOf(" ");
+    return (lastSpace > 300 ? truncated.slice(0, lastSpace) : truncated) + "…";
   })();
   return (
     <button
