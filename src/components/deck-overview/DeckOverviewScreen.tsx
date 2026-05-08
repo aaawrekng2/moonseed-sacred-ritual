@@ -39,7 +39,7 @@ import {
   type CustomDeck,
   type CustomDeckCard,
 } from "@/lib/custom-decks";
-import { variantUrlFor } from "@/lib/active-deck";
+import { variantUrlFor, variantUrlPngFallback } from "@/lib/active-deck";
 import { removeCard as removeCardSave, saveCard } from "@/lib/per-card-save";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { PerCardEditModal } from "@/components/deck-import/PerCardEditModal";
@@ -130,6 +130,8 @@ export function DeckOverviewScreen({
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialActionFiredRef = useRef(false);
+  // 9-6-AG — set true to abort the variants pass mid-loop.
+  const cancelImportRef = useRef(false);
   const deckType = deck.deck_type ?? "tarot";
 
   const reload = async () => {
@@ -247,6 +249,7 @@ export function DeckOverviewScreen({
       toast.error("Please upload a .zip file.");
       return;
     }
+    cancelImportRef.current = false;
     setBusy(true);
     setImportProgress({ phase: "extract", current: 0, total: 1 });
     try {
@@ -314,13 +317,37 @@ export function DeckOverviewScreen({
         if (jwt) {
           let vDone = 0;
           for (const cardId of savedCardIds) {
-            try {
-              await supabase.functions.invoke("generate-deck-variants", {
-                body: { deckId, cardId },
-                headers: { Authorization: `Bearer ${jwt}` },
-              });
-            } catch (err) {
-              console.warn("[DeckOverview] variant gen failed", { cardId, err });
+            if (cancelImportRef.current) {
+              console.log("[DeckOverview] import cancelled by user during variants pass");
+              break;
+            }
+            // 9-6-AG — retry once with 1.5s backoff. CPU-exceeded blips
+            // and transient network errors no longer leave gaps.
+            let success = false;
+            for (let attempt = 0; attempt < 2 && !success; attempt++) {
+              try {
+                const result = await supabase.functions.invoke(
+                  "generate-deck-variants",
+                  {
+                    body: { deckId, cardId },
+                    headers: { Authorization: `Bearer ${jwt}` },
+                  },
+                );
+                if (!result.error) {
+                  success = true;
+                } else if (attempt === 0) {
+                  console.warn("[DeckOverview] variant gen attempt 1 failed, retrying", { cardId, error: result.error });
+                  await new Promise((r) => setTimeout(r, 1500));
+                } else {
+                  console.error("[DeckOverview] variant gen retry failed", { cardId, error: result.error });
+                }
+              } catch (err) {
+                if (attempt === 0) {
+                  await new Promise((r) => setTimeout(r, 1500));
+                } else {
+                  console.warn("[DeckOverview] variant gen failed", { cardId, err });
+                }
+              }
             }
             vDone++;
             setImportProgress({ phase: "variants", current: vDone, total: savedCardIds.length });
@@ -328,9 +355,13 @@ export function DeckOverviewScreen({
         }
       }
       await reload();
-      toast.success(
-        `Matched ${result.matchedCount} of ${totalSlots || result.matchedCount} cards`,
-      );
+      if (cancelImportRef.current) {
+        toast.message("Import cancelled. Saved cards remain. Re-run Optimize to generate the rest.");
+      } else {
+        toast.success(
+          `Matched ${result.matchedCount} of ${totalSlots || result.matchedCount} cards`,
+        );
+      }
     } catch (err) {
       if (err instanceof ZipTooLargeError || err instanceof ZipEmptyError) {
         toast.error(err.message);
