@@ -129,8 +129,11 @@ function ThreadsPage() {
 
   return (
     <div
-      className="min-h-[100dvh] w-full"
+      className="w-full"
       style={{
+        height: "100dvh",
+        overflowY: "auto",
+        overscrollBehaviorY: "contain",
         paddingBottom: "calc(env(safe-area-inset-bottom) + 80px)",
         // DO-4 — lock to viewport width so long Story names or wide
         // children never let the page swipe sideways on mobile.
