@@ -195,6 +195,7 @@ export function CardImage({
     setFaceAspect(cachedFaceAspect);
     setBackAspect(null);
     setImageLoaded(false);
+    setVariantFailedFor(null);
   }, [cardId, deckId, cachedFaceAspect]);
 
   // EY-1 — Saturated diagnostic colors. The card art still
