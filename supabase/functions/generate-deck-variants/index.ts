@@ -125,7 +125,7 @@ type CardRow = {
 type VariantSpec = { suffix: "sm" | "md"; width: number };
 const VARIANTS: VariantSpec[] = [
   { suffix: "sm", width: 200 },
-  { suffix: "md", width: 400 },
+  { suffix: "md", width: 600 }, // 26-05-08-J — was 400
 ];
 
 // FB-6 — process cards in CHUNKS to stay well under the 150s
@@ -150,7 +150,9 @@ const WORKING_WIDTH = 600;
 // imports. 1500px keeps the result indistinguishable from full-res
 // for typical card display sizes (max ~800-1200 px) while cutting
 // CPU work by ~4x.
-const FULL_WIDTH_CAP = 1500;
+// 26-05-08-J — bumped from 1500 to 2000. Background queue processes
+// 1-2 cards per 30s tick so the extra CPU is well within budget.
+const FULL_WIDTH_CAP = 2000;
 
 function variantPathFor(originalPath: string, suffix: "sm" | "md"): string | null {
   // Match `<...>/card-N-TS(-thumb)?.<ext>` and replace the filename.
@@ -231,9 +233,25 @@ serve(async (req) => {
     const queueInternal = req.headers.get("x-queue-internal") === "1";
     const queueUserId = req.headers.get("x-queue-user-id") ?? "";
     const authHeader = req.headers.get("Authorization") ?? "";
-    const jwt = authHeader.replace(/^Bearer\s+/i, "");
+    const jwt = authHeader.replace(/^Bearer\s+/i, "").trim();
+    // 26-05-08-J — string-compare against the env service key was
+    // brittle (whitespace / env-mismatch); decode the JWT payload and
+    // accept any token whose role is service_role. The platform's
+    // verify_jwt=true already validates the signature upstream.
+    function isServiceRoleJwt(t: string): boolean {
+      try {
+        const parts = t.split(".");
+        if (parts.length !== 3) return false;
+        const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+        const pad = (4 - (b64.length % 4)) % 4;
+        const json = JSON.parse(atob(b64 + "=".repeat(pad)));
+        return json?.role === "service_role";
+      } catch {
+        return false;
+      }
+    }
     let userId: string;
-    if (queueInternal && jwt === serviceKey && queueUserId) {
+    if (queueInternal && isServiceRoleJwt(jwt) && queueUserId) {
       userId = queueUserId;
     } else {
       if (!jwt) {
