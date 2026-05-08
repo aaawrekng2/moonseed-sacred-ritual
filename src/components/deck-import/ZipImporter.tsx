@@ -466,10 +466,14 @@ export function ZipImporter({
           const key = filenameToKey.get(filename);
           if (!key) continue;
           session.assigned[String(cardId)] = key;
+          delete session.unassigned[key]; // 9-6-AB — was missing; fixes 78/79 double-count
         }
         if (match.cardBackFile) {
           const key = filenameToKey.get(match.cardBackFile);
-          if (key) session.assigned[BACK_KEY] = key;
+          if (key) {
+            session.assigned[BACK_KEY] = key;
+            delete session.unassigned[key]; // 9-6-AB
+          }
         }
         // Auto-detect any "back*"-named files even if matcher missed them.
         if (!session.assigned[BACK_KEY]) {
@@ -478,6 +482,7 @@ export function ZipImporter({
               const k = filenameToKey.get(name);
               if (k) {
                 session.assigned[BACK_KEY] = k;
+                delete session.unassigned[k]; // 9-6-AB
                 break;
               }
             }

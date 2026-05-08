@@ -1,28 +1,25 @@
 /**
- * 9-6-AA — Unified Deck Overview Screen (shell).
+ * 9-6-AB — Unified Deck Overview Screen.
  *
- * Single screen for viewing & editing a custom deck. Replaces the
- * legacy `kind: "grid"` view inside DeckEditor. Owns:
+ * Consolidates the deck management surface. Owns:
  *   - Header with inline-editable deck name + back arrow
- *   - "Take photo" / "Upload" entry buttons (prominent for empty decks,
- *     compact in the header otherwise)
- *   - Card-back tile (separate prominent slot above the grid)
+ *   - Take-photo / Upload entry buttons (prominent for empty decks)
+ *   - Card-back tile
  *   - Card grid (78 fixed for tarot, saved + Add for oracle)
- *   - Action sheet (Edit crop & corners / Replace with photo / Replace
- *     with upload / Remove from deck)
- *   - Per-card edit modal (delegated to PerCardEditModal)
- *
- * Out of scope for the shell phase (deferred to 9-6-AB):
- *   - Match-result banner from a recent zip import
- *   - Unmatched-thumbnails drawer
+ *   - Action sheet (Edit / Replace photo / Replace upload / Remove,
+ *     plus "Confirm match" for ambiguous tiles)
+ *   - Match-result banner after a zip upload
  *   - Ambiguous-match yellow border + warning icon
- * The shell delegates Take-photo / Upload to the existing PhotoCapture
- * and ZipImporter pipelines via callback props so all working
- * upload/extract/match code stays intact.
+ *   - Unmatched-thumbnails sticky drawer with tap-to-pickup-then-drop
+ *
+ * Zip uploads run through the shared `deck-import-pipeline` module so
+ * this screen and the legacy ZipImporter share one extraction +
+ * matching code path.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
+  AlertTriangle,
   Camera,
   Check,
   ChevronLeft,
@@ -30,6 +27,7 @@ import {
   Loader2,
   Pencil,
   Plus,
+  Sparkles,
   Trash2,
   Upload,
   X,
@@ -42,17 +40,25 @@ import {
   type CustomDeckCard,
 } from "@/lib/custom-decks";
 import { variantUrlFor } from "@/lib/active-deck";
-import { removeCard as removeCardSave } from "@/lib/per-card-save";
+import { removeCard as removeCardSave, saveCard } from "@/lib/per-card-save";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { PerCardEditModal } from "@/components/deck-import/PerCardEditModal";
+import {
+  assetToImportImage,
+  extractZip,
+  processImportAssets,
+  ZipEmptyError,
+  ZipTooLargeError,
+  type ImportAsset,
+  type ImportSessionResult,
+} from "@/lib/deck-import-pipeline";
 import { cn } from "@/lib/utils";
 
 const ORACLE_BASE = 1000;
 
 export type DeckOverviewAction =
   | { kind: "capture-card"; cardId: number }
-  | { kind: "capture-back" }
-  | { kind: "upload" };
+  | { kind: "capture-back" };
 
 type Props = {
   userId: string;
@@ -64,19 +70,28 @@ type Props = {
   defaultRadiusPercent: number;
   /** Notify parent of name change so it can refresh its local state. */
   onNameChange: (next: string) => void;
-  /** Delegate to existing capture/import flows. */
+  /** Delegate capture flows to the parent (which owns PhotoCapture). */
   onAction: (action: DeckOverviewAction) => void;
   /** Back arrow / close handler. */
   onClose: () => void;
+  /** 9-6-AB — when set, fire on mount: "upload" auto-opens the zip
+   *  picker. Used by the new-deck flow that came in via "Import zip". */
+  initialAction?: "upload";
 };
 
 type Tile =
   | { kind: "saved"; cardId: number; photo: CustomDeckCard }
+  | {
+      kind: "ambiguous";
+      cardId: number;
+      photo: CustomDeckCard;
+      matchScore: number;
+    }
   | { kind: "empty-tarot"; cardId: number }
   | { kind: "add-new" };
 
 export function DeckOverviewScreen({
-  userId: _userId,
+  userId,
   deckId,
   deck,
   name,
@@ -84,6 +99,7 @@ export function DeckOverviewScreen({
   onNameChange,
   onAction,
   onClose,
+  initialAction,
 }: Props) {
   const [cards, setCards] = useState<CustomDeckCard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +112,20 @@ export function DeckOverviewScreen({
   const [draftName, setDraftName] = useState(name);
   const [savingName, setSavingName] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const [importResult, setImportResult] = useState<ImportSessionResult | null>(
+    null,
+  );
+  const [unmatchedAssets, setUnmatchedAssets] = useState<ImportAsset[]>([]);
+  const [ambiguousAssetByCardId, setAmbiguousAssetByCardId] = useState<
+    Map<number, { assetKey: string; matchScore: number }>
+  >(new Map());
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [pickedAssetKey, setPickedAssetKey] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const initialActionFiredRef = useRef(false);
+  const deckType = deck.deck_type ?? "tarot";
 
   const reload = async () => {
     const list = await fetchDeckCards(deckId);
@@ -112,32 +142,55 @@ export function DeckOverviewScreen({
     setDraftName(name);
   }, [name]);
 
+  // 9-6-AB — auto-open the file picker when the parent routed in via
+  // an "Import zip" intent.
+  useEffect(() => {
+    if (initialAction === "upload" && !initialActionFiredRef.current) {
+      initialActionFiredRef.current = true;
+      requestAnimationFrame(() => fileInputRef.current?.click());
+    }
+  }, [initialAction]);
+
   const photoMap = useMemo(
     () => new Map(cards.map((c) => [c.card_id, c])),
     [cards],
   );
 
   const tiles: Tile[] = useMemo(() => {
-    if (deck.deck_type === "tarot") {
+    const buildSaved = (cardId: number, photo: CustomDeckCard): Tile => {
+      const amb = ambiguousAssetByCardId.get(cardId);
+      if (amb) {
+        return {
+          kind: "ambiguous",
+          cardId,
+          photo,
+          matchScore: amb.matchScore,
+        };
+      }
+      return { kind: "saved", cardId, photo };
+    };
+    if (deckType === "tarot") {
       return Array.from({ length: 78 }, (_, i) => {
         const photo = photoMap.get(i);
-        return photo
-          ? ({ kind: "saved", cardId: i, photo } satisfies Tile)
-          : ({ kind: "empty-tarot", cardId: i } satisfies Tile);
+        return photo ? buildSaved(i, photo) : { kind: "empty-tarot", cardId: i };
       });
     }
     const saved = [...photoMap.entries()]
-      .map(([cardId, photo]) =>
-        ({ kind: "saved", cardId, photo } satisfies Tile),
-      )
-      .sort((a, b) => a.cardId - b.cardId);
+      .map(([cardId, photo]) => buildSaved(cardId, photo))
+      .sort((a, b) => {
+        const aId = "cardId" in a ? a.cardId : 0;
+        const bId = "cardId" in b ? b.cardId : 0;
+        return aId - bId;
+      });
     return [...saved, { kind: "add-new" }];
-  }, [deck.deck_type, photoMap]);
+  }, [deckType, photoMap, ambiguousAssetByCardId]);
 
   const totalLabel =
-    deck.deck_type === "tarot"
+    deckType === "tarot"
       ? `${cards.length} of 78 cards · tarot`
       : `${cards.length} cards · oracle`;
+
+  const totalSlots = deckType === "tarot" ? 78 : cards.length;
 
   const nextOracleId = () => {
     const ids = [...photoMap.keys()].filter((id) => id >= ORACLE_BASE);
@@ -182,6 +235,140 @@ export function DeckOverviewScreen({
     await reload();
   };
 
+  const triggerUpload = () => fileInputRef.current?.click();
+
+  const handleZipUpload = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".zip")) {
+      toast.error("Please upload a .zip file.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { assets, oracleMeta } = await extractZip(file);
+      const result = processImportAssets(assets, deckType, oracleMeta);
+      setImportResult(result);
+      setBannerDismissed(false);
+      setDrawerOpen(true);
+      setUnmatchedAssets(
+        assets.filter((a) => result.unmatched[a.key] !== undefined),
+      );
+      setAmbiguousAssetByCardId(
+        new Map(
+          result.ambiguous.map((a) => [
+            a.cardId,
+            { assetKey: a.assetKey, matchScore: a.matchScore },
+          ]),
+        ),
+      );
+
+      const opts = {
+        shape: deck.shape === "round" ? ("round" as const) : ("rectangle" as const),
+        cornerRadiusPercent: defaultRadiusPercent,
+      };
+      const assetByKey = new Map(assets.map((a) => [a.key, a]));
+
+      // Save back first if present.
+      if (result.cardBackKey) {
+        const asset = assetByKey.get(result.cardBackKey);
+        if (asset) {
+          await saveCard({
+            userId,
+            deckId,
+            cardId: "BACK",
+            cardKey: asset.key,
+            image: assetToImportImage(asset),
+            opts,
+          });
+        }
+      }
+      // Save each assigned slot.
+      for (const [slotStr, assetKey] of Object.entries(result.assigned)) {
+        if (slotStr === "BACK") continue;
+        const asset = assetByKey.get(assetKey);
+        if (!asset) continue;
+        const cardId = Number(slotStr);
+        await saveCard({
+          userId,
+          deckId,
+          cardId,
+          cardKey: asset.key,
+          image: assetToImportImage(asset),
+          opts,
+        });
+      }
+      await reload();
+      toast.success(
+        `Matched ${result.matchedCount} of ${totalSlots || result.matchedCount} cards`,
+      );
+    } catch (err) {
+      if (err instanceof ZipTooLargeError || err instanceof ZipEmptyError) {
+        toast.error(err.message);
+      } else {
+        console.error("[DeckOverview] zip upload failed", err);
+        toast.error("Couldn't read that zip.");
+      }
+    } finally {
+      setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleConfirmMatch = (cardId: number) => {
+    setAmbiguousAssetByCardId((prev) => {
+      const next = new Map(prev);
+      next.delete(cardId);
+      return next;
+    });
+    setImportResult((prev) => {
+      if (!prev) return prev;
+      const ambiguous = prev.ambiguous.filter((a) => a.cardId !== cardId);
+      return {
+        ...prev,
+        ambiguous,
+        ambiguousCount: ambiguous.length,
+      };
+    });
+  };
+
+  const handleDropOnSlot = async (cardId: number) => {
+    if (!pickedAssetKey) return;
+    const asset = unmatchedAssets.find((a) => a.key === pickedAssetKey);
+    if (!asset) return;
+    setBusy(true);
+    const opts = {
+      shape: deck.shape === "round" ? ("round" as const) : ("rectangle" as const),
+      cornerRadiusPercent: defaultRadiusPercent,
+    };
+    const res = await saveCard({
+      userId,
+      deckId,
+      cardId,
+      cardKey: asset.key,
+      image: assetToImportImage(asset),
+      opts,
+    });
+    setBusy(false);
+    if (res.status === "failed") {
+      toast.error(`Couldn't assign image: ${res.error}`);
+      return;
+    }
+    setPickedAssetKey(null);
+    setUnmatchedAssets((prev) => prev.filter((a) => a.key !== asset.key));
+    await reload();
+  };
+
+  const onTileTap = (cardId: number, slotKind: "saved" | "ambiguous" | "empty-tarot") => {
+    if (pickedAssetKey) {
+      void handleDropOnSlot(cardId);
+      return;
+    }
+    if (slotKind === "empty-tarot") {
+      onAction({ kind: "capture-card", cardId });
+      return;
+    }
+    setActionSheetCardId(cardId);
+  };
+
   const isEmpty = cards.length === 0 && !deck.card_back_url;
   const showProminentCTAs = isEmpty;
 
@@ -189,7 +376,15 @@ export function DeckOverviewScreen({
     <div className="flex items-center gap-2">
       <button
         type="button"
-        onClick={() => onAction({ kind: "capture-card", cardId: deck.deck_type === "oracle" ? nextOracleId() : firstEmptyTarotId(photoMap) })}
+        onClick={() =>
+          onAction({
+            kind: "capture-card",
+            cardId:
+              deckType === "oracle"
+                ? nextOracleId()
+                : firstEmptyTarotId(photoMap),
+          })
+        }
         className="inline-flex items-center gap-1.5 rounded-md border border-gold/40 px-2.5 py-1.5 text-xs hover:bg-gold/10"
         aria-label="Take photo"
       >
@@ -198,7 +393,7 @@ export function DeckOverviewScreen({
       </button>
       <button
         type="button"
-        onClick={() => onAction({ kind: "upload" })}
+        onClick={triggerUpload}
         className="inline-flex items-center gap-1.5 rounded-md border border-gold/40 px-2.5 py-1.5 text-xs hover:bg-gold/10"
         aria-label="Upload images"
       >
@@ -210,6 +405,18 @@ export function DeckOverviewScreen({
 
   return (
     <section className="py-6">
+      {/* Hidden file input for zip upload. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".zip,application/zip"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void handleZipUpload(file);
+        }}
+      />
+
       {/* Header */}
       <header className="mb-6">
         <div className="mb-2 flex items-center gap-2">
@@ -267,6 +474,42 @@ export function DeckOverviewScreen({
         </div>
       </header>
 
+      {/* Match-result banner */}
+      {importResult && !bannerDismissed && (
+        <div
+          className="mb-4 flex items-start gap-3 rounded-lg border p-3"
+          style={{
+            background: "color-mix(in oklab, var(--accent) 12%, transparent)",
+            borderColor: "color-mix(in oklab, var(--accent) 30%, transparent)",
+          }}
+        >
+          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">
+              Matched {importResult.matchedCount} of {totalSlots || importResult.matchedCount} from filenames
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {importResult.ambiguousCount} need review · {importResult.unmatchedCount} unmatched
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBannerDismissed(true)}
+            className="rounded-md p-1 hover:bg-foreground/5"
+            aria-label="Dismiss banner"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Pickup hint */}
+      {pickedAssetKey && (
+        <div className="mb-3 rounded-md border border-gold/40 bg-gold/10 px-3 py-2 text-xs">
+          Tap a card slot to drop the picked image, or tap the thumbnail again to release.
+        </div>
+      )}
+
       {/* Prominent CTAs for empty decks */}
       {showProminentCTAs && (
         <div className="mb-6 flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/60 bg-foreground/[0.02] p-6 text-center">
@@ -280,7 +523,7 @@ export function DeckOverviewScreen({
                 onAction({
                   kind: "capture-card",
                   cardId:
-                    deck.deck_type === "oracle"
+                    deckType === "oracle"
                       ? nextOracleId()
                       : firstEmptyTarotId(photoMap),
                 })
@@ -291,7 +534,7 @@ export function DeckOverviewScreen({
             </button>
             <button
               type="button"
-              onClick={() => onAction({ kind: "upload" })}
+              onClick={triggerUpload}
               className="inline-flex items-center gap-2 rounded-md border border-gold/40 bg-gold/10 px-4 py-2 text-sm hover:bg-gold/20"
             >
               <Upload className="h-4 w-4" /> Upload images
@@ -342,7 +585,13 @@ export function DeckOverviewScreen({
           Loading cards…
         </div>
       ) : (
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+        <div
+          className="grid grid-cols-4 gap-2 sm:grid-cols-6"
+          style={{
+            paddingBottom:
+              unmatchedAssets.length > 0 && drawerOpen ? "120px" : undefined,
+          }}
+        >
           {tiles.map((tile) => {
             if (tile.kind === "add-new") {
               return (
@@ -368,9 +617,7 @@ export function DeckOverviewScreen({
                 <button
                   key={tile.cardId}
                   type="button"
-                  onClick={() =>
-                    onAction({ kind: "capture-card", cardId: tile.cardId })
-                  }
+                  onClick={() => onTileTap(tile.cardId, "empty-tarot")}
                   className="group relative aspect-[2/3] overflow-hidden rounded border border-dashed border-border/60"
                   title={getCardName(tile.cardId)}
                 >
@@ -382,28 +629,36 @@ export function DeckOverviewScreen({
                     loading="lazy"
                   />
                   <span className="pointer-events-none absolute inset-x-0 bottom-1 text-center text-[8px] uppercase tracking-wider text-white/70">
-                    Tap to add
+                    {pickedAssetKey ? "Tap to drop" : "Tap to add"}
                   </span>
                 </button>
               );
             }
-            const rawSrc =
-              tile.photo.thumbnail_url ?? tile.photo.display_url ?? null;
+            const photo = tile.photo;
+            const rawSrc = photo.thumbnail_url ?? photo.display_url ?? null;
             const tileSrc = rawSrc
               ? variantUrlFor(rawSrc, "md") ?? rawSrc
               : null;
             const label =
-              tile.photo.card_name ??
+              photo.card_name ??
               (tile.cardId < 1000
                 ? getCardName(tile.cardId)
                 : `Card ${tile.cardId}`);
+            const isAmbiguous = tile.kind === "ambiguous";
             return (
               <button
                 key={tile.cardId}
                 type="button"
-                onClick={() => setActionSheetCardId(tile.cardId)}
-                className="group relative aspect-[2/3] overflow-hidden rounded border border-border/60"
-                title={label}
+                onClick={() =>
+                  onTileTap(tile.cardId, isAmbiguous ? "ambiguous" : "saved")
+                }
+                className={cn(
+                  "group relative aspect-[2/3] overflow-hidden rounded",
+                  isAmbiguous
+                    ? "border-2 border-yellow-500"
+                    : "border border-border/60",
+                )}
+                title={isAmbiguous ? `${label} · low-confidence match` : label}
               >
                 {tileSrc && (
                   <img
@@ -413,9 +668,15 @@ export function DeckOverviewScreen({
                     loading="lazy"
                   />
                 )}
-                <span className="absolute right-1 top-1 rounded-full bg-gold/90 p-0.5 text-cosmos">
-                  <Check className="h-3 w-3" />
-                </span>
+                {isAmbiguous ? (
+                  <span className="absolute right-1 top-1 rounded-full bg-yellow-500/90 p-0.5 text-cosmos">
+                    <AlertTriangle className="h-3 w-3" />
+                  </span>
+                ) : (
+                  <span className="absolute right-1 top-1 rounded-full bg-gold/90 p-0.5 text-cosmos">
+                    <Check className="h-3 w-3" />
+                  </span>
+                )}
               </button>
             );
           })}
@@ -456,7 +717,17 @@ export function DeckOverviewScreen({
           <ActionSheet
             target={actionSheetCardId}
             busy={busy}
+            isAmbiguous={
+              actionSheetCardId !== "BACK" &&
+              ambiguousAssetByCardId.has(actionSheetCardId)
+            }
             onClose={() => setActionSheetCardId(null)}
+            onConfirmMatch={() => {
+              if (actionSheetCardId !== "BACK") {
+                handleConfirmMatch(actionSheetCardId);
+              }
+              setActionSheetCardId(null);
+            }}
             onEdit={() => {
               if (actionSheetCardId === "BACK") setEditingBack(true);
               else setEditingCardId(actionSheetCardId);
@@ -473,11 +744,76 @@ export function DeckOverviewScreen({
               setActionSheetCardId(null);
             }}
             onReplaceUpload={() => {
-              onAction({ kind: "upload" });
               setActionSheetCardId(null);
+              triggerUpload();
             }}
             onRemove={() => void handleRemove(actionSheetCardId)}
           />,
+          document.body,
+        )}
+
+      {/* Unmatched drawer */}
+      {unmatchedAssets.length > 0 && drawerOpen &&
+        createPortal(
+          <div
+            className="fixed inset-x-0 z-[110] border-t p-3"
+            style={{
+              bottom:
+                "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px))",
+              background: "var(--surface-card, var(--background))",
+              borderColor: "var(--border-subtle)",
+            }}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-medium">
+                {unmatchedAssets.length} image
+                {unmatchedAssets.length === 1 ? "" : "s"} need a slot
+              </p>
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                className="rounded-md p-1 hover:bg-foreground/5"
+                aria-label="Close drawer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {unmatchedAssets.map((asset) => {
+                const isPicked = pickedAssetKey === asset.key;
+                return (
+                  <button
+                    key={asset.key}
+                    type="button"
+                    onClick={() =>
+                      setPickedAssetKey(isPicked ? null : asset.key)
+                    }
+                    className={cn(
+                      "flex-none overflow-hidden rounded border bg-background",
+                      isPicked
+                        ? "border-2 border-gold"
+                        : "border-border/60",
+                    )}
+                    style={{ width: 48, height: 72 }}
+                    title={asset.filename}
+                  >
+                    {asset.thumbnailDataUrl && (
+                      <img
+                        src={asset.thumbnailDataUrl}
+                        alt={asset.filename}
+                        className="h-full w-full object-contain"
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-1 text-[11px] italic text-muted-foreground">
+              {pickedAssetKey
+                ? "Tap a card slot to assign"
+                : "Tap a thumbnail to pick it up"}
+            </p>
+          </div>,
           document.body,
         )}
     </section>
@@ -492,7 +828,9 @@ function firstEmptyTarotId(photoMap: Map<number, CustomDeckCard>): number {
 function ActionSheet({
   target,
   busy,
+  isAmbiguous,
   onClose,
+  onConfirmMatch,
   onEdit,
   onReplacePhoto,
   onReplaceUpload,
@@ -500,7 +838,9 @@ function ActionSheet({
 }: {
   target: number | "BACK";
   busy: boolean;
+  isAmbiguous: boolean;
   onClose: () => void;
+  onConfirmMatch: () => void;
   onEdit: () => void;
   onReplacePhoto: () => void;
   onReplaceUpload: () => void;
@@ -516,8 +856,7 @@ function ActionSheet({
     <div
       className="fixed inset-0 z-[120] flex items-end justify-center sm:items-center"
       style={{
-        background:
-          "color-mix(in oklab, var(--color-background) 70%, black)",
+        background: "color-mix(in oklab, var(--color-background) 70%, black)",
       }}
       onClick={onClose}
     >
@@ -549,6 +888,13 @@ function ActionSheet({
           </button>
         </div>
         <div className="flex flex-col">
+          {isAmbiguous && (
+            <SheetButton
+              icon={Check}
+              label="Confirm match"
+              onClick={onConfirmMatch}
+            />
+          )}
           <SheetButton icon={Pencil} label="Edit crop & corners" onClick={onEdit} />
           <SheetButton
             icon={Camera}

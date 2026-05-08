@@ -40,7 +40,6 @@ import { variantUrlFor } from "@/lib/active-deck";
 import { PhotoCapture } from "@/components/photo/PhotoCapture";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { getCardName, getCardImagePath } from "@/lib/tarot";
-import { ZipImporter } from "@/components/deck-import/ZipImporter";
 import { PerCardEditModal } from "@/components/deck-import/PerCardEditModal";
 import { DeckOverviewScreen } from "@/components/deck-overview/DeckOverviewScreen";
 import { deleteSession, getSession } from "@/lib/import-session";
@@ -710,7 +709,8 @@ function DeckEditor({
   const [name, setName] = useState(existing?.name ?? "My Deck");
   const [shape, setShape] = useState<CustomDeck["shape"]>(existing?.shape ?? "rectangle");
   const [cornerRadius, setCornerRadius] = useState(existing?.corner_radius_percent ?? 4);
-  const cornerRadiusPx = existing?.corner_radius_px ?? null;
+  // 9-6-AB — corner_radius_px no longer needed at this level; the
+  // overview screen reads the deck record directly.
   // 9-6-A — deck type chosen at creation time. Drives oracle-vs-tarot
   // import flow downstream (skip matcher, hide suit chips, etc.).
   const [deckType, setDeckType] = useState<"tarot" | "oracle">(
@@ -842,7 +842,13 @@ function DeckEditor({
           </button>
         </header>
 
-        <div className="space-y-4">
+        <div
+          className="space-y-4"
+          style={{
+            paddingBottom:
+              "calc(var(--bottom-nav-height) + 80px + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
           {/* 9-6-A — deck type selector. First choice in the form. */}
           <div>
             <span className="text-sm font-medium">Deck type</span>
@@ -975,9 +981,10 @@ function DeckEditor({
             </button>
           </div>
 
-          {/* 9-6-P — sticky Continue: anchored above bottom nav, smaller. */}
+          {/* 9-6-AB — fixed (not sticky) so the bar always pins to the
+              viewport bottom regardless of the form's parent height. */}
           <div
-            className="sticky -mx-4 mt-6 border-t px-4 py-2 sm:hidden"
+            className="fixed inset-x-0 border-t px-4 py-2 sm:hidden z-40"
             style={{
               bottom: "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px))",
               background: "var(--background)",
@@ -1018,8 +1025,6 @@ function DeckEditor({
               setMode({ kind: "capture", deckId, cardId: action.cardId });
             } else if (action.kind === "capture-back") {
               setMode({ kind: "back-capture", deckId });
-            } else if (action.kind === "upload") {
-              setMode({ kind: "import", deckId });
             }
           }}
         />
@@ -1396,22 +1401,23 @@ function DeckEditor({
   // ---------- Step 3d: bulk zip import (Stamp BH) ----------
   if (mode.kind === "import") {
     const deckId = mode.deckId;
+    if (!existing) return null;
     return (
-      <ZipImporter
+      <DeckOverviewScreen
         userId={userId}
         deckId={deckId}
-        shape={shape === "round" ? "round" : "rectangle"}
-        cornerRadiusPercent={cornerRadius}
-        existingBackUrl={deckBackUrl}
-        entryMode="import"
-        initialPhase="upload"
-        deckName={name}
-        existingCornerRadiusPx={cornerRadiusPx}
-        deckType={deckType}
-        onCancel={() => onClose(true)}
-        onDone={async () => {
-          await reloadCards(deckId);
-          onClose(true);
+        deck={{ ...existing, name, card_back_url: deckBackUrl } as CustomDeck}
+        name={name}
+        defaultRadiusPercent={cornerRadius}
+        onNameChange={(next: string) => setName(next)}
+        onClose={() => onClose(true)}
+        initialAction="upload"
+        onAction={(action) => {
+          if (action.kind === "capture-card") {
+            setMode({ kind: "capture", deckId, cardId: action.cardId });
+          } else if (action.kind === "capture-back") {
+            setMode({ kind: "back-capture", deckId });
+          }
         }}
       />
     );
@@ -1420,20 +1426,23 @@ function DeckEditor({
   // ---------- CC G5: Unified deck-editor workspace ----------
   if (mode.kind === "workspace") {
     const deckId = mode.deckId;
+    if (!existing) return null;
     return (
-      <WorkspaceWithCornerEditor
+      <DeckOverviewScreen
         userId={userId}
         deckId={deckId}
-        deckName={name}
-        shape={shape === "round" ? "round" : "rectangle"}
-        cornerRadiusPercent={cornerRadius}
-        existingBackUrl={deckBackUrl}
-        existingCornerRadiusPx={cornerRadiusPx}
-        initialPhase={mode.initialPhase}
-        deckType={existing?.deck_type ?? deckType}
-        onClose={async () => {
-          await reloadCards(deckId);
-          onClose(true);
+        deck={{ ...existing, name, card_back_url: deckBackUrl } as CustomDeck}
+        name={name}
+        defaultRadiusPercent={cornerRadius}
+        onNameChange={(next: string) => setName(next)}
+        onClose={() => onClose(true)}
+        initialAction={mode.initialPhase === "upload" ? "upload" : undefined}
+        onAction={(action) => {
+          if (action.kind === "capture-card") {
+            setMode({ kind: "capture", deckId, cardId: action.cardId });
+          } else if (action.kind === "capture-back") {
+            setMode({ kind: "back-capture", deckId });
+          }
         }}
       />
     );
@@ -1525,56 +1534,8 @@ function ResumePromptModal({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Workspace + per-card corner editor overlay (Phase 9-5-B Part 1)    */
-/* ------------------------------------------------------------------ */
-
-function WorkspaceWithCornerEditor({
-  userId,
-  deckId,
-  deckName,
-  shape,
-  cornerRadiusPercent,
-  existingBackUrl,
-  existingCornerRadiusPx,
-  initialPhase,
-  deckType,
-  onClose,
-}: {
-  userId: string;
-  deckId: string;
-  deckName: string;
-  shape: "rectangle" | "round";
-  cornerRadiusPercent: number;
-  existingBackUrl: string | null;
-  existingCornerRadiusPx: number | null;
-  initialPhase?: "upload" | "workspace";
-  deckType: "tarot" | "oracle";
-  onClose: () => void | Promise<void>;
-}) {
-  // 9-5-D — liveRadius is owned here so both ZipImporter (preview)
-  // and any per-card editor opened from inside it see the freshly
-  // saved value without a page reload.
-  const [liveRadius, setLiveRadius] = useState(cornerRadiusPercent);
-  useEffect(() => { setLiveRadius(cornerRadiusPercent); }, [cornerRadiusPercent]);
-  return (
-    <ZipImporter
-      userId={userId}
-      deckId={deckId}
-      shape={shape}
-      cornerRadiusPercent={liveRadius}
-      existingBackUrl={existingBackUrl}
-      entryMode="edit"
-      initialPhase={initialPhase}
-      deckName={deckName}
-      existingCornerRadiusPx={existingCornerRadiusPx}
-      deckType={deckType}
-      onRadiusSaved={(next) => setLiveRadius(next)}
-      onCancel={onClose}
-      onDone={onClose}
-    />
-  );
-}
+/* WorkspaceWithCornerEditor removed in 9-6-AB — DeckOverviewScreen
+ * now owns the workspace surface for both new-deck and edit flows. */
 
 /* ------------------------------------------------------------------ */
 /*  Storage helpers                                                    */
