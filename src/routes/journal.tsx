@@ -883,7 +883,7 @@ function JournalPage() {
 function ReadingsList({
   items,
   isOracle,
-  photoCounts: _photoCounts,
+  photoCounts,
   patternsById,
   onOpen,
   emptyOracle,
@@ -920,6 +920,7 @@ function ReadingsList({
             onOpen={onOpen}
             patternsById={patternsById}
             onArchive={onArchive}
+            hasPhoto={(photoCounts[r.id] ?? 0) > 0}
           />
         </li>
       ))}
