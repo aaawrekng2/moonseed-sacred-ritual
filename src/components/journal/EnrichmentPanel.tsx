@@ -204,6 +204,10 @@ export function EnrichmentPanel({
   // desktops without a camera or who want to upload an existing image.
   const [cameraOpen, setCameraOpen] = useState(false);
 
+  // 9-6-AD — fullscreen photo viewer + delete confirm.
+  const [photoViewerSrc, setPhotoViewerSrc] = useState<string | null>(null);
+  const confirm = useConfirm();
+
   // Copy-to-clipboard transient state for the inline copy icon.
   const [copied, setCopied] = useState(false);
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
