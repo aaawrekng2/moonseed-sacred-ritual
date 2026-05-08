@@ -137,6 +137,13 @@ export function DeckOverviewScreen({
     current: number;
     total: number;
   } | null>(null);
+  // 9-6-AH continuation — Fix 3: hold the matched assets between
+  // extraction and the save loop so the user can preview the corner
+  // radius on real cards before we commit.
+  const [pendingImport, setPendingImport] = useState<{
+    assets: ImportAsset[];
+    result: ImportSessionResult;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialActionFiredRef = useRef(false);
   // 9-6-AG — set true to abort the variants pass mid-loop.
@@ -332,10 +339,41 @@ export function DeckOverviewScreen({
           ]),
         ),
       );
+      // 9-6-AH continuation — Fix 3: pause here. Hand off to the
+      // RadiusPreviewScreen; it will call commitImportWithRadius once
+      // the user picks a radius (or skips/cancels).
+      setImportProgress(null);
+      setPendingImport({ assets, result });
+    } catch (err) {
+      if (err instanceof ZipTooLargeError || err instanceof ZipEmptyError) {
+        toast.error(err.message);
+      } else {
+        console.error("[DeckOverview] zip upload failed", err);
+        toast.error("Couldn't read that zip.");
+      }
+      setImportProgress(null);
+    } finally {
+      setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const commitImportWithRadius = async (radius: number) => {
+    if (!pendingImport) return;
+    const { assets, result } = pendingImport;
+    setPendingImport(null);
+    setBusy(true);
+    try {
+      // Persist the chosen radius on the deck record so per-card edits
+      // and re-imports use the same default going forward.
+      await supabase
+        .from("custom_decks")
+        .update({ corner_radius_percent: radius })
+        .eq("id", deckId);
 
       const opts = {
         shape: deck.shape === "round" ? ("round" as const) : ("rectangle" as const),
-        cornerRadiusPercent: defaultRadiusPercent,
+        cornerRadiusPercent: radius,
       };
       const assetByKey = new Map(assets.map((a) => [a.key, a]));
 
@@ -383,16 +421,11 @@ export function DeckOverviewScreen({
         { duration: 8000 },
       );
     } catch (err) {
-      if (err instanceof ZipTooLargeError || err instanceof ZipEmptyError) {
-        toast.error(err.message);
-      } else {
-        console.error("[DeckOverview] zip upload failed", err);
-        toast.error("Couldn't read that zip.");
-      }
+      console.error("[DeckOverview] commit import failed", err);
+      toast.error("Couldn't save the import.");
     } finally {
       setBusy(false);
       setImportProgress(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
