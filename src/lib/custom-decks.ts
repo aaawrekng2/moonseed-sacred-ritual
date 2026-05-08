@@ -329,3 +329,39 @@ export async function isPremiumUser(userId: string): Promise<boolean> {
 }
 
 export const FREE_DECK_LIMIT = 3;
+
+/**
+ * 9-6-AH — Live processing status for the background variant queue.
+ * Polled by the My Decks list to show "Optimizing… X of N" while
+ * card images are still being generated.
+ */
+export type DeckProcessingStatus = {
+  total: number;
+  saved: number;
+  pending: number;
+  failed: number;
+  isComplete: boolean;
+};
+
+export async function fetchDeckProcessingStatus(
+  deckId: string,
+  expectedTotal: number,
+): Promise<DeckProcessingStatus> {
+  const { data } = await supabase
+    .from("custom_deck_cards")
+    .select("processing_status")
+    .eq("deck_id", deckId)
+    .is("archived_at", null);
+  const rows = (data ?? []) as Array<{ processing_status: string }>;
+  const saved = rows.filter((r) => r.processing_status === "saved").length;
+  const pending = rows.filter((r) => r.processing_status === "pending").length;
+  const failed = rows.filter((r) => r.processing_status === "failed").length;
+  return {
+    total: expectedTotal,
+    saved,
+    pending,
+    failed,
+    isComplete:
+      pending === 0 && failed === 0 && saved >= expectedTotal,
+  };
+}
