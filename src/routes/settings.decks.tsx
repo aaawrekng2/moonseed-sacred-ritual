@@ -328,12 +328,14 @@ function DeckRow({
   onImportZip,
   onToggleActive,
   onDelete,
+  onRetryFailed,
 }: {
   deck: CustomDeck;
   onEdit: () => void;
   onImportZip: () => void;
   onToggleActive: () => void;
   onDelete: () => void;
+  onRetryFailed: (deckId: string) => Promise<void> | void;
 }) {
   const [count, setCount] = useState<number | null>(null);
   // 9-6-AH — live background-queue processing indicator.
