@@ -741,6 +741,11 @@ function DeckEditor({
   const [deckBackUrl, setDeckBackUrl] = useState<string | null>(
     existing?.card_back_url ?? null,
   );
+  // 9-6-AC — capture the freshly-inserted deck row when the user
+  // creates a new deck, so the import / workspace / grid branches
+  // have a concrete deck record to render even though `existing`
+  // (the prop) is still null on the create path.
+  const [createdDeck, setCreatedDeck] = useState<CustomDeck | null>(null);
   // Grid-view "Retake / Done" review modal — Stamp BI Fix 2.
   const [reviewingCardId, setReviewingCardId] = useState<number | null>(null);
   // 9-6-W — tap a tile to open the per-card crop + radius editor.
@@ -822,7 +827,9 @@ function DeckEditor({
           .select("*")
           .single();
         if (error) throw error;
-        setMode({ kind: "back-capture", deckId: (data as CustomDeck).id });
+        const newDeck = data as CustomDeck;
+        setCreatedDeck(newDeck);
+        setMode({ kind: "back-capture", deckId: newDeck.id });
       } catch (err) {
         toast.error(`Couldn't create deck: ${(err as Error).message}`);
       } finally {
@@ -959,7 +966,9 @@ function DeckEditor({
                     .select("*")
                     .single();
                   if (error) throw error;
-                  setMode({ kind: "import", deckId: (data as CustomDeck).id });
+                  const newDeck = data as CustomDeck;
+                  setCreatedDeck(newDeck);
+                  setMode({ kind: "import", deckId: newDeck.id });
                 } catch (err) {
                   toast.error(`Couldn't create deck: ${(err as Error).message}`);
                 } finally {
@@ -1009,13 +1018,14 @@ function DeckEditor({
   // ---------- Step 2: card grid (overview + entry to picker) ----------
   if (mode.kind === "grid") {
     const deckId = mode.deckId;
-    if (!existing) return null;
+    const deckRecord = existing ?? createdDeck;
+    if (!deckRecord) return null;
     return (
       <>
         <DeckOverviewScreen
           userId={userId}
           deckId={deckId}
-          deck={{ ...existing, name, card_back_url: deckBackUrl } as CustomDeck}
+          deck={{ ...deckRecord, name, card_back_url: deckBackUrl } as CustomDeck}
           name={name}
           defaultRadiusPercent={cornerRadius}
           onNameChange={(next) => setName(next)}
@@ -1401,12 +1411,13 @@ function DeckEditor({
   // ---------- Step 3d: bulk zip import (Stamp BH) ----------
   if (mode.kind === "import") {
     const deckId = mode.deckId;
-    if (!existing) return null;
+    const deckRecord = existing ?? createdDeck;
+    if (!deckRecord) return null;
     return (
       <DeckOverviewScreen
         userId={userId}
         deckId={deckId}
-        deck={{ ...existing, name, card_back_url: deckBackUrl } as CustomDeck}
+        deck={{ ...deckRecord, name, card_back_url: deckBackUrl } as CustomDeck}
         name={name}
         defaultRadiusPercent={cornerRadius}
         onNameChange={(next: string) => setName(next)}
@@ -1426,12 +1437,13 @@ function DeckEditor({
   // ---------- CC G5: Unified deck-editor workspace ----------
   if (mode.kind === "workspace") {
     const deckId = mode.deckId;
-    if (!existing) return null;
+    const deckRecord = existing ?? createdDeck;
+    if (!deckRecord) return null;
     return (
       <DeckOverviewScreen
         userId={userId}
         deckId={deckId}
-        deck={{ ...existing, name, card_back_url: deckBackUrl } as CustomDeck}
+        deck={{ ...deckRecord, name, card_back_url: deckBackUrl } as CustomDeck}
         name={name}
         defaultRadiusPercent={cornerRadius}
         onNameChange={(next: string) => setName(next)}
