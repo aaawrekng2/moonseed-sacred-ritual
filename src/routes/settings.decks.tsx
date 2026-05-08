@@ -842,7 +842,13 @@ function DeckEditor({
           </button>
         </header>
 
-        <div className="space-y-4">
+        <div
+          className="space-y-4"
+          style={{
+            paddingBottom:
+              "calc(var(--bottom-nav-height) + 80px + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
           {/* 9-6-A — deck type selector. First choice in the form. */}
           <div>
             <span className="text-sm font-medium">Deck type</span>
@@ -975,9 +981,10 @@ function DeckEditor({
             </button>
           </div>
 
-          {/* 9-6-P — sticky Continue: anchored above bottom nav, smaller. */}
+          {/* 9-6-AB — fixed (not sticky) so the bar always pins to the
+              viewport bottom regardless of the form's parent height. */}
           <div
-            className="sticky -mx-4 mt-6 border-t px-4 py-2 sm:hidden"
+            className="fixed inset-x-0 border-t px-4 py-2 sm:hidden z-40"
             style={{
               bottom: "calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px))",
               background: "var(--background)",
