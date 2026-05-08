@@ -950,6 +950,49 @@ export function DeckOverviewScreen({
           document.body,
         )}
 
+      {/* 9-6-AH continuation — Fix 3: radius preview overlay. */}
+      {pendingImport &&
+        createPortal(
+          <RadiusPreviewScreen
+            shape={deck.shape === "round" ? "round" : "rectangle"}
+            initialRadius={defaultRadiusPercent}
+            items={(() => {
+              const assignedKeys = new Set(
+                Object.values(pendingImport.result.assigned),
+              );
+              return pendingImport.assets
+                .filter((a) => assignedKeys.has(a.key))
+                .slice(0, 5)
+                .map((a) => {
+                  const slotEntry = Object.entries(
+                    pendingImport.result.assigned,
+                  ).find(([, k]) => k === a.key);
+                  let cardName = a.oracleName ?? a.filename;
+                  if (slotEntry) {
+                    const slot = slotEntry[0];
+                    if (slot !== "BACK" && /^\d+$/.test(slot)) {
+                      const id = Number(slot);
+                      if (id < ORACLE_BASE) cardName = getCardName(id);
+                    }
+                  }
+                  return {
+                    thumbnailDataUrl: a.thumbnailDataUrl ?? "",
+                    cardName,
+                  };
+                });
+            })()}
+            onCommit={(radius) => void commitImportWithRadius(radius)}
+            onSkip={() => void commitImportWithRadius(defaultRadiusPercent)}
+            onCancel={() => {
+              setPendingImport(null);
+              setImportResult(null);
+              setUnmatchedAssets([]);
+              setAmbiguousAssetByCardId(new Map());
+            }}
+          />,
+          document.body,
+        )}
+
       {/* 9-6-AE — Zip-import progress modal */}
       {importProgress &&
         createPortal(
