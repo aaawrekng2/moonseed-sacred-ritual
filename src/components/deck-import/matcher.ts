@@ -146,6 +146,9 @@ function scoreCard(tokens: Set<string>, cardId: number): number {
 export type MatchResult = {
   /** Filename → card_id assignments. */
   assignments: Map<string, number>;
+  /** 9-6-AB — same map but with the matcher score for each entry, so
+   *  callers can categorise high-confidence vs ambiguous matches. */
+  scoredAssignments: Map<string, { cardId: number; score: number }>;
   /** Filenames that did not match any card (excluding the back). */
   unmatched: string[];
   /** The detected card-back filename if any. */
@@ -155,6 +158,7 @@ export type MatchResult = {
 /** Match every filename to its best card slot (first-come on ties). */
 export function matchFilenames(filenames: string[]): MatchResult {
   const assignments = new Map<string, number>();
+  const scoredAssignments = new Map<string, { cardId: number; score: number }>();
   const usedCards = new Set<number>();
   const unmatched: string[] = [];
   let cardBackFile: string | null = null;
@@ -190,11 +194,12 @@ export function matchFilenames(filenames: string[]): MatchResult {
       unmatched.push(file);
     } else {
       assignments.set(file, bestId);
+      scoredAssignments.set(file, { cardId: bestId, score: bestScore });
       usedCards.add(bestId);
     }
   }
 
-  return { assignments, unmatched, cardBackFile };
+  return { assignments, scoredAssignments, unmatched, cardBackFile };
 }
 
 /** Convenience helper used by UI to label a card slot. */
