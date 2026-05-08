@@ -199,6 +199,7 @@ function HelpHub() {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }
