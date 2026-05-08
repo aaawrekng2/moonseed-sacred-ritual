@@ -573,6 +573,43 @@ function DeckRow({
                 : `${count}/78 customized`}{" "}
             · {deck.shape}
           </p>
+          {/* 26-05-08-J — Fix 5+8: visible background-processing status. */}
+          {procStatus &&
+            (procStatus.pending > 0 ||
+              procStatus.failed > 0 ||
+              procStatus.saved < procStatus.total) && (
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                {procStatus.pending > 0 ||
+                procStatus.saved < procStatus.total - procStatus.failed ? (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin text-gold" />
+                    Optimizing… {procStatus.saved} of {procStatus.total}
+                    {procStatus.failed > 0 &&
+                      ` · ${procStatus.failed} failed`}
+                  </span>
+                ) : (
+                  procStatus.failed > 0 && (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                      {procStatus.failed} card
+                      {procStatus.failed === 1 ? "" : "s"} failed
+                    </span>
+                  )
+                )}
+                {procStatus.failed > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void onRetryFailed(deck.id);
+                    }}
+                    className="text-[11px] italic text-gold underline"
+                  >
+                    Retry
+                  </button>
+                )}
+              </div>
+            )}
         </div>
       </button>
       {/* 9-6-N — visible Edit pencil on mobile so the row's primary
