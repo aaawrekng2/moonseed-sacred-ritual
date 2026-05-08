@@ -1002,6 +1002,53 @@ function DeckEditor({
   // ---------- Step 2: card grid (overview + entry to picker) ----------
   if (mode.kind === "grid") {
     const deckId = mode.deckId;
+    if (!existing) return null;
+    return (
+      <>
+        <DeckOverviewScreen
+          userId={userId}
+          deckId={deckId}
+          deck={{ ...existing, name, card_back_url: deckBackUrl } as CustomDeck}
+          name={name}
+          defaultRadiusPercent={cornerRadius}
+          onNameChange={(next) => setName(next)}
+          onClose={() => onClose(true)}
+          onAction={(action) => {
+            if (action.kind === "capture-card") {
+              setMode({ kind: "capture", deckId, cardId: action.cardId });
+            } else if (action.kind === "capture-back") {
+              setMode({ kind: "back-capture", deckId });
+            } else if (action.kind === "upload") {
+              setMode({ kind: "import", deckId });
+            }
+          }}
+        />
+        {resumePrompt && createPortal(
+          <ResumePromptModal
+            assigned={resumePrompt.assigned}
+            unassigned={resumePrompt.unassigned}
+            skipped={resumePrompt.skipped}
+            onResume={() => {
+              setResumePrompt(null);
+              setMode({ kind: "import", deckId });
+            }}
+            onDiscard={async () => {
+              if (!existing) return;
+              await deleteSession(existing.id);
+              setResumePrompt(null);
+              toast("Import session discarded");
+            }}
+          />,
+          document.body,
+        )}
+      </>
+    );
+  }
+
+  // legacy grid retained below for reference; replaced by DeckOverviewScreen above.
+  // eslint-disable-next-line no-constant-condition
+  if (false as boolean) {
+    const deckId = (mode as { deckId: string }).deckId;
     const photographedMap = new Map<number, CustomDeckCard>(
       cards.map((c) => [c.card_id, c]),
     );
