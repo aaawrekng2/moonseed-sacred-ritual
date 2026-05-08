@@ -6,7 +6,7 @@
  * and adjusts the corner radius live (CSS-only). On commit we save with
  * the chosen radius. On skip we save with the deck's existing default.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 export type RadiusPreviewItem = {
@@ -34,11 +34,33 @@ export function RadiusPreviewScreen({
   const [radius, setRadius] = useState(initialRadius);
   const [index, setIndex] = useState(0);
   const current = items[index];
+  // 26-05-08-J — Fix 1: percent border-radius produces ELLIPTICAL
+  // corners on a non-square element. Measure the rendered image's
+  // smaller dimension and convert to a pixel radius so the preview
+  // matches the CIRCULAR corner the edge function bakes in.
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const placeholderRef = useRef<HTMLDivElement | null>(null);
+  const [measured, setMeasured] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = imgRef.current ?? placeholderRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w > 0 && h > 0) setMeasured({ w, h });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [index, current?.thumbnailDataUrl, shape]);
 
   const radiusStyle = useMemo<React.CSSProperties>(() => {
     if (shape === "round") return { borderRadius: "50%" };
-    return { borderRadius: `${radius}%` };
-  }, [radius, shape]);
+    if (!measured) return { borderRadius: `${radius}px` };
+    const px = Math.round((Math.min(measured.w, measured.h) * radius) / 100);
+    return { borderRadius: `${px}px` };
+  }, [radius, shape, measured]);
 
   return (
     <div
@@ -124,6 +146,7 @@ export function RadiusPreviewScreen({
 
         {current?.thumbnailDataUrl ? (
           <img
+            ref={imgRef}
             src={current.thumbnailDataUrl}
             alt={current.cardName}
             style={{
@@ -133,9 +156,14 @@ export function RadiusPreviewScreen({
               boxShadow: "0 6px 22px rgba(0,0,0,0.35)",
               ...radiusStyle,
             }}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              setMeasured({ w: img.clientWidth, h: img.clientHeight });
+            }}
           />
         ) : (
           <div
+            ref={placeholderRef}
             style={{
               width: "min(60vw, 240px)",
               aspectRatio: shape === "round" ? "1 / 1" : "5 / 8",
