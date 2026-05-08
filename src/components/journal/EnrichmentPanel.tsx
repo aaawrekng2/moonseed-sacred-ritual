@@ -32,6 +32,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { PhotoCapture } from "@/components/photo/PhotoCapture";
+import { useConfirm } from "@/hooks/use-confirm";
 
 /* ---------- Types ---------- */
 
@@ -202,6 +203,10 @@ export function EnrichmentPanel({
   // photos. The hidden file input remains as a fallback for users on
   // desktops without a camera or who want to upload an existing image.
   const [cameraOpen, setCameraOpen] = useState(false);
+
+  // 9-6-AD — fullscreen photo viewer + delete confirm.
+  const [photoViewerSrc, setPhotoViewerSrc] = useState<string | null>(null);
+  const confirm = useConfirm();
 
   // Copy-to-clipboard transient state for the inline copy icon.
   const [copied, setCopied] = useState(false);
@@ -836,20 +841,27 @@ export function EnrichmentPanel({
               {photos.map((p) => (
                 <div
                   key={p.id}
-                  className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-md"
+                  className="relative h-20 w-20 shrink-0 overflow-hidden rounded-md"
                   style={{
                     border:
                       "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
                   }}
                 >
                   {photoUrls[p.id] ? (
-                    <img
-                      src={photoUrls[p.id]}
-                      alt={p.caption ?? "Reading photo"}
-                      loading="lazy"
-                      className="h-full w-full object-cover"
-                      style={{ opacity: "var(--ro-plus-40)" }}
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setPhotoViewerSrc(photoUrls[p.id])}
+                      aria-label="View photo"
+                      className="block h-full w-full"
+                    >
+                      <img
+                        src={photoUrls[p.id]}
+                        alt={p.caption ?? "Reading photo"}
+                        loading="lazy"
+                        className="h-full w-full object-cover"
+                        style={{ opacity: "var(--ro-plus-40)" }}
+                      />
+                    </button>
                   ) : (
                     <div className="flex h-full w-full items-center justify-center">
                       <Loader2
@@ -861,9 +873,19 @@ export function EnrichmentPanel({
                   )}
                   <button
                     type="button"
-                    onClick={() => removePhoto(p)}
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const ok = await confirm({
+                        title: "Remove this photo?",
+                        description:
+                          "It moves to the photo archive. You can restore it from Settings → Data.",
+                        confirmLabel: "Remove",
+                        cancelLabel: "Cancel",
+                      });
+                      if (ok) void removePhoto(p);
+                    }}
                     aria-label="Remove photo"
-                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                    className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white"
                   >
                     <X size={11} strokeWidth={1.5} />
                   </button>
@@ -871,6 +893,21 @@ export function EnrichmentPanel({
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {photoViewerSrc && (
+        <div
+          onClick={() => setPhotoViewerSrc(null)}
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/85 p-4"
+          role="dialog"
+          aria-label="Photo viewer"
+        >
+          <img
+            src={photoViewerSrc}
+            alt=""
+            className="max-h-full max-w-full object-contain"
+          />
         </div>
       )}
     </section>

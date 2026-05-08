@@ -260,13 +260,19 @@ function PatternChamber() {
   return (
     <div
       style={{
-        minHeight: "100dvh",
-        maxWidth: 720,
-        margin: "0 auto",
-        padding:
-          "calc(env(safe-area-inset-top) + var(--space-4, 16px)) var(--space-4, 16px) calc(var(--bottom-nav-height, 72px) + env(safe-area-inset-bottom, 0px) + var(--space-8, 48px))",
+        height: "100dvh",
+        overflowY: "auto",
+        overscrollBehaviorY: "contain",
       }}
     >
+      <div
+        style={{
+          maxWidth: 720,
+          margin: "0 auto",
+          padding:
+            "calc(env(safe-area-inset-top) + var(--space-4, 16px)) var(--space-4, 16px) calc(var(--bottom-nav-height, 72px) + env(safe-area-inset-bottom, 0px) + var(--space-8, 48px))",
+        }}
+      >
       <button
         type="button"
         onClick={() => void navigate({ to: "/threads" })}
@@ -505,6 +511,7 @@ function PatternChamber() {
           onClose={() => setOpenReadingId(null)}
         />
       )}
+      </div>
     </div>
   );
 }

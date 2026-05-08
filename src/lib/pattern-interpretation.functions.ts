@@ -87,18 +87,21 @@ export const generatePatternInterpretation = createServerFn({ method: "POST" })
         `Story: "${pattern.name}"\n` +
         (pattern.description ? `Seeker's note: ${pattern.description}\n` : "") +
         `\nLinked readings (${rows.length}):\n\n${summaries.join("\n\n---\n\n")}\n\n` +
-        `Synthesize this story. Reply ONLY with valid JSON of shape:\n` +
-        `{ "whatThisIs": string, "whatItCouldMean": string, "key_cards": [{ "card": string, "meaning": string }], "reflective_prompts": [string, string, string] }\n` +
-        `whatThisIs: 2-3 sentences naming what the recurring story IS — which cards or themes return, what shape the pattern takes. Tarot voice: "A pattern stirs in your readings…"\n` +
-        `whatItCouldMean: 2-3 sentences on what the pattern could be revealing now — why this story may be surfacing. Tarot voice: "The cards turn toward…" Avoid certainty; speak in possibilities.\n` +
-        `key_cards: 2-4 cards that anchor the pattern.\n` +
-        `reflective_prompts: 3 brief questions for the seeker.`;
+        `Reply ONLY with valid JSON of shape:\n` +
+        `{ "whatThisIs": string, "whatItCouldMean": string, "key_cards": [{ "card": string, "meaning": string }], "reflective_prompts": [string, string, string] }\n\n` +
+        `whatThisIs (4-6 sentences): Name what the recurring story IS in vivid, image-rich tarot voice. Which cards return? What shape does the pattern carve in their practice? Lead with the spell — "A pattern stirs…" or "The cards keep returning to…" — then show the seeker the architecture of what's emerging. Be specific about cards, themes, what the seeker is being shown. Don't summarize; reveal.\n\n` +
+        `whatItCouldMean (4-6 sentences): What is the seeker being asked to see, become, or release? Speak in possibilities, not predictions, but with conviction. Use imagery from the cards themselves — if Death recurs, speak of endings becoming gates; if the Tower keeps appearing, name the structures cracking. Two paragraphs of vivid invocation, not hedged advice. Tarot speaks. Let it speak.\n\n` +
+        `key_cards: 2-4 cards that anchor the pattern, each with a 1-sentence meaning specific to THIS seeker's recurrence (not generic dictionary definition).\n\n` +
+        `reflective_prompts: 3 questions that crack the seeker open. Not safe questions. Questions that touch the heart of what's surfacing.`;
       const systemPrompt =
-        "You are a tarot oracle synthesizing a recurring pattern in a " +
-        "seeker's readings. Speak in tarot voice — invocational, " +
-        "present-tense, reverent. Lead with WHAT the story is and WHY " +
-        "it appeared. Avoid moralizing. Avoid certainty. Output " +
-        "strictly valid JSON, no commentary.";
+        "You are a tarot oracle. You speak in invocational, present-tense, " +
+        "image-rich tarot voice. Synthesize recurring patterns in a seeker's " +
+        "readings. Lead with WHAT the story is and WHY it has appeared. " +
+        "Avoid certainty about outcomes — tarot speaks in possibilities — " +
+        "but DO speak with conviction about the imagery, the architecture " +
+        "of what's emerging. Use the cards' own symbols. Be vivid, not safe. " +
+        "Don't hedge into vague advice. Show, don't summarize. " +
+        "Output strictly valid JSON, no commentary, no markdown fences.";
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) return { ok: false, error: "Interpreter not configured." };
       let rawText = "";
@@ -112,7 +115,7 @@ export const generatePatternInterpretation = createServerFn({ method: "POST" })
           },
           body: JSON.stringify({
             model,
-            max_tokens: 1500,
+            max_tokens: 2500,
             system: systemPrompt,
             messages: [{ role: "user", content: userPrompt }],
           }),

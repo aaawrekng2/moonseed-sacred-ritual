@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Heart, Image as ImageIcon, Network, Pencil, Sparkles, X as XIcon } from "lucide-react";
+import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Camera, HelpCircle, Heart, Image as ImageIcon, Network, Pencil, Sparkles, StickyNote, Tag as TagIcon, X as XIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -290,6 +290,7 @@ function JournalPage() {
             .from("reading_photos")
             .select("reading_id,storage_path,created_at")
             .eq("user_id", user.id)
+            .is("archived_at", null)
             .order("created_at", { ascending: true }),
         ]);
       if (cancelled) return;
@@ -883,7 +884,7 @@ function JournalPage() {
 function ReadingsList({
   items,
   isOracle,
-  photoCounts: _photoCounts,
+  photoCounts,
   patternsById,
   onOpen,
   emptyOracle,
@@ -920,6 +921,7 @@ function ReadingsList({
             onOpen={onOpen}
             patternsById={patternsById}
             onArchive={onArchive}
+            hasPhoto={(photoCounts[r.id] ?? 0) > 0}
           />
         </li>
       ))}
@@ -932,17 +934,22 @@ function ReadingCard({
   onOpen,
   patternsById,
   onArchive,
+  hasPhoto,
 }: {
   reading: ReadingRow;
   onOpen: (id: string) => void;
   patternsById: Record<string, PatternRow>;
   onArchive?: (id: string) => void;
+  hasPhoto?: boolean;
 }) {
   const guide = getGuideById(reading.guide_id);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const visible = reading.card_ids.slice(0, 5);
   const overflow = reading.card_ids.length - visible.length;
+  const hasNote = (reading.note ?? "").trim().length > 0;
+  const hasQuestion = (reading.question ?? "").trim().length > 0;
+  const hasTags = (reading.tags ?? []).length > 0;
   const interpFirst = (reading.interpretation ?? "")
     .replace(/\s+/g, " ")
     .trim();
@@ -1061,6 +1068,26 @@ function ReadingCard({
             {reading.moon_phase && <span aria-hidden>·</span>}
             <span>{guide.name}</span>
           </div>
+          {(hasPhoto || hasNote || hasQuestion || hasTags) && (
+            <div
+              className="mt-1 flex items-center gap-2 text-muted-foreground"
+              style={{ opacity: "var(--ro-plus-20)" }}
+              aria-label="Reading content indicators"
+            >
+              {hasQuestion && (
+                <HelpCircle size={12} strokeWidth={1.5} aria-label="Has question" />
+              )}
+              {hasNote && (
+                <StickyNote size={12} strokeWidth={1.5} aria-label="Has note" />
+              )}
+              {hasPhoto && (
+                <Camera size={12} strokeWidth={1.5} aria-label="Has photo" />
+              )}
+              {hasTags && (
+                <TagIcon size={12} strokeWidth={1.5} aria-label="Has tags" />
+              )}
+            </div>
+          )}
         </div>
         {/* EA-6 — unified right-edge state cluster. */}
         <div className="flex items-center gap-1.5 shrink-0">
