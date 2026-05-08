@@ -160,7 +160,7 @@ function PatternChamber() {
     return () => {
       cancelled = true;
     };
-  }, [pattern?.id, pattern?.reading_ids.join(",")]);
+  }, [pattern?.id, pattern?.reading_ids?.join(",")]);
 
   const noteHasUnsavedChanges = () => {
     const original = (pattern?.description ?? "").trim();
