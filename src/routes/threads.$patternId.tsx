@@ -495,6 +495,7 @@ function PatternChamber() {
       <PatternSynthesis
         patternId={pattern.id}
         readingCount={pattern.reading_ids.length}
+        onLoaded={(data) => setSynthesis(data)}
       />
 
       <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
@@ -504,6 +505,7 @@ function PatternChamber() {
       <ChamberTimeline
         readingIds={pattern.reading_ids}
         onOpenReading={setOpenReadingId}
+        readingConnections={synthesis?.readingConnections ?? []}
       />
 
       {openReadingId && (
