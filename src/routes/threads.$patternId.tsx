@@ -114,6 +114,10 @@ function PatternChamber() {
   const [undoing, setUndoing] = useState(false);
   // FU-14 — Reading detail modal state for the pattern timeline.
   const [openReadingId, setOpenReadingId] = useState<string | null>(null);
+  // 9-6-AH continuation — synthesis is fetched once by PatternSynthesis,
+  // then propagated here so per-reading connectors can flow into the
+  // ChamberTimeline excerpt cards.
+  const [synthesis, setSynthesis] = useState<PatternInterpretation | null>(null);
 
   const noteHasUnsavedChanges = () => {
     const original = (pattern?.description ?? "").trim();
@@ -495,6 +499,7 @@ function PatternChamber() {
       <PatternSynthesis
         patternId={pattern.id}
         readingCount={pattern.reading_ids.length}
+        onLoaded={(data) => setSynthesis(data)}
       />
 
       <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
@@ -504,6 +509,7 @@ function PatternChamber() {
       <ChamberTimeline
         readingIds={pattern.reading_ids}
         onOpenReading={setOpenReadingId}
+        readingConnections={synthesis?.readingConnections ?? []}
       />
 
       {openReadingId && (
@@ -843,19 +849,23 @@ function ChamberCardEvidence({
 function ChamberTimeline({
   readingIds,
   onOpenReading,
+  readingConnections,
 }: {
   readingIds: string[];
   onOpenReading: (readingId: string) => void;
+  readingConnections?: Array<{ readingId: string; connector: string }>;
 }) {
-  return _ChamberTimeline({ readingIds, onOpenReading });
+  return _ChamberTimeline({ readingIds, onOpenReading, readingConnections });
 }
 
 function PatternSynthesis({
   patternId,
   readingCount,
+  onLoaded,
 }: {
   patternId: string;
   readingCount: number;
+  onLoaded?: (data: PatternInterpretation) => void;
 }) {
   const [state, setState] = useState<
     | { kind: "idle" }
@@ -872,8 +882,34 @@ function PatternSynthesis({
       try {
         const res = await generate({ data: { patternId } });
         if (cancelled) return;
-        if (res.ok) setState({ kind: "ready", data: res.interpretation });
-        else setState({ kind: "error", message: res.error });
+        if (res.ok) {
+          const data = res.interpretation;
+          // 9-6-AH continuation — old-shape interpretation cached.
+          // Force regeneration with the new prompt so we get the new
+          // whyHeadline / whatThisIs / whatItCouldMean fields.
+          const isLegacy =
+            !data.whyHeadline &&
+            !data.whatThisIs &&
+            !data.whatItCouldMean &&
+            !data.body;
+          if (isLegacy) {
+            const fresh = await generate({
+              data: { patternId, force: true },
+            });
+            if (cancelled) return;
+            if (fresh.ok) {
+              setState({ kind: "ready", data: fresh.interpretation });
+              onLoaded?.(fresh.interpretation);
+            } else {
+              setState({ kind: "error", message: fresh.error });
+            }
+            return;
+          }
+          setState({ kind: "ready", data });
+          onLoaded?.(data);
+        } else {
+          setState({ kind: "error", message: res.error });
+        }
       } catch (e) {
         if (cancelled) return;
         setState({
@@ -885,8 +921,19 @@ function PatternSynthesis({
     return () => {
       cancelled = true;
     };
-  }, [patternId, readingCount, generate]);
+  }, [patternId, readingCount, generate, onLoaded]);
   if (readingCount === 0) return null;
+  // 9-6-AH continuation — bail entirely on idle (initial render before
+  // useEffect kicks in) and on ready-but-empty so we never paint an
+  // empty bordered box on the Stories detail page.
+  if (state.kind === "idle") return null;
+  const hasReadyContent =
+    state.kind === "ready" &&
+    (((state.data.whyHeadline ?? "").trim().length > 0) ||
+      ((state.data.whatThisIs ?? "").trim().length > 0) ||
+      ((state.data.whatItCouldMean ?? "").trim().length > 0) ||
+      ((state.data.body ?? "").trim().length > 0));
+  if (state.kind === "ready" && !hasReadyContent) return null;
   return (
     <section
       style={{
@@ -909,6 +956,22 @@ function PatternSynthesis({
       )}
       {state.kind === "ready" && (
         <div style={{ marginTop: 12 }}>
+          {state.data.whyHeadline && state.data.whyHeadline.trim().length > 0 && (
+            <p
+              style={{
+                margin: "0 0 var(--space-4, 16px)",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-heading-md, 22px)",
+                lineHeight: 1.35,
+                color: "var(--accent, var(--gold))",
+                textShadow: "0 0 18px rgba(212,175,90,0.25)",
+                letterSpacing: "0.005em",
+              }}
+            >
+              {state.data.whyHeadline}
+            </p>
+          )}
           {state.data.whatThisIs ? (
             <div style={{ marginBottom: 20 }}>
               <h3
@@ -1027,9 +1090,11 @@ function PatternSynthesis({
 function _ChamberTimeline({
   readingIds,
   onOpenReading,
+  readingConnections,
 }: {
   readingIds: string[];
   onOpenReading: (readingId: string) => void;
+  readingConnections?: Array<{ readingId: string; connector: string }>;
 }) {
   const [rows, setRows] = useState<
     Array<{ id: string; created_at: string; spread_type: string; card_ids: number[]; question: string | null; interpretation: string | null }>
@@ -1087,7 +1152,13 @@ function _ChamberTimeline({
               padding: "var(--space-4, 16px) 0",
             }}
           >
-            <ReadingExcerptCard reading={r} onOpen={onOpenReading} />
+            <ReadingExcerptCard
+              reading={r}
+              onOpen={onOpenReading}
+              connector={
+                readingConnections?.find((c) => c.readingId === r.id)?.connector
+              }
+            />
           </li>
         ))}
       </ul>
@@ -1098,6 +1169,7 @@ function _ChamberTimeline({
 function ReadingExcerptCard({
   reading,
   onOpen,
+  connector,
 }: {
   reading: {
     id: string;
@@ -1108,16 +1180,26 @@ function ReadingExcerptCard({
     interpretation: string | null;
   };
   onOpen: (id: string) => void;
+  connector?: string;
 }) {
   const keyCardId = reading.card_ids[0];
   const dateLabel = formatDateLong(reading.created_at).toUpperCase();
   const spreadLabel = reading.spread_type.replace(/_/g, " ").toUpperCase();
   const excerpt = (() => {
     if (!reading.interpretation) return null;
-    const stripped = reading.interpretation
+    let stripped = reading.interpretation
       .replace(/[*_#`]/g, "")
       .replace(/\s+/g, " ")
       .trim();
+    // 9-6-AH continuation — strip leading position labels
+    // (Past:/Present:/Future:/etc.) so the snippet doesn't lead with
+    // bleed-through from the spread structure. Loop in case multiple
+    // labels stack at the start.
+    const POSITION_LABEL_PREFIX =
+      /^(Past|Present|Future|Significator|Crosses|Crowns|Foundation|Behind|Before|Self|House|Hopes|Outcome)\s*[:\-—]\s*/i;
+    while (POSITION_LABEL_PREFIX.test(stripped)) {
+      stripped = stripped.replace(POSITION_LABEL_PREFIX, "");
+    }
     // 9-6-AG — pull up to 3 sentences, cap around 420 chars.
     const sentences = stripped.match(/[^.!?]+[.!?]+/g) ?? [stripped];
     const firstThree = sentences.slice(0, 3).join(" ").trim();
@@ -1169,6 +1251,21 @@ function ReadingExcerptCard({
             }}
           >
             “{reading.question}”
+          </p>
+        )}
+        {connector && (
+          <p
+            style={{
+              margin: "var(--space-2, 8px) 0 0",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--accent, var(--gold))",
+              opacity: 0.85,
+              lineHeight: 1.5,
+            }}
+          >
+            {connector}
           </p>
         )}
         {excerpt && (
@@ -1302,8 +1399,10 @@ function ChamberWeaveGraph({
   const siblingList = Object.values(siblings).slice().sort((a, b) =>
     a.id.localeCompare(b.id),
   );
-  // Nothing meaningful to draw — bail.
-  if (siblingList.length === 0 && readings.length < 2) return null;
+  // 9-6-AH continuation — weave chamber only renders when there are
+  // sibling patterns to weave with. The internal-readings-only graph
+  // is empty noise; readings are listed below in ChamberTimeline.
+  if (siblingList.length === 0) return null;
 
   const activeId = hoveredId ?? focusId;
   const hasActive = activeId !== null;

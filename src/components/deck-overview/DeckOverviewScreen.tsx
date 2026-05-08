@@ -46,6 +46,7 @@ import { variantUrlFor, variantUrlPngFallback } from "@/lib/active-deck";
 import { removeCard as removeCardSave, saveCard } from "@/lib/per-card-save";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { PerCardEditModal } from "@/components/deck-import/PerCardEditModal";
+import { RadiusPreviewScreen } from "@/components/deck-overview/RadiusPreviewScreen";
 import {
   assetToImportImage,
   extractZip,
@@ -135,6 +136,13 @@ export function DeckOverviewScreen({
     phase: "extract" | "match" | "upload" | "variants";
     current: number;
     total: number;
+  } | null>(null);
+  // 9-6-AH continuation — Fix 3: hold the matched assets between
+  // extraction and the save loop so the user can preview the corner
+  // radius on real cards before we commit.
+  const [pendingImport, setPendingImport] = useState<{
+    assets: ImportAsset[];
+    result: ImportSessionResult;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialActionFiredRef = useRef(false);
@@ -331,10 +339,41 @@ export function DeckOverviewScreen({
           ]),
         ),
       );
+      // 9-6-AH continuation — Fix 3: pause here. Hand off to the
+      // RadiusPreviewScreen; it will call commitImportWithRadius once
+      // the user picks a radius (or skips/cancels).
+      setImportProgress(null);
+      setPendingImport({ assets, result });
+    } catch (err) {
+      if (err instanceof ZipTooLargeError || err instanceof ZipEmptyError) {
+        toast.error(err.message);
+      } else {
+        console.error("[DeckOverview] zip upload failed", err);
+        toast.error("Couldn't read that zip.");
+      }
+      setImportProgress(null);
+    } finally {
+      setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const commitImportWithRadius = async (radius: number) => {
+    if (!pendingImport) return;
+    const { assets, result } = pendingImport;
+    setPendingImport(null);
+    setBusy(true);
+    try {
+      // Persist the chosen radius on the deck record so per-card edits
+      // and re-imports use the same default going forward.
+      await supabase
+        .from("custom_decks")
+        .update({ corner_radius_percent: radius })
+        .eq("id", deckId);
 
       const opts = {
         shape: deck.shape === "round" ? ("round" as const) : ("rectangle" as const),
-        cornerRadiusPercent: defaultRadiusPercent,
+        cornerRadiusPercent: radius,
       };
       const assetByKey = new Map(assets.map((a) => [a.key, a]));
 
@@ -382,16 +421,11 @@ export function DeckOverviewScreen({
         { duration: 8000 },
       );
     } catch (err) {
-      if (err instanceof ZipTooLargeError || err instanceof ZipEmptyError) {
-        toast.error(err.message);
-      } else {
-        console.error("[DeckOverview] zip upload failed", err);
-        toast.error("Couldn't read that zip.");
-      }
+      console.error("[DeckOverview] commit import failed", err);
+      toast.error("Couldn't save the import.");
     } finally {
       setBusy(false);
       setImportProgress(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -913,6 +947,49 @@ export function DeckOverviewScreen({
                 : "Tap a thumbnail to pick it up"}
             </p>
           </div>,
+          document.body,
+        )}
+
+      {/* 9-6-AH continuation — Fix 3: radius preview overlay. */}
+      {pendingImport &&
+        createPortal(
+          <RadiusPreviewScreen
+            shape={deck.shape === "round" ? "round" : "rectangle"}
+            initialRadius={defaultRadiusPercent}
+            items={(() => {
+              const assignedKeys = new Set(
+                Object.values(pendingImport.result.assigned),
+              );
+              return pendingImport.assets
+                .filter((a) => assignedKeys.has(a.key))
+                .slice(0, 5)
+                .map((a) => {
+                  const slotEntry = Object.entries(
+                    pendingImport.result.assigned,
+                  ).find(([, k]) => k === a.key);
+                  let cardName = a.oracleName ?? a.filename;
+                  if (slotEntry) {
+                    const slot = slotEntry[0];
+                    if (slot !== "BACK" && /^\d+$/.test(slot)) {
+                      const id = Number(slot);
+                      if (id < ORACLE_BASE) cardName = getCardName(id);
+                    }
+                  }
+                  return {
+                    thumbnailDataUrl: a.thumbnailDataUrl ?? "",
+                    cardName,
+                  };
+                });
+            })()}
+            onCommit={(radius) => void commitImportWithRadius(radius)}
+            onSkip={() => void commitImportWithRadius(defaultRadiusPercent)}
+            onCancel={() => {
+              setPendingImport(null);
+              setImportResult(null);
+              setUnmatchedAssets([]);
+              setAmbiguousAssetByCardId(new Map());
+            }}
+          />,
           document.body,
         )}
 
