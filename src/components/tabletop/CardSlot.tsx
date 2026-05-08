@@ -486,6 +486,18 @@ export function CardSlot({
     if (dragStateRef.current?.didDrag || dragging) return;
     setTapTick((t) => t + 1);
     onSelect();
+    // 9-6-Y — prefetch the -md.webp variant for the picked card so
+    // the eventual flip-table reveal feels instant.
+    try {
+      const url = resolveDeckImage(faceIndex);
+      if (url) {
+        const mdUrl = variantUrlFor(url, "md") ?? url;
+        const img = new Image();
+        img.src = mdUrl;
+      }
+    } catch {
+      // best-effort prefetch only
+    }
   };
 
   return (
