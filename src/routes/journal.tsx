@@ -946,6 +946,9 @@ function ReadingCard({
   const navigate = useNavigate();
   const visible = reading.card_ids.slice(0, 5);
   const overflow = reading.card_ids.length - visible.length;
+  const hasNote = (reading.note ?? "").trim().length > 0;
+  const hasQuestion = (reading.question ?? "").trim().length > 0;
+  const hasTags = (reading.tags ?? []).length > 0;
   const interpFirst = (reading.interpretation ?? "")
     .replace(/\s+/g, " ")
     .trim();
