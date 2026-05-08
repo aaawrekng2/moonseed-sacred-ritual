@@ -641,13 +641,17 @@ function CardStrip({
     const card = (i: number) => (
       <div key={picks[i]?.id ?? i} className="flex flex-col items-center gap-1">
         {picks[i] ? (
-          <CardImage
-            cardId={picks[i].cardIndex}
-            reversed={picks[i].isReversed}
-            size="custom"
-            widthPx={cw}
-            shadow
-          />
+          // 9-6-Y — theme-aware emphasis (gold glow on dark themes,
+          // deep drop-shadow on light themes) instead of the basic
+          // hardcoded shadow.
+          <div style={{ filter: "var(--card-emphasis-filter)" }}>
+            <CardImage
+              cardId={picks[i].cardIndex}
+              reversed={picks[i].isReversed}
+              size="custom"
+              widthPx={cw}
+            />
+          </div>
         ) : (
           <CardImage variant="empty" size="custom" widthPx={cw} />
         )}
@@ -693,24 +697,26 @@ function CardStrip({
             <div className="relative flex items-center justify-center" style={{ width: cw, height: ch }}>
               <div className="absolute inset-0 flex items-center justify-center">
                 {picks[0] && (
-                  <CardImage
-                    cardId={picks[0].cardIndex}
-                    reversed={picks[0].isReversed}
-                    size="custom"
-                    widthPx={cw}
-                    shadow
-                  />
+                  <div style={{ filter: "var(--card-emphasis-filter)" }}>
+                    <CardImage
+                      cardId={picks[0].cardIndex}
+                      reversed={picks[0].isReversed}
+                      size="custom"
+                      widthPx={cw}
+                    />
+                  </div>
                 )}
               </div>
               <div className="absolute inset-0 flex items-center justify-center" style={{ transform: "rotate(90deg)" }}>
                 {picks[1] && (
-                  <CardImage
-                    cardId={picks[1].cardIndex}
-                    reversed={picks[1].isReversed}
-                    size="custom"
-                    widthPx={cw}
-                    shadow
-                  />
+                  <div style={{ filter: "var(--card-emphasis-filter)" }}>
+                    <CardImage
+                      cardId={picks[1].cardIndex}
+                      reversed={picks[1].isReversed}
+                      size="custom"
+                      widthPx={cw}
+                    />
+                  </div>
                 )}
               </div>
             </div>
@@ -810,13 +816,14 @@ function CardStrip({
             swipeMobile && "flex-shrink-0 snap-start",
           )}
         >
-          <CardImage
-            cardId={pick.cardIndex}
-            reversed={pick.isReversed}
-            size="custom"
-            widthPx={w}
-            shadow
-          />
+          <div style={{ filter: "var(--card-emphasis-filter)" }}>
+            <CardImage
+              cardId={pick.cardIndex}
+              reversed={pick.isReversed}
+              size="custom"
+              widthPx={w}
+            />
+          </div>
           {showLabels && (
             <div
               style={{
