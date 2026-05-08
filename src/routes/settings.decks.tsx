@@ -1044,46 +1044,118 @@ function DeckEditor({
         </div>
 
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-          {Array.from({ length: 78 }, (_, i) => {
-            const photo = photographedMap.get(i);
-            const rawSrc = photo?.thumbnail_url ?? photo?.display_url ?? null;
-            const tileSrc = rawSrc
-              ? variantUrlFor(rawSrc, "md") ?? rawSrc
-              : getCardImagePath(i);
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => {
-                  if (photo) {
-                    setEditingCardId(i);
-                  } else {
-                    setMode({ kind: "capture", deckId, cardId: i });
-                  }
-                }}
-                className="group relative aspect-[2/3] overflow-hidden rounded border border-border/60"
-                title={getCardName(i)}
-              >
-                <img
-                  src={tileSrc}
-                  alt={getCardName(i)}
-                  className="h-full w-full object-contain"
-                  style={{ opacity: photo ? 1 : 0.3 }}
-                  loading="lazy"
-                />
-                {photo && (
+          {(() => {
+            // 9-6-Z — generic grid: tarot shows 78 fixed positions; oracle/other
+            // shows only saved cards plus an Add tile.
+            const isTarot = deckType === "tarot";
+            type Tile =
+              | { kind: "existing"; cardId: number; photo: CustomDeckCard }
+              | { kind: "empty-tarot"; cardId: number }
+              | { kind: "add-new" };
+            let tiles: Tile[];
+            if (isTarot) {
+              tiles = Array.from({ length: 78 }, (_, i) => {
+                const photo = photographedMap.get(i);
+                return photo
+                  ? ({ kind: "existing", cardId: i, photo } as Tile)
+                  : ({ kind: "empty-tarot", cardId: i } as Tile);
+              });
+            } else {
+              const entries = [...photographedMap.entries()]
+                .map(([cardId, photo]) => ({ cardId, photo }))
+                .sort((a, b) => a.cardId - b.cardId);
+              tiles = [
+                ...entries.map(
+                  ({ cardId, photo }) =>
+                    ({ kind: "existing", cardId, photo } as Tile),
+                ),
+                { kind: "add-new" } as Tile,
+              ];
+            }
+            const ORACLE_BASE = 1000;
+            const nextOracleId = () => {
+              const ids = [...photographedMap.keys()].filter(
+                (id) => id >= ORACLE_BASE,
+              );
+              return ids.length === 0 ? ORACLE_BASE : Math.max(...ids) + 1;
+            };
+            return tiles.map((tile) => {
+              if (tile.kind === "add-new") {
+                return (
+                  <button
+                    key="add-new"
+                    type="button"
+                    onClick={() =>
+                      setMode({
+                        kind: "capture",
+                        deckId,
+                        cardId: nextOracleId(),
+                      })
+                    }
+                    className="group relative flex aspect-[2/3] items-center justify-center overflow-hidden rounded border border-dashed border-border/60"
+                  >
+                    <Plus className="h-8 w-8 text-muted-foreground" />
+                  </button>
+                );
+              }
+              if (tile.kind === "empty-tarot") {
+                const tileSrc = getCardImagePath(tile.cardId);
+                return (
+                  <button
+                    key={tile.cardId}
+                    type="button"
+                    onClick={() =>
+                      setMode({ kind: "capture", deckId, cardId: tile.cardId })
+                    }
+                    className="group relative aspect-[2/3] overflow-hidden rounded border border-border/60"
+                    title={getCardName(tile.cardId)}
+                  >
+                    <img
+                      src={tileSrc}
+                      alt={getCardName(tile.cardId)}
+                      className="h-full w-full object-contain"
+                      style={{ opacity: 0.25 }}
+                      loading="lazy"
+                    />
+                    <span className="pointer-events-none absolute inset-x-0 bottom-1 text-center text-[8px] uppercase tracking-wider text-white/70">
+                      Tap to add
+                    </span>
+                  </button>
+                );
+              }
+              const rawSrc =
+                tile.photo.thumbnail_url ?? tile.photo.display_url ?? null;
+              const tileSrc = rawSrc
+                ? variantUrlFor(rawSrc, "md") ?? rawSrc
+                : null;
+              const label =
+                tile.photo.card_name ??
+                (tile.cardId < 1000
+                  ? getCardName(tile.cardId)
+                  : `Card ${tile.cardId}`);
+              return (
+                <button
+                  key={tile.cardId}
+                  type="button"
+                  onClick={() => setEditingCardId(tile.cardId)}
+                  className="group relative aspect-[2/3] overflow-hidden rounded border border-border/60"
+                  title={label}
+                >
+                  {tileSrc && (
+                    <img
+                      src={tileSrc}
+                      alt={label}
+                      className="h-full w-full object-contain"
+                      loading="lazy"
+                    />
+                  )}
                   <span className="absolute right-1 top-1 rounded-full bg-gold/90 p-0.5 text-cosmos">
                     <Check className="h-3 w-3" />
                   </span>
-                )}
-                {!photo && (
-                  <span className="pointer-events-none absolute inset-x-0 bottom-1 text-center text-[8px] uppercase tracking-wider text-white/70">
-                    Tap to add
-                  </span>
-                )}
-              </button>
-            );
-          })}
+                </button>
+              );
+            });
+          })()}
         </div>
 
         {reviewingCardId !== null && (() => {
