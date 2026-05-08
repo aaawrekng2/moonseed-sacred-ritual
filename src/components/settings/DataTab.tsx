@@ -507,12 +507,6 @@ export function DataTab() {
         title="Local Cache"
         description="Reset locally cached settings without touching your account."
       >
-        <SettingsSection
-          title="Archived photos"
-          description="Reading photos you removed are kept here so you can restore or permanently delete them."
-        >
-          <PhotoArchive userId={user.id} />
-        </SettingsSection>
         <Button
           variant="ghost"
           onClick={clearLocal}
@@ -521,6 +515,13 @@ export function DataTab() {
           <RotateCcw className="h-4 w-4" />
           Clear local cache
         </Button>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Archived photos"
+        description="Reading photos you removed are kept here so you can restore or permanently delete them."
+      >
+        <PhotoArchive userId={user.id} />
       </SettingsSection>
 
       <SettingsSection
