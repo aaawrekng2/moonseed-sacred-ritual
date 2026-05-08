@@ -544,12 +544,35 @@ function PatternChamber() {
         )
       )}
 
-      {/* 9-6-AF — synthesis → card evidence → weaves → readings list at bottom. */}
-      <PatternSynthesis
+      {/* 26-05-08-J — Fix 12/13: data loader is silent on success; no
+          empty bordered wrapper. Headline + Meaning are independent
+          components that only render when their field is populated. */}
+      <PatternSynthesisLoader
         patternId={pattern.id}
         readingCount={pattern.reading_ids.length}
-        onLoaded={(data) => setSynthesis(data)}
+        onLoaded={setSynthesis}
       />
+
+      {synthesis?.whyHeadline && synthesis.whyHeadline.trim().length > 0 && (
+        <PatternHeadline whyHeadline={synthesis.whyHeadline} />
+      )}
+
+      {/* 26-05-08-J — Fix 10: THE EVIDENCE between headline and meaning. */}
+      {chamberReadings && chamberReadings.length > 0 && (
+        <EvidenceSection
+          readings={chamberReadings}
+          yourWords={synthesis?.yourWords}
+        />
+      )}
+
+      {synthesis &&
+        (((synthesis.whatItCouldMean ?? "").trim().length > 0) ||
+          ((synthesis.whatThisIs ?? "").trim().length > 0) ||
+          ((synthesis.body ?? "").trim().length > 0) ||
+          synthesis.key_cards.length > 0 ||
+          synthesis.reflective_prompts.length > 0) && (
+          <PatternMeaning data={synthesis} />
+        )}
 
       <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
 
