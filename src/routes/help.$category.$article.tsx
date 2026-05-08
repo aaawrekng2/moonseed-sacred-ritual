@@ -93,6 +93,7 @@ function HelpArticleView() {
         </h1>
         <HelpMarkdown source={article.body} />
       </article>
+      </div>
     </div>
   );
 }
