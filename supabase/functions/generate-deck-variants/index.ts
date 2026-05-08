@@ -310,7 +310,13 @@ serve(async (req) => {
         if (dl.error || !dl.data) throw dl.error ?? new Error("download failed");
         const bytes = new Uint8Array(await dl.data.arrayBuffer());
         const decoded = await decodeAny(bytes);
-        const full = decoded.clone();
+        // 9-6-AG — downscale before mask + encode to stay under CPU quota.
+        const full = decoded.width > FULL_WIDTH_CAP
+          ? decoded.clone().resize(
+              FULL_WIDTH_CAP,
+              Math.max(1, Math.round(decoded.height * (FULL_WIDTH_CAP / decoded.width))),
+            )
+          : decoded.clone();
         applyRoundedMask(full, radius);
         const fullPng = await full.encode();
         let fullPath = fullWebpPathFor(backPath);
