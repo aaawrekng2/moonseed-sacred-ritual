@@ -868,14 +868,26 @@ export function DeckOverviewScreen({
               <div className="mb-3 flex items-center gap-3">
                 <Loader2 className="h-4 w-4 animate-spin text-gold" />
                 <p className="text-sm font-medium">
-                  {importProgress.phase === "extract" && "Reading zip…"}
-                  {importProgress.phase === "match" && "Matching filenames…"}
+                  {importProgress.phase === "extract" &&
+                    "Step 1 of 4: Reading the zip…"}
+                  {importProgress.phase === "match" &&
+                    "Step 2 of 4: Matching cards…"}
                   {importProgress.phase === "upload" &&
-                    `Uploading ${importProgress.current} of ${importProgress.total}…`}
+                    `Step 3 of 4: Saving cards… ${importProgress.current} of ${importProgress.total}`}
                   {importProgress.phase === "variants" &&
-                    `Generating variants ${importProgress.current} of ${importProgress.total}…`}
+                    `Step 4 of 4: Optimizing images… ${importProgress.current} of ${importProgress.total}`}
                 </p>
               </div>
+              {importProgress.phase === "variants" && (
+                <p className="mb-3 text-xs text-muted-foreground">
+                  This is the longest step. About 2 minutes for 78 cards.
+                </p>
+              )}
+              {importProgress.phase === "upload" && (
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Saving each card to your library.
+                </p>
+              )}
               <div
                 className="h-1.5 w-full overflow-hidden rounded-full"
                 style={{
