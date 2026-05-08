@@ -124,11 +124,17 @@ export function SpreadIconsRow({
           onClick={() => onSelect?.(id)}
           aria-describedby={`spread-hint-${id}`}
           className={cn(
-            "flex flex-col items-center justify-end gap-1.5 py-2 transition-colors",
+            "flex flex-col items-center justify-center gap-1.5 py-2 transition-colors",
             "text-muted-foreground hover:text-gold focus:text-gold focus:outline-none",
           )}
         >
-          <span className="flex h-5 items-center justify-center">
+          {/* 9-6-Y — fixed glyph box so SVGs with mismatched intrinsic
+              heights (Yes/No previously rode high) all sit at the same
+              vertical center. */}
+          <span
+            className="flex items-center justify-center"
+            style={{ width: 28, height: 28 }}
+          >
             <Glyph />
           </span>
           <span className="clarity-label font-display text-[11px] italic tracking-wide">
