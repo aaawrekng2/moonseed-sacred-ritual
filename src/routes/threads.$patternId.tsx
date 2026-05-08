@@ -511,6 +511,7 @@ function PatternChamber() {
           onClose={() => setOpenReadingId(null)}
         />
       )}
+      </div>
     </div>
   );
 }
