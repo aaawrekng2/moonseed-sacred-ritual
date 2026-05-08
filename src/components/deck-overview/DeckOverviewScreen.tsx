@@ -960,6 +960,33 @@ function firstEmptyTarotId(photoMap: Map<number, CustomDeckCard>): number {
   return 0;
 }
 
+/**
+ * 9-6-AG — Tile <img> with .webp → .png → original fallback chain.
+ * Mirrors CardImage's logic but works directly off a storage URL so
+ * it covers oracle slots (cardId >= 1000) too.
+ */
+function TileImage({ rawSrc, alt }: { rawSrc: string; alt: string }) {
+  const [failedFor, setFailedFor] = useState<null | "webp" | "png">(null);
+  const webpSrc = variantUrlFor(rawSrc, "md");
+  const pngSrc = variantUrlPngFallback(rawSrc, "md");
+  const src =
+    failedFor === null ? (webpSrc ?? rawSrc)
+    : failedFor === "webp" ? (pngSrc ?? rawSrc)
+    : rawSrc;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="h-full w-full object-contain"
+      loading="lazy"
+      onError={() => {
+        if (failedFor === null) setFailedFor("webp");
+        else if (failedFor === "webp") setFailedFor("png");
+      }}
+    />
+  );
+}
+
 function ActionSheet({
   target,
   busy,
