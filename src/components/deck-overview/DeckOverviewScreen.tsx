@@ -123,6 +123,11 @@ export function DeckOverviewScreen({
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [pickedAssetKey, setPickedAssetKey] = useState<string | null>(null);
+  const [importProgress, setImportProgress] = useState<{
+    phase: "extract" | "match" | "upload" | "variants";
+    current: number;
+    total: number;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialActionFiredRef = useRef(false);
   const deckType = deck.deck_type ?? "tarot";
@@ -243,8 +248,10 @@ export function DeckOverviewScreen({
       return;
     }
     setBusy(true);
+    setImportProgress({ phase: "extract", current: 0, total: 1 });
     try {
       const { assets, oracleMeta } = await extractZip(file);
+      setImportProgress({ phase: "match", current: 0, total: assets.length });
       const result = processImportAssets(assets, deckType, oracleMeta);
       setImportResult(result);
       setBannerDismissed(false);
@@ -267,34 +274,58 @@ export function DeckOverviewScreen({
       };
       const assetByKey = new Map(assets.map((a) => [a.key, a]));
 
-      // Save back first if present.
+      // 9-6-AE — build work list and upload sequentially with progress;
+      // defer variant generation until uploads complete.
+      const workItems: Array<{ cardId: number | "BACK"; asset: ImportAsset }> = [];
       if (result.cardBackKey) {
-        const asset = assetByKey.get(result.cardBackKey);
-        if (asset) {
-          await saveCard({
-            userId,
-            deckId,
-            cardId: "BACK",
-            cardKey: asset.key,
-            image: assetToImportImage(asset),
-            opts,
-          });
-        }
+        const a = assetByKey.get(result.cardBackKey);
+        if (a) workItems.push({ cardId: "BACK", asset: a });
       }
-      // Save each assigned slot.
       for (const [slotStr, assetKey] of Object.entries(result.assigned)) {
         if (slotStr === "BACK") continue;
-        const asset = assetByKey.get(assetKey);
-        if (!asset) continue;
-        const cardId = Number(slotStr);
-        await saveCard({
+        const a = assetByKey.get(assetKey);
+        if (!a) continue;
+        workItems.push({ cardId: Number(slotStr), asset: a });
+      }
+      setImportProgress({ phase: "upload", current: 0, total: workItems.length });
+      const savedCardIds: number[] = [];
+      let uploadedCount = 0;
+      for (const item of workItems) {
+        const res = await saveCard({
           userId,
           deckId,
-          cardId,
-          cardKey: asset.key,
-          image: assetToImportImage(asset),
+          cardId: item.cardId,
+          cardKey: item.asset.key,
+          image: assetToImportImage(item.asset),
           opts,
+          skipAutoVariant: true,
         });
+        uploadedCount++;
+        setImportProgress({ phase: "upload", current: uploadedCount, total: workItems.length });
+        if (res.status === "saved" && item.cardId !== "BACK") {
+          savedCardIds.push(item.cardId);
+        }
+      }
+      // Sequential variant pass — one invoke at a time.
+      if (savedCardIds.length > 0) {
+        setImportProgress({ phase: "variants", current: 0, total: savedCardIds.length });
+        const { data: sess } = await supabase.auth.getSession();
+        const jwt = sess.session?.access_token;
+        if (jwt) {
+          let vDone = 0;
+          for (const cardId of savedCardIds) {
+            try {
+              await supabase.functions.invoke("generate-deck-variants", {
+                body: { deckId, cardId },
+                headers: { Authorization: `Bearer ${jwt}` },
+              });
+            } catch (err) {
+              console.warn("[DeckOverview] variant gen failed", { cardId, err });
+            }
+            vDone++;
+            setImportProgress({ phase: "variants", current: vDone, total: savedCardIds.length });
+          }
+        }
       }
       await reload();
       toast.success(
@@ -309,6 +340,7 @@ export function DeckOverviewScreen({
       }
     } finally {
       setBusy(false);
+      setImportProgress(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
