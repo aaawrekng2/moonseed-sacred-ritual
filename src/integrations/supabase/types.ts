@@ -522,6 +522,7 @@ export type Database = {
       }
       reading_photos: {
         Row: {
+          archived_at: string | null
           caption: string | null
           created_at: string
           id: string
@@ -530,6 +531,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          archived_at?: string | null
           caption?: string | null
           created_at?: string
           id?: string
@@ -538,6 +540,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          archived_at?: string | null
           caption?: string | null
           created_at?: string
           id?: string
