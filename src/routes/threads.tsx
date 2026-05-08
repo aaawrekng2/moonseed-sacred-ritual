@@ -347,7 +347,7 @@ function PatternRow({
         >
           {count} {count === 1 ? "reading" : "readings"}
           {" · since "}
-          {formatMonthSince(pattern.detected_at)}
+          {formatMonthSince(pattern.created_at)}
         </p>
       </div>
       <ChevronRight size={16} className="text-muted-foreground" />
