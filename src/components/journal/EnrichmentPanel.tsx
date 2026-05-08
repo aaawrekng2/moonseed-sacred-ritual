@@ -32,6 +32,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { PhotoCapture } from "@/components/photo/PhotoCapture";
+import { useConfirm } from "@/hooks/use-confirm";
 
 /* ---------- Types ---------- */
 
