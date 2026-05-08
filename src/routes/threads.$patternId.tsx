@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   generatePatternInterpretation,
@@ -13,6 +13,7 @@ import { EmptyHero } from "@/components/ui/empty-hero";
 import { LoadingText } from "@/components/ui/loading-text";
 import { formatDateShort, formatDateLong } from "@/lib/dates";
 import { CardImage } from "@/components/card/CardImage";
+import { getCardName } from "@/lib/tarot";
 import {
   type Pattern,
   type PatternLifecycleState,
@@ -118,6 +119,48 @@ function PatternChamber() {
   // then propagated here so per-reading connectors can flow into the
   // ChamberTimeline excerpt cards.
   const [synthesis, setSynthesis] = useState<PatternInterpretation | null>(null);
+  // 26-05-08-J — lift the full-row reading fetch up so EvidenceSection,
+  // PatternStrengthBanner, and ChamberTimeline all share one query.
+  const [chamberReadings, setChamberReadings] = useState<Array<{
+    id: string;
+    created_at: string;
+    spread_type: string;
+    card_ids: number[];
+    question: string | null;
+    note: string | null;
+    interpretation: string | null;
+  }> | null>(null);
+
+  useEffect(() => {
+    if (!pattern || pattern.reading_ids.length === 0) {
+      setChamberReadings([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("readings")
+        .select("id, created_at, spread_type, card_ids, question, note, interpretation")
+        .in("id", pattern.reading_ids)
+        .is("archived_at", null)
+        .order("created_at", { ascending: false });
+      if (cancelled) return;
+      setChamberReadings(
+        (data ?? []).map((r) => ({
+          id: r.id as string,
+          created_at: r.created_at as string,
+          spread_type: r.spread_type as string,
+          card_ids: (r.card_ids as number[]) ?? [],
+          question: (r.question as string | null) ?? null,
+          note: (r.note as string | null) ?? null,
+          interpretation: (r.interpretation as string | null) ?? null,
+        })),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pattern?.id, pattern?.reading_ids?.join(",")]);
 
   const noteHasUnsavedChanges = () => {
     const original = (pattern?.description ?? "").trim();
@@ -296,6 +339,12 @@ function PatternChamber() {
       >
         <ChevronLeft size={16} /> Threads
       </button>
+
+      {/* 26-05-08-J — Fix 9: deterministic strength banner at the top. */}
+      <PatternStrengthBanner
+        readingCount={pattern.reading_ids.length}
+        spanDays={computeSpanDays(chamberReadings, pattern.created_at)}
+      />
 
       {editing ? (
         <input
@@ -495,12 +544,35 @@ function PatternChamber() {
         )
       )}
 
-      {/* 9-6-AF — synthesis → card evidence → weaves → readings list at bottom. */}
-      <PatternSynthesis
+      {/* 26-05-08-J — Fix 12/13: data loader is silent on success; no
+          empty bordered wrapper. Headline + Meaning are independent
+          components that only render when their field is populated. */}
+      <PatternSynthesisLoader
         patternId={pattern.id}
         readingCount={pattern.reading_ids.length}
-        onLoaded={(data) => setSynthesis(data)}
+        onLoaded={setSynthesis}
       />
+
+      {synthesis?.whyHeadline && synthesis.whyHeadline.trim().length > 0 && (
+        <PatternHeadline whyHeadline={synthesis.whyHeadline} />
+      )}
+
+      {/* 26-05-08-J — Fix 10: THE EVIDENCE between headline and meaning. */}
+      {chamberReadings && chamberReadings.length > 0 && (
+        <EvidenceSection
+          readings={chamberReadings}
+          yourWords={synthesis?.yourWords}
+        />
+      )}
+
+      {synthesis &&
+        (((synthesis.whatItCouldMean ?? "").trim().length > 0) ||
+          ((synthesis.whatThisIs ?? "").trim().length > 0) ||
+          ((synthesis.body ?? "").trim().length > 0) ||
+          synthesis.key_cards.length > 0 ||
+          synthesis.reflective_prompts.length > 0) && (
+          <PatternMeaning data={synthesis} />
+        )}
 
       <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
 
@@ -858,19 +930,90 @@ function ChamberTimeline({
   return _ChamberTimeline({ readingIds, onOpenReading, readingConnections });
 }
 
-function PatternSynthesis({
+/**
+ * 26-05-08-J — Fix 9: deterministic strength banner (no AI).
+ */
+function computeStrength(readingCount: number): {
+  label: "FAINT" | "EMERGING" | "STRONG";
+  color: string;
+} {
+  if (readingCount >= 7) return { label: "STRONG", color: "var(--accent, var(--gold, #d4af37))" };
+  if (readingCount >= 4) return { label: "EMERGING", color: "var(--gold, #d4af37)" };
+  return { label: "FAINT", color: "var(--color-foreground)" };
+}
+
+function computeSpanDays(
+  readings: Array<{ created_at: string }> | null,
+  fallbackCreatedAt: string,
+): number {
+  if (readings && readings.length >= 2) {
+    const ts = readings.map((r) => new Date(r.created_at).getTime());
+    return Math.max(1, Math.round((Math.max(...ts) - Math.min(...ts)) / (1000 * 60 * 60 * 24)));
+  }
+  return Math.max(
+    1,
+    Math.round((Date.now() - new Date(fallbackCreatedAt).getTime()) / (1000 * 60 * 60 * 24)),
+  );
+}
+
+function PatternStrengthBanner({
+  readingCount,
+  spanDays,
+}: {
+  readingCount: number;
+  spanDays: number;
+}) {
+  if (readingCount === 0) return null;
+  const { label, color } = computeStrength(readingCount);
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "var(--space-2, 8px)",
+        padding: "6px 14px",
+        borderRadius: 4,
+        border: `1px solid ${color}`,
+        background: "color-mix(in oklab, currentColor 5%, transparent)",
+        fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
+        fontSize: "var(--text-caption)",
+        letterSpacing: "0.18em",
+        color,
+        marginBottom: "var(--space-4, 16px)",
+      }}
+    >
+      <span style={{ fontWeight: 600 }}>{label}</span>
+      <span style={{ opacity: 0.6 }}>·</span>
+      <span>
+        {readingCount} reading{readingCount === 1 ? "" : "s"}
+      </span>
+      <span style={{ opacity: 0.6 }}>·</span>
+      <span>
+        {spanDays} day{spanDays === 1 ? "" : "s"}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * 26-05-08-J — Fix 12/13: silent loader. Loads + auto-regenerates
+ * legacy interpretations, calls onLoaded with data, returns null on
+ * success so no empty wrapper can render. Only renders LoadingText /
+ * error message when those states apply.
+ */
+function PatternSynthesisLoader({
   patternId,
   readingCount,
   onLoaded,
 }: {
   patternId: string;
   readingCount: number;
-  onLoaded?: (data: PatternInterpretation) => void;
+  onLoaded: (data: PatternInterpretation) => void;
 }) {
   const [state, setState] = useState<
     | { kind: "idle" }
     | { kind: "loading" }
-    | { kind: "ready"; data: PatternInterpretation }
+    | { kind: "ready" }
     | { kind: "error"; message: string }
   >({ kind: "idle" });
   const generate = useServerFn(generatePatternInterpretation);
@@ -884,29 +1027,30 @@ function PatternSynthesis({
         if (cancelled) return;
         if (res.ok) {
           const data = res.interpretation;
-          // 9-6-AH continuation — old-shape interpretation cached.
-          // Force regeneration with the new prompt so we get the new
-          // whyHeadline / whatThisIs / whatItCouldMean fields.
           const isLegacy =
             !data.whyHeadline &&
             !data.whatThisIs &&
             !data.whatItCouldMean &&
             !data.body;
-          if (isLegacy) {
-            const fresh = await generate({
-              data: { patternId, force: true },
+          const finalize = (d: PatternInterpretation) => {
+            console.log("[synthesis] loaded", {
+              patternId,
+              hasWhyHeadline: !!d.whyHeadline,
+              hasWhatItCouldMean: !!d.whatItCouldMean,
+              hasYourWords: (d.yourWords?.length ?? 0) > 0,
+              hasReadingConnections: (d.readingConnections?.length ?? 0) > 0,
             });
+            onLoaded(d);
+            setState({ kind: "ready" });
+          };
+          if (isLegacy) {
+            const fresh = await generate({ data: { patternId, force: true } });
             if (cancelled) return;
-            if (fresh.ok) {
-              setState({ kind: "ready", data: fresh.interpretation });
-              onLoaded?.(fresh.interpretation);
-            } else {
-              setState({ kind: "error", message: fresh.error });
-            }
+            if (fresh.ok) finalize(fresh.interpretation);
+            else setState({ kind: "error", message: fresh.error });
             return;
           }
-          setState({ kind: "ready", data });
-          onLoaded?.(data);
+          finalize(data);
         } else {
           setState({ kind: "error", message: res.error });
         }
@@ -922,18 +1066,58 @@ function PatternSynthesis({
       cancelled = true;
     };
   }, [patternId, readingCount, generate, onLoaded]);
-  if (readingCount === 0) return null;
-  // 9-6-AH continuation — bail entirely on idle (initial render before
-  // useEffect kicks in) and on ready-but-empty so we never paint an
-  // empty bordered box on the Stories detail page.
-  if (state.kind === "idle") return null;
-  const hasReadyContent =
-    state.kind === "ready" &&
-    (((state.data.whyHeadline ?? "").trim().length > 0) ||
-      ((state.data.whatThisIs ?? "").trim().length > 0) ||
-      ((state.data.whatItCouldMean ?? "").trim().length > 0) ||
-      ((state.data.body ?? "").trim().length > 0));
-  if (state.kind === "ready" && !hasReadyContent) return null;
+  if (state.kind === "loading") {
+    return (
+      <div style={{ marginTop: "var(--space-4, 16px)" }}>
+        <LoadingText>Synthesizing the through-line…</LoadingText>
+      </div>
+    );
+  }
+  if (state.kind === "error") {
+    return (
+      <p style={{ marginTop: "var(--space-4, 16px)", opacity: 0.6, fontStyle: "italic" }}>
+        {state.message}
+      </p>
+    );
+  }
+  return null;
+}
+
+/**
+ * 26-05-08-J — Fix 12: standalone headline.
+ */
+function PatternHeadline({ whyHeadline }: { whyHeadline: string }) {
+  return (
+    <p
+      style={{
+        margin: "var(--space-6, 32px) 0 var(--space-4, 16px)",
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+        fontSize: "var(--text-heading-md, 22px)",
+        lineHeight: 1.35,
+        color: "var(--accent, var(--gold))",
+        textShadow: "0 0 18px rgba(212,175,90,0.25)",
+        letterSpacing: "0.005em",
+      }}
+    >
+      {whyHeadline}
+    </p>
+  );
+}
+
+/**
+ * 26-05-08-J — Fix 12: contemplative meaning section, sits AFTER
+ * EvidenceSection. Carries whatThisIs / whatItCouldMean / key_cards /
+ * reflective_prompts. Each subsection guards on its own data so an
+ * empty wrapper never renders.
+ */
+function PatternMeaning({ data }: { data: PatternInterpretation }) {
+  const hasMeaning = (data.whatItCouldMean ?? "").trim().length > 0;
+  const hasThisIs = (data.whatThisIs ?? "").trim().length > 0;
+  const hasBody = !hasMeaning && (data.body ?? "").trim().length > 0;
+  const hasKey = data.key_cards.length > 0;
+  const hasPrompts = data.reflective_prompts.length > 0;
+  if (!hasMeaning && !hasThisIs && !hasBody && !hasKey && !hasPrompts) return null;
   return (
     <section
       style={{
@@ -944,147 +1128,282 @@ function PatternSynthesis({
         border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
       }}
     >
-      {state.kind === "loading" && (
-        <div style={{ marginTop: 12 }}>
-          <LoadingText>Synthesizing the through-line…</LoadingText>
+      {hasThisIs && (
+        <div style={{ marginBottom: 20 }}>
+          <h3 style={meaningSubHeading}>What this story is</h3>
+          <p style={meaningParagraph}>{data.whatThisIs}</p>
         </div>
       )}
-      {state.kind === "error" && (
-        <p style={{ marginTop: 12, opacity: 0.6, fontStyle: "italic" }}>
-          {state.message}
-        </p>
+      {hasMeaning && (
+        <div style={{ marginBottom: 20 }}>
+          <h3 style={meaningSubHeading}>What it could mean</h3>
+          <p style={meaningParagraph}>{data.whatItCouldMean}</p>
+        </div>
       )}
-      {state.kind === "ready" && (
-        <div style={{ marginTop: 12 }}>
-          {state.data.whyHeadline && state.data.whyHeadline.trim().length > 0 && (
-            <p
-              style={{
-                margin: "0 0 var(--space-4, 16px)",
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-heading-md, 22px)",
-                lineHeight: 1.35,
-                color: "var(--accent, var(--gold))",
-                textShadow: "0 0 18px rgba(212,175,90,0.25)",
-                letterSpacing: "0.005em",
-              }}
-            >
-              {state.data.whyHeadline}
-            </p>
-          )}
-          {state.data.whatThisIs ? (
-            <div style={{ marginBottom: 20 }}>
-              <h3
-                style={{
-                  margin: 0,
-                  marginBottom: 6,
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: "var(--text-body-sm)",
-                  letterSpacing: "0.06em",
-                  opacity: 0.7,
-                }}
-              >
-                What this story is
-              </h3>
-              <p
-                style={{
-                  whiteSpace: "pre-wrap",
-                  fontSize: "var(--text-body)",
-                  lineHeight: 1.7,
-                  fontFamily: "var(--font-serif)",
-                }}
-              >
-                {state.data.whatThisIs}
-              </p>
-            </div>
-          ) : null}
-          {state.data.whatItCouldMean ? (
-            <div style={{ marginBottom: 20 }}>
-              <h3
-                style={{
-                  margin: 0,
-                  marginBottom: 6,
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: "var(--text-body-sm)",
-                  letterSpacing: "0.06em",
-                  opacity: 0.7,
-                }}
-              >
-                What it could mean
-              </h3>
-              <p
-                style={{
-                  whiteSpace: "pre-wrap",
-                  fontSize: "var(--text-body)",
-                  lineHeight: 1.7,
-                  fontFamily: "var(--font-serif)",
-                }}
-              >
-                {state.data.whatItCouldMean}
-              </p>
-            </div>
-          ) : state.data.body ? (
-            <p
-              style={{
-                whiteSpace: "pre-wrap",
-                fontSize: "var(--text-body)",
-                lineHeight: 1.6,
-                color: "var(--color-foreground)",
-              }}
-            >
-              {state.data.body}
-            </p>
-          ) : null}
-          {state.data.key_cards.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: "var(--text-body-sm)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.18em",
-                  opacity: 0.7,
-                }}
-              >
-                Key cards
-              </h3>
-              <ul style={{ marginTop: 8, paddingLeft: 18 }}>
-                {state.data.key_cards.map((kc, i) => (
-                  <li key={i} style={{ marginBottom: 4 }}>
-                    <strong>{kc.card}</strong> — <span style={{ opacity: 0.85 }}>{kc.meaning}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {state.data.reflective_prompts.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: "var(--text-body-sm)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.18em",
-                  opacity: 0.7,
-                }}
-              >
-                Reflective prompts
-              </h3>
-              <ul style={{ marginTop: 8, paddingLeft: 18 }}>
-                {state.data.reflective_prompts.map((p, i) => (
-                  <li key={i} style={{ marginBottom: 4, fontStyle: "italic" }}>
-                    {p}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+      {hasBody && <p style={meaningParagraph}>{data.body}</p>}
+      {hasKey && (
+        <div style={{ marginTop: 16 }}>
+          <h3 style={meaningCapsHeading}>Key cards</h3>
+          <ul style={{ marginTop: 8, paddingLeft: 18 }}>
+            {data.key_cards.map((kc, i) => (
+              <li key={i} style={{ marginBottom: 4 }}>
+                <strong>{kc.card}</strong> —{" "}
+                <span style={{ opacity: 0.85 }}>{kc.meaning}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {hasPrompts && (
+        <div style={{ marginTop: 16 }}>
+          <h3 style={meaningCapsHeading}>Reflective prompts</h3>
+          <ul style={{ marginTop: 8, paddingLeft: 18 }}>
+            {data.reflective_prompts.map((p, i) => (
+              <li key={i} style={{ marginBottom: 4, fontStyle: "italic" }}>
+                {p}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </section>
   );
+}
+
+const meaningSubHeading: React.CSSProperties = {
+  margin: 0,
+  marginBottom: 6,
+  fontFamily: "var(--font-serif)",
+  fontStyle: "italic",
+  fontSize: "var(--text-body-sm)",
+  letterSpacing: "0.06em",
+  opacity: 0.7,
+};
+
+const meaningParagraph: React.CSSProperties = {
+  whiteSpace: "pre-wrap",
+  fontSize: "var(--text-body)",
+  lineHeight: 1.7,
+  fontFamily: "var(--font-serif)",
+};
+
+const meaningCapsHeading: React.CSSProperties = {
+  margin: 0,
+  fontSize: "var(--text-body-sm)",
+  textTransform: "uppercase",
+  letterSpacing: "0.18em",
+  opacity: 0.7,
+};
+
+/**
+ * 26-05-08-J — Fix 10: deterministic + AI hybrid evidence section.
+ * Card frequency + timeline are computed in code; yourWords is
+ * AI-extracted from the seeker's questions and notes.
+ */
+function EvidenceSection({
+  readings,
+  yourWords,
+}: {
+  readings: Array<{
+    id: string;
+    created_at: string;
+    spread_type: string;
+    card_ids: number[];
+    question: string | null;
+    note: string | null;
+  }>;
+  yourWords?: PatternInterpretation["yourWords"];
+}) {
+  const cardFrequency = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const r of readings) {
+      const seen = new Set<number>();
+      for (const cid of r.card_ids) {
+        if (seen.has(cid)) continue;
+        seen.add(cid);
+        counts.set(cid, (counts.get(cid) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([cid, count]) => ({
+        cardId: cid,
+        cardName: getCardName(cid),
+        count,
+        total: readings.length,
+      }));
+  }, [readings]);
+
+  const timeline = useMemo(() => {
+    if (readings.length === 0) return null;
+    const sorted = [...readings].sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    );
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    const dayCount = Math.max(
+      1,
+      Math.round(
+        (new Date(last.created_at).getTime() -
+          new Date(first.created_at).getTime()) /
+          (1000 * 60 * 60 * 24),
+      ),
+    );
+    return { first, last, dayCount };
+  }, [readings]);
+
+  return (
+    <section
+      style={{
+        marginTop: "var(--space-6, 32px)",
+        marginBottom: "var(--space-6, 32px)",
+        padding: "var(--space-5, 20px)",
+        borderRadius: "var(--radius-lg, 14px)",
+        border: "1px solid var(--border-default, rgba(255,255,255,0.12))",
+        background:
+          "color-mix(in oklab, var(--surface-card, rgba(255,255,255,0.03)) 70%, transparent)",
+      }}
+    >
+      <h2
+        style={{
+          margin: 0,
+          marginBottom: "var(--space-4, 16px)",
+          fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
+          fontSize: "var(--text-caption)",
+          letterSpacing: "0.22em",
+          color: "var(--accent, var(--gold))",
+          fontWeight: 600,
+        }}
+      >
+        ▍ THE EVIDENCE
+      </h2>
+
+      {cardFrequency.length > 0 && (
+        <div style={{ marginBottom: "var(--space-5, 20px)" }}>
+          <h3 style={evidenceSubHeading}>Cards that keep returning</h3>
+          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {cardFrequency.map((c) => (
+              <li
+                key={c.cardId}
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
+                  fontSize: "var(--text-caption)",
+                  letterSpacing: "0.06em",
+                  color: "var(--color-foreground)",
+                  padding: "2px 0",
+                }}
+              >
+                <span style={{ flex: "none", minWidth: 180 }}>
+                  {c.cardName.toUpperCase()}
+                </span>
+                <span
+                  style={{
+                    flex: 1,
+                    opacity: 0.4,
+                    padding: "0 8px",
+                    overflow: "hidden",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {".".repeat(80)}
+                </span>
+                <span style={{ flex: "none", color: "var(--accent, var(--gold))" }}>
+                  {c.count} of {c.total}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {timeline && (
+        <div style={{ marginBottom: "var(--space-5, 20px)" }}>
+          <h3 style={evidenceSubHeading}>The arc</h3>
+          <ul
+            style={{
+              listStyle: "none",
+              margin: 0,
+              padding: 0,
+              fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
+              fontSize: "var(--text-caption)",
+              letterSpacing: "0.06em",
+              lineHeight: 1.7,
+              color: "var(--color-foreground)",
+            }}
+          >
+            <li>
+              FIRST SEEN ····· {formatDateLong(timeline.first.created_at).toUpperCase()} ·{" "}
+              {humanSpread(timeline.first.spread_type)}
+            </li>
+            <li>
+              MOST RECENT ··· {formatDateLong(timeline.last.created_at).toUpperCase()} ·{" "}
+              {humanSpread(timeline.last.spread_type)}
+            </li>
+            <li>
+              SPAN ··········· {timeline.dayCount} day
+              {timeline.dayCount === 1 ? "" : "s"} · {readings.length} reading
+              {readings.length === 1 ? "" : "s"}
+            </li>
+          </ul>
+        </div>
+      )}
+
+      {yourWords && yourWords.length > 0 && (
+        <div>
+          <h3 style={evidenceSubHeading}>What you said</h3>
+          <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {yourWords.map((w, i) => (
+              <li key={i} style={{ marginBottom: 14 }}>
+                <p
+                  style={{
+                    margin: 0,
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body)",
+                    lineHeight: 1.5,
+                    color: "var(--color-foreground)",
+                  }}
+                >
+                  “{w.quote}”
+                </p>
+                <p
+                  style={{
+                    margin: "4px 0 0",
+                    fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
+                    fontSize: "var(--text-caption)",
+                    letterSpacing: "0.1em",
+                    color: "var(--color-foreground)",
+                    opacity: 0.5,
+                  }}
+                >
+                  YOU {w.source === "question" ? "ASKED" : "WROTE"} ON{" "}
+                  {formatDateLong(w.date).toUpperCase()}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+const evidenceSubHeading: React.CSSProperties = {
+  margin: 0,
+  marginBottom: "var(--space-2, 8px)",
+  fontFamily: "var(--font-serif)",
+  fontStyle: "italic",
+  fontSize: "var(--text-body-sm)",
+  color: "var(--color-foreground)",
+  opacity: 0.7,
+};
+
+function humanSpread(s: string): string {
+  return s.replace(/_/g, " ").toUpperCase();
 }
 
 function _ChamberTimeline({
