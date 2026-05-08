@@ -677,7 +677,7 @@ serve(async (req) => {
         };
 
         for (const v of VARIANTS) {
-          const variantPath = variantPathFor(c.display_path, v.suffix);
+          let variantPath = variantPathFor(c.display_path, v.suffix);
           if (!variantPath) {
             failed++;
             errors.push({
@@ -711,29 +711,50 @@ serve(async (req) => {
           const resized = decodedSource!.clone().resize(v.width, targetH);
           if (radius > 0) applyRoundedMask(resized, radius);
           const png = await resized.encode();
-          const webpBytes: Uint8Array = await new Promise((resolve, reject) => {
-            try {
-              ImageMagick.read(png, (img) => {
-                img.write(MagickFormat.Webp, (data) =>
-                  resolve(new Uint8Array(data)),
-                );
-              });
-            } catch (e) {
-              reject(e);
-            }
-          });
+          let outBytes: Uint8Array;
+          let outContentType = "image/webp";
+          try {
+            outBytes = await new Promise<Uint8Array>((resolve, reject) => {
+              try {
+                ImageMagick.read(png, (img) => {
+                  img.write(MagickFormat.Webp, (data) =>
+                    resolve(new Uint8Array(data)),
+                  );
+                });
+              } catch (e) {
+                reject(e);
+              }
+            });
+          } catch (e) {
+            // 9-6-AF — PNG fallback for batch-mode variants.
+            console.error(
+              "[generate-deck-variants] batch variant WebP encode failed; falling back to PNG",
+              {
+                cardId: c.card_id,
+                variant: v.suffix,
+                error: e instanceof Error ? e.message : String(e),
+              },
+            );
+            outBytes = png;
+            outContentType = "image/png";
+            variantPath = variantPath.replace(/\.webp$/, ".png");
+          }
 
           const up = await admin.storage
             .from(BUCKET)
-            .upload(variantPath, webpBytes, {
-              contentType: "image/webp",
+            .upload(variantPath, outBytes, {
+              contentType: outContentType,
               upsert: true,
             });
           if (up.error) throw up.error;
-          // Best-effort cleanup of legacy .jpg sibling.
           await admin.storage
             .from(BUCKET)
-            .remove([variantPath.replace(/\.webp$/, ".jpg")])
+            .remove([
+              variantPath.replace(/\.(webp|png)$/, ".jpg"),
+              outContentType === "image/png"
+                ? variantPath.replace(/\.png$/, ".webp")
+                : variantPath.replace(/\.webp$/, ".png"),
+            ])
             .catch(() => {});
           generated++;
         }
