@@ -263,7 +263,8 @@ function PatternChamber() {
         minHeight: "100dvh",
         maxWidth: 720,
         margin: "0 auto",
-        padding: "calc(env(safe-area-inset-top) + var(--space-4, 16px)) var(--space-4, 16px) calc(env(safe-area-inset-bottom) + 80px)",
+        padding:
+          "calc(env(safe-area-inset-top) + var(--space-4, 16px)) var(--space-4, 16px) calc(var(--bottom-nav-height, 72px) + env(safe-area-inset-bottom, 0px) + var(--space-8, 48px))",
       }}
     >
       <button
@@ -483,14 +484,15 @@ function PatternChamber() {
         )
       )}
 
-      <ChamberTimeline
-        readingIds={pattern.reading_ids}
-        onOpenReading={setOpenReadingId}
-      />
-
+      {/* 9-6-AC — synthesis leads; readings list follows. */}
       <PatternSynthesis
         patternId={pattern.id}
         readingCount={pattern.reading_ids.length}
+      />
+
+      <ChamberTimeline
+        readingIds={pattern.reading_ids}
+        onOpenReading={setOpenReadingId}
       />
 
       <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
