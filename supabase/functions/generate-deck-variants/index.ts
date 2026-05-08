@@ -143,6 +143,15 @@ const BATCH_SIZE = 1;
 // enough to keep raw RGBA buffers ~MB instead of tens of MB.
 const WORKING_WIDTH = 600;
 
+// 9-6-AG — cap the working resolution for the -full.webp encode.
+// The decode + applyRoundedMask + encode-PNG + re-encode-WebP chain
+// at full source resolution (often 2000+ px) was burning the entire
+// 2s edge-function CPU quota and tripping CPU_TIME_EXCEEDED on bulk
+// imports. 1500px keeps the result indistinguishable from full-res
+// for typical card display sizes (max ~800-1200 px) while cutting
+// CPU work by ~4x.
+const FULL_WIDTH_CAP = 1500;
+
 function variantPathFor(originalPath: string, suffix: "sm" | "md"): string | null {
   // Match `<...>/card-N-TS(-thumb)?.<ext>` and replace the filename.
   const m = originalPath.match(
