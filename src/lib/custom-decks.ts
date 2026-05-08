@@ -59,6 +59,12 @@ export type DeckImageMap = {
    * without an extra round trip.
    */
   cornerRadiusPercent: number | null;
+  /**
+   * 9-6-Y — Pre-measured natural aspect (height / width) per card.
+   * Lets CardImage size its wrapper correctly on FIRST PAINT, avoiding
+   * the brief bottom-crop while the IMG decodes and onLoad fires.
+   */
+  aspectByCardId: Record<number, number>;
 };
 
 export const EMPTY_DECK_IMAGE_MAP: DeckImageMap = {
@@ -66,6 +72,7 @@ export const EMPTY_DECK_IMAGE_MAP: DeckImageMap = {
   thumbnail: {},
   back: null,
   cornerRadiusPercent: null,
+  aspectByCardId: {},
 };
 
 export async function fetchUserDecks(userId: string): Promise<CustomDeck[]> {
