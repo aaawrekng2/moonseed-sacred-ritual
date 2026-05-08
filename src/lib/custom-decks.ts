@@ -231,7 +231,9 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
                 done();
               };
               img.onerror = done;
-              img.src = url;
+              // Prefer thumbnail (smaller, faster) for measurement;
+              // aspect is identical to the full image.
+              img.src = map.thumbnail[cardId] ?? url;
             }),
           ),
         );
