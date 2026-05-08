@@ -31,6 +31,7 @@ import {
   useDeckCornerRadius,
   useDeckImage,
   variantUrlFor,
+  variantUrlPngFallback,
 } from "@/lib/active-deck";
 import type { CardBackId } from "@/lib/card-backs";
 import { getCardName } from "@/lib/tarot";
@@ -257,9 +258,17 @@ export function CardImage({
   // variantFailedFor and we re-render with the original.
   const variantTier = SIZE_TO_VARIANT[size];
   const variantSrc = variantUrlFor(baseFaceSrc, variantTier);
+  // 9-6-AF — try .webp variant → .png variant → original. Tracks
+  // which step we've fallen through to via `variantFailedFor`.
+  const variantPngSrc =
+    variantTier === "full"
+      ? null
+      : variantUrlPngFallback(baseFaceSrc, variantTier);
   const faceSrc =
-    variantFailedFor && variantFailedFor === variantSrc
-      ? baseFaceSrc
+    variantFailedFor === "png" || variantFailedFor === "all"
+      ? variantFailedFor === "all"
+        ? baseFaceSrc
+        : variantPngSrc ?? baseFaceSrc
       : variantSrc;
 
   const showFaceShimmer =
