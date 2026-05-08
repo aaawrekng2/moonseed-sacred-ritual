@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 import {
   Camera,
   Check,
+  AlertTriangle,
   Loader2,
   MoreVertical,
   Pencil,
