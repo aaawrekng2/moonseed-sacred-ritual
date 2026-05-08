@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 import {
   Camera,
   Check,
+  AlertTriangle,
   Loader2,
   MoreVertical,
   Pencil,
@@ -221,6 +222,32 @@ function DecksPage() {
               onImportZip={() => setView({ kind: "edit-import", deck: d })}
               onToggleActive={() => void handleSetActive(d)}
               onDelete={() => void handleDelete(d)}
+              onRetryFailed={async (deckId: string) => {
+                try {
+                  await supabase
+                    .from("custom_deck_cards")
+                    .update({
+                      processing_status: "pending",
+                      variant_attempts: 0,
+                      variant_last_attempt_at: null,
+                    })
+                    .eq("deck_id", deckId)
+                    .is("archived_at", null)
+                    .in("processing_status", ["pending", "failed"]);
+                  try {
+                    await supabase.functions.invoke(
+                      "process-variant-queue",
+                      {},
+                    );
+                  } catch {
+                    /* non-fatal */
+                  }
+                  toast.success("Re-optimizing in the background.");
+                } catch (err) {
+                  console.error("[Retry failed] error", err);
+                  toast.error("Couldn't queue retry.");
+                }
+              }}
             />
           ))}
         </ul>
@@ -301,12 +328,14 @@ function DeckRow({
   onImportZip,
   onToggleActive,
   onDelete,
+  onRetryFailed,
 }: {
   deck: CustomDeck;
   onEdit: () => void;
   onImportZip: () => void;
   onToggleActive: () => void;
   onDelete: () => void;
+  onRetryFailed: (deckId: string) => Promise<void> | void;
 }) {
   const [count, setCount] = useState<number | null>(null);
   // 9-6-AH — live background-queue processing indicator.
@@ -505,10 +534,17 @@ function DeckRow({
 
   return (
     <li className="flex flex-row items-center gap-3 rounded-lg border border-border/60 bg-card p-3">
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={onEdit}
-        className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onEdit();
+          }
+        }}
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left"
         aria-label={`Edit ${deck.name}`}
       >
         <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-cosmos">
@@ -544,8 +580,45 @@ function DeckRow({
                 : `${count}/78 customized`}{" "}
             · {deck.shape}
           </p>
+          {/* 26-05-08-J — Fix 5+8: visible background-processing status. */}
+          {procStatus &&
+            (procStatus.pending > 0 ||
+              procStatus.failed > 0 ||
+              procStatus.saved < procStatus.total) && (
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                {procStatus.pending > 0 ||
+                procStatus.saved < procStatus.total - procStatus.failed ? (
+                  <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin text-gold" />
+                    Optimizing… {procStatus.saved} of {procStatus.total}
+                    {procStatus.failed > 0 &&
+                      ` · ${procStatus.failed} failed`}
+                  </span>
+                ) : (
+                  procStatus.failed > 0 && (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <AlertTriangle className="h-3 w-3 text-yellow-500" />
+                      {procStatus.failed} card
+                      {procStatus.failed === 1 ? "" : "s"} failed
+                    </span>
+                  )
+                )}
+                {procStatus.failed > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void onRetryFailed(deck.id);
+                    }}
+                    className="text-[11px] italic text-gold underline"
+                  >
+                    Retry
+                  </button>
+                )}
+              </div>
+            )}
         </div>
-      </button>
+      </div>
       {/* 9-6-N — visible Edit pencil on mobile so the row's primary
           action is discoverable without opening the overflow menu. */}
       <button
