@@ -263,7 +263,8 @@ function PatternChamber() {
         minHeight: "100dvh",
         maxWidth: 720,
         margin: "0 auto",
-        padding: "calc(env(safe-area-inset-top) + var(--space-4, 16px)) var(--space-4, 16px) calc(env(safe-area-inset-bottom) + 80px)",
+        padding:
+          "calc(env(safe-area-inset-top) + var(--space-4, 16px)) var(--space-4, 16px) calc(var(--bottom-nav-height, 72px) + env(safe-area-inset-bottom, 0px) + var(--space-8, 48px))",
       }}
     >
       <button
@@ -483,14 +484,15 @@ function PatternChamber() {
         )
       )}
 
-      <ChamberTimeline
-        readingIds={pattern.reading_ids}
-        onOpenReading={setOpenReadingId}
-      />
-
+      {/* 9-6-AC — synthesis leads; readings list follows. */}
       <PatternSynthesis
         patternId={pattern.id}
         readingCount={pattern.reading_ids.length}
+      />
+
+      <ChamberTimeline
+        readingIds={pattern.reading_ids}
+        onOpenReading={setOpenReadingId}
       />
 
       <ChamberCardEvidence patternId={pattern.id} userId={user?.id} />
@@ -910,16 +912,71 @@ function PatternSynthesis({
       )}
       {state.kind === "ready" && (
         <div style={{ marginTop: 12 }}>
-          <p
-            style={{
-              whiteSpace: "pre-wrap",
-              fontSize: "var(--text-body)",
-              lineHeight: 1.6,
-              color: "var(--color-foreground)",
-            }}
-          >
-            {state.data.body}
-          </p>
+          {state.data.whatThisIs ? (
+            <div style={{ marginBottom: 20 }}>
+              <h3
+                style={{
+                  margin: 0,
+                  marginBottom: 6,
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                  letterSpacing: "0.06em",
+                  opacity: 0.7,
+                }}
+              >
+                What this story is
+              </h3>
+              <p
+                style={{
+                  whiteSpace: "pre-wrap",
+                  fontSize: "var(--text-body)",
+                  lineHeight: 1.7,
+                  fontFamily: "var(--font-serif)",
+                }}
+              >
+                {state.data.whatThisIs}
+              </p>
+            </div>
+          ) : null}
+          {state.data.whatItCouldMean ? (
+            <div style={{ marginBottom: 20 }}>
+              <h3
+                style={{
+                  margin: 0,
+                  marginBottom: 6,
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                  letterSpacing: "0.06em",
+                  opacity: 0.7,
+                }}
+              >
+                What it could mean
+              </h3>
+              <p
+                style={{
+                  whiteSpace: "pre-wrap",
+                  fontSize: "var(--text-body)",
+                  lineHeight: 1.7,
+                  fontFamily: "var(--font-serif)",
+                }}
+              >
+                {state.data.whatItCouldMean}
+              </p>
+            </div>
+          ) : state.data.body ? (
+            <p
+              style={{
+                whiteSpace: "pre-wrap",
+                fontSize: "var(--text-body)",
+                lineHeight: 1.6,
+                color: "var(--color-foreground)",
+              }}
+            >
+              {state.data.body}
+            </p>
+          ) : null}
           {state.data.key_cards.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <h3

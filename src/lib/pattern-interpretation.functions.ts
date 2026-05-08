@@ -15,7 +15,12 @@ const Input = z.object({
 });
 
 export type PatternInterpretation = {
-  body: string;
+  /** 9-6-AC — short tarot-voice description of the recurring story. */
+  whatThisIs?: string;
+  /** 9-6-AC — short tarot-voice reading of why this story is here now. */
+  whatItCouldMean?: string;
+  /** Legacy synthesis paragraph (pre-9-6-AC saved interpretations). */
+  body?: string;
   key_cards: { card: string; meaning: string }[];
   reflective_prompts: string[];
 };
@@ -83,14 +88,17 @@ export const generatePatternInterpretation = createServerFn({ method: "POST" })
         (pattern.description ? `Seeker's note: ${pattern.description}\n` : "") +
         `\nLinked readings (${rows.length}):\n\n${summaries.join("\n\n---\n\n")}\n\n` +
         `Synthesize this story. Reply ONLY with valid JSON of shape:\n` +
-        `{ "body": string, "key_cards": [{ "card": string, "meaning": string }], "reflective_prompts": [string, string, string] }\n` +
-        `body: 2-3 short paragraphs naming the through-line. ` +
-        `key_cards: 2-4 cards that recur or carry the most weight. ` +
+        `{ "whatThisIs": string, "whatItCouldMean": string, "key_cards": [{ "card": string, "meaning": string }], "reflective_prompts": [string, string, string] }\n` +
+        `whatThisIs: 2-3 sentences naming what the recurring story IS — which cards or themes return, what shape the pattern takes. Tarot voice: "A pattern stirs in your readings…"\n` +
+        `whatItCouldMean: 2-3 sentences on what the pattern could be revealing now — why this story may be surfacing. Tarot voice: "The cards turn toward…" Avoid certainty; speak in possibilities.\n` +
+        `key_cards: 2-4 cards that anchor the pattern.\n` +
         `reflective_prompts: 3 brief questions for the seeker.`;
       const systemPrompt =
-        "You are a contemplative tarot reader synthesizing a recurring " +
-        "pattern across multiple readings. Speak warmly, in plain prose. " +
-        "Never moralize. Output strictly valid JSON, no commentary.";
+        "You are a tarot oracle synthesizing a recurring pattern in a " +
+        "seeker's readings. Speak in tarot voice — invocational, " +
+        "present-tense, reverent. Lead with WHAT the story is and WHY " +
+        "it appeared. Avoid moralizing. Avoid certainty. Output " +
+        "strictly valid JSON, no commentary.";
       const apiKey = process.env.ANTHROPIC_API_KEY;
       if (!apiKey) return { ok: false, error: "Interpreter not configured." };
       let rawText = "";
@@ -131,9 +139,10 @@ export const generatePatternInterpretation = createServerFn({ method: "POST" })
         return { ok: false, error: "Interpretation was not valid JSON." };
       }
       if (
-        typeof parsed?.body !== "string" ||
         !Array.isArray(parsed?.key_cards) ||
-        !Array.isArray(parsed?.reflective_prompts)
+        !Array.isArray(parsed?.reflective_prompts) ||
+        (typeof parsed?.whatThisIs !== "string" &&
+          typeof parsed?.body !== "string")
       ) {
         return { ok: false, error: "Interpretation was malformed." };
       }

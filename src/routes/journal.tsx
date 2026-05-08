@@ -2219,8 +2219,11 @@ function ReadingDetail({
                   }
                 />
                 <span
-                  className="mt-1 max-w-[90px] text-center font-display text-[10px] italic text-muted-foreground"
-                  style={{ opacity: "var(--ro-plus-20)" }}
+                  className="mt-1 max-w-[120px] text-center font-display italic text-muted-foreground"
+                  style={{
+                    opacity: "var(--ro-plus-20)",
+                    fontSize: "var(--text-body-sm, 13px)",
+                  }}
                 >
                   {positions?.[idx] ?? getCardName(id)}
                 </span>
