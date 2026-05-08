@@ -849,19 +849,23 @@ function ChamberCardEvidence({
 function ChamberTimeline({
   readingIds,
   onOpenReading,
+  readingConnections,
 }: {
   readingIds: string[];
   onOpenReading: (readingId: string) => void;
+  readingConnections?: Array<{ readingId: string; connector: string }>;
 }) {
-  return _ChamberTimeline({ readingIds, onOpenReading });
+  return _ChamberTimeline({ readingIds, onOpenReading, readingConnections });
 }
 
 function PatternSynthesis({
   patternId,
   readingCount,
+  onLoaded,
 }: {
   patternId: string;
   readingCount: number;
+  onLoaded?: (data: PatternInterpretation) => void;
 }) {
   const [state, setState] = useState<
     | { kind: "idle" }
@@ -878,8 +882,34 @@ function PatternSynthesis({
       try {
         const res = await generate({ data: { patternId } });
         if (cancelled) return;
-        if (res.ok) setState({ kind: "ready", data: res.interpretation });
-        else setState({ kind: "error", message: res.error });
+        if (res.ok) {
+          const data = res.interpretation;
+          // 9-6-AH continuation — old-shape interpretation cached.
+          // Force regeneration with the new prompt so we get the new
+          // whyHeadline / whatThisIs / whatItCouldMean fields.
+          const isLegacy =
+            !data.whyHeadline &&
+            !data.whatThisIs &&
+            !data.whatItCouldMean &&
+            !data.body;
+          if (isLegacy) {
+            const fresh = await generate({
+              data: { patternId, force: true },
+            });
+            if (cancelled) return;
+            if (fresh.ok) {
+              setState({ kind: "ready", data: fresh.interpretation });
+              onLoaded?.(fresh.interpretation);
+            } else {
+              setState({ kind: "error", message: fresh.error });
+            }
+            return;
+          }
+          setState({ kind: "ready", data });
+          onLoaded?.(data);
+        } else {
+          setState({ kind: "error", message: res.error });
+        }
       } catch (e) {
         if (cancelled) return;
         setState({
@@ -891,8 +921,19 @@ function PatternSynthesis({
     return () => {
       cancelled = true;
     };
-  }, [patternId, readingCount, generate]);
+  }, [patternId, readingCount, generate, onLoaded]);
   if (readingCount === 0) return null;
+  // 9-6-AH continuation — bail entirely on idle (initial render before
+  // useEffect kicks in) and on ready-but-empty so we never paint an
+  // empty bordered box on the Stories detail page.
+  if (state.kind === "idle") return null;
+  const hasReadyContent =
+    state.kind === "ready" &&
+    (((state.data.whyHeadline ?? "").trim().length > 0) ||
+      ((state.data.whatThisIs ?? "").trim().length > 0) ||
+      ((state.data.whatItCouldMean ?? "").trim().length > 0) ||
+      ((state.data.body ?? "").trim().length > 0));
+  if (state.kind === "ready" && !hasReadyContent) return null;
   return (
     <section
       style={{
@@ -915,6 +956,22 @@ function PatternSynthesis({
       )}
       {state.kind === "ready" && (
         <div style={{ marginTop: 12 }}>
+          {state.data.whyHeadline && state.data.whyHeadline.trim().length > 0 && (
+            <p
+              style={{
+                margin: "0 0 var(--space-4, 16px)",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-heading-md, 22px)",
+                lineHeight: 1.35,
+                color: "var(--accent, var(--gold))",
+                textShadow: "0 0 18px rgba(212,175,90,0.25)",
+                letterSpacing: "0.005em",
+              }}
+            >
+              {state.data.whyHeadline}
+            </p>
+          )}
           {state.data.whatThisIs ? (
             <div style={{ marginBottom: 20 }}>
               <h3
