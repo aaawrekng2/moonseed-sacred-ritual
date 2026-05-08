@@ -473,16 +473,157 @@ export function DeckOverviewScreen({
     await reload();
   };
 
-  const onTileTap = (cardId: number, slotKind: "saved" | "ambiguous" | "empty-tarot") => {
+  const onTileTap = async (
+    cardId: number,
+    slotKind: "saved" | "ambiguous" | "empty-tarot",
+  ) => {
     if (pickedAssetKey) {
       void handleDropOnSlot(cardId);
       return;
     }
     if (slotKind === "empty-tarot") {
+      // 26-05-08-J — Fix 6: if there's a failed row with an
+      // original_path for this slot, auto-retry instead of opening
+      // the camera. The user already gave us pixels — re-run them.
+      const { data: failedRow } = await supabase
+        .from("custom_deck_cards")
+        .select("id, original_path, processing_status")
+        .eq("deck_id", deckId)
+        .eq("card_id", cardId)
+        .is("archived_at", null)
+        .maybeSingle();
+      if (
+        failedRow?.original_path &&
+        failedRow.processing_status === "failed"
+      ) {
+        await supabase
+          .from("custom_deck_cards")
+          .update({
+            processing_status: "pending",
+            variant_attempts: 0,
+            variant_last_attempt_at: null,
+          })
+          .eq("id", failedRow.id);
+        try {
+          await supabase.functions.invoke("process-variant-queue", {});
+        } catch {
+          /* non-fatal — pg_cron will pick it up */
+        }
+        toast.message(`Retrying card ${cardId}…`);
+        void reload();
+        return;
+      }
       onAction({ kind: "capture-card", cardId });
       return;
     }
     setActionSheetCardId(cardId);
+  };
+
+  /**
+   * 26-05-08-J — Fix 7: Re-upload the original zip and only save
+   * matches for cards that are CURRENTLY failed or empty. Already-
+   * saved cards are left untouched.
+   */
+  const handleReuploadZip = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".zip,application/zip";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      setBusy(true);
+      setImportProgress({ phase: "extract", current: 0, total: 1 });
+      try {
+        const { assets, oracleMeta } = await extractZip(file);
+        setImportProgress({
+          phase: "match",
+          current: 0,
+          total: assets.length,
+        });
+        const result = processImportAssets(assets, deckType, oracleMeta);
+
+        const { data: existingRows } = await supabase
+          .from("custom_deck_cards")
+          .select("card_id, processing_status")
+          .eq("deck_id", deckId)
+          .is("archived_at", null);
+        const savedIds = new Set(
+          (existingRows ?? [])
+            .filter((r) => r.processing_status === "saved")
+            .map((r) => r.card_id),
+        );
+
+        const assetByKey = new Map(assets.map((a) => [a.key, a]));
+        const workItems: Array<{
+          cardId: number;
+          asset: ImportAsset;
+        }> = [];
+        for (const [slotStr, assetKey] of Object.entries(result.assigned)) {
+          if (slotStr === "BACK") continue;
+          const cardId = Number(slotStr);
+          if (savedIds.has(cardId)) continue;
+          const a = assetByKey.get(assetKey);
+          if (!a) continue;
+          workItems.push({ cardId, asset: a });
+        }
+
+        if (workItems.length === 0) {
+          toast.message("No new cards to re-import.");
+          return;
+        }
+
+        const opts = {
+          shape:
+            deck.shape === "round"
+              ? ("round" as const)
+              : ("rectangle" as const),
+          cornerRadiusPercent: defaultRadiusPercent,
+        };
+        setImportProgress({
+          phase: "upload",
+          current: 0,
+          total: workItems.length,
+        });
+        let uploadedCount = 0;
+        for (const item of workItems) {
+          await saveCard({
+            userId,
+            deckId,
+            cardId: item.cardId,
+            cardKey: item.asset.key,
+            image: assetToImportImage(item.asset),
+            opts,
+            skipAutoVariant: true,
+          });
+          uploadedCount++;
+          setImportProgress({
+            phase: "upload",
+            current: uploadedCount,
+            total: workItems.length,
+          });
+        }
+        try {
+          await supabase.functions.invoke("process-variant-queue", {});
+        } catch {
+          /* non-fatal */
+        }
+        await reload();
+        toast.success(
+          `Re-imported ${workItems.length} card${workItems.length === 1 ? "" : "s"}. Processing in background.`,
+        );
+      } catch (err) {
+        if (err instanceof ZipTooLargeError || err instanceof ZipEmptyError) {
+          toast.error(err.message);
+        } else {
+          console.error("[DeckOverview] re-upload failed", err);
+          toast.error("Re-upload failed.");
+        }
+      } finally {
+        setBusy(false);
+        setImportProgress(null);
+      }
+    };
+    input.click();
   };
 
   const isEmpty = cards.length === 0 && !deck.card_back_url;
