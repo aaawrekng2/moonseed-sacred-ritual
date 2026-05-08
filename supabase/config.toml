@@ -1,1 +1,7 @@
 project_id = "zsbejabwxiarclgqeiqv"
+
+# 9-6-AH — background queue runner. Called by pg_cron every 30s
+# without a user JWT; the function uses the service-role key
+# internally and does not trust callers.
+[functions.process-variant-queue]
+verify_jwt = false
