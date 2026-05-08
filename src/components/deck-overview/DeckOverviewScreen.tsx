@@ -703,9 +703,6 @@ export function DeckOverviewScreen({
             }
             const photo = tile.photo;
             const rawSrc = photo.thumbnail_url ?? photo.display_url ?? null;
-            const tileSrc = rawSrc
-              ? variantUrlFor(rawSrc, "md") ?? rawSrc
-              : null;
             const label =
               photo.card_name ??
               (tile.cardId < 1000
@@ -727,13 +724,8 @@ export function DeckOverviewScreen({
                 )}
                 title={isAmbiguous ? `${label} · low-confidence match` : label}
               >
-                {tileSrc && (
-                  <img
-                    src={tileSrc}
-                    alt={label}
-                    className="h-full w-full object-contain"
-                    loading="lazy"
-                  />
+                {rawSrc && (
+                  <TileImage rawSrc={rawSrc} alt={label} />
                 )}
                 {isAmbiguous ? (
                   <span className="absolute right-1 top-1 rounded-full bg-yellow-500/90 p-0.5 text-cosmos">
