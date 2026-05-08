@@ -1399,8 +1399,10 @@ function ChamberWeaveGraph({
   const siblingList = Object.values(siblings).slice().sort((a, b) =>
     a.id.localeCompare(b.id),
   );
-  // Nothing meaningful to draw — bail.
-  if (siblingList.length === 0 && readings.length < 2) return null;
+  // 9-6-AH continuation — weave chamber only renders when there are
+  // sibling patterns to weave with. The internal-readings-only graph
+  // is empty noise; readings are listed below in ChamberTimeline.
+  if (siblingList.length === 0) return null;
 
   const activeId = hoveredId ?? focusId;
   const hasActive = activeId !== null;
