@@ -933,11 +933,13 @@ function ReadingCard({
   onOpen,
   patternsById,
   onArchive,
+  hasPhoto,
 }: {
   reading: ReadingRow;
   onOpen: (id: string) => void;
   patternsById: Record<string, PatternRow>;
   onArchive?: (id: string) => void;
+  hasPhoto?: boolean;
 }) {
   const guide = getGuideById(reading.guide_id);
   const isMobile = useIsMobile();
