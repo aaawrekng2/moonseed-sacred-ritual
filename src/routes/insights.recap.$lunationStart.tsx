@@ -180,7 +180,7 @@ function LunationRecapRoute() {
       />
 
       <div
-        className="pointer-events-none relative z-[1] flex flex-1 justify-center px-6"
+        className="relative z-[1] flex flex-1 justify-center px-6"
         style={{
           overflowY: "auto",
           overscrollBehaviorY: "contain",
