@@ -304,7 +304,7 @@ serve(async (req) => {
         const full = decoded.clone();
         applyRoundedMask(full, radius);
         const fullPng = await full.encode();
-        const fullPath = fullWebpPathFor(backPath);
+        let fullPath = fullWebpPathFor(backPath);
         if (!fullPath) throw new Error("unrecognized back path layout");
         let fullBytes: Uint8Array;
         let fullContentType = "image/webp";
@@ -321,9 +321,19 @@ serve(async (req) => {
               reject(e);
             }
           });
-        } catch {
+        } catch (e) {
+          console.error(
+            "[generate-deck-variants] back WebP encode failed; falling back to PNG",
+            {
+              error: e instanceof Error ? e.message : String(e),
+              stack: e instanceof Error ? e.stack : undefined,
+            },
+          );
           fullBytes = fullPng;
           fullContentType = "image/png";
+          // 9-6-AF — write PNG bytes to a .png path so Chrome ORB
+          // doesn't block the response on extension/content mismatch.
+          fullPath = fullPath.replace(/\.webp$/, ".png");
         }
         const upFull = await admin.storage.from(BUCKET).upload(
           fullPath,
@@ -331,6 +341,12 @@ serve(async (req) => {
           { contentType: fullContentType, upsert: true },
         );
         if (upFull.error) throw upFull.error;
+        if (fullContentType === "image/png") {
+          await admin.storage
+            .from(BUCKET)
+            .remove([fullPath.replace(/\.png$/, ".webp")])
+            .catch(() => {});
+        }
         await admin
           .from("custom_decks")
           .update({ card_back_path: fullPath })
