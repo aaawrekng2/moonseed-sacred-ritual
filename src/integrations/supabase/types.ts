@@ -102,6 +102,8 @@ export type Database = {
           thumbnail_url: string
           updated_at: string
           user_id: string
+          variant_attempts: number
+          variant_last_attempt_at: string | null
         }
         Insert: {
           archived_at?: string | null
@@ -124,6 +126,8 @@ export type Database = {
           thumbnail_url: string
           updated_at?: string
           user_id: string
+          variant_attempts?: number
+          variant_last_attempt_at?: string | null
         }
         Update: {
           archived_at?: string | null
@@ -146,6 +150,8 @@ export type Database = {
           thumbnail_url?: string
           updated_at?: string
           user_id?: string
+          variant_attempts?: number
+          variant_last_attempt_at?: string | null
         }
         Relationships: [
           {

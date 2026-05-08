@@ -309,59 +309,17 @@ export function DeckOverviewScreen({
           savedCardIds.push(item.cardId);
         }
       }
-      // Sequential variant pass — one invoke at a time.
-      if (savedCardIds.length > 0) {
-        setImportProgress({ phase: "variants", current: 0, total: savedCardIds.length });
-        const { data: sess } = await supabase.auth.getSession();
-        const jwt = sess.session?.access_token;
-        if (jwt) {
-          let vDone = 0;
-          for (const cardId of savedCardIds) {
-            if (cancelImportRef.current) {
-              console.log("[DeckOverview] import cancelled by user during variants pass");
-              break;
-            }
-            // 9-6-AG — retry once with 1.5s backoff. CPU-exceeded blips
-            // and transient network errors no longer leave gaps.
-            let success = false;
-            for (let attempt = 0; attempt < 2 && !success; attempt++) {
-              try {
-                const result = await supabase.functions.invoke(
-                  "generate-deck-variants",
-                  {
-                    body: { deckId, cardId },
-                    headers: { Authorization: `Bearer ${jwt}` },
-                  },
-                );
-                if (!result.error) {
-                  success = true;
-                } else if (attempt === 0) {
-                  console.warn("[DeckOverview] variant gen attempt 1 failed, retrying", { cardId, error: result.error });
-                  await new Promise((r) => setTimeout(r, 1500));
-                } else {
-                  console.error("[DeckOverview] variant gen retry failed", { cardId, error: result.error });
-                }
-              } catch (err) {
-                if (attempt === 0) {
-                  await new Promise((r) => setTimeout(r, 1500));
-                } else {
-                  console.warn("[DeckOverview] variant gen failed", { cardId, err });
-                }
-              }
-            }
-            vDone++;
-            setImportProgress({ phase: "variants", current: vDone, total: savedCardIds.length });
-          }
-        }
-      }
+      // 9-6-AH — variant generation deferred to the background queue
+      // (process-variant-queue, scheduled every 30s via pg_cron).
+      // processing_status is already 'pending' on each saved row.
+      void savedCardIds; // referenced only by the now-removed loop
       await reload();
-      if (cancelImportRef.current) {
-        toast.message("Import cancelled. Saved cards remain. Re-run Optimize to generate the rest.");
-      } else {
-        toast.success(
-          `Matched ${result.matchedCount} of ${totalSlots || result.matchedCount} cards`,
-        );
-      }
+      toast.success(
+        result.matchedCount === totalSlots
+          ? `Deck saved. Card images are processing in the background — they'll appear over the next few minutes.`
+          : `Saved ${result.matchedCount} of ${totalSlots || result.matchedCount} cards. Processing in the background.`,
+        { duration: 8000 },
+      );
     } catch (err) {
       if (err instanceof ZipTooLargeError || err instanceof ZipEmptyError) {
         toast.error(err.message);
