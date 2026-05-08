@@ -50,6 +50,7 @@ import type JSZip from "jszip";
 import { ImportFlow, type ImportResult } from "@/components/import/ImportFlow";
 import { usePremium } from "@/lib/premium";
 import { formatDateTime } from "@/lib/dates";
+import { PhotoArchive } from "./PhotoArchive";
 
 const CATEGORY_LABEL: Record<string, string> = {
   readings: "Readings",
@@ -514,6 +515,13 @@ export function DataTab() {
           <RotateCcw className="h-4 w-4" />
           Clear local cache
         </Button>
+      </SettingsSection>
+
+      <SettingsSection
+        title="Archived photos"
+        description="Reading photos you removed are kept here so you can restore or permanently delete them."
+      >
+        <PhotoArchive userId={user.id} />
       </SettingsSection>
 
       <SettingsSection

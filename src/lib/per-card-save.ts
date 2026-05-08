@@ -36,6 +36,12 @@ export type SaveCardArgs = {
   image: ImportImage;
   /** Encoding shape/corner — matches the deck record. */
   opts: ProcessOpts;
+  /**
+   * 9-6-AE — when true, do NOT fire the auto-variant edge function
+   * after this save. Bulk import flows pass this so they can drive a
+   * sequential variant pass instead of N parallel invocations.
+   */
+  skipAutoVariant?: boolean;
 };
 
 export type SaveResult =
@@ -188,7 +194,7 @@ async function doSaveCard(args: SaveCardArgs): Promise<SaveResult> {
     // 9-6-X — fire-and-forget with retry-once. Saves stay fast;
     // failures surface to the console; the Optimize button
     // (batch reconciler) is the safety net.
-    if (cardId !== "BACK") {
+    if (cardId !== "BACK" && !args.skipAutoVariant) {
       const fireAndForgetWithRetry = async () => {
         try {
           const { data: sess } = await supabase.auth.getSession();
