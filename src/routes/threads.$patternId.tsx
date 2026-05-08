@@ -114,6 +114,10 @@ function PatternChamber() {
   const [undoing, setUndoing] = useState(false);
   // FU-14 — Reading detail modal state for the pattern timeline.
   const [openReadingId, setOpenReadingId] = useState<string | null>(null);
+  // 9-6-AH continuation — synthesis is fetched once by PatternSynthesis,
+  // then propagated here so per-reading connectors can flow into the
+  // ChamberTimeline excerpt cards.
+  const [synthesis, setSynthesis] = useState<PatternInterpretation | null>(null);
 
   const noteHasUnsavedChanges = () => {
     const original = (pattern?.description ?? "").trim();
