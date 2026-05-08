@@ -896,17 +896,6 @@ function PatternSynthesis({
         border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
       }}
     >
-      <h2
-        style={{
-          margin: 0,
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-heading-sm)",
-          color: "var(--accent, var(--gold))",
-        }}
-      >
-        Synthesis
-      </h2>
       {state.kind === "loading" && (
         <p style={{ marginTop: 12, opacity: 0.6, fontStyle: "italic" }}>
           Listening for the through-line…
