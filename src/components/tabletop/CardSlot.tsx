@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { getCardName } from "@/lib/tarot";
 import { CardImage } from "@/components/card/CardImage";
 import type { CardBackId } from "@/lib/card-backs";
+import { useActiveDeckImage, variantUrlFor } from "@/lib/active-deck";
 import { cn } from "@/lib/utils";
 import { TABLETOP_CONFIG } from "./config";
 import type { CardState } from "./types";
@@ -88,6 +89,8 @@ export function CardSlot({
   containerElRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const isSelected = card.selectionOrder !== null;
+  // 9-6-Y — image resolver used to prefetch the -md.webp variant on tap.
+  const resolveDeckImage = useActiveDeckImage();
   // When the card landed in the slot via a physical drag-drop we skip
   // the FLIP-style flight animation entirely — the user just placed it
   // there, animating it from the scatter coords (where it would re-mount
@@ -485,6 +488,18 @@ export function CardSlot({
     if (dragStateRef.current?.didDrag || dragging) return;
     setTapTick((t) => t + 1);
     onSelect();
+    // 9-6-Y — prefetch the -md.webp variant for the picked card so
+    // the eventual flip-table reveal feels instant.
+    try {
+      const url = resolveDeckImage(faceIndex);
+      if (url) {
+        const mdUrl = variantUrlFor(url, "md") ?? url;
+        const img = new Image();
+        img.src = mdUrl;
+      }
+    } catch {
+      // best-effort prefetch only
+    }
   };
 
   return (

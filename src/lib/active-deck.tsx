@@ -186,6 +186,21 @@ export function useActiveDeckCornerRadius(): number | null {
 }
 
 /**
+ * 9-6-Y — Pre-measured natural aspect (height / width) of a card in
+ * the seeker's currently-active deck. Returns null when no aspect
+ * has been cached yet (e.g. cold start, default Rider-Waite deck,
+ * or measurement still pending). CardImage uses this for first-paint
+ * sizing so card bottoms aren't briefly cropped while the IMG decodes.
+ */
+export function useActiveDeckCardAspect(
+  cardId: number | null | undefined,
+): number | null {
+  const { imageMap } = useActiveDeck();
+  if (cardId == null) return null;
+  return imageMap.aspectByCardId[cardId] ?? null;
+}
+
+/**
  * DB-3.1 — Resolve a card image for a SPECIFIC deck_id.
  *
  * Used when displaying a saved/historical reading: the reading's saved

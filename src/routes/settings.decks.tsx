@@ -362,6 +362,55 @@ function DeckRow({
       let totalSkipped = 0;
       let totalFailed = 0;
       let totalCards = 0;
+      // 9-6-Y — Pass 1: single-card invocations to (re)generate any
+      // missing -full.webp masters. Each call gets fresh edge-function
+      // memory, avoiding the 256MB cap that batch -full reconciliation
+      // hit on high-DPI oracle scans.
+      try {
+        const { data: cardsList, error: listErr } = await supabase
+          .from("custom_deck_cards")
+          .select("id, card_id, display_path")
+          .eq("deck_id", deck.id)
+          .is("archived_at", null);
+        if (listErr) throw listErr;
+        const candidates = (cardsList ?? []).filter(
+          (c) =>
+            c.display_path &&
+            !c.display_path.endsWith("-full.webp"),
+        );
+        if (candidates.length > 0) {
+          let fullDone = 0;
+          toast.loading(
+            `Generating master images… 0/${candidates.length}`,
+            { id: progressToastId },
+          );
+          for (const c of candidates) {
+            const result = await supabase.functions.invoke(
+              "generate-deck-variants",
+              {
+                body: { deckId: deck.id, cardId: c.card_id },
+                headers: { Authorization: `Bearer ${jwt}` },
+              },
+            );
+            if (result.error) {
+              console.warn("[Optimize] single-card failed", {
+                cardId: c.card_id,
+                error: result.error,
+              });
+              totalFailed++;
+            } else {
+              totalGenerated++;
+            }
+            fullDone++;
+            toast.loading(
+              `Generating master images… ${fullDone}/${candidates.length}`,
+              { id: progressToastId },
+            );
+          }
+        }
+      } catch (passErr) {
+        console.warn("[Optimize] master-pass enumeration failed", passErr);
+      }
       // Safety cap — even with 78 cards and BATCH_SIZE=12 we expect
       // ≤ 7 invocations. Cap loops at 50 to avoid pathological cycles.
       let safety = 50;

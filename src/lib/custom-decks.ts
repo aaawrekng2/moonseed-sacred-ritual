@@ -59,6 +59,12 @@ export type DeckImageMap = {
    * without an extra round trip.
    */
   cornerRadiusPercent: number | null;
+  /**
+   * 9-6-Y — Pre-measured natural aspect (height / width) per card.
+   * Lets CardImage size its wrapper correctly on FIRST PAINT, avoiding
+   * the brief bottom-crop while the IMG decodes and onLoad fires.
+   */
+  aspectByCardId: Record<number, number>;
 };
 
 export const EMPTY_DECK_IMAGE_MAP: DeckImageMap = {
@@ -66,6 +72,7 @@ export const EMPTY_DECK_IMAGE_MAP: DeckImageMap = {
   thumbnail: {},
   back: null,
   cornerRadiusPercent: null,
+  aspectByCardId: {},
 };
 
 export async function fetchUserDecks(userId: string): Promise<CustomDeck[]> {
@@ -101,7 +108,13 @@ export async function fetchDeckCards(deckId: string): Promise<CustomDeckCard[]> 
 
 export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   const cards = await fetchDeckCards(deckId);
-  const map: DeckImageMap = { display: {}, thumbnail: {}, back: null, cornerRadiusPercent: null };
+  const map: DeckImageMap = {
+    display: {},
+    thumbnail: {},
+    back: null,
+    cornerRadiusPercent: null,
+    aspectByCardId: {},
+  };
   // Re-sign from storage paths so we never serve stale/expired signed URLs.
   // Falls back to the stored URL when a path is missing (legacy rows).
   const yearSecs = 60 * 60 * 24 * 365;
@@ -192,6 +205,43 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   // so they don't render as huge percentages on existing rows.
   map.cornerRadiusPercent =
     typeof cr === "number" ? Math.max(0, Math.min(20, Math.round(cr))) : null;
+  // 9-6-Y — pre-measure natural aspects so CardImage's wrapper can
+  // render at the correct height on FIRST PAINT. Without this, decks
+  // whose card images aren't 5:8 briefly clip at the bottom while the
+  // IMG decodes and onLoad fires.
+  if (typeof window !== "undefined") {
+    const entries = Object.entries(map.display);
+    if (entries.length > 0) {
+      try {
+        await Promise.all(
+          entries.map(([cardIdStr, url]) =>
+            new Promise<void>((resolve) => {
+              const cardId = Number(cardIdStr);
+              if (!Number.isFinite(cardId)) {
+                resolve();
+                return;
+              }
+              const img = new Image();
+              const done = () => resolve();
+              img.onload = () => {
+                if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                  map.aspectByCardId[cardId] =
+                    img.naturalHeight / img.naturalWidth;
+                }
+                done();
+              };
+              img.onerror = done;
+              // Prefer thumbnail (smaller, faster) for measurement;
+              // aspect is identical to the full image.
+              img.src = map.thumbnail[cardId] ?? url;
+            }),
+          ),
+        );
+      } catch {
+        // best-effort only
+      }
+    }
+  }
   // 9-6-P — diagnostic: how many cards have been processed by the
   // edge function (and therefore have the corner-cropped variant)
   // versus how many are still on the raw upload.
