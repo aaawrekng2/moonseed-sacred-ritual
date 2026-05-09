@@ -1621,30 +1621,6 @@ export function DeckOverviewScreen({
                   </div>
                 );
               })()}
-              <div className="flex flex-col gap-2 text-sm">
-                <button
-                  type="button"
-                  className="text-left underline hover:opacity-80"
-                  onClick={() => {
-                    const choice = pendingNumberingChoice;
-                    setPendingNumberingChoice(null);
-                    finishExtraction(choice.assets, choice.oracleMeta, true);
-                  }}
-                >
-                  Strip the numbers (e.g. &ldquo;01_the_magician&rdquo; → &ldquo;The Magician&rdquo;)
-                </button>
-                <button
-                  type="button"
-                  className="text-left underline hover:opacity-80"
-                  onClick={() => {
-                    const choice = pendingNumberingChoice;
-                    setPendingNumberingChoice(null);
-                    finishExtraction(choice.assets, choice.oracleMeta, false);
-                  }}
-                >
-                  Keep the numbers (e.g. &ldquo;01_the_magician&rdquo; → &ldquo;01 The Magician&rdquo;)
-                </button>
-              </div>
             </div>
           </div>,
           document.body,
