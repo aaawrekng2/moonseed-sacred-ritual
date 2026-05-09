@@ -74,7 +74,7 @@ export function LunationBanner() {
       <button
         type="button"
         onClick={open}
-        className="flex flex-1 items-center justify-between gap-2 text-left"
+        className="flex flex-1 items-center justify-between gap-2 text-left min-h-[44px] cursor-pointer transition-opacity active:opacity-70"
       >
         <div>
           <div
