@@ -2329,7 +2329,7 @@ function ReadingDetail({
               whiteSpace: "pre-wrap",
             }}
           >
-            {stripMarkdown(reading.interpretation)}
+            {stripMarkdown(stripLegacyMoonseedPrefix(reading.interpretation))}
           </article>
         )}
 
