@@ -75,8 +75,8 @@ export function ReadingDetailModal({
             ) : null}
 
             {(() => {
-              const positions = isValidSpreadMode(reading.spread_type)
-                ? SPREAD_META[reading.spread_type as SpreadMode].positions
+              const positions: readonly string[] = isValidSpreadMode(reading.spread_type)
+                ? (SPREAD_META[reading.spread_type as SpreadMode].positions ?? [])
                 : [];
               return (
                 <div className="flex flex-wrap justify-center gap-3">
