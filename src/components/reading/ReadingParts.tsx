@@ -1376,6 +1376,27 @@ export function buildCopyText({
   const lines: string[] = [];
   lines.push(`${spreadLabel} — Moonseed reading`);
   lines.push("");
+  lines.push(buildInterpretationBody({ interpretation, picks, positionLabels }));
+  return lines.join("\n").trim() + "\n";
+}
+
+/**
+ * Q16 Fix 3 — body-only formatter used when persisting the
+ * interpretation to `readings.interpretation`. Omits the
+ * "{spread} — Moonseed reading" prefix that buildCopyText adds for
+ * clipboard output, since that prefix was leaking into journal/
+ * story excerpts of older rows.
+ */
+export function buildInterpretationBody({
+  interpretation,
+  picks,
+  positionLabels,
+}: {
+  interpretation: InterpretationPayload;
+  picks: Pick[];
+  positionLabels: string[];
+}): string {
+  const lines: string[] = [];
   lines.push(interpretation.overview.trim());
   lines.push("");
   const positions = interpretation.positions.length
