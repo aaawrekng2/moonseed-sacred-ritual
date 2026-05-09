@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/ui/search-input";
 import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 import { useActiveDeckImage, useDeckImage, variantUrlFor } from "@/lib/active-deck";
+import { useActiveDeck } from "@/lib/active-deck";
 import { useAuth } from "@/lib/auth";
 import {
   fetchUserDecks,
@@ -104,6 +105,7 @@ export function CardPicker({
   // 9-6-G — per-slot deck switching. Both hooks must run unconditionally.
   const { user } = useAuth();
   const [decks, setDecks] = useState<CustomDeck[]>([]);
+  const { activeDeck } = useActiveDeck();
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
@@ -153,12 +155,28 @@ export function CardPicker({
     let cancelled = false;
     void fetchDeckCards(deckId).then((cards) => {
       if (!cancelled) {
+        // 26-05-08-M — Fix 6: when the seeker chose one of their
+        // uploaded cards as the deck back, that card has a real
+        // positive card_id but its display_url matches the deck's
+        // card_back_url. Filter it out so it doesn't appear as a
+        // drawable card.
+        const selectedDeck = decks.find((d) => d.id === deckId) ?? null;
+        const backUrl =
+          selectedDeck?.card_back_url ?? selectedDeck?.card_back_thumb_url ?? null;
         setDeckCards(
           cards
             // 26-05-08-L — never show the card back in the picker.
             // Back is stored on `custom_decks`, not in this table, but
             // we guard `card_id >= 0` defensively in case of legacy rows.
-            .filter((c) => c.source !== "default" && c.card_id >= 0)
+            .filter((c) => {
+              if (c.source === "default") return false;
+              if (c.card_id < 0) return false;
+              if (backUrl) {
+                if (c.display_url === backUrl) return false;
+                if (c.thumbnail_url === backUrl) return false;
+              }
+              return true;
+            })
             .sort((a, b) => a.card_id - b.card_id),
         );
       }
@@ -166,7 +184,8 @@ export function CardPicker({
     return () => {
       cancelled = true;
     };
-  }, [deckId]);
+  }, [deckId, decks]);
+  void activeDeck; // reserved for future cross-deck back filtering
 
   const photographed = useMemo(() => new Set(photographedIds), [photographedIds]);
   const excluded = useMemo(() => new Set(excludeCardIds), [excludeCardIds]);
