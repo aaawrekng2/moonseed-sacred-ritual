@@ -593,6 +593,7 @@ export type Database = {
           note: string | null
           pattern_id: string | null
           question: string | null
+          source: string | null
           spread_type: string
           tags: string[]
           user_id: string
@@ -622,6 +623,7 @@ export type Database = {
           note?: string | null
           pattern_id?: string | null
           question?: string | null
+          source?: string | null
           spread_type: string
           tags?: string[]
           user_id: string
@@ -651,6 +653,7 @@ export type Database = {
           note?: string | null
           pattern_id?: string | null
           question?: string | null
+          source?: string | null
           spread_type?: string
           tags?: string[]
           user_id?: string
@@ -782,6 +785,7 @@ export type Database = {
           show_reversals: boolean
           subscription_type: string
           sun_sign: string | null
+          tarotpulse_import_done: boolean
           timezone: string | null
           track_reversals: boolean
           tz_mode: string
@@ -845,6 +849,7 @@ export type Database = {
           show_reversals?: boolean
           subscription_type?: string
           sun_sign?: string | null
+          tarotpulse_import_done?: boolean
           timezone?: string | null
           track_reversals?: boolean
           tz_mode?: string
@@ -908,6 +913,7 @@ export type Database = {
           show_reversals?: boolean
           subscription_type?: string
           sun_sign?: string | null
+          tarotpulse_import_done?: boolean
           timezone?: string | null
           track_reversals?: boolean
           tz_mode?: string

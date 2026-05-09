@@ -5,6 +5,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 
+function initialMonth(
+  appearances: Array<{ readingId: string; date: string }>,
+): Date {
+  if (appearances.length === 0) return new Date();
+  const sorted = [...appearances].sort((a, b) => (a.date < b.date ? 1 : -1));
+  const d = new Date(sorted[0].date);
+  return new Date(d.getFullYear(), d.getMonth() - 1, 1);
+}
+
 export function StalkerCalendar({
   appearances,
 }: {
@@ -19,15 +28,14 @@ export function StalkerCalendar({
     [appearances],
   );
 
-  const [month, setMonth] = useState<Date>(() => {
-    if (appearances.length === 0) return new Date();
-    const sorted = [...appearances].sort((a, b) => (a.date < b.date ? 1 : -1));
-    const d = new Date(sorted[0].date);
-    // 26-05-08-M — Fix 8: start one month earlier so when we render
-    // two months side-by-side, both the penultimate and most recent
-    // appearance months are visible.
-    return new Date(d.getFullYear(), d.getMonth() - 1, 1);
-  });
+  const [month, setMonth] = useState<Date>(() => initialMonth(appearances));
+  // Q10 Fix 8 — re-anchor the visible month when the seeker switches
+  // to a different stalker. Without this the calendar stays parked on
+  // the previously-selected stalker's most recent appearance month.
+  useEffect(() => {
+    setMonth(initialMonth(appearances));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appearances]);
 
   // 26-05-08-M — Fix 8: 2 months side by side on screens ≥ 400px.
   const [numberOfMonths, setNumberOfMonths] = useState(1);

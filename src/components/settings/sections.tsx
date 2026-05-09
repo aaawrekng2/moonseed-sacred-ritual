@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Check, Loader2 } from "lucide-react";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 import { getSunSign, type SunSign } from "@/lib/sun-sign";
 import { calculateRisingSign, SIGN_EMOJI } from "@/lib/rising-sign";
@@ -128,6 +128,7 @@ function ProfileSectionInner({
 }) {
   const [name, setName] = useState(prefs.display_name ?? "");
   const [saving, setSaving] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const isAnonymous = !user.email;
 
@@ -147,6 +148,20 @@ function ProfileSectionInner({
     }
     setPrefs({ ...prefs, display_name: name.trim() });
     toast.success("Changes saved", { icon: "✓" });
+  };
+
+  // Q10 Fix 4 — debounced save on blur with tiny gold checkmark.
+  const commitName = async () => {
+    const trimmed = name.trim();
+    if (trimmed === (prefs.display_name ?? "")) return;
+    if (!trimmed) return;
+    const { error } = await updateUserPreferences(user.id, {
+      display_name: trimmed,
+    });
+    if (error) return;
+    setPrefs({ ...prefs, display_name: trimmed });
+    setSavedFlash(true);
+    setTimeout(() => setSavedFlash(false), 2000);
   };
 
   return (
@@ -232,13 +247,23 @@ function ProfileSectionInner({
         <div className="space-y-5">
           <div className="space-y-2">
             <Label htmlFor="display-name">Display name</Label>
-            <Input
-              id="display-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              maxLength={80}
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                id="display-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onBlur={() => void commitName()}
+                required
+                maxLength={80}
+              />
+              {savedFlash && (
+                <Check
+                  className="h-3 w-3"
+                  style={{ color: "var(--gold)" }}
+                  aria-label="Saved"
+                />
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
