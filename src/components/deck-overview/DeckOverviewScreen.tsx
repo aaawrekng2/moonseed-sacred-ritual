@@ -910,16 +910,16 @@ export function DeckOverviewScreen({
         <button
           type="button"
           onClick={() =>
-            deck.card_back_url
+            localBackUrl
               ? setActionSheetCardId("BACK")
               : onAction({ kind: "capture-back" })
           }
           className="relative flex h-20 w-14 items-center justify-center overflow-hidden rounded border border-border/60 bg-background"
-          title={deck.card_back_url ? "Tap to edit card back" : "Set card back"}
+          title={localBackUrl ? "Tap to edit card back" : "Set card back"}
         >
-          {deck.card_back_url ? (
+          {localBackUrl ? (
             <img
-              src={deck.card_back_url}
+              src={localBackUrl}
               alt="Card back"
               className="h-full w-full object-contain"
             />
@@ -932,8 +932,17 @@ export function DeckOverviewScreen({
             Card back
           </p>
           <p className="text-sm">
-            {deck.card_back_url ? "Tap to replace or remove" : "Tap to set"}
+            {localBackUrl ? "Tap to replace or remove" : "Tap to set"}
           </p>
+          {cards.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setPickingBack(true)}
+              className="mt-1 inline-flex items-center gap-1 text-[11px] italic text-muted-foreground underline hover:opacity-80"
+            >
+              <ImageIcon className="h-3 w-3" /> Choose from uploaded cards
+            </button>
+          )}
         </div>
       </div>
 
