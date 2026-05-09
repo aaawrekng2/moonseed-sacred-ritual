@@ -213,15 +213,20 @@ export function CardImage({
 
   const useSpecific = deckId != null && deckId !== "";
   const deckRadius = useSpecific ? specificRadius : activeRadius;
-  // 26-05-08-P — Fix 5: prefer per-deck card_name overrides for the
-  // accessible label so oracle decks announce "The Awakening" instead
-  // of the synthetic "Card 1005".
+  // 26-05-08-Q5 — Fix 1: when a specific deckId is supplied but its
+  // image map hasn't loaded yet (or doesn't contain that cardId),
+  // fall back to the active deck resolver. Same chain the share-card
+  // render uses (`getImage(deckId) ?? getActive() ?? default`). Without
+  // this, mixed-deck readings render blank for the entire window
+  // between mount and `buildDeckImageMap` resolution.
+  const specificName = useSpecific ? specificNameResolve(cardId ?? -1) : "";
+  const activeName = activeNameResolve(cardId ?? -1);
   const resolvedName =
-    typeof cardId === "number"
-      ? useSpecific
-        ? specificNameResolve(cardId)
-        : activeNameResolve(cardId)
-      : "";
+    typeof cardId !== "number"
+      ? ""
+      : useSpecific && specificName && !specificName.startsWith("Card ")
+        ? specificName
+        : activeName;
 
   const width = resolveWidth(size, widthPx);
   const radiusStyle: CSSProperties = {};
@@ -261,14 +266,16 @@ export function CardImage({
   };
 
   // Image src — `useDeckImage(deckId)` may return null while the
-  // specific deck's image map is still loading; fall back to the
-  // active deck resolver only when no `deckId` was supplied.
-  const baseFaceSrc =
-    typeof cardId === "number"
-      ? useSpecific
-        ? specificResolve(cardId)
-        : activeResolve(cardId)
-      : null;
+  // specific deck's image map is still loading. Q5 Fix 1: always
+  // fall back to the active deck resolver (and ultimately the
+  // bundled Rider-Waite default) so card art renders immediately
+  // even when a historical/mixed-deck pick references a deck whose
+  // map is still being fetched.
+  const specificSrc =
+    typeof cardId === "number" && useSpecific ? specificResolve(cardId) : null;
+  const activeSrc =
+    typeof cardId === "number" ? activeResolve(cardId) : null;
+  const baseFaceSrc = specificSrc ?? activeSrc;
   // EZ-7 — Use a smaller variant when one would suffice for the
   // rendered size. If the variant URL later 404s, onError flips
   // variantFailedFor and we re-render with the original.
@@ -419,6 +426,8 @@ export function CardImage({
             background:
               "color-mix(in oklab, var(--gold) 6%, transparent)",
             ...radiusStyle,
+            overflow: "hidden",
+            borderRadius: "inherit",
             ...(DEV_LOADING_OUTLINE ? { outline: DEV_LOADING_OUTLINE, outlineOffset: -2 } : null),
           }}
         />
