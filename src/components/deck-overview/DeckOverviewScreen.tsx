@@ -23,6 +23,7 @@ import {
   Camera,
   Check,
   ChevronLeft,
+  FolderArchive,
   Image as ImageIcon,
   Loader2,
   LayoutGrid,
