@@ -492,10 +492,8 @@ export function DeckOverviewScreen({
         .eq("card_id", cardId)
         .is("archived_at", null)
         .maybeSingle();
-      if (
-        failedRow?.original_path &&
-        failedRow.processing_status === "failed"
-      ) {
+      // 26-05-08-K — also retry stuck "pending" rows, not just "failed".
+      if (failedRow?.original_path) {
         await supabase
           .from("custom_deck_cards")
           .update({
@@ -1151,6 +1149,7 @@ export function DeckOverviewScreen({
                   }
                   return {
                     thumbnailDataUrl: a.thumbnailDataUrl ?? "",
+                    fullDataUrl: a.fullDataUrl,
                     cardName,
                   };
                 });
