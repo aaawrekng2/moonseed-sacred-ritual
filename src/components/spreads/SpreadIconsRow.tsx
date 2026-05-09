@@ -109,10 +109,10 @@ export function SpreadIconsRow({
   // remain for screen readers.
   return (
     <div
-      className="grid grid-cols-5 gap-2 px-4 pb-4 sm:gap-4 sm:px-6"
+      className="grid grid-cols-5 gap-4 px-5 pb-4 sm:gap-6 sm:px-8"
       style={{
         opacity: "var(--ro-plus-20)",
-        maxWidth: 480,
+        maxWidth: 520,
         width: "100%",
         margin: "0 auto",
       }}
