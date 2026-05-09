@@ -110,6 +110,7 @@ export function InlineReading({
     is_favorite: boolean;
     tags: string[] | null;
     tailored_prompt?: string | null;
+    journal_prompt_used?: boolean;
   } | null>(null);
   const [tagLibrary, setTagLibrary] = useState<EnrichmentTag[]>([]);
   const savedReadingRef = useRef<typeof savedReading>(null);
@@ -257,7 +258,7 @@ export function InlineReading({
                 deck_id: deckId ?? null,
               });
         const { data, error } = await query
-          .select("id,user_id,note,is_favorite,tags")
+          .select("id,user_id,note,is_favorite,tags,tailored_prompt,journal_prompt_used")
           .single();
         if (cancelled) return;
         if (error || !data) {
@@ -270,6 +271,9 @@ export function InlineReading({
           note: data.note,
           is_favorite: data.is_favorite,
           tags: data.tags,
+          tailored_prompt: (data as { tailored_prompt?: string | null }).tailored_prompt ?? null,
+          journal_prompt_used:
+            (data as { journal_prompt_used?: boolean }).journal_prompt_used ?? false,
         });
         void detectThreads({
           data: { user_id: uid },
@@ -424,6 +428,16 @@ export function InlineReading({
                 setSavedReading((prev) => (prev ? { ...prev, tailored_prompt: next } : prev))
               }
               onPremiumUpsell={() => navigate({ to: "/settings/moon" })}
+              journalPromptUsed={!!savedReading.journal_prompt_used}
+              onJournalPromptUsed={() => {
+                setSavedReading((prev) =>
+                  prev ? { ...prev, journal_prompt_used: true } : prev,
+                );
+                void supabase
+                  .from("readings")
+                  .update({ journal_prompt_used: true })
+                  .eq("id", savedReading.id);
+              }}
             />
           )}
           {(savedReading || (state.kind === "loaded" && state.readingId)) && (
