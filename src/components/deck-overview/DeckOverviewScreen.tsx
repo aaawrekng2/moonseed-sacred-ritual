@@ -1283,6 +1283,54 @@ export function DeckOverviewScreen({
           </div>,
           document.body,
         )}
+
+      {/* 26-05-08-K — Fix 7C: numbering prompt */}
+      {pendingNumberingChoice &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[130] flex items-center justify-center"
+            style={{
+              background: "color-mix(in oklab, var(--color-background) 70%, black)",
+            }}
+          >
+            <div
+              className="w-full max-w-sm rounded-xl border p-5"
+              style={{
+                borderColor: "var(--border-subtle)",
+                background: "var(--surface-card, var(--background))",
+              }}
+            >
+              <p className="mb-4 text-sm">
+                Your files appear to be numbered. How should card names be displayed?
+              </p>
+              <div className="flex flex-col gap-2 text-sm">
+                <button
+                  type="button"
+                  className="text-left underline hover:opacity-80"
+                  onClick={() => {
+                    const choice = pendingNumberingChoice;
+                    setPendingNumberingChoice(null);
+                    finishExtraction(choice.assets, choice.oracleMeta, true);
+                  }}
+                >
+                  Strip the numbers (e.g. &ldquo;01_the_magician&rdquo; → &ldquo;The Magician&rdquo;)
+                </button>
+                <button
+                  type="button"
+                  className="text-left underline hover:opacity-80"
+                  onClick={() => {
+                    const choice = pendingNumberingChoice;
+                    setPendingNumberingChoice(null);
+                    finishExtraction(choice.assets, choice.oracleMeta, false);
+                  }}
+                >
+                  Keep the numbers (e.g. &ldquo;01_the_magician&rdquo; → &ldquo;01 The Magician&rdquo;)
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </section>
   );
 }
