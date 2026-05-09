@@ -284,7 +284,7 @@ function JournalPage() {
           supabase
             .from("readings")
             .select(
-              "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id",
+              "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,tailored_prompt",
             )
             .eq("user_id", user.id)
             .is("archived_at", null)
@@ -473,7 +473,7 @@ function JournalPage() {
       const { data } = await supabase
         .from("readings")
         .select(
-          "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,archived_at",
+          "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,archived_at,tailored_prompt",
         )
         .eq("id", openId)
         .eq("user_id", user.id)
@@ -842,7 +842,7 @@ function JournalPage() {
                 const { data: rows } = await supabase
                   .from("readings")
                   .select(
-                    "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id",
+                    "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,tailored_prompt",
                   )
                   .eq("user_id", user.id)
                   .is("archived_at", null)
@@ -884,7 +884,7 @@ function JournalPage() {
               const { data: rows } = await supabase
                 .from("readings")
                 .select(
-                  "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id",
+                  "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,tailored_prompt",
                 )
                 .eq("user_id", user.id)
                 .is("archived_at", null)
