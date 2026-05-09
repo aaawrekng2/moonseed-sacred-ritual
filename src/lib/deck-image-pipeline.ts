@@ -111,9 +111,16 @@ export async function encodeOne(
   rawBlob: Blob,
   opts: ProcessOpts,
 ): Promise<EncodedAsset> {
+  // 26-05-08-O — produce ALL variants client-side. The edge function
+  // is no longer involved in the import critical path.
   const displayBlob = await encode(rawBlob, opts, 1536, 0.85);
+  const mdBlob = await encode(rawBlob, opts, 400, 0.8);
+  const smBlob = await encode(rawBlob, opts, 200, 0.8);
   const thumbnailBlob = await encode(rawBlob, opts, 256, 0.8);
-  return { key, displayBlob, thumbnailBlob };
+  // Cap stored original at 2000px max edge so 5MB+ raw scans don't
+  // blow up storage/egress budgets.
+  const originalBlob = await encode(rawBlob, opts, 2000, 0.92);
+  return { key, displayBlob, thumbnailBlob, smBlob, mdBlob, originalBlob };
 }
 
 /* ------------------------------------------------------------------ */
