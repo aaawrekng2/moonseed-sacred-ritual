@@ -474,7 +474,7 @@ function CardFace({
               animation begins — otherwise the first reveal shows a blank
               front while the image is still fetching. */}
           <img
-            src={cardImg(pick.cardIndex)}
+            src={cardImg(pick.cardIndex) ?? undefined}
             alt={getCardName(pick.cardIndex)}
             className="h-full w-full object-contain"
             loading="eager"
@@ -998,7 +998,7 @@ export function ManualSpreadSlots({
       >
         {pick ? (
           <img
-            src={resolveForPick(pick)}
+            src={resolveForPick(pick) ?? undefined}
             alt={nameForPick(pick)}
             onLoad={(e) => {
               const img = e.currentTarget;
