@@ -982,7 +982,9 @@ function ReadingActions({
         card_ids: picks.map((p) => p.cardIndex),
         card_orientations: picks.map((p) => p.isReversed ?? false),
         // Q3 — Fix 4: per-card source deck (parallel to card_ids).
-        card_deck_ids: picks.map((p) => p.deckId ?? deckId ?? null),
+        card_deck_ids: picks.map(
+          (p) => (p.deckId ?? deckId ?? null) as string,
+        ),
         interpretation: null,
         guide_id: guideId,
         lens_id: lensId,
