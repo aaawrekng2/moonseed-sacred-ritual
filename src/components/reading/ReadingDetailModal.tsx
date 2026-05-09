@@ -12,6 +12,7 @@ import { CardImage } from "@/components/card/CardImage";
 import { Modal } from "@/components/ui/modal";
 import { LoadingText } from "@/components/ui/loading-text";
 import { formatDateTime } from "@/lib/dates";
+import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 
 export function ReadingDetailModal({
   readingId,
@@ -64,32 +65,51 @@ export function ReadingDetailModal({
           <article className="px-6 pb-12">
             {reading.question ? (
               <header className="mb-4">
-                <h2 className="mt-2 font-serif italic" style={{ fontSize: "var(--text-heading-sm)" }}>
-                  {reading.question}
+                <h2
+                  className="mt-2 font-serif italic text-center"
+                  style={{ fontSize: "var(--text-heading-md, 1.25rem)", color: "var(--gold)" }}
+                >
+                  “{reading.question}”
                 </h2>
               </header>
             ) : null}
 
-            <div className="flex flex-wrap justify-center gap-3">
-              {(reading.card_ids ?? []).map((cid: number, idx: number) => {
-                const reversed = !!(reading.card_orientations ?? [])[idx];
-                return (
-                  <div key={`${cid}-${idx}`} style={{ width: 96 }}>
-                    <CardImage
-                      cardId={cid}
-                      reversed={reversed}
-                      size="custom"
-                      widthPx={96}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+            {(() => {
+              const positions = isValidSpreadMode(reading.spread_type)
+                ? SPREAD_META[reading.spread_type as SpreadMode].positions
+                : [];
+              return (
+                <div className="flex flex-wrap justify-center gap-3">
+                  {(reading.card_ids ?? []).map((cid: number, idx: number) => {
+                    const reversed = !!(reading.card_orientations ?? [])[idx];
+                    const label = positions[idx];
+                    return (
+                      <div key={`${cid}-${idx}`} style={{ width: 96 }} className="flex flex-col items-center">
+                        <CardImage
+                          cardId={cid}
+                          reversed={reversed}
+                          size="custom"
+                          widthPx={96}
+                        />
+                        {label && (
+                          <span className="mt-1 text-center text-[10px] uppercase tracking-wider text-muted-foreground">
+                            {label}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             {reading.note ? (
-              <section className="mt-6">
-                <h3 className="mb-1 text-xs uppercase tracking-wider text-muted-foreground">
-                  Note
+              <section
+                className="mt-6 rounded-lg p-3"
+                style={{ background: "color-mix(in oklab, var(--gold) 6%, transparent)" }}
+              >
+                <h3 className="mb-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  Notes
                 </h3>
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">{reading.note}</p>
               </section>
@@ -111,10 +131,13 @@ export function ReadingDetailModal({
               </section>
             ) : null}
 
-            <footer className="mt-8 text-center">
+            <footer
+              className="mt-8 border-t pt-4 text-center"
+              style={{ borderColor: "color-mix(in oklab, var(--gold) 15%, transparent)" }}
+            >
               <a
                 href={`/journal?openId=${reading.id}`}
-                className="text-xs underline-offset-2 hover:underline"
+                className="text-xs uppercase tracking-[0.18em] underline-offset-2 hover:underline"
                 style={{ color: "var(--gold)" }}
               >
                 Open in Journal →
