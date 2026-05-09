@@ -93,6 +93,7 @@ export type Database = {
           display_path: string
           display_url: string
           id: string
+          journal_prompts: string[] | null
           original_path: string | null
           processed_at: string | null
           processing_status: string
@@ -117,6 +118,7 @@ export type Database = {
           display_path: string
           display_url: string
           id?: string
+          journal_prompts?: string[] | null
           original_path?: string | null
           processed_at?: string | null
           processing_status?: string
@@ -141,6 +143,7 @@ export type Database = {
           display_path?: string
           display_url?: string
           id?: string
+          journal_prompts?: string[] | null
           original_path?: string | null
           processed_at?: string | null
           processing_status?: string
@@ -596,6 +599,7 @@ export type Database = {
           source: string | null
           spread_type: string
           tags: string[]
+          tailored_prompt: string | null
           user_id: string
         }
         Insert: {
@@ -626,6 +630,7 @@ export type Database = {
           source?: string | null
           spread_type: string
           tags?: string[]
+          tailored_prompt?: string | null
           user_id: string
         }
         Update: {
@@ -656,6 +661,7 @@ export type Database = {
           source?: string | null
           spread_type?: string
           tags?: string[]
+          tailored_prompt?: string | null
           user_id?: string
         }
         Relationships: [
