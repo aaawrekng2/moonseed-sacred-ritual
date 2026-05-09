@@ -37,7 +37,7 @@ function DrawPage() {
   const { recordDraw } = useStreak();
 
   const [picks, setPicks] = useState<
-    { id: number; cardIndex: number; isReversed: boolean }[] | null
+    { id: number; cardIndex: number; isReversed: boolean; deckId?: string | null }[] | null
   >(null);
   // Phase 9.5b — track how the picks were produced so we can persist
   // `entry_mode` ('digital' | 'manual') alongside the saved reading.
@@ -216,7 +216,11 @@ function DrawPage() {
               ? p.map((pp) => pp.isReversed ?? false)
               : generateOrientations(p.length, allowReversed);
             setPicks(
-              p.map((pick, i) => ({ ...pick, isReversed: orientations[i] })),
+              p.map((pick, i) => ({
+                ...pick,
+                isReversed: orientations[i],
+                deckId: pick.deckId ?? null,
+              })),
             );
             setEntryMode(isManual ? "manual" : "digital");
             setPhase(mode === "cast" ? "cast" : "reading");

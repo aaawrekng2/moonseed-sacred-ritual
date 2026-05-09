@@ -1176,6 +1176,14 @@ export function DeckOverviewScreen({
                   ? getCardName(tile.cardId)
                   : `Card ${tile.cardId}`;
               const isAmbiguous = tile.kind === "ambiguous";
+              // Q3 — Fix 7: a card whose display_url matches the deck's
+              // chosen card_back_url is "used as back". Stay in the list
+              // (still editable) but mark visually so the seeker knows
+              // it's been promoted to the back of the deck.
+              const isUsedAsBack =
+                !!localBackUrl &&
+                (photo.display_url === localBackUrl ||
+                  photo.thumbnail_url === localBackUrl);
               return (
                 <li
                   key={tile.cardId}
@@ -1183,7 +1191,9 @@ export function DeckOverviewScreen({
                     "flex items-start gap-3 rounded-md border p-2",
                     isAmbiguous
                       ? "border-yellow-500/60 bg-yellow-500/5"
-                      : "border-border/60",
+                      : isUsedAsBack
+                        ? "border-2 border-gold/60"
+                        : "border-border/60",
                   )}
                 >
                   <button
@@ -1220,6 +1230,11 @@ export function DeckOverviewScreen({
                       className="w-full rounded border border-border/40 bg-background px-2 py-1 text-sm focus:border-gold/60 focus:outline-none"
                       aria-label={`Card name for ${defaultName}`}
                     />
+                    {isUsedAsBack && (
+                      <p className="mt-0.5 text-[10px] italic text-gold/70">
+                        Used as back
+                      </p>
+                    )}
                     <textarea
                       defaultValue={photo.card_description ?? ""}
                       onBlur={(e) => {
