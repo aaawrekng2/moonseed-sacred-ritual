@@ -682,7 +682,7 @@ function JournalPage() {
           [
             ["readings", "Readings", BookOpen],
             ["gallery", "Gallery", ImageIcon],
-            ["notes", "Notes", Pencil],
+            ["notes", "Notes", StickyNote],
             ["favorites", "Favorites", Heart],
             ["calendar", "Calendar", CalendarDays],
             ["threads", "Stories", Network],
