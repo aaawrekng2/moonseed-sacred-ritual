@@ -111,7 +111,6 @@ async function uploadEncoded(
   thumbBlob: Blob,
   smBlob: Blob | undefined,
   mdBlob: Blob | undefined,
-  originalBlob: Blob | undefined,
 ) {
   const ts = Date.now();
   const slot = cardId === "BACK" ? "back" : `card-${cardId}`;
@@ -122,13 +121,12 @@ async function uploadEncoded(
   const thumbPath = `${base}-thumb.webp`;
   const smPath = `${base}-sm.webp`;
   const mdPath = `${base}-md.webp`;
-  const originalPath = `${base}-original.webp`;
   // 26-05-08-P — Fix 1: storage upload errors come back as `{ error }`
   // (NOT thrown). Audit each result individually so silent failures on
   // non-critical variants don't poison the whole save, and so that
   // critical (display/thumb) failures surface immediately.
   const opts = { contentType: "image/webp", upsert: true } as const;
-  const [displayRes, thumbRes, smRes, mdRes, originalRes] = await Promise.all([
+  const [displayRes, thumbRes, smRes, mdRes] = await Promise.all([
     supabase.storage.from(DECK_BUCKET).upload(displayPath, displayBlob, opts),
     supabase.storage.from(DECK_BUCKET).upload(thumbPath, thumbBlob, opts),
     smBlob
@@ -136,9 +134,6 @@ async function uploadEncoded(
       : Promise.resolve({ error: null }),
     mdBlob
       ? supabase.storage.from(DECK_BUCKET).upload(mdPath, mdBlob, opts)
-      : Promise.resolve({ error: null }),
-    originalBlob
-      ? uploadWithRetry(originalPath, originalBlob, opts)
       : Promise.resolve({ error: null }),
   ]);
   if (displayRes.error)
@@ -149,11 +144,6 @@ async function uploadEncoded(
     console.warn("[per-card-save] sm upload failed (non-fatal)", smRes.error);
   if (mdRes.error)
     console.warn("[per-card-save] md upload failed (non-fatal)", mdRes.error);
-  if (originalRes.error)
-    console.warn(
-      "[per-card-save] original upload failed (non-fatal)",
-      originalRes.error,
-    );
   const yearSecs = 60 * 60 * 24 * 365;
   const [{ data: d1 }, { data: d2 }] = await Promise.all([
     supabase.storage.from(DECK_BUCKET).createSignedUrl(displayPath, yearSecs),
@@ -164,7 +154,6 @@ async function uploadEncoded(
     displayPath,
     thumbnailUrl: d2?.signedUrl ?? d1?.signedUrl ?? "",
     thumbnailPath: thumbPath,
-    originalPath: originalBlob ? originalPath : null,
   };
 }
 
@@ -194,7 +183,6 @@ async function doSaveCard(args: SaveCardArgs): Promise<SaveResult> {
       asset.thumbnailBlob,
       asset.smBlob,
       asset.mdBlob,
-      asset.originalBlob,
     );
     if (cardId === "BACK") {
       const { error, data } = await supabase
@@ -234,7 +222,6 @@ async function doSaveCard(args: SaveCardArgs): Promise<SaveResult> {
           thumbnail_url: uploaded.thumbnailUrl,
           display_path: uploaded.displayPath,
           thumbnail_path: uploaded.thumbnailPath,
-          original_path: uploaded.originalPath,
           source: "imported",
           // 9-6-A — oracle cards carry user-editable name/meaning.
           card_name: image.oracleName ?? null,
