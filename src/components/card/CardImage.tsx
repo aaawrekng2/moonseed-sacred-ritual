@@ -419,20 +419,9 @@ export function CardImage({
                   if (img.naturalWidth > 0 && img.naturalHeight > 0) {
                     setFaceAspect(img.naturalHeight / img.naturalWidth);
                   }
-                  setImageLoaded(true);
+                  handleImgLoad();
                 }}
-                onError={() => {
-                  // 26-05-08-Q2 — Fix 8: variant.webp → base displayUrl.
-                  if (
-                    variantFailedFor !== "all" &&
-                    baseFaceSrc &&
-                    faceSrc !== baseFaceSrc
-                  ) {
-                    setVariantFailedFor("all");
-                  } else {
-                    setImageLoaded(true);
-                  }
-                }}
+                onError={handleImgError}
                 style={{
                   // FC-1 — wrapper sized to match IMG's natural
                   // aspect, so 100%/100% fits with no letterbox.
@@ -514,19 +503,8 @@ export function CardImage({
             src={faceSrc}
             alt={ariaLabel ?? resolvedName}
             loading="lazy"
-            onLoad={() => setImageLoaded(true)}
-            onError={() => {
-              // 26-05-08-Q2 — Fix 8: variant.webp → base displayUrl.
-              if (
-                variantFailedFor !== "all" &&
-                baseFaceSrc &&
-                faceSrc !== baseFaceSrc
-              ) {
-                setVariantFailedFor("all");
-              } else {
-                setImageLoaded(true);
-              }
-            }}
+            onLoad={handleImgLoad}
+            onError={handleImgError}
             style={{
               // EY-2 — width matches wrapper; height auto-derives
               // from the image's natural aspect.
