@@ -845,7 +845,13 @@ function ChamberCardEvidence({
   userId: string | undefined;
 }) {
   const [threads, setThreads] = useState<
-    Array<{ id: string; summary: string }>
+    Array<{
+      id: string;
+      summary: string;
+      card_ids: number[];
+      recurrence_count: number;
+      title: string | null;
+    }>
   >([]);
 
   useEffect(() => {
@@ -854,7 +860,7 @@ function ChamberCardEvidence({
     void (async () => {
       const { data } = await supabase
         .from("symbolic_threads")
-        .select("id, summary")
+        .select("id, summary, card_ids, recurrence_count, title")
         .eq("user_id", userId)
         .eq("pattern_id", patternId)
         .order("detected_at", { ascending: false });
@@ -863,6 +869,9 @@ function ChamberCardEvidence({
         (data ?? []).map((t) => ({
           id: t.id as string,
           summary: (t.summary as string) ?? "",
+          card_ids: ((t.card_ids as number[] | null) ?? []),
+          recurrence_count: ((t.recurrence_count as number | null) ?? 0),
+          title: (t.title as string | null) ?? null,
         })),
       );
     })();
@@ -897,22 +906,46 @@ function ChamberCardEvidence({
           gap: "var(--space-2, 8px)",
         }}
       >
-        {threads.map((t) => (
-          <li
-            key={t.id}
-            style={{
-              padding: "var(--space-3, 12px)",
-              borderRadius: "var(--radius-md, 10px)",
-              background: "var(--surface-card, rgba(255,255,255,0.03))",
-              border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
-              fontSize: "var(--text-body-sm)",
-              color: "var(--color-foreground)",
-              opacity: 0.85,
-            }}
-          >
-            {t.summary}
-          </li>
-        ))}
+        {threads.map((t) => {
+          // Q15 Fix 2 — deterministic prose using ONLY the cards we
+          // know belong to this thread. Replaces the AI-generated
+          // summary which hallucinated cards that weren't in the
+          // evidence list.
+          const names = t.card_ids
+            .slice(0, 3)
+            .map((c) => getCardName(c))
+            .filter(Boolean);
+          const namesPhrase =
+            names.length === 0
+              ? t.title || "These cards"
+              : names.length === 1
+                ? names[0]
+                : names.length === 2
+                  ? `${names[0]} and ${names[1]}`
+                  : `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+          const count = t.recurrence_count;
+          const recurrencePhrase =
+            count > 1
+              ? `${namesPhrase} have returned ${count} times — a recurring presence in your story.`
+              : `${namesPhrase} surfaced as a recurring presence in your story.`;
+          return (
+            <li
+              key={t.id}
+              style={{
+                padding: "var(--space-3, 12px)",
+                borderRadius: "var(--radius-md, 10px)",
+                background: "var(--surface-card, rgba(255,255,255,0.03))",
+                border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--color-foreground)",
+                opacity: 0.85,
+                lineHeight: 1.5,
+              }}
+            >
+              {recurrencePhrase}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
