@@ -16,6 +16,20 @@ import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { ManualSpreadSlots } from "@/components/tabletop/SpreadLayout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
+import { getCardName } from "@/lib/tarot";
+
+const CELTIC_POSITION_LABELS = [
+  "Significator",
+  "Crossing",
+  "Foundation",
+  "Recent Past",
+  "Crown",
+  "Near Future",
+  "Self",
+  "Environment",
+  "Hopes & Fears",
+  "Outcome",
+];
 
 export type ManualPick = {
   id: number;
@@ -71,6 +85,7 @@ export function ManualEntryBuilder({
 
   const allFilled = picks.every((p) => p !== null);
   const placedIds = picks.filter((p): p is ManualPick => !!p).map((p) => p.cardIndex);
+  const isCelticManualEntry = spread === "celtic";
 
   const handlePick = (
     cardIndex: number,
@@ -134,8 +149,61 @@ export function ManualEntryBuilder({
 
         {/* Phase 9.5b Fix 5 — slot positions match the SpreadLayout used
             by the reading screen exactly, so manual entry feels like the
-            same spread the seeker is about to read. */}
-        <ManualSpreadSlots
+            same spread the seeker is about to read.
+            Q13 Fix 6 — celtic switches to a compact vertical list in
+            manual entry so all 10 slots are reachable; the post-Done
+            tabletop still renders the full cross/staff layout. */}
+        {isCelticManualEntry ? (
+          <div className="flex w-full max-w-md mx-auto flex-col gap-2">
+            {Array.from({ length: required }).map((_, i) => {
+              const p = picks[i];
+              const label = CELTIC_POSITION_LABELS[i] ?? labels[i] ?? `Card ${i + 1}`;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setPickerSlot(i)}
+                  className="flex items-center justify-between rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2 text-left transition hover:border-gold/40 hover:bg-gold/5"
+                >
+                  <span className="flex items-center gap-3">
+                    <span
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] tabular-nums"
+                      style={{
+                        background: "color-mix(in oklab, var(--gold) 14%, transparent)",
+                        color: "var(--gold)",
+                      }}
+                    >
+                      {i + 1}
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: "var(--text-body-sm, 0.9rem)",
+                      }}
+                    >
+                      {label}
+                    </span>
+                  </span>
+                  <span
+                    className="text-[12px]"
+                    style={{
+                      color: p ? "var(--gold)" : "var(--color-foreground)",
+                      opacity: p ? 0.85 : 0.45,
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                    }}
+                  >
+                    {p
+                      ? `${p.cardName ?? getCardName(p.cardIndex) ?? `Card ${p.cardIndex}`}${p.isReversed ? " (rev)" : ""}`
+                      : "Tap to pick"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <ManualSpreadSlots
           spread={spread}
           customCount={required}
           picks={picks.map((p) =>
@@ -149,7 +217,8 @@ export function ManualEntryBuilder({
               : null,
           )}
           onSlotTap={(idx) => setPickerSlot(idx)}
-        />
+          />
+        )}
 
         {/* 26-05-08-N — Fix 4: inline question input above Done. */}
         <div className="w-full max-w-md mx-auto">
