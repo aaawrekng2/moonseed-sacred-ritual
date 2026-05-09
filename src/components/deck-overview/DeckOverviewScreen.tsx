@@ -310,6 +310,31 @@ export function DeckOverviewScreen({
   const triggerUpload = () => fileInputRef.current?.click();
 
   /**
+   * 26-05-08-Q — Fix 8: persist edits to per-card name / description.
+   * These power the editable list view and feed the AI prompt builder
+   * via custom_deck_cards.card_name / card_description.
+   */
+  const saveCardMeta = async (
+    cardId: number,
+    patch: { card_name?: string | null; card_description?: string | null },
+  ) => {
+    const { error } = await supabase
+      .from("custom_deck_cards")
+      .update(patch)
+      .eq("deck_id", deckId)
+      .eq("card_id", cardId)
+      .is("archived_at", null);
+    if (error) {
+      toast.error(`Couldn't save: ${error.message}`);
+      return false;
+    }
+    setCards((prev) =>
+      prev.map((c) => (c.card_id === cardId ? { ...c, ...patch } : c)),
+    );
+    return true;
+  };
+
+  /**
    * 9-6-AH — Re-optimize: reset any failed cards back to 'pending' with
    * attempts=0 so the background queue picks them up, then ping the
    * queue once to give it an immediate kick.
