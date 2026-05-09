@@ -274,6 +274,8 @@ function ProfileSectionInner({
             </p>
           </div>
 
+          <ReadingStatsLine userId={user.id} />
+
           <IntentionField user={user} prefs={prefs} setPrefs={setPrefs} />
 
           <TimezoneField />
