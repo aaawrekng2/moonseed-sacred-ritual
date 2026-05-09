@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Camera, HelpCircle, Heart, Image as ImageIcon, Network, Pencil, Sparkles, StickyNote, Tag as TagIcon, X as XIcon } from "lucide-react";
+import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Camera, Ghost, Heart, Image as ImageIcon, MessageCircle, Network, Sparkles, Star, StickyNote, Tag as TagIcon, X as XIcon } from "lucide-react";
+import { usePremium } from "@/lib/premium";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -158,6 +159,8 @@ type ReadingRow = {
   deck_id?: string | null;
   /** DV — soft-delete timestamp; null = active reading. */
   archived_at?: string | null;
+  /** Q12 — cached tailored journaling prompt for premium seekers. */
+  tailored_prompt?: string | null;
 };
 
 type TagRow = { id: string; name: string; usage_count: number };
@@ -281,7 +284,7 @@ function JournalPage() {
           supabase
             .from("readings")
             .select(
-              "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id",
+              "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,tailored_prompt",
             )
             .eq("user_id", user.id)
             .is("archived_at", null)
@@ -470,7 +473,7 @@ function JournalPage() {
       const { data } = await supabase
         .from("readings")
         .select(
-          "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,archived_at",
+          "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,archived_at,tailored_prompt",
         )
         .eq("id", openId)
         .eq("user_id", user.id)
@@ -681,7 +684,7 @@ function JournalPage() {
           [
             ["readings", "Readings", BookOpen],
             ["gallery", "Gallery", ImageIcon],
-            ["notes", "Notes", Pencil],
+            ["notes", "Notes", StickyNote],
             ["favorites", "Favorites", Heart],
             ["calendar", "Calendar", CalendarDays],
             ["threads", "Stories", Network],
@@ -839,7 +842,7 @@ function JournalPage() {
                 const { data: rows } = await supabase
                   .from("readings")
                   .select(
-                    "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id",
+                    "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,tailored_prompt",
                   )
                   .eq("user_id", user.id)
                   .is("archived_at", null)
@@ -881,7 +884,7 @@ function JournalPage() {
               const { data: rows } = await supabase
                 .from("readings")
                 .select(
-                  "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id",
+                  "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,tailored_prompt",
                 )
                 .eq("user_id", user.id)
                 .is("archived_at", null)
@@ -1088,79 +1091,54 @@ function ReadingCard({
             {reading.moon_phase && <span aria-hidden>·</span>}
             <span>{guide.name}</span>
           </div>
-          {(hasPhoto || hasNote || hasQuestion || hasTags) && (
-            <div
-              className="mt-1 flex items-center gap-2 text-muted-foreground"
-              style={{ opacity: "var(--ro-plus-20)" }}
-              aria-label="Reading content indicators"
-            >
-              {hasQuestion && (
-                <HelpCircle size={12} strokeWidth={1.5} aria-label="Has question" />
-              )}
-              {hasNote && (
-                <StickyNote size={12} strokeWidth={1.5} aria-label="Has note" />
-              )}
-              {hasPhoto && (
-                <Camera size={12} strokeWidth={1.5} aria-label="Has photo" />
-              )}
-              {hasTags && (
-                <TagIcon size={12} strokeWidth={1.5} aria-label="Has tags" />
-              )}
-            </div>
-          )}
         </div>
-        {/* EA-6 — unified right-edge state cluster. */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Q13 Fix 3 — unified right-edge icon row. */}
+        <div className="flex items-center gap-2 shrink-0">
+          {hasQuestion && (
+            <MessageCircle size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has question" />
+          )}
+          {hasNote && (
+            <StickyNote size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has note" />
+          )}
           {reading.is_favorite && (
-            <Heart
-              size={16}
-              strokeWidth={1.5}
-              fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }}
-              aria-label="Favorite"
-            />
+            <Heart size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Favorite" />
           )}
           {reading.mirror_saved && (
-            <Bookmark
-              size={16}
-              strokeWidth={1.5}
-              fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }}
-              aria-label="Bookmarked"
-            />
+            <Bookmark size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Bookmarked" />
+          )}
+          {reading.is_deep_reading && (
+            <Star size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Deep reading" />
+          )}
+          {reading.interpretation && reading.interpretation.trim() !== "" && (
+            <Sparkles size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="AI interpreted" />
+          )}
+          {hasTags && (
+            <TagIcon size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has tags" />
+          )}
+          {hasPhoto && (
+            <Camera size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has photo" />
           )}
           {reading.pattern_id && patternsById[reading.pattern_id] && (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                navigate({
-                  to: "/threads",
-                  search: { focus: reading.pattern_id! },
-                });
+                navigate({ to: "/threads", search: { focus: reading.pattern_id! } });
               }}
               aria-label="In Story"
               title={`View Story: ${patternsById[reading.pattern_id].name}`}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-                color: "var(--accent)",
-                opacity: 0.8,
-              }}
+              style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--accent)", opacity: 0.85 }}
             >
-              <Network size={16} strokeWidth={1.5} fill="currentColor" />
+              <Ghost size={16} strokeWidth={1.5} fill="currentColor" className="animate-glow-breathe" />
             </button>
-          )}
-          {reading.is_deep_reading && (
-            <Sparkles
-              size={16}
-              strokeWidth={1.5}
-              fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }}
-              aria-label="Deep reading"
-            />
           )}
         </div>
       </div>
@@ -1976,6 +1954,9 @@ function ReadingDetail({
   onRestored?: () => void;
 }) {
   const guide = getGuideById(reading.guide_id);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { isPremium } = usePremium(user?.id);
   const positions = isValidSpreadMode(reading.spread_type)
     ? SPREAD_META[reading.spread_type as SpreadMode].positions
     : undefined;
@@ -2397,74 +2378,7 @@ function ReadingDetail({
         {/* Enrichment panel: note, tags, photos, favorite — with debounced
             auto-save. Lives below the interpretation per the spec. */}
         {/* DB-3.2 — Deck override picker. */}
-        <div className="mx-auto mt-6 flex max-w-prose items-center justify-center">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setDeckMenuOpen((o) => !o)}
-              disabled={deckSaving}
-              className="rounded-full px-3 py-1 font-display text-[12px] italic text-muted-foreground transition-colors hover:text-gold disabled:opacity-50"
-              style={{
-                border:
-                  "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
-                opacity: "var(--ro-plus-30)",
-              }}
-              aria-haspopup="listbox"
-              aria-expanded={deckMenuOpen}
-            >
-              Deck: {currentDeckName}
-            </button>
-            {deckMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setDeckMenuOpen(false)}
-                  aria-hidden
-                />
-                <ul
-                  role="listbox"
-                  className="absolute left-1/2 z-50 mt-2 w-56 -translate-x-1/2 overflow-hidden rounded-md py-1 shadow-lg"
-                  style={{
-                    background: "var(--surface-overlay)",
-                    border:
-                      "1px solid color-mix(in oklab, var(--gold) 22%, transparent)",
-                  }}
-                >
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => void handleSelectDeck(null)}
-                      className="flex w-full items-center justify-between px-3 py-1.5 text-left font-display text-[13px] italic text-foreground hover:bg-foreground/[0.06]"
-                    >
-                      <span>Default</span>
-                      {!reading.deck_id && (
-                        <span className="text-gold" aria-hidden>
-                          ✓
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                  {decks.map((d) => (
-                    <li key={d.id}>
-                      <button
-                        type="button"
-                        onClick={() => void handleSelectDeck(d.id)}
-                        className="flex w-full items-center justify-between px-3 py-1.5 text-left font-display text-[13px] italic text-foreground hover:bg-foreground/[0.06]"
-                      >
-                        <span className="truncate">{d.name}</span>
-                        {reading.deck_id === d.id && (
-                          <span className="text-gold" aria-hidden>
-                            ✓
-                          </span>
-                        )}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-        </div>
+        {/* Q13 Fix 4 — "Deck: …" label removed per spec. */}
 
         <div
           style={
@@ -2496,6 +2410,23 @@ function ReadingDetail({
           onPhotoCountChange={onPhotoCountChange}
           copyText={reading.interpretation ?? undefined}
           onShare={() => setShareOpen(true)}
+          cardIds={reading.card_ids}
+          question={reading.question ?? null}
+          tailoredPrompt={reading.tailored_prompt ?? null}
+          isPremium={isPremium}
+          onTailoredPromptUpdate={(next) =>
+            onReadingChange({
+              id: reading.id,
+              note: reading.note,
+              is_favorite: reading.is_favorite,
+              tags: reading.tags,
+              // tailored_prompt isn't part of the parent's onReadingChange
+              // contract; the cached value stays on the row server-side
+              // and is re-fetched on next open.
+            } as { id: string; note: string | null; is_favorite: boolean; tags: string[] | null })
+          }
+          onPremiumUpsell={() => navigate({ to: "/settings/moon" })}
+          defaultNoteOpen
         />
         </div>
 

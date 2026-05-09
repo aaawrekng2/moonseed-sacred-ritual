@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { useActiveGuide } from "@/lib/use-active-guide";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useAuth } from "@/lib/auth";
+import { usePremium } from "@/lib/premium";
 import { getCurrentMoonPhase } from "@/lib/moon";
 import { FACETS } from "@/lib/guides";
 import {
@@ -85,6 +86,9 @@ export function InlineReading({
 }) {
   const meta = SPREAD_META[spread];
   const { isOracle } = useOracleMode();
+  const { user } = useAuth();
+  const { isPremium } = usePremium(user?.id);
+  const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ kind: "idle" });
   const [retryNonce, setRetryNonce] = useState(0);
   const overrideRef = useRef(false);
@@ -105,6 +109,7 @@ export function InlineReading({
     note: string | null;
     is_favorite: boolean;
     tags: string[] | null;
+    tailored_prompt?: string | null;
   } | null>(null);
   const [tagLibrary, setTagLibrary] = useState<EnrichmentTag[]>([]);
   const savedReadingRef = useRef<typeof savedReading>(null);
@@ -411,6 +416,14 @@ export function InlineReading({
                 setTearHonorLast(true);
                 setTearOpen(true);
               }}
+              cardIds={picks.map((p) => p.cardIndex)}
+              question={question || null}
+              tailoredPrompt={savedReading.tailored_prompt ?? null}
+              isPremium={isPremium}
+              onTailoredPromptUpdate={(next) =>
+                setSavedReading((prev) => (prev ? { ...prev, tailored_prompt: next } : prev))
+              }
+              onPremiumUpsell={() => navigate({ to: "/settings/moon" })}
             />
           )}
           {(savedReading || (state.kind === "loaded" && state.readingId)) && (

@@ -394,6 +394,22 @@ code, pre, kbd {
 .animate-breathe-glow {
   animation: breathe-glow 4s ease-in-out infinite;
 }
+
+/* Q13 Fix 5 — Used by the Ghost icon in journal rows when a reading
+   is part of a stalker pattern. Subtle gold pulse. */
+@keyframes glow-breathe {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px var(--gold));
+    opacity: 0.7;
+  }
+  50% {
+    filter: drop-shadow(0 0 8px var(--gold));
+    opacity: 1;
+  }
+}
+.animate-glow-breathe {
+  animation: glow-breathe 2.5s ease-in-out infinite;
+}
 .gateway-card-frame {
   /* ET-3 — visual border + heavy shadow removed. The card art provides
      its own visual edge; outer chrome was reading as stray UI lines,
