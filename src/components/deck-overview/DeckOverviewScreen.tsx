@@ -159,6 +159,15 @@ export function DeckOverviewScreen({
   >(null);
   // 26-05-08-K — Fix 6: pick an already-uploaded card as the deck back.
   const [pickingBack, setPickingBack] = useState(false);
+  // 26-05-08-Q9 — per-card recovery flow + back-from-zip picker target.
+  const [zipPickerTarget, setZipPickerTarget] =
+    useState<ZipPickerTarget | null>(null);
+  const [localSourceZipPath, setLocalSourceZipPath] = useState<string | null>(
+    deck.source_zip_path ?? null,
+  );
+  useEffect(() => {
+    setLocalSourceZipPath(deck.source_zip_path ?? null);
+  }, [deck.source_zip_path]);
   const [localBackUrl, setLocalBackUrl] = useState<string | null>(
     deck.card_back_url ?? null,
   );
