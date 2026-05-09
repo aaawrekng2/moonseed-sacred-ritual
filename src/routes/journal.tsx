@@ -46,6 +46,7 @@ import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { SearchInput } from "@/components/ui/search-input";
 import { EmptyHero } from "@/components/ui/empty-hero";
 import { EmptyNote } from "@/components/ui/empty-note";
+import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
 import {
   EMPTY_GLOBAL_FILTERS,
   type GlobalFilters,
