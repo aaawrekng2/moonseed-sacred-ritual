@@ -1386,6 +1386,10 @@ export function DeckOverviewScreen({
                 {cards.map((card) => {
                   const src = card.thumbnail_url ?? card.display_url ?? null;
                   if (!src) return null;
+                  const isCurrent =
+                    !!localBackUrl &&
+                    (card.display_url === localBackUrl ||
+                      card.thumbnail_url === localBackUrl);
                   return (
                     <button
                       key={card.id}
@@ -1412,7 +1416,12 @@ export function DeckOverviewScreen({
                         setPickingBack(false);
                         toast.success("Card back updated");
                       }}
-                      className="group relative aspect-[2/3] overflow-hidden rounded border border-border/60 hover:border-gold/60"
+                      className={cn(
+                        "group relative aspect-[2/3] overflow-hidden rounded hover:border-gold/60",
+                        isCurrent
+                          ? "border-2 border-gold"
+                          : "border border-border/60",
+                      )}
                     >
                       <img
                         src={src}
@@ -1420,6 +1429,11 @@ export function DeckOverviewScreen({
                         className="h-full w-full object-contain"
                         loading="lazy"
                       />
+                      {isCurrent && (
+                        <span className="absolute right-1 top-1 rounded-full border border-gold/50 bg-gold/20 px-2 py-0.5 text-[10px] uppercase tracking-wider text-gold">
+                          Current
+                        </span>
+                      )}
                     </button>
                   );
                 })}
