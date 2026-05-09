@@ -1201,6 +1201,13 @@ export function DeckOverviewScreen({
                         Not yet added — tap thumbnail to capture
                       </p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setZipPickerTarget(tile.cardId)}
+                      className="shrink-0 rounded-full border border-gold/60 px-3 py-1 text-[11px] italic text-gold hover:bg-gold/10"
+                    >
+                      Tap to fix
+                    </button>
                   </li>
                 );
               }
