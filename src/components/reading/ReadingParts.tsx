@@ -86,6 +86,9 @@ export function InlineReading({
 }) {
   const meta = SPREAD_META[spread];
   const { isOracle } = useOracleMode();
+  const { user } = useAuth();
+  const { isPremium } = usePremium(user?.id);
+  const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ kind: "idle" });
   const [retryNonce, setRetryNonce] = useState(0);
   const overrideRef = useRef(false);
