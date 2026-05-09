@@ -179,6 +179,12 @@ export function CardImage({
   const [variantFailedFor, setVariantFailedFor] = useState<
     null | "all"
   >(null);
+  // 26-05-08-Q8 — Fix 2: retry a failed image load up to 2 times
+  // with backoff before giving up. `retryTs` is appended as a cache
+  // buster so the browser actually re-fetches instead of serving a
+  // cached 404.
+  const [retryCount, setRetryCount] = useState(0);
+  const [retryTs, setRetryTs] = useState(0);
   const devMode = useDevMode();
 
   // FC-1 / 9-6-V — Track BOTH face and back natural aspects so the
@@ -200,6 +206,8 @@ export function CardImage({
     setBackAspect(null);
     setImageLoaded(false);
     setVariantFailedFor(null);
+    setRetryCount(0);
+    setRetryTs(0);
   }, [cardId, deckId, cachedFaceAspect]);
 
   // EY-1 — Saturated diagnostic colors. The card art still
@@ -292,19 +300,52 @@ export function CardImage({
     : size === "thumbnail" || size === "small"
       ? (variantUrlFor(baseFaceSrc, variantTier) ?? baseFaceSrc)
       : baseFaceSrc;
-  const faceSrc = variantFailedFor === "all" ? baseFaceSrc : variantSrc;
+  const baseChosen =
+    variantFailedFor === "all" ? baseFaceSrc : variantSrc;
+  const faceSrc =
+    baseChosen && retryTs > 0
+      ? `${baseChosen}${baseChosen.includes("?") ? "&" : "?"}r=${retryTs}`
+      : baseChosen;
 
   const showFaceShimmer =
     variant === "face" && !loading && (faceSrc == null || !imageLoaded);
 
-  // 26-05-08-M — Fix 5: when every variant URL has failed AND the
-  // base src looks like an expired signed URL (token=…), render a
-  // named placeholder instead of leaving a broken <img>. Common
-  // during background processing right after import.
+  // 26-05-08-Q8 — Fix 1: `token=` is a substring of EVERY Supabase
+  // signed URL, not just expired ones. The previous heuristic stranded
+  // every signed-URL card on the placeholder forever after a single
+  // variant 404. Only show the named placeholder when there is
+  // genuinely no source URL to attempt.
   const allFailed =
-    variant === "face" &&
-    variantFailedFor === "all" &&
-    (!baseFaceSrc || baseFaceSrc.includes("token="));
+    variant === "face" && variantFailedFor === "all" && !baseFaceSrc;
+
+  const handleImgError = () => {
+    // Step 1: variant.webp 404 → fall back to base displayUrl.
+    if (
+      variantFailedFor !== "all" &&
+      baseFaceSrc &&
+      faceSrc !== baseFaceSrc
+    ) {
+      setVariantFailedFor("all");
+      setRetryCount(0);
+      return;
+    }
+    // Step 2: base URL also failed — retry with cache buster up to 2x.
+    if (retryCount < 2) {
+      const delay = retryCount === 0 ? 500 : 1500;
+      const next = retryCount + 1;
+      window.setTimeout(() => {
+        setRetryCount(next);
+        setRetryTs(Date.now());
+      }, delay);
+      return;
+    }
+    // Give up — let the placeholder/shimmer take over.
+    setImageLoaded(true);
+  };
+  const handleImgLoad = () => {
+    setImageLoaded(true);
+    if (retryCount !== 0) setRetryCount(0);
+  };
 
   // FC-1 — Flip mode: render face + back inside a 3D wrapper. The
   // standard CardImage pattern (wrapper hugs IMG via height:auto)
