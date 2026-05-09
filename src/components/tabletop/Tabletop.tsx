@@ -1016,6 +1016,9 @@ export function Tabletop({
               id: p.id,
               cardIndex: p.cardIndex,
               isReversed: p.isReversed,
+              // Q3 — Fix 2: preserve per-pick source deck so mixed-deck
+              // readings render with each card's true deck artwork.
+              deckId: p.deckId,
             })),
             "reveal",
             { entryMode: "manual" },

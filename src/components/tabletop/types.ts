@@ -15,7 +15,13 @@ export type TabletopProps = {
    *    and the spread layout screen should let the user reveal them there.
    */
   onComplete: (
-    picks: { id: number; cardIndex: number; isReversed?: boolean }[],
+    picks: {
+      id: number;
+      cardIndex: number;
+      isReversed?: boolean;
+      /** Q3 — Fix 2: per-pick source deck for mixed-deck draws. */
+      deckId?: string | null;
+    }[],
     mode: "reveal" | "cast",
     meta?: { entryMode?: "digital" | "manual" },
   ) => void;
