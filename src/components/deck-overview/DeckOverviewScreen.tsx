@@ -1375,6 +1375,14 @@ export function DeckOverviewScreen({
               setActionSheetCardId(null);
               triggerUpload();
             }}
+            onReplaceFromZip={
+              localSourceZipPath
+                ? () => {
+                    setZipPickerTarget(actionSheetCardId);
+                    setActionSheetCardId(null);
+                  }
+                : undefined
+            }
             onRemove={() => void handleRemove(actionSheetCardId)}
           />,
           document.body,
