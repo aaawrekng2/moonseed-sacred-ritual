@@ -45,6 +45,7 @@ import { StalkersTab } from "@/components/insights/StalkersTab";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { EmptyHero } from "@/components/ui/empty-hero";
 import type { MoonPhaseName } from "@/lib/moon";
+import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
 
 export const Route = createFileRoute("/insights")({
   head: () => ({
@@ -71,6 +72,14 @@ const TABS: ReadonlyArray<{ id: Tab; label: string }> = [
 function InsightsRoute() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("overview");
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => {
+      setUserId(data.user?.id ?? null);
+    });
+  }, []);
+  const readingStats = useReadingStats(userId);
+  const statsLine = formatReadingStatsLine(readingStats);
   const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
   const scrollRef = useRef<HTMLElement | null>(null);
   const collapseProgress = useScrollCollapse(scrollRef, 40);
@@ -261,6 +270,19 @@ function InsightsRoute() {
         >
           Insights
         </h1>
+        {statsLine ? (
+          <p
+            className="font-serif italic mb-4"
+            style={{
+              fontSize: "var(--text-caption, 0.72rem)",
+              color: "var(--color-foreground)",
+              opacity: 0.55,
+              margin: "-8px 0 16px 0",
+            }}
+          >
+            {statsLine}
+          </p>
+        ) : null}
         <div className="mx-auto">
           {tab === "overview" && (
             <OverviewTab

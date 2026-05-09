@@ -46,6 +46,7 @@ import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { SearchInput } from "@/components/ui/search-input";
 import { EmptyHero } from "@/components/ui/empty-hero";
 import { EmptyNote } from "@/components/ui/empty-note";
+import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
 import {
   EMPTY_GLOBAL_FILTERS,
   type GlobalFilters,
@@ -236,6 +237,8 @@ function JournalPage() {
   } | null>(null);
 
   const [readings, setReadings] = useState<ReadingRow[]>([]);
+  const readingStats = useReadingStats(user?.id ?? null);
+  const statsLine = formatReadingStatsLine(readingStats);
   // EG-2 — increments on every archive action so ArchiveView remounts
   // (and re-fetches) when the user navigates to the archive tab.
   const [archiveCounter, setArchiveCounter] = useState(0);
@@ -626,6 +629,19 @@ function JournalPage() {
             Journal
           </h1>
         </div>
+        {statsLine ? (
+          <p
+            className="font-serif italic"
+            style={{
+              fontSize: "var(--text-caption, 0.72rem)",
+              color: "var(--color-foreground)",
+              opacity: 0.55,
+              margin: "4px 0 0 0",
+            }}
+          >
+            {statsLine}
+          </p>
+        ) : null}
 
       {/* Search */}
       <SearchInput

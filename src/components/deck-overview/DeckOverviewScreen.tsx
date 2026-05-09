@@ -1587,30 +1587,40 @@ export function DeckOverviewScreen({
               <p className="mb-4 text-sm">
                 Your files appear to be numbered. How should card names be displayed?
               </p>
-              <div className="flex flex-col gap-2 text-sm">
-                <button
-                  type="button"
-                  className="text-left underline hover:opacity-80"
-                  onClick={() => {
-                    const choice = pendingNumberingChoice;
-                    setPendingNumberingChoice(null);
-                    finishExtraction(choice.assets, choice.oracleMeta, true);
-                  }}
-                >
-                  Strip the numbers (e.g. &ldquo;01_the_magician&rdquo; → &ldquo;The Magician&rdquo;)
-                </button>
-                <button
-                  type="button"
-                  className="text-left underline hover:opacity-80"
-                  onClick={() => {
-                    const choice = pendingNumberingChoice;
-                    setPendingNumberingChoice(null);
-                    finishExtraction(choice.assets, choice.oracleMeta, false);
-                  }}
-                >
-                  Keep the numbers (e.g. &ldquo;01_the_magician&rdquo; → &ldquo;01 The Magician&rdquo;)
-                </button>
-              </div>
+              {(() => {
+                const sample = pendingNumberingChoice.assets.find((a) => /^\d/.test(a.filename))
+                  ?? pendingNumberingChoice.assets[0];
+                if (!sample) return null;
+                const stem = sample.filename.replace(/\.[^.]+$/, "");
+                const stripped = stem.replace(/^\d+[_\-\s.]+/, "").replace(/[_\-]+/g, " ").trim() || stem;
+                const kept = stem.replace(/[_\-]+/g, " ").trim();
+                return (
+                  <div className="flex flex-col gap-2 text-sm">
+                    <button
+                      type="button"
+                      className="text-left underline hover:opacity-80"
+                      onClick={() => {
+                        const choice = pendingNumberingChoice;
+                        setPendingNumberingChoice(null);
+                        finishExtraction(choice.assets, choice.oracleMeta, true);
+                      }}
+                    >
+                      Strip the numbers (e.g. &ldquo;{stem}&rdquo; → &ldquo;{stripped}&rdquo;)
+                    </button>
+                    <button
+                      type="button"
+                      className="text-left underline hover:opacity-80"
+                      onClick={() => {
+                        const choice = pendingNumberingChoice;
+                        setPendingNumberingChoice(null);
+                        finishExtraction(choice.assets, choice.oracleMeta, false);
+                      }}
+                    >
+                      Keep the numbers (e.g. &ldquo;{stem}&rdquo; → &ldquo;{kept}&rdquo;)
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           </div>,
           document.body,
