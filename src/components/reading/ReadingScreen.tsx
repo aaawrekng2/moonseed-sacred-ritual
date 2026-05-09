@@ -239,8 +239,9 @@ export function ReadingScreen({
         const uid = sessionData.session?.user?.id;
         if (!uid) return;
         const token = sessionData.session?.access_token;
-        const interpretationText = buildCopyText({
-          spreadLabel: meta.label,
+        // Q16 Fix 3 — persist body only, never the
+        // "{spread} — Moonseed reading" prefix used for clipboard.
+        const interpretationText = buildInterpretationBody({
           interpretation: loadedInterpretation,
           picks,
           positionLabels,
@@ -1621,6 +1622,26 @@ function buildCopyText({
   const lines: string[] = [];
   lines.push(`${spreadLabel} — Moonseed reading`);
   lines.push("");
+  lines.push(buildInterpretationBody({ interpretation, picks, positionLabels }));
+  return lines.join("\n").trim() + "\n";
+}
+
+/**
+ * Q16 Fix 3 — body-only formatter used when persisting the
+ * interpretation to the database. Mirrors the helper exported from
+ * ReadingParts; kept as a local copy because ReadingScreen's
+ * `buildCopyText` is module-private.
+ */
+function buildInterpretationBody({
+  interpretation,
+  picks,
+  positionLabels,
+}: {
+  interpretation: InterpretationPayload;
+  picks: Pick[];
+  positionLabels: string[];
+}): string {
+  const lines: string[] = [];
   lines.push(interpretation.overview.trim());
   lines.push("");
   const positions = interpretation.positions.length
