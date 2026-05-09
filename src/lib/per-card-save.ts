@@ -102,40 +102,37 @@ async function uploadEncoded(
   const smPath = `${base}-sm.webp`;
   const mdPath = `${base}-md.webp`;
   const originalPath = `${base}-original.webp`;
-  const uploads: Promise<{ error: unknown } | { data: unknown; error: null }>[] = [
-    supabase.storage
-      .from(DECK_BUCKET)
-      .upload(displayPath, displayBlob, { contentType: "image/webp", upsert: true }) as unknown as Promise<{ error: unknown }>,
-    supabase.storage
-      .from(DECK_BUCKET)
-      .upload(thumbPath, thumbBlob, { contentType: "image/webp", upsert: true }) as unknown as Promise<{ error: unknown }>,
-  ];
-  if (smBlob) {
-    uploads.push(
-      supabase.storage
-        .from(DECK_BUCKET)
-        .upload(smPath, smBlob, { contentType: "image/webp", upsert: true }) as unknown as Promise<{ error: unknown }>,
+  // 26-05-08-P — Fix 1: storage upload errors come back as `{ error }`
+  // (NOT thrown). Audit each result individually so silent failures on
+  // non-critical variants don't poison the whole save, and so that
+  // critical (display/thumb) failures surface immediately.
+  const opts = { contentType: "image/webp", upsert: true } as const;
+  const [displayRes, thumbRes, smRes, mdRes, originalRes] = await Promise.all([
+    supabase.storage.from(DECK_BUCKET).upload(displayPath, displayBlob, opts),
+    supabase.storage.from(DECK_BUCKET).upload(thumbPath, thumbBlob, opts),
+    smBlob
+      ? supabase.storage.from(DECK_BUCKET).upload(smPath, smBlob, opts)
+      : Promise.resolve({ error: null }),
+    mdBlob
+      ? supabase.storage.from(DECK_BUCKET).upload(mdPath, mdBlob, opts)
+      : Promise.resolve({ error: null }),
+    originalBlob
+      ? supabase.storage.from(DECK_BUCKET).upload(originalPath, originalBlob, opts)
+      : Promise.resolve({ error: null }),
+  ]);
+  if (displayRes.error)
+    throw new Error(`display upload failed: ${displayRes.error.message}`);
+  if (thumbRes.error)
+    throw new Error(`thumb upload failed: ${thumbRes.error.message}`);
+  if (smRes.error)
+    console.warn("[per-card-save] sm upload failed (non-fatal)", smRes.error);
+  if (mdRes.error)
+    console.warn("[per-card-save] md upload failed (non-fatal)", mdRes.error);
+  if (originalRes.error)
+    console.warn(
+      "[per-card-save] original upload failed (non-fatal)",
+      originalRes.error,
     );
-  }
-  if (mdBlob) {
-    uploads.push(
-      supabase.storage
-        .from(DECK_BUCKET)
-        .upload(mdPath, mdBlob, { contentType: "image/webp", upsert: true }) as unknown as Promise<{ error: unknown }>,
-    );
-  }
-  if (originalBlob) {
-    uploads.push(
-      supabase.storage
-        .from(DECK_BUCKET)
-        .upload(originalPath, originalBlob, { contentType: "image/webp", upsert: true }) as unknown as Promise<{ error: unknown }>,
-    );
-  }
-  const results = await Promise.all(uploads);
-  for (const r of results) {
-    const err = (r as { error: unknown }).error;
-    if (err) throw err;
-  }
   const yearSecs = 60 * 60 * 24 * 365;
   const [{ data: d1 }, { data: d2 }] = await Promise.all([
     supabase.storage.from(DECK_BUCKET).createSignedUrl(displayPath, yearSecs),

@@ -623,7 +623,7 @@ function DeckRow({
         className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left"
         aria-label={`Edit ${deck.name}`}
       >
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-cosmos">
+        <div className="flex h-14 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-cosmos">
           {deck.card_back_thumb_url || deck.card_back_url ? (
             <img
               src={
