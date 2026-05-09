@@ -1229,7 +1229,22 @@ function ReadingCard({
       )}
 
       {/* Interpretation excerpt */}
-      {interpClean && (
+      {hasQuestion && (
+        <p
+          className="mt-3 font-display text-[15px] italic leading-snug text-foreground"
+          style={{
+            color: "var(--gold)",
+            opacity: "var(--ro-plus-10)",
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          “{reading.question!.trim()}”
+        </p>
+      )}
+      {interpClean && !hasQuestion && (
         <p
           className="mt-3 font-display text-[14px] italic leading-snug text-foreground"
           style={{
