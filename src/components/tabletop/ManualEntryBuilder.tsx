@@ -133,31 +133,8 @@ export function ManualEntryBuilder({
           onSlotTap={(idx) => setPickerSlot(idx)}
         />
 
-        <button
-          type="button"
-          disabled={!allFilled}
-          onClick={() => {
-            if (!allFilled) return;
-            onComplete(picks.filter((p): p is ManualPick => !!p));
-          }}
-          className="px-6 py-2 transition disabled:cursor-not-allowed"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "var(--text-body)",
-            color: allFilled ? "var(--accent)" : "var(--color-foreground)",
-            opacity: allFilled ? 1 : 0.4,
-            background: "none",
-            border: "none",
-            textShadow: allFilled ? "0 0 12px var(--accent-faint)" : undefined,
-          }}
-        >
-          Done · view reading
-        </button>
-
-        {/* 26-05-08-N — Fix 4: inline question input. Optional; the
-            seeker can leave it empty and still tap Done. */}
-        <div className="w-full max-w-md mx-auto -mt-2">
+        {/* 26-05-08-N — Fix 4: inline question input above Done. */}
+        <div className="w-full max-w-md mx-auto">
           <span
             style={{
               fontFamily: "var(--font-display, var(--font-serif))",
@@ -191,6 +168,28 @@ export function ManualEntryBuilder({
             }}
           />
         </div>
+
+        <button
+          type="button"
+          disabled={!allFilled}
+          onClick={() => {
+            if (!allFilled) return;
+            onComplete(picks.filter((p): p is ManualPick => !!p));
+          }}
+          className="px-6 py-2 transition disabled:cursor-not-allowed"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body)",
+            color: allFilled ? "var(--accent)" : "var(--color-foreground)",
+            opacity: allFilled ? 1 : 0.4,
+            background: "none",
+            border: "none",
+            textShadow: allFilled ? "0 0 12px var(--accent-faint)" : undefined,
+          }}
+        >
+          Done · view reading
+        </button>
       </div>
 
       <Sheet
