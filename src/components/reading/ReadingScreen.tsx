@@ -825,7 +825,7 @@ function CardStrip({
   const stripInner = (
     <div
       className={cn(
-        "reading-cards-nudge flex flex-nowrap items-start",
+        "reading-cards-nudge flex flex-nowrap items-end",
         swipeMobile ? "justify-start flex-shrink-0" : "justify-center",
       )}
       style={{
