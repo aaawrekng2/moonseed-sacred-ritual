@@ -2416,6 +2416,13 @@ function ReadingDetail({
           }
           onPremiumUpsell={() => navigate({ to: "/settings/moon" })}
           defaultNoteOpen
+          journalPromptUsed={!!reading.journal_prompt_used}
+          onJournalPromptUsed={() => {
+            void supabase
+              .from("readings")
+              .update({ journal_prompt_used: true })
+              .eq("id", reading.id);
+          }}
         />
         </div>
 
