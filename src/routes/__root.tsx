@@ -18,6 +18,7 @@ import { DevOverlay } from "@/components/dev/DevOverlay";
 import { TimezoneMismatchDialog } from "@/components/settings/TimezoneMismatchDialog";
 import { ActiveDeckProvider } from "@/lib/active-deck";
 import { cleanupStaleSessions } from "@/lib/import-session";
+import { runQ4StorageCleanup } from "@/lib/q4-storage-cleanup";
 import { ConfirmProvider } from "@/hooks/use-confirm";
 
 /**
@@ -194,7 +195,12 @@ function RootComponent() {
   useApplyRestingOpacityEarly();
   // Anonymous-first auth: ensure every visitor has a Supabase session
   // before any feature reads/writes user-scoped data.
-  useAuth();
+  const { user } = useAuth();
+  // 26-05-08-Q4 — one-time best-effort cleanup of orphan storage
+  // folders left behind from the pre-cascade-delete era.
+  useEffect(() => {
+    if (user?.id) void runQ4StorageCleanup(user.id);
+  }, [user?.id]);
   // Mirror local preference values to the Cloud user_preferences row
   // once auth has settled. Local storage stays the source of truth for
   // initial render; this just keeps the server copy fresh.

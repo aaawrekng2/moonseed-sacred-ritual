@@ -11,6 +11,7 @@ import { getCardName } from "@/lib/tarot";
 // EZ-1 — Card rendering goes through CardImage; the per-deck radius and
 // frame sizing are now owned by that component.
 import { CardImage } from "@/components/card/CardImage";
+import { useActiveDeckCardName, useDeckCardName } from "@/lib/active-deck";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { PositionLabel } from "@/components/tabletop/SpreadLayout";
 import {
@@ -434,6 +435,7 @@ export function ReadingScreen({
           picks={picks}
           positionLabels={positionLabels}
           spread={spread}
+          deckId={deckId ?? null}
         />
 
         {/* Idle / loading actions. Once interpretation has loaded, these
@@ -566,11 +568,16 @@ function CardNameLabelRS({
   cardIndex,
   isReversed,
   cardWidth,
+  deckId,
 }: {
   cardIndex: number;
   isReversed: boolean;
   cardWidth: number;
+  deckId?: string | null;
 }) {
+  const activeName = useActiveDeckCardName();
+  const specificName = useDeckCardName(deckId ?? null);
+  const name = deckId ? specificName(cardIndex) : activeName(cardIndex);
   return (
     <div
       className="flex flex-col items-center"
@@ -589,7 +596,7 @@ function CardNameLabelRS({
           width: "100%",
         }}
       >
-        {getCardName(cardIndex)}
+        {name}
       </span>
       {isReversed && (
         <span
@@ -611,10 +618,12 @@ function CardStrip({
   picks,
   positionLabels,
   spread,
+  deckId,
 }: {
   picks: Pick[];
   positionLabels: string[];
   spread: SpreadMode;
+  deckId?: string | null;
 }) {
   const { level } = useUIDensity();
   const showLabels = level === 1; // Glimpse + Veiled hide the labels
@@ -660,6 +669,7 @@ function CardStrip({
               reversed={picks[i].isReversed}
               size="custom"
               widthPx={cw}
+              deckId={picks[i].deckId ?? deckId ?? null}
             />
           </div>
         ) : (
@@ -686,6 +696,7 @@ function CardStrip({
             cardIndex={picks[i].cardIndex}
             isReversed={!!picks[i].isReversed}
             cardWidth={cw}
+            deckId={picks[i].deckId ?? deckId ?? null}
           />
         )}
       </div>
@@ -713,6 +724,7 @@ function CardStrip({
                       reversed={picks[0].isReversed}
                       size="custom"
                       widthPx={cw}
+                      deckId={picks[0].deckId ?? deckId ?? null}
                     />
                   </div>
                 )}
@@ -725,6 +737,7 @@ function CardStrip({
                       reversed={picks[1].isReversed}
                       size="custom"
                       widthPx={cw}
+                      deckId={picks[1].deckId ?? deckId ?? null}
                     />
                   </div>
                 )}
@@ -832,6 +845,7 @@ function CardStrip({
               reversed={pick.isReversed}
               size="custom"
               widthPx={w}
+              deckId={pick.deckId ?? deckId ?? null}
             />
           </div>
           {showLabels && (
@@ -852,6 +866,7 @@ function CardStrip({
               cardIndex={pick.cardIndex}
               isReversed={!!pick.isReversed}
               cardWidth={w}
+              deckId={pick.deckId ?? deckId ?? null}
             />
           )}
         </div>
