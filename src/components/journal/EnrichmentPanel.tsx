@@ -273,7 +273,7 @@ export function EnrichmentPanel({
     setNote(reading.note ?? "");
     setTags(reading.tags ?? []);
     setFavorite(reading.is_favorite);
-    setOpenSection(null);
+    setOpenSection(defaultNoteOpen ? "note" : null);
     setTagInput("");
   }, [reading.id]);
 
