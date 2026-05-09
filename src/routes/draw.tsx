@@ -200,6 +200,8 @@ function DrawPage() {
           spread={spread}
           onExit={exit}
           customCount={customCount}
+          question={question}
+          onQuestionChange={setQuestion}
           onComplete={(p, mode, meta) => {
             // Phase 9.55 — assign orientation per card based on the
             // seeker's preference. `generateOrientations` returns
