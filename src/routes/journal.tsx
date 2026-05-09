@@ -496,6 +496,7 @@ function JournalPage() {
       note: string | null;
       is_favorite: boolean;
       tags: string[] | null;
+      journal_prompt_used?: boolean;
     }) => {
       setReadings((prev) =>
         prev.map((r) =>
@@ -505,6 +506,9 @@ function JournalPage() {
                 note: next.note,
                 is_favorite: next.is_favorite,
                 tags: next.tags,
+                ...(next.journal_prompt_used !== undefined
+                  ? { journal_prompt_used: next.journal_prompt_used }
+                  : {}),
               }
             : r,
         ),
