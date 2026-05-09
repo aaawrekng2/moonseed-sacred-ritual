@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { CheckCheck, ChevronDown, ChevronRight, Copy, Pencil } from "lucide-react";
+import { CheckCheck, ChevronDown, ChevronRight, Copy, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { getCardName } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
@@ -589,6 +589,25 @@ export function SeekerQuestion({
           >
             <Pencil size={11} strokeWidth={1.75} />
           </button>
+          {onEdit && (
+            <button
+              type="button"
+              onClick={() => onEdit("")}
+              aria-label="Clear question"
+              title="Clear question"
+              className="inline-flex items-center justify-center rounded-full p-1 transition-colors hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+              style={{
+                color: "var(--gold)",
+                opacity: "var(--ro-plus-20)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                transform: "translateY(-1px)",
+              }}
+            >
+              <X size={11} strokeWidth={1.75} />
+            </button>
+          )}
         </div>
       )}
     </figure>

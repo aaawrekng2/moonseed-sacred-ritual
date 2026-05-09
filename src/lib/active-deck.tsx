@@ -16,6 +16,7 @@ import {
   type DeckImageMap,
 } from "@/lib/custom-decks";
 import { useAuth } from "@/lib/auth";
+import { getCardName } from "@/lib/tarot";
 
 // ES-5 — Persist last-known active deck so warm reopen doesn't flash
 // the Rider-Waite default before the live fetch returns.
@@ -198,6 +199,57 @@ export function useActiveDeckCardAspect(
   const { imageMap } = useActiveDeck();
   if (cardId == null) return null;
   return imageMap.aspectByCardId[cardId] ?? null;
+}
+
+/**
+ * 26-05-08-P — Fix 5: resolve a card's display name through the active
+ * deck's per-card overrides. Falls back to the standard tarot name and
+ * finally to "Card N" for unnamed oracle ids.
+ */
+export function useActiveDeckCardName(): (cardId: number) => string {
+  const { imageMap } = useActiveDeck();
+  return useCallback(
+    (cardId: number) => {
+      if (imageMap.nameByCardId[cardId]) return imageMap.nameByCardId[cardId];
+      return getCardName(cardId) ?? `Card ${cardId}`;
+    },
+    [imageMap],
+  );
+}
+
+/**
+ * Parallel of useActiveDeckCardName for a SPECIFIC deck id (historical
+ * readings / journal entries that carry their own saved deck_id).
+ */
+export function useDeckCardName(
+  deckId: string | null | undefined,
+): (cardId: number) => string {
+  const [imageMap, setImageMap] = useState<DeckImageMap>(EMPTY_DECK_IMAGE_MAP);
+  useEffect(() => {
+    if (!deckId) {
+      setImageMap(EMPTY_DECK_IMAGE_MAP);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const map = await buildDeckImageMap(deckId);
+        if (!cancelled) setImageMap(map);
+      } catch {
+        if (!cancelled) setImageMap(EMPTY_DECK_IMAGE_MAP);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [deckId]);
+  return useCallback(
+    (cardId: number) => {
+      if (imageMap.nameByCardId[cardId]) return imageMap.nameByCardId[cardId];
+      return getCardName(cardId) ?? `Card ${cardId}`;
+    },
+    [imageMap],
+  );
 }
 
 /**

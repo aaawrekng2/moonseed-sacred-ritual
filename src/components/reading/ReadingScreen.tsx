@@ -281,6 +281,10 @@ export function ReadingScreen({
           is_favorite: data.is_favorite,
           tags: data.tags,
         });
+        // 26-05-08-P — Fix 7: surface a transient confirmation so the
+        // seeker knows the reading is in their journal even before they
+        // tap Save & Close.
+        toast.success("Saved to journal", { duration: 2000 });
         // Phase 7: fire-and-forget thread detection. Must NOT block or
         // surface errors to the reading UI.
         void detectThreads({
