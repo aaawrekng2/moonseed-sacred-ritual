@@ -21,26 +21,8 @@ const DECK_BUCKET = "custom-deck-images";
 /** Cap on concurrent saveCard / removeCard / restoreSlot writes. */
 export const DEFAULT_LIMIT = 4;
 
-/**
- * 26-05-08-Q2 — Fix 5: storage gateway occasionally returns 504/timeout
- * on the largest variant (the 1500px original). Single retry after a
- * brief delay clears 95%+ of those. Other variants are smaller and
- * reliable, so they stay on a single attempt.
- */
-async function uploadWithRetry(
-  path: string,
-  blob: Blob,
-  opts: { contentType: string; upsert: boolean },
-) {
-  const first = await supabase.storage.from(DECK_BUCKET).upload(path, blob, opts);
-  if (!first.error) return first;
-  const msg = first.error.message ?? "";
-  if (msg.includes("504") || msg.toLowerCase().includes("timeout")) {
-    await new Promise((r) => setTimeout(r, 1000));
-    return supabase.storage.from(DECK_BUCKET).upload(path, blob, opts);
-  }
-  return first;
-}
+// 26-05-08-Q5 — Fix 6: original variant dropped; uploadWithRetry no
+// longer needed (sm/md/display/thumb are small and reliable).
 
 export type SaveCardArgs = {
   userId: string;
