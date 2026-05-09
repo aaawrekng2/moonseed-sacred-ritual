@@ -125,7 +125,7 @@ type CardRow = {
 type VariantSpec = { suffix: "sm" | "md"; width: number };
 const VARIANTS: VariantSpec[] = [
   { suffix: "sm", width: 200 },
-  { suffix: "md", width: 600 }, // 26-05-08-J — was 400
+  { suffix: "md", width: 400 }, // 26-05-08-L — reverted from 600 to ease CPU
 ];
 
 // FB-6 — process cards in CHUNKS to stay well under the 150s
