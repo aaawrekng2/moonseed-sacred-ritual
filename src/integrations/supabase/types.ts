@@ -180,6 +180,7 @@ export type Database = {
           is_complete: boolean
           name: string
           shape: string
+          source_zip_path: string | null
           updated_at: string
           user_id: string
           width_inches: number | null
@@ -200,6 +201,7 @@ export type Database = {
           is_complete?: boolean
           name: string
           shape: string
+          source_zip_path?: string | null
           updated_at?: string
           user_id: string
           width_inches?: number | null
@@ -220,6 +222,7 @@ export type Database = {
           is_complete?: boolean
           name?: string
           shape?: string
+          source_zip_path?: string | null
           updated_at?: string
           user_id?: string
           width_inches?: number | null
