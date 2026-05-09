@@ -1373,11 +1373,7 @@ export function DeckOverviewScreen({
               </div>
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
                 {cards.map((card) => {
-                  const src =
-                    card.card_back_thumb_url ??
-                    card.thumbnail_url ??
-                    card.display_url ??
-                    null;
+                  const src = card.thumbnail_url ?? card.display_url ?? null;
                   if (!src) return null;
                   return (
                     <button
