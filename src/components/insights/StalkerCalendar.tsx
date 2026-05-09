@@ -3,7 +3,8 @@
  * Wraps the shared shadcn Calendar (react-day-picker) in read-only mode.
  */
 import { useEffect, useMemo, useState } from "react";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
+import { getCurrentMoonPhase } from "@/lib/moon";
 
 function initialMonth(
   appearances: Array<{ readingId: string; date: string }>,
@@ -26,6 +27,10 @@ export function StalkerCalendar({
         return new Date(d.getFullYear(), d.getMonth(), d.getDate());
       }),
     [appearances],
+  );
+  const appearanceKeys = useMemo(
+    () => new Set(appearanceDates.map((d) => d.toDateString())),
+    [appearanceDates],
   );
 
   const [month, setMonth] = useState<Date>(() => initialMonth(appearances));
@@ -62,6 +67,24 @@ export function StalkerCalendar({
         showOutsideDays={false}
         // Read-only: don't allow user to change selection by clicking dates.
         onSelect={() => {}}
+        components={{
+          DayButton: (props) => {
+            const isAppearance = appearanceKeys.has(
+              props.day.date.toDateString(),
+            );
+            const glyph = isAppearance
+              ? getCurrentMoonPhase(props.day.date).glyph
+              : null;
+            return (
+              <CalendarDayButton {...props}>
+                <span className="leading-none">{props.day.date.getDate()}</span>
+                {glyph && (
+                  <span className="text-[9px] leading-none">{glyph}</span>
+                )}
+              </CalendarDayButton>
+            );
+          },
+        }}
       />
     </div>
   );
