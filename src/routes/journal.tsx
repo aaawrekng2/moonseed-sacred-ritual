@@ -629,6 +629,19 @@ function JournalPage() {
             Journal
           </h1>
         </div>
+        {statsLine ? (
+          <p
+            className="font-serif italic"
+            style={{
+              fontSize: "var(--text-caption, 0.72rem)",
+              color: "var(--color-foreground)",
+              opacity: 0.55,
+              margin: "4px 0 0 0",
+            }}
+          >
+            {statsLine}
+          </p>
+        ) : null}
 
       {/* Search */}
       <SearchInput
