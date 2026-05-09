@@ -1978,6 +1978,8 @@ function JournalPromptsSlot({
   textareaRef,
   onTailoredPromptUpdate,
   onPremiumUpsell,
+  defaultHidden,
+  onPromptUsed,
 }: {
   cardIds: number[] | undefined;
   customCardPromptsByCardId: Record<number, string[] | null | undefined> | undefined;
@@ -1990,6 +1992,8 @@ function JournalPromptsSlot({
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   onTailoredPromptUpdate?: (prompt: string) => void;
   onPremiumUpsell?: () => void;
+  defaultHidden?: boolean;
+  onPromptUsed?: () => void;
 }) {
   const generate = useServerFn(generateTailoredPrompt);
   const [localTailored, setLocalTailored] = useState<string | null>(tailoredPrompt);
@@ -2059,6 +2063,8 @@ function JournalPromptsSlot({
       onChange={onChange}
       beforeInsert={handleBeforeInsert}
       loading={loading}
+      defaultHidden={defaultHidden}
+      onPromptUsed={onPromptUsed}
     />
   );
 }
