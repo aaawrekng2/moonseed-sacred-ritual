@@ -1304,7 +1304,6 @@ export function DeckOverviewScreen({
       {/* 26-05-08-K — Fix 7C: numbering prompt */}
       {pendingNumberingChoice &&
         createPortal(
-          // eslint-disable-next-line react/jsx-key
           <div
             className="fixed inset-0 z-[130] flex items-center justify-center"
             style={{
