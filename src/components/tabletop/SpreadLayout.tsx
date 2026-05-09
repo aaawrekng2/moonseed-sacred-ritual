@@ -474,7 +474,7 @@ function CardFace({
               animation begins — otherwise the first reveal shows a blank
               front while the image is still fetching. */}
           <img
-            src={cardImg(pick.cardIndex)}
+            src={cardImg(pick.cardIndex) ?? undefined}
             alt={getCardName(pick.cardIndex)}
             className="h-full w-full object-contain"
             loading="eager"
@@ -956,7 +956,7 @@ export function ManualSpreadSlots({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uniqueKey]);
 
-  const resolveForPick = (pick: NonNullable<ManualSlotPick>): string => {
+  const resolveForPick = (pick: NonNullable<ManualSlotPick>): string | null => {
     // 9-6-O — slot tiles are small; pull the thumbnail variant rather
     // than the multi-MB display image.
     if (!pick.deckId) return activeResolve(pick.cardIndex, "thumbnail");
@@ -998,7 +998,7 @@ export function ManualSpreadSlots({
       >
         {pick ? (
           <img
-            src={resolveForPick(pick)}
+            src={resolveForPick(pick) ?? undefined}
             alt={nameForPick(pick)}
             onLoad={(e) => {
               const img = e.currentTarget;

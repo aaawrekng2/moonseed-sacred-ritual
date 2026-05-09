@@ -280,8 +280,30 @@ export function CardImage({
   // rendered size. If the variant URL later 404s, onError flips
   // variantFailedFor and we re-render with the original.
   const variantTier = SIZE_TO_VARIANT[size];
-  const variantSrc = variantUrlFor(baseFaceSrc, variantTier);
+  // 26-05-08-Q6 — Fix 3: only request a smaller variant for explicit
+  // thumb/small sizes. Larger sizes (medium/hero/custom) use the
+  // display URL directly. The variantUrlFor → onError → fallback
+  // dance was racing during initial render and leaving cards blank.
+  const variantSrc =
+    size === "thumbnail" || size === "small"
+      ? variantUrlFor(baseFaceSrc, variantTier)
+      : baseFaceSrc;
   const faceSrc = variantFailedFor === "all" ? baseFaceSrc : variantSrc;
+
+  if (variant === "face" && typeof cardId === "number") {
+    // 26-05-08-Q6 — Fix 2: diagnostic for the persistent blank-card
+    // bug. Logs the entire src resolution chain on every render.
+    console.log("[CardImage] render", {
+      cardId,
+      deckId,
+      useSpecific,
+      specificSrc: specificSrc ? specificSrc.slice(0, 80) : "(null)",
+      activeSrc: activeSrc ? activeSrc.slice(0, 80) : "(null)",
+      baseFaceSrc: baseFaceSrc ? baseFaceSrc.slice(0, 80) : "(null)",
+      variantSrc: variantSrc ? variantSrc.slice(0, 80) : "(null)",
+      faceSrc: faceSrc ? faceSrc.slice(0, 80) : "(null)",
+    });
+  }
 
   const showFaceShimmer =
     variant === "face" && !loading && (faceSrc == null || !imageLoaded);

@@ -116,10 +116,12 @@ export function CardPicker({
   }, [user?.id]);
   const activeResolve = useActiveDeckImage();
   const specificResolve = useDeckImage(deckId ?? null);
-  const resolveImg = (idx: number, size: "display" | "thumbnail" = "thumbnail") => {
-    if (resolveImageSrc) return resolveImageSrc(idx);
+  const resolveImg = (idx: number, size: "display" | "thumbnail" = "thumbnail"): string => {
+    if (resolveImageSrc) return resolveImageSrc(idx) ?? "";
     if (deckId) return specificResolve(idx, size) ?? getCardImagePath(idx);
-    return activeResolve(idx, size);
+    // 26-05-08-Q6 — useActiveDeckImage now may return null for oracle
+    // ids without a map entry. Coerce to "" for the picker grid.
+    return activeResolve(idx, size) ?? "";
   };
   const activeDeckObj = decks.find((d) => d.id === deckId);
   const isOracleDeck = activeDeckObj?.deck_type === "oracle";

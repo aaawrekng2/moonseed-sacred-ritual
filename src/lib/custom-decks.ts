@@ -321,14 +321,15 @@ export function resolveCardImage(
   cardIndex: number,
   map: DeckImageMap | null | undefined,
   size: "display" | "thumbnail" = "display",
-): string {
+): string | null {
   const override = map ? map[size][cardIndex] : undefined;
   if (override) return override;
-  // 9-6-J — oracle card IDs (≥ 1000) have no Rider-Waite default.
-  // Returning the constructed `/cards/card-1009.jpg` path produces a
-  // hard 404 in the network panel. Return an empty string so the
-  // consumer renders a placeholder/empty card instead.
-  if (cardIndex >= 1000) return "";
+  // 26-05-08-Q6 — Fix 1: return null (was "") for oracle ids without a
+  // map entry. Empty string broke `??` fallback chains in CardImage and
+  // share-card-shared because "" is not nullish — so when both specific
+  // and active resolvers missed, baseFaceSrc stayed "" and downstream
+  // variantUrlFor("") returned null, leaving the <img> unrendered.
+  if (cardIndex >= 1000) return null;
   return getDefaultCardImagePath(cardIndex);
 }
 
