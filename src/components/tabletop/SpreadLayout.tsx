@@ -956,7 +956,7 @@ export function ManualSpreadSlots({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uniqueKey]);
 
-  const resolveForPick = (pick: NonNullable<ManualSlotPick>): string => {
+  const resolveForPick = (pick: NonNullable<ManualSlotPick>): string | null => {
     // 9-6-O — slot tiles are small; pull the thumbnail variant rather
     // than the multi-MB display image.
     if (!pick.deckId) return activeResolve(pick.cardIndex, "thumbnail");

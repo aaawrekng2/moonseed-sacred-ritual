@@ -156,7 +156,7 @@ export function useActiveDeck(): Ctx {
 export function useActiveDeckImage(): (
   cardIndex: number,
   size?: "display" | "thumbnail",
-) => string {
+) => string | null {
   const { imageMap } = useActiveDeck();
   return useCallback(
     (cardIndex: number, size: "display" | "thumbnail" = "display") =>
