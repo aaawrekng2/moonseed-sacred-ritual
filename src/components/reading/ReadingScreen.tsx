@@ -11,6 +11,7 @@ import { getCardName } from "@/lib/tarot";
 // EZ-1 — Card rendering goes through CardImage; the per-deck radius and
 // frame sizing are now owned by that component.
 import { CardImage } from "@/components/card/CardImage";
+import { useActiveDeckCardName, useDeckCardName } from "@/lib/active-deck";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { PositionLabel } from "@/components/tabletop/SpreadLayout";
 import {
@@ -434,6 +435,7 @@ export function ReadingScreen({
           picks={picks}
           positionLabels={positionLabels}
           spread={spread}
+          deckId={deckId ?? null}
         />
 
         {/* Idle / loading actions. Once interpretation has loaded, these
