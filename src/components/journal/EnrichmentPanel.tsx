@@ -1930,3 +1930,109 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
     </div>
   );
 }
+
+/* ---------- JournalPromptsSlot ---------- */
+
+/**
+ * 26-05-08-Q12 — Wraps `<JournalPrompts>` with the per-card resolver,
+ * the optional premium "tailored prompt" cycler position, and the AI
+ * fetch that fires when the seeker taps "Tap to use" on that slot.
+ */
+const TAILORED_PLACEHOLDER = "Get a tailored prompt for this reading";
+
+function JournalPromptsSlot({
+  cardIds,
+  customCardPromptsByCardId,
+  isPremium,
+  tailoredPrompt,
+  question,
+  readingId,
+  value,
+  onChange,
+  textareaRef,
+  onTailoredPromptUpdate,
+  onPremiumUpsell,
+}: {
+  cardIds: number[] | undefined;
+  customCardPromptsByCardId: Record<number, string[] | null | undefined> | undefined;
+  isPremium: boolean;
+  tailoredPrompt: string | null;
+  question: string | null;
+  readingId: string;
+  value: string;
+  onChange: (next: string) => void;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  onTailoredPromptUpdate?: (prompt: string) => void;
+  onPremiumUpsell?: () => void;
+}) {
+  const generate = useServerFn(generateTailoredPrompt);
+  const [localTailored, setLocalTailored] = useState<string | null>(tailoredPrompt);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLocalTailored(tailoredPrompt);
+  }, [tailoredPrompt, readingId]);
+
+  const firstCardId = cardIds?.[0];
+  const customPrompts = firstCardId != null ? customCardPromptsByCardId?.[firstCardId] : null;
+  const staticPrompts = useMemo(
+    () => resolvePromptsForFirstCard(firstCardId, customPrompts),
+    [firstCardId, customPrompts],
+  );
+
+  const prompts = useMemo(() => {
+    const list = [...(staticPrompts ?? [])];
+    if (isPremium) {
+      list.push(localTailored ? localTailored : TAILORED_PLACEHOLDER);
+    }
+    return list.length > 0 ? list : null;
+  }, [staticPrompts, isPremium, localTailored]);
+
+  const handleBeforeInsert = useCallback(
+    async (active: string): Promise<string | null> => {
+      // Static prompt — pass through.
+      if (active !== TAILORED_PLACEHOLDER) return active;
+      // Free user trying the slot → upsell.
+      if (!isPremium) {
+        onPremiumUpsell?.();
+        return null;
+      }
+      if (!question || !question.trim()) {
+        toast("Add your question to enable tailored prompts.");
+        return null;
+      }
+      setLoading(true);
+      try {
+        const res = (await generate({ data: { readingId } })) as
+          | { ok: true; prompt: string }
+          | { ok: false; error: string };
+        if (!res.ok) {
+          if (res.error === "premium_required") onPremiumUpsell?.();
+          else if (res.error === "question_required")
+            toast("Add your question to enable tailored prompts.");
+          else toast.error("Couldn't generate a tailored prompt right now.");
+          return null;
+        }
+        setLocalTailored(res.prompt);
+        onTailoredPromptUpdate?.(res.prompt);
+        return res.prompt;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [isPremium, question, generate, readingId, onTailoredPromptUpdate, onPremiumUpsell],
+  );
+
+  if (!prompts) return null;
+
+  return (
+    <JournalPrompts
+      prompts={prompts}
+      textareaRef={textareaRef}
+      value={value}
+      onChange={onChange}
+      beforeInsert={handleBeforeInsert}
+      loading={loading}
+    />
+  );
+}
