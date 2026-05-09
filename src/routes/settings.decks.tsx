@@ -370,6 +370,38 @@ function DeckRow({
   // 9-6-Q — track last failed cursor so user can resume optimize
   // from where it left off rather than restart at 0.
   const [lastFailedCursor, setLastFailedCursor] = useState<number | null>(null);
+  // 26-05-08-M — Fix 2: lightning bolt is for forced re-optimize of
+  // already-saved cards, NOT initial processing. Disable while the
+  // background queue is still working — pressing Zap during that
+  // window would invoke generate-deck-variants in a tight loop and
+  // CPU-time-out (the source of the 546 errors).
+  const isProcessing =
+    procStatus !== null &&
+    (procStatus.pending > 0 || procStatus.saved < procStatus.total);
+  // 26-05-08-M — Fix 3: show a transient "Ready" badge for ~10s when
+  // the deck transitions from processing → fully complete, then hide.
+  const [showReadyBadge, setShowReadyBadge] = useState(false);
+  const wasProcessingRef = useRef(false);
+  useEffect(() => {
+    if (!procStatus) return;
+    if (
+      wasProcessingRef.current &&
+      procStatus.isComplete &&
+      procStatus.failed === 0 &&
+      procStatus.saved === procStatus.total
+    ) {
+      setShowReadyBadge(true);
+      const t = setTimeout(() => setShowReadyBadge(false), 10000);
+      wasProcessingRef.current = false;
+      return () => clearTimeout(t);
+    }
+    if (
+      procStatus.pending > 0 ||
+      procStatus.saved < procStatus.total - procStatus.failed
+    ) {
+      wasProcessingRef.current = true;
+    }
+  }, [procStatus]);
   // 9-6-L — mobile overflow menu for the deck row's actions.
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -636,6 +668,22 @@ function DeckRow({
                 )}
               </div>
             )}
+          {/* 26-05-08-M — Fix 3: transient "Ready" badge after
+              processing completes successfully. */}
+          {showReadyBadge && (
+            <div className="mt-1">
+              <span
+                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider"
+                style={{
+                  borderColor: "var(--border-subtle)",
+                  background: "var(--surface-card)",
+                  color: "var(--gold)",
+                }}
+              >
+                <Check className="h-3 w-3" /> Ready
+              </span>
+            </div>
+          )}
         </div>
       </div>
       {/* 9-6-N — visible Edit pencil on mobile so the row's primary
@@ -707,10 +755,14 @@ function DeckRow({
                 setMenuOpen(false);
                 void handleGenerateVariants();
               }}
-              disabled={variantBusy}
+              disabled={variantBusy || isProcessing}
               className="rounded px-2 py-1.5 text-left text-sm hover:bg-foreground/10 disabled:opacity-50"
             >
-              {variantBusy ? "Optimizing…" : "Optimize images"}
+              {variantBusy
+                ? "Optimizing…"
+                : isProcessing
+                  ? "Processing in background…"
+                  : "Optimize images"}
             </button>
             {lastFailedCursor !== null && (
               <button
@@ -720,7 +772,7 @@ function DeckRow({
                   setMenuOpen(false);
                   void handleGenerateVariants(lastFailedCursor);
                 }}
-                disabled={variantBusy}
+                disabled={variantBusy || isProcessing}
                 className="rounded px-2 py-1.5 text-left text-sm hover:bg-foreground/10 disabled:opacity-50"
               >
                 Resume optimize (from card {lastFailedCursor})
@@ -772,9 +824,13 @@ function DeckRow({
             e.stopPropagation();
             void handleGenerateVariants();
           }}
-          disabled={variantBusy}
+          disabled={variantBusy || isProcessing}
           className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10 disabled:opacity-50"
-          title="Optimize for fast loading (generate small/medium variants)"
+          title={
+            isProcessing
+              ? "Processing in background — wait until complete"
+              : "Optimize for fast loading (generate small/medium variants)"
+          }
           aria-label="Optimize deck images"
         >
           {variantBusy ? (

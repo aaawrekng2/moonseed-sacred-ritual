@@ -459,6 +459,13 @@ export function DeckOverviewScreen({
       // (process-variant-queue, scheduled every 30s via pg_cron).
       // processing_status is already 'pending' on each saved row.
       void savedCardIds; // referenced only by the now-removed loop
+      // 26-05-08-M — Fix 1: kick the queue immediately so cards
+      // start processing within seconds, not up to 30s later.
+      try {
+        await supabase.functions.invoke("process-variant-queue", {});
+      } catch {
+        /* non-fatal — pg_cron will catch within 30s */
+      }
       await reload();
       toast.success(
         result.matchedCount === totalSlots

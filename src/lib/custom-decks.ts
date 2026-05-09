@@ -214,6 +214,19 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   } else {
     map.back = (deck?.card_back_url as string | null | undefined) ?? null;
   }
+  // 26-05-08-M — Fix 6: if any per-card display/thumbnail URL matches
+  // the deck's card_back_url, that card is being repurposed as the
+  // back. Remove it from the draw pool so it never appears as a
+  // drawable card face.
+  if (map.back) {
+    const backUrl = map.back;
+    for (const [k, v] of Object.entries(map.display)) {
+      if (v === backUrl) delete map.display[Number(k)];
+    }
+    for (const [k, v] of Object.entries(map.thumbnail)) {
+      if (v === backUrl) delete map.thumbnail[Number(k)];
+    }
+  }
   // EC-1 — read corner_radius_percent (the column DeckEditor saves to).
   // The corner_radius_px column is legacy and no longer used at runtime.
   const cr = (deck as { corner_radius_percent?: number | null } | null)

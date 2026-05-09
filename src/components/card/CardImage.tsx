@@ -277,6 +277,15 @@ export function CardImage({
   const showFaceShimmer =
     variant === "face" && !loading && (faceSrc == null || !imageLoaded);
 
+  // 26-05-08-M — Fix 5: when every variant URL has failed AND the
+  // base src looks like an expired signed URL (token=…), render a
+  // named placeholder instead of leaving a broken <img>. Common
+  // during background processing right after import.
+  const allFailed =
+    variant === "face" &&
+    variantFailedFor === "all" &&
+    (!baseFaceSrc || baseFaceSrc.includes("token="));
+
   // FC-1 — Flip mode: render face + back inside a 3D wrapper. The
   // standard CardImage pattern (wrapper hugs IMG via height:auto)
   // CANNOT work here because .flip-face is position:absolute/inset:0
@@ -421,6 +430,29 @@ export function CardImage({
 
       {variant === "face" && typeof cardId === "number" && !loading && faceSrc ? (
         <>
+          {allFailed ? (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                minHeight: width * 1.6,
+                background: "var(--surface-card)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "var(--text-caption, 0.7rem)",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                color: "var(--color-foreground)",
+                opacity: 0.5,
+                padding: 6,
+                textAlign: "center",
+                ...radiusStyle,
+              }}
+            >
+              {getCardName(cardId)}
+            </div>
+          ) : (
           <img
             src={faceSrc}
             alt={ariaLabel ?? getCardName(cardId)}
@@ -456,6 +488,7 @@ export function CardImage({
               ...radiusStyle,
             }}
           />
+          )}
           {/* EZ-3 — Dev-mode tint as sibling overlay so it's visible
               over the opaque card art (backgroundColor on an opaque
               IMG renders behind the pixels and is therefore invisible). */}
