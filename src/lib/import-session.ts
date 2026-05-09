@@ -40,6 +40,11 @@ export interface EncodedAsset {
   key: string;
   displayBlob: Blob;
   thumbnailBlob: Blob;
+  /** 26-05-08-O — client-side variants. */
+  smBlob?: Blob;
+  mdBlob?: Blob;
+  /** 26-05-08-O — capped 2000px original for re-radius source. */
+  originalBlob?: Blob;
 }
 
 export interface ImportSession {

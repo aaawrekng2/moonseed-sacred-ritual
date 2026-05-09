@@ -88,19 +88,54 @@ async function uploadEncoded(
   cardId: number | "BACK",
   displayBlob: Blob,
   thumbBlob: Blob,
+  smBlob: Blob | undefined,
+  mdBlob: Blob | undefined,
+  originalBlob: Blob | undefined,
 ) {
   const ts = Date.now();
   const slot = cardId === "BACK" ? "back" : `card-${cardId}`;
-  const displayPath = `${userId}/${deckId}/${slot}-${ts}.webp`;
-  const thumbPath = `${userId}/${deckId}/${slot}-${ts}-thumb.webp`;
-  const { error: e1 } = await supabase.storage
-    .from(DECK_BUCKET)
-    .upload(displayPath, displayBlob, { contentType: "image/webp", upsert: true });
-  if (e1) throw e1;
-  const { error: e2 } = await supabase.storage
-    .from(DECK_BUCKET)
-    .upload(thumbPath, thumbBlob, { contentType: "image/webp", upsert: true });
-  if (e2) throw e2;
+  // 26-05-08-O — display path uses -full suffix so variantUrlFor's
+  // regex resolves -sm / -md / -thumb consistently.
+  const base = `${userId}/${deckId}/${slot}-${ts}`;
+  const displayPath = `${base}-full.webp`;
+  const thumbPath = `${base}-thumb.webp`;
+  const smPath = `${base}-sm.webp`;
+  const mdPath = `${base}-md.webp`;
+  const originalPath = `${base}-original.webp`;
+  const uploads: Promise<{ error: unknown } | { data: unknown; error: null }>[] = [
+    supabase.storage
+      .from(DECK_BUCKET)
+      .upload(displayPath, displayBlob, { contentType: "image/webp", upsert: true }) as unknown as Promise<{ error: unknown }>,
+    supabase.storage
+      .from(DECK_BUCKET)
+      .upload(thumbPath, thumbBlob, { contentType: "image/webp", upsert: true }) as unknown as Promise<{ error: unknown }>,
+  ];
+  if (smBlob) {
+    uploads.push(
+      supabase.storage
+        .from(DECK_BUCKET)
+        .upload(smPath, smBlob, { contentType: "image/webp", upsert: true }) as unknown as Promise<{ error: unknown }>,
+    );
+  }
+  if (mdBlob) {
+    uploads.push(
+      supabase.storage
+        .from(DECK_BUCKET)
+        .upload(mdPath, mdBlob, { contentType: "image/webp", upsert: true }) as unknown as Promise<{ error: unknown }>,
+    );
+  }
+  if (originalBlob) {
+    uploads.push(
+      supabase.storage
+        .from(DECK_BUCKET)
+        .upload(originalPath, originalBlob, { contentType: "image/webp", upsert: true }) as unknown as Promise<{ error: unknown }>,
+    );
+  }
+  const results = await Promise.all(uploads);
+  for (const r of results) {
+    const err = (r as { error: unknown }).error;
+    if (err) throw err;
+  }
   const yearSecs = 60 * 60 * 24 * 365;
   const [{ data: d1 }, { data: d2 }] = await Promise.all([
     supabase.storage.from(DECK_BUCKET).createSignedUrl(displayPath, yearSecs),
@@ -111,6 +146,7 @@ async function uploadEncoded(
     displayPath,
     thumbnailUrl: d2?.signedUrl ?? d1?.signedUrl ?? "",
     thumbnailPath: thumbPath,
+    originalPath: originalBlob ? originalPath : null,
   };
 }
 
@@ -138,6 +174,9 @@ async function doSaveCard(args: SaveCardArgs): Promise<SaveResult> {
       cardId,
       asset.displayBlob,
       asset.thumbnailBlob,
+      asset.smBlob,
+      asset.mdBlob,
+      asset.originalBlob,
     );
     if (cardId === "BACK") {
       const { error, data } = await supabase
@@ -177,10 +216,15 @@ async function doSaveCard(args: SaveCardArgs): Promise<SaveResult> {
           thumbnail_url: uploaded.thumbnailUrl,
           display_path: uploaded.displayPath,
           thumbnail_path: uploaded.thumbnailPath,
+          original_path: uploaded.originalPath,
           source: "imported",
           // 9-6-A — oracle cards carry user-editable name/meaning.
           card_name: image.oracleName ?? null,
           card_description: image.oracleDescription ?? null,
+          // 26-05-08-O — variants generated client-side; mark saved
+          // immediately. The background queue is no longer involved.
+          processing_status: "saved",
+          processed_at: new Date().toISOString(),
         })
         .select();
       if (insertErr) {
@@ -188,53 +232,8 @@ async function doSaveCard(args: SaveCardArgs): Promise<SaveResult> {
         throw insertErr;
       }
     }
-    // 9-6-P — auto-trigger the corner-cropped -full.webp variant so
-    // every consumer immediately sees the processed image, not the raw
-    // upload. Fire-and-forget — never block the save UI.
-    // 9-6-X — fire-and-forget with retry-once. Saves stay fast;
-    // failures surface to the console; the Optimize button
-    // (batch reconciler) is the safety net.
-    if (cardId !== "BACK" && !args.skipAutoVariant) {
-      const fireAndForgetWithRetry = async () => {
-        try {
-          const { data: sess } = await supabase.auth.getSession();
-          const jwt = sess.session?.access_token;
-          if (!jwt) return;
-          const result = await supabase.functions.invoke(
-            "generate-deck-variants",
-            {
-              body: { deckId, cardId },
-              headers: { Authorization: `Bearer ${jwt}` },
-            },
-          );
-          if (result.error) {
-            console.warn(
-              "[CB-save] auto-variant first attempt failed; retrying",
-              { cardId, error: result.error },
-            );
-            await new Promise((r) => setTimeout(r, 1500));
-            const retry = await supabase.functions.invoke(
-              "generate-deck-variants",
-              {
-                body: { deckId, cardId },
-                headers: { Authorization: `Bearer ${jwt}` },
-              },
-            );
-            if (retry.error) {
-              console.error("[CB-save] auto-variant final failure", {
-                cardId,
-                error: retry.error,
-              });
-            } else {
-              console.log("[CB-save] auto-variant retry succeeded", { cardId });
-            }
-          }
-        } catch (err) {
-          console.warn("[CB-save] auto-variant invoke threw", err);
-        }
-      };
-      void fireAndForgetWithRetry();
-    }
+    // 26-05-08-O — auto-variant edge fn invocation removed. All
+    // variants are uploaded by the client during this save.
     console.log("[CB-save] OK", { cardId, cardKey });
     return { cardKey, cardId, status: "saved" };
   } catch (err) {
