@@ -36,7 +36,6 @@ import {
   variantUrlPngFallback,
 } from "@/lib/active-deck";
 import type { CardBackId } from "@/lib/card-backs";
-import { getCardName } from "@/lib/tarot";
 
 /**
  * EX-4 — Read the dev-mode flag from localStorage and subscribe to
