@@ -364,14 +364,8 @@ export function CardImage({
                   setImageLoaded(true);
                 }}
                 onError={() => {
-                  // 9-6-AF — try .png variant before original.
+                  // 26-05-08-Q2 — Fix 8: variant.webp → base displayUrl.
                   if (
-                    variantTier !== "full" &&
-                    variantFailedFor === null &&
-                    variantPngSrc
-                  ) {
-                    setVariantFailedFor("png");
-                  } else if (
                     variantFailedFor !== "all" &&
                     baseFaceSrc &&
                     faceSrc !== baseFaceSrc
@@ -462,14 +456,8 @@ export function CardImage({
             loading="lazy"
             onLoad={() => setImageLoaded(true)}
             onError={() => {
-              // 9-6-AF — try .png variant before original.
+              // 26-05-08-Q2 — Fix 8: variant.webp → base displayUrl.
               if (
-                variantTier !== "full" &&
-                variantFailedFor === null &&
-                variantPngSrc
-              ) {
-                setVariantFailedFor("png");
-              } else if (
                 variantFailedFor !== "all" &&
                 baseFaceSrc &&
                 faceSrc !== baseFaceSrc
