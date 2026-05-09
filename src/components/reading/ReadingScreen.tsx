@@ -402,11 +402,23 @@ export function ReadingScreen({
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)",
         }}
       >
+        <header className="flex flex-col items-center gap-1.5 text-center">
+          <span className="text-[10px] uppercase tracking-[0.3em] text-gold/70">
+            {meta.label}
+          </span>
+        </header>
+
+        <CardStrip
+          picks={picks}
+          positionLabels={positionLabels}
+          spread={spread}
+          deckId={deckId ?? null}
+        />
+
+        {/* Q14 Fix 2 — question moved BELOW the card strip so the
+            cards lead the eye, then the seeker re-reads what they asked. */}
         {question && question.trim() && (
           <div className="mx-auto w-full max-w-md">
-            {/* Tarot-style invocation that sits above the question on
-                the reveal page — small, italic, gold-tinted, sets a
-                sacred tone before the seeker re-reads what they asked. */}
             <p
               className="text-center"
               style={{
@@ -430,18 +442,6 @@ export function ReadingScreen({
             />
           </div>
         )}
-        <header className="flex flex-col items-center gap-1.5 text-center">
-          <span className="text-[10px] uppercase tracking-[0.3em] text-gold/70">
-            {meta.label}
-          </span>
-        </header>
-
-        <CardStrip
-          picks={picks}
-          positionLabels={positionLabels}
-          spread={spread}
-          deckId={deckId ?? null}
-        />
 
         {/* Idle / loading actions. Once interpretation has loaded, these
             collapse so the prose can breathe. */}
