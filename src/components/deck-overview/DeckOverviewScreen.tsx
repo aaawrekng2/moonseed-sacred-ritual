@@ -1787,6 +1787,7 @@ function ActionSheet({
   onEdit,
   onReplacePhoto,
   onReplaceUpload,
+  onReplaceFromZip,
   onRemove,
 }: {
   target: number | "BACK";
@@ -1797,6 +1798,7 @@ function ActionSheet({
   onEdit: () => void;
   onReplacePhoto: () => void;
   onReplaceUpload: () => void;
+  onReplaceFromZip?: () => void;
   onRemove: () => void;
 }) {
   const title =
@@ -1859,6 +1861,13 @@ function ActionSheet({
             label="Replace with upload"
             onClick={onReplaceUpload}
           />
+          {onReplaceFromZip && (
+            <SheetButton
+              icon={FolderArchive}
+              label="Replace from source zip"
+              onClick={onReplaceFromZip}
+            />
+          )}
           <SheetButton
             icon={Trash2}
             label={busy ? "Removing…" : "Remove from deck"}
