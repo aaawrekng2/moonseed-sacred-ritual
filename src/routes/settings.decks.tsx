@@ -755,10 +755,14 @@ function DeckRow({
                 setMenuOpen(false);
                 void handleGenerateVariants();
               }}
-              disabled={variantBusy}
+              disabled={variantBusy || isProcessing}
               className="rounded px-2 py-1.5 text-left text-sm hover:bg-foreground/10 disabled:opacity-50"
             >
-              {variantBusy ? "Optimizing…" : "Optimize images"}
+              {variantBusy
+                ? "Optimizing…"
+                : isProcessing
+                  ? "Processing in background…"
+                  : "Optimize images"}
             </button>
             {lastFailedCursor !== null && (
               <button
@@ -768,7 +772,7 @@ function DeckRow({
                   setMenuOpen(false);
                   void handleGenerateVariants(lastFailedCursor);
                 }}
-                disabled={variantBusy}
+                disabled={variantBusy || isProcessing}
                 className="rounded px-2 py-1.5 text-left text-sm hover:bg-foreground/10 disabled:opacity-50"
               >
                 Resume optimize (from card {lastFailedCursor})
@@ -820,9 +824,13 @@ function DeckRow({
             e.stopPropagation();
             void handleGenerateVariants();
           }}
-          disabled={variantBusy}
+          disabled={variantBusy || isProcessing}
           className="rounded-md border border-gold/30 px-2 py-1 text-xs hover:bg-gold/10 disabled:opacity-50"
-          title="Optimize for fast loading (generate small/medium variants)"
+          title={
+            isProcessing
+              ? "Processing in background — wait until complete"
+              : "Optimize for fast loading (generate small/medium variants)"
+          }
           aria-label="Optimize deck images"
         >
           {variantBusy ? (
