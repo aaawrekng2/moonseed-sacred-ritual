@@ -1160,7 +1160,7 @@ export function Tabletop({
       {/* Tabletop scatter area */}
       <div
         ref={containerRef}
-        className="tabletop-stage relative flex-1 overflow-hidden select-none"
+        className="tabletop-stage relative flex-1 overflow-visible select-none"
         style={{
           // Reserve a vertical strip for the upper-right icon cluster
           // (44px tap targets + safe-area) so cards never spawn or get
