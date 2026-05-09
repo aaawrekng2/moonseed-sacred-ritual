@@ -1017,6 +1017,15 @@ export function DeckOverviewScreen({
               <ImageIcon className="h-3 w-3" /> Choose from uploaded cards
             </button>
           )}
+          {localSourceZipPath && (
+            <button
+              type="button"
+              onClick={() => setZipPickerTarget("BACK")}
+              className="ml-3 mt-1 inline-flex items-center gap-1 text-[11px] italic text-muted-foreground underline hover:opacity-80"
+            >
+              <Upload className="h-3 w-3" /> Pick from zip
+            </button>
+          )}
         </div>
       </div>
 
