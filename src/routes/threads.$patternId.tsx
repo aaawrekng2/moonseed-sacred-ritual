@@ -1541,7 +1541,10 @@ function ReadingExcerptCard({
   const spreadLabel = reading.spread_type.replace(/_/g, " ").toUpperCase();
   const excerpt = (() => {
     if (!reading.interpretation) return null;
+    // Q16 Fix 3 — strip the legacy "{spread} — Moonseed reading"
+    // prefix from older readings that captured it into the body.
     let stripped = reading.interpretation
+      .replace(/^[A-Za-z]+(\s+[A-Za-z]+)?\s+—\s+Moonseed reading\s*\n*/i, "")
       .replace(/[*_#`]/g, "")
       .replace(/\s+/g, " ")
       .trim();
