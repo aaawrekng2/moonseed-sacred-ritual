@@ -25,6 +25,8 @@ import {
   ChevronLeft,
   Image as ImageIcon,
   Loader2,
+  LayoutGrid,
+  List as ListIcon,
   Pencil,
   Plus,
   Sparkles,
@@ -156,6 +158,20 @@ export function DeckOverviewScreen({
   const [localBackUrl, setLocalBackUrl] = useState<string | null>(
     deck.card_back_url ?? null,
   );
+  // 26-05-08-Q — Fix 8: default deck-edit view is the editable list
+  // (card_name + card_description per row for AI prompt context).
+  // Persist user's preference per browser.
+  const VIEW_MODE_KEY = "moonseed:deck-edit-view-mode";
+  const [viewMode, setViewMode] = useState<"list" | "grid">(() => {
+    if (typeof window === "undefined") return "list";
+    const v = window.localStorage.getItem(VIEW_MODE_KEY);
+    return v === "grid" ? "grid" : "list";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(VIEW_MODE_KEY, viewMode);
+    }
+  }, [viewMode]);
   useEffect(() => {
     setLocalBackUrl(deck.card_back_url ?? null);
   }, [deck.card_back_url]);
