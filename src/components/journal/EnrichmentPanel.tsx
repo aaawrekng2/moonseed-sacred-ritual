@@ -767,6 +767,8 @@ export function EnrichmentPanel({
             textareaRef={noteTextareaRef}
             onTailoredPromptUpdate={onTailoredPromptUpdate}
             onPremiumUpsell={onPremiumUpsell}
+            defaultHidden={!!journalPromptUsed}
+            onPromptUsed={onJournalPromptUsed}
           />
           <textarea
             ref={noteTextareaRef}
@@ -795,6 +797,9 @@ export function EnrichmentPanel({
             onClick={() => {
               // Q14 Fix 6 — persist but keep the note inline; never collapse.
               persistNote(note);
+              setSavedFlash(true);
+              if (savedFlashTimer.current) clearTimeout(savedFlashTimer.current);
+              savedFlashTimer.current = setTimeout(() => setSavedFlash(false), 1400);
             }}
             style={{
               alignSelf: "flex-end",
@@ -809,9 +814,15 @@ export function EnrichmentPanel({
               padding: "4px 0",
               borderBottom:
                 "1px solid color-mix(in oklch, var(--gold) 30%, transparent)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
             }}
           >
-            Save
+            {savedFlash && (
+              <Check size={13} strokeWidth={2} style={{ color: "var(--gold)" }} />
+            )}
+            {savedFlash ? "Saved" : "Save"}
           </button>
         </div>
       )}
