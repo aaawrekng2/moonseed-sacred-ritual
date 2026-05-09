@@ -17,7 +17,7 @@ import {
   formatMonthYear,
 } from "@/lib/dates";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
-import { stripMarkdown } from "@/lib/strip-markdown";
+import { stripMarkdown, stripLegacyMoonseedPrefix } from "@/lib/strip-markdown";
 import {
   useDeckImage,
   useDeckCornerRadius,
@@ -978,7 +978,9 @@ function ReadingCard({
   const hasNote = (reading.note ?? "").trim().length > 0;
   const hasQuestion = (reading.question ?? "").trim().length > 0;
   const hasTags = (reading.tags ?? []).length > 0;
-  const interpFirst = (reading.interpretation ?? "")
+  // Q16 Fix 3 — strip the legacy "{spread} — Moonseed reading" prefix
+  // from older readings before rendering the row excerpt.
+  const interpFirst = stripLegacyMoonseedPrefix(reading.interpretation ?? "")
     .replace(/\s+/g, " ")
     .trim();
   const interpClean = stripMarkdown(interpFirst);
