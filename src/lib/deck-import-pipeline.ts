@@ -30,6 +30,8 @@ export type ImportAsset = {
   height: number;
   /** Tiny inline preview for drawer / pickup affordance. */
   thumbnailDataUrl?: string;
+  /** 26-05-08-K — full-resolution data URL used by RadiusPreviewScreen. */
+  fullDataUrl?: string;
   /** Oracle metadata, populated when deckType === "oracle". */
   oracleName?: string;
   oracleDescription?: string;
@@ -99,7 +101,9 @@ function parseCsvMetadata(
 
 function oracleNameFromFilename(filename: string): string {
   const stem = filename.replace(/\.[^.]+$/, "");
-  const cleaned = stem.replace(/[_\-]+/g, " ").trim();
+  // 26-05-08-K — strip leading number prefix (e.g. "01_", "02 ", "003-")
+  const stripped = stem.replace(/^\d+[_\-\s.]+/, "");
+  const cleaned = (stripped || stem).replace(/[_\-]+/g, " ").trim();
   return cleaned
     .split(/\s+/)
     .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : ""))
@@ -123,7 +127,12 @@ async function computeKey(filename: string, blob: Blob): Promise<string> {
 
 async function readDimensionsAndThumbnail(
   blob: Blob,
-): Promise<{ width: number; height: number; thumbnailDataUrl?: string }> {
+): Promise<{
+  width: number;
+  height: number;
+  thumbnailDataUrl?: string;
+  fullDataUrl?: string;
+}> {
   if (typeof window === "undefined") return { width: 0, height: 0 };
   const url = URL.createObjectURL(blob);
   try {
@@ -133,6 +142,7 @@ async function readDimensionsAndThumbnail(
     const width = img.naturalWidth;
     const height = img.naturalHeight;
     let thumbnailDataUrl: string | undefined;
+    let fullDataUrl: string | undefined;
     try {
       const TARGET = 96;
       const scale = Math.min(1, TARGET / Math.max(width, height));
@@ -149,7 +159,21 @@ async function readDimensionsAndThumbnail(
     } catch {
       /* non-fatal */
     }
-    return { width, height, thumbnailDataUrl };
+    // 26-05-08-K — also produce a sharp full-res data URL for the
+    // RadiusPreviewScreen so users see crisp corners.
+    try {
+      const fullCanvas = document.createElement("canvas");
+      fullCanvas.width = width;
+      fullCanvas.height = height;
+      const fctx = fullCanvas.getContext("2d");
+      if (fctx) {
+        fctx.drawImage(img, 0, 0, width, height);
+        fullDataUrl = fullCanvas.toDataURL("image/webp", 0.85);
+      }
+    } catch {
+      /* non-fatal */
+    }
+    return { width, height, thumbnailDataUrl, fullDataUrl };
   } finally {
     URL.revokeObjectURL(url);
   }
@@ -188,6 +212,7 @@ export async function extractZip(blob: Blob): Promise<ExtractZipResult> {
       width: dims.width,
       height: dims.height,
       thumbnailDataUrl: dims.thumbnailDataUrl,
+      fullDataUrl: dims.fullDataUrl,
     });
   }
   if (assets.length === 0) throw new ZipEmptyError();
