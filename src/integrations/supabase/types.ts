@@ -567,6 +567,7 @@ export type Database = {
       readings: {
         Row: {
           archived_at: string | null
+          card_deck_ids: string[]
           card_ids: number[]
           card_orientations: boolean[]
           created_at: string
@@ -595,6 +596,7 @@ export type Database = {
         }
         Insert: {
           archived_at?: string | null
+          card_deck_ids?: string[]
           card_ids: number[]
           card_orientations?: boolean[]
           created_at?: string
@@ -623,6 +625,7 @@ export type Database = {
         }
         Update: {
           archived_at?: string | null
+          card_deck_ids?: string[]
           card_ids?: number[]
           card_orientations?: boolean[]
           created_at?: string
