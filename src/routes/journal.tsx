@@ -2083,7 +2083,7 @@ function ReadingDetail({
     isReversed: reading.card_orientations?.[idx] ?? false,
   }));
   const sharePositions =
-    positions ?? reading.card_ids.map((id) => getCardName(id));
+    positions ?? reading.card_ids.map((id) => resolveCardName(id));
 
   // Lock body scroll while the overlay is open.
   useEffect(() => {
@@ -2254,7 +2254,7 @@ function ReadingDetail({
                   widthPx={ezCardWidthPx}
                   deckId={reading.deck_id ?? null}
                   shadow
-                  ariaLabel={`Zoom ${getCardName(id)}`}
+                  ariaLabel={`Zoom ${resolveCardName(id)}`}
                   onClick={() =>
                     setZoomedCard({ cardId: id, reversed: isReversed })
                   }
@@ -2266,7 +2266,7 @@ function ReadingDetail({
                     fontSize: "var(--text-body-sm, 13px)",
                   }}
                 >
-                  {positions?.[idx] ?? getCardName(id)}
+                  {positions?.[idx] ?? resolveCardName(id)}
                 </span>
                 <span
                   className="text-center font-display text-[10px] italic text-muted-foreground"
