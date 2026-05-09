@@ -101,6 +101,11 @@ export async function fetchDeckCards(deckId: string): Promise<CustomDeckCard[]> 
     .from("custom_deck_cards")
     .select("*")
     .eq("deck_id", deckId)
+    // 26-05-08-L — defensive: card back is stored on `custom_decks`
+    // (card_back_url / card_back_thumb_url), NOT in custom_deck_cards.
+    // We still guard against any legacy/sentinel back row by excluding
+    // negative card_id values so a back never enters the draw pool.
+    .gte("card_id", 0)
     .is("archived_at", null);
   if (error) throw error;
   return (data ?? []) as CustomDeckCard[];
