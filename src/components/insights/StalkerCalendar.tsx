@@ -5,6 +5,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 
+function initialMonth(
+  appearances: Array<{ readingId: string; date: string }>,
+): Date {
+  if (appearances.length === 0) return new Date();
+  const sorted = [...appearances].sort((a, b) => (a.date < b.date ? 1 : -1));
+  const d = new Date(sorted[0].date);
+  return new Date(d.getFullYear(), d.getMonth() - 1, 1);
+}
+
 export function StalkerCalendar({
   appearances,
 }: {
