@@ -10,7 +10,7 @@
  * "a gentle invitation, not a form" (per the Phase 6 spec).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, CameraOff, CheckCheck, Copy, Heart, Loader2, Network, Pencil, Plus, Share2, Tag as TagIcon, X } from "lucide-react";
+import { Camera, CameraOff, CheckCheck, Copy, Heart, Loader2, Network, Pencil, Plus, Share2, StickyNote, Tag as TagIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
@@ -19,6 +19,10 @@ import { HelpIcon } from "@/components/help/HelpIcon";
 import { CardImage } from "@/components/card/CardImage";
 import { getCardName } from "@/lib/tarot";
 import { LoadingText } from "@/components/ui/loading-text";
+import { JournalPrompts } from "@/components/tarot/JournalPrompts";
+import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
+import { useServerFn } from "@tanstack/react-start";
+import { generateTailoredPrompt } from "@/lib/tailored-prompt.functions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -87,6 +91,30 @@ type Props = {
    * Omit to hide the icon entirely.
    */
   onShare?: () => void;
+  /**
+   * 26-05-08-Q12 — When true, the note section is open by default
+   * (used in the journal detail view, where notes should be visible
+   * without an extra tap).
+   */
+  defaultNoteOpen?: boolean;
+  /**
+   * 26-05-08-Q12 — Reading context used by the JournalPrompts panel.
+   * When present, the panel renders curated journaling prompts above
+   * the note textarea using the FIRST card's prompts.
+   */
+  cardIds?: number[];
+  /** Optional per-card prompts for oracle decks, keyed by card_id. */
+  customCardPromptsByCardId?: Record<number, string[] | null | undefined>;
+  /** Premium status — when true, an extra "tailored prompt" cycler position appears. */
+  isPremium?: boolean;
+  /** Cached tailored prompt for this reading (string) or null. */
+  tailoredPrompt?: string | null;
+  /** Seeker's question for this reading — required to enable tailored prompt. */
+  question?: string | null;
+  /** Called after the tailored prompt is generated so the parent can refresh. */
+  onTailoredPromptUpdate?: (prompt: string) => void;
+  /** Opens the premium upsell when a free seeker taps the tailored slot. */
+  onPremiumUpsell?: () => void;
 };
 
 const SAVE_DELAY_MS = 800;
@@ -180,6 +208,14 @@ export function EnrichmentPanel({
   onPhotoCountChange,
   copyText,
   onShare,
+  defaultNoteOpen,
+  cardIds,
+  customCardPromptsByCardId,
+  isPremium,
+  tailoredPrompt: tailoredPromptProp,
+  question,
+  onTailoredPromptUpdate,
+  onPremiumUpsell,
 }: Props) {
   // Local mirrors of the reading fields so typing is responsive.
   const [note, setNote] = useState(reading.note ?? "");
@@ -189,7 +225,7 @@ export function EnrichmentPanel({
   // UI toggles for the inline editors.
   const [openSection, setOpenSection] = useState<
     "note" | "tags" | null
-  >(null);
+  >(defaultNoteOpen ? "note" : null);
   const [tagInput, setTagInput] = useState("");
 
   // Photos for this reading.
