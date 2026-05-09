@@ -33,7 +33,6 @@ import {
   useDeckCornerRadius,
   useDeckImage,
   variantUrlFor,
-  variantUrlPngFallback,
 } from "@/lib/active-deck";
 import type { CardBackId } from "@/lib/card-backs";
 
@@ -172,11 +171,13 @@ export function CardImage({
   const specificNameResolve = useDeckCardName(deckId ?? null);
   const customBackUrl = useActiveCardBackUrl();
   const [imageLoaded, setImageLoaded] = useState(false);
-  // 9-6-AF — fallback ladder for variant resolution. `null` = trying
-  // the .webp variant. `"png"` = .webp 404'd, trying .png variant.
-  // `"all"` = both variants failed, falling back to the original.
+  // 26-05-08-Q2 — Fix 8: dropped the .png fallback step. Architecture
+  // uploads ONLY .webp variants, so the .png attempt always 404s and
+  // adds noise. Ladder is now: variant.webp → display.webp → placeholder.
+  // `null` = trying the .webp variant. `"all"` = variant failed, fall
+  // back to base displayUrl directly.
   const [variantFailedFor, setVariantFailedFor] = useState<
-    null | "png" | "all"
+    null | "all"
   >(null);
   const devMode = useDevMode();
 
@@ -273,18 +274,7 @@ export function CardImage({
   // variantFailedFor and we re-render with the original.
   const variantTier = SIZE_TO_VARIANT[size];
   const variantSrc = variantUrlFor(baseFaceSrc, variantTier);
-  // 9-6-AF — try .webp variant → .png variant → original. Tracks
-  // which step we've fallen through to via `variantFailedFor`.
-  const variantPngSrc =
-    variantTier === "full"
-      ? null
-      : variantUrlPngFallback(baseFaceSrc, variantTier);
-  const faceSrc =
-    variantFailedFor === "png" || variantFailedFor === "all"
-      ? variantFailedFor === "all"
-        ? baseFaceSrc
-        : variantPngSrc ?? baseFaceSrc
-      : variantSrc;
+  const faceSrc = variantFailedFor === "all" ? baseFaceSrc : variantSrc;
 
   const showFaceShimmer =
     variant === "face" && !loading && (faceSrc == null || !imageLoaded);
@@ -373,14 +363,8 @@ export function CardImage({
                   setImageLoaded(true);
                 }}
                 onError={() => {
-                  // 9-6-AF — try .png variant before original.
+                  // 26-05-08-Q2 — Fix 8: variant.webp → base displayUrl.
                   if (
-                    variantTier !== "full" &&
-                    variantFailedFor === null &&
-                    variantPngSrc
-                  ) {
-                    setVariantFailedFor("png");
-                  } else if (
                     variantFailedFor !== "all" &&
                     baseFaceSrc &&
                     faceSrc !== baseFaceSrc
@@ -471,14 +455,8 @@ export function CardImage({
             loading="lazy"
             onLoad={() => setImageLoaded(true)}
             onError={() => {
-              // 9-6-AF — try .png variant before original.
+              // 26-05-08-Q2 — Fix 8: variant.webp → base displayUrl.
               if (
-                variantTier !== "full" &&
-                variantFailedFor === null &&
-                variantPngSrc
-              ) {
-                setVariantFailedFor("png");
-              } else if (
                 variantFailedFor !== "all" &&
                 baseFaceSrc &&
                 faceSrc !== baseFaceSrc

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -32,8 +33,17 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    /**
+     * 26-05-08-Q2 — Fix 10: every DialogContent must have a DialogTitle
+     * for screen-reader accessibility. Callers that don't render a
+     * visible title can pass `srTitle` and we'll inject a hidden one.
+     * If both a visible <DialogTitle> child AND srTitle are present,
+     * Radix accepts the duplicate without error.
+     */
+    srTitle?: string;
+  }
+>(({ className, children, srTitle, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -45,6 +55,12 @@ const DialogContent = React.forwardRef<
       style={{ zIndex: "var(--z-modal)" }}
       {...props}
     >
+      {/* 26-05-08-Q2 — Fix 10: always emit a hidden DialogTitle so the
+          Radix a11y warning never fires. Visible <DialogTitle> children
+          remain the labeled-by source (Radix walks for the first Title). */}
+      <VisuallyHidden.Root>
+        <DialogPrimitive.Title>{srTitle ?? "Dialog"}</DialogPrimitive.Title>
+      </VisuallyHidden.Root>
       {children}
       <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
         <X className="h-4 w-4" />

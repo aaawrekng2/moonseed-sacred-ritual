@@ -64,6 +64,13 @@ export function getCardName(id: TarotCardId): string {
 }
 
 export function getCardImagePath(id: TarotCardId): string {
+  // 26-05-08-Q2 — Fix 1: oracle ids (>=1000) have no static fallback
+  // image. Returning the constructed `/cards/card-1042.jpg` path
+  // produces a hard 404 in the network panel and a broken IMG.
+  // Callers that resolve through a custom deck already short-circuit
+  // before reaching here; this guard catches the few remaining sites
+  // that fall through to the default path.
+  if (id >= 1000) return "";
   const padded = String(id).padStart(2, "0");
   return `/cards/card-${padded}.jpg`;
 }
