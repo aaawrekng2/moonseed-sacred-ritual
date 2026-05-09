@@ -1711,6 +1711,27 @@ export function DeckOverviewScreen({
           </div>,
           document.body,
         )}
+      {/* 26-05-08-Q9 — per-card / back recovery from source zip */}
+      {zipPickerTarget !== null && (
+        <SourceZipPickerModal
+          open
+          onClose={() => setZipPickerTarget(null)}
+          userId={userId}
+          deckId={deckId}
+          sourceZipPath={localSourceZipPath}
+          target={zipPickerTarget}
+          opts={{
+            shape:
+              deck.shape === "round"
+                ? ("round" as const)
+                : ("rectangle" as const),
+            cornerRadiusPercent: defaultRadiusPercent,
+          }}
+          onSaved={() => {
+            void reload();
+          }}
+        />
+      )}
     </section>
   );
 }
