@@ -45,16 +45,17 @@ export async function maybeRunTarotpulseImport(
       const { error } = await supabase.from("readings").insert({
         user_id: userId,
         created_at: row.created_at,
-        card_ids: row.card_ids,
-        card_orientations: row.card_orientations,
+        card_ids: row.card_ids as unknown as number[],
+        card_orientations: row.card_orientations as unknown as boolean[],
         spread_type: row.spread_type,
         question: row.question,
         note: row.note,
-        tags: row.tags,
+        tags: row.tags as unknown as string[],
+        // `source` column added in Q10 migration; types may lag one cycle.
         source: "imported-tarotpulse",
         entry_mode: "digital",
         mode: "personal",
-      });
+      } as never);
       if (error) {
         console.warn("[tarotpulse-import] insert error", error, row);
       } else {
