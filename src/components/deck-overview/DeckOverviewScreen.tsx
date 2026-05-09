@@ -455,23 +455,14 @@ export function DeckOverviewScreen({
           savedCardIds.push(item.cardId);
         }
       }
-      // 9-6-AH — variant generation deferred to the background queue
-      // (process-variant-queue, scheduled every 30s via pg_cron).
-      // processing_status is already 'pending' on each saved row.
-      void savedCardIds; // referenced only by the now-removed loop
-      // 26-05-08-M — Fix 1: kick the queue immediately so cards
-      // start processing within seconds, not up to 30s later.
-      try {
-        await supabase.functions.invoke("process-variant-queue", {});
-      } catch {
-        /* non-fatal — pg_cron will catch within 30s */
-      }
+      // 26-05-08-O — variants encoded client-side; no queue involvement.
+      void savedCardIds;
       await reload();
       toast.success(
         result.matchedCount === totalSlots
-          ? `Deck saved. Card images are processing in the background — they'll appear over the next few minutes.`
-          : `Saved ${result.matchedCount} of ${totalSlots || result.matchedCount} cards. Processing in the background.`,
-        { duration: 8000 },
+          ? `Deck saved. All cards are ready.`
+          : `Saved ${result.matchedCount} of ${totalSlots || result.matchedCount} cards. All cards are ready.`,
+        { duration: 5000 },
       );
     } catch (err) {
       console.error("[DeckOverview] commit import failed", err);
