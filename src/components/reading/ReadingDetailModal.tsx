@@ -13,6 +13,8 @@ import { Modal } from "@/components/ui/modal";
 import { LoadingText } from "@/components/ui/loading-text";
 import { formatDateTime } from "@/lib/dates";
 import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
+import { JournalPromptsReadOnly } from "@/components/tarot/JournalPrompts";
+import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
 
 export function ReadingDetailModal({
   readingId,
@@ -114,6 +116,20 @@ export function ReadingDetailModal({
                 <p className="whitespace-pre-wrap text-sm leading-relaxed">{reading.note}</p>
               </section>
             ) : null}
+
+            {(() => {
+              const firstCardId = reading.card_ids?.[0];
+              const prompts = resolvePromptsForFirstCard(firstCardId, null);
+              if (!prompts || prompts.length === 0) return null;
+              return (
+                <section className="mt-6">
+                  <h3 className="text-[11px] uppercase tracking-widest italic text-muted-foreground">
+                    Reflection Prompts
+                  </h3>
+                  <JournalPromptsReadOnly prompts={prompts} className="mt-2" />
+                </section>
+              );
+            })()}
 
             {Array.isArray(reading.tags) && reading.tags.length > 0 ? (
               <section className="mt-4 flex flex-wrap gap-1.5">
