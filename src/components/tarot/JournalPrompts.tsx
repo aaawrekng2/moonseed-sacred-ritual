@@ -109,6 +109,9 @@ export function JournalPrompts({
         }
       }
     });
+    // Q15 Fix 4 — auto-collapse the prompt panel after insertion
+    // (Q14 Fix 5 added the callback but forgot the local hide).
+    setHidden(true);
     onPromptUsed?.();
   };
 
