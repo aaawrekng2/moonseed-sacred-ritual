@@ -512,6 +512,7 @@ export function ReadingScreen({
                 onShare={() => setShareOpen(true)}
                 cardIds={picks.map((p) => p.cardIndex)}
                 question={question || null}
+                defaultNoteOpen
               />
             )}
           {(savedReading || (state.kind === "loaded" && state.readingId)) && (
