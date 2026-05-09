@@ -518,6 +518,17 @@ export function ReadingScreen({
                 cardIds={picks.map((p) => p.cardIndex)}
                 question={question || null}
                 defaultNoteOpen
+              tailoredPrompt={savedReading.tailored_prompt ?? null}
+              journalPromptUsed={!!savedReading.journal_prompt_used}
+              onJournalPromptUsed={() => {
+                setSavedReading((prev) =>
+                  prev ? { ...prev, journal_prompt_used: true } : prev,
+                );
+                void supabase
+                  .from("readings")
+                  .update({ journal_prompt_used: true })
+                  .eq("id", savedReading.id);
+              }}
               />
             )}
           {(savedReading || (state.kind === "loaded" && state.readingId)) && (
