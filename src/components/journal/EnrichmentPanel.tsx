@@ -10,7 +10,7 @@
  * "a gentle invitation, not a form" (per the Phase 6 spec).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, CameraOff, CheckCheck, Copy, Heart, Loader2, Network, Pencil, Plus, Share2, StickyNote, Tag as TagIcon, X } from "lucide-react";
+import { Camera, CameraOff, Check, CheckCheck, Copy, Heart, Loader2, Network, Pencil, Plus, Share2, StickyNote, Tag as TagIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
@@ -115,6 +115,10 @@ type Props = {
   onTailoredPromptUpdate?: (prompt: string) => void;
   /** Opens the premium upsell when a free seeker taps the tailored slot. */
   onPremiumUpsell?: () => void;
+  /** Q14 Fix 5 — whether this reading already had a prompt inserted. */
+  journalPromptUsed?: boolean;
+  /** Called once the seeker inserts a prompt for the first time. */
+  onJournalPromptUsed?: () => void;
 };
 
 const SAVE_DELAY_MS = 800;
@@ -216,11 +220,22 @@ export function EnrichmentPanel({
   question,
   onTailoredPromptUpdate,
   onPremiumUpsell,
+  journalPromptUsed,
+  onJournalPromptUsed,
 }: Props) {
   // Local mirrors of the reading fields so typing is responsive.
   const [note, setNote] = useState(reading.note ?? "");
   const [tags, setTags] = useState<string[]>(reading.tags ?? []);
   const [favorite, setFavorite] = useState(reading.is_favorite);
+  // Q14 Fix 6 — transient gold checkmark flashed after Save tap.
+  const [savedFlash, setSavedFlash] = useState(false);
+  const savedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (savedFlashTimer.current) clearTimeout(savedFlashTimer.current);
+    },
+    [],
+  );
 
   // UI toggles for the inline editors.
   const [openSection, setOpenSection] = useState<
@@ -752,6 +767,8 @@ export function EnrichmentPanel({
             textareaRef={noteTextareaRef}
             onTailoredPromptUpdate={onTailoredPromptUpdate}
             onPremiumUpsell={onPremiumUpsell}
+            defaultHidden={!!journalPromptUsed}
+            onPromptUsed={onJournalPromptUsed}
           />
           <textarea
             ref={noteTextareaRef}
@@ -780,6 +797,9 @@ export function EnrichmentPanel({
             onClick={() => {
               // Q14 Fix 6 — persist but keep the note inline; never collapse.
               persistNote(note);
+              setSavedFlash(true);
+              if (savedFlashTimer.current) clearTimeout(savedFlashTimer.current);
+              savedFlashTimer.current = setTimeout(() => setSavedFlash(false), 1400);
             }}
             style={{
               alignSelf: "flex-end",
@@ -794,9 +814,15 @@ export function EnrichmentPanel({
               padding: "4px 0",
               borderBottom:
                 "1px solid color-mix(in oklch, var(--gold) 30%, transparent)",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
             }}
           >
-            Save
+            {savedFlash && (
+              <Check size={13} strokeWidth={2} style={{ color: "var(--gold)" }} />
+            )}
+            {savedFlash ? "Saved" : "Save"}
           </button>
         </div>
       )}
@@ -1952,6 +1978,8 @@ function JournalPromptsSlot({
   textareaRef,
   onTailoredPromptUpdate,
   onPremiumUpsell,
+  defaultHidden,
+  onPromptUsed,
 }: {
   cardIds: number[] | undefined;
   customCardPromptsByCardId: Record<number, string[] | null | undefined> | undefined;
@@ -1964,6 +1992,8 @@ function JournalPromptsSlot({
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   onTailoredPromptUpdate?: (prompt: string) => void;
   onPremiumUpsell?: () => void;
+  defaultHidden?: boolean;
+  onPromptUsed?: () => void;
 }) {
   const generate = useServerFn(generateTailoredPrompt);
   const [localTailored, setLocalTailored] = useState<string | null>(tailoredPrompt);
@@ -2033,6 +2063,8 @@ function JournalPromptsSlot({
       onChange={onChange}
       beforeInsert={handleBeforeInsert}
       loading={loading}
+      defaultHidden={defaultHidden}
+      onPromptUsed={onPromptUsed}
     />
   );
 }

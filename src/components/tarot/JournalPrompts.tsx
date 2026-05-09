@@ -18,6 +18,14 @@ export type JournalPromptsProps = {
   beforeInsert?: (active: string) => Promise<string | null> | string | null;
   /** Show a small loading spinner on the "Tap to use" button. */
   loading?: boolean;
+  /**
+   * Q14 — When true, the panel starts collapsed under "Show prompts".
+   * Used after the seeker has previously inserted a prompt for this
+   * reading so the prompt panel doesn't dominate the journal next time.
+   */
+  defaultHidden?: boolean;
+  /** Called once a prompt was successfully inserted into the textarea. */
+  onPromptUsed?: () => void;
 };
 
 /**
@@ -35,9 +43,11 @@ export function JournalPrompts({
   className,
   beforeInsert,
   loading,
+  defaultHidden,
+  onPromptUsed,
 }: JournalPromptsProps) {
   const [index, setIndex] = useState(0);
-  const [hidden, setHidden] = useState(false);
+  const [hidden, setHidden] = useState(!!defaultHidden);
   const [direction, setDirection] = useState<"left" | "right">("right");
   // Re-mount key so the animation re-triggers on each change
   const animKeyRef = useRef(0);
@@ -99,6 +109,7 @@ export function JournalPrompts({
         }
       }
     });
+    onPromptUsed?.();
   };
 
   if (hidden) {

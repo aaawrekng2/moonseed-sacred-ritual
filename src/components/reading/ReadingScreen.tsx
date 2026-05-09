@@ -112,6 +112,8 @@ export function ReadingScreen({
     note: string | null;
     is_favorite: boolean;
     tags: string[] | null;
+    tailored_prompt?: string | null;
+    journal_prompt_used?: boolean;
   } | null>(null);
   const [tagLibrary, setTagLibrary] = useState<EnrichmentTag[]>([]);
   const savedReadingRef = useRef<typeof savedReading>(null);
@@ -274,7 +276,7 @@ export function ReadingScreen({
                 deck_id: deckId ?? null,
               });
         const { data, error } = await query
-          .select("id,user_id,note,is_favorite,tags")
+          .select("id,user_id,note,is_favorite,tags,tailored_prompt,journal_prompt_used")
           .single();
         if (cancelled) return;
         if (error || !data) {
@@ -287,6 +289,9 @@ export function ReadingScreen({
           note: data.note,
           is_favorite: data.is_favorite,
           tags: data.tags,
+          tailored_prompt: (data as { tailored_prompt?: string | null }).tailored_prompt ?? null,
+          journal_prompt_used:
+            (data as { journal_prompt_used?: boolean }).journal_prompt_used ?? false,
         });
         // 26-05-08-P — Fix 7: surface a transient confirmation so the
         // seeker knows the reading is in their journal even before they
@@ -397,11 +402,23 @@ export function ReadingScreen({
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)",
         }}
       >
+        <header className="flex flex-col items-center gap-1.5 text-center">
+          <span className="text-[10px] uppercase tracking-[0.3em] text-gold/70">
+            {meta.label}
+          </span>
+        </header>
+
+        <CardStrip
+          picks={picks}
+          positionLabels={positionLabels}
+          spread={spread}
+          deckId={deckId ?? null}
+        />
+
+        {/* Q14 Fix 2 — question moved BELOW the card strip so the
+            cards lead the eye, then the seeker re-reads what they asked. */}
         {question && question.trim() && (
           <div className="mx-auto w-full max-w-md">
-            {/* Tarot-style invocation that sits above the question on
-                the reveal page — small, italic, gold-tinted, sets a
-                sacred tone before the seeker re-reads what they asked. */}
             <p
               className="text-center"
               style={{
@@ -425,18 +442,6 @@ export function ReadingScreen({
             />
           </div>
         )}
-        <header className="flex flex-col items-center gap-1.5 text-center">
-          <span className="text-[10px] uppercase tracking-[0.3em] text-gold/70">
-            {meta.label}
-          </span>
-        </header>
-
-        <CardStrip
-          picks={picks}
-          positionLabels={positionLabels}
-          spread={spread}
-          deckId={deckId ?? null}
-        />
 
         {/* Idle / loading actions. Once interpretation has loaded, these
             collapse so the prose can breathe. */}
@@ -513,6 +518,17 @@ export function ReadingScreen({
                 cardIds={picks.map((p) => p.cardIndex)}
                 question={question || null}
                 defaultNoteOpen
+              tailoredPrompt={savedReading.tailored_prompt ?? null}
+              journalPromptUsed={!!savedReading.journal_prompt_used}
+              onJournalPromptUsed={() => {
+                setSavedReading((prev) =>
+                  prev ? { ...prev, journal_prompt_used: true } : prev,
+                );
+                void supabase
+                  .from("readings")
+                  .update({ journal_prompt_used: true })
+                  .eq("id", savedReading.id);
+              }}
               />
             )}
           {(savedReading || (state.kind === "loaded" && state.readingId)) && (

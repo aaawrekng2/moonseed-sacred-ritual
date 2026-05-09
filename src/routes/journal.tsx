@@ -161,6 +161,8 @@ type ReadingRow = {
   archived_at?: string | null;
   /** Q12 — cached tailored journaling prompt for premium seekers. */
   tailored_prompt?: string | null;
+  /** Q14 — true once the seeker inserted a prompt into the note. */
+  journal_prompt_used?: boolean;
 };
 
 type TagRow = { id: string; name: string; usage_count: number };
@@ -284,7 +286,7 @@ function JournalPage() {
           supabase
             .from("readings")
             .select(
-              "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,tailored_prompt",
+              "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,tailored_prompt,journal_prompt_used",
             )
             .eq("user_id", user.id)
             .is("archived_at", null)
@@ -473,7 +475,7 @@ function JournalPage() {
       const { data } = await supabase
         .from("readings")
         .select(
-          "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,archived_at,tailored_prompt",
+          "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,archived_at,tailored_prompt,journal_prompt_used",
         )
         .eq("id", openId)
         .eq("user_id", user.id)
@@ -842,7 +844,7 @@ function JournalPage() {
                 const { data: rows } = await supabase
                   .from("readings")
                   .select(
-                    "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,tailored_prompt",
+                    "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,tailored_prompt,journal_prompt_used",
                   )
                   .eq("user_id", user.id)
                   .is("archived_at", null)
@@ -884,7 +886,7 @@ function JournalPage() {
               const { data: rows } = await supabase
                 .from("readings")
                 .select(
-                  "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,tailored_prompt",
+                  "id,user_id,spread_type,card_ids,card_orientations,interpretation,created_at,guide_id,lens_id,moon_phase,note,is_favorite,tags,is_deep_reading,deep_reading_lenses,mirror_saved,pattern_id,question,import_batch_id,deck_id,tailored_prompt,journal_prompt_used",
                 )
                 .eq("user_id", user.id)
                 .is("archived_at", null)
@@ -1083,35 +1085,51 @@ function ReadingCard({
         <div className="flex items-center gap-2 shrink-0">
           {hasQuestion && (
             <MessageCircle size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has question" />
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has question">
+              <title>Has question</title>
+            </MessageCircle>
           )}
           {hasNote && (
             <StickyNote size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has note" />
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has note">
+              <title>Has note</title>
+            </StickyNote>
           )}
           {reading.is_favorite && (
             <Heart size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Favorite" />
+              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Favorite">
+              <title>Favorite</title>
+            </Heart>
           )}
           {reading.mirror_saved && (
             <Bookmark size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Bookmarked" />
+              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Bookmarked">
+              <title>Bookmarked</title>
+            </Bookmark>
           )}
           {reading.is_deep_reading && (
             <Star size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Deep reading" />
+              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Deep reading">
+              <title>Deep reading</title>
+            </Star>
           )}
           {reading.interpretation && reading.interpretation.trim() !== "" && (
             <Sparkles size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="AI interpreted" />
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="AI interpreted">
+              <title>AI interpreted</title>
+            </Sparkles>
           )}
           {hasTags && (
             <TagIcon size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has tags" />
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has tags">
+              <title>Has tags</title>
+            </TagIcon>
           )}
           {hasPhoto && (
             <Camera size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has photo" />
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has photo">
+              <title>Has photo</title>
+            </Camera>
           )}
           {reading.pattern_id && patternsById[reading.pattern_id] && (
             <button
@@ -2257,14 +2275,28 @@ function ReadingDetail({
                     setZoomedCard({ cardId: id, reversed: isReversed })
                   }
                 />
+                {/* Q14 Fix 7 — card name in accent (gold) above the
+                    smaller, muted position label. */}
                 <span
-                  className="mt-1 max-w-[120px] text-center font-display italic text-muted-foreground"
+                  className="mt-1 max-w-[120px] text-center font-display italic"
                   style={{
-                    opacity: "var(--ro-plus-20)",
+                    color: "var(--gold)",
+                    opacity: "var(--ro-plus-30)",
                     fontSize: "var(--text-body-sm, 13px)",
+                    lineHeight: 1.2,
                   }}
                 >
-                  {positions?.[idx] ?? resolveCardName(id)}
+                  {resolveCardName(id)}
+                </span>
+                <span
+                  className="max-w-[120px] text-center font-display italic text-muted-foreground"
+                  style={{
+                    opacity: "var(--ro-plus-20)",
+                    fontSize: "var(--text-caption, 11px)",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {positions?.[idx] ?? ""}
                 </span>
                 <span
                   className="text-center font-display text-[10px] italic text-muted-foreground"
@@ -2414,6 +2446,13 @@ function ReadingDetail({
           }
           onPremiumUpsell={() => navigate({ to: "/settings/moon" })}
           defaultNoteOpen
+          journalPromptUsed={!!reading.journal_prompt_used}
+          onJournalPromptUsed={() => {
+            void supabase
+              .from("readings")
+              .update({ journal_prompt_used: true })
+              .eq("id", reading.id);
+          }}
         />
         </div>
 
