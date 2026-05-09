@@ -340,29 +340,9 @@ function DeckRow({
   const [count, setCount] = useState<number | null>(null);
   // 9-6-AH — live background-queue processing indicator.
   const [procStatus, setProcStatus] = useState<DeckProcessingStatus | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    let interval: ReturnType<typeof setInterval> | null = null;
-    const tick = async () => {
-      const expected = deck.deck_type === "oracle" ? 0 : 78;
-      if (expected === 0) return;
-      const s = await fetchDeckProcessingStatus(deck.id, expected);
-      if (cancelled) return;
-      setProcStatus(s);
-      if (s.isComplete && interval) {
-        clearInterval(interval);
-        interval = null;
-      }
-    };
-    void tick();
-    // 26-05-08-L — Fix 7: 8s is plenty; was 5s. Cleanup already
-    // clears the interval on unmount and when isComplete becomes true.
-    interval = setInterval(tick, 8000);
-    return () => {
-      cancelled = true;
-      if (interval) clearInterval(interval);
-    };
-  }, [deck.id, deck.deck_type]);
+  // 26-05-08-N — Fix 5: track stalls so we can auto-recover stuck queues.
+  const lastSavedRef = useRef<number | null>(null);
+  const stallCountRef = useRef(0);
   // EZ-7 — One-tap backfill of pre-resized small/medium variants
   // for every card in this deck. Speeds up journal/insights renders
   // by 10-50× on decks with multi-MB scans.
