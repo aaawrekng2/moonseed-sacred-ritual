@@ -17,6 +17,7 @@ import { ManualSpreadSlots } from "@/components/tabletop/SpreadLayout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { getCardName } from "@/lib/tarot";
+import { cn } from "@/lib/utils";
 
 const CELTIC_POSITION_LABELS = [
   "Significator",
@@ -133,7 +134,13 @@ export function ManualEntryBuilder({
         <div className="w-9" />
       </header>
 
-      <div className="flex flex-1 flex-col items-center justify-start gap-6 overflow-y-auto p-6">
+      <div
+        className={cn(
+          "flex flex-1 flex-col items-center justify-start gap-6 p-6",
+          // Q14 Fix 8 — only celtic needs scrolling; small spreads fit fine.
+          isCelticManualEntry && "overflow-y-auto",
+        )}
+      >
         <p
           className="text-center"
           style={{

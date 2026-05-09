@@ -778,8 +778,8 @@ export function EnrichmentPanel({
           <button
             type="button"
             onClick={() => {
+              // Q14 Fix 6 — persist but keep the note inline; never collapse.
               persistNote(note);
-              setOpenSection(null);
             }}
             style={{
               alignSelf: "flex-end",
@@ -796,7 +796,7 @@ export function EnrichmentPanel({
                 "1px solid color-mix(in oklch, var(--gold) 30%, transparent)",
             }}
           >
-            {isOracle ? "Inscribe & Close" : "Save & Close"}
+            Save
           </button>
         </div>
       )}

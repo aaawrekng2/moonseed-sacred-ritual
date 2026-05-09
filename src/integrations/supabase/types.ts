@@ -587,6 +587,7 @@ export type Database = {
           interpretation: string | null
           is_deep_reading: boolean
           is_favorite: boolean
+          journal_prompt_used: boolean
           lens_id: string | null
           mirror_saved: boolean
           mirror_saved_at: string | null
@@ -618,6 +619,7 @@ export type Database = {
           interpretation?: string | null
           is_deep_reading?: boolean
           is_favorite?: boolean
+          journal_prompt_used?: boolean
           lens_id?: string | null
           mirror_saved?: boolean
           mirror_saved_at?: string | null
@@ -649,6 +651,7 @@ export type Database = {
           interpretation?: string | null
           is_deep_reading?: boolean
           is_favorite?: boolean
+          journal_prompt_used?: boolean
           lens_id?: string | null
           mirror_saved?: boolean
           mirror_saved_at?: string | null
