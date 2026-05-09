@@ -669,6 +669,7 @@ function CardStrip({
               reversed={picks[i].isReversed}
               size="custom"
               widthPx={cw}
+              deckId={picks[i].deckId ?? deckId ?? null}
             />
           </div>
         ) : (
@@ -695,6 +696,7 @@ function CardStrip({
             cardIndex={picks[i].cardIndex}
             isReversed={!!picks[i].isReversed}
             cardWidth={cw}
+            deckId={picks[i].deckId ?? deckId ?? null}
           />
         )}
       </div>
@@ -722,6 +724,7 @@ function CardStrip({
                       reversed={picks[0].isReversed}
                       size="custom"
                       widthPx={cw}
+                      deckId={picks[0].deckId ?? deckId ?? null}
                     />
                   </div>
                 )}
@@ -734,6 +737,7 @@ function CardStrip({
                       reversed={picks[1].isReversed}
                       size="custom"
                       widthPx={cw}
+                      deckId={picks[1].deckId ?? deckId ?? null}
                     />
                   </div>
                 )}
@@ -841,6 +845,7 @@ function CardStrip({
               reversed={pick.isReversed}
               size="custom"
               widthPx={w}
+              deckId={pick.deckId ?? deckId ?? null}
             />
           </div>
           {showLabels && (
@@ -861,6 +866,7 @@ function CardStrip({
               cardIndex={pick.cardIndex}
               isReversed={!!pick.isReversed}
               cardWidth={w}
+              deckId={pick.deckId ?? deckId ?? null}
             />
           )}
         </div>
