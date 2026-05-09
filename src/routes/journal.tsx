@@ -1089,79 +1089,54 @@ function ReadingCard({
             {reading.moon_phase && <span aria-hidden>·</span>}
             <span>{guide.name}</span>
           </div>
-          {(hasPhoto || hasNote || hasQuestion || hasTags) && (
-            <div
-              className="mt-1 flex items-center gap-2 text-muted-foreground"
-              style={{ opacity: "var(--ro-plus-20)" }}
-              aria-label="Reading content indicators"
-            >
-              {hasQuestion && (
-                <HelpCircle size={12} strokeWidth={1.5} aria-label="Has question" />
-              )}
-              {hasNote && (
-                <StickyNote size={12} strokeWidth={1.5} aria-label="Has note" />
-              )}
-              {hasPhoto && (
-                <Camera size={12} strokeWidth={1.5} aria-label="Has photo" />
-              )}
-              {hasTags && (
-                <TagIcon size={12} strokeWidth={1.5} aria-label="Has tags" />
-              )}
-            </div>
-          )}
         </div>
-        {/* EA-6 — unified right-edge state cluster. */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Q13 Fix 3 — unified right-edge icon row. */}
+        <div className="flex items-center gap-2 shrink-0">
+          {hasQuestion && (
+            <MessageCircle size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has question" />
+          )}
+          {hasNote && (
+            <StickyNote size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has note" />
+          )}
           {reading.is_favorite && (
-            <Heart
-              size={16}
-              strokeWidth={1.5}
-              fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }}
-              aria-label="Favorite"
-            />
+            <Heart size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Favorite" />
           )}
           {reading.mirror_saved && (
-            <Bookmark
-              size={16}
-              strokeWidth={1.5}
-              fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }}
-              aria-label="Bookmarked"
-            />
+            <Bookmark size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Bookmarked" />
+          )}
+          {reading.is_deep_reading && (
+            <Star size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Deep reading" />
+          )}
+          {reading.interpretation && reading.interpretation.trim() !== "" && (
+            <Sparkles size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="AI interpreted" />
+          )}
+          {hasTags && (
+            <TagIcon size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has tags" />
+          )}
+          {hasPhoto && (
+            <Camera size={16} strokeWidth={1.5} fill="currentColor"
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has photo" />
           )}
           {reading.pattern_id && patternsById[reading.pattern_id] && (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                navigate({
-                  to: "/threads",
-                  search: { focus: reading.pattern_id! },
-                });
+                navigate({ to: "/threads", search: { focus: reading.pattern_id! } });
               }}
               aria-label="In Story"
               title={`View Story: ${patternsById[reading.pattern_id].name}`}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-                color: "var(--accent)",
-                opacity: 0.8,
-              }}
+              style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--accent)", opacity: 0.85 }}
             >
-              <Network size={16} strokeWidth={1.5} fill="currentColor" />
+              <Ghost size={16} strokeWidth={1.5} fill="currentColor" className="animate-glow-breathe" />
             </button>
-          )}
-          {reading.is_deep_reading && (
-            <Sparkles
-              size={16}
-              strokeWidth={1.5}
-              fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }}
-              aria-label="Deep reading"
-            />
           )}
         </div>
       </div>
