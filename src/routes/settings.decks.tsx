@@ -704,9 +704,15 @@ function DeckRow({
                 )}
               </div>
             )}
-          {/* 26-05-08-M — Fix 3: transient "Ready" badge after
-              processing completes successfully. */}
-          {showReadyBadge && (
+          {/* 26-05-08-Q2 — Fix 11: persistent "Ready · N cards" indicator
+              once all variants are saved. The previous transient badge
+              hid after 10s, leaving rows with no confirmation that the
+              deck was healthy. */}
+          {procStatus &&
+            procStatus.isComplete &&
+            procStatus.failed === 0 &&
+            procStatus.saved === procStatus.total &&
+            procStatus.total > 0 && (
             <div className="mt-1">
               <span
                 className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider"
@@ -716,7 +722,7 @@ function DeckRow({
                   color: "var(--gold)",
                 }}
               >
-                <Check className="h-3 w-3" /> Ready
+                <Check className="h-3 w-3" /> Ready · {procStatus.saved} cards
               </span>
             </div>
           )}
