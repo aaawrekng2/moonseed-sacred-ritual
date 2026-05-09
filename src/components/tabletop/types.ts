@@ -19,6 +19,13 @@ export type TabletopProps = {
     mode: "reveal" | "cast",
     meta?: { entryMode?: "digital" | "manual" },
   ) => void;
+  /**
+   * 26-05-08-N — Fix 4: question state lifted from the draw route so
+   * ManualEntryBuilder can offer an inline question input above the
+   * Done button. Optional — Tabletop continues to function without it.
+   */
+  question?: string;
+  onQuestionChange?: (next: string) => void;
 };
 
 export type CardState = ScatterCard & {

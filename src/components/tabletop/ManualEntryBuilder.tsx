@@ -34,9 +34,19 @@ type Props = {
   onComplete: (picks: ManualPick[]) => void;
   /** 9-6-O — Custom spread cardinality (1-10). */
   customCount?: number;
+  /** 26-05-08-N — Fix 4: inline question input above the Done button. */
+  question: string;
+  onQuestionChange: (next: string) => void;
 };
 
-export function ManualEntryBuilder({ spread, onCancel, onComplete, customCount }: Props) {
+export function ManualEntryBuilder({
+  spread,
+  onCancel,
+  onComplete,
+  customCount,
+  question,
+  onQuestionChange,
+}: Props) {
   const meta = SPREAD_META[spread];
   const required = spread === "custom"
     ? Math.max(1, Math.min(10, customCount ?? 3))
@@ -122,6 +132,42 @@ export function ManualEntryBuilder({ spread, onCancel, onComplete, customCount }
           )}
           onSlotTap={(idx) => setPickerSlot(idx)}
         />
+
+        {/* 26-05-08-N — Fix 4: inline question input above Done. */}
+        <div className="w-full max-w-md mx-auto">
+          <span
+            style={{
+              fontFamily: "var(--font-display, var(--font-serif))",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption)",
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              color: "var(--gold)",
+              opacity: 0.7,
+              display: "block",
+              textAlign: "center",
+              marginBottom: 8,
+            }}
+          >
+            Your question for the cards
+          </span>
+          <textarea
+            value={question}
+            onChange={(e) => onQuestionChange(e.target.value)}
+            rows={2}
+            placeholder="Tap to add your question…"
+            className="w-full resize-none bg-transparent focus:outline-none text-center"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body)",
+              lineHeight: 1.7,
+              color: "var(--foreground)",
+              borderBottom: "1px solid var(--border-subtle)",
+              padding: "4px 0",
+            }}
+          />
+        </div>
 
         <button
           type="button"
