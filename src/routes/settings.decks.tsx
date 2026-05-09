@@ -564,6 +564,17 @@ function DeckRow({
                   "full",
                 ) ?? (deck.card_back_thumb_url ?? deck.card_back_url)) as string
               }
+              onError={(e) => {
+                // 26-05-08-L — Fix 5: when a back was set via the
+                // "Choose from uploaded cards" path, the stored URL
+                // may not match the variantUrlFor pattern. Fall back
+                // to the raw URL before showing a broken image.
+                const raw =
+                  deck.card_back_thumb_url ?? deck.card_back_url ?? "";
+                if (raw && e.currentTarget.src !== raw) {
+                  e.currentTarget.src = raw;
+                }
+              }}
               alt={`${deck.name} card back`}
               className="h-full w-full object-cover"
             />
