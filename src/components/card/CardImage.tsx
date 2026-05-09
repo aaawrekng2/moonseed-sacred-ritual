@@ -33,7 +33,6 @@ import {
   useDeckCornerRadius,
   useDeckImage,
   variantUrlFor,
-  variantUrlPngFallback,
 } from "@/lib/active-deck";
 import type { CardBackId } from "@/lib/card-backs";
 
