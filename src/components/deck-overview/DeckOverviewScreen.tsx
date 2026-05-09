@@ -330,27 +330,18 @@ export function DeckOverviewScreen({
     setImportProgress({ phase: "extract", current: 0, total: 1 });
     try {
       const { assets, oracleMeta } = await extractZip(file);
-      setImportProgress({ phase: "match", current: 0, total: assets.length });
-      const result = processImportAssets(assets, deckType, oracleMeta);
-      setImportResult(result);
-      setBannerDismissed(false);
-      setDrawerOpen(true);
-      setUnmatchedAssets(
-        assets.filter((a) => result.unmatched[a.key] !== undefined),
-      );
-      setAmbiguousAssetByCardId(
-        new Map(
-          result.ambiguous.map((a) => [
-            a.cardId,
-            { assetKey: a.assetKey, matchScore: a.matchScore },
-          ]),
-        ),
-      );
-      // 9-6-AH continuation — Fix 3: pause here. Hand off to the
-      // RadiusPreviewScreen; it will call commitImportWithRadius once
-      // the user picks a radius (or skips/cancels).
-      setImportProgress(null);
-      setPendingImport({ assets, result });
+      // 26-05-08-K — Fix 7C: if oracle deck and >half filenames are
+      // numbered, ask the user whether to strip the numbers from
+      // card names before processing.
+      const numberedRe = /^\d+[_\-\s.]/;
+      const numberedCount = assets.filter((a) => numberedRe.test(a.filename)).length;
+      const isMostlyNumbered = numberedCount * 2 > assets.length;
+      if (deckType === "oracle" && isMostlyNumbered) {
+        setImportProgress(null);
+        setPendingNumberingChoice({ assets, oracleMeta });
+        return;
+      }
+      finishExtraction(assets, oracleMeta, true);
     } catch (err) {
       if (err instanceof ZipTooLargeError || err instanceof ZipEmptyError) {
         toast.error(err.message);
@@ -363,6 +354,46 @@ export function DeckOverviewScreen({
       setBusy(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  /**
+   * 26-05-08-K — Fix 7C: shared continuation after extractZip. Optionally
+   * overrides oracleName to keep the leading number in display.
+   */
+  const finishExtraction = (
+    assets: ImportAsset[],
+    oracleMeta: Map<string, { name: string; description: string }>,
+    stripNumbers: boolean,
+  ) => {
+    setImportProgress({ phase: "match", current: 0, total: assets.length });
+    const result = processImportAssets(assets, deckType, oracleMeta);
+    if (deckType === "oracle" && !stripNumbers) {
+      // Override oracleName with the raw title-cased stem (numbers kept).
+      for (const a of assets) {
+        const stem = a.filename.replace(/\.[^.]+$/, "");
+        const cleaned = stem.replace(/[_\-]+/g, " ").trim();
+        a.oracleName = cleaned
+          .split(/\s+/)
+          .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : ""))
+          .join(" ");
+      }
+    }
+    setImportResult(result);
+    setBannerDismissed(false);
+    setDrawerOpen(true);
+    setUnmatchedAssets(
+      assets.filter((a) => result.unmatched[a.key] !== undefined),
+    );
+    setAmbiguousAssetByCardId(
+      new Map(
+        result.ambiguous.map((a) => [
+          a.cardId,
+          { assetKey: a.assetKey, matchScore: a.matchScore },
+        ]),
+      ),
+    );
+    setImportProgress(null);
+    setPendingImport({ assets, result });
   };
 
   const commitImportWithRadius = async (radius: number) => {
