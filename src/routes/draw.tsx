@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 import { generateOrientations } from "@/lib/tarot-mechanics";
 import { useActiveDeck } from "@/lib/active-deck";
+import { fetchDeckProcessingStatus, type DeckProcessingStatus } from "@/lib/custom-decks";
 
 type Search = { spread?: string; question?: string; n?: number };
 
@@ -79,6 +80,43 @@ function DrawPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 26-05-08-M — Fix 4: non-blocking warning when active custom deck
+  // is still processing (some images may render blank).
+  const [procStatus, setProcStatus] = useState<DeckProcessingStatus | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!activeDeck) {
+      setProcStatus(null);
+      return;
+    }
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const tick = async () => {
+      const expected = activeDeck.deck_type === "oracle" ? 0 : 78;
+      if (expected === 0) return;
+      const s = await fetchDeckProcessingStatus(activeDeck.id, expected);
+      if (cancelled) return;
+      setProcStatus(s);
+      if (s.isComplete && interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+    void tick();
+    interval = setInterval(tick, 8000);
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
+  }, [activeDeck]);
+  const showProcessingBanner =
+    activeDeck !== null &&
+    procStatus !== null &&
+    !procStatus.isComplete &&
+    (procStatus.pending > 0 ||
+      procStatus.saved < procStatus.total - procStatus.failed);
+
   useEffect(() => {
     if (!user) {
       // CL Group 6 — Anonymous: allow the quill icon, but do NOT
@@ -131,6 +169,24 @@ function DrawPage() {
 
   return (
     <div className="relative h-[100dvh] w-full">
+      {showProcessingBanner && phase === "select" && (
+        <div
+          className="pointer-events-none absolute left-1/2 top-2 z-40 max-w-[92%] -translate-x-1/2 px-3 py-2 text-center"
+          style={{
+            background: "var(--surface-card)",
+            borderLeft: "3px solid var(--gold)",
+            borderRadius: 8,
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-caption, 0.75rem)",
+            color: "var(--color-foreground)",
+            opacity: 0.9,
+          }}
+        >
+          Your deck is still processing. Some cards may appear blank until
+          complete.
+        </div>
+      )}
       {picks && phase === "cast" ? (
         <SpreadLayout
           spread={spread}
