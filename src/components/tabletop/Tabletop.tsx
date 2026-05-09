@@ -1005,7 +1005,17 @@ export function Tabletop({
         customCount={customCount}
         question={question ?? ""}
         onQuestionChange={onQuestionChange ?? (() => {})}
-        onCancel={() => setManualOpen(false)}
+        onCancel={() => {
+          // Q5 — Fix 7: when the seeker exits manual entry without
+          // committing, the scatter container remounts. Reset the
+          // initialization flag and clear `cards` so the existing
+          // scatter-build effect rehydrates fresh positions instead of
+          // leaving cards stuck at their pre-manual placeholder coords
+          // (which collapses them to the upper-left corner).
+          setManualOpen(false);
+          initializedRef.current = false;
+          setCards([]);
+        }}
         onComplete={(picks) => {
           setManualOpen(false);
           clearTabletopSession(spread);
