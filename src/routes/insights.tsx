@@ -270,6 +270,19 @@ function InsightsRoute() {
         >
           Insights
         </h1>
+        {statsLine ? (
+          <p
+            className="font-serif italic mb-4"
+            style={{
+              fontSize: "var(--text-caption, 0.72rem)",
+              color: "var(--color-foreground)",
+              opacity: 0.55,
+              margin: "-8px 0 16px 0",
+            }}
+          >
+            {statsLine}
+          </p>
+        ) : null}
         <div className="mx-auto">
           {tab === "overview" && (
             <OverviewTab
