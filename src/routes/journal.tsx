@@ -2453,6 +2453,15 @@ function ReadingDetail({
           defaultNoteOpen
           journalPromptUsed={!!reading.journal_prompt_used}
           onJournalPromptUsed={() => {
+            // Q16 Fix 1 secondary — update local state too so the panel
+            // collapses immediately without waiting for a refetch.
+            onReadingChange({
+              id: reading.id,
+              note: reading.note,
+              is_favorite: reading.is_favorite,
+              tags: reading.tags,
+              journal_prompt_used: true,
+            });
             void supabase
               .from("readings")
               .update({ journal_prompt_used: true })
