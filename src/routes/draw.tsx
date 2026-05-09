@@ -237,10 +237,9 @@ function DrawPage() {
           onQuestionChange={setQuestion}
           onClose={() => {
             setQuestionOpen(false);
-            // A close (X / Skip / Continue) hides the quill for the
-            // session — it should not reappear until the seeker
-            // returns to the table.
-            setSessionDismissed(true);
+            // 26-05-08-N — Fix 3: closing collapses the panel back to
+            // the quill icon so the seeker can re-open it any time.
+            // Only "Don't ask again" hides the quill for this session.
             // DY-4 — fire chained-trigger event for the manual-draw hint.
             try {
               window.dispatchEvent(new CustomEvent("moonseed:question-modal-closed"));
