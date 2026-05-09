@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Lightbulb, Eye, EyeOff } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lightbulb, Eye, EyeOff, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type JournalPromptsProps = {
@@ -8,6 +8,16 @@ export type JournalPromptsProps = {
   value: string;
   onChange: (next: string) => void;
   className?: string;
+  /**
+   * 26-05-08-Q12 — When provided, called with the active prompt text
+   * before insertion. Returning null cancels the insert (e.g. opens an
+   * upsell or shows a toast). Returning a string replaces the active
+   * prompt with that returned value (used when the placeholder slot
+   * resolves to an AI-generated prompt).
+   */
+  beforeInsert?: (active: string) => Promise<string | null> | string | null;
+  /** Show a small loading spinner on the "Tap to use" button. */
+  loading?: boolean;
 };
 
 /**
@@ -23,6 +33,8 @@ export function JournalPrompts({
   value,
   onChange,
   className,
+  beforeInsert,
+  loading,
 }: JournalPromptsProps) {
   const [index, setIndex] = useState(0);
   const [hidden, setHidden] = useState(false);
@@ -34,6 +46,8 @@ export function JournalPrompts({
 
   const total = prompts.length;
   const current = prompts[Math.max(0, Math.min(index, total - 1))];
+  const TAILORED_PLACEHOLDER_LITERAL = "Get a tailored prompt for this reading";
+  const isPlaceholder = current === TAILORED_PLACEHOLDER_LITERAL;
 
   const go = (delta: number) => {
     setDirection(delta > 0 ? "right" : "left");
@@ -41,9 +55,14 @@ export function JournalPrompts({
     setIndex((i) => (i + delta + total) % total);
   };
 
-  const insertPrompt = () => {
+  const insertPrompt = async () => {
+    let promptText = current;
+    if (beforeInsert) {
+      const resolved = await beforeInsert(promptText);
+      if (resolved == null) return;
+      promptText = resolved;
+    }
     const ta = textareaRef.current;
-    const promptText = current;
     const hasText = value.trim().length > 0;
     const prefix = hasText ? "\n\n" : "";
     const toInsert = `${prefix}${promptText}\n`;
@@ -106,8 +125,12 @@ export function JournalPrompts({
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-gold">
-          <Lightbulb className="h-3.5 w-3.5" />
-          <span>Journaling Prompt</span>
+          {isPlaceholder ? (
+            <Sparkles className="h-3.5 w-3.5" />
+          ) : (
+            <Lightbulb className="h-3.5 w-3.5" />
+          )}
+          <span>{isPlaceholder ? "Tailored Prompt" : "Journaling Prompt"}</span>
         </div>
         <div className="flex items-center gap-1">
           <span className="text-[11px] text-muted-foreground tabular-nums mr-1">
@@ -139,6 +162,7 @@ export function JournalPrompts({
           key={animKeyRef.current}
           className={cn(
             "font-display italic text-base md:text-lg leading-relaxed text-gold animate-in fade-in duration-300",
+            isPlaceholder && "opacity-70",
             direction === "right" ? "slide-in-from-right-4" : "slide-in-from-left-4",
           )}
         >
@@ -149,9 +173,11 @@ export function JournalPrompts({
       <div className="mt-3 flex items-center justify-between gap-3">
         <button
           type="button"
-          onClick={insertPrompt}
-          className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1.5 text-xs uppercase tracking-widest text-gold transition-colors hover:bg-gold/20 min-h-9"
+          onClick={() => void insertPrompt()}
+          disabled={!!loading}
+          className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1.5 text-xs uppercase tracking-widest text-gold transition-colors hover:bg-gold/20 min-h-9 disabled:opacity-60 disabled:pointer-events-none"
         >
+          {loading && <Loader2 className="h-3 w-3 animate-spin" />}
           Tap to use this prompt
         </button>
         <button
