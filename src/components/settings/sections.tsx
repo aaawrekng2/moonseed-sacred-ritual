@@ -39,6 +39,7 @@ import {
 import { AuthScreen } from "@/components/auth/AuthScreen";
 import { supabase } from "@/integrations/supabase/client";
 import { setDevMode } from "@/components/dev/DevOverlay";
+import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -102,6 +103,25 @@ export function SettingsSection({
  */
 const goldButton =
   "bg-gold-gradient text-gold-foreground shadow-glow hover:opacity-95 hover:bg-gold-gradient";
+
+function ReadingStatsLine({ userId }: { userId: string }) {
+  const stats = useReadingStats(userId);
+  const line = formatReadingStatsLine(stats);
+  if (!line) return null;
+  return (
+    <p
+      className="font-serif italic"
+      style={{
+        fontSize: "var(--text-caption, 0.72rem)",
+        color: "var(--color-foreground)",
+        opacity: 0.55,
+        margin: 0,
+      }}
+    >
+      {line}
+    </p>
+  );
+}
 
 /* ------------------------- Profile ------------------------- */
 
