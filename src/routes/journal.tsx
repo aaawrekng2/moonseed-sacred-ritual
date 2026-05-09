@@ -965,7 +965,6 @@ function ReadingCard({
   onArchive?: (id: string) => void;
   hasPhoto?: boolean;
 }) {
-  const guide = getGuideById(reading.guide_id);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const visible = reading.card_ids.slice(0, 5);
@@ -1078,18 +1077,6 @@ function ReadingCard({
             <span style={{ opacity: "var(--ro-plus-20)" }}>
               {formatTimeAgo(reading.created_at)}
             </span>
-          </div>
-          <div
-            className="mt-1 flex items-center gap-2 font-display text-[12px] italic"
-            style={{ opacity: "var(--ro-plus-10)" }}
-          >
-            {reading.moon_phase && (
-              <span>
-                {PHASE_GLYPHS[reading.moon_phase] ?? "🌙"} {reading.moon_phase}
-              </span>
-            )}
-            {reading.moon_phase && <span aria-hidden>·</span>}
-            <span>{guide.name}</span>
           </div>
         </div>
         {/* Q13 Fix 3 — unified right-edge icon row. */}
