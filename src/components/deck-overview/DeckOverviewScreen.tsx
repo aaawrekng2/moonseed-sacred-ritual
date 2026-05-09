@@ -144,6 +144,13 @@ export function DeckOverviewScreen({
     assets: ImportAsset[];
     result: ImportSessionResult;
   } | null>(null);
+  // 26-05-08-K — Fix 7C: numbering-prompt state. When the user uploads
+  // an oracle zip whose filenames are mostly numbered, pause the
+  // pipeline and ask whether to strip leading numbers from card names.
+  const [pendingNumberingChoice, setPendingNumberingChoice] = useState<
+    | null
+    | { assets: ImportAsset[]; oracleMeta: Map<string, { name: string; description: string }> }
+  >(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialActionFiredRef = useRef(false);
   // 9-6-AG — set true to abort the variants pass mid-loop.
