@@ -10,7 +10,7 @@
  * "a gentle invitation, not a form" (per the Phase 6 spec).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, CameraOff, CheckCheck, Copy, Heart, Loader2, Network, Pencil, Plus, Share2, Tag as TagIcon, X } from "lucide-react";
+import { Camera, CameraOff, CheckCheck, Copy, Heart, Loader2, Network, Pencil, Plus, Share2, StickyNote, Tag as TagIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
@@ -19,6 +19,10 @@ import { HelpIcon } from "@/components/help/HelpIcon";
 import { CardImage } from "@/components/card/CardImage";
 import { getCardName } from "@/lib/tarot";
 import { LoadingText } from "@/components/ui/loading-text";
+import { JournalPrompts } from "@/components/tarot/JournalPrompts";
+import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
+import { useServerFn } from "@tanstack/react-start";
+import { generateTailoredPrompt } from "@/lib/tailored-prompt.functions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -87,6 +91,30 @@ type Props = {
    * Omit to hide the icon entirely.
    */
   onShare?: () => void;
+  /**
+   * 26-05-08-Q12 — When true, the note section is open by default
+   * (used in the journal detail view, where notes should be visible
+   * without an extra tap).
+   */
+  defaultNoteOpen?: boolean;
+  /**
+   * 26-05-08-Q12 — Reading context used by the JournalPrompts panel.
+   * When present, the panel renders curated journaling prompts above
+   * the note textarea using the FIRST card's prompts.
+   */
+  cardIds?: number[];
+  /** Optional per-card prompts for oracle decks, keyed by card_id. */
+  customCardPromptsByCardId?: Record<number, string[] | null | undefined>;
+  /** Premium status — when true, an extra "tailored prompt" cycler position appears. */
+  isPremium?: boolean;
+  /** Cached tailored prompt for this reading (string) or null. */
+  tailoredPrompt?: string | null;
+  /** Seeker's question for this reading — required to enable tailored prompt. */
+  question?: string | null;
+  /** Called after the tailored prompt is generated so the parent can refresh. */
+  onTailoredPromptUpdate?: (prompt: string) => void;
+  /** Opens the premium upsell when a free seeker taps the tailored slot. */
+  onPremiumUpsell?: () => void;
 };
 
 const SAVE_DELAY_MS = 800;
@@ -180,6 +208,14 @@ export function EnrichmentPanel({
   onPhotoCountChange,
   copyText,
   onShare,
+  defaultNoteOpen,
+  cardIds,
+  customCardPromptsByCardId,
+  isPremium,
+  tailoredPrompt: tailoredPromptProp,
+  question,
+  onTailoredPromptUpdate,
+  onPremiumUpsell,
 }: Props) {
   // Local mirrors of the reading fields so typing is responsive.
   const [note, setNote] = useState(reading.note ?? "");
@@ -189,8 +225,9 @@ export function EnrichmentPanel({
   // UI toggles for the inline editors.
   const [openSection, setOpenSection] = useState<
     "note" | "tags" | null
-  >(null);
+  >(defaultNoteOpen ? "note" : null);
   const [tagInput, setTagInput] = useState("");
+  const noteTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Photos for this reading.
   const [photos, setPhotos] = useState<EnrichmentPhoto[]>([]);
@@ -237,7 +274,7 @@ export function EnrichmentPanel({
     setNote(reading.note ?? "");
     setTags(reading.tags ?? []);
     setFavorite(reading.is_favorite);
-    setOpenSection(null);
+    setOpenSection(defaultNoteOpen ? "note" : null);
     setTagInput("");
   }, [reading.id]);
 
@@ -612,7 +649,7 @@ export function EnrichmentPanel({
               setOpenSection((p) => (p === "note" ? null : "note"))
             }
           >
-            <Pencil size={18} strokeWidth={1.5} />
+            <StickyNote size={18} strokeWidth={1.5} fill={hasNote ? "currentColor" : "none"} />
           </IconAction>
           <IconAction
             label="Tags"
@@ -702,13 +739,31 @@ export function EnrichmentPanel({
 
       {/* Note editor */}
       {openSection === "note" && (
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-4 flex flex-col gap-3">
+          <JournalPromptsSlot
+            cardIds={cardIds}
+            customCardPromptsByCardId={customCardPromptsByCardId}
+            isPremium={!!isPremium}
+            tailoredPrompt={tailoredPromptProp ?? null}
+            question={question ?? null}
+            readingId={reading.id}
+            value={note}
+            onChange={(next) => handleNoteChange(next)}
+            textareaRef={noteTextareaRef}
+            onTailoredPromptUpdate={onTailoredPromptUpdate}
+            onPremiumUpsell={onPremiumUpsell}
+          />
           <textarea
+            ref={noteTextareaRef}
             value={note}
             onChange={(e) => handleNoteChange(e.target.value)}
             rows={4}
             placeholder={
-              isOracle ? "What stirs within you…" : "Add a note…"
+              defaultNoteOpen
+                ? "What does this reading mean to you?"
+                : isOracle
+                  ? "What stirs within you…"
+                  : "Add a note…"
             }
             className="w-full resize-none rounded-md font-display text-[15px] italic text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
             style={{
@@ -1873,5 +1928,111 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
         </div>
       )}
     </div>
+  );
+}
+
+/* ---------- JournalPromptsSlot ---------- */
+
+/**
+ * 26-05-08-Q12 — Wraps `<JournalPrompts>` with the per-card resolver,
+ * the optional premium "tailored prompt" cycler position, and the AI
+ * fetch that fires when the seeker taps "Tap to use" on that slot.
+ */
+const TAILORED_PLACEHOLDER = "Get a tailored prompt for this reading";
+
+function JournalPromptsSlot({
+  cardIds,
+  customCardPromptsByCardId,
+  isPremium,
+  tailoredPrompt,
+  question,
+  readingId,
+  value,
+  onChange,
+  textareaRef,
+  onTailoredPromptUpdate,
+  onPremiumUpsell,
+}: {
+  cardIds: number[] | undefined;
+  customCardPromptsByCardId: Record<number, string[] | null | undefined> | undefined;
+  isPremium: boolean;
+  tailoredPrompt: string | null;
+  question: string | null;
+  readingId: string;
+  value: string;
+  onChange: (next: string) => void;
+  textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+  onTailoredPromptUpdate?: (prompt: string) => void;
+  onPremiumUpsell?: () => void;
+}) {
+  const generate = useServerFn(generateTailoredPrompt);
+  const [localTailored, setLocalTailored] = useState<string | null>(tailoredPrompt);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLocalTailored(tailoredPrompt);
+  }, [tailoredPrompt, readingId]);
+
+  const firstCardId = cardIds?.[0];
+  const customPrompts = firstCardId != null ? customCardPromptsByCardId?.[firstCardId] : null;
+  const staticPrompts = useMemo(
+    () => resolvePromptsForFirstCard(firstCardId, customPrompts),
+    [firstCardId, customPrompts],
+  );
+
+  const prompts = useMemo(() => {
+    const list = [...(staticPrompts ?? [])];
+    if (isPremium) {
+      list.push(localTailored ? localTailored : TAILORED_PLACEHOLDER);
+    }
+    return list.length > 0 ? list : null;
+  }, [staticPrompts, isPremium, localTailored]);
+
+  const handleBeforeInsert = useCallback(
+    async (active: string): Promise<string | null> => {
+      // Static prompt — pass through.
+      if (active !== TAILORED_PLACEHOLDER) return active;
+      // Free user trying the slot → upsell.
+      if (!isPremium) {
+        onPremiumUpsell?.();
+        return null;
+      }
+      if (!question || !question.trim()) {
+        toast("Add your question to enable tailored prompts.");
+        return null;
+      }
+      setLoading(true);
+      try {
+        const res = (await generate({ data: { readingId } })) as
+          | { ok: true; prompt: string }
+          | { ok: false; error: string };
+        if (!res.ok) {
+          if (res.error === "premium_required") onPremiumUpsell?.();
+          else if (res.error === "question_required")
+            toast("Add your question to enable tailored prompts.");
+          else toast.error("Couldn't generate a tailored prompt right now.");
+          return null;
+        }
+        setLocalTailored(res.prompt);
+        onTailoredPromptUpdate?.(res.prompt);
+        return res.prompt;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [isPremium, question, generate, readingId, onTailoredPromptUpdate, onPremiumUpsell],
+  );
+
+  if (!prompts) return null;
+
+  return (
+    <JournalPrompts
+      prompts={prompts}
+      textareaRef={textareaRef}
+      value={value}
+      onChange={onChange}
+      beforeInsert={handleBeforeInsert}
+      loading={loading}
+    />
   );
 }

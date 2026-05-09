@@ -510,6 +510,8 @@ export function ReadingScreen({
                 onPhotoCountChange={handleEnrichPhotoCountChange}
                 copyText={copyText ?? undefined}
                 onShare={() => setShareOpen(true)}
+                cardIds={picks.map((p) => p.cardIndex)}
+                question={question || null}
               />
             )}
           {(savedReading || (state.kind === "loaded" && state.readingId)) && (
