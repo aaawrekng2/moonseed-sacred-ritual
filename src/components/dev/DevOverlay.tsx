@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
-export const APP_VERSION_LETTER = "26-05-08-Q7";
+export const APP_VERSION_LETTER = "26-05-08-Q8";
 const DEV_MODE_KEY = "moonseed:dev_mode";
 const MIST_KEY = "moonseed:mist-level";
 const OPACITY_KEY = "moonseed:resting-opacity";

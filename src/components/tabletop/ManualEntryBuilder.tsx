@@ -103,14 +103,32 @@ export function ManualEntryBuilder({
         >
           <X className="h-5 w-5" />
         </button>
-        <div className="text-xs uppercase tracking-[0.3em] opacity-70">
+        <div
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-caption, 0.7rem)",
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            opacity: 0.55,
+          }}
+        >
           Manual entry · {meta.label}
         </div>
         <div className="w-9" />
       </header>
 
       <div className="flex flex-1 flex-col items-center justify-start gap-6 overflow-y-auto p-6">
-        <p className="text-center text-sm opacity-70">
+        <p
+          className="text-center"
+          style={{
+            fontSize: "var(--text-caption, 0.72rem)",
+            color: "var(--color-foreground)",
+            opacity: 0.6,
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+          }}
+        >
           Tap each position to pick the card you drew.
         </p>
 
