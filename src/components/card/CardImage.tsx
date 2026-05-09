@@ -362,7 +362,7 @@ export function CardImage({
             {faceSrc ? (
               <img
                 src={faceSrc}
-                alt={ariaLabel ?? getCardName(cardId)}
+                alt={ariaLabel ?? resolvedName}
                 loading="eager"
                 onLoad={(e) => {
                   // FC-1 — measure natural aspect on load so the
@@ -463,12 +463,12 @@ export function CardImage({
                 ...radiusStyle,
               }}
             >
-              {getCardName(cardId)}
+              {resolvedName}
             </div>
           ) : (
           <img
             src={faceSrc}
-            alt={ariaLabel ?? getCardName(cardId)}
+            alt={ariaLabel ?? resolvedName}
             loading="lazy"
             onLoad={() => setImageLoaded(true)}
             onError={() => {
@@ -566,7 +566,7 @@ export function CardImage({
         type="button"
         onClick={onClick}
         aria-label={
-          ariaLabel ?? (typeof cardId === "number" ? getCardName(cardId) : "Card")
+          ariaLabel ?? (typeof cardId === "number" ? resolvedName : "Card")
         }
         className={className}
         style={{
