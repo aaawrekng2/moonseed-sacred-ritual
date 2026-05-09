@@ -227,6 +227,7 @@ export function EnrichmentPanel({
     "note" | "tags" | null
   >(defaultNoteOpen ? "note" : null);
   const [tagInput, setTagInput] = useState("");
+  const noteTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Photos for this reading.
   const [photos, setPhotos] = useState<EnrichmentPhoto[]>([]);
