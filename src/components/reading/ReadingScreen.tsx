@@ -568,11 +568,16 @@ function CardNameLabelRS({
   cardIndex,
   isReversed,
   cardWidth,
+  deckId,
 }: {
   cardIndex: number;
   isReversed: boolean;
   cardWidth: number;
+  deckId?: string | null;
 }) {
+  const activeName = useActiveDeckCardName();
+  const specificName = useDeckCardName(deckId ?? null);
+  const name = deckId ? specificName(cardIndex) : activeName(cardIndex);
   return (
     <div
       className="flex flex-col items-center"
@@ -591,7 +596,7 @@ function CardNameLabelRS({
           width: "100%",
         }}
       >
-        {getCardName(cardIndex)}
+        {name}
       </span>
       {isReversed && (
         <span
@@ -613,10 +618,12 @@ function CardStrip({
   picks,
   positionLabels,
   spread,
+  deckId,
 }: {
   picks: Pick[];
   positionLabels: string[];
   spread: SpreadMode;
+  deckId?: string | null;
 }) {
   const { level } = useUIDensity();
   const showLabels = level === 1; // Glimpse + Veiled hide the labels
