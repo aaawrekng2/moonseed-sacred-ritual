@@ -159,6 +159,8 @@ type ReadingRow = {
   deck_id?: string | null;
   /** DV — soft-delete timestamp; null = active reading. */
   archived_at?: string | null;
+  /** Q12 — cached tailored journaling prompt for premium seekers. */
+  tailored_prompt?: string | null;
 };
 
 type TagRow = { id: string; name: string; usage_count: number };
