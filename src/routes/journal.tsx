@@ -1954,6 +1954,9 @@ function ReadingDetail({
   onRestored?: () => void;
 }) {
   const guide = getGuideById(reading.guide_id);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { isPremium } = usePremium(user?.id);
   const positions = isValidSpreadMode(reading.spread_type)
     ? SPREAD_META[reading.spread_type as SpreadMode].positions
     : undefined;
