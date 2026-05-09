@@ -152,7 +152,8 @@ const WORKING_WIDTH = 600;
 // CPU work by ~4x.
 // 26-05-08-J — bumped from 1500 to 2000. Background queue processes
 // 1-2 cards per 30s tick so the extra CPU is well within budget.
-const FULL_WIDTH_CAP = 2000;
+// 26-05-08-K — reverted from 2000; 2000 was too aggressive for CPU budget.
+const FULL_WIDTH_CAP = 1500;
 
 function variantPathFor(originalPath: string, suffix: "sm" | "md"): string | null {
   // Match `<...>/card-N-TS(-thumb)?.<ext>` and replace the filename.
