@@ -161,6 +161,8 @@ type ReadingRow = {
   archived_at?: string | null;
   /** Q12 — cached tailored journaling prompt for premium seekers. */
   tailored_prompt?: string | null;
+  /** Q14 — true once the seeker inserted a prompt into the note. */
+  journal_prompt_used?: boolean;
 };
 
 type TagRow = { id: string; name: string; usage_count: number };
