@@ -280,30 +280,19 @@ export function CardImage({
   // rendered size. If the variant URL later 404s, onError flips
   // variantFailedFor and we re-render with the original.
   const variantTier = SIZE_TO_VARIANT[size];
-  // 26-05-08-Q6 — Fix 3: only request a smaller variant for explicit
-  // thumb/small sizes. Larger sizes (medium/hero/custom) use the
-  // display URL directly. The variantUrlFor → onError → fallback
-  // dance was racing during initial render and leaving cards blank.
-  const variantSrc =
-    size === "thumbnail" || size === "small"
-      ? variantUrlFor(baseFaceSrc, variantTier)
+  // 26-05-08-Q7 — Fix 1: when baseFaceSrc is null, never produce a
+  // stale variantSrc (which would leave faceSrc null and prevent any
+  // <img> from entering the DOM, stranding the shimmer overlay
+  // forever). When baseFaceSrc is set but variantUrlFor returns null,
+  // fall back to baseFaceSrc immediately so the img renders and its
+  // onError ladder can run. Larger sizes (medium/hero/custom) skip
+  // the smaller variant entirely.
+  const variantSrc = !baseFaceSrc
+    ? null
+    : size === "thumbnail" || size === "small"
+      ? (variantUrlFor(baseFaceSrc, variantTier) ?? baseFaceSrc)
       : baseFaceSrc;
   const faceSrc = variantFailedFor === "all" ? baseFaceSrc : variantSrc;
-
-  if (variant === "face" && typeof cardId === "number") {
-    // 26-05-08-Q6 — Fix 2: diagnostic for the persistent blank-card
-    // bug. Logs the entire src resolution chain on every render.
-    console.log("[CardImage] render", {
-      cardId,
-      deckId,
-      useSpecific,
-      specificSrc: specificSrc ? specificSrc.slice(0, 80) : "(null)",
-      activeSrc: activeSrc ? activeSrc.slice(0, 80) : "(null)",
-      baseFaceSrc: baseFaceSrc ? baseFaceSrc.slice(0, 80) : "(null)",
-      variantSrc: variantSrc ? variantSrc.slice(0, 80) : "(null)",
-      faceSrc: faceSrc ? faceSrc.slice(0, 80) : "(null)",
-    });
-  }
 
   const showFaceShimmer =
     variant === "face" && !loading && (faceSrc == null || !imageLoaded);

@@ -7,7 +7,6 @@ import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import { getGuideById } from "@/lib/guides";
-import { getCardName } from "@/lib/tarot";
 import { cn, firstCardName } from "@/lib/utils";
 import {
   formatTimeAgo,
@@ -18,7 +17,12 @@ import {
 } from "@/lib/dates";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { stripMarkdown } from "@/lib/strip-markdown";
-import { useDeckImage, useDeckCornerRadius } from "@/lib/active-deck";
+import {
+  useDeckImage,
+  useDeckCornerRadius,
+  useActiveDeckCardName,
+  useDeckCardName,
+} from "@/lib/active-deck";
 import { CardImage } from "@/components/card/CardImage";
 import { useElementWidth } from "@/lib/use-element-width";
 import { fetchUserDecks, type CustomDeck } from "@/lib/custom-decks";
@@ -1944,6 +1948,15 @@ function ReadingDetail({
   const positions = isValidSpreadMode(reading.spread_type)
     ? SPREAD_META[reading.spread_type as SpreadMode].positions
     : undefined;
+  // Q7 Fix 2: deck-aware card-name resolver so oracle ids (>=1000)
+  // show the seeker's custom name from custom_deck_cards.card_name
+  // instead of "Card 1024". Uses the reading's saved deck_id for
+  // historical accuracy; falls back to the active deck for legacy
+  // rows without a deck_id.
+  const activeNameResolve = useActiveDeckCardName();
+  const specificNameResolve = useDeckCardName(reading.deck_id ?? null);
+  const resolveCardName = (id: number) =>
+    reading.deck_id ? specificNameResolve(id) : activeNameResolve(id);
   // CZ Group 4 — mobile gets a horizontally swipeable card strip when a
   // reading has more cards than fit comfortably (>3). Desktop unchanged.
   const isMobile = useIsMobile();
@@ -2069,7 +2082,7 @@ function ReadingDetail({
     isReversed: reading.card_orientations?.[idx] ?? false,
   }));
   const sharePositions =
-    positions ?? reading.card_ids.map((id) => getCardName(id));
+    positions ?? reading.card_ids.map((id) => resolveCardName(id));
 
   // Lock body scroll while the overlay is open.
   useEffect(() => {
@@ -2240,7 +2253,7 @@ function ReadingDetail({
                   widthPx={ezCardWidthPx}
                   deckId={reading.deck_id ?? null}
                   shadow
-                  ariaLabel={`Zoom ${getCardName(id)}`}
+                  ariaLabel={`Zoom ${resolveCardName(id)}`}
                   onClick={() =>
                     setZoomedCard({ cardId: id, reversed: isReversed })
                   }
@@ -2252,7 +2265,7 @@ function ReadingDetail({
                     fontSize: "var(--text-body-sm, 13px)",
                   }}
                 >
-                  {positions?.[idx] ?? getCardName(id)}
+                  {positions?.[idx] ?? resolveCardName(id)}
                 </span>
                 <span
                   className="text-center font-display text-[10px] italic text-muted-foreground"
