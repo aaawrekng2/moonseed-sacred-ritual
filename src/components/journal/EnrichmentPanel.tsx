@@ -10,7 +10,7 @@
  * "a gentle invitation, not a form" (per the Phase 6 spec).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Camera, CameraOff, CheckCheck, Copy, Heart, Loader2, Network, Pencil, Plus, Share2, StickyNote, Tag as TagIcon, X } from "lucide-react";
+import { Camera, CameraOff, Check, CheckCheck, Copy, Heart, Loader2, Network, Pencil, Plus, Share2, StickyNote, Tag as TagIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
@@ -115,6 +115,10 @@ type Props = {
   onTailoredPromptUpdate?: (prompt: string) => void;
   /** Opens the premium upsell when a free seeker taps the tailored slot. */
   onPremiumUpsell?: () => void;
+  /** Q14 Fix 5 — whether this reading already had a prompt inserted. */
+  journalPromptUsed?: boolean;
+  /** Called once the seeker inserts a prompt for the first time. */
+  onJournalPromptUsed?: () => void;
 };
 
 const SAVE_DELAY_MS = 800;
@@ -216,11 +220,22 @@ export function EnrichmentPanel({
   question,
   onTailoredPromptUpdate,
   onPremiumUpsell,
+  journalPromptUsed,
+  onJournalPromptUsed,
 }: Props) {
   // Local mirrors of the reading fields so typing is responsive.
   const [note, setNote] = useState(reading.note ?? "");
   const [tags, setTags] = useState<string[]>(reading.tags ?? []);
   const [favorite, setFavorite] = useState(reading.is_favorite);
+  // Q14 Fix 6 — transient gold checkmark flashed after Save tap.
+  const [savedFlash, setSavedFlash] = useState(false);
+  const savedFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (savedFlashTimer.current) clearTimeout(savedFlashTimer.current);
+    },
+    [],
+  );
 
   // UI toggles for the inline editors.
   const [openSection, setOpenSection] = useState<
