@@ -234,7 +234,19 @@ export function processImportAssets(
   let cardBackKey: string | null = null;
 
   if (deckType === "oracle") {
-    const sorted = [...assets].sort((a, b) =>
+    // Q3 — Fix 6: detect a card-back filename in the oracle import
+    // path and exclude it from the slot assignment, mirroring the
+    // tarot path. Only the first match wins.
+    let oracleBackKey: string | null = null;
+    const cardAssets: ImportAsset[] = [];
+    for (const asset of assets) {
+      if (oracleBackKey === null && isCardBackFilename(asset.filename)) {
+        oracleBackKey = asset.key;
+        continue;
+      }
+      cardAssets.push(asset);
+    }
+    const sorted = [...cardAssets].sort((a, b) =>
       a.filename.localeCompare(b.filename, undefined, {
         numeric: true,
         sensitivity: "base",
@@ -248,11 +260,15 @@ export function processImportAssets(
       asset.oracleDescription = meta?.description ?? "";
       assigned[String(cardId)] = asset.key;
     });
+    if (oracleBackKey) {
+      assigned[BACK_KEY] = oracleBackKey;
+      cardBackKey = oracleBackKey;
+    }
     return {
       assigned,
       unmatched,
       ambiguous,
-      cardBackKey: null,
+      cardBackKey,
       matchedCount: sorted.length,
       ambiguousCount: 0,
       unmatchedCount: 0,
