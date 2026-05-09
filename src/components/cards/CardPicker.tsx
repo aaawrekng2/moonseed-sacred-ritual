@@ -17,7 +17,6 @@ import { cn } from "@/lib/utils";
 import { SearchInput } from "@/components/ui/search-input";
 import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 import { useActiveDeckImage, useDeckImage, variantUrlFor } from "@/lib/active-deck";
-import { useActiveDeck } from "@/lib/active-deck";
 import { useAuth } from "@/lib/auth";
 import {
   fetchUserDecks,
@@ -105,7 +104,6 @@ export function CardPicker({
   // 9-6-G — per-slot deck switching. Both hooks must run unconditionally.
   const { user } = useAuth();
   const [decks, setDecks] = useState<CustomDeck[]>([]);
-  const { activeDeck } = useActiveDeck();
   useEffect(() => {
     if (!user?.id) return;
     let cancelled = false;
@@ -185,7 +183,6 @@ export function CardPicker({
       cancelled = true;
     };
   }, [deckId, decks]);
-  void activeDeck; // reserved for future cross-deck back filtering
 
   const photographed = useMemo(() => new Set(photographedIds), [photographedIds]);
   const excluded = useMemo(() => new Set(excludeCardIds), [excludeCardIds]);
