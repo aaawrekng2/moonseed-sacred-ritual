@@ -23,6 +23,7 @@ import {
   Camera,
   Check,
   ChevronLeft,
+  FolderArchive,
   Image as ImageIcon,
   Loader2,
   LayoutGrid,
@@ -1374,6 +1375,14 @@ export function DeckOverviewScreen({
               setActionSheetCardId(null);
               triggerUpload();
             }}
+            onReplaceFromZip={
+              localSourceZipPath
+                ? () => {
+                    setZipPickerTarget(actionSheetCardId);
+                    setActionSheetCardId(null);
+                  }
+                : undefined
+            }
             onRemove={() => void handleRemove(actionSheetCardId)}
           />,
           document.body,
@@ -1787,6 +1796,7 @@ function ActionSheet({
   onEdit,
   onReplacePhoto,
   onReplaceUpload,
+  onReplaceFromZip,
   onRemove,
 }: {
   target: number | "BACK";
@@ -1797,6 +1807,7 @@ function ActionSheet({
   onEdit: () => void;
   onReplacePhoto: () => void;
   onReplaceUpload: () => void;
+  onReplaceFromZip?: () => void;
   onRemove: () => void;
 }) {
   const title =
@@ -1859,6 +1870,13 @@ function ActionSheet({
             label="Replace with upload"
             onClick={onReplaceUpload}
           />
+          {onReplaceFromZip && (
+            <SheetButton
+              icon={FolderArchive}
+              label="Replace from source zip"
+              onClick={onReplaceFromZip}
+            />
+          )}
           <SheetButton
             icon={Trash2}
             label={busy ? "Removing…" : "Remove from deck"}
