@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { useActiveGuide } from "@/lib/use-active-guide";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useAuth } from "@/lib/auth";
+import { usePremium } from "@/lib/premium";
 import { getCurrentMoonPhase } from "@/lib/moon";
 import { FACETS } from "@/lib/guides";
 import {
@@ -105,6 +106,7 @@ export function InlineReading({
     note: string | null;
     is_favorite: boolean;
     tags: string[] | null;
+    tailored_prompt?: string | null;
   } | null>(null);
   const [tagLibrary, setTagLibrary] = useState<EnrichmentTag[]>([]);
   const savedReadingRef = useRef<typeof savedReading>(null);
