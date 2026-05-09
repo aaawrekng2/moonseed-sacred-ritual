@@ -151,6 +151,14 @@ export function DeckOverviewScreen({
     | null
     | { assets: ImportAsset[]; oracleMeta: Map<string, { name: string; description: string }> }
   >(null);
+  // 26-05-08-K — Fix 6: pick an already-uploaded card as the deck back.
+  const [pickingBack, setPickingBack] = useState(false);
+  const [localBackUrl, setLocalBackUrl] = useState<string | null>(
+    deck.card_back_url ?? null,
+  );
+  useEffect(() => {
+    setLocalBackUrl(deck.card_back_url ?? null);
+  }, [deck.card_back_url]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialActionFiredRef = useRef(false);
   // 9-6-AG — set true to abort the variants pass mid-loop.
