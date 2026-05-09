@@ -112,6 +112,8 @@ export function ReadingScreen({
     note: string | null;
     is_favorite: boolean;
     tags: string[] | null;
+    tailored_prompt?: string | null;
+    journal_prompt_used?: boolean;
   } | null>(null);
   const [tagLibrary, setTagLibrary] = useState<EnrichmentTag[]>([]);
   const savedReadingRef = useRef<typeof savedReading>(null);
@@ -274,7 +276,7 @@ export function ReadingScreen({
                 deck_id: deckId ?? null,
               });
         const { data, error } = await query
-          .select("id,user_id,note,is_favorite,tags")
+          .select("id,user_id,note,is_favorite,tags,tailored_prompt,journal_prompt_used")
           .single();
         if (cancelled) return;
         if (error || !data) {
@@ -287,6 +289,9 @@ export function ReadingScreen({
           note: data.note,
           is_favorite: data.is_favorite,
           tags: data.tags,
+          tailored_prompt: (data as { tailored_prompt?: string | null }).tailored_prompt ?? null,
+          journal_prompt_used:
+            (data as { journal_prompt_used?: boolean }).journal_prompt_used ?? false,
         });
         // 26-05-08-P — Fix 7: surface a transient confirmation so the
         // seeker knows the reading is in their journal even before they
