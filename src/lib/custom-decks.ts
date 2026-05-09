@@ -65,6 +65,13 @@ export type DeckImageMap = {
    * the brief bottom-crop while the IMG decodes and onLoad fires.
    */
   aspectByCardId: Record<number, number>;
+  /**
+   * 26-05-08-P — Fix 5: per-card display name override. Populated for
+   * any card_id whose `card_name` column is non-null. Lets the app
+   * resolve oracle card titles ("Card 1005" → "The Awakening") in
+   * any sync render path without re-fetching the deck row.
+   */
+  nameByCardId: Record<number, string>;
 };
 
 export const EMPTY_DECK_IMAGE_MAP: DeckImageMap = {
@@ -73,6 +80,7 @@ export const EMPTY_DECK_IMAGE_MAP: DeckImageMap = {
   back: null,
   cornerRadiusPercent: null,
   aspectByCardId: {},
+  nameByCardId: {},
 };
 
 export async function fetchUserDecks(userId: string): Promise<CustomDeck[]> {
@@ -119,6 +127,7 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
     back: null,
     cornerRadiusPercent: null,
     aspectByCardId: {},
+    nameByCardId: {},
   };
   // Re-sign from storage paths so we never serve stale/expired signed URLs.
   // Falls back to the stored URL when a path is missing (legacy rows).
@@ -138,6 +147,10 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
       allPaths.push(c.thumbnail_path);
     } else if (c.thumbnail_url) {
       map.thumbnail[c.card_id] = c.thumbnail_url;
+    }
+    // 26-05-08-P — Fix 5: capture per-card name overrides.
+    if (c.card_name && c.card_name.trim()) {
+      map.nameByCardId[c.card_id] = c.card_name.trim();
     }
   }
   if (allPaths.length > 0) {
