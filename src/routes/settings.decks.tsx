@@ -305,7 +305,7 @@ function DefaultDeckRow({
         className="flex min-w-0 flex-1 items-center gap-3 text-left"
         aria-label="Use default Rider-Waite deck"
       >
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-cosmos">
+       <div className="flex h-14 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/60 bg-cosmos">
           <Star className="h-5 w-5 opacity-60" />
         </div>
         <div className="min-w-0 flex-1">
