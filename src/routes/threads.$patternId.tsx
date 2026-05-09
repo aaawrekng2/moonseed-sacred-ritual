@@ -1592,19 +1592,48 @@ function ReadingExcerptCard({
         >
           {dateLabel} · {spreadLabel}
         </p>
-        {reading.question && (
-          <p
-            style={{
-              margin: "4px 0 0",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-body)",
-              color: "var(--color-foreground)",
-            }}
-          >
-            “{reading.question}”
-          </p>
-        )}
+        {(() => {
+          // Q15 Fix 3 — always render a meaningful identifier line:
+          // seeker's question, else a short list of card names, else
+          // a graceful "untitled reading" fallback. Replaces the old
+          // redundant "spread · Moonseed reading" filler.
+          const q = reading.question?.trim();
+          if (q) {
+            return (
+              <p
+                style={{
+                  margin: "4px 0 0",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body)",
+                  color: "var(--color-foreground)",
+                }}
+              >
+                “{q}”
+              </p>
+            );
+          }
+          const names = (reading.card_ids ?? [])
+            .slice(0, 3)
+            .map((c) => getCardName(c))
+            .filter(Boolean);
+          const fallback =
+            names.length > 0 ? names.join(", ") : "untitled reading";
+          return (
+            <p
+              style={{
+                margin: "4px 0 0",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body)",
+                color: "var(--color-foreground)",
+                opacity: 0.85,
+              }}
+            >
+              {fallback}
+            </p>
+          );
+        })()}
         {connector && (
           <p
             style={{
