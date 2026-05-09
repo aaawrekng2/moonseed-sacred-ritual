@@ -221,8 +221,9 @@ export function InlineReading({
         const uid = sessionData.session?.user?.id;
         if (!uid) return;
         const token = sessionData.session?.access_token;
-        const interpretationText = buildCopyText({
-          spreadLabel: meta.label,
+        // Q16 Fix 3 — persist body only, never the
+        // "{spread} — Moonseed reading" prefix used for clipboard.
+        const interpretationText = buildInterpretationBody({
           interpretation: loadedInterpretation,
           picks,
           positionLabels,
