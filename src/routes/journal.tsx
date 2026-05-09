@@ -2375,74 +2375,7 @@ function ReadingDetail({
         {/* Enrichment panel: note, tags, photos, favorite — with debounced
             auto-save. Lives below the interpretation per the spec. */}
         {/* DB-3.2 — Deck override picker. */}
-        <div className="mx-auto mt-6 flex max-w-prose items-center justify-center">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setDeckMenuOpen((o) => !o)}
-              disabled={deckSaving}
-              className="rounded-full px-3 py-1 font-display text-[12px] italic text-muted-foreground transition-colors hover:text-gold disabled:opacity-50"
-              style={{
-                border:
-                  "1px solid color-mix(in oklab, var(--gold) 18%, transparent)",
-                opacity: "var(--ro-plus-30)",
-              }}
-              aria-haspopup="listbox"
-              aria-expanded={deckMenuOpen}
-            >
-              Deck: {currentDeckName}
-            </button>
-            {deckMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setDeckMenuOpen(false)}
-                  aria-hidden
-                />
-                <ul
-                  role="listbox"
-                  className="absolute left-1/2 z-50 mt-2 w-56 -translate-x-1/2 overflow-hidden rounded-md py-1 shadow-lg"
-                  style={{
-                    background: "var(--surface-overlay)",
-                    border:
-                      "1px solid color-mix(in oklab, var(--gold) 22%, transparent)",
-                  }}
-                >
-                  <li>
-                    <button
-                      type="button"
-                      onClick={() => void handleSelectDeck(null)}
-                      className="flex w-full items-center justify-between px-3 py-1.5 text-left font-display text-[13px] italic text-foreground hover:bg-foreground/[0.06]"
-                    >
-                      <span>Default</span>
-                      {!reading.deck_id && (
-                        <span className="text-gold" aria-hidden>
-                          ✓
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                  {decks.map((d) => (
-                    <li key={d.id}>
-                      <button
-                        type="button"
-                        onClick={() => void handleSelectDeck(d.id)}
-                        className="flex w-full items-center justify-between px-3 py-1.5 text-left font-display text-[13px] italic text-foreground hover:bg-foreground/[0.06]"
-                      >
-                        <span className="truncate">{d.name}</span>
-                        {reading.deck_id === d.id && (
-                          <span className="text-gold" aria-hidden>
-                            ✓
-                          </span>
-                        )}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-        </div>
+        {/* Q13 Fix 4 — "Deck: …" label removed per spec. */}
 
         <div
           style={
@@ -2474,6 +2407,23 @@ function ReadingDetail({
           onPhotoCountChange={onPhotoCountChange}
           copyText={reading.interpretation ?? undefined}
           onShare={() => setShareOpen(true)}
+          cardIds={reading.card_ids}
+          question={reading.question ?? null}
+          tailoredPrompt={reading.tailored_prompt ?? null}
+          isPremium={isPremium}
+          onTailoredPromptUpdate={(next) =>
+            onReadingChange({
+              id: reading.id,
+              note: reading.note,
+              is_favorite: reading.is_favorite,
+              tags: reading.tags,
+              // tailored_prompt isn't part of the parent's onReadingChange
+              // contract; the cached value stays on the row server-side
+              // and is re-fetched on next open.
+            } as { id: string; note: string | null; is_favorite: boolean; tags: string[] | null })
+          }
+          onPremiumUpsell={() => navigate({ to: "/settings/moon" })}
+          defaultNoteOpen
         />
         </div>
 
