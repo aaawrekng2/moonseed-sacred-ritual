@@ -25,6 +25,8 @@ import {
   ChevronLeft,
   Image as ImageIcon,
   Loader2,
+  LayoutGrid,
+  List as ListIcon,
   Pencil,
   Plus,
   Sparkles,
@@ -156,6 +158,20 @@ export function DeckOverviewScreen({
   const [localBackUrl, setLocalBackUrl] = useState<string | null>(
     deck.card_back_url ?? null,
   );
+  // 26-05-08-Q — Fix 8: default deck-edit view is the editable list
+  // (card_name + card_description per row for AI prompt context).
+  // Persist user's preference per browser.
+  const VIEW_MODE_KEY = "moonseed:deck-edit-view-mode";
+  const [viewMode, setViewMode] = useState<"list" | "grid">(() => {
+    if (typeof window === "undefined") return "list";
+    const v = window.localStorage.getItem(VIEW_MODE_KEY);
+    return v === "grid" ? "grid" : "list";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(VIEW_MODE_KEY, viewMode);
+    }
+  }, [viewMode]);
   useEffect(() => {
     setLocalBackUrl(deck.card_back_url ?? null);
   }, [deck.card_back_url]);
@@ -292,6 +308,31 @@ export function DeckOverviewScreen({
   };
 
   const triggerUpload = () => fileInputRef.current?.click();
+
+  /**
+   * 26-05-08-Q — Fix 8: persist edits to per-card name / description.
+   * These power the editable list view and feed the AI prompt builder
+   * via custom_deck_cards.card_name / card_description.
+   */
+  const saveCardMeta = async (
+    cardId: number,
+    patch: { card_name?: string | null; card_description?: string | null },
+  ) => {
+    const { error } = await supabase
+      .from("custom_deck_cards")
+      .update(patch)
+      .eq("deck_id", deckId)
+      .eq("card_id", cardId)
+      .is("archived_at", null);
+    if (error) {
+      toast.error(`Couldn't save: ${error.message}`);
+      return false;
+    }
+    setCards((prev) =>
+      prev.map((c) => (c.card_id === cardId ? { ...c, ...patch } : c)),
+    );
+    return true;
+  };
 
   /**
    * 9-6-AH — Re-optimize: reset any failed cards back to 'pending' with
@@ -951,6 +992,39 @@ export function DeckOverviewScreen({
           Loading cards…
         </div>
       ) : (
+        <>
+        {/* 26-05-08-Q — Fix 8: view-mode toggle (List default / Grid). */}
+        <div className="mb-2 flex items-center justify-end gap-1">
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            aria-pressed={viewMode === "list"}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs",
+              viewMode === "list"
+                ? "border-gold/60 bg-gold/10 text-gold"
+                : "border-border/60 text-muted-foreground hover:bg-foreground/5",
+            )}
+            title="List view (edit names & descriptions)"
+          >
+            <ListIcon className="h-3.5 w-3.5" /> List
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("grid")}
+            aria-pressed={viewMode === "grid"}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs",
+              viewMode === "grid"
+                ? "border-gold/60 bg-gold/10 text-gold"
+                : "border-border/60 text-muted-foreground hover:bg-foreground/5",
+            )}
+            title="Grid view"
+          >
+            <LayoutGrid className="h-3.5 w-3.5" /> Grid
+          </button>
+        </div>
+        {viewMode === "grid" ? (
         <div
           className="grid grid-cols-4 gap-2 sm:grid-cols-6"
           style={{
@@ -1039,6 +1113,135 @@ export function DeckOverviewScreen({
             );
           })}
         </div>
+        ) : (
+          <ul
+            className="space-y-2"
+            style={{
+              paddingBottom:
+                unmatchedAssets.length > 0 && drawerOpen ? "120px" : undefined,
+            }}
+          >
+            {tiles.map((tile) => {
+              if (tile.kind === "add-new") {
+                return (
+                  <li key="add-new">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onAction({
+                          kind: "capture-card",
+                          cardId: nextOracleId(),
+                        })
+                      }
+                      className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-border/60 px-3 py-3 text-sm text-muted-foreground hover:bg-foreground/[0.03]"
+                    >
+                      <Plus className="h-4 w-4" /> Add new card
+                    </button>
+                  </li>
+                );
+              }
+              if (tile.kind === "empty-tarot") {
+                const tileSrc = getCardImagePath(tile.cardId);
+                return (
+                  <li
+                    key={tile.cardId}
+                    className="flex items-center gap-3 rounded-md border border-dashed border-border/60 p-2"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onTileTap(tile.cardId, "empty-tarot")}
+                      className="relative h-16 w-12 shrink-0 overflow-hidden rounded border border-border/40"
+                      title="Tap to add photo"
+                    >
+                      <img
+                        src={tileSrc}
+                        alt={getCardName(tile.cardId)}
+                        className="h-full w-full object-contain opacity-25"
+                        loading="lazy"
+                      />
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm">{getCardName(tile.cardId)}</p>
+                      <p className="text-[11px] italic text-muted-foreground">
+                        Not yet added — tap thumbnail to capture
+                      </p>
+                    </div>
+                  </li>
+                );
+              }
+              const photo = tile.photo;
+              const rawSrc = photo.thumbnail_url ?? photo.display_url ?? null;
+              const defaultName =
+                tile.cardId < 1000
+                  ? getCardName(tile.cardId)
+                  : `Card ${tile.cardId}`;
+              const isAmbiguous = tile.kind === "ambiguous";
+              return (
+                <li
+                  key={tile.cardId}
+                  className={cn(
+                    "flex items-start gap-3 rounded-md border p-2",
+                    isAmbiguous
+                      ? "border-yellow-500/60 bg-yellow-500/5"
+                      : "border-border/60",
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onTileTap(
+                        tile.cardId,
+                        isAmbiguous ? "ambiguous" : "saved",
+                      )
+                    }
+                    className="relative h-20 w-14 shrink-0 overflow-hidden rounded border border-border/40 bg-background"
+                    title="Tap to edit photo"
+                  >
+                    {rawSrc && <TileImage rawSrc={rawSrc} alt={defaultName} />}
+                    {isAmbiguous && (
+                      <span className="absolute right-0.5 top-0.5 rounded-full bg-yellow-500/90 p-0.5 text-cosmos">
+                        <AlertTriangle className="h-3 w-3" />
+                      </span>
+                    )}
+                  </button>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <input
+                      type="text"
+                      defaultValue={photo.card_name ?? defaultName}
+                      onBlur={(e) => {
+                        const next = e.target.value.trim();
+                        const current = photo.card_name ?? defaultName;
+                        if (next === current) return;
+                        void saveCardMeta(tile.cardId, {
+                          card_name: next || null,
+                        });
+                      }}
+                      placeholder={defaultName}
+                      className="w-full rounded border border-border/40 bg-background px-2 py-1 text-sm focus:border-gold/60 focus:outline-none"
+                      aria-label={`Card name for ${defaultName}`}
+                    />
+                    <textarea
+                      defaultValue={photo.card_description ?? ""}
+                      onBlur={(e) => {
+                        const next = e.target.value.trim();
+                        const current = (photo.card_description ?? "").trim();
+                        if (next === current) return;
+                        void saveCardMeta(tile.cardId, {
+                          card_description: next || null,
+                        });
+                      }}
+                      placeholder="Description for the AI reader (meaning, symbolism, themes…)"
+                      rows={2}
+                      className="w-full resize-y rounded border border-border/40 bg-background px-2 py-1 text-xs leading-snug text-muted-foreground focus:border-gold/60 focus:text-foreground focus:outline-none"
+                      aria-label={`Description for ${defaultName}`}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        </>
       )}
 
       {/* Per-card edit modal */}
