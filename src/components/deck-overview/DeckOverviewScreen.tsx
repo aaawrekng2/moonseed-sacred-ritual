@@ -50,6 +50,10 @@ import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { PerCardEditModal } from "@/components/deck-import/PerCardEditModal";
 import { RadiusPreviewScreen } from "@/components/deck-overview/RadiusPreviewScreen";
 import {
+  SourceZipPickerModal,
+  type ZipPickerTarget,
+} from "@/components/deck-import/SourceZipPickerModal";
+import {
   assetToImportImage,
   extractZip,
   processImportAssets,
