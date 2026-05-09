@@ -26,8 +26,10 @@ import { CardBack } from "@/components/cards/CardBack";
 import {
   useActiveCardBackUrl,
   useActiveDeckCardAspect,
+  useActiveDeckCardName,
   useActiveDeckCornerRadius,
   useActiveDeckImage,
+  useDeckCardName,
   useDeckCornerRadius,
   useDeckImage,
   variantUrlFor,
@@ -167,6 +169,8 @@ export function CardImage({
   const activeRadius = useActiveDeckCornerRadius();
   const specificResolve = useDeckImage(deckId ?? null);
   const specificRadius = useDeckCornerRadius(deckId ?? null);
+  const activeNameResolve = useActiveDeckCardName();
+  const specificNameResolve = useDeckCardName(deckId ?? null);
   const customBackUrl = useActiveCardBackUrl();
   const [imageLoaded, setImageLoaded] = useState(false);
   // 9-6-AF — fallback ladder for variant resolution. `null` = trying
@@ -209,6 +213,15 @@ export function CardImage({
 
   const useSpecific = deckId != null && deckId !== "";
   const deckRadius = useSpecific ? specificRadius : activeRadius;
+  // 26-05-08-P — Fix 5: prefer per-deck card_name overrides for the
+  // accessible label so oracle decks announce "The Awakening" instead
+  // of the synthetic "Card 1005".
+  const resolvedName =
+    typeof cardId === "number"
+      ? useSpecific
+        ? specificNameResolve(cardId)
+        : activeNameResolve(cardId)
+      : "";
 
   const width = resolveWidth(size, widthPx);
   const radiusStyle: CSSProperties = {};
