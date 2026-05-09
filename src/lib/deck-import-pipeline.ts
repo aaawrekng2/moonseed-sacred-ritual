@@ -276,10 +276,26 @@ export function processImportAssets(
   }
 
   // Tarot
+  // Q5 — Fix 3: pre-detect a card-back filename and exclude it from
+  // the matcher so a file named e.g. "card-back.png" never gets
+  // accidentally assigned to a tarot slot. Mirrors the oracle path.
+  let preBackKey: string | null = null;
+  const tarotCardAssets: ImportAsset[] = [];
+  for (const a of assets) {
+    if (preBackKey === null && isCardBackFilename(a.filename)) {
+      preBackKey = a.key;
+      continue;
+    }
+    tarotCardAssets.push(a);
+  }
   const filenameToAsset = new Map<string, ImportAsset>();
-  for (const asset of assets) filenameToAsset.set(asset.filename, asset);
-  const names = assets.map((a) => a.filename);
+  for (const asset of tarotCardAssets) filenameToAsset.set(asset.filename, asset);
+  const names = tarotCardAssets.map((a) => a.filename);
   const match = matchFilenames(names);
+  if (preBackKey) {
+    cardBackKey = preBackKey;
+    assigned[BACK_KEY] = preBackKey;
+  }
 
   for (const [filename, info] of match.scoredAssignments) {
     const asset = filenameToAsset.get(filename);
