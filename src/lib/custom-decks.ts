@@ -101,6 +101,11 @@ export async function fetchDeckCards(deckId: string): Promise<CustomDeckCard[]> 
     .from("custom_deck_cards")
     .select("*")
     .eq("deck_id", deckId)
+    // 26-05-08-L — defensive: card back is stored on `custom_decks`
+    // (card_back_url / card_back_thumb_url), NOT in custom_deck_cards.
+    // We still guard against any legacy/sentinel back row by excluding
+    // negative card_id values so a back never enters the draw pool.
+    .gte("card_id", 0)
     .is("archived_at", null);
   if (error) throw error;
   return (data ?? []) as CustomDeckCard[];
@@ -164,10 +169,22 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
   // to /cards/card-1009.jpg (404).
   for (const c of cards) {
     if (c.source === "default") continue;
-    if (!map.display[c.card_id] && c.display_url) {
+    // 26-05-08-L — Fix 4: never use a stored signed URL (contains
+    // `token=`) as a fallback. Those tokens expire and surface as
+    // broken images on the next session. Only use the stored URL
+    // when it looks like a public/permanent URL.
+    if (
+      !map.display[c.card_id] &&
+      c.display_url &&
+      !c.display_url.includes("token=")
+    ) {
       map.display[c.card_id] = c.display_url;
     }
-    if (!map.thumbnail[c.card_id] && c.thumbnail_url) {
+    if (
+      !map.thumbnail[c.card_id] &&
+      c.thumbnail_url &&
+      !c.thumbnail_url.includes("token=")
+    ) {
       map.thumbnail[c.card_id] = c.thumbnail_url;
     }
   }

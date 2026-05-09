@@ -355,7 +355,9 @@ function DeckRow({
       }
     };
     void tick();
-    interval = setInterval(tick, 5000);
+    // 26-05-08-L — Fix 7: 8s is plenty; was 5s. Cleanup already
+    // clears the interval on unmount and when isComplete becomes true.
+    interval = setInterval(tick, 8000);
     return () => {
       cancelled = true;
       if (interval) clearInterval(interval);
@@ -387,7 +389,13 @@ function DeckRow({
       const { count } = await supabase
         .from("custom_deck_cards")
         .select("id", { count: "exact", head: true })
-        .eq("deck_id", deck.id);
+        // 26-05-08-L — Fix 6: card back is NOT stored in
+        // custom_deck_cards (lives on custom_decks.card_back_url),
+        // so this count already excludes it. `card_id >= 0` is a
+        // defensive guard against any legacy back-row sentinel.
+        .eq("deck_id", deck.id)
+        .gte("card_id", 0)
+        .is("archived_at", null);
       if (!cancelled) setCount(count ?? 0);
     })();
     return () => {
@@ -556,6 +564,17 @@ function DeckRow({
                   "full",
                 ) ?? (deck.card_back_thumb_url ?? deck.card_back_url)) as string
               }
+              onError={(e) => {
+                // 26-05-08-L — Fix 5: when a back was set via the
+                // "Choose from uploaded cards" path, the stored URL
+                // may not match the variantUrlFor pattern. Fall back
+                // to the raw URL before showing a broken image.
+                const raw =
+                  deck.card_back_thumb_url ?? deck.card_back_url ?? "";
+                if (raw && e.currentTarget.src !== raw) {
+                  e.currentTarget.src = raw;
+                }
+              }}
               alt={`${deck.name} card back`}
               className="h-full w-full object-cover"
             />

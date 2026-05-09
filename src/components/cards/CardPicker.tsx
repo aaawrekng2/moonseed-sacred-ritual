@@ -155,7 +155,10 @@ export function CardPicker({
       if (!cancelled) {
         setDeckCards(
           cards
-            .filter((c) => c.source !== "default")
+            // 26-05-08-L — never show the card back in the picker.
+            // Back is stored on `custom_decks`, not in this table, but
+            // we guard `card_id >= 0` defensively in case of legacy rows.
+            .filter((c) => c.source !== "default" && c.card_id >= 0)
             .sort((a, b) => a.card_id - b.card_id),
         );
       }
