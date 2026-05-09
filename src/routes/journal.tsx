@@ -1955,6 +1955,7 @@ function ReadingDetail({
     note: string | null;
     is_favorite: boolean;
     tags: string[] | null;
+    journal_prompt_used?: boolean;
   }) => void;
   onTagLibraryChange: (next: EnrichmentTag[]) => void;
   onPhotoCountChange: (readingId: string, count: number) => void;
