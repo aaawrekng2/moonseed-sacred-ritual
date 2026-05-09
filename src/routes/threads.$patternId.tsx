@@ -865,15 +865,17 @@ function ChamberCardEvidence({
         .eq("pattern_id", patternId)
         .order("detected_at", { ascending: false });
       if (cancelled) return;
-      setThreads(
-        (data ?? []).map((t) => ({
+      const mapped = (data ?? []).map((t) => ({
           id: t.id as string,
           summary: (t.summary as string) ?? "",
           card_ids: ((t.card_ids as number[] | null) ?? []),
           recurrence_count: ((t.recurrence_count as number | null) ?? 0),
           title: (t.title as string | null) ?? null,
-        })),
-      );
+      }));
+      // Q16 Fix 2 — paragraphs must follow descending frequency so the
+      // prose order matches the "Cards that keep returning" list above.
+      mapped.sort((a, b) => b.recurrence_count - a.recurrence_count);
+      setThreads(mapped);
     })();
     return () => {
       cancelled = true;
