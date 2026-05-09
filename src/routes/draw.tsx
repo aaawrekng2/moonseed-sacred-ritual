@@ -61,7 +61,6 @@ function DrawPage() {
   // "Skip" / "Don't ask again" within the session also hide the panel
   // entirely so the quill can't reappear after the seeker dismissed it.
   const [prefsLoaded, setPrefsLoaded] = useState(false);
-  const [showQuestionPrompt, setShowQuestionPrompt] = useState(false);
   const [questionOpen, setQuestionOpen] = useState(false);
   const [sessionDismissed, setSessionDismissed] = useState(false);
   // Phase 9.55 — opt-in reversed cards. Default false (upright-only) so
@@ -119,9 +118,8 @@ function DrawPage() {
 
   useEffect(() => {
     if (!user) {
-      // CL Group 6 — Anonymous: allow the quill icon, but do NOT
-      // auto-open the expanded box. The seeker must tap the quill.
-      setShowQuestionPrompt(true);
+      // CL Group 6 — Anonymous: quill is always available (Fix 3); do
+      // NOT auto-open the expanded box. The seeker taps the quill.
       setQuestionOpen(false);
       setPrefsLoaded(true);
       return;
@@ -134,11 +132,10 @@ function DrawPage() {
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
-      // Only open if the seeker has explicitly opted in. Default
-      // (missing row, null, or false) keeps the card closed so it
-      // never flashes for users who turned it off.
+      // 26-05-08-N — Fix 3: show_question_prompt only controls the
+      // AUTO-OPEN behaviour. The quill icon is always available so
+      // the seeker can write or edit a question on the table.
       const enabled = data?.show_question_prompt === true;
-      setShowQuestionPrompt(enabled);
       setQuestionOpen(enabled);
       setAllowReversed(data?.allow_reversed_cards === true);
       setPrefsLoaded(true);
@@ -233,7 +230,7 @@ function DrawPage() {
           loaded preference so the card never flashes for users who have
           it disabled, and on `sessionDismissed` so Skip / "Don't ask
           again" hides the quill for the rest of the session. */}
-      {phase === "select" && prefsLoaded && showQuestionPrompt && !sessionDismissed && (
+      {phase === "select" && prefsLoaded && !sessionDismissed && (
         <QuestionPanel
           open={questionOpen}
           question={question}
@@ -258,7 +255,6 @@ function DrawPage() {
                   void updateUserPreferences(user.id, {
                     show_question_prompt: false,
                   });
-                  setShowQuestionPrompt(false);
                   setSessionDismissed(true);
                   try {
                     window.dispatchEvent(new CustomEvent("moonseed:question-modal-closed"));
