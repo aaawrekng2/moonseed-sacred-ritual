@@ -648,7 +648,7 @@ export function EnrichmentPanel({
               setOpenSection((p) => (p === "note" ? null : "note"))
             }
           >
-            <Pencil size={18} strokeWidth={1.5} />
+            <StickyNote size={18} strokeWidth={1.5} fill={hasNote ? "currentColor" : "none"} />
           </IconAction>
           <IconAction
             label="Tags"
