@@ -738,13 +738,31 @@ export function EnrichmentPanel({
 
       {/* Note editor */}
       {openSection === "note" && (
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-4 flex flex-col gap-3">
+          <JournalPromptsSlot
+            cardIds={cardIds}
+            customCardPromptsByCardId={customCardPromptsByCardId}
+            isPremium={!!isPremium}
+            tailoredPrompt={tailoredPromptProp ?? null}
+            question={question ?? null}
+            readingId={reading.id}
+            value={note}
+            onChange={(next) => handleNoteChange(next)}
+            textareaRef={noteTextareaRef}
+            onTailoredPromptUpdate={onTailoredPromptUpdate}
+            onPremiumUpsell={onPremiumUpsell}
+          />
           <textarea
+            ref={noteTextareaRef}
             value={note}
             onChange={(e) => handleNoteChange(e.target.value)}
             rows={4}
             placeholder={
-              isOracle ? "What stirs within you…" : "Add a note…"
+              defaultNoteOpen
+                ? "What does this reading mean to you?"
+                : isOracle
+                  ? "What stirs within you…"
+                  : "Add a note…"
             }
             className="w-full resize-none rounded-md font-display text-[15px] italic text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
             style={{
