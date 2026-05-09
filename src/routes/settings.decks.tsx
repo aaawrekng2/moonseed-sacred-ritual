@@ -406,6 +406,14 @@ function DeckRow({
   const isProcessing =
     procStatus !== null &&
     (procStatus.pending > 0 || procStatus.saved < procStatus.total);
+  // 26-05-08-N — Fix 2: if the deck is now in background processing,
+  // the manual optimize loop is no longer running (and should not be).
+  // Force-clear any stuck variantBusy state so the stale spinner clears.
+  useEffect(() => {
+    if (isProcessing && variantBusy) {
+      setVariantBusy(false);
+    }
+  }, [isProcessing, variantBusy]);
   // 26-05-08-M — Fix 3: show a transient "Ready" badge for ~10s when
   // the deck transitions from processing → fully complete, then hide.
   const [showReadyBadge, setShowReadyBadge] = useState(false);
