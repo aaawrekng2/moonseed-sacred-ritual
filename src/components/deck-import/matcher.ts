@@ -100,7 +100,15 @@ export function tokenizeFilename(name: string): string[] {
 }
 
 export function isCardBackFilename(name: string): boolean {
-  return /^back\b/i.test(name) || /\bback\.[a-z0-9]+$/i.test(name);
+  // 26-05-08-K — broaden detection to catch common naming variants.
+  const lower = name.toLowerCase();
+  return (
+    /^back[\s_.\-]/i.test(name) ||
+    /\bback\.[a-z0-9]+$/i.test(name) ||
+    /card[_\-]?back/i.test(lower) ||
+    /back[_\-]?card/i.test(lower) ||
+    /[_\-]back\.[a-z0-9]+$/i.test(lower)
+  );
 }
 
 /** Score how well tokens match a particular card_id. Higher = better. */

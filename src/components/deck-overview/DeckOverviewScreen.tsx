@@ -144,6 +144,21 @@ export function DeckOverviewScreen({
     assets: ImportAsset[];
     result: ImportSessionResult;
   } | null>(null);
+  // 26-05-08-K — Fix 7C: numbering-prompt state. When the user uploads
+  // an oracle zip whose filenames are mostly numbered, pause the
+  // pipeline and ask whether to strip leading numbers from card names.
+  const [pendingNumberingChoice, setPendingNumberingChoice] = useState<
+    | null
+    | { assets: ImportAsset[]; oracleMeta: Map<string, { name: string; description: string }> }
+  >(null);
+  // 26-05-08-K — Fix 6: pick an already-uploaded card as the deck back.
+  const [pickingBack, setPickingBack] = useState(false);
+  const [localBackUrl, setLocalBackUrl] = useState<string | null>(
+    deck.card_back_url ?? null,
+  );
+  useEffect(() => {
+    setLocalBackUrl(deck.card_back_url ?? null);
+  }, [deck.card_back_url]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialActionFiredRef = useRef(false);
   // 9-6-AG — set true to abort the variants pass mid-loop.
@@ -323,27 +338,18 @@ export function DeckOverviewScreen({
     setImportProgress({ phase: "extract", current: 0, total: 1 });
     try {
       const { assets, oracleMeta } = await extractZip(file);
-      setImportProgress({ phase: "match", current: 0, total: assets.length });
-      const result = processImportAssets(assets, deckType, oracleMeta);
-      setImportResult(result);
-      setBannerDismissed(false);
-      setDrawerOpen(true);
-      setUnmatchedAssets(
-        assets.filter((a) => result.unmatched[a.key] !== undefined),
-      );
-      setAmbiguousAssetByCardId(
-        new Map(
-          result.ambiguous.map((a) => [
-            a.cardId,
-            { assetKey: a.assetKey, matchScore: a.matchScore },
-          ]),
-        ),
-      );
-      // 9-6-AH continuation — Fix 3: pause here. Hand off to the
-      // RadiusPreviewScreen; it will call commitImportWithRadius once
-      // the user picks a radius (or skips/cancels).
-      setImportProgress(null);
-      setPendingImport({ assets, result });
+      // 26-05-08-K — Fix 7C: if oracle deck and >half filenames are
+      // numbered, ask the user whether to strip the numbers from
+      // card names before processing.
+      const numberedRe = /^\d+[_\-\s.]/;
+      const numberedCount = assets.filter((a) => numberedRe.test(a.filename)).length;
+      const isMostlyNumbered = numberedCount * 2 > assets.length;
+      if (deckType === "oracle" && isMostlyNumbered) {
+        setImportProgress(null);
+        setPendingNumberingChoice({ assets, oracleMeta });
+        return;
+      }
+      finishExtraction(assets, oracleMeta, true);
     } catch (err) {
       if (err instanceof ZipTooLargeError || err instanceof ZipEmptyError) {
         toast.error(err.message);
@@ -356,6 +362,46 @@ export function DeckOverviewScreen({
       setBusy(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  /**
+   * 26-05-08-K — Fix 7C: shared continuation after extractZip. Optionally
+   * overrides oracleName to keep the leading number in display.
+   */
+  const finishExtraction = (
+    assets: ImportAsset[],
+    oracleMeta: Map<string, { name: string; description: string }>,
+    stripNumbers: boolean,
+  ) => {
+    setImportProgress({ phase: "match", current: 0, total: assets.length });
+    const result = processImportAssets(assets, deckType, oracleMeta);
+    if (deckType === "oracle" && !stripNumbers) {
+      // Override oracleName with the raw title-cased stem (numbers kept).
+      for (const a of assets) {
+        const stem = a.filename.replace(/\.[^.]+$/, "");
+        const cleaned = stem.replace(/[_\-]+/g, " ").trim();
+        a.oracleName = cleaned
+          .split(/\s+/)
+          .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : ""))
+          .join(" ");
+      }
+    }
+    setImportResult(result);
+    setBannerDismissed(false);
+    setDrawerOpen(true);
+    setUnmatchedAssets(
+      assets.filter((a) => result.unmatched[a.key] !== undefined),
+    );
+    setAmbiguousAssetByCardId(
+      new Map(
+        result.ambiguous.map((a) => [
+          a.cardId,
+          { assetKey: a.assetKey, matchScore: a.matchScore },
+        ]),
+      ),
+    );
+    setImportProgress(null);
+    setPendingImport({ assets, result });
   };
 
   const commitImportWithRadius = async (radius: number) => {
@@ -492,10 +538,8 @@ export function DeckOverviewScreen({
         .eq("card_id", cardId)
         .is("archived_at", null)
         .maybeSingle();
-      if (
-        failedRow?.original_path &&
-        failedRow.processing_status === "failed"
-      ) {
+      // 26-05-08-K — also retry stuck "pending" rows, not just "failed".
+      if (failedRow?.original_path) {
         await supabase
           .from("custom_deck_cards")
           .update({
@@ -866,16 +910,16 @@ export function DeckOverviewScreen({
         <button
           type="button"
           onClick={() =>
-            deck.card_back_url
+            localBackUrl
               ? setActionSheetCardId("BACK")
               : onAction({ kind: "capture-back" })
           }
           className="relative flex h-20 w-14 items-center justify-center overflow-hidden rounded border border-border/60 bg-background"
-          title={deck.card_back_url ? "Tap to edit card back" : "Set card back"}
+          title={localBackUrl ? "Tap to edit card back" : "Set card back"}
         >
-          {deck.card_back_url ? (
+          {localBackUrl ? (
             <img
-              src={deck.card_back_url}
+              src={localBackUrl}
               alt="Card back"
               className="h-full w-full object-contain"
             />
@@ -888,8 +932,17 @@ export function DeckOverviewScreen({
             Card back
           </p>
           <p className="text-sm">
-            {deck.card_back_url ? "Tap to replace or remove" : "Tap to set"}
+            {localBackUrl ? "Tap to replace or remove" : "Tap to set"}
           </p>
+          {cards.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setPickingBack(true)}
+              className="mt-1 inline-flex items-center gap-1 text-[11px] italic text-muted-foreground underline hover:opacity-80"
+            >
+              <ImageIcon className="h-3 w-3" /> Choose from uploaded cards
+            </button>
+          )}
         </div>
       </div>
 
@@ -1151,6 +1204,7 @@ export function DeckOverviewScreen({
                   }
                   return {
                     thumbnailDataUrl: a.thumbnailDataUrl ?? "",
+                    fullDataUrl: a.fullDataUrl,
                     cardName,
                   };
                 });
@@ -1187,20 +1241,13 @@ export function DeckOverviewScreen({
                 <Loader2 className="h-4 w-4 animate-spin text-gold" />
                 <p className="text-sm font-medium">
                   {importProgress.phase === "extract" &&
-                    "Step 1 of 4: Reading the zip…"}
+                    "Step 1 of 3: Reading the zip…"}
                   {importProgress.phase === "match" &&
-                    "Step 2 of 4: Matching cards…"}
+                    "Step 2 of 3: Matching cards…"}
                   {importProgress.phase === "upload" &&
-                    `Step 3 of 4: Saving cards… ${importProgress.current} of ${importProgress.total}`}
-                  {importProgress.phase === "variants" &&
-                    `Step 4 of 4: Optimizing images… ${importProgress.current} of ${importProgress.total}`}
+                    `Step 3 of 3: Saving cards… ${importProgress.current} of ${importProgress.total}`}
                 </p>
               </div>
-              {importProgress.phase === "variants" && (
-                <p className="mb-3 text-xs text-muted-foreground">
-                  This is the longest step. About 2 minutes for 78 cards.
-                </p>
-              )}
               {importProgress.phase === "upload" && (
                 <p className="mb-3 text-xs text-muted-foreground">
                   Saving each card to your library.
@@ -1249,6 +1296,123 @@ export function DeckOverviewScreen({
                   </button>
                 </div>
               )}
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* 26-05-08-K — Fix 7C: numbering prompt */}
+      {pendingNumberingChoice &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[130] flex items-center justify-center"
+            style={{
+              background: "color-mix(in oklab, var(--color-background) 70%, black)",
+            }}
+          >
+            <div
+              className="w-full max-w-sm rounded-xl border p-5"
+              style={{
+                borderColor: "var(--border-subtle)",
+                background: "var(--surface-card, var(--background))",
+              }}
+            >
+              <p className="mb-4 text-sm">
+                Your files appear to be numbered. How should card names be displayed?
+              </p>
+              <div className="flex flex-col gap-2 text-sm">
+                <button
+                  type="button"
+                  className="text-left underline hover:opacity-80"
+                  onClick={() => {
+                    const choice = pendingNumberingChoice;
+                    setPendingNumberingChoice(null);
+                    finishExtraction(choice.assets, choice.oracleMeta, true);
+                  }}
+                >
+                  Strip the numbers (e.g. &ldquo;01_the_magician&rdquo; → &ldquo;The Magician&rdquo;)
+                </button>
+                <button
+                  type="button"
+                  className="text-left underline hover:opacity-80"
+                  onClick={() => {
+                    const choice = pendingNumberingChoice;
+                    setPendingNumberingChoice(null);
+                    finishExtraction(choice.assets, choice.oracleMeta, false);
+                  }}
+                >
+                  Keep the numbers (e.g. &ldquo;01_the_magician&rdquo; → &ldquo;01 The Magician&rdquo;)
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {/* 26-05-08-K — Fix 6: pick-an-uploaded-card-as-back overlay */}
+      {pickingBack &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[130] overflow-y-auto p-5"
+            style={{
+              background: "color-mix(in oklab, var(--color-background) 92%, black)",
+            }}
+          >
+            <div className="mx-auto max-w-3xl">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs italic text-muted-foreground">
+                  Tap a card to use as the deck back
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPickingBack(false)}
+                  className="text-xs italic text-muted-foreground underline"
+                >
+                  Cancel
+                </button>
+              </div>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                {cards.map((card) => {
+                  const src = card.thumbnail_url ?? card.display_url ?? null;
+                  if (!src) return null;
+                  return (
+                    <button
+                      key={card.id}
+                      type="button"
+                      disabled={busy}
+                      onClick={async () => {
+                        setBusy(true);
+                        const newBackUrl = card.display_url ?? src;
+                        const newBackThumb =
+                          card.thumbnail_url ?? card.display_url ?? src;
+                        const { error } = await supabase
+                          .from("custom_decks")
+                          .update({
+                            card_back_url: newBackUrl,
+                            card_back_thumb_url: newBackThumb,
+                          })
+                          .eq("id", deckId);
+                        setBusy(false);
+                        if (error) {
+                          toast.error(`Couldn't set card back: ${error.message}`);
+                          return;
+                        }
+                        setLocalBackUrl(newBackUrl);
+                        setPickingBack(false);
+                        toast.success("Card back updated");
+                      }}
+                      className="group relative aspect-[2/3] overflow-hidden rounded border border-border/60 hover:border-gold/60"
+                    >
+                      <img
+                        src={src}
+                        alt={card.card_name ?? `Card ${card.card_id}`}
+                        className="h-full w-full object-contain"
+                        loading="lazy"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>,
           document.body,

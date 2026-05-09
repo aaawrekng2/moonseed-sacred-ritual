@@ -57,6 +57,7 @@ Deno.serve(async (req) => {
 
     let processed = 0;
     for (const row of rows) {
+      const tStart = Date.now();
       const nextAttempts = (row.variant_attempts ?? 0) + 1;
       await admin
         .from("custom_deck_cards")
@@ -93,25 +94,36 @@ Deno.serve(async (req) => {
           },
         );
         if (!resp.ok) {
-          console.warn("[pvq] generate-deck-variants failed", {
-            cardId: row.card_id,
-            status: resp.status,
-            text: await resp.text().catch(() => ""),
-          });
+          const body = await resp.text().catch(() => "");
+          console.error(
+            `[pvq] FAIL cardId=${row.card_id} attempt=${nextAttempts} status=${resp.status} elapsed=${Date.now() - tStart}ms body=${body}`,
+          );
           if (nextAttempts >= MAX_ATTEMPTS) {
             await admin
               .from("custom_deck_cards")
               .update({ processing_status: "failed" })
               .eq("id", row.id);
+            console.error(
+              `[pvq] MARKED_FAILED cardId=${row.card_id} after ${nextAttempts} attempts`,
+            );
           }
+        } else {
+          console.log(
+            `[pvq] OK cardId=${row.card_id} elapsed=${Date.now() - tStart}ms`,
+          );
         }
       } catch (e) {
-        console.warn("[pvq] invoke threw", { cardId: row.card_id, e });
+        console.error(
+          `[pvq] EXCEPTION cardId=${row.card_id} attempt=${nextAttempts} elapsed=${Date.now() - tStart}ms err=${e instanceof Error ? e.message : String(e)}`,
+        );
         if (nextAttempts >= MAX_ATTEMPTS) {
           await admin
             .from("custom_deck_cards")
             .update({ processing_status: "failed" })
             .eq("id", row.id);
+          console.error(
+            `[pvq] MARKED_FAILED cardId=${row.card_id} after ${nextAttempts} attempts`,
+          );
         }
       }
       processed++;
