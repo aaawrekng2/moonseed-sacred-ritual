@@ -118,10 +118,52 @@ export const interpretReading = createServerFn({ method: "POST" })
       // 2. Build the user prompt from the picks + spread metadata.
       const positionLabels: string[] =
         meta.positions ?? data.picks.map((_, i) => `Card ${i + 1}`);
+      // 26-05-08-Q — Fix 8: when the seeker has an active custom deck,
+      // override the card name with their per-card label and append any
+      // user-authored description so the AI reads from the deck the
+      // seeker is actually using.
+      const customMetaByCardId = new Map<
+        number,
+        { name: string | null; description: string | null }
+      >();
+      try {
+        const { data: activeDeck } = await supabase
+          .from("custom_decks")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("is_active", true)
+          .maybeSingle();
+        const deckId = (activeDeck as { id?: string } | null)?.id ?? null;
+        if (deckId) {
+          const ids = data.picks.map((p) => p.cardIndex);
+          const { data: rows } = await supabase
+            .from("custom_deck_cards")
+            .select("card_id, card_name, card_description")
+            .eq("deck_id", deckId)
+            .is("archived_at", null)
+            .in("card_id", ids);
+          for (const r of (rows ?? []) as Array<{
+            card_id: number;
+            card_name: string | null;
+            card_description: string | null;
+          }>) {
+            customMetaByCardId.set(r.card_id, {
+              name: r.card_name,
+              description: r.card_description,
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("[interpretReading] custom deck meta lookup failed", e);
+      }
       const lines = data.picks.map((p, i) => {
-        const name = getCardName(p.cardIndex);
+        const meta = customMetaByCardId.get(p.cardIndex);
+        const name =
+          (meta?.name && meta.name.trim()) || getCardName(p.cardIndex);
         const label = positionLabels[i] ?? `Card ${i + 1}`;
-        return `- ${label}: ${p.isReversed ? `${name} (reversed)` : name}`;
+        const head = `- ${label}: ${p.isReversed ? `${name} (reversed)` : name}`;
+        const desc = meta?.description?.trim();
+        return desc ? `${head}\n    Seeker's notes on this card: ${desc}` : head;
       });
       const userPrompt = `Spread: ${meta.label}\nCards drawn:\n${lines.join("\n")}\n\nPlease interpret this reading.`;
       const userPromptWithQuestion = data.question
