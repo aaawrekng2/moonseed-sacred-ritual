@@ -69,8 +69,15 @@ function DrawPage() {
   // Phase 9.5b — the seeker's currently active custom deck (if any).
   // Threaded into saved readings as `deck_id` so historical readings
   // always render with the artwork they were created from (Stamp AV).
-  const { activeDeck } = useActiveDeck();
+  const { activeDeck, refresh: refreshActiveDeck } = useActiveDeck();
   const activeDeckId = activeDeck?.id ?? null;
+
+  // 26-05-08-L — Fix 4: re-sign deck image URLs on draw mount so the
+  // seeker never lands on a draw screen with stale/expired URLs.
+  useEffect(() => {
+    void refreshActiveDeck();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!user) {
