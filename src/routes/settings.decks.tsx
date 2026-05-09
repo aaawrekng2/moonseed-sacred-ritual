@@ -121,14 +121,20 @@ function DecksPage() {
       destructive: true,
     });
     if (!ok) return;
-    // Try to clean storage objects (best-effort; cascade handles DB rows).
+    // Q3 — Fix 9: hard delete the deck (cards cascade via FK) and
+    // best-effort wipe the entire `<userId>/<deckId>/` folder so all
+    // variants (-full, -thumb, -sm, -md, -original) are removed in one
+    // pass. Storage failures are non-fatal — orphaned files only cost
+    // egress, never block the delete.
     try {
-      const cards = await fetchDeckCards(deck.id);
-      const paths = cards.flatMap((c) => [c.display_path, c.thumbnail_path]);
-      if (deck.card_back_url) {
-        // card_back_url is a signed URL — we don't store the path, skip.
+      const folder = `${user!.id}/${deck.id}`;
+      const { data: listed } = await supabase.storage
+        .from(DECK_BUCKET)
+        .list(folder, { limit: 1000 });
+      const paths = (listed ?? []).map((o) => `${folder}/${o.name}`);
+      if (paths.length) {
+        await supabase.storage.from(DECK_BUCKET).remove(paths);
       }
-      if (paths.length) await supabase.storage.from(DECK_BUCKET).remove(paths);
     } catch {
       /* non-fatal */
     }
