@@ -117,9 +117,12 @@ export async function encodeOne(
   const mdBlob = await encode(rawBlob, opts, 400, 0.8);
   const smBlob = await encode(rawBlob, opts, 200, 0.8);
   const thumbnailBlob = await encode(rawBlob, opts, 256, 0.8);
-  // Cap stored original at 2000px max edge so 5MB+ raw scans don't
-  // blow up storage/egress budgets.
-  const originalBlob = await encode(rawBlob, opts, 2000, 0.92);
+  // 26-05-08-Q2 — Fix 5: reduced from 2000@0.92 → 1500@0.88 so the
+  // original variant fits the storage gateway timeout reliably (the
+  // previous size hit 504 on slower connections). The original is
+  // only used for after-the-fact radius edits, so this resolution
+  // remains plenty.
+  const originalBlob = await encode(rawBlob, opts, 1500, 0.88);
   return { key, displayBlob, thumbnailBlob, smBlob, mdBlob, originalBlob };
 }
 
