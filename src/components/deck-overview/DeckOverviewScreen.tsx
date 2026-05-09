@@ -1348,6 +1348,79 @@ export function DeckOverviewScreen({
           </div>,
           document.body,
         )}
+
+      {/* 26-05-08-K — Fix 6: pick-an-uploaded-card-as-back overlay */}
+      {pickingBack &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[130] overflow-y-auto p-5"
+            style={{
+              background: "color-mix(in oklab, var(--color-background) 92%, black)",
+            }}
+          >
+            <div className="mx-auto max-w-3xl">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs italic text-muted-foreground">
+                  Tap a card to use as the deck back
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPickingBack(false)}
+                  className="text-xs italic text-muted-foreground underline"
+                >
+                  Cancel
+                </button>
+              </div>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                {cards.map((card) => {
+                  const src =
+                    card.card_back_thumb_url ??
+                    card.thumbnail_url ??
+                    card.display_url ??
+                    null;
+                  if (!src) return null;
+                  return (
+                    <button
+                      key={card.id}
+                      type="button"
+                      disabled={busy}
+                      onClick={async () => {
+                        setBusy(true);
+                        const newBackUrl = card.display_url ?? src;
+                        const newBackThumb =
+                          card.thumbnail_url ?? card.display_url ?? src;
+                        const { error } = await supabase
+                          .from("custom_decks")
+                          .update({
+                            card_back_url: newBackUrl,
+                            card_back_thumb_url: newBackThumb,
+                          })
+                          .eq("id", deckId);
+                        setBusy(false);
+                        if (error) {
+                          toast.error(`Couldn't set card back: ${error.message}`);
+                          return;
+                        }
+                        setLocalBackUrl(newBackUrl);
+                        setPickingBack(false);
+                        toast.success("Card back updated");
+                      }}
+                      className="group relative aspect-[2/3] overflow-hidden rounded border border-border/60 hover:border-gold/60"
+                    >
+                      <img
+                        src={src}
+                        alt={card.card_name ?? `Card ${card.card_id}`}
+                        className="h-full w-full object-contain"
+                        loading="lazy"
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </section>
   );
 }
