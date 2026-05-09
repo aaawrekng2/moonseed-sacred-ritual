@@ -17,6 +17,7 @@ import { ManualSpreadSlots } from "@/components/tabletop/SpreadLayout";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { getCardName } from "@/lib/tarot";
+import { cn } from "@/lib/utils";
 
 const CELTIC_POSITION_LABELS = [
   "Significator",
