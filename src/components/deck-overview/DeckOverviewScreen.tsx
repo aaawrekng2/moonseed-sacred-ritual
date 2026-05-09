@@ -391,6 +391,28 @@ export function DeckOverviewScreen({
     setBusy(true);
     setImportProgress({ phase: "extract", current: 0, total: 1 });
     try {
+      // 26-05-08-Q9 — persist original zip first so per-card recovery
+      // is available even if individual card uploads fail later.
+      try {
+        const sourcePath = `${userId}/${deckId}/_source.zip`;
+        const { error: sourceErr } = await supabase.storage
+          .from("custom-deck-images")
+          .upload(sourcePath, file, {
+            contentType: "application/zip",
+            upsert: true,
+          });
+        if (sourceErr) {
+          console.warn("[deck-import] source zip upload failed", sourceErr);
+        } else {
+          await supabase
+            .from("custom_decks")
+            .update({ source_zip_path: sourcePath })
+            .eq("id", deckId);
+          setLocalSourceZipPath(sourcePath);
+        }
+      } catch (e) {
+        console.warn("[deck-import] source zip persistence threw", e);
+      }
       const { assets, oracleMeta } = await extractZip(file);
       // 26-05-08-K — Fix 7C: if oracle deck and >half filenames are
       // numbered, ask the user whether to strip the numbers from
