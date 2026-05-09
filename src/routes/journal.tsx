@@ -2259,14 +2259,28 @@ function ReadingDetail({
                     setZoomedCard({ cardId: id, reversed: isReversed })
                   }
                 />
+                {/* Q14 Fix 7 — card name in accent (gold) above the
+                    smaller, muted position label. */}
                 <span
-                  className="mt-1 max-w-[120px] text-center font-display italic text-muted-foreground"
+                  className="mt-1 max-w-[120px] text-center font-display italic"
                   style={{
-                    opacity: "var(--ro-plus-20)",
+                    color: "var(--gold)",
+                    opacity: "var(--ro-plus-30)",
                     fontSize: "var(--text-body-sm, 13px)",
+                    lineHeight: 1.2,
                   }}
                 >
-                  {positions?.[idx] ?? resolveCardName(id)}
+                  {resolveCardName(id)}
+                </span>
+                <span
+                  className="max-w-[120px] text-center font-display italic text-muted-foreground"
+                  style={{
+                    opacity: "var(--ro-plus-20)",
+                    fontSize: "var(--text-caption, 11px)",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {positions?.[idx] ?? ""}
                 </span>
                 <span
                   className="text-center font-display text-[10px] italic text-muted-foreground"
