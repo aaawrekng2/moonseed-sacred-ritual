@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { CalendarIcon, Check, Loader2 } from "lucide-react";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 import { getSunSign, type SunSign } from "@/lib/sun-sign";
 import { calculateRisingSign, SIGN_EMOJI } from "@/lib/rising-sign";
