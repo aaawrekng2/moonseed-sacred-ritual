@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Lightbulb, Eye, EyeOff, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,6 +49,14 @@ export function JournalPrompts({
   const [index, setIndex] = useState(0);
   const [hidden, setHidden] = useState(!!defaultHidden);
   const [direction, setDirection] = useState<"left" | "right">("right");
+  // Q16 Fix 1 — sync internal hidden state when the prop transitions
+  // to true. The parent loads `journal_prompt_used` asynchronously
+  // from the DB; without this effect the panel stays expanded on
+  // reload even when the flag is true. Conservative: only collapse
+  // when the prop arrives true; never auto-expand.
+  useEffect(() => {
+    if (defaultHidden) setHidden(true);
+  }, [defaultHidden]);
   // Re-mount key so the animation re-triggers on each change
   const animKeyRef = useRef(0);
 
