@@ -40,7 +40,13 @@ import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
 import type { ShareLevel } from "@/components/share/share-types";
 
-type Pick = { id: number; cardIndex: number; isReversed?: boolean };
+type Pick = {
+  id: number;
+  cardIndex: number;
+  isReversed?: boolean;
+  /** Q3 — Fix 2: per-card source deck for mixed-deck readings. */
+  deckId?: string | null;
+};
 
 type LoadState =
   | { kind: "idle" }
