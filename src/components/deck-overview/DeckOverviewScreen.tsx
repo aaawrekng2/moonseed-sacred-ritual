@@ -50,6 +50,10 @@ import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { PerCardEditModal } from "@/components/deck-import/PerCardEditModal";
 import { RadiusPreviewScreen } from "@/components/deck-overview/RadiusPreviewScreen";
 import {
+  SourceZipPickerModal,
+  type ZipPickerTarget,
+} from "@/components/deck-import/SourceZipPickerModal";
+import {
   assetToImportImage,
   extractZip,
   processImportAssets,
@@ -155,6 +159,15 @@ export function DeckOverviewScreen({
   >(null);
   // 26-05-08-K — Fix 6: pick an already-uploaded card as the deck back.
   const [pickingBack, setPickingBack] = useState(false);
+  // 26-05-08-Q9 — per-card recovery flow + back-from-zip picker target.
+  const [zipPickerTarget, setZipPickerTarget] =
+    useState<ZipPickerTarget | null>(null);
+  const [localSourceZipPath, setLocalSourceZipPath] = useState<string | null>(
+    deck.source_zip_path ?? null,
+  );
+  useEffect(() => {
+    setLocalSourceZipPath(deck.source_zip_path ?? null);
+  }, [deck.source_zip_path]);
   const [localBackUrl, setLocalBackUrl] = useState<string | null>(
     deck.card_back_url ?? null,
   );
@@ -378,6 +391,28 @@ export function DeckOverviewScreen({
     setBusy(true);
     setImportProgress({ phase: "extract", current: 0, total: 1 });
     try {
+      // 26-05-08-Q9 — persist original zip first so per-card recovery
+      // is available even if individual card uploads fail later.
+      try {
+        const sourcePath = `${userId}/${deckId}/_source.zip`;
+        const { error: sourceErr } = await supabase.storage
+          .from("custom-deck-images")
+          .upload(sourcePath, file, {
+            contentType: "application/zip",
+            upsert: true,
+          });
+        if (sourceErr) {
+          console.warn("[deck-import] source zip upload failed", sourceErr);
+        } else {
+          await supabase
+            .from("custom_decks")
+            .update({ source_zip_path: sourcePath })
+            .eq("id", deckId);
+          setLocalSourceZipPath(sourcePath);
+        }
+      } catch (e) {
+        console.warn("[deck-import] source zip persistence threw", e);
+      }
       const { assets, oracleMeta } = await extractZip(file);
       // 26-05-08-K — Fix 7C: if oracle deck and >half filenames are
       // numbered, ask the user whether to strip the numbers from
@@ -982,6 +1017,15 @@ export function DeckOverviewScreen({
               <ImageIcon className="h-3 w-3" /> Choose from uploaded cards
             </button>
           )}
+          {localSourceZipPath && (
+            <button
+              type="button"
+              onClick={() => setZipPickerTarget("BACK")}
+              className="ml-3 mt-1 inline-flex items-center gap-1 text-[11px] italic text-muted-foreground underline hover:opacity-80"
+            >
+              <Upload className="h-3 w-3" /> Pick from zip
+            </button>
+          )}
         </div>
       </div>
 
@@ -1166,6 +1210,13 @@ export function DeckOverviewScreen({
                         Not yet added — tap thumbnail to capture
                       </p>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setZipPickerTarget(tile.cardId)}
+                      className="shrink-0 rounded-full border border-gold/60 px-3 py-1 text-[11px] italic text-gold hover:bg-gold/10"
+                    >
+                      Tap to fix
+                    </button>
                   </li>
                 );
               }
@@ -1660,6 +1711,27 @@ export function DeckOverviewScreen({
           </div>,
           document.body,
         )}
+      {/* 26-05-08-Q9 — per-card / back recovery from source zip */}
+      {zipPickerTarget !== null && (
+        <SourceZipPickerModal
+          open
+          onClose={() => setZipPickerTarget(null)}
+          userId={userId}
+          deckId={deckId}
+          sourceZipPath={localSourceZipPath}
+          target={zipPickerTarget}
+          opts={{
+            shape:
+              deck.shape === "round"
+                ? ("round" as const)
+                : ("rectangle" as const),
+            cornerRadiusPercent: defaultRadiusPercent,
+          }}
+          onSaved={() => {
+            void reload();
+          }}
+        />
+      )}
     </section>
   );
 }

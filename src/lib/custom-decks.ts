@@ -30,6 +30,9 @@ export type CustomDeck = {
   created_at: string;
   /** 9-6-A — 'tarot' (78 cards) or 'oracle' (variable). */
   deck_type: "tarot" | "oracle";
+  /** 26-05-08-Q9 — storage path of the original imported zip,
+   *  used by the per-card recovery flow. */
+  source_zip_path?: string | null;
 };
 
 export type CustomDeckCard = {
