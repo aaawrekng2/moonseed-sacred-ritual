@@ -668,6 +668,22 @@ function DeckRow({
                 )}
               </div>
             )}
+          {/* 26-05-08-M — Fix 3: transient "Ready" badge after
+              processing completes successfully. */}
+          {showReadyBadge && (
+            <div className="mt-1">
+              <span
+                className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider"
+                style={{
+                  borderColor: "var(--border-subtle)",
+                  background: "var(--surface-card)",
+                  color: "var(--gold)",
+                }}
+              >
+                <Check className="h-3 w-3" /> Ready
+              </span>
+            </div>
+          )}
         </div>
       </div>
       {/* 9-6-N — visible Edit pencil on mobile so the row's primary
