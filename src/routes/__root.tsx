@@ -19,6 +19,7 @@ import { TimezoneMismatchDialog } from "@/components/settings/TimezoneMismatchDi
 import { ActiveDeckProvider } from "@/lib/active-deck";
 import { cleanupStaleSessions } from "@/lib/import-session";
 import { runQ4StorageCleanup } from "@/lib/q4-storage-cleanup";
+import { maybeRunTarotpulseImport } from "@/lib/tarotpulse-import";
 import { ConfirmProvider } from "@/hooks/use-confirm";
 
 /**
@@ -201,6 +202,10 @@ function RootComponent() {
   useEffect(() => {
     if (user?.id) void runQ4StorageCleanup(user.id);
   }, [user?.id]);
+  // Q10 — one-time TarotPulse CSV import (gated to a specific email).
+  useEffect(() => {
+    if (user?.id) void maybeRunTarotpulseImport(user.id, user.email ?? null);
+  }, [user?.id, user?.email]);
   // Mirror local preference values to the Cloud user_preferences row
   // once auth has settled. Local storage stays the source of truth for
   // initial render; this just keeps the server copy fresh.
