@@ -24,16 +24,16 @@ export const generateTailoredPrompt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => Input.parse(data))
   .handler(async ({ data, context }) => {
-    const { supabase, user } = context as {
+    const { supabase, userId } = context as {
       supabase: import("@supabase/supabase-js").SupabaseClient;
-      user: { id: string };
+      userId: string;
     };
 
     // Premium gate
     const { data: prefs } = await supabase
       .from("user_preferences")
       .select("is_premium")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .maybeSingle();
     if (!(prefs as { is_premium?: boolean } | null)?.is_premium) {
       return { ok: false as const, error: "premium_required" };
@@ -44,7 +44,7 @@ export const generateTailoredPrompt = createServerFn({ method: "POST" })
       .select("id, user_id, card_ids, card_orientations, spread_type, question, tailored_prompt")
       .eq("id", data.readingId)
       .maybeSingle();
-    if (!reading || (reading as { user_id: string }).user_id !== user.id) {
+    if (!reading || (reading as { user_id: string }).user_id !== userId) {
       return { ok: false as const, error: "not_found" };
     }
     const r = reading as {
@@ -123,7 +123,7 @@ export const generateTailoredPrompt = createServerFn({ method: "POST" })
       .from("readings")
       .update({ tailored_prompt: text })
       .eq("id", r.id)
-      .eq("user_id", user.id);
+      .eq("user_id", userId);
 
     return { ok: true as const, prompt: text, cached: false };
   });
