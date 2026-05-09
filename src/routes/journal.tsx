@@ -237,6 +237,8 @@ function JournalPage() {
   } | null>(null);
 
   const [readings, setReadings] = useState<ReadingRow[]>([]);
+  const readingStats = useReadingStats(user?.id ?? null);
+  const statsLine = formatReadingStatsLine(readingStats);
   // EG-2 — increments on every archive action so ArchiveView remounts
   // (and re-fetches) when the user navigates to the archive tab.
   const [archiveCounter, setArchiveCounter] = useState(0);
