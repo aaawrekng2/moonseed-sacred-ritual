@@ -12,6 +12,8 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 export type RadiusPreviewItem = {
   /** Inline thumbnail (data URL) extracted from the asset. */
   thumbnailDataUrl: string;
+  /** 26-05-08-K — full-resolution data URL for sharp preview. */
+  fullDataUrl?: string;
   /** Friendly card label, e.g. "The Fool" or filename. */
   cardName: string;
 };
@@ -34,6 +36,8 @@ export function RadiusPreviewScreen({
   const [radius, setRadius] = useState(initialRadius);
   const [index, setIndex] = useState(0);
   const current = items[index];
+  // 26-05-08-K — prefer the sharp full-res data URL when available.
+  const previewSrc = current?.fullDataUrl || current?.thumbnailDataUrl || "";
   // 26-05-08-J — Fix 1: percent border-radius produces ELLIPTICAL
   // corners on a non-square element. Measure the rendered image's
   // smaller dimension and convert to a pixel radius so the preview
@@ -144,10 +148,10 @@ export function RadiusPreviewScreen({
           <ChevronLeft size={20} />
         </button>
 
-        {current?.thumbnailDataUrl ? (
+        {previewSrc ? (
           <img
             ref={imgRef}
-            src={current.thumbnailDataUrl}
+            src={previewSrc}
             alt={current.cardName}
             style={{
               width: "min(60vw, 240px)",
