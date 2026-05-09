@@ -343,6 +343,54 @@ function DeckRow({
   // 26-05-08-N — Fix 5: track stalls so we can auto-recover stuck queues.
   const lastSavedRef = useRef<number | null>(null);
   const stallCountRef = useRef(0);
+  useEffect(() => {
+    // 26-05-08-N — Fix 1: oracle decks need the actual saved card count
+    // as the "expected" total. Tarot is fixed at 78. `count` is set by
+    // the count useEffect below; wait until it's known before polling.
+    if (count === null) return;
+    const expected = deck.deck_type === "oracle" ? count : 78;
+    if (expected === 0) return;
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const tick = async () => {
+      const s = await fetchDeckProcessingStatus(deck.id, expected);
+      if (cancelled) return;
+      setProcStatus(s);
+      // 26-05-08-N — Fix 5: detect stalled queue and auto-recover.
+      if (s.pending > 0 && lastSavedRef.current === s.saved) {
+        stallCountRef.current += 1;
+        if (stallCountRef.current >= 3) {
+          console.warn(
+            `[DeckRow] queue stalled at ${s.saved}/${s.total}, kicking…`,
+          );
+          try {
+            await supabase
+              .from("custom_deck_cards")
+              .update({ variant_attempts: 0, variant_last_attempt_at: null })
+              .eq("deck_id", deck.id)
+              .eq("processing_status", "pending");
+            await supabase.functions.invoke("process-variant-queue", {});
+          } catch {
+            /* non-fatal */
+          }
+          stallCountRef.current = 0;
+        }
+      } else {
+        stallCountRef.current = 0;
+        lastSavedRef.current = s.saved;
+      }
+      if (s.isComplete && interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+    void tick();
+    interval = setInterval(tick, 8000);
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
+  }, [deck.id, deck.deck_type, count]);
   // EZ-7 — One-tap backfill of pre-resized small/medium variants
   // for every card in this deck. Speeds up journal/insights renders
   // by 10-50× on decks with multi-MB scans.
