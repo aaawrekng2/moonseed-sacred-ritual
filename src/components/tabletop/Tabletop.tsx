@@ -53,6 +53,8 @@ export function Tabletop({
   onExit,
   onComplete,
   customCount,
+  question,
+  onQuestionChange,
 }: TabletopProps) {
   const meta = SPREAD_META[spread];
   // 9-6-O — Custom spread overrides the meta count with the user's pick.
@@ -1001,6 +1003,8 @@ export function Tabletop({
       <ManualEntryBuilder
         spread={spread}
         customCount={customCount}
+        question={question ?? ""}
+        onQuestionChange={onQuestionChange ?? (() => {})}
         onCancel={() => setManualOpen(false)}
         onComplete={(picks) => {
           setManualOpen(false);
