@@ -1085,35 +1085,51 @@ function ReadingCard({
         <div className="flex items-center gap-2 shrink-0">
           {hasQuestion && (
             <MessageCircle size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has question" />
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has question">
+              <title>Has question</title>
+            </MessageCircle>
           )}
           {hasNote && (
             <StickyNote size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has note" />
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has note">
+              <title>Has note</title>
+            </StickyNote>
           )}
           {reading.is_favorite && (
             <Heart size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Favorite" />
+              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Favorite">
+              <title>Favorite</title>
+            </Heart>
           )}
           {reading.mirror_saved && (
             <Bookmark size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Bookmarked" />
+              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Bookmarked">
+              <title>Bookmarked</title>
+            </Bookmark>
           )}
           {reading.is_deep_reading && (
             <Star size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Deep reading" />
+              style={{ color: "var(--accent)", opacity: 0.8 }} aria-label="Deep reading">
+              <title>Deep reading</title>
+            </Star>
           )}
           {reading.interpretation && reading.interpretation.trim() !== "" && (
             <Sparkles size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="AI interpreted" />
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="AI interpreted">
+              <title>AI interpreted</title>
+            </Sparkles>
           )}
           {hasTags && (
             <TagIcon size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has tags" />
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has tags">
+              <title>Has tags</title>
+            </TagIcon>
           )}
           {hasPhoto && (
             <Camera size={16} strokeWidth={1.5} fill="currentColor"
-              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has photo" />
+              style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="Has photo">
+              <title>Has photo</title>
+            </Camera>
           )}
           {reading.pattern_id && patternsById[reading.pattern_id] && (
             <button
