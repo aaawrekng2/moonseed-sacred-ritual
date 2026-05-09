@@ -1370,13 +1370,26 @@ export function DeckOverviewScreen({
                 <p className="text-xs italic text-muted-foreground">
                   Tap a card to use as the deck back
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setPickingBack(false)}
-                  className="text-xs italic text-muted-foreground underline"
-                >
-                  Cancel
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPickingBack(false)}
+                    className="text-xs italic text-muted-foreground underline"
+                  >
+                    Cancel
+                  </button>
+                  {/* 26-05-08-N — Fix 6: explicit exit. The back is
+                      saved the moment a card is tapped, but the
+                      seeker may have arrived here without intending to
+                      change it; Done returns to the deck either way. */}
+                  <button
+                    type="button"
+                    onClick={() => setPickingBack(false)}
+                    className="text-xs italic text-gold underline"
+                  >
+                    Done — return to deck
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
                 {cards.map((card) => {
