@@ -212,8 +212,14 @@ export function Tabletop({
       }
       setContainerOrigin({ left: r.left, top: r.top });
       setSize({ w: r.width, h: r.height });
-      // Force initialScatter rebuild branch in the effect at line ~705.
-      initializedRef.current = false;
+      // Q33b Fix 4 — only rebuild the scatter on the FIRST valid
+      // measurement after mount. Resetting on every successful measure
+      // (including resizes) collapses cards to (0,0) when the table
+      // remounts after exiting manual entry.
+      if (prevSizeRef.current === null) {
+        initializedRef.current = false;
+      }
+      prevSizeRef.current = { w: r.width, h: r.height };
     };
     raf = requestAnimationFrame(tryMeasure);
     return () => {
