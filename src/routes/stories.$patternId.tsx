@@ -48,6 +48,7 @@ import {
   generateStoryOrchestration,
   resubmitStoryToAi,
 } from "@/lib/story-orchestration.functions";
+import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
 
 const VIEWPORT_STORAGE_PREFIX = "weave-viewport:";
 
@@ -119,6 +120,7 @@ function PatternChamber() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOrchestrationInFlight, setIsOrchestrationInFlight] = useState(false);
   const [isResubmitting, setIsResubmitting] = useState(false);
+  const [storyQuotaBlocked, setStoryQuotaBlocked] = useState(false);
   const orchestrateFn = useServerFn(generateStoryOrchestration);
   const resubmitFn = useServerFn(resubmitStoryToAi);
   const [editing, setEditing] = useState(false);
@@ -266,6 +268,9 @@ function PatternChamber() {
         if (cancelled) return;
         if (res?.ok && !res.cached && res.pattern) {
           setPattern((prev) => (prev ? { ...prev, ...(res.pattern as Pattern) } : prev));
+        }
+        if (!res?.ok && (res as { error?: string })?.error === "quota_exceeded") {
+          setStoryQuotaBlocked(true);
         }
       } catch (err) {
         console.error("[story] orchestration failed", err);
