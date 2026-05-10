@@ -162,11 +162,14 @@ export function useActiveDeck(): Ctx {
 /** Resolve a card image (custom deck override → Rider-Waite fallback). */
 export function useActiveDeckImage(): (
   cardIndex: number,
-  size?: "display" | "thumbnail",
+  size?: "display" | "thumbnail" | "sm" | "md" | "full",
 ) => string | null {
   const { imageMap } = useActiveDeck();
   return useCallback(
-    (cardIndex: number, size: "display" | "thumbnail" = "display") =>
+    (
+      cardIndex: number,
+      size: "display" | "thumbnail" | "sm" | "md" | "full" = "display",
+    ) =>
       resolveCardImage(cardIndex, imageMap, size),
     [imageMap],
   );
@@ -274,7 +277,7 @@ export function useDeckCardName(
  */
 export function useDeckImage(deckId: string | null | undefined): (
   cardIndex: number,
-  size?: "display" | "thumbnail",
+  size?: "display" | "thumbnail" | "sm" | "md" | "full",
 ) => string | null {
   const [imageMap, setImageMap] = useState<DeckImageMap>(EMPTY_DECK_IMAGE_MAP);
   // DD-3 — track in-flight custom-deck fetches so consumers can render a
@@ -311,7 +314,10 @@ export function useDeckImage(deckId: string | null | undefined): (
   }, [deckId]);
 
   return useCallback(
-    (cardIndex: number, size: "display" | "thumbnail" = "display") => {
+    (
+      cardIndex: number,
+      size: "display" | "thumbnail" | "sm" | "md" | "full" = "display",
+    ) => {
       if (deckId && isLoading) return null;
       return resolveCardImage(cardIndex, imageMap, size);
     },
