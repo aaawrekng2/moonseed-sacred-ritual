@@ -96,6 +96,8 @@ export function ReadingScreen({
 }: Props) {
   const meta = SPREAD_META[spread];
   const { isOracle } = useOracleMode();
+  const { user } = useAuth();
+  const { isPremium } = usePremium(user?.id);
   const [state, setState] = useState<LoadState>({ kind: "idle" });
   const [retryNonce, setRetryNonce] = useState(0);
   // Dev override: when true, the next interpret call sets allowOverride
@@ -482,16 +484,7 @@ export function ReadingScreen({
             />
           )}
           {state.kind === "limit" && (
-            <LimitMessage
-              onExit={onExit}
-              isOracle={isOracle}
-              onSubmitAnyway={() => {
-                overrideRef.current = true;
-                startedRef.current = false;
-                setState({ kind: "loading" });
-                setRetryNonce((n) => n + 1);
-              }}
-            />
+            <AiQuotaBlock resetAt={null} isPremium={isPremium} />
           )}
           {state.kind === "error" && (
             <ErrorMessage
