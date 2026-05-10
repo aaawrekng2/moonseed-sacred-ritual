@@ -19,12 +19,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import { getCardName } from "@/lib/tarot";
 import { buildGuideSystemPrompt } from "@/lib/guides";
-
-const ANTHROPIC_MODELS = [
-  "claude-sonnet-4-6",
-  "claude-sonnet-4-5-20250929",
-  "claude-haiku-4-5-20251001",
-] as const;
+import { callAnthropicWithFallback, isUserPremium } from "@/lib/ai-call.server";
 
 const Input = z.object({
   reading_id: z.string().uuid(),
@@ -240,69 +235,26 @@ ${(readingRow.interpretation ?? "").slice(0, 4000)}
 
 Now go beneath. Produce the four-lens deep reading as JSON.`;
 
-      // 7. Call Anthropic with the same fallback chain.
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) {
+      const aiResult = await callAnthropicWithFallback({
+        callType: "deep_reading",
+        userId,
+        isPremium: await isUserPremium(userId),
+        readingId: data.reading_id,
+        system: systemPrompt,
+        user: userPrompt,
+        maxTokens: 2000,
+      });
+      if (!aiResult.ok) {
         return {
           ok: false,
           reason: "ai_unavailable",
-          message: "Deep reader is not configured.",
+          message:
+            aiResult.error === "quota_exceeded"
+              ? "You've used your AI credits for this cycle."
+              : "The deep reader could not be reached.",
         };
       }
-
-      let rawText = "";
-      try {
-        for (const model of ANTHROPIC_MODELS) {
-          const resp = await fetch("https://api.anthropic.com/v1/messages", {
-            method: "POST",
-            headers: {
-              "x-api-key": apiKey,
-              "anthropic-version": "2023-06-01",
-              "content-type": "application/json",
-            },
-            body: JSON.stringify({
-              model,
-              max_tokens: 2000,
-              system: systemPrompt,
-              messages: [{ role: "user", content: userPrompt }],
-            }),
-          });
-          if (!resp.ok) {
-            if (resp.status === 404 || resp.status === 410) continue;
-            const t = await resp.text().catch(() => "");
-            console.error("[interpretDeepReading] Anthropic error", {
-              model,
-              status: resp.status,
-              body: t.slice(0, 400),
-            });
-            return {
-              ok: false,
-              reason: "ai_unavailable",
-              message: "The deep reader could not be reached.",
-            };
-          }
-          const json = (await resp.json()) as {
-            content?: Array<{ type: string; text?: string }>;
-          };
-          rawText =
-            json.content?.find((c) => c.type === "text")?.text?.trim() ?? "";
-          if (rawText) break;
-        }
-      } catch (e) {
-        console.error("[interpretDeepReading] fetch threw", e);
-        return {
-          ok: false,
-          reason: "ai_unavailable",
-          message: "The deep reader could not be reached.",
-        };
-      }
-      if (!rawText) {
-        return {
-          ok: false,
-          reason: "ai_unavailable",
-          message: "The deep reader could not be reached.",
-        };
-      }
+      const rawText = aiResult.content;
 
       // 8. Parse.
       let lenses: DeepLenses;
