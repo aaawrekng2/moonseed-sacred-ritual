@@ -4,7 +4,7 @@
  * Centered chevron stepper: ‹  N cards  ›. Only rendered for the
  * "custom" spread; non-custom spreads have a fixed count.
  */
-import { forwardRef } from "react";
+import { forwardRef, useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type Props = {
@@ -17,10 +17,15 @@ type Props = {
 export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
   function CustomCountStepper({ count, onChange, min = 1, max = 10 }, ref) {
   // Q20 Fix 5 — tighter chevron spacing on mobile.
-  const isMobile =
-    typeof window !== "undefined"
-      ? window.matchMedia("(max-width: 640px)").matches
-      : false;
+  // Q33b Fix 1 — reactive isMobile to avoid SSR mismatch + stale resize values.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
   const dec = (_e: React.MouseEvent) => {
     console.log("[stepper] dec clicked", { count, min, disabled: count <= min });
     if (count <= min) return;
@@ -53,7 +58,7 @@ export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
       <button
         type="button"
         onClick={dec}
-        onTouchEnd={(e) => {
+        onPointerUp={(e) => {
           e.preventDefault();
           dec(e as unknown as React.MouseEvent);
         }}
@@ -83,7 +88,7 @@ export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
       <button
         type="button"
         onClick={inc}
-        onTouchEnd={(e) => {
+        onPointerUp={(e) => {
           e.preventDefault();
           inc(e as unknown as React.MouseEvent);
         }}

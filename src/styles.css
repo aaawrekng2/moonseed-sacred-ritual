@@ -354,6 +354,13 @@ code, pre, kbd {
   50% { opacity: 0.88; transform: scale(1.018); }
 }
 
+/* Q33b Fix 5 — generic skeleton pulse used by share-card-shared while
+   a custom deck's images are still resolving. */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* QuestionPanel close → quill icon: scale-from-zero so the panel
    collapses smoothly into the floating quill rather than popping. */
 @keyframes quill-scale-in {

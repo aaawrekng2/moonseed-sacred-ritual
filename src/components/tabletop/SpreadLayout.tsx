@@ -1233,7 +1233,18 @@ export function ManualSpreadSlots({
       );
     }
     return (
-      <div className="flex flex-wrap items-end justify-center gap-x-4 gap-y-3 px-2 max-w-full w-full">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${
+            picks.length <= 5 ? picks.length : Math.ceil(picks.length / 2)
+          }, auto)`,
+          justifyContent: "center",
+          gap: "12px 16px",
+          width: "100%",
+          maxWidth: "100%",
+        }}
+      >
         {picks.map((pick, i) => (
           <div
             key={`cell-${i}`}
