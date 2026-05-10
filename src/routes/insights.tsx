@@ -17,7 +17,6 @@ import { MoonPhaseRing } from "@/components/insights/MoonPhaseRing";
 import { ReversalStat } from "@/components/insights/ReversalStat";
 import { RhythmHeatmap } from "@/components/insights/RhythmHeatmap";
 import { TopGuideStat } from "@/components/insights/TopGuideStat";
-import { TopLensStat } from "@/components/insights/TopLensStat";
 import { getInsightsOverview, getStalkerCards } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
@@ -37,7 +36,6 @@ import { TimeOfDayRadial } from "@/components/insights/TimeOfDayRadial";
 import { StreakHistory } from "@/components/insights/StreakHistory";
 import { TagCloud } from "@/components/insights/TagCloud";
 import { GuidePreferences } from "@/components/insights/GuidePreferences";
-import { LensDistribution } from "@/components/insights/LensDistribution";
 import { QuestionThemesLocked } from "@/components/insights/QuestionThemesLocked";
 import { RecapTab } from "@/components/insights/RecapTab";
 import { LunationBanner } from "@/components/insights/LunationBanner";
@@ -329,7 +327,6 @@ function InsightsRoute() {
                 }}
               />
               <GuidePreferences filters={filters} />
-              <LensDistribution filters={filters} />
               <QuestionThemesLocked filters={filters} />
             </div>
           )}
@@ -436,11 +433,6 @@ function OverviewTab({
           data={overview.topGuide}
           onlyOne={overview.topGuide ? overview.topGuide.count === overview.totalReadings : false}
           onTap={() => log("guide")}
-        />
-        <TopLensStat
-          data={overview.topLens}
-          totalDeep={overview.deepReadingsCount}
-          onTap={() => log("lens")}
         />
       </div>
 
