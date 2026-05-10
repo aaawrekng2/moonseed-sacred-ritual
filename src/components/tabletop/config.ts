@@ -69,23 +69,22 @@ export function responsiveCardWidth(viewportW: number): number {
  * CARD_ASPECT_RATIO.
  */
 export function responsiveSlotWidth(viewportW: number, count: number): number {
+  // Q19 Fix 4 — viewport-aware slot rail sizing. Previous step-table
+  // returned fixed widths per count which caused 7-9 card spreads to
+  // overflow on narrow phones. Compute the largest slot that lets the
+  // entire rail fit in one row given the live viewport width, the
+  // gap between slots, and an upper/lower bound that keeps the slots
+  // legible without dwarfing the rest of the table.
+  if (count <= 0 || viewportW <= 0) return 48;
   const isMobile = viewportW < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
-  if (count <= 3) {
-    // Three-card spread: roomy slots both layouts.
-    return isMobile ? 48 : 72;
-  }
-  if (count >= 10) {
-    // Celtic Cross: 10 slots must fit in a single non-scrolling row. Sizes
-    // chosen so 10 * (slotW + gap) stays inside common viewport widths.
-    if (isMobile) {
-      // Aim for ≤360px of rail on a 390px viewport (room for safe-area).
-      // 10 slots × 28 + 9 gaps × 4 ≈ 316px → comfortably fits.
-      return 28;
-    }
-    return 44;
-  }
-  // Fallback for any future spread with 4–9 cards.
-  return isMobile ? 38 : 56;
+  const railPad = isMobile ? 12 : 32;
+  const gap = count >= 10 ? 4 : isMobile ? 6 : 8;
+  const usable = Math.max(0, viewportW - railPad * 2 - gap * (count - 1));
+  const naive = Math.floor(usable / count);
+  const minW = isMobile ? 24 : 36;
+  const maxW =
+    count <= 3 ? (isMobile ? 56 : 80) : isMobile ? 48 : 64;
+  return Math.max(minW, Math.min(maxW, naive));
 }
 
 export function pickReturnSpot(

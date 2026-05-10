@@ -11,6 +11,10 @@ import {
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { CardImage } from "@/components/card/CardImage";
 import { SpreadIconsRow } from "@/components/spreads/SpreadIconsRow";
+import {
+  resolveCountFromMap,
+  type SpreadEntryModes,
+} from "@/lib/use-spread-entry-modes";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { useStreak } from "@/lib/use-streak";
@@ -578,7 +582,30 @@ function Index() {
             onSelect={(spread) => {
               setShowDrawTypeHint(false);
               if (spread === "custom") {
-                setCustomCountOpen(true);
+                // Q19 — bypass the home count modal entirely; route to
+                // /draw with the seeker's last-used Custom count
+                // (read from the same localStorage key that
+                // useSpreadEntryModes hydrates from). The on-table
+                // CustomCountStepper lets them adjust mid-flow.
+                let n = customCount;
+                try {
+                  const raw =
+                    typeof window !== "undefined"
+                      ? window.localStorage.getItem(
+                          "moonseed.spread_entry_modes",
+                        )
+                      : null;
+                  if (raw) {
+                    const parsed = JSON.parse(raw) as SpreadEntryModes;
+                    n = resolveCountFromMap(parsed);
+                  }
+                } catch {
+                  /* fall back to local state */
+                }
+                navigate({
+                  to: "/draw",
+                  search: { spread: "custom", n },
+                });
                 return;
               }
               navigate({

@@ -6,9 +6,9 @@ import {
   useState,
 } from "react";
 import { Undo2, Redo2, X } from "lucide-react";
-import { Hand } from "lucide-react";
-import { ManualEntryBuilder } from "@/components/tabletop/ManualEntryBuilder";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
+import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
+import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
 import { useAuth } from "@/lib/auth";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -55,36 +55,38 @@ export function Tabletop({
   customCount,
   question,
   onQuestionChange,
+  onSwitchToManual,
+  onCustomCountChange,
 }: TabletopProps) {
   const meta = SPREAD_META[spread];
   // 9-6-O — Custom spread overrides the meta count with the user's pick.
   const required = spread === "custom" ? Math.max(1, Math.min(10, customCount ?? 3)) : meta.count;
   const usesSlots = spreadUsesSlots(spread, required);
 
-  // AU — Manual card entry. Bypass the scatter and let the seeker pick
-  // cards from a 78-card grid (used for logging a physical reading).
-  const [manualOpen, setManualOpen] = useState(false);
-  // DZ-2 — Manual-draw hint, anchored to the "Manual entry" button.
-  // Fired by an event from draw.tsx after the question modal closes.
+  // Q19 — manual entry is now hoisted to draw.tsx; Tabletop only
+  // surfaces the unified EntryModeToggle and asks the parent to swap
+  // surfaces. The Q5/DZ-2 "manual draw" hint is now anchored to the
+  // toggle and lives at the draw-route level.
   const { user: authUser, loading: authLoading } = useAuth();
-  const manualBtnRef = useRef<HTMLButtonElement | null>(null);
-  const [showManualHint, setShowManualHint] = useState(false);
+  const entryToggleRef = useRef<HTMLButtonElement | null>(null);
+  const [showEntryHint, setShowEntryHint] = useState(false);
   useEffect(() => {
-    if (authLoading) return; // 9-6-K — wait for auth before checking dismissal
+    if (authLoading) return;
+    if (!onSwitchToManual) return;
     const onTrigger = async () => {
       const dismissed = await isHintHardDismissed(
-        "manual_draw_choose_cards",
+        "entry_mode_toggle",
         authUser?.id ?? null,
       );
       if (!dismissed) {
-        window.setTimeout(() => setShowManualHint(true), 300);
+        window.setTimeout(() => setShowEntryHint(true), 300);
       }
     };
     window.addEventListener("moonseed:question-modal-closed", onTrigger);
     return () => {
       window.removeEventListener("moonseed:question-modal-closed", onTrigger);
     };
-  }, [authUser, authLoading]);
+  }, [authUser, authLoading, onSwitchToManual]);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
@@ -178,7 +180,6 @@ export function Tabletop({
   // (0,0). Also reset the initializedRef flag so initialScatter
   // recomputes against the freshly-measured container.
   useEffect(() => {
-    if (manualOpen) return;
     let cancelled = false;
     let raf: number | null = null;
     const tryMeasure = () => {
@@ -203,7 +204,7 @@ export function Tabletop({
       cancelled = true;
       if (raf !== null) cancelAnimationFrame(raf);
     };
-  }, [manualOpen]);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -996,74 +997,50 @@ export function Tabletop({
   }, [ready, required]);
 
   return (
-    manualOpen ? (
-      // Phase 9.5b Fix 4 — manual entry replaces the tabletop entirely.
-      // Returning early ensures the scatter (and its high-z cards/slots)
-      // never bleed through behind the manual entry UI.
-      <ManualEntryBuilder
-        spread={spread}
-        customCount={customCount}
-        question={question ?? ""}
-        onQuestionChange={onQuestionChange ?? (() => {})}
-        onCancel={() => {
-          // Q5 — Fix 7: when the seeker exits manual entry without
-          // committing, the scatter container remounts. Reset the
-          // initialization flag and clear `cards` so the existing
-          // scatter-build effect rehydrates fresh positions instead of
-          // leaving cards stuck at their pre-manual placeholder coords
-          // (which collapses them to the upper-left corner).
-          setManualOpen(false);
-          initializedRef.current = false;
-          setCards([]);
-        }}
-        onComplete={(picks) => {
-          setManualOpen(false);
-          clearTabletopSession(spread);
-          // Phase 9.5b Fix 6 — manual entry skips the flip animation
-          // entirely and jumps straight to interpretation.
-          onComplete(
-            picks.map((p) => ({
-              id: p.id,
-              cardIndex: p.cardIndex,
-              isReversed: p.isReversed,
-              // Q3 — Fix 2: preserve per-pick source deck so mixed-deck
-              // readings render with each card's true deck artwork.
-              deckId: p.deckId,
-            })),
-            "reveal",
-            { entryMode: "manual" },
-          );
-        }}
-      />
-    ) : (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-cosmos">
-      {/* AU — manual card entry overlay. Sits above the scatter, lets the
-          seeker pick cards directly from a grid (e.g. when logging a
-          physical reading they've already pulled). */}
-      <button
-        type="button"
-        ref={manualBtnRef}
-        onClick={() => setManualOpen(true)}
-        className="absolute left-3 top-[calc(env(safe-area-inset-top,0px)+8px)] z-50 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs backdrop-blur transition-opacity hover:opacity-100 active:opacity-70"
-        style={{
-          color: "var(--color-foreground, var(--foreground))",
-          background: "color-mix(in oklab, var(--surface-card, #15131f) 60%, transparent)",
-          border: "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
-          opacity: 0.92,
-        }}
-        aria-label="Manual entry"
-      >
-        <Hand className="h-3.5 w-3.5" /> Manual entry
-      </button>
-      {showManualHint && (
+      {/* Q19 — Unified entry-mode toggle replaces the legacy
+          "Manual entry" pill. Owned by draw.tsx; we render only when
+          the parent supplied an onSwitchToManual callback. */}
+      {onSwitchToManual && (
+        <EntryModeToggle
+          ref={entryToggleRef}
+          current="table"
+          onToggle={onSwitchToManual}
+        />
+      )}
+      {showEntryHint && onSwitchToManual && (
         <Hint
-          hintId="manual_draw_choose_cards"
-          text="Already drew cards with a physical deck? Enter them here instead."
-          anchorRef={manualBtnRef}
+          hintId="entry_mode_toggle"
+          text="Drew physical cards already? Tap here to enter them by name."
+          anchorRef={entryToggleRef}
           position="bottom"
           pointerAlign="start"
-          onDismiss={() => setShowManualHint(false)}
+          onDismiss={() => setShowEntryHint(false)}
         />
+      )}
+      {/* Q19 — Custom-count stepper sits centered under the safe-area
+          inset, only on the custom spread when the parent wires the
+          callback. */}
+      {spread === "custom" && customCount && onCustomCountChange && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(env(safe-area-inset-top, 0px) + 8px)",
+            left: 0,
+            right: 0,
+            zIndex: 49,
+            display: "flex",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <div style={{ pointerEvents: "auto" }}>
+            <CustomCountStepper
+              count={customCount}
+              onChange={onCustomCountChange}
+            />
+          </div>
+        </div>
       )}
 
       {/* Undo / Redo moved into the upper-right cluster below so all
@@ -1377,9 +1354,9 @@ export function Tabletop({
                     lineHeight: 1.15,
                     letterSpacing: "0.06em",
                     textShadow: "0 0 14px rgba(212,175,55,0.55)",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
+                    // Q19 Fix 6 — allow long position names ("Hopes &
+                    // Fears") to wrap rather than be cut off mid-word.
+                    textAlign: "center",
                     maxWidth: "100%",
                     pointerEvents: "none",
                     transition: "opacity 200ms ease-out",
@@ -1627,6 +1604,5 @@ export function Tabletop({
         </div>
       )}
     </div>
-    )
   );
 }

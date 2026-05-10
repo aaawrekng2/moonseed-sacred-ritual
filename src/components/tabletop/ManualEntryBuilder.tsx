@@ -9,8 +9,7 @@
  * the same SpreadLayout → ReadingScreen path as a digital draw so the
  * resulting reading is visually identical (Fix 9).
  */
-import { useState } from "react";
-import { X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { ManualSpreadSlots } from "@/components/tabletop/SpreadLayout";
@@ -20,6 +19,8 @@ import { getCardName } from "@/lib/tarot";
 import { cn } from "@/lib/utils";
 import { SmartCardInput, type PasteOutcome, type SmartPick } from "@/components/tabletop/SmartCardInput";
 import { useActiveDeck } from "@/lib/active-deck";
+import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
+import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
 
 const CELTIC_POSITION_LABELS = [
   "Significator",
@@ -54,6 +55,17 @@ type Props = {
   /** 26-05-08-N — Fix 4: inline question input above the Done button. */
   question: string;
   onQuestionChange: (next: string) => void;
+  /**
+   * Q19 — Mid-draw picks preservation. The draw-route caches in-progress
+   * manual picks so toggling Table ↔ Manual doesn't wipe the seeker's
+   * placements. Optional; defaults to a fresh array.
+   */
+  initialPicks?: (ManualPick | null)[];
+  onPicksChange?: (picks: (ManualPick | null)[]) => void;
+  /** Q19 — Surface swap (Manual → Table) via the unified toggle. */
+  onSwitchToTable?: () => void;
+  /** Q19 — Custom-count stepper hook (custom spread only). */
+  onCustomCountChange?: (next: number) => void;
 };
 
 export function ManualEntryBuilder({
@@ -63,6 +75,10 @@ export function ManualEntryBuilder({
   customCount,
   question,
   onQuestionChange,
+  initialPicks,
+  onPicksChange,
+  onSwitchToTable,
+  onCustomCountChange,
 }: Props) {
   const meta = SPREAD_META[spread];
   const required = spread === "custom"
@@ -70,9 +86,37 @@ export function ManualEntryBuilder({
     : meta.count;
   const labels = meta.positions ?? [];
 
-  const [picks, setPicks] = useState<(ManualPick | null)[]>(
-    Array.from({ length: required }, () => null),
-  );
+  const [picks, setPicks] = useState<(ManualPick | null)[]>(() => {
+    if (initialPicks && initialPicks.length > 0) {
+      // Trim or pad to match the current `required` count so a stale
+      // cached array (e.g. left-over Custom 5-card picks) lines up
+      // with the stepper's new value.
+      const next = initialPicks.slice(0, required);
+      while (next.length < required) next.push(null);
+      return next;
+    }
+    return Array.from({ length: required }, () => null);
+  });
+  // Q19 — keep the lifted cache in sync with internal edits.
+  useEffect(() => {
+    onPicksChange?.(picks);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picks]);
+  // Q19 — reflow when the stepper changes the required count.
+  useEffect(() => {
+    setPicks((prev) => {
+      if (prev.length === required) return prev;
+      const next = prev.slice(0, required);
+      while (next.length < required) next.push(null);
+      return next;
+    });
+    setSlotDeckIds((prev) => {
+      if (prev.length === required) return prev;
+      const next = prev.slice(0, required);
+      while (next.length < required) next.push(null);
+      return next;
+    });
+  }, [required]);
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
   // 9-6-G — per-slot deck override; null = active deck.
   const [slotDeckIds, setSlotDeckIds] = useState<(string | null)[]>(
@@ -175,28 +219,34 @@ export function ManualEntryBuilder({
   return (
     <FullScreenSheet open onClose={onCancel} entry="slide-up" showCloseButton={false}>
     <div className="flex h-full w-full flex-col bg-cosmos text-foreground">
-      <header className="flex items-center justify-between border-b border-border/40 px-4 py-3">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-full p-2 hover:bg-foreground/10"
-          aria-label="Cancel"
-        >
-          <X className="h-5 w-5" />
-        </button>
-        <div
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "var(--text-caption, 0.7rem)",
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            opacity: 0.55,
-          }}
-        >
-          Manual entry · {meta.label}
-        </div>
-        <div className="w-9" />
+      {/* Q19 — Header swap: the X close button is gone; the unified
+          EntryModeToggle (rendered as a sibling so its own absolute
+          positioning is honoured) sits at the upper-left. The custom
+          spread shows the chevron stepper centered; other spreads
+          show the small static "Manual entry · <label>" caption. */}
+      {onSwitchToTable && (
+        <EntryModeToggle current="manual" onToggle={onSwitchToTable} />
+      )}
+      <header className="flex items-center justify-center border-b border-border/40 px-4 py-3 min-h-[48px]">
+        {spread === "custom" && onCustomCountChange ? (
+          <CustomCountStepper
+            count={required}
+            onChange={onCustomCountChange}
+          />
+        ) : (
+          <div
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption, 0.7rem)",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              opacity: 0.55,
+            }}
+          >
+            Manual entry · {meta.label}
+          </div>
+        )}
       </header>
 
       <div

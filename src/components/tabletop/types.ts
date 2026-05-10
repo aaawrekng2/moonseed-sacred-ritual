@@ -32,6 +32,19 @@ export type TabletopProps = {
    */
   question?: string;
   onQuestionChange?: (next: string) => void;
+  /**
+   * 26-05-08-Q19 — Entry-mode wiring. When set, Tabletop renders the
+   * unified upper-left EntryModeToggle in place of its legacy
+   * "Manual entry" pill and calls `onSwitchToManual` instead of
+   * mounting ManualEntryBuilder internally.
+   */
+  onSwitchToManual?: () => void;
+  /**
+   * 26-05-08-Q19 — Custom-spread card-count stepper. When provided
+   * (custom spread only), Tabletop renders a centered chevron
+   * stepper that lets the seeker change the cardinality mid-table.
+   */
+  onCustomCountChange?: (next: number) => void;
 };
 
 export type CardState = ScatterCard & {
