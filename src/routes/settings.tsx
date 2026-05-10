@@ -8,6 +8,7 @@ import {
 import { type CSSProperties } from "react";
 import {
   Database,
+  MessageSquare,
   Palette,
   Sliders,
   Star,
@@ -59,6 +60,7 @@ type TabKey =
   | "moon"
   | "decks"
   | "usage"
+  | "feedback"
   | "data";
 
 type TabDef = {
@@ -73,11 +75,13 @@ type TabDef = {
     | "/settings/moon"
     | "/settings/decks"
     | "/settings/usage"
+    | "/settings/feedback"
     | "/settings/data";
   icon: typeof UserIcon;
 };
 
 const TABS: TabDef[] = [
+  { key: "feedback", label: "Feedback", to: "/settings/feedback", icon: MessageSquare },
   { key: "profile", label: "Profile", to: "/settings/profile", icon: UserIcon },
   { key: "blueprint", label: "Blueprint", to: "/settings/blueprint", icon: Star },
   { key: "preferences", label: "Preferences", to: "/settings/preferences", icon: Sliders },
@@ -90,6 +94,7 @@ const TABS: TabDef[] = [
 ];
 
 function tabFromPath(pathname: string): TabKey | null {
+  if (pathname.startsWith("/settings/feedback")) return "feedback";
   if (pathname.startsWith("/settings/profile")) return "profile";
   if (pathname.startsWith("/settings/blueprint")) return "blueprint";
   if (pathname.startsWith("/settings/preferences")) return "preferences";
