@@ -1190,30 +1190,51 @@ export function ManualSpreadSlots({
   }
 
   if (spread === "custom") {
-    // Q20 Fix 6 — max 5 cards per row; cards size DOWN to fit on
-    // narrow viewports. 1-5 cards keep their natural sizing.w; 6-10
-    // wrap as 5+N with each cell taking 1/5 of the row width.
-    const slotsPerRow = Math.min(5, picks.length);
-    const HORIZONTAL_GAP = 16;
-    const cellWidthStyle: React.CSSProperties =
-      picks.length <= 5
-        ? { flex: "0 0 auto", width: sizing.w }
-        : {
-            flex: `0 0 calc((100% - ${
-              HORIZONTAL_GAP * (slotsPerRow - 1)
-            }px) / ${slotsPerRow})`,
-            maxWidth: sizing.w,
-          };
-    const responsive = picks.length > 5;
+    const count = picks.length;
+    // Q25 Fix 5 — for 5+ cards, use the Celtic single-row responsive
+    // formula so the manual entry slot rail always fits any viewport
+    // with no wrap. For 1-4 cards, keep the natural wider sizing.
+    if (count >= 5) {
+      const viewportW = typeof window !== "undefined" ? window.innerWidth : 380;
+      const slotW = responsiveSlotWidth(viewportW, count);
+      const gap = count >= 10 ? 4 : 8;
+      return (
+        <div
+          className="flex items-end justify-center w-full max-w-full"
+          style={{ gap }}
+        >
+          {picks.map((pick, i) => (
+            <div
+              key={`cell-${i}`}
+              className="flex flex-col items-center gap-1 min-w-0"
+              style={{ width: slotW }}
+            >
+              <Slot pick={pick} slotIndex={i} />
+              {showLabels && (
+                <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
+              )}
+              {showLabels && pick && (
+                <CardNameLabel
+                  cardIndex={pick.cardIndex}
+                  isReversed={!!pick.isReversed}
+                  cardWidth={slotW}
+                  nameOverride={pick.cardName}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    }
     return (
       <div className="flex flex-wrap items-end justify-center gap-x-4 gap-y-3 px-2 max-w-full w-full">
         {picks.map((pick, i) => (
           <div
             key={`cell-${i}`}
             className="flex flex-col items-center gap-1 min-w-0"
-            style={cellWidthStyle}
+            style={{ flex: "0 0 auto", width: sizing.w }}
           >
-            <Slot pick={pick} slotIndex={i} responsiveWidth={responsive} />
+            <Slot pick={pick} slotIndex={i} />
             {showLabels && (
               <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
             )}
