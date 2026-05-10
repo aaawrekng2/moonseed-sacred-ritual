@@ -219,18 +219,15 @@ export function ManualEntryBuilder({
   return (
     <FullScreenSheet open onClose={onCancel} entry="slide-up" showCloseButton={false}>
     <div className="flex h-full w-full flex-col bg-cosmos text-foreground">
-      {/* Q19 — Header swap: the X close button is gone (the seeker
-          uses the FloatingMenu close icon to leave /draw entirely),
-          and the upper-left now hosts the unified EntryModeToggle so
-          flipping back to the draw table is a single tap. The
-          custom-count stepper centers above the slot grid when the
-          parent supplies a callback. */}
-      <header className="relative flex items-center justify-center border-b border-border/40 px-4 py-3 min-h-[48px]">
-        {onSwitchToTable && (
-          <div className="absolute left-2 top-1/2 -translate-y-1/2">
-            <EntryModeToggle current="manual" onToggle={onSwitchToTable} />
-          </div>
-        )}
+      {/* Q19 — Header swap: the X close button is gone; the unified
+          EntryModeToggle (rendered as a sibling so its own absolute
+          positioning is honoured) sits at the upper-left. The custom
+          spread shows the chevron stepper centered; other spreads
+          show the small static "Manual entry · <label>" caption. */}
+      {onSwitchToTable && (
+        <EntryModeToggle current="manual" onToggle={onSwitchToTable} />
+      )}
+      <header className="flex items-center justify-center border-b border-border/40 px-4 py-3 min-h-[48px]">
         {spread === "custom" && onCustomCountChange ? (
           <CustomCountStepper
             count={required}
