@@ -493,7 +493,17 @@ export function resolveCardImage(
   // share-card-shared because "" is not nullish — so when both specific
   // and active resolvers missed, baseFaceSrc stayed "" and downstream
   // variantUrlFor("") returned null, leaving the <img> unrendered.
-  if (cardIndex >= 1000) return null;
+  if (cardIndex >= 1000) {
+    // Q29 Fix 7 — surface oracle-card resolution failures so we can
+    // see which cards never got variants generated.
+    console.warn("[resolveCardImage] no image for oracle cardId", cardIndex, {
+      hasMap: !!map,
+      hasVariants: !!map?.variants[cardIndex],
+      hasDisplay: !!map?.display[cardIndex],
+      hasThumbnail: !!map?.thumbnail[cardIndex],
+    });
+    return null;
+  }
   return getDefaultCardImagePath(cardIndex);
 }
 
