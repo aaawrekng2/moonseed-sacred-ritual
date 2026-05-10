@@ -5,7 +5,7 @@
  * doorway, the limit overlay, the four sequential lens reveals, and
  * the mirror-artifact save action.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import {
@@ -259,15 +259,6 @@ export function DeepReadingPanel({
       setMirrorSavedState(!next);
     }
   };
-
-  const dawnLabel = useMemo(() => {
-    if (flow.kind !== "limit") return "";
-    const d = new Date(flow.nextDawn);
-    return d.toLocaleTimeString(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  }, [flow]);
 
   if (flow.kind === "mist") {
     return (
