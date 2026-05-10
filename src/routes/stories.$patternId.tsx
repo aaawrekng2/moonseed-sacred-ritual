@@ -428,6 +428,74 @@ function PatternChamber() {
         spanDays={computeSpanDays(chamberReadings, pattern.created_at)}
       />
 
+      {/* Q30 — Stage 2 Stories sections */}
+      {isAdmin && (
+        <div style={{ marginBottom: 12, textAlign: "right" }}>
+          <button
+            type="button"
+            onClick={handleResubmit}
+            disabled={isResubmitting}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontFamily: "var(--font-sans)",
+              fontSize: "var(--text-caption)",
+              letterSpacing: "0.12em",
+              color: "var(--accent, var(--gold))",
+              opacity: isResubmitting ? 0.3 : 0.55,
+              textTransform: "uppercase",
+            }}
+          >
+            {isResubmitting ? "regenerating..." : "dev · resubmit to ai ↻"}
+          </button>
+        </div>
+      )}
+      <StoryHero
+        storyName={pattern.story_name}
+        storyDescription={pattern.story_description}
+        fallbackName={pattern.name}
+        metaLine={`First seen ${formatDateLong(pattern.created_at)} · ${pattern.reading_ids.length} readings · ${computeSpanDays(chamberReadings, pattern.created_at)} days${pattern.lifecycle_state === "active" ? " · active" : ""}`}
+      />
+      <StatsRibbon
+        readingCount={pattern.reading_ids.length}
+        recurringCardCount={
+          new Set(
+            (chamberReadings ?? []).flatMap((r) => r.card_ids ?? []),
+          ).size
+        }
+        reversalCount={0}
+        dominantMoonPhase={"—"}
+      />
+      <TheArc
+        readings={(chamberReadings ?? []).map((r) => ({
+          id: r.id,
+          created_at: r.created_at,
+          card_ids: r.card_ids,
+        }))}
+        onOpenReading={setOpenReadingId}
+      />
+      <RemarkableMoments
+        moments={(pattern.remarkable_moments as Array<{ date: string; caption: string; reading_ids?: string[] }>) ?? []}
+        onOpenReading={setOpenReadingId}
+        isGenerating={isOrchestrationInFlight}
+      />
+      <StoryConstellation
+        readings={(chamberReadings ?? []).map((r) => ({ id: r.id, card_ids: r.card_ids }))}
+      />
+      <Q30StoryActions
+        onRename={() => setEditing(true)}
+        onAddNote={() => {
+          if (noteOpen) void closeNoteEditor();
+          else setNoteOpen(true);
+        }}
+        onRetire={openRetireFlow}
+        retired={pattern.lifecycle_state === "retired"}
+        hasNote={!!(pattern.description && pattern.description.trim())}
+        noteOpen={noteOpen}
+      />
+
       {editing ? (
         <input
           autoFocus
