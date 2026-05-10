@@ -978,10 +978,26 @@ export function ManualSpreadSlots({
   const [pickAspects, setPickAspects] = useState<Record<number, number>>({});
   const defaultAspect = sizing.w / sizing.h;
 
-  const Slot = ({ pick, slotIndex, rotated }: { pick: ManualSlotPick; slotIndex: number; rotated?: boolean }) => {
+  const Slot = ({
+    pick,
+    slotIndex,
+    rotated,
+    responsiveWidth,
+  }: {
+    pick: ManualSlotPick;
+    slotIndex: number;
+    rotated?: boolean;
+    responsiveWidth?: boolean;
+  }) => {
     const aspect = pick ? pickAspects[slotIndex] ?? defaultAspect : defaultAspect;
     const height = pick ? Math.round(sizing.w / aspect) : sizing.h;
     const isAmbiguous = ambiguousSlots?.includes(slotIndex);
+    // Q20 Fix 6 — when the parent column controls the width (custom
+    // spread max-5-per-row), let the slot fill the column and derive
+    // height from the natural aspect.
+    const sizeStyle: React.CSSProperties = responsiveWidth
+      ? { width: "100%", aspectRatio: String(aspect) }
+      : { width: sizing.w, height };
     return (
       <button
         type="button"
@@ -1014,8 +1030,7 @@ export function ManualSpreadSlots({
           isAmbiguous && "ring-2 ring-yellow-400/70",
         )}
         style={{
-          width: sizing.w,
-          height,
+          ...sizeStyle,
           transform: rotated ? "rotate(90deg)" : undefined,
           transformOrigin: "center center",
           // 9-6-W — filter follows the card's painted alpha so the
