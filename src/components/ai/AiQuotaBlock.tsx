@@ -20,7 +20,7 @@ export function AiQuotaBlock({
   onUpgrade?: () => void;
 }) {
   const nav = useNavigate();
-  const reset = resetAt ? formatDateLong(new Date(resetAt)) : null;
+  const reset = resetAt ? formatDateLong(resetAt) : null;
   const handleUpgrade = () => {
     if (onUpgrade) onUpgrade();
     else nav({ to: "/settings/profile" }).catch(() => {});
