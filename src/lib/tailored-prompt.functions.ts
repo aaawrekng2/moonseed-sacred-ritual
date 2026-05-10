@@ -10,15 +10,11 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getCardName } from "@/lib/tarot";
 import { SPREAD_META } from "@/lib/spreads";
+import { callAI } from "@/lib/ai-call.server";
 
 const Input = z.object({
   readingId: z.string().uuid(),
 });
-
-const HAIKU_MODELS = [
-  "claude-haiku-4-5-20251001",
-  "claude-3-5-haiku-20241022",
-];
 
 export const generateTailoredPrompt = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -63,11 +59,6 @@ export const generateTailoredPrompt = createServerFn({ method: "POST" })
       return { ok: false as const, error: "question_required" };
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return { ok: false as const, error: "ai_unavailable" };
-    }
-
     const spreadLabel =
       (SPREAD_META as Record<string, { label?: string }>)[r.spread_type]?.label ??
       r.spread_type;
@@ -86,34 +77,21 @@ export const generateTailoredPrompt = createServerFn({ method: "POST" })
       `Spread: ${spreadLabel}\nCards:\n${cardLines}\nSeeker's question: ${question}\n\n` +
       `Write one personalized journaling prompt that helps the seeker reflect on this reading in light of their question.`;
 
-    let text = "";
-    for (const model of HAIKU_MODELS) {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: 100,
-          system,
-          messages: [{ role: "user", content: userMsg }],
-        }),
-      });
-      if (!resp.ok) {
-        if (resp.status === 404 || resp.status === 410) continue;
-        const errText = await resp.text().catch(() => "");
-        console.error("[tailored-prompt] anthropic error", resp.status, errText.slice(0, 300));
-        return { ok: false as const, error: "ai_unavailable" };
-      }
-      const json = (await resp.json()) as {
-        content?: Array<{ type: string; text?: string }>;
-      };
-      text = (json.content?.find((c) => c.type === "text")?.text ?? "").trim();
-      if (text) break;
+    const aiResult = await callAI({
+      callType: "tailored_prompt",
+      provider: "anthropic",
+      model: "claude-haiku-4-5-20251001",
+      userId,
+      isPremium: true,
+      readingId: r.id,
+      messages: [{ role: "user", content: userMsg }],
+      system,
+      maxTokens: 100,
+    });
+    if (!aiResult.ok) {
+      return { ok: false as const, error: "ai_unavailable" };
     }
+    let text = aiResult.content;
     text = text.replace(/^["'""]+|["'""]+$/g, "").trim();
     if (!text) {
       return { ok: false as const, error: "ai_unavailable" };
