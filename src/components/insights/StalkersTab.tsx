@@ -445,49 +445,20 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
       {mode === "triplets" && selectedTriplet ? (
         <div className="flex flex-col gap-4">
           <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-2">
-            {Array.from({ length: 3 }).map((_, idx) => {
-              const cid = selectedTriplet.cardIds[idx];
-              return (
-                <div
-                  key={`${selectedTriplet.cardIds.join("-")}-${idx}`}
-                  className="flex-1 max-w-[160px]"
-                >
-                  {typeof cid === "number" ? (
-                    <CardImage
-                      cardId={cid}
-                      size="hero"
-                      style={{ width: "100%", minHeight: 0 }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        aspectRatio: "2 / 3.5",
-                        background: "var(--surface-card)",
-                        border: "0.5px dashed var(--border-subtle)",
-                        borderRadius: 8,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontFamily: "var(--font-serif)",
-                          fontStyle: "italic",
-                          fontSize: "var(--text-caption)",
-                          color: "var(--color-foreground)",
-                          opacity: 0.4,
-                          textAlign: "center",
-                          padding: "0 8px",
-                        }}
-                      >
-                        no third card
-                      </span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {/* Q30 Fix B8 — strict 3-card render; broken triplets
+                are filtered out upstream. */}
+            {selectedTriplet.cardIds.map((cid, idx) => (
+              <div
+                key={`${selectedTriplet.cardIds.join("-")}-${idx}`}
+                className="flex-1 max-w-[160px]"
+              >
+                <CardImage
+                  cardId={cid as number}
+                  size="hero"
+                  style={{ width: "100%", minHeight: 0 }}
+                />
+              </div>
+            ))}
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
             {tripletProse(selectedTriplet.cardNames, selectedTriplet.count, timeRange, cooccurrence)}
