@@ -116,6 +116,11 @@ function PatternChamber() {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const [pattern, setPattern] = useState<Pattern | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isOrchestrationInFlight, setIsOrchestrationInFlight] = useState(false);
+  const [isResubmitting, setIsResubmitting] = useState(false);
+  const orchestrateFn = useServerFn(generateStoryOrchestration);
+  const resubmitFn = useServerFn(resubmitStoryToAi);
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
