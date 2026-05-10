@@ -396,14 +396,18 @@ export function DeckOverviewScreen({
       // is available even if individual card uploads fail later.
       try {
         const sourcePath = `${userId}/${deckId}/_source.zip`;
-        const { error: sourceErr } = await supabase.storage
-          .from("custom-deck-images")
-          .upload(sourcePath, file, {
-            contentType: "application/zip",
-            upsert: true,
-          });
-        if (sourceErr) {
-          console.warn("[deck-import] source zip upload failed", sourceErr);
+        const sourceRes = await uploadWithQuota({
+          userId,
+          bucket: "custom-deck-images",
+          path: sourcePath,
+          file,
+          eventType: "deck_source_zip",
+          contentType: "application/zip",
+          upsert: true,
+          deckId,
+        });
+        if (!sourceRes.ok) {
+          console.warn("[deck-import] source zip upload failed", sourceRes.error);
         } else {
           await supabase
             .from("custom_decks")
