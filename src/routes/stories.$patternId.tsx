@@ -741,6 +741,7 @@ function PatternChamber() {
         readingIds={pattern.reading_ids}
         onOpenReading={setOpenReadingId}
         readingConnections={synthesis?.readingConnections ?? []}
+        perReadingRoles={pattern.per_reading_roles ?? null}
       />
 
       {openReadingId && (
