@@ -22,6 +22,9 @@ import { cleanupStaleSessions } from "@/lib/import-session";
 import { runQ4StorageCleanup } from "@/lib/q4-storage-cleanup";
 import { maybeRunTarotpulseImport } from "@/lib/tarotpulse-import";
 import { ConfirmProvider } from "@/hooks/use-confirm";
+import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
+import { supabase } from "@/integrations/supabase/client";
+import { updateUserPreferences } from "@/lib/user-preferences-write";
 
 /**
  * Read the persisted resting opacity from localStorage and apply it to
@@ -247,6 +250,38 @@ function RootComponent() {
     window.addEventListener("moonseed:open-premium", handler);
     return () => window.removeEventListener("moonseed:open-premium", handler);
   }, []);
+  // Q35b — Welcome modal: show once per signed-in (non-anonymous) seeker.
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+  useEffect(() => {
+    if (!user?.id || !user.email) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("welcome_modal_seen")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const seen = (data as { welcome_modal_seen?: boolean } | null)
+        ?.welcome_modal_seen;
+      if (!seen) setWelcomeOpen(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, user?.email]);
+  useEffect(() => {
+    const handler = () => setWelcomeOpen(true);
+    window.addEventListener("moonseed:show-welcome", handler);
+    return () => window.removeEventListener("moonseed:show-welcome", handler);
+  }, []);
+  const handleWelcomeClose = () => {
+    setWelcomeOpen(false);
+    if (user?.id)
+      void updateUserPreferences(user.id, {
+        welcome_modal_seen: true,
+      } as never);
+  };
   return (
     <OracleModeProvider>
       <FloatingMenuProvider>
@@ -275,6 +310,7 @@ function RootComponent() {
             onOpenChange={setPremiumOpen}
             featureName={premiumFeature}
           />
+          <WelcomeModal open={welcomeOpen} onClose={handleWelcomeClose} />
         </div>
         </ConfirmProvider>
         </ActiveDeckProvider>
