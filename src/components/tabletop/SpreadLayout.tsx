@@ -1194,10 +1194,12 @@ export function ManualSpreadSlots({
 
   if (spread === "custom") {
     const count = picks.length;
-    // Q25 Fix 5 — for 5+ cards, use the Celtic single-row responsive
+    // Q25 Fix 5 — for exactly 5 cards, use the Celtic single-row responsive
     // formula so the manual entry slot rail always fits any viewport
     // with no wrap. For 1-4 cards, keep the natural wider sizing.
-    if (count >= 5) {
+    // Q30 Fix B7 — for 6+ cards, allow wrap to 2 rows so each slot
+    // stays comfortably tappable instead of cramming into one row.
+    if (count === 5) {
       const rawViewportW = typeof window !== "undefined" ? window.innerWidth : 380;
       const effectiveViewportW = Math.max(280, rawViewportW - 64);
       const slotW = responsiveSlotWidth(effectiveViewportW, count);
