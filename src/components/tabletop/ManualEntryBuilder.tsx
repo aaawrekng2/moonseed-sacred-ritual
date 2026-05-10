@@ -9,7 +9,7 @@
  * the same SpreadLayout → ReadingScreen path as a digital draw so the
  * resulting reading is visually identical (Fix 9).
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { ManualSpreadSlots } from "@/components/tabletop/SpreadLayout";
@@ -161,10 +161,19 @@ export function ManualEntryBuilder({
     Array.from({ length: required }, () => null),
   );
   const [ambiguousSlots, setAmbiguousSlots] = useState<number[]>([]);
-  const { activeDeck } = useActiveDeck();
-  // Smart input only handles standard tarot; oracle decks fall back
-  // to tap-to-pick (cardIndex >= 1000 isn't in the search index).
-  const smartInputDisabled = !!activeDeck;
+  const { activeDeck, imageMap } = useActiveDeck();
+  // Q24 Fix 4 — build the smart-input search index from the active
+  // deck's own card names so oracle / custom decks get fuzzy / paste
+  // matching too. Undefined falls back to standard tarot.
+  const deckCards = useMemo(() => {
+    if (!activeDeck) return undefined;
+    const entries = Object.entries(imageMap.nameByCardId ?? {});
+    if (entries.length === 0) return undefined;
+    return entries.map(([id, name]) => ({
+      cardId: Number(id),
+      name: name || `Card ${id}`,
+    }));
+  }, [activeDeck, imageMap]);
 
   const handleSlotDeckChange = (deckId: string | null) => {
     if (pickerSlot === null) return;
@@ -340,7 +349,7 @@ export function ManualEntryBuilder({
           onCommit={handleSmartCommit}
           onBulkCommit={handleSmartBulk}
           placedCardIds={placedIds}
-          disabled={smartInputDisabled}
+          deckCards={deckCards}
         />
         <p
           className="text-center"
@@ -352,9 +361,7 @@ export function ManualEntryBuilder({
             fontStyle: "italic",
           }}
         >
-          {smartInputDisabled
-            ? "Tap each position to pick the card you drew."
-            : "Or tap a position below to pick from the deck. Drag a filled slot to reorder."}
+          Or tap a position below to pick from the deck. Drag a filled slot to reorder.
         </p>
 
         {/* Phase 9.5b Fix 5 — slot positions match the SpreadLayout used
