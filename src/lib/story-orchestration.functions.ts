@@ -54,7 +54,7 @@ type ReadingRow = {
 };
 
 export type StoryOrchestrationResult =
-  | { ok: true; cached: boolean; pattern: ThreadRow }
+  | { ok: true; cached: boolean; pattern: unknown }
   | {
       ok: false;
       error: "not_found" | "forbidden" | "insufficient_data" | "ai_unavailable";
