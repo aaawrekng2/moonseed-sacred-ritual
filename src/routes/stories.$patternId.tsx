@@ -36,6 +36,18 @@ import {
   type Viewport,
 } from "@xyflow/react";
 import { useConfirm } from "@/hooks/use-confirm";
+import {
+  StoryHero,
+  StoryActions as Q30StoryActions,
+  StatsRibbon,
+  TheArc,
+  RemarkableMoments,
+  StoryConstellation,
+} from "@/components/stories/Q30Sections";
+import {
+  generateStoryOrchestration,
+  resubmitStoryToAi,
+} from "@/lib/story-orchestration.functions";
 
 const VIEWPORT_STORAGE_PREFIX = "weave-viewport:";
 
