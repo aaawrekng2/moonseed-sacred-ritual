@@ -13,7 +13,7 @@ import { formatDateLong } from "@/lib/dates";
 export const sectionHeadingStyle = (): CSSProperties => ({
   fontFamily: "var(--font-serif)",
   fontStyle: "italic",
-  fontSize: "var(--text-heading-md, 22px)",
+  fontSize: "var(--text-heading-md, 17px)",
   color: "var(--color-foreground)",
   opacity: 0.6,
   marginBottom: "var(--space-4, 16px)",
@@ -375,14 +375,15 @@ export function StoryConstellation({
   const recurring = Array.from(counts.entries())
     .filter(([, c]) => c >= 2)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 9)
-    .map(([id]) => id);
+    .slice(0, 8)
+    .map(([cardId, appearances]) => ({ cardId, appearances }));
   if (recurring.length < 2) return null;
 
   // Pair counts for cards drawn together.
   const pairCounts = new Map<string, number>();
+  const recurringIds = recurring.map((r) => r.cardId);
   for (const r of readings) {
-    const ids = (r.card_ids ?? []).filter((id) => recurring.includes(id));
+    const ids = (r.card_ids ?? []).filter((id) => recurringIds.includes(id));
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
         const key = [ids[i], ids[j]].sort((a, b) => a - b).join("-");
@@ -391,20 +392,37 @@ export function StoryConstellation({
     }
   }
 
-  const size = 320;
-  const radius = 110;
-  const cx = size / 2;
-  const cy = size / 2;
-  const positions = recurring.map((cardId, i) => {
-    const angle = (i / recurring.length) * Math.PI * 2 - Math.PI / 2;
-    return { cardId, x: cx + Math.cos(angle) * radius, y: cy + Math.sin(angle) * radius };
+  const centerX = 200;
+  const centerY = 180;
+  const radius = 130;
+  const positions = recurring.map((c, i, arr) => {
+    const angle = (i / arr.length) * 2 * Math.PI - Math.PI / 2;
+    return {
+      cardId: c.cardId,
+      appearances: c.appearances,
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
+    };
   });
 
   return (
     <section style={{ marginBottom: "var(--space-8, 48px)" }}>
       <h2 style={sectionHeadingStyle()}>the constellation</h2>
+      <p
+        style={{
+          fontFamily: "var(--font-sans)",
+          fontSize: "var(--text-caption)",
+          letterSpacing: "0.12em",
+          opacity: 0.4,
+          textTransform: "uppercase",
+          margin: "0 0 var(--space-3, 12px) 0",
+          color: "var(--color-foreground)",
+        }}
+      >
+        cards drawn together — line weight = times paired
+      </p>
       <div style={{ display: "flex", justifyContent: "center" }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <svg viewBox="0 0 400 360" style={{ width: "100%", maxWidth: 480 }} role="img" aria-label="card constellation">
           {positions.flatMap((a, i) =>
             positions.slice(i + 1).map((b) => {
               const key = [a.cardId, b.cardId].sort((x, y) => x - y).join("-");
@@ -440,6 +458,17 @@ export function StoryConstellation({
                   <CardImage cardId={p.cardId} size="thumbnail" />
                 </div>
               </foreignObject>
+              <text
+                y="48"
+                textAnchor="middle"
+                fontFamily="var(--font-sans)"
+                fontSize="9"
+                fill="var(--color-foreground)"
+                opacity="0.4"
+                letterSpacing="0.12em"
+              >
+                {p.appearances}×
+              </text>
             </g>
           ))}
         </svg>
