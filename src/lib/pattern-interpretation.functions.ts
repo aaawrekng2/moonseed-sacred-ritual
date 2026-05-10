@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getCardName } from "@/lib/tarot";
+import { callAnthropicWithFallback, isUserPremium } from "@/lib/ai-call.server";
 
 /**
  * 9-6-T — Synthesize a Story (Pattern) interpretation from its linked
@@ -51,12 +52,6 @@ export type PatternInterpretation = {
 export type PatternInterpretResult =
   | { ok: true; interpretation: PatternInterpretation; cached: boolean }
   | { ok: false; error: string };
-
-const ANTHROPIC_MODELS = [
-  "claude-sonnet-4-6",
-  "claude-sonnet-4-5-20250929",
-  "claude-haiku-4-5-20251001",
-] as const;
 
 export const generatePatternInterpretation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -131,35 +126,25 @@ export const generatePatternInterpretation = createServerFn({ method: "POST" })
         "of what's emerging. Use the cards' own symbols. Be vivid, not safe. " +
         "Don't hedge into vague advice. Show, don't summarize. " +
         "Output strictly valid JSON, no commentary, no markdown fences.";
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) return { ok: false, error: "Interpreter not configured." };
-      let rawText = "";
-      for (const model of ANTHROPIC_MODELS) {
-        const resp = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            max_tokens: 2500,
-            system: systemPrompt,
-            messages: [{ role: "user", content: userPrompt }],
-          }),
-        });
-        if (!resp.ok) {
-          if (resp.status === 404 || resp.status === 410) continue;
-          return { ok: false, error: "Interpreter unreachable." };
-        }
-        const json = (await resp.json()) as {
-          content?: Array<{ type: string; text?: string }>;
+      const aiResult = await callAnthropicWithFallback({
+        callType: "pattern_interpretation",
+        userId,
+        isPremium: await isUserPremium(userId),
+        patternId: data.patternId,
+        system: systemPrompt,
+        user: userPrompt,
+        maxTokens: 2500,
+      });
+      if (!aiResult.ok) {
+        return {
+          ok: false,
+          error:
+            aiResult.error === "quota_exceeded"
+              ? "You've used your AI credits for this cycle."
+              : "Interpreter unreachable.",
         };
-        rawText = json.content?.find((c) => c.type === "text")?.text?.trim() ?? "";
-        if (rawText) break;
       }
-      if (!rawText) return { ok: false, error: "Interpreter returned nothing." };
+      const rawText = aiResult.content;
       const cleaned = rawText
         .replace(/^```(?:json)?\s*/i, "")
         .replace(/```$/i, "")
