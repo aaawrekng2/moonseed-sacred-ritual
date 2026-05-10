@@ -6,6 +6,7 @@ import {
   type PatternInterpretation,
 } from "@/lib/pattern-interpretation.functions";
 import { generateCardEvidenceProse } from "@/lib/card-evidence.functions";
+import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { usePremium } from "@/lib/premium";
 import { ChevronLeft, Pencil, Archive, StickyNote } from "lucide-react";
@@ -942,8 +943,13 @@ function ChamberCardEvidence({
     console.log(`[card-evidence] generateForThread starting`, { threadId, force });
     setGenerating((s) => new Set(s).add(threadId));
     try {
+      // Q25 Fix 1 — TanStack useServerFn does not forward auth.
+      // Read access token from Supabase session and pass explicitly
+      // so requireSupabaseAuth middleware does not 401 every call.
+      const headers = await getAuthHeaders();
       const result = await generateProse({
         data: { threadId, forceRegenerate: force },
+        headers,
       });
       console.log(`[card-evidence] result for ${threadId}:`, result);
       if (result.ok) {
