@@ -106,6 +106,9 @@ export function Tabletop({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  // Q33b Fix 4 — tracks the previous measured size so the RAF loop
+  // only resets initializedRef on the first valid measurement.
+  const prevSizeRef = useRef<{ w: number; h: number } | null>(null);
   const [viewportW, setViewportW] = useState<number | null>(null);
   // Viewport-coordinate origin of the scatter container. Passed to
   // CardSlot so a card returning from a slot to the table can compute
