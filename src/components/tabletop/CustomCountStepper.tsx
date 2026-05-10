@@ -4,6 +4,7 @@
  * Centered chevron stepper: ‹  N cards  ›. Only rendered for the
  * "custom" spread; non-custom spreads have a fixed count.
  */
+import { forwardRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type Props = {
@@ -13,18 +14,32 @@ type Props = {
   max?: number;
 };
 
-export function CustomCountStepper({ count, onChange, min = 1, max = 10 }: Props) {
-  const dec = () => onChange(Math.max(min, count - 1));
-  const inc = () => onChange(Math.min(max, count + 1));
+export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
+  function CustomCountStepper({ count, onChange, min = 1, max = 10 }, ref) {
+  // Q20 Fix 5 — tighter chevron spacing on mobile.
+  const isMobile =
+    typeof window !== "undefined"
+      ? window.matchMedia("(max-width: 640px)").matches
+      : false;
+  const dec = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange(Math.max(min, count - 1));
+  };
+  const inc = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onChange(Math.min(max, count + 1));
+  };
   return (
     <div
+      ref={ref}
       role="group"
       aria-label="Card count"
+      data-no-peek=""
       style={{
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: 16,
+        gap: isMobile ? 8 : 16,
         fontFamily: "var(--font-display, var(--font-serif))",
         fontStyle: "italic",
         fontSize: "var(--text-body-lg, 1.05rem)",
@@ -38,10 +53,11 @@ export function CustomCountStepper({ count, onChange, min = 1, max = 10 }: Props
         onClick={dec}
         disabled={count <= min}
         aria-label="Fewer cards"
+        data-no-peek=""
         style={{
           background: "none",
           border: "none",
-          padding: 6,
+          padding: isMobile ? 4 : 6,
           color: "inherit",
           opacity: count <= min ? 0.3 : 1,
           cursor: count <= min ? "not-allowed" : "pointer",
@@ -58,10 +74,11 @@ export function CustomCountStepper({ count, onChange, min = 1, max = 10 }: Props
         onClick={inc}
         disabled={count >= max}
         aria-label="More cards"
+        data-no-peek=""
         style={{
           background: "none",
           border: "none",
-          padding: 6,
+          padding: isMobile ? 4 : 6,
           color: "inherit",
           opacity: count >= max ? 0.3 : 1,
           cursor: count >= max ? "not-allowed" : "pointer",
@@ -72,4 +89,5 @@ export function CustomCountStepper({ count, onChange, min = 1, max = 10 }: Props
       </button>
     </div>
   );
-}
+},
+);
