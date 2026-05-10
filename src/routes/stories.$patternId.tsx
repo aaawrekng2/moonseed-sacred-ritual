@@ -1301,12 +1301,14 @@ function ChamberTimeline({
   readingIds,
   onOpenReading,
   readingConnections,
+  perReadingRoles,
 }: {
   readingIds: string[];
   onOpenReading: (readingId: string) => void;
   readingConnections?: Array<{ readingId: string; connector: string }>;
+  perReadingRoles?: Record<string, { role: string; generated_at?: string }> | null;
 }) {
-  return _ChamberTimeline({ readingIds, onOpenReading, readingConnections });
+  return _ChamberTimeline({ readingIds, onOpenReading, readingConnections, perReadingRoles });
 }
 
 /**
@@ -1794,10 +1796,12 @@ function _ChamberTimeline({
   readingIds,
   onOpenReading,
   readingConnections,
+  perReadingRoles,
 }: {
   readingIds: string[];
   onOpenReading: (readingId: string) => void;
   readingConnections?: Array<{ readingId: string; connector: string }>;
+  perReadingRoles?: Record<string, { role: string; generated_at?: string }> | null;
 }) {
   const [rows, setRows] = useState<
     Array<{ id: string; created_at: string; spread_type: string; card_ids: number[]; question: string | null; interpretation: string | null }>
