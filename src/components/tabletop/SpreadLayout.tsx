@@ -1209,7 +1209,7 @@ export function ManualSpreadSlots({
               className="flex flex-col items-center gap-1 min-w-0"
               style={{ width: slotW }}
             >
-              <Slot pick={pick} slotIndex={i} />
+              <Slot pick={pick} slotIndex={i} responsiveWidth />
               {showLabels && (
                 <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
               )}
