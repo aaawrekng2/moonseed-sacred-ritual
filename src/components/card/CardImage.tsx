@@ -21,7 +21,7 @@
  * chrome. CardImage applies only the corner radius and orientation
  * transform to the IMG element.
  */
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useReducer, useState, type CSSProperties, type ReactNode } from "react";
 import { CardBack } from "@/components/cards/CardBack";
 import {
   useActiveCardBackUrl,
@@ -69,6 +69,106 @@ function useDevMode(): boolean {
 
 export type CardImageSize = "hero" | "medium" | "thumbnail" | "small" | "custom";
 export type CardImageVariant = "face" | "back" | "empty";
+
+// Q26 — CardImage state machine. Replaces fragmented booleans
+// with a single state object whose transitions are explicit and
+// non-conflicting. Every state change happens through the reducer.
+
+type LoadStatus = "idle" | "loading" | "loaded" | "failed-final";
+
+type CardImageState = {
+  status: LoadStatus;
+  // The src we last committed to. Used to detect actual src changes
+  // (vs. cardId/deckId noise that doesn't affect the resolved URL).
+  committedSrc: string | null;
+  // Variant fallback — set true when variant.webp 404s and we
+  // fall back to the full URL.
+  variantFailed: boolean;
+  // Retry counter — 0 to 2. After 2 retries we give up.
+  retryCount: number;
+  // Cache-buster timestamp appended to URL on retries. 0 = none.
+  retryTs: number;
+  // Measured aspect ratios from <img onLoad>.
+  faceAspect: number | null;
+  backAspect: number | null;
+};
+
+type CardImageAction =
+  | { type: "SRC_CHANGED"; src: string | null }
+  | { type: "LOAD_SUCCEEDED" }
+  | { type: "LOAD_FAILED"; hasBaseSrcAvailable: boolean }
+  | { type: "RETRY_TICK"; ts: number }
+  | { type: "SAFETY_TIMEOUT_FIRED" }
+  | { type: "FACE_ASPECT_MEASURED"; aspect: number }
+  | { type: "BACK_ASPECT_MEASURED"; aspect: number };
+
+function cardImageReducer(
+  state: CardImageState,
+  action: CardImageAction,
+): CardImageState {
+  const log = (next: CardImageState) => {
+    if (state.status !== next.status) {
+      console.debug("[CardImage:reducer]", {
+        action: action.type,
+        prev: state.status,
+        next: next.status,
+        srcShort: next.committedSrc?.slice(0, 80) ?? null,
+      });
+    }
+    return next;
+  };
+
+  switch (action.type) {
+    case "SRC_CHANGED": {
+      if (action.src === state.committedSrc) return state;
+      return log({
+        ...state,
+        committedSrc: action.src,
+        status: action.src ? "loading" : "idle",
+        variantFailed: false,
+        retryCount: 0,
+        retryTs: 0,
+      });
+    }
+    case "LOAD_SUCCEEDED":
+      if (state.status === "loaded") return state;
+      return log({ ...state, status: "loaded" });
+    case "LOAD_FAILED": {
+      if (!state.variantFailed && action.hasBaseSrcAvailable) {
+        return log({
+          ...state,
+          variantFailed: true,
+          retryCount: 0,
+          retryTs: 0,
+          status: "loading",
+        });
+      }
+      if (state.retryCount < 2) {
+        return state; // wait for RETRY_TICK
+      }
+      return log({ ...state, status: "failed-final" });
+    }
+    case "RETRY_TICK":
+      return log({
+        ...state,
+        retryCount: state.retryCount + 1,
+        retryTs: action.ts,
+        status: "loading",
+      });
+    case "SAFETY_TIMEOUT_FIRED":
+      if (state.status !== "loading") return state;
+      console.warn("[CardImage:safety-timeout] forcing loaded", {
+        srcShort: state.committedSrc?.slice(0, 80) ?? null,
+      });
+      return log({ ...state, status: "loaded" });
+    case "FACE_ASPECT_MEASURED":
+      if (state.faceAspect === action.aspect) return state;
+      return { ...state, faceAspect: action.aspect };
+    case "BACK_ASPECT_MEASURED":
+      if (state.backAspect === action.aspect) return state;
+      return { ...state, backAspect: action.aspect };
+  }
+}
 
 export interface CardImageProps {
   /** Card index 0-77. Required when variant="face". */
@@ -170,21 +270,6 @@ export function CardImage({
   const activeNameResolve = useActiveDeckCardName();
   const specificNameResolve = useDeckCardName(deckId ?? null);
   const customBackUrl = useActiveCardBackUrl();
-  const [imageLoaded, setImageLoaded] = useState(false);
-  // 26-05-08-Q2 — Fix 8: dropped the .png fallback step. Architecture
-  // uploads ONLY .webp variants, so the .png attempt always 404s and
-  // adds noise. Ladder is now: variant.webp → display.webp → placeholder.
-  // `null` = trying the .webp variant. `"all"` = variant failed, fall
-  // back to base displayUrl directly.
-  const [variantFailedFor, setVariantFailedFor] = useState<
-    null | "all"
-  >(null);
-  // 26-05-08-Q8 — Fix 2: retry a failed image load up to 2 times
-  // with backoff before giving up. `retryTs` is appended as a cache
-  // buster so the browser actually re-fetches instead of serving a
-  // cached 404.
-  const [retryCount, setRetryCount] = useState(0);
-  const [retryTs, setRetryTs] = useState(0);
   const devMode = useDevMode();
 
   // FC-1 / 9-6-V — Track BOTH face and back natural aspects so the
@@ -196,20 +281,16 @@ export function CardImage({
   const cachedFaceAspect = useActiveDeckCardAspect(
     typeof cardId === "number" ? cardId : null,
   );
-  const [faceAspect, setFaceAspect] = useState<number | null>(
-    cachedFaceAspect,
-  );
-  const [backAspect, setBackAspect] = useState<number | null>(null);
-
-  // Q22 Fix 1 — only reset transient image state; the imageLoaded
-  // reset is gated on actual faceSrc change below to avoid racing
-  // with <img onLoad> for cached images and stranding the shimmer
-  // overlay forever.
-  useEffect(() => {
-    setFaceAspect(cachedFaceAspect);
-    setBackAspect(null);
-  }, [cardId, deckId, cachedFaceAspect]);
-  const prevFaceSrcRef = useRef<string | null | undefined>(undefined);
+  // Q26 — single source of truth for all load state.
+  const [state, dispatch] = useReducer(cardImageReducer, undefined, () => ({
+    status: "idle" as LoadStatus,
+    committedSrc: null,
+    variantFailed: false,
+    retryCount: 0,
+    retryTs: 0,
+    faceAspect: cachedFaceAspect,
+    backAspect: null,
+  }));
 
   // EY-1 — Saturated diagnostic colors. The card art still
   // shows through the IMG layer at 50% opacity; everything else
@@ -302,46 +383,33 @@ export function CardImage({
       ? (variantUrlFor(baseFaceSrc, variantTier) ?? baseFaceSrc)
       : baseFaceSrc;
   const baseChosen =
-    variantFailedFor === "all" ? baseFaceSrc : variantSrc;
+    state.variantFailed ? baseFaceSrc : variantSrc;
   const faceSrc =
-    baseChosen && retryTs > 0
-      ? `${baseChosen}${baseChosen.includes("?") ? "&" : "?"}r=${retryTs}`
+    baseChosen && state.retryTs > 0
+      ? `${baseChosen}${baseChosen.includes("?") ? "&" : "?"}r=${state.retryTs}`
       : baseChosen;
 
-  // Q22 Fix 1 — only reset imageLoaded when the actual image SOURCE
-  // changes. Resetting on every cardId/deckId/cachedFaceAspect change
-  // races with <img onLoad> for cached images and strands the shimmer
-  // overlay forever.
+  // Q26 Effect A — sync src changes into the reducer.
   useEffect(() => {
-    if (prevFaceSrcRef.current !== faceSrc) {
-      prevFaceSrcRef.current = faceSrc;
-      setImageLoaded(false);
-      setVariantFailedFor(null);
-      setRetryCount(0);
-      setRetryTs(0);
-    }
+    dispatch({ type: "SRC_CHANGED", src: faceSrc ?? null });
   }, [faceSrc]);
 
-  // Q22 Fix 1 safety net — if onLoad never fires (cached image,
-  // browser quirk), force shimmer off after 5s so the card eventually
-  // renders.
+  // Q26 Effect B — safety timeout. Starts whenever status enters
+  // "loading"; clears on any other status. Ensures shimmer never hangs.
   useEffect(() => {
+    if (state.status !== "loading") return;
     if (variant !== "face") return;
-    if (!faceSrc) return;
-    if (imageLoaded) return;
-    // Q25 Fix 4 — shortened from 5s to 3s, plus diagnostic log so
-    // we can see which images need the fallback in production.
     const t = window.setTimeout(() => {
-      console.warn("[CardImage] safety timeout fired", {
-        cardId, deckId, variant, faceSrc: faceSrc?.slice(0, 100),
-      });
-      setImageLoaded(true);
+      dispatch({ type: "SAFETY_TIMEOUT_FIRED" });
     }, 3000);
     return () => window.clearTimeout(t);
-  }, [variant, faceSrc, imageLoaded, cardId, deckId]);
+  }, [state.status, variant]);
 
   const showFaceShimmer =
-    variant === "face" && !loading && (faceSrc == null || !imageLoaded);
+    variant === "face" &&
+    !loading &&
+    state.status !== "loaded" &&
+    state.status !== "failed-final";
 
   // 26-05-08-Q8 — Fix 1: `token=` is a substring of EVERY Supabase
   // signed URL, not just expired ones. The previous heuristic stranded
@@ -349,35 +417,24 @@ export function CardImage({
   // variant 404. Only show the named placeholder when there is
   // genuinely no source URL to attempt.
   const allFailed =
-    variant === "face" && variantFailedFor === "all" && !baseFaceSrc;
+    variant === "face" && state.status === "failed-final";
 
   const handleImgError = () => {
-    // Step 1: variant.webp 404 → fall back to base displayUrl.
-    if (
-      variantFailedFor !== "all" &&
-      baseFaceSrc &&
-      faceSrc !== baseFaceSrc
-    ) {
-      setVariantFailedFor("all");
-      setRetryCount(0);
-      return;
-    }
-    // Step 2: base URL also failed — retry with cache buster up to 2x.
-    if (retryCount < 2) {
-      const delay = retryCount === 0 ? 500 : 1500;
-      const next = retryCount + 1;
+    const wantsRetry =
+      state.variantFailed && state.retryCount < 2 && !!baseFaceSrc;
+    dispatch({
+      type: "LOAD_FAILED",
+      hasBaseSrcAvailable: !!baseFaceSrc,
+    });
+    if (wantsRetry) {
+      const delay = state.retryCount === 0 ? 500 : 1500;
       window.setTimeout(() => {
-        setRetryCount(next);
-        setRetryTs(Date.now());
+        dispatch({ type: "RETRY_TICK", ts: Date.now() });
       }, delay);
-      return;
     }
-    // Give up — let the placeholder/shimmer take over.
-    setImageLoaded(true);
   };
   const handleImgLoad = () => {
-    setImageLoaded(true);
-    if (retryCount !== 0) setRetryCount(0);
+    dispatch({ type: "LOAD_SUCCEEDED" });
   };
 
   // FC-1 — Flip mode: render face + back inside a 3D wrapper. The
@@ -390,8 +447,8 @@ export function CardImage({
   if (typeof flipped === "boolean" && typeof cardId === "number") {
     // 9-6-V — pick the aspect of whichever side is currently showing.
     const activeAspect = flipped
-      ? (faceAspect ?? backAspect ?? 1.6)
-      : (backAspect ?? faceAspect ?? 1.6);
+      ? (state.faceAspect ?? state.backAspect ?? 1.6)
+      : (state.backAspect ?? state.faceAspect ?? 1.6);
     const wrapperHeight = Math.round(width * activeAspect);
     return (
       <div
@@ -419,7 +476,9 @@ export function CardImage({
               imageUrl={customBackUrl ?? undefined}
               width={width}
               cornerRadiusPercent={deckRadius}
-              onAspectMeasured={(a) => setBackAspect(a)}
+              onAspectMeasured={(a) =>
+                dispatch({ type: "BACK_ASPECT_MEASURED", aspect: a })
+              }
               className="h-full w-full"
             />
             {DEV_BACK_OUTLINE ? (
@@ -450,7 +509,10 @@ export function CardImage({
                   // wrapper can match the IMG's true shape.
                   const img = e.currentTarget;
                   if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                    setFaceAspect(img.naturalHeight / img.naturalWidth);
+                    dispatch({
+                      type: "FACE_ASPECT_MEASURED",
+                      aspect: img.naturalHeight / img.naturalWidth,
+                    });
                   }
                   handleImgLoad();
                 }}
@@ -461,14 +523,14 @@ export function CardImage({
                   width: "100%",
                   height: "100%",
                   display: "block",
-                  opacity: imageLoaded ? 1 : 0,
+                  opacity: state.status === "loaded" ? 1 : 0,
                   transform: reversed ? "rotate(180deg)" : undefined,
                   transition: "opacity 300ms ease-out",
                   ...radiusStyle,
                 }}
               />
             ) : null}
-            {DEV_IMG_TINT_BG && imageLoaded ? (
+            {DEV_IMG_TINT_BG && state.status === "loaded" ? (
               <div
                 aria-hidden
                 style={{
@@ -544,7 +606,7 @@ export function CardImage({
               width: "100%",
               height: "auto",
               display: "block",
-              opacity: imageLoaded ? 1 : 0,
+              opacity: state.status === "loaded" ? 1 : 0,
               transform: reversed ? "rotate(180deg)" : undefined,
               transition: "opacity 300ms ease-out",
               ...radiusStyle,
@@ -554,7 +616,7 @@ export function CardImage({
           {/* EZ-3 — Dev-mode tint as sibling overlay so it's visible
               over the opaque card art (backgroundColor on an opaque
               IMG renders behind the pixels and is therefore invisible). */}
-          {DEV_IMG_TINT_BG && imageLoaded ? (
+          {DEV_IMG_TINT_BG && state.status === "loaded" ? (
             <div
               aria-hidden
               style={{
