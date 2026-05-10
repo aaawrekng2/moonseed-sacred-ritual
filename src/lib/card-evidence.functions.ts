@@ -177,7 +177,7 @@ export const generateCardEvidenceProse = createServerFn({ method: "POST" })
       models: SONNET_MODELS,
     });
     if (!aiResult.ok) {
-      return { ok: false, error: aiResult.error === "quota_exceeded" ? "quota_exceeded" : "ai_unavailable" };
+      return { ok: false, error: "ai_unavailable" };
     }
     let prose = aiResult.content;
     console.log(`[card-evidence-fn] anthropic call done`, {
