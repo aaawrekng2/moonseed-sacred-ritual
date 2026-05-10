@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Lightbulb, Eye, EyeOff, Loader2, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lightbulb, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type JournalPromptsProps = {
