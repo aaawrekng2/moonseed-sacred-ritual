@@ -1604,6 +1604,5 @@ export function Tabletop({
         </div>
       )}
     </div>
-    )
   );
 }
