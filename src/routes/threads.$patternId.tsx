@@ -875,20 +875,7 @@ function ChamberCardEvidence({
     if (!userId) return;
     let cancelled = false;
     void (async () => {
-      const { data } = await (supabase as unknown as {
-        from: (t: string) => {
-          select: (cols: string) => {
-            eq: (k: string, v: string) => {
-              eq: (k: string, v: string) => {
-                order: (
-                  k: string,
-                  o: { ascending: boolean },
-                ) => Promise<{ data: Record<string, unknown>[] | null }>;
-              };
-            };
-          };
-        };
-      })
+      const { data } = await supabase
         .from("symbolic_threads")
         .select(
           "id, summary, card_ids, recurrence_count, title, evidence_prose, evidence_prose_version, evidence_prose_reading_count",
