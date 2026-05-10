@@ -52,7 +52,16 @@ export type CustomDeckCard = {
 
 /** Per-card override map: card index (0..77) -> image URL. */
 export type DeckImageMap = {
+  /**
+   * Q28 — primary structure: per-variant pre-signed URLs. Each
+   * variant path must be signed individually because the JWT
+   * token is bound to the exact storage path; mutating the path
+   * after signing invalidates the signature (400 Bad Request).
+   */
+  variants: Record<number, CardVariantUrls>;
+  /** Legacy "display" — populated from variants for backward compat. */
   display: Record<number, string>;
+  /** Legacy "thumbnail" — populated from variants for backward compat. */
   thumbnail: Record<number, string>;
   back: string | null;
   /**
@@ -77,7 +86,22 @@ export type DeckImageMap = {
   nameByCardId: Record<number, string>;
 };
 
+/**
+ * Q28 — Pre-signed URLs per variant per card. Each variant is a
+ * physically distinct file in storage and must be signed separately.
+ */
+export type CardVariantUrls = {
+  sm?: string;
+  md?: string;
+  full?: string;
+  /** Legacy "thumbnail" stored file (kept for migration). */
+  thumbnail?: string;
+  /** Legacy "display" stored file (kept for migration). */
+  display?: string;
+};
+
 export const EMPTY_DECK_IMAGE_MAP: DeckImageMap = {
+  variants: {},
   display: {},
   thumbnail: {},
   back: null,
@@ -145,6 +169,7 @@ async function buildDeckImageMapUncached(
 ): Promise<DeckImageMap> {
   const cards = await fetchDeckCards(deckId);
   const map: DeckImageMap = {
+    variants: {},
     display: {},
     thumbnail: {},
     back: null,
@@ -155,21 +180,53 @@ async function buildDeckImageMapUncached(
   // Re-sign from storage paths so we never serve stale/expired signed URLs.
   // Falls back to the stored URL when a path is missing (legacy rows).
   const yearSecs = 60 * 60 * 24 * 365;
-  const pathToCard = new Map<string, { cardId: number; kind: "display" | "thumbnail" }>();
+  // Q28 — sign EVERY variant path individually. The signed-URL JWT
+  // is bound to the exact storage path; mutating it after signing
+  // (e.g. swapping `-full` → `-sm`) yields 400 Bad Request.
+  type PathMeta = { cardId: number; variant: keyof CardVariantUrls };
+  const pathToCard = new Map<string, PathMeta>();
   const allPaths: string[] = [];
+
+  function deriveVariantPath(
+    basePath: string,
+    variant: "sm" | "md" | "full",
+  ): string | null {
+    const m = basePath.match(
+      /^(.*\/card-\d+-\d+)(?:-thumb|-full)?\.(?:webp|png|jpe?g)$/i,
+    );
+    if (!m) return null;
+    return `${m[1]}-${variant}.webp`;
+  }
+
   for (const c of cards) {
     if (c.source === "default") continue;
     if (c.display_path) {
-      pathToCard.set(c.display_path, { cardId: c.card_id, kind: "display" });
+      pathToCard.set(c.display_path, { cardId: c.card_id, variant: "display" });
       allPaths.push(c.display_path);
+      // Q28 — also queue sm/md/full variants written by generate-deck-variants.
+      for (const v of ["sm", "md", "full"] as const) {
+        const p = deriveVariantPath(c.display_path, v);
+        if (!p) continue;
+        if (p === c.display_path) {
+          pathToCard.set(c.display_path, { cardId: c.card_id, variant: v });
+        } else if (!pathToCard.has(p)) {
+          pathToCard.set(p, { cardId: c.card_id, variant: v });
+          allPaths.push(p);
+        }
+      }
     } else if (c.display_url) {
-      map.display[c.card_id] = c.display_url;
+      const v = (map.variants[c.card_id] ??= {});
+      v.display = c.display_url;
+      v.full = c.display_url;
+      v.md = c.display_url;
+      v.sm = c.display_url;
     }
     if (c.thumbnail_path) {
-      pathToCard.set(c.thumbnail_path, { cardId: c.card_id, kind: "thumbnail" });
+      pathToCard.set(c.thumbnail_path, { cardId: c.card_id, variant: "thumbnail" });
       allPaths.push(c.thumbnail_path);
     } else if (c.thumbnail_url) {
-      map.thumbnail[c.card_id] = c.thumbnail_url;
+      const v = (map.variants[c.card_id] ??= {});
+      v.thumbnail = c.thumbnail_url;
     }
     // 26-05-08-P — Fix 5: capture per-card name overrides.
     if (c.card_name && c.card_name.trim()) {
@@ -191,7 +248,9 @@ async function buildDeckImageMapUncached(
           if (!entry.signedUrl || !entry.path) continue;
           const meta = pathToCard.get(entry.path);
           if (!meta) continue;
-          map[meta.kind][meta.cardId] = entry.signedUrl;
+          // Q28 — write into per-variant map.
+          const vbag = (map.variants[meta.cardId] ??= {});
+          vbag[meta.variant] = entry.signedUrl;
         }
       }
     } catch (err) {
@@ -205,24 +264,24 @@ async function buildDeckImageMapUncached(
   // to /cards/card-1009.jpg (404).
   for (const c of cards) {
     if (c.source === "default") continue;
-    // 26-05-08-L — Fix 4: never use a stored signed URL (contains
-    // `token=`) as a fallback. Those tokens expire and surface as
-    // broken images on the next session. Only use the stored URL
-    // when it looks like a public/permanent URL.
-    if (
-      !map.display[c.card_id] &&
-      c.display_url &&
-      !c.display_url.includes("token=")
-    ) {
-      map.display[c.card_id] = c.display_url;
+    // Q28 — fall back to stored public URLs (never tokens).
+    const v = (map.variants[c.card_id] ??= {});
+    if (!v.display && c.display_url && !c.display_url.includes("token=")) {
+      v.display = c.display_url;
     }
-    if (
-      !map.thumbnail[c.card_id] &&
-      c.thumbnail_url &&
-      !c.thumbnail_url.includes("token=")
-    ) {
-      map.thumbnail[c.card_id] = c.thumbnail_url;
+    if (!v.thumbnail && c.thumbnail_url && !c.thumbnail_url.includes("token=")) {
+      v.thumbnail = c.thumbnail_url;
     }
+  }
+  // Q28 — backfill legacy display/thumbnail maps from variants{} so
+  // any caller still reading them keeps working.
+  for (const cardIdStr of Object.keys(map.variants)) {
+    const cardId = Number(cardIdStr);
+    const v = map.variants[cardId];
+    const display = v.full ?? v.md ?? v.display;
+    if (display) map.display[cardId] = display;
+    const thumb = v.sm ?? v.thumbnail ?? v.md ?? v.display;
+    if (thumb) map.thumbnail[cardId] = thumb;
   }
   // Pull the deck row separately for back image.
   const { data: deck } = await supabase
@@ -365,10 +424,41 @@ export async function buildDeckImageMap(
 export function resolveCardImage(
   cardIndex: number,
   map: DeckImageMap | null | undefined,
-  size: "display" | "thumbnail" = "display",
+  size: "display" | "thumbnail" | "sm" | "md" | "full" = "display",
 ): string | null {
-  const override = map ? map[size][cardIndex] : undefined;
-  if (override) return override;
+  if (map) {
+    const v = map.variants[cardIndex];
+    if (v) {
+      // Q28 — resolve in priority order; fall through to nearby tiers
+      // when the exact one isn't generated yet.
+      let picked: string | undefined;
+      switch (size) {
+        case "sm":
+          picked = v.sm ?? v.thumbnail ?? v.md ?? v.full ?? v.display;
+          break;
+        case "md":
+          picked = v.md ?? v.full ?? v.display ?? v.sm ?? v.thumbnail;
+          break;
+        case "full":
+          picked = v.full ?? v.display ?? v.md ?? v.sm ?? v.thumbnail;
+          break;
+        case "thumbnail":
+          picked = v.thumbnail ?? v.sm ?? v.md ?? v.full ?? v.display;
+          break;
+        case "display":
+        default:
+          picked = v.display ?? v.full ?? v.md ?? v.sm ?? v.thumbnail;
+          break;
+      }
+      if (picked) return picked;
+    }
+    // Legacy fallback for callers reading the old maps.
+    const legacy =
+      size === "thumbnail" || size === "sm"
+        ? map.thumbnail[cardIndex]
+        : map.display[cardIndex];
+    if (legacy) return legacy;
+  }
   // 26-05-08-Q6 — Fix 1: return null (was "") for oracle ids without a
   // map entry. Empty string broke `??` fallback chains in CardImage and
   // share-card-shared because "" is not nullish — so when both specific
