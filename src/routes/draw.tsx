@@ -103,14 +103,21 @@ function DrawPage() {
   // are cast / revealed so the seeker stays in the reading.
   const { setCloseHandler } = useFloatingMenu();
   useEffect(() => {
+    console.log("[draw] close handler effect", { phase });
     if (phase !== "select") {
+      console.log("[draw] clearing close handler (phase != select)");
       setCloseHandler(null);
       return;
     }
+    console.log("[draw] registering exit-to-home close handler");
     setCloseHandler(() => () => {
+      console.log("[draw] close handler invoked");
       void navigate({ to: "/" });
     });
-    return () => setCloseHandler(null);
+    return () => {
+      console.log("[draw] cleanup: clearing close handler");
+      setCloseHandler(null);
+    };
   }, [phase, setCloseHandler, navigate]);
 
   // The question now lives on the draw table itself so the seeker can
