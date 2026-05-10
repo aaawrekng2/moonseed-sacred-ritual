@@ -23,54 +23,26 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getCardName } from "@/lib/tarot";
+import { callAnthropicWithFallback, isUserPremium } from "@/lib/ai-call.server";
 
-/* ---------- Shared model fallback chain (mirrors interpret.functions) ---------- */
-
-const ANTHROPIC_MODELS = [
-  "claude-sonnet-4-6",
-  "claude-sonnet-4-5-20250929",
-  "claude-haiku-4-5-20251001",
-] as const;
+/* ---------- Q31 — all Anthropic traffic flows through callAI() ---------- */
 
 async function callClaude(opts: {
-  apiKey: string;
+  callType: "memory";
+  userId: string;
   system: string;
   user: string;
   maxTokens: number;
 }): Promise<string | null> {
-  for (const model of ANTHROPIC_MODELS) {
-    try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": opts.apiKey,
-          "anthropic-version": "2023-06-01",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: opts.maxTokens,
-          system: opts.system,
-          messages: [{ role: "user", content: opts.user }],
-        }),
-      });
-      if (!resp.ok) {
-        if (resp.status === 404 || resp.status === 410) continue;
-        const t = await resp.text().catch(() => "");
-        console.error("[memory] anthropic error", { model, status: resp.status, body: t.slice(0, 300) });
-        return null;
-      }
-      const json = (await resp.json()) as {
-        content?: Array<{ type: string; text?: string }>;
-      };
-      const text = json.content?.find((c) => c.type === "text")?.text?.trim() ?? "";
-      if (text) return text;
-    } catch (e) {
-      console.error("[memory] anthropic fetch threw", e);
-      return null;
-    }
-  }
-  return null;
+  const r = await callAnthropicWithFallback({
+    callType: opts.callType,
+    userId: opts.userId,
+    isPremium: await isUserPremium(opts.userId),
+    system: opts.system,
+    user: opts.user,
+    maxTokens: opts.maxTokens,
+  });
+  return r.ok ? r.content : null;
 }
 
 /* ---------- detectThreads ---------- */
