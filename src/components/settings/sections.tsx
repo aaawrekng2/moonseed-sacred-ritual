@@ -755,6 +755,66 @@ function BlueprintSectionInner({
 }
 
 /**
+ * Q35b — Replay row for the first-run welcome modal. Dispatches a
+ * window event the root listens for; does NOT reset the database flag.
+ */
+function WelcomeReplayRow() {
+  const open = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("moonseed:show-welcome"));
+    }
+  };
+  return (
+    <div
+      style={{
+        marginTop: "var(--space-4, 16px)",
+        paddingTop: "var(--space-4, 16px)",
+        borderTop: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 12,
+      }}
+    >
+      <div>
+        <div style={{ fontSize: "var(--text-body-sm)", color: "var(--foreground)" }}>
+          Welcome Guide
+        </div>
+        <div
+          style={{
+            fontSize: "var(--text-caption)",
+            color: "var(--foreground)",
+            opacity: 0.5,
+            marginTop: 2,
+          }}
+        >
+          Revisit the introduction to Moonseed.
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={open}
+        style={{
+          fontFamily: "var(--font-display, inherit)",
+          fontSize: 11,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: "var(--gold)",
+          background: "color-mix(in oklab, var(--gold) 12%, transparent)",
+          border: "1px solid color-mix(in oklab, var(--gold) 35%, transparent)",
+          borderRadius: 8,
+          padding: "8px 14px",
+          cursor: "pointer",
+        }}
+      >
+        Show
+      </button>
+    </div>
+  );
+}
+}
+
+/**
  * Timezone control for the Profile section.
  *  - Auto: follow whatever device the seeker opens the app on.
  *  - Fixed: always use a chosen IANA zone, ignoring the device.
