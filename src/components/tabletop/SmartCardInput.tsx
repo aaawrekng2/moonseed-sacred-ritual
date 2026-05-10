@@ -11,7 +11,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  buildTarotSearchIndex,
+  buildSearchIndex,
   parseReversed,
   resolveSegment,
   searchCards,
@@ -41,8 +41,12 @@ type Props = {
   onBulkCommit: (outcome: PasteOutcome) => void;
   /** Cards already placed (used to grey-out duplicates). */
   placedCardIds: number[];
-  /** Hide the input when active deck is non-tarot. */
-  disabled?: boolean;
+  /**
+   * Q24 Fix 4 — when the seeker has an oracle/custom deck active,
+   * pass its cards so the search index matches the active deck's
+   * names instead of the standard tarot.
+   */
+  deckCards?: Array<{ cardId: number; name: string }>;
 };
 
 export function SmartCardInput({
@@ -51,9 +55,9 @@ export function SmartCardInput({
   onCommit,
   onBulkCommit,
   placedCardIds,
-  disabled,
+  deckCards,
 }: Props) {
-  const index = useMemo(() => buildTarotSearchIndex(), []);
+  const index = useMemo(() => buildSearchIndex(deckCards), [deckCards]);
   const [value, setValue] = useState("");
   const [highlight, setHighlight] = useState(0);
   const [open, setOpen] = useState(false);
@@ -162,8 +166,6 @@ export function SmartCardInput({
       }
     }
   };
-
-  if (disabled) return null;
 
   return (
     <div className="w-full max-w-md mx-auto relative">

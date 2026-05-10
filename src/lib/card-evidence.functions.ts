@@ -98,6 +98,11 @@ export const generateCardEvidenceProse = createServerFn({ method: "POST" })
       supabase: SupabaseClient;
       userId: string;
     };
+    console.log(`[card-evidence-fn] handler starting`, {
+      threadId: data.threadId,
+      userId,
+      forceRegenerate: data.forceRegenerate ?? false,
+    });
 
     // 1. Premium status (drives Layer 2 inclusion)
     const { data: prefs } = await supabase
@@ -118,6 +123,12 @@ export const generateCardEvidenceProse = createServerFn({ method: "POST" })
     if (!threadRow) return { ok: false, error: "not_found" };
     const t = threadRow as unknown as ThreadRow;
     if (t.user_id !== userId) return { ok: false, error: "forbidden" };
+    console.log(`[card-evidence-fn] thread loaded`, {
+      cardIds: t.card_ids,
+      recurrence: t.recurrence_count,
+      cachedVersion: t.evidence_prose_version,
+      cachedReadingCount: t.evidence_prose_reading_count,
+    });
 
     // 3. Cache hit check
     if (
@@ -136,6 +147,10 @@ export const generateCardEvidenceProse = createServerFn({ method: "POST" })
       userId,
       cardIds: t.card_ids,
       isPremium,
+    });
+    console.log(`[card-evidence-fn] context assembled`, {
+      totalReadings: ctx.totalReadings,
+      matchedReadings: ctx.readings.length,
     });
 
     if (ctx.readings.length < 2) {
@@ -188,9 +203,14 @@ export const generateCardEvidenceProse = createServerFn({ method: "POST" })
     }
 
     if (!prose) return { ok: false, error: "ai_unavailable" };
+    console.log(`[card-evidence-fn] anthropic call done`, {
+      proseLength: prose.length,
+      preview: prose.slice(0, 100),
+    });
 
     // 7. Hallucination guard — verify only thread cards are mentioned
     const validated = validateProseAgainstThread(prose, t.card_ids);
+    console.log(`[card-evidence-fn] validation`, validated);
     if (!validated.ok) {
       console.warn(
         "[card-evidence] hallucination guard rejected",

@@ -131,6 +131,34 @@ export function buildTarotSearchIndex(): CardSearchEntry[] {
   return out;
 }
 
+/**
+ * Q24 Fix 4 — generic search-index builder. When `deckCards` is
+ * provided (oracle / custom deck), build the index from the deck's
+ * own card names. Otherwise fall back to the standard tarot deck.
+ */
+export function buildSearchIndex(
+  deckCards?: Array<{ cardId: number; name: string }>,
+): CardSearchEntry[] {
+  if (!deckCards || deckCards.length === 0) {
+    return buildTarotSearchIndex();
+  }
+  return deckCards.map(({ cardId, name }) => ({
+    cardId,
+    name,
+    aliases: deriveAliases(name),
+    isMajor: false,
+  }));
+}
+
+function deriveAliases(name: string): string[] {
+  const lower = name.toLowerCase().trim();
+  const aliases = new Set<string>([lower]);
+  if (lower.startsWith("the ")) aliases.add(lower.slice(4));
+  const firstWord = lower.replace(/^the\s+/, "").split(/\s+/)[0];
+  if (firstWord && firstWord.length > 2) aliases.add(firstWord);
+  return Array.from(aliases);
+}
+
 function numericForRank(r: string): string | null {
   switch (r) {
     case "ace": return "1";

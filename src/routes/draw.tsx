@@ -20,6 +20,7 @@ import {
   type EntryMode,
 } from "@/lib/use-spread-entry-modes";
 import { clearTabletopSession } from "@/components/tabletop/config";
+import { useFloatingMenu } from "@/lib/floating-menu-context";
 
 type Search = { spread?: string; question?: string; n?: number };
 
@@ -96,6 +97,21 @@ function DrawPage() {
   // the placeholder reading. "cast" = render the classic spread layout
   // with cards face-down, let the user reveal them there.
   const [phase, setPhase] = useState<"select" | "cast" | "reading">("select");
+
+  // Q24 Fix 2 — register an exit-to-home X in the FloatingMenu while
+  // the seeker is in the card-selection phase. Cleared once cards
+  // are cast / revealed so the seeker stays in the reading.
+  const { setCloseHandler } = useFloatingMenu();
+  useEffect(() => {
+    if (phase !== "select") {
+      setCloseHandler(null);
+      return;
+    }
+    setCloseHandler(() => () => {
+      void navigate({ to: "/" });
+    });
+    return () => setCloseHandler(null);
+  }, [phase, setCloseHandler, navigate]);
 
   // The question now lives on the draw table itself so the seeker can
   // write or revise it without bouncing back to the home screen. We

@@ -162,17 +162,9 @@ export function FloatingMenu() {
     labelTimer.current = window.setTimeout(() => setTapLabel(null), 1500);
   };
 
-  // Listen for global peek events so the menu opens when the user taps
-  // empty space anywhere on the page.
-  useEffect(() => {
-    const handler = () => {
-      if (!mountedRef.current) return;
-      if (!open) openMenu();
-    };
-    window.addEventListener("moonseed:peek", handler);
-    return () => window.removeEventListener("moonseed:peek", handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  // Q24 Fix 1 — moonseed:peek listener removed. The ··· button is now
+  // the ONLY way to open the FloatingMenu; tap-to-peek is gone with
+  // the Clarity feature.
 
   useEffect(() => {
     return () => {
