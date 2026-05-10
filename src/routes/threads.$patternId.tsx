@@ -939,14 +939,21 @@ function ChamberCardEvidence({
   }
 
   async function generateForThread(threadId: string, force = false) {
+    console.log(`[card-evidence] generateForThread starting`, { threadId, force });
     setGenerating((s) => new Set(s).add(threadId));
     try {
       const result = await generateProse({
         data: { threadId, forceRegenerate: force },
       });
+      console.log(`[card-evidence] result for ${threadId}:`, result);
       if (result.ok) {
         setProseByThread((p) => ({ ...p, [threadId]: result.prose }));
-      } else if (result.error === "insufficient_data") {
+      } else {
+        console.warn(
+          `[card-evidence] result.ok=false for ${threadId}: ${result.error}`,
+        );
+        // Q24 Fix 3 — fall back for ALL non-success cases so the seeker
+        // never sees stuck shimmer.
         const t = threads.find((x) => x.id === threadId);
         if (t) {
           setProseByThread((p) => ({
@@ -956,7 +963,15 @@ function ChamberCardEvidence({
         }
       }
     } catch (err) {
-      console.error("[card-evidence] generation failed", err);
+      console.error(`[card-evidence] generation threw for ${threadId}:`, err);
+      // Q24 Fix 3 — fall back on thrown errors too.
+      const t = threads.find((x) => x.id === threadId);
+      if (t) {
+        setProseByThread((p) => ({
+          ...p,
+          [threadId]: formatDeterministicLocal(t),
+        }));
+      }
     } finally {
       setGenerating((s) => {
         const n = new Set(s);
