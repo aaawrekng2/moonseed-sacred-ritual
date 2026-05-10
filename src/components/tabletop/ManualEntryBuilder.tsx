@@ -19,6 +19,7 @@ import { getCardName } from "@/lib/tarot";
 import { cn } from "@/lib/utils";
 import { SmartCardInput, type PasteOutcome, type SmartPick } from "@/components/tabletop/SmartCardInput";
 import { useActiveDeck } from "@/lib/active-deck";
+import { CardImage } from "@/components/card/CardImage";
 import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
@@ -417,19 +418,44 @@ export function ManualEntryBuilder({
                       {label}
                     </span>
                   </span>
-                  <span
-                    className="text-[12px]"
-                    style={{
-                      color: p ? "var(--gold)" : "var(--color-foreground)",
-                      opacity: p ? 0.85 : 0.45,
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
-                    }}
-                  >
-                    {p
-                      ? `${p.cardName ?? getCardName(p.cardIndex) ?? `Card ${p.cardIndex}`}${p.isReversed ? " ↻" : ""}`
-                      : "Tap to pick"}
-                  </span>
+                  {p ? (
+                    <span className="flex items-center gap-2">
+                      <span style={{ width: 32, flexShrink: 0 }}>
+                        <CardImage
+                          cardId={p.cardIndex}
+                          variant="face"
+                          size="custom"
+                          widthPx={32}
+                          reversed={!!p.isReversed}
+                          deckId={p.deckId ?? null}
+                        />
+                      </span>
+                      <span
+                        className="text-[12px]"
+                        style={{
+                          color: "var(--gold)",
+                          opacity: 0.85,
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        {p.cardName ?? getCardName(p.cardIndex) ?? `Card ${p.cardIndex}`}
+                        {p.isReversed ? " ↻" : ""}
+                      </span>
+                    </span>
+                  ) : (
+                    <span
+                      className="text-[12px]"
+                      style={{
+                        color: "var(--color-foreground)",
+                        opacity: 0.45,
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      Tap to pick
+                    </span>
+                  )}
                 </button>
               );
             })}
