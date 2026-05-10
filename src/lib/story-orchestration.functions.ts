@@ -58,6 +58,8 @@ export type StoryOrchestrationResult =
   | {
       ok: false;
       error: "not_found" | "forbidden" | "insufficient_data" | "ai_unavailable";
+      cached?: undefined;
+      pattern?: undefined;
     };
 
 function thresholdCrossed(prev: number | null, current: number): boolean {
@@ -99,7 +101,7 @@ export const generateStoryOrchestration = createServerFn({ method: "POST" })
       thresholdCrossed(pattern.ai_reading_count_at_gen, currentCount);
 
     if (!needsGen) {
-      return { ok: true, cached: true, pattern };
+      return { ok: true as const, cached: true, pattern: pattern as unknown };
     }
 
     const { data: readingsRaw, error: readingsErr } = await supabase
@@ -301,7 +303,7 @@ export const generateStoryOrchestration = createServerFn({ method: "POST" })
     return {
       ok: true as const,
       cached: false,
-      pattern: updated as unknown as ThreadRow,
+      pattern: updated as unknown,
     };
   });
 
