@@ -132,10 +132,8 @@ export const generateStoryOrchestration = createServerFn({ method: "POST" })
       }
     };
 
-    const recurringCards = (pattern.card_ids ?? []).map((id) => ({
-      id,
-      name: cardNameOf(id),
-    }));
+    // Derive recurring cards from readings (most-frequent appearing cards).
+    const cardCounts = new Map<number, number>();
 
     const firstTs = new Date(readings[0]!.created_at).getTime();
     const lastTs = new Date(readings.at(-1)!.created_at).getTime();
