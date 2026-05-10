@@ -2082,6 +2082,17 @@ function JournalPromptsSlot({
                 "Couldn't reach the AI right now. Try again in a moment.",
               );
               break;
+            case "quota_exceeded":
+              toast.error(
+                "You've used your AI credits for this month. View usage in Settings → Usage.",
+              );
+              break;
+            case "rate_limited":
+              toast.error("Too many AI requests right now. Try again shortly.");
+              break;
+            case "ai_disabled":
+              toast.error("AI is currently disabled on your account.");
+              break;
             default:
               toast.error("Couldn't generate a tailored prompt right now.");
           }
