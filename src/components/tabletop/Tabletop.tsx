@@ -69,24 +69,40 @@ export function Tabletop({
   // toggle and lives at the draw-route level.
   const { user: authUser, loading: authLoading } = useAuth();
   const entryToggleRef = useRef<HTMLButtonElement | null>(null);
+  const stepperRef = useRef<HTMLDivElement | null>(null);
   const [showEntryHint, setShowEntryHint] = useState(false);
+  const [showCountHint, setShowCountHint] = useState(false);
   useEffect(() => {
     if (authLoading) return;
-    if (!onSwitchToManual) return;
-    const onTrigger = async () => {
-      const dismissed = await isHintHardDismissed(
-        "entry_mode_toggle",
-        authUser?.id ?? null,
-      );
-      if (!dismissed) {
-        window.setTimeout(() => setShowEntryHint(true), 300);
+    let cancelled = false;
+    const timers: number[] = [];
+    void (async () => {
+      // Q20 Fix 3 — Hint B: surface toggle (always relevant on table).
+      if (onSwitchToManual) {
+        const dismissedB = await isHintHardDismissed(
+          "entry_mode_toggle",
+          authUser?.id ?? null,
+        );
+        if (!cancelled && !dismissedB) {
+          timers.push(window.setTimeout(() => setShowEntryHint(true), 400));
+        }
       }
-    };
-    window.addEventListener("moonseed:question-modal-closed", onTrigger);
+      // Q20 Fix 3 — Hint A: count stepper (custom only).
+      if (spread === "custom" && onCustomCountChange) {
+        const dismissedA = await isHintHardDismissed(
+          "custom_count_stepper",
+          authUser?.id ?? null,
+        );
+        if (!cancelled && !dismissedA) {
+          timers.push(window.setTimeout(() => setShowCountHint(true), 800));
+        }
+      }
+    })();
     return () => {
-      window.removeEventListener("moonseed:question-modal-closed", onTrigger);
+      cancelled = true;
+      timers.forEach((t) => window.clearTimeout(t));
     };
-  }, [authUser, authLoading, onSwitchToManual]);
+  }, [authUser, authLoading, onSwitchToManual, onCustomCountChange, spread]);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
