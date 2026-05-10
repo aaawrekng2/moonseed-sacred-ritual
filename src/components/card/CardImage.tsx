@@ -21,7 +21,7 @@
  * chrome. CardImage applies only the corner radius and orientation
  * transform to the IMG element.
  */
-import { useEffect, useReducer, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useReducer, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { CardBack } from "@/components/cards/CardBack";
 import {
   useActiveCardBackUrl,
@@ -94,7 +94,7 @@ type CardImageState = {
 
 type CardImageAction =
   | { type: "SRC_CHANGED"; src: string | null }
-  | { type: "LOAD_SUCCEEDED" }
+  | { type: "LOAD_SUCCEEDED"; tier?: "sm" | "md" | "full" }
   | { type: "LOAD_FAILED"; hasBaseSrcAvailable: boolean }
   | { type: "RETRY_TICK"; ts: number }
   | { type: "SAFETY_TIMEOUT_FIRED" }
