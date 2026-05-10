@@ -225,6 +225,67 @@ function PatternChamber() {
     };
   }, [user, patternId]);
 
+  // Q30 — admin role for dev resubmit.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const role = (data as { role?: string } | null)?.role;
+      setIsAdmin(role === "admin" || role === "super_admin");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  // Q30 A9 — kick off story orchestration on mount when needed.
+  useEffect(() => {
+    if (!pattern || !patternId) return;
+    if (pattern.reading_ids.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        setIsOrchestrationInFlight(true);
+        const headers = await getAuthHeaders();
+        console.log("[story] orchestration kicked off", { patternId });
+        const res = await orchestrateFn({ data: { patternId }, headers });
+        if (cancelled) return;
+        if (res?.ok && !res.cached && res.pattern) {
+          setPattern((prev) => (prev ? { ...prev, ...(res.pattern as Pattern) } : prev));
+        }
+      } catch (err) {
+        console.error("[story] orchestration failed", err);
+      } finally {
+        if (!cancelled) setIsOrchestrationInFlight(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patternId, pattern?.id]);
+
+  const handleResubmit = async () => {
+    if (!pattern) return;
+    if (typeof window !== "undefined" && !window.confirm("Resubmit this story to AI for full regeneration?")) return;
+    setIsResubmitting(true);
+    try {
+      const headers = await getAuthHeaders();
+      await resubmitFn({ data: { patternId }, headers });
+      if (typeof window !== "undefined") window.location.reload();
+    } catch (err) {
+      console.error("[story] resubmit failed", err);
+    } finally {
+      setIsResubmitting(false);
+    }
+  };
+
   const saveName = async () => {
     if (!pattern) return;
     const trimmed = draftName.trim();
