@@ -24,6 +24,7 @@ import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { useAuth } from "@/lib/auth";
+import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 
 const CELTIC_POSITION_LABELS = [
   "Significator",
@@ -83,6 +84,9 @@ export function ManualEntryBuilder({
   onSwitchToTable,
   onCustomCountChange,
 }: Props) {
+  // Q30 Fix B5 — register the X close handler with the FloatingMenu so the
+  // pop-down's X icon dismisses manual entry mode.
+  useRegisterCloseHandler(onCancel);
   const meta = SPREAD_META[spread];
   const required = spread === "custom"
     ? Math.max(1, Math.min(10, customCount ?? 3))
