@@ -39,7 +39,7 @@ function UsagePage() {
       </p>
     );
   }
-  if (!usage) return <LoadingText />;
+  if (!usage) return <LoadingText>Loading usage…</LoadingText>;
 
   const used = usage.ai.used;
   const total = Math.max(1, usage.ai.quota);
