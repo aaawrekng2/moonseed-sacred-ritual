@@ -21,12 +21,14 @@ export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
     typeof window !== "undefined"
       ? window.matchMedia("(max-width: 640px)").matches
       : false;
-  const dec = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const dec = (_e: React.MouseEvent) => {
+    console.log("[stepper] dec clicked", { count, min, disabled: count <= min });
+    if (count <= min) return;
     onChange(Math.max(min, count - 1));
   };
-  const inc = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const inc = (_e: React.MouseEvent) => {
+    console.log("[stepper] inc clicked", { count, max, disabled: count >= max });
+    if (count >= max) return;
     onChange(Math.min(max, count + 1));
   };
   return (
