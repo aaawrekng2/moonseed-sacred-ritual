@@ -10,7 +10,7 @@
  * resulting reading is visually identical (Fix 9).
  */
 import { useState } from "react";
-import { X } from "lucide-react";
+import { X, RotateCw } from "lucide-react";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { ManualSpreadSlots } from "@/components/tabletop/SpreadLayout";
@@ -18,6 +18,8 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { getCardName } from "@/lib/tarot";
 import { cn } from "@/lib/utils";
+import { SmartCardInput, type PasteOutcome, type SmartPick } from "@/components/tabletop/SmartCardInput";
+import { useActiveDeck } from "@/lib/active-deck";
 
 const CELTIC_POSITION_LABELS = [
   "Significator",
@@ -76,6 +78,11 @@ export function ManualEntryBuilder({
   const [slotDeckIds, setSlotDeckIds] = useState<(string | null)[]>(
     Array.from({ length: required }, () => null),
   );
+  const [ambiguousSlots, setAmbiguousSlots] = useState<number[]>([]);
+  const { activeDeck } = useActiveDeck();
+  // Smart input only handles standard tarot; oracle decks fall back
+  // to tap-to-pick (cardIndex >= 1000 isn't in the search index).
+  const smartInputDisabled = !!activeDeck;
 
   const handleSlotDeckChange = (deckId: string | null) => {
     if (pickerSlot === null) return;
@@ -87,6 +94,12 @@ export function ManualEntryBuilder({
   const allFilled = picks.every((p) => p !== null);
   const placedIds = picks.filter((p): p is ManualPick => !!p).map((p) => p.cardIndex);
   const isCelticManualEntry = spread === "celtic";
+  const filledCount = picks.filter((p) => p !== null).length;
+  const remaining = required - filledCount;
+  const buttonText =
+    remaining > 0
+      ? `Select ${remaining} more card${remaining === 1 ? "" : "s"} to enter your reading`
+      : "Done · view reading";
 
   const handlePick = (
     cardIndex: number,
@@ -104,7 +117,59 @@ export function ManualEntryBuilder({
       cardName,
     };
     setPicks(next);
+    setAmbiguousSlots((prev) => prev.filter((i) => i !== pickerSlot));
     setPickerSlot(null);
+  };
+
+  const firstEmptySlot = (arr: (ManualPick | null)[]): number => {
+    for (let i = 0; i < arr.length; i++) if (arr[i] === null) return i;
+    return -1;
+  };
+
+  const handleSmartCommit = (pick: SmartPick) => {
+    const next = [...picks];
+    const idx = firstEmptySlot(next);
+    if (idx === -1) return;
+    next[idx] = {
+      id: Date.now() + idx,
+      cardIndex: pick.cardIndex,
+      isReversed: pick.isReversed,
+      deckId: null,
+      cardName: pick.cardName,
+    };
+    setPicks(next);
+    setAmbiguousSlots((prev) => prev.filter((i) => i !== idx));
+  };
+
+  const handleSmartBulk = (outcome: PasteOutcome) => {
+    const next = [...picks];
+    const newAmbig: number[] = [];
+    for (const item of outcome.picks) {
+      const idx = firstEmptySlot(next);
+      if (idx === -1) break;
+      next[idx] = {
+        id: Date.now() + idx,
+        cardIndex: item.pick.cardIndex,
+        isReversed: item.pick.isReversed,
+        deckId: null,
+        cardName: item.pick.cardName,
+      };
+      if (item.ambiguous) newAmbig.push(idx);
+    }
+    setPicks(next);
+    setAmbiguousSlots(newAmbig);
+  };
+
+  const handleSlotReorder = (fromIdx: number, toIdx: number) => {
+    if (fromIdx === toIdx) return;
+    const next = [...picks];
+    const tmp = next[toIdx];
+    next[toIdx] = next[fromIdx];
+    next[fromIdx] = tmp;
+    setPicks(next);
+    setAmbiguousSlots((prev) =>
+      prev.map((i) => (i === fromIdx ? toIdx : i === toIdx ? fromIdx : i)),
+    );
   };
 
   return (
@@ -137,21 +202,34 @@ export function ManualEntryBuilder({
       <div
         className={cn(
           "flex flex-1 flex-col items-center justify-start gap-6 p-6",
-          // Q14 Fix 8 — only celtic needs scrolling; small spreads fit fine.
+          // Q17 Fix 3B — only celtic needs scrolling; small spreads fit
+          // fine. Q14 Fix 8 set this gate; Q17 audit confirms it stays.
           isCelticManualEntry && "overflow-y-auto",
         )}
       >
+        {/* Q17 Fix 1 — Smart bulk-input combobox. Hidden for oracle
+            decks; standard tarot only. */}
+        <SmartCardInput
+          positionLabels={labels.slice(0, required)}
+          emptySlotCount={required - filledCount}
+          onCommit={handleSmartCommit}
+          onBulkCommit={handleSmartBulk}
+          placedCardIds={placedIds}
+          disabled={smartInputDisabled}
+        />
         <p
           className="text-center"
           style={{
             fontSize: "var(--text-caption, 0.72rem)",
             color: "var(--color-foreground)",
-            opacity: 0.6,
+            opacity: 0.55,
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
           }}
         >
-          Tap each position to pick the card you drew.
+          {smartInputDisabled
+            ? "Tap each position to pick the card you drew."
+            : "Or tap a position below to pick from the deck. Drag a filled slot to reorder."}
         </p>
 
         {/* Phase 9.5b Fix 5 — slot positions match the SpreadLayout used
@@ -170,6 +248,21 @@ export function ManualEntryBuilder({
                   key={i}
                   type="button"
                   onClick={() => setPickerSlot(i)}
+                  draggable={!!p}
+                  onDragStart={(e) => {
+                    if (!p) return;
+                    e.dataTransfer.setData("text/plain", String(i));
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const fromIdx = parseInt(e.dataTransfer.getData("text/plain"), 10);
+                    if (!Number.isNaN(fromIdx)) handleSlotReorder(fromIdx, i);
+                  }}
                   className="flex items-center justify-between rounded-lg border border-border/40 bg-foreground/[0.03] px-3 py-2 text-left transition hover:border-gold/40 hover:bg-gold/5"
                 >
                   <span className="flex items-center gap-3">
@@ -202,7 +295,7 @@ export function ManualEntryBuilder({
                     }}
                   >
                     {p
-                      ? `${p.cardName ?? getCardName(p.cardIndex) ?? `Card ${p.cardIndex}`}${p.isReversed ? " (rev)" : ""}`
+                      ? `${p.cardName ?? getCardName(p.cardIndex) ?? `Card ${p.cardIndex}`}${p.isReversed ? " ↻" : ""}`
                       : "Tap to pick"}
                   </span>
                 </button>
@@ -224,6 +317,8 @@ export function ManualEntryBuilder({
               : null,
           )}
           onSlotTap={(idx) => setPickerSlot(idx)}
+          onSlotReorder={handleSlotReorder}
+          ambiguousSlots={ambiguousSlots}
           />
         )}
 
@@ -245,20 +340,23 @@ export function ManualEntryBuilder({
           >
             Your question for the cards
           </span>
+          {/* Q17 Fix 4 — taller textarea (3 rows default), drag-resize. */}
           <textarea
             value={question}
             onChange={(e) => onQuestionChange(e.target.value)}
-            rows={2}
+            rows={3}
             placeholder="Tap to add your question…"
-            className="w-full resize-none bg-transparent focus:outline-none text-center"
+            className="w-full bg-transparent focus:outline-none text-center"
             style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
               fontSize: "var(--text-body)",
-              lineHeight: 1.7,
+              lineHeight: 1.5,
               color: "var(--foreground)",
               borderBottom: "1px solid var(--border-subtle)",
               padding: "4px 0",
+              minHeight: 96,
+              resize: "vertical",
             }}
           />
         </div>
@@ -270,7 +368,7 @@ export function ManualEntryBuilder({
             if (!allFilled) return;
             onComplete(picks.filter((p): p is ManualPick => !!p));
           }}
-          className="px-6 py-2 transition disabled:cursor-not-allowed"
+          className="px-6 py-2 transition disabled:cursor-not-allowed text-center"
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
@@ -282,7 +380,7 @@ export function ManualEntryBuilder({
             textShadow: allFilled ? "0 0 12px var(--accent-faint)" : undefined,
           }}
         >
-          Done · view reading
+          {buttonText}
         </button>
       </div>
 
