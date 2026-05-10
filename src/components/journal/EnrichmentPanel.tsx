@@ -778,7 +778,6 @@ export function EnrichmentPanel({
             ref={noteTextareaRef}
             value={note}
             onChange={(e) => handleNoteChange(e.target.value)}
-            rows={4}
             placeholder={
               defaultNoteOpen
                 ? "What does this reading mean to you?"
@@ -794,6 +793,7 @@ export function EnrichmentPanel({
               opacity: "var(--ro-plus-40)",
               padding: "12px 16px",
               minHeight: 120,
+              overflow: "hidden",
             }}
           />
           <button
