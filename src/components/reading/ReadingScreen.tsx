@@ -51,6 +51,8 @@ import { stripMarkdown } from "@/lib/strip-markdown";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
 import { toast } from "sonner";
+import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
+import { usePremium } from "@/lib/premium";
 
 type Pick = {
   id: number;
