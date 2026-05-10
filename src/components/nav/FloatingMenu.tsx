@@ -477,7 +477,16 @@ function MenuButton({
     <button
       type="button"
       aria-label={ariaLabel}
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(e);
+      }}
+      onTouchEnd={(e) => {
+        // Q30 Fix B6 — guarantee taps on touch devices reach the handler
+        // even when an ancestor absorbs synthetic clicks.
+        e.stopPropagation();
+      }}
+      style={{ pointerEvents: "auto", touchAction: "manipulation" }}
       className="flex h-7 w-7 items-center justify-center rounded-full text-gold transition-colors hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
     >
       {children}

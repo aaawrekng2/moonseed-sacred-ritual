@@ -206,17 +206,31 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
 
   const singlesList: StalkerCard[] = singles?.stalkerCards ?? [];
   const twinsList: StalkerTwin[] = twins?.twins ?? [];
-  const tripletsList: StalkerTriplet[] = triplets?.triplets ?? [];
-  // Q29 Fix 6 — flag any incomplete triplets so we can investigate
-  // the data side. Render still degrades gracefully via placeholder
-  // slots below.
+  // Q30 Fix B8 — triplets are by definition co-occurring sets of 3 cards.
+  // Filter incomplete triplets out at the data level (instead of rendering
+  // a "no third card" placeholder) and surface broken data via console.error
+  // so the underlying aggregation pipeline can be investigated.
+  const rawTripletsList: StalkerTriplet[] = triplets?.triplets ?? [];
   useEffect(() => {
-    tripletsList.forEach((t, i) => {
-      if (!t.cardIds || t.cardIds.length < 3) {
-        console.warn("[stalkers] incomplete triplet at index", i, t);
+    rawTripletsList.forEach((t, i) => {
+      if (!t.cardIds || t.cardIds.length !== 3) {
+        console.error(
+          "[stalkers] DATA BUG: triplet has",
+          t.cardIds?.length,
+          "cards (expected 3)",
+          t,
+        );
+      } else if (t.cardIds.some((c) => c === null || c === undefined)) {
+        console.error("[stalkers] DATA BUG: triplet has null cardId", t);
       }
     });
-  }, [tripletsList]);
+  }, [rawTripletsList]);
+  const tripletsList: StalkerTriplet[] = rawTripletsList.filter(
+    (t) =>
+      t.cardIds &&
+      t.cardIds.length === 3 &&
+      t.cardIds.every((c) => c !== null && c !== undefined),
+  );
   const reversedList: ReversedStalker[] = reversed?.reversedStalkers ?? [];
 
   const twinCount = twinsList.length;
@@ -431,49 +445,20 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
       {mode === "triplets" && selectedTriplet ? (
         <div className="flex flex-col gap-4">
           <div className="flex justify-center gap-3 sm:gap-4 md:gap-6 mt-2">
-            {Array.from({ length: 3 }).map((_, idx) => {
-              const cid = selectedTriplet.cardIds[idx];
-              return (
-                <div
-                  key={`${selectedTriplet.cardIds.join("-")}-${idx}`}
-                  className="flex-1 max-w-[160px]"
-                >
-                  {typeof cid === "number" ? (
-                    <CardImage
-                      cardId={cid}
-                      size="hero"
-                      style={{ width: "100%", minHeight: 0 }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        aspectRatio: "2 / 3.5",
-                        background: "var(--surface-card)",
-                        border: "0.5px dashed var(--border-subtle)",
-                        borderRadius: 8,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontFamily: "var(--font-serif)",
-                          fontStyle: "italic",
-                          fontSize: "var(--text-caption)",
-                          color: "var(--color-foreground)",
-                          opacity: 0.4,
-                          textAlign: "center",
-                          padding: "0 8px",
-                        }}
-                      >
-                        no third card
-                      </span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {/* Q30 Fix B8 — strict 3-card render; broken triplets
+                are filtered out upstream. */}
+            {selectedTriplet.cardIds.map((cid, idx) => (
+              <div
+                key={`${selectedTriplet.cardIds.join("-")}-${idx}`}
+                className="flex-1 max-w-[160px]"
+              >
+                <CardImage
+                  cardId={cid as number}
+                  size="hero"
+                  style={{ width: "100%", minHeight: 0 }}
+                />
+              </div>
+            ))}
           </div>
           <p className="text-sm text-muted-foreground leading-relaxed">
             {tripletProse(selectedTriplet.cardNames, selectedTriplet.count, timeRange, cooccurrence)}
