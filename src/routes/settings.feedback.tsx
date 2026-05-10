@@ -6,7 +6,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type CSSProperties } from "react";
 import { ChevronUp } from "lucide-react";
-import { useServerFn } from "@tanstack/react-start";
+import { supabase } from "@/lib/supabase";
 import {
   submitFeedback,
   getFeedbackBoard,
@@ -19,6 +19,12 @@ export const Route = createFileRoute("/settings/feedback")({
   head: () => ({ meta: [{ title: "Feedback — Settings · Moonseed" }] }),
   component: FeedbackPage,
 });
+
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabase.auth.getSession();
+  const t = data.session?.access_token;
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
 
 const TITLE_MAX = 100;
 const DESC_MAX = 500;
@@ -35,9 +41,6 @@ function FeedbackPage() {
 /* ---------------- Submission ---------------- */
 
 function SubmissionSection() {
-  const submitFn = useServerFn(submitFeedback);
-  const getPending = useServerFn(getMyPendingPosts);
-
   const [category, setCategory] = useState<"bug" | "feature">("bug");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -49,13 +52,14 @@ function SubmissionSection() {
   useEffect(() => {
     void (async () => {
       try {
-        const r = await getPending({});
+        const headers = await authHeaders();
+        const r = await getMyPendingPosts({ headers });
         setPendingCount(r.length);
       } catch (e) {
         console.error("[feedback] pending", e);
       }
     })();
-  }, [getPending, submittedId]);
+  }, [submittedId]);
 
   const titleRem = TITLE_MAX - title.length;
   const descRem = DESC_MAX - description.length;
@@ -66,12 +70,14 @@ function SubmissionSection() {
     setSubmitting(true);
     setError(null);
     try {
-      const { id } = await submitFn({
+      const headers = await authHeaders();
+      const { id } = await submitFeedback({
         data: {
           title: title.trim(),
           description: description.trim() || undefined,
           category,
         },
+        headers,
       });
       setSubmittedId(id);
     } catch (e) {
@@ -309,21 +315,20 @@ function statusColor(s: FeedbackBoardItem["status"]): string {
 }
 
 function BoardSection() {
-  const getBoard = useServerFn(getFeedbackBoard);
-  const voteFn = useServerFn(toggleVote);
   const [items, setItems] = useState<FeedbackBoardItem[] | null>(null);
 
   useEffect(() => {
     void (async () => {
       try {
-        const r = await getBoard({});
+        const headers = await authHeaders();
+        const r = await getFeedbackBoard({ headers });
         setItems(r);
       } catch (e) {
         console.error("[feedback] board", e);
         setItems([]);
       }
     })();
-  }, [getBoard]);
+  }, []);
 
   async function onVote(id: string) {
     if (!items) return;
@@ -338,7 +343,8 @@ function BoardSection() {
     );
     setItems(optimistic);
     try {
-      const r = await voteFn({ data: { postId: id } });
+      const headers = await authHeaders();
+      const r = await toggleVote({ data: { postId: id }, headers });
       setItems((prev) =>
         prev
           ? prev.map((it) =>
