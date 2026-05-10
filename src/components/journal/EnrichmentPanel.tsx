@@ -23,6 +23,7 @@ import { JournalPrompts } from "@/components/tarot/JournalPrompts";
 import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
 import { useServerFn } from "@tanstack/react-start";
 import { generateTailoredPrompt } from "@/lib/tailored-prompt.functions";
+import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -2033,7 +2034,8 @@ function JournalPromptsSlot({
       }
       setLoading(true);
       try {
-        const res = (await generate({ data: { readingId } })) as
+        const headers = await getAuthHeaders();
+        const res = (await generate({ data: { readingId }, headers })) as
           | { ok: true; prompt: string }
           | { ok: false; error: string };
         if (!res.ok) {

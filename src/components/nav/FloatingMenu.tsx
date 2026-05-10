@@ -42,6 +42,14 @@ export function FloatingMenu() {
   const { closeHandler, copyText, showRefresh, shareBuilderClose, hidden } =
     useFloatingMenu();
   const { helpHandler } = useFloatingMenu();
+  // Q25 Fix 7 — diagnostic visibility into close-handler context.
+  if (typeof window !== "undefined") {
+    console.log("[menu] render", {
+      hasCloseHandler: !!closeHandler,
+      hasShareBuilder: !!shareBuilderClose,
+      shouldShowX: !!(shareBuilderClose || closeHandler),
+    });
+  }
   const { user } = useAuth();
   const moonPrefs = useMoonPrefs();
   // CL Group 3 — admin-only dev mode toggle, mirroring DevOverlay's
@@ -390,6 +398,10 @@ export function FloatingMenu() {
           {(shareBuilderClose || closeHandler) && (
             <MenuButton
               onClick={() => {
+                console.log("[menu] X clicked", {
+                  hasShareBuilder: !!shareBuilderClose,
+                  hasCloseHandler: !!closeHandler,
+                });
                 resetTimer();
                 // If a ShareBuilder is open, dismiss only the builder
                 // — keep the underlying reading intact. Falls back to

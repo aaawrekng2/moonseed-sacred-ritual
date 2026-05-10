@@ -329,9 +329,16 @@ export function CardImage({
     if (variant !== "face") return;
     if (!faceSrc) return;
     if (imageLoaded) return;
-    const t = window.setTimeout(() => setImageLoaded(true), 5000);
+    // Q25 Fix 4 — shortened from 5s to 3s, plus diagnostic log so
+    // we can see which images need the fallback in production.
+    const t = window.setTimeout(() => {
+      console.warn("[CardImage] safety timeout fired", {
+        cardId, deckId, variant, faceSrc: faceSrc?.slice(0, 100),
+      });
+      setImageLoaded(true);
+    }, 3000);
     return () => window.clearTimeout(t);
-  }, [variant, faceSrc, imageLoaded]);
+  }, [variant, faceSrc, imageLoaded, cardId, deckId]);
 
   const showFaceShimmer =
     variant === "face" && !loading && (faceSrc == null || !imageLoaded);
