@@ -206,17 +206,31 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
 
   const singlesList: StalkerCard[] = singles?.stalkerCards ?? [];
   const twinsList: StalkerTwin[] = twins?.twins ?? [];
-  const tripletsList: StalkerTriplet[] = triplets?.triplets ?? [];
-  // Q29 Fix 6 — flag any incomplete triplets so we can investigate
-  // the data side. Render still degrades gracefully via placeholder
-  // slots below.
+  // Q30 Fix B8 — triplets are by definition co-occurring sets of 3 cards.
+  // Filter incomplete triplets out at the data level (instead of rendering
+  // a "no third card" placeholder) and surface broken data via console.error
+  // so the underlying aggregation pipeline can be investigated.
+  const rawTripletsList: StalkerTriplet[] = triplets?.triplets ?? [];
   useEffect(() => {
-    tripletsList.forEach((t, i) => {
-      if (!t.cardIds || t.cardIds.length < 3) {
-        console.warn("[stalkers] incomplete triplet at index", i, t);
+    rawTripletsList.forEach((t, i) => {
+      if (!t.cardIds || t.cardIds.length !== 3) {
+        console.error(
+          "[stalkers] DATA BUG: triplet has",
+          t.cardIds?.length,
+          "cards (expected 3)",
+          t,
+        );
+      } else if (t.cardIds.some((c) => c === null || c === undefined)) {
+        console.error("[stalkers] DATA BUG: triplet has null cardId", t);
       }
     });
-  }, [tripletsList]);
+  }, [rawTripletsList]);
+  const tripletsList: StalkerTriplet[] = rawTripletsList.filter(
+    (t) =>
+      t.cardIds &&
+      t.cardIds.length === 3 &&
+      t.cardIds.every((c) => c !== null && c !== undefined),
+  );
   const reversedList: ReversedStalker[] = reversed?.reversedStalkers ?? [];
 
   const twinCount = twinsList.length;
