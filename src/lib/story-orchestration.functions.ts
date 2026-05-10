@@ -336,7 +336,7 @@ export const resubmitStoryToAi = createServerFn({ method: "POST" })
       userId: string;
     };
     const { data: pattern } = await supabase
-      .from("symbolic_threads")
+      .from("patterns")
       .select("user_id")
       .eq("id", data.patternId)
       .maybeSingle();
@@ -345,7 +345,7 @@ export const resubmitStoryToAi = createServerFn({ method: "POST" })
       return { ok: false, error: "forbidden" };
     }
     await supabase
-      .from("symbolic_threads")
+      .from("patterns")
       .update({
         story_name: null,
         story_description: null,
