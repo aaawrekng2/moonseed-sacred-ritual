@@ -114,6 +114,7 @@ export const Route = createFileRoute("/stories/$patternId")({
 function PatternChamber() {
   const { patternId } = Route.useParams();
   const { user } = useAuth();
+  const { isPremium: chamberIsPremium } = usePremium(user?.id);
   const navigate = useNavigate();
   const confirm = useConfirm();
   const [pattern, setPattern] = useState<Pattern | null>(null);
@@ -476,6 +477,11 @@ function PatternChamber() {
         hasNote={!!(pattern.description && pattern.description.trim())}
         noteOpen={noteOpen}
       />
+      {storyQuotaBlocked && (
+        <div style={{ margin: "var(--space-4, 16px) 0" }}>
+          <AiQuotaBlock resetAt={null} isPremium={chamberIsPremium} />
+        </div>
+      )}
       <StatsRibbon
         readingCount={pattern.reading_ids.length}
         recurringCardCount={
