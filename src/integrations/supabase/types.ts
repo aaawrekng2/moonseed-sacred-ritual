@@ -983,6 +983,8 @@ export type Database = {
           active_guide_id: string | null
           active_theme_slot: number | null
           admin_note: string | null
+          ai_blocked: boolean
+          ai_blocked_reason: string | null
           ai_tone: string
           allow_reversed_cards: boolean
           archive_deepening_unlocked: boolean
@@ -1048,6 +1050,8 @@ export type Database = {
           active_guide_id?: string | null
           active_theme_slot?: number | null
           admin_note?: string | null
+          ai_blocked?: boolean
+          ai_blocked_reason?: string | null
           ai_tone?: string
           allow_reversed_cards?: boolean
           archive_deepening_unlocked?: boolean
@@ -1113,6 +1117,8 @@ export type Database = {
           active_guide_id?: string | null
           active_theme_slot?: number | null
           admin_note?: string | null
+          ai_blocked?: boolean
+          ai_blocked_reason?: string | null
           ai_tone?: string
           allow_reversed_cards?: boolean
           archive_deepening_unlocked?: boolean
@@ -1263,7 +1269,30 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      seeker_usage_monthly: {
+        Row: {
+          ai_blocked: boolean | null
+          ai_calls_lifetime: number | null
+          ai_calls_this_month: number | null
+          ai_cost_usd_lifetime: number | null
+          ai_cost_usd_this_month: number | null
+          ai_credits_used_this_month: number | null
+          display_name: string | null
+          email: string | null
+          hit_abuse_cap_this_month: boolean | null
+          hit_quota_exceeded_this_month: boolean | null
+          last_call_at: string | null
+          last_upload_at: string | null
+          member_since: string | null
+          plan: string | null
+          revenue_this_month: number | null
+          role: string | null
+          storage_bytes_current: number | null
+          storage_cost_usd_this_month: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_detect_weaves_status: {
