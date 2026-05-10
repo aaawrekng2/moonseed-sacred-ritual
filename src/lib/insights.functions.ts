@@ -1128,7 +1128,7 @@ export const getStalkerReflection = createServerFn({ method: "POST" })
     const cardName = getCardName(data.cardId);
     const systemPrompt = buildStalkerSystemPrompt(tone);
     const userPrompt = buildStalkerUserPrompt(cardName, data);
-    const reflection = await callAnthropicShort(systemPrompt, userPrompt, 200);
+    const reflection = await callAnthropicShort(systemPrompt, userPrompt, 200, userId);
     if (!reflection) return { ok: false as const, error: "ai_unavailable" };
     await writeCachedReflection(supabase, userId, cacheKey, reflection);
     return { ok: true as const, reflection };
@@ -1223,7 +1223,7 @@ export const getQuestionThemes = createServerFn({ method: "POST" })
       "Questions:\n" +
       questions.slice(0, 100).map((s, i) => `${i + 1}. ${s}`).join("\n") +
       "\n\nReturn the JSON array now.";
-    const raw = await callAnthropicShort(systemPrompt, userPrompt, 1500);
+    const raw = await callAnthropicShort(systemPrompt, userPrompt, 1500, userId);
     if (!raw) return { ok: false as const, error: "ai_unavailable" };
     const themes = parseThemesResponse(raw);
     if (!themes || themes.length === 0) return { ok: false as const, error: "invalid_response" };
@@ -1392,7 +1392,7 @@ export const getLunationReflection = createServerFn({ method: "POST" })
     const tone = await getAIToneServerSide(supabase, userId);
     const systemPrompt = buildLunationSystemPrompt(tone);
     const userPrompt = buildLunationUserPrompt(summary);
-    const raw = await callAnthropicShort(systemPrompt, userPrompt, 600);
+    const raw = await callAnthropicShort(systemPrompt, userPrompt, 600, userId);
     if (!raw) return { ok: false as const, error: "ai_unavailable" };
     await writeCachedReflection(supabase, userId, cacheKey, raw);
     return { ok: true as const, reflection: raw };
@@ -1627,7 +1627,7 @@ export const getYearOfLunationsReflection = createServerFn({ method: "POST" })
       "Write the 4-paragraph reflection now.",
     ].join("\n");
     const systemPrompt = buildYearReflectionSystemPrompt(tone);
-    const raw = await callAnthropicShort(systemPrompt, userPrompt, 800);
+    const raw = await callAnthropicShort(systemPrompt, userPrompt, 800, userId);
     if (!raw) return { ok: false as const, error: "ai_unavailable" };
     await writeCachedReflection(supabase, userId, cacheKey, raw);
     return { ok: true as const, reflection: raw };
