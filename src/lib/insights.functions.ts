@@ -242,6 +242,7 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
     return {
       totalReadings: rows.length,
       suitBalance: {
+        major: pct(majors, majors + minorTotal),
         wands: pct(suitCounts.Wands, minorTotal),
         cups: pct(suitCounts.Cups, minorTotal),
         swords: pct(suitCounts.Swords, minorTotal),
