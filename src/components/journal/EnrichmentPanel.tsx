@@ -247,6 +247,12 @@ export function EnrichmentPanel({
 
   // Q30 Fix B3 — auto-grow the note textarea so long notes never
   // gain an inner scrollbar.
+  useLayoutEffect(() => {
+    const ta = noteTextareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${ta.scrollHeight}px`;
+  });
 
   // Photos for this reading.
   const [photos, setPhotos] = useState<EnrichmentPhoto[]>([]);
