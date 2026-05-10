@@ -30,13 +30,14 @@ type ThreadRow = {
   id: string;
   user_id: string;
   reading_ids: string[] | null;
-  card_ids: number[] | null;
+  card_ids?: number[] | null;
+  thread_ids?: string[] | null;
   story_name: string | null;
   story_description: string | null;
   per_reading_roles: { [k: string]: unknown } | null;
   remarkable_moments: unknown[] | null;
   narrative_arc: string | null;
-  evidence_prose: string | null;
+  evidence_prose?: string | null;
   ai_generated_at: string | null;
   ai_version: string | null;
   ai_reading_count_at_gen: number | null;
