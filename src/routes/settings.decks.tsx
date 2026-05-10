@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
+import { uploadWithQuota } from "@/lib/storage-upload";
 import { useConfirm } from "@/hooks/use-confirm";
 import { LoadingText } from "@/components/ui/loading-text";
 import { EmptyHero } from "@/components/ui/empty-hero";
@@ -1785,10 +1786,17 @@ async function uploadAndStoreCard(args: {
   const displayPath = `${userId}/${deckId}/card-${cardId}-${ts}.webp`;
   const thumbnailPath = displayPath; // same file (no separate thumb pipeline yet)
 
-  const { error: upErr } = await supabase.storage
-    .from(DECK_BUCKET)
-    .upload(displayPath, blob, { contentType: "image/webp", upsert: true });
-  if (upErr) throw upErr;
+  const upRes = await uploadWithQuota({
+    userId,
+    bucket: DECK_BUCKET,
+    path: displayPath,
+    file: blob,
+    eventType: "deck_card",
+    contentType: "image/webp",
+    upsert: true,
+    deckId,
+  });
+  if (!upRes.ok) throw new Error(upRes.error);
 
   const { data: signed } = await supabase.storage
     .from(DECK_BUCKET)
@@ -1834,11 +1842,18 @@ async function uploadDeckBack(args: {
   const { userId, deckId, blob } = args;
   const ts = Date.now();
   const path = `${userId}/${deckId}/back-${ts}.webp`;
-  const { error } = await supabase.storage
-    .from(DECK_BUCKET)
-    .upload(path, blob, { contentType: "image/webp", upsert: true });
-  if (error) {
-    toast.error(`Couldn't save card back: ${error.message}`);
+  const backRes = await uploadWithQuota({
+    userId,
+    bucket: DECK_BUCKET,
+    path,
+    file: blob,
+    eventType: "deck_back",
+    contentType: "image/webp",
+    upsert: true,
+    deckId,
+  });
+  if (!backRes.ok) {
+    toast.error(`Couldn't save card back: ${backRes.error}`);
     return null;
   }
   const { data } = await supabase.storage
@@ -1974,14 +1989,28 @@ function PerCardReviewModal({
       const ts = Date.now();
       const displayPath = `${userId}/${deckId}/card-${cardId}-${ts}.webp`;
       const thumbPath = `${userId}/${deckId}/card-${cardId}-${ts}-thumb.webp`;
-      const { error: e1 } = await supabase.storage
-        .from(DECK_BUCKET)
-        .upload(displayPath, asset.displayBlob, { contentType: "image/webp", upsert: true });
-      if (e1) throw e1;
-      const { error: e2 } = await supabase.storage
-        .from(DECK_BUCKET)
-        .upload(thumbPath, asset.thumbnailBlob, { contentType: "image/webp", upsert: true });
-      if (e2) throw e2;
+      const r1 = await uploadWithQuota({
+        userId,
+        bucket: DECK_BUCKET,
+        path: displayPath,
+        file: asset.displayBlob,
+        eventType: "deck_card",
+        contentType: "image/webp",
+        upsert: true,
+        deckId,
+      });
+      if (!r1.ok) throw new Error(r1.error);
+      const r2 = await uploadWithQuota({
+        userId,
+        bucket: DECK_BUCKET,
+        path: thumbPath,
+        file: asset.thumbnailBlob,
+        eventType: "deck_card",
+        contentType: "image/webp",
+        upsert: true,
+        deckId,
+      });
+      if (!r2.ok) throw new Error(r2.error);
       const yearSecs = 60 * 60 * 24 * 365;
       const [{ data: d1 }, { data: d2 }] = await Promise.all([
         supabase.storage.from(DECK_BUCKET).createSignedUrl(displayPath, yearSecs),
