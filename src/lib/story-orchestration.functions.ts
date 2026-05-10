@@ -290,18 +290,27 @@ export const generateStoryOrchestration = createServerFn({ method: "POST" })
       story_description: storyDescription,
       per_reading_roles: perReadingRoles,
       remarkable_moments: remarkableMoments,
-      evidence_prose: evidenceProse.length > 0 ? evidenceProse : null,
       ai_generated_at: generatedAt,
       ai_version: AI_VERSION,
       ai_reading_count_at_gen: readings.length,
     };
+    if (evidenceProse.length > 0) {
+      try {
+        await supabase
+          .from("symbolic_threads")
+          .update({ evidence_prose: evidenceProse })
+          .eq("pattern_id", data.patternId);
+      } catch (err) {
+        console.error("[story-orchestration] thread evidence write failed", err);
+      }
+    }
 
     const { data: updated, error: updateErr } = await supabase
-      .from("symbolic_threads")
+      .from("patterns")
       .update(updates)
       .eq("id", data.patternId)
       .select(
-        "id, user_id, reading_ids, card_ids, story_name, story_description, per_reading_roles, remarkable_moments, narrative_arc, evidence_prose, ai_generated_at, ai_version, ai_reading_count_at_gen",
+        "id, user_id, reading_ids, story_name, story_description, per_reading_roles, remarkable_moments, narrative_arc, ai_generated_at, ai_version, ai_reading_count_at_gen",
       )
       .single();
     if (updateErr || !updated) {
