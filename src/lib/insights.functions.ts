@@ -242,10 +242,11 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
     return {
       totalReadings: rows.length,
       suitBalance: {
-        wands: pct(suitCounts.Wands, minorTotal),
-        cups: pct(suitCounts.Cups, minorTotal),
-        swords: pct(suitCounts.Swords, minorTotal),
-        pentacles: pct(suitCounts.Pentacles, minorTotal),
+        major: pct(majors, majors + minorTotal),
+        wands: pct(suitCounts.Wands, majors + minorTotal),
+        cups: pct(suitCounts.Cups, majors + minorTotal),
+        swords: pct(suitCounts.Swords, majors + minorTotal),
+        pentacles: pct(suitCounts.Pentacles, majors + minorTotal),
       },
       majorMinor: {
         major: pct(majors, majorMinorDenom),
