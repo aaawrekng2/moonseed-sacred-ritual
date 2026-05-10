@@ -89,7 +89,15 @@ export const generateTailoredPrompt = createServerFn({ method: "POST" })
       maxTokens: 100,
     });
     if (!aiResult.ok) {
-      return { ok: false as const, error: "ai_unavailable" };
+      // Q33 — surface specific failure codes so the UI can render the
+      // AiQuotaBlock / ai-disabled toast instead of a generic "unavailable".
+      const code =
+        aiResult.error === "quota_exceeded" ||
+        aiResult.error === "ai_disabled" ||
+        aiResult.error === "rate_limited"
+          ? aiResult.error
+          : "ai_unavailable";
+      return { ok: false as const, error: code };
     }
     let text = aiResult.content;
     text = text.replace(/^["'""]+|["'""]+$/g, "").trim();
