@@ -113,7 +113,8 @@ export const detectThreads = createServerFn({ method: "POST" })
         const userPrompt = `Readings (most recent first):\n${JSON.stringify(compact, null, 2)}`;
 
         const raw = await callClaude({
-          apiKey,
+          callType: "memory",
+          userId,
           system: THREAD_SYSTEM_PROMPT,
           user: userPrompt,
           maxTokens: 1500,
@@ -630,12 +631,12 @@ export const buildMemorySnapshot = createServerFn({ method: "POST" })
             count,
           }));
 
-        const apiKey = process.env.ANTHROPIC_API_KEY;
         let summary = "";
-        if (apiKey && rows.length > 0) {
+        if (rows.length > 0) {
           const userPrompt = `Top recurring cards: ${JSON.stringify(topCards)}\nRecent tags: ${JSON.stringify(recentTags)}\nActive threads: ${JSON.stringify(threads.map((t) => ({ summary: t.summary, status: t.status })))}\n\nWrite a brief symbolic summary of this practice.`;
           const text = await callClaude({
-            apiKey,
+            callType: "memory",
+            userId,
             system: SNAPSHOT_SYSTEM_PROMPT,
             user: userPrompt,
             maxTokens: SNAPSHOT_TOKEN_BUDGET[data.snapshot_type],
