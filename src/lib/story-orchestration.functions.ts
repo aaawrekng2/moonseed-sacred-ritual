@@ -16,6 +16,7 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getCardName } from "@/lib/tarot";
+import { callAI, isUserPremium } from "@/lib/ai-call.server";
 
 const Input = z.object({
   patternId: z.string().uuid(),
@@ -118,12 +119,6 @@ export const generateStoryOrchestration = createServerFn({ method: "POST" })
       return { ok: false, error: "insufficient_data" };
     }
 
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) {
-      console.error("[story-orchestration] LOVABLE_API_KEY missing");
-      return { ok: false, error: "ai_unavailable" };
-    }
-
     const cardNameOf = (id: number): string => {
       try {
         return getCardName(id);
@@ -183,42 +178,21 @@ export const generateStoryOrchestration = createServerFn({ method: "POST" })
       "Return ONLY JSON. No prose around it. No code fences.",
     ].join("\n");
 
-    let raw: string;
-    try {
-      const resp = await fetch(
-        "https://ai.gateway.lovable.dev/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Lovable-API-Key": apiKey,
-          },
-          body: JSON.stringify({
-            model: MODEL,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: JSON.stringify(userPayload) },
-            ],
-            response_format: { type: "json_object" },
-          }),
-        },
-      );
-      if (!resp.ok) {
-        console.error(
-          "[story-orchestration] gateway error",
-          resp.status,
-          await resp.text().catch(() => ""),
-        );
-        return { ok: false, error: "ai_unavailable" };
-      }
-      const json = (await resp.json()) as {
-        choices?: Array<{ message?: { content?: string } }>;
-      };
-      raw = json.choices?.[0]?.message?.content ?? "";
-    } catch (err) {
-      console.error("[story-orchestration] fetch failed", err);
+    const aiResult = await callAI({
+      callType: "story_orchestration",
+      provider: "lovable_ai_gateway",
+      model: MODEL,
+      userId,
+      isPremium: await isUserPremium(userId),
+      patternId: data.patternId,
+      system: systemPrompt,
+      messages: [{ role: "user", content: JSON.stringify(userPayload) }],
+      maxTokens: 4000,
+    });
+    if (!aiResult.ok) {
       return { ok: false, error: "ai_unavailable" };
     }
+    const raw = aiResult.content;
 
     let parsed: {
       story_name?: unknown;
