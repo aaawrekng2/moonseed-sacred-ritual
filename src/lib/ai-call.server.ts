@@ -204,6 +204,20 @@ async function checkQuota(
   if (!enabled) return { allowed: false, reason: "ai_disabled" };
   if (!userId) return { allowed: true };
 
+  // Q32 — admin can block AI for a specific seeker.
+  try {
+    const { data: blockedRow } = await supabaseAdmin
+      .from("user_preferences" as never)
+      .select("ai_blocked")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if ((blockedRow as { ai_blocked?: boolean } | null)?.ai_blocked) {
+      return { allowed: false, reason: "ai_disabled" };
+    }
+  } catch {
+    /* fail open on read error */
+  }
+
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { count: hourlyCount } = await supabaseAdmin
     .from("ai_call_log" as never)

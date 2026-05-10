@@ -31,11 +31,13 @@ import { Route as SettingsDecksRouteImport } from './routes/settings.decks'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
 import { Route as InsightsYearOfLunationsRouteImport } from './routes/insights.year-of-lunations'
+import { Route as AdminUsageRouteImport } from './routes/admin.usage'
 import { Route as InsightsRecapLunationStartRouteImport } from './routes/insights.recap.$lunationStart'
 import { Route as InsightsCardCardIdRouteImport } from './routes/insights.card.$cardId'
 import { Route as HelpCategoryArticleRouteImport } from './routes/help.$category.$article'
 import { Route as ApiPublicDetectWeavesRouteImport } from './routes/api/public/detect-weaves'
 import { Route as ApiPublicDetectWeavesStatusRouteImport } from './routes/api/public/detect-weaves/status'
+import { Route as AdminUsageUsersUserIdRouteImport } from './routes/admin.usage.users.$userId'
 
 const ThreadsRoute = ThreadsRouteImport.update({
   id: '/threads',
@@ -147,6 +149,11 @@ const InsightsYearOfLunationsRoute = InsightsYearOfLunationsRouteImport.update({
   path: '/year-of-lunations',
   getParentRoute: () => InsightsRoute,
 } as any)
+const AdminUsageRoute = AdminUsageRouteImport.update({
+  id: '/usage',
+  path: '/usage',
+  getParentRoute: () => AdminRoute,
+} as any)
 const InsightsRecapLunationStartRoute =
   InsightsRecapLunationStartRouteImport.update({
     id: '/recap/$lunationStart',
@@ -174,10 +181,15 @@ const ApiPublicDetectWeavesStatusRoute =
     path: '/status',
     getParentRoute: () => ApiPublicDetectWeavesRoute,
   } as any)
+const AdminUsageUsersUserIdRoute = AdminUsageUsersUserIdRouteImport.update({
+  id: '/users/$userId',
+  path: '/users/$userId',
+  getParentRoute: () => AdminUsageRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -187,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
   '/threads': typeof ThreadsRouteWithChildren
+  '/admin/usage': typeof AdminUsageRouteWithChildren
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -202,11 +215,12 @@ export interface FileRoutesByFullPath {
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
   '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
+  '/admin/usage/users/$userId': typeof AdminUsageUsersUserIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -216,6 +230,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
   '/threads': typeof ThreadsRouteWithChildren
+  '/admin/usage': typeof AdminUsageRouteWithChildren
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -231,12 +246,13 @@ export interface FileRoutesByTo {
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
   '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
+  '/admin/usage/users/$userId': typeof AdminUsageUsersUserIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -246,6 +262,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
   '/threads': typeof ThreadsRouteWithChildren
+  '/admin/usage': typeof AdminUsageRouteWithChildren
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -261,6 +278,7 @@ export interface FileRoutesById {
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
   '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
+  '/admin/usage/users/$userId': typeof AdminUsageUsersUserIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
 }
 export interface FileRouteTypes {
@@ -277,6 +295,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stories'
     | '/threads'
+    | '/admin/usage'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -292,6 +311,7 @@ export interface FileRouteTypes {
     | '/help/$category/$article'
     | '/insights/card/$cardId'
     | '/insights/recap/$lunationStart'
+    | '/admin/usage/users/$userId'
     | '/api/public/detect-weaves/status'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -306,6 +326,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stories'
     | '/threads'
+    | '/admin/usage'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -321,6 +342,7 @@ export interface FileRouteTypes {
     | '/help/$category/$article'
     | '/insights/card/$cardId'
     | '/insights/recap/$lunationStart'
+    | '/admin/usage/users/$userId'
     | '/api/public/detect-weaves/status'
   id:
     | '__root__'
@@ -335,6 +357,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/stories'
     | '/threads'
+    | '/admin/usage'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -350,12 +373,13 @@ export interface FileRouteTypes {
     | '/help/$category/$article'
     | '/insights/card/$cardId'
     | '/insights/recap/$lunationStart'
+    | '/admin/usage/users/$userId'
     | '/api/public/detect-weaves/status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
+  AdminRoute: typeof AdminRouteWithChildren
   DrawRoute: typeof DrawRoute
   GuidesRoute: typeof GuidesRoute
   HelpRoute: typeof HelpRouteWithChildren
@@ -524,6 +548,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InsightsYearOfLunationsRouteImport
       parentRoute: typeof InsightsRoute
     }
+    '/admin/usage': {
+      id: '/admin/usage'
+      path: '/usage'
+      fullPath: '/admin/usage'
+      preLoaderRoute: typeof AdminUsageRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/insights/recap/$lunationStart': {
       id: '/insights/recap/$lunationStart'
       path: '/recap/$lunationStart'
@@ -559,8 +590,37 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicDetectWeavesStatusRouteImport
       parentRoute: typeof ApiPublicDetectWeavesRoute
     }
+    '/admin/usage/users/$userId': {
+      id: '/admin/usage/users/$userId'
+      path: '/users/$userId'
+      fullPath: '/admin/usage/users/$userId'
+      preLoaderRoute: typeof AdminUsageUsersUserIdRouteImport
+      parentRoute: typeof AdminUsageRoute
+    }
   }
 }
+
+interface AdminUsageRouteChildren {
+  AdminUsageUsersUserIdRoute: typeof AdminUsageUsersUserIdRoute
+}
+
+const AdminUsageRouteChildren: AdminUsageRouteChildren = {
+  AdminUsageUsersUserIdRoute: AdminUsageUsersUserIdRoute,
+}
+
+const AdminUsageRouteWithChildren = AdminUsageRoute._addFileChildren(
+  AdminUsageRouteChildren,
+)
+
+interface AdminRouteChildren {
+  AdminUsageRoute: typeof AdminUsageRouteWithChildren
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminUsageRoute: AdminUsageRouteWithChildren,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface HelpRouteChildren {
   HelpCategoryArticleRoute: typeof HelpCategoryArticleRoute
@@ -651,7 +711,7 @@ const ApiPublicDetectWeavesRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
+  AdminRoute: AdminRouteWithChildren,
   DrawRoute: DrawRoute,
   GuidesRoute: GuidesRoute,
   HelpRoute: HelpRouteWithChildren,
