@@ -8,7 +8,6 @@ import {
   RotateCw,
   UserRound,
   Wand2,
-  X,
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useSavedThemes } from "@/lib/use-saved-themes";
@@ -121,6 +120,40 @@ export function FloatingMenu() {
       mountedRef.current = true;
     }, 500);
     return () => window.clearTimeout(t);
+  }, []);
+
+  // Q33 Fix 5 — Path B: long-press anywhere on the page background opens
+  // the menu. The ··· trigger and the X close button are gone.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let timer: number | null = null;
+    const cancel = () => {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+    };
+    const onDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest?.("button, input, a, [role=button], [data-no-peek]")) return;
+      cancel();
+      timer = window.setTimeout(() => {
+        openMenu();
+        timer = null;
+      }, 500);
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("pointerup", cancel);
+    document.addEventListener("pointermove", cancel);
+    document.addEventListener("pointercancel", cancel);
+    return () => {
+      cancel();
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("pointerup", cancel);
+      document.removeEventListener("pointermove", cancel);
+      document.removeEventListener("pointercancel", cancel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const openMenu = () => {
@@ -242,35 +275,6 @@ export function FloatingMenu() {
         zIndex: "var(--z-modal-nested)",
       }}
     >
-      <button
-        type="button"
-        aria-label="Open menu"
-        onClick={openMenu}
-        style={{
-          opacity: open ? 0 : "var(--ro-plus-0)",
-          pointerEvents: open ? "none" : "auto",
-          transition: "opacity 400ms ease",
-          background: "transparent",
-          border: "none",
-          color: "var(--gold)",
-          fontSize: "var(--text-heading-md)",
-          letterSpacing: 2,
-          height: 32,
-          minWidth: 32,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          padding: 0,
-          lineHeight: 1,
-          position: "absolute",
-          top: 0,
-          right: 0,
-        }}
-      >
-        ···
-      </button>
-
       <div
         ref={pillRef}
         style={{
@@ -394,30 +398,6 @@ export function FloatingMenu() {
               <UserRound size={13} strokeWidth={1.5} />
             )}
           </button>
-
-          {(shareBuilderClose || closeHandler) && (
-            <MenuButton
-              onClick={() => {
-                console.log("[menu] X clicked", {
-                  hasShareBuilder: !!shareBuilderClose,
-                  hasCloseHandler: !!closeHandler,
-                });
-                resetTimer();
-                // If a ShareBuilder is open, dismiss only the builder
-                // — keep the underlying reading intact. Falls back to
-                // the screen-level close handler when no builder is
-                // mounted.
-                if (shareBuilderClose) {
-                  shareBuilderClose();
-                  return;
-                }
-                closeHandler?.();
-              }}
-              ariaLabel="Close"
-            >
-              <X size={17} strokeWidth={1.5} />
-            </MenuButton>
-          )}
 
           {isAdmin && (
             <MenuButton

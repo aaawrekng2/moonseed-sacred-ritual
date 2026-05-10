@@ -59,7 +59,7 @@ export type StoryOrchestrationResult =
   | { ok: true; cached: boolean; pattern: {} }
   | {
       ok: false;
-      error: "not_found" | "forbidden" | "insufficient_data" | "ai_unavailable";
+      error: "not_found" | "forbidden" | "insufficient_data" | "ai_unavailable" | "quota_exceeded";
       cached?: undefined;
       pattern?: undefined;
     };
@@ -190,6 +190,9 @@ export const generateStoryOrchestration = createServerFn({ method: "POST" })
       maxTokens: 4000,
     });
     if (!aiResult.ok) {
+      if (aiResult.error === "quota_exceeded" || aiResult.error === "rate_limited") {
+        return { ok: false, error: "quota_exceeded" as const };
+      }
       return { ok: false, error: "ai_unavailable" };
     }
     const raw = aiResult.content;

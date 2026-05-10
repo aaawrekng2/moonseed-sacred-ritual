@@ -5,7 +5,7 @@
  * doorway, the limit overlay, the four sequential lens reveals, and
  * the mirror-artifact save action.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import {
@@ -30,6 +30,8 @@ import { isValidSpreadMode, SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { getGuideById } from "@/lib/guides";
 import { HelpIcon } from "@/components/help/HelpIcon";
 import { publishMistLevel } from "@/components/dev/DevOverlay";
+import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
+import { usePremium } from "@/lib/premium";
 
 type Props = {
   readingId: string;
@@ -64,6 +66,7 @@ export function DeepReadingPanel({
   initialMirrorSaved,
 }: Props) {
   const { user } = useAuth();
+  const { isPremium } = usePremium(user?.id);
   const [mist, setMist] = useState<MistState>({
     level: 0,
     whisper: "The cards are listening.",
@@ -257,15 +260,6 @@ export function DeepReadingPanel({
     }
   };
 
-  const dawnLabel = useMemo(() => {
-    if (flow.kind !== "limit") return "";
-    const d = new Date(flow.nextDawn);
-    return d.toLocaleTimeString(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  }, [flow]);
-
   if (flow.kind === "mist") {
     return (
       <DeepReadingMist
@@ -297,24 +291,11 @@ export function DeepReadingPanel({
           onTap={() => {}}
           disabled
         />
-        <div className="deep-limit">
-          <p className="deep-limit__line">
-            {mist.patternTeaser ||
-              "The cards are listening. Keep drawing and the deeper patterns will begin to speak."}
-          </p>
-          <p className="deep-limit__dawn">
-            The dawn of your new day is at {dawnLabel}. Return for renewal.
-          </p>
-          <button
-            type="button"
-            className="deep-limit__upgrade"
-            onClick={() => {
-              window.dispatchEvent(new CustomEvent("moonseed:open-premium"));
-            }}
-          >
-            Or continue without waiting.
-          </button>
-        </div>
+        <AiQuotaBlock
+          resetAt={flow.nextDawn}
+          isPremium={isPremium}
+          onUpgrade={() => window.dispatchEvent(new CustomEvent("moonseed:open-premium"))}
+        />
       </>
     );
   }

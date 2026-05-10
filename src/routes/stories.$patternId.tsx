@@ -48,6 +48,7 @@ import {
   generateStoryOrchestration,
   resubmitStoryToAi,
 } from "@/lib/story-orchestration.functions";
+import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
 
 const VIEWPORT_STORAGE_PREFIX = "weave-viewport:";
 
@@ -113,12 +114,14 @@ export const Route = createFileRoute("/stories/$patternId")({
 function PatternChamber() {
   const { patternId } = Route.useParams();
   const { user } = useAuth();
+  const { isPremium: chamberIsPremium } = usePremium(user?.id);
   const navigate = useNavigate();
   const confirm = useConfirm();
   const [pattern, setPattern] = useState<Pattern | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOrchestrationInFlight, setIsOrchestrationInFlight] = useState(false);
   const [isResubmitting, setIsResubmitting] = useState(false);
+  const [storyQuotaBlocked, setStoryQuotaBlocked] = useState(false);
   const orchestrateFn = useServerFn(generateStoryOrchestration);
   const resubmitFn = useServerFn(resubmitStoryToAi);
   const [editing, setEditing] = useState(false);
@@ -266,6 +269,9 @@ function PatternChamber() {
         if (cancelled) return;
         if (res?.ok && !res.cached && res.pattern) {
           setPattern((prev) => (prev ? { ...prev, ...(res.pattern as Pattern) } : prev));
+        }
+        if (!res?.ok && (res as { error?: string })?.error === "quota_exceeded") {
+          setStoryQuotaBlocked(true);
         }
       } catch (err) {
         console.error("[story] orchestration failed", err);
@@ -471,6 +477,11 @@ function PatternChamber() {
         hasNote={!!(pattern.description && pattern.description.trim())}
         noteOpen={noteOpen}
       />
+      {storyQuotaBlocked && (
+        <div style={{ margin: "var(--space-4, 16px) 0" }}>
+          <AiQuotaBlock resetAt={null} isPremium={chamberIsPremium} />
+        </div>
+      )}
       <StatsRibbon
         readingCount={pattern.reading_ids.length}
         recurringCardCount={

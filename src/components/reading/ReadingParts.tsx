@@ -40,6 +40,7 @@ import {
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
 import type { ShareLevel } from "@/components/share/share-types";
+import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
 
 type Pick = {
   id: number;
@@ -380,16 +381,7 @@ export function InlineReading({
           </>
         )}
         {state.kind === "limit" && (
-          <LimitMessage
-            onExit={onExit}
-            isOracle={isOracle}
-            onSubmitAnyway={() => {
-              overrideRef.current = true;
-              startedRef.current = false;
-              setState({ kind: "loading" });
-              setRetryNonce((n) => n + 1);
-            }}
-          />
+          <AiQuotaBlock resetAt={null} isPremium={isPremium} />
         )}
         {state.kind === "error" && (
           <ErrorMessage
@@ -1262,60 +1254,6 @@ function TextSizeSlider({
 /* ---------------------------------------------------------------------- */
 /*  Limit / error states                                                  */
 /* ---------------------------------------------------------------------- */
-
-function LimitMessage({
-  onExit,
-  isOracle,
-  onSubmitAnyway,
-}: {
-  onExit: () => void;
-  isOracle: boolean;
-  onSubmitAnyway: () => void;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-5 py-6 text-center">
-      <p
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-body)",
-          lineHeight: 1.6,
-          color: "color-mix(in oklab, var(--foreground) 85%, transparent)",
-          maxWidth: 320,
-        }}
-      >
-        {isOracle
-          ? "You have drawn once today. The cards rest until tomorrow."
-          : "You\u2019ve completed your reading for today. Return tomorrow for more guidance."}
-      </p>
-      <button
-        type="button"
-        onClick={onExit}
-        className="rounded-full border border-gold/40 bg-gold/10 px-7 py-3 font-display text-xs uppercase tracking-[0.3em] text-gold transition-colors hover:bg-gold/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-      >
-        Done
-      </button>
-      <button
-        type="button"
-        onClick={onSubmitAnyway}
-        style={{
-          background: "transparent",
-          border: "none",
-          padding: "4px 8px",
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-body-sm)",
-          color: "var(--gold)",
-          opacity: "var(--ro-plus-10)",
-          cursor: "pointer",
-        }}
-        className="hover:!opacity-100 focus:!opacity-100 focus:outline-none"
-      >
-        Submit Anyway
-      </button>
-    </div>
-  );
-}
 
 function ErrorMessage({
   message,

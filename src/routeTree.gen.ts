@@ -20,8 +20,10 @@ import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as DrawRouteImport } from './routes/draw'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ThreadsPatternIdRouteImport } from './routes/threads.$patternId'
 import { Route as StoriesPatternIdRouteImport } from './routes/stories.$patternId'
+import { Route as SettingsUsageRouteImport } from './routes/settings.usage'
 import { Route as SettingsThemesRouteImport } from './routes/settings.themes'
 import { Route as SettingsProfileRouteImport } from './routes/settings.profile'
 import { Route as SettingsPreferencesRouteImport } from './routes/settings.preferences'
@@ -94,6 +96,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
 const ThreadsPatternIdRoute = ThreadsPatternIdRouteImport.update({
   id: '/$patternId',
   path: '/$patternId',
@@ -103,6 +110,11 @@ const StoriesPatternIdRoute = StoriesPatternIdRouteImport.update({
   id: '/$patternId',
   path: '/$patternId',
   getParentRoute: () => StoriesRoute,
+} as any)
+const SettingsUsageRoute = SettingsUsageRouteImport.update({
+  id: '/usage',
+  path: '/usage',
+  getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsThemesRoute = SettingsThemesRouteImport.update({
   id: '/themes',
@@ -209,8 +221,10 @@ export interface FileRoutesByFullPath {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
+  '/settings/usage': typeof SettingsUsageRoute
   '/stories/$patternId': typeof StoriesPatternIdRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -220,7 +234,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -240,8 +253,10 @@ export interface FileRoutesByTo {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
+  '/settings/usage': typeof SettingsUsageRoute
   '/stories/$patternId': typeof StoriesPatternIdRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
+  '/admin': typeof AdminIndexRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -272,8 +287,10 @@ export interface FileRoutesById {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
+  '/settings/usage': typeof SettingsUsageRoute
   '/stories/$patternId': typeof StoriesPatternIdRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -305,8 +322,10 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
+    | '/settings/usage'
     | '/stories/$patternId'
     | '/threads/$patternId'
+    | '/admin/'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -316,7 +335,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
     | '/draw'
     | '/guides'
     | '/help'
@@ -336,8 +354,10 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
+    | '/settings/usage'
     | '/stories/$patternId'
     | '/threads/$patternId'
+    | '/admin'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -367,8 +387,10 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
+    | '/settings/usage'
     | '/stories/$patternId'
     | '/threads/$patternId'
+    | '/admin/'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -471,6 +493,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/threads/$patternId': {
       id: '/threads/$patternId'
       path: '/$patternId'
@@ -484,6 +513,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/stories/$patternId'
       preLoaderRoute: typeof StoriesPatternIdRouteImport
       parentRoute: typeof StoriesRoute
+    }
+    '/settings/usage': {
+      id: '/settings/usage'
+      path: '/usage'
+      fullPath: '/settings/usage'
+      preLoaderRoute: typeof SettingsUsageRouteImport
+      parentRoute: typeof SettingsRoute
     }
     '/settings/themes': {
       id: '/settings/themes'
@@ -614,10 +650,12 @@ const AdminUsageRouteWithChildren = AdminUsageRoute._addFileChildren(
 
 interface AdminRouteChildren {
   AdminUsageRoute: typeof AdminUsageRouteWithChildren
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminUsageRoute: AdminUsageRouteWithChildren,
+  AdminIndexRoute: AdminIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
@@ -657,6 +695,7 @@ interface SettingsRouteChildren {
   SettingsPreferencesRoute: typeof SettingsPreferencesRoute
   SettingsProfileRoute: typeof SettingsProfileRoute
   SettingsThemesRoute: typeof SettingsThemesRoute
+  SettingsUsageRoute: typeof SettingsUsageRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
@@ -668,6 +707,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsPreferencesRoute: SettingsPreferencesRoute,
   SettingsProfileRoute: SettingsProfileRoute,
   SettingsThemesRoute: SettingsThemesRoute,
+  SettingsUsageRoute: SettingsUsageRoute,
 }
 
 const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
