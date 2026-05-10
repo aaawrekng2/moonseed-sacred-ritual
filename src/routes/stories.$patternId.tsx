@@ -1842,13 +1842,13 @@ function _ChamberTimeline({
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: "var(--text-heading-md)",
+          fontSize: "var(--text-heading-md, 17px)",
           color: "var(--color-foreground)",
-          opacity: 0.85,
+          opacity: 0.6,
           marginBottom: "var(--space-4, 16px)",
         }}
       >
-        The readings in this story
+        the readings
       </h2>
       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
         {rows.map((r) => (
@@ -1863,6 +1863,7 @@ function _ChamberTimeline({
               reading={r}
               onOpen={onOpenReading}
               connector={
+                perReadingRoles?.[r.id]?.role ??
                 readingConnections?.find((c) => c.readingId === r.id)?.connector
               }
             />
