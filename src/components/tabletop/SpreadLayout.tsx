@@ -162,9 +162,9 @@ export function SpreadLayout({
         style={{
           paddingTop:
             spread === "celtic"
-              ? "calc(var(--topbar-pad) + 16px)"
-              : "calc(var(--topbar-pad) + 48px)",
-          paddingBottom: "32px",
+              ? "calc(var(--topbar-pad) + 48px)"
+              : "calc(var(--topbar-pad) + 80px)",
+          paddingBottom: "48px",
         }}
       >
         <SpreadContent
