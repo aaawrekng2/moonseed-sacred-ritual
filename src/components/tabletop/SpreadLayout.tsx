@@ -11,6 +11,7 @@ import {
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
+import { responsiveSlotWidth, TABLETOP_CONFIG } from "@/components/tabletop/config";
 import { cn } from "@/lib/utils";
 import { InlineReading } from "@/components/reading/ReadingParts";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -313,6 +314,48 @@ function SpreadContent({
     );
   }
   if (spread === "custom") {
+    const count = picks.length;
+    // Q25 Fix 5 — for 5+ cards, use the Celtic single-row responsive
+    // formula so the row always fits any viewport with no wrap.
+    if (count >= 5) {
+      const viewportW = typeof window !== "undefined" ? window.innerWidth : 380;
+      const slotW = responsiveSlotWidth(viewportW, count);
+      const slotH = Math.round(slotW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
+      const gap = count >= 10 ? 4 : 8;
+      return (
+        <div
+          className="flex items-end justify-center w-full max-w-full"
+          style={{ gap }}
+        >
+          {picks.map((pick, i) => (
+            <div key={pick.id} className="flex flex-col items-center gap-1 min-w-0">
+              <CardFace
+                pick={pick}
+                cardBack={cardBack}
+                revealed={!!revealedFlags[i]}
+                isNext={nextIndex === i}
+                isWrong={wrongIndex === i}
+                onTap={() => onTap(i)}
+                sizing={{ w: slotW, h: slotH }}
+                emergeDelayMs={i * 80}
+                isRevealPhase={isRevealPhase}
+                onZoom={onZoom}
+              />
+              {showLabels && (
+                <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
+              )}
+              {showLabels && revealedFlags[i] && (
+                <CardNameLabel
+                  cardIndex={pick.cardIndex}
+                  isReversed={!!pick.isReversed}
+                  cardWidth={slotW}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+      );
+    }
     return (
       <div className="flex flex-wrap items-start justify-center gap-4">
         {picks.map((pick, i) => (
