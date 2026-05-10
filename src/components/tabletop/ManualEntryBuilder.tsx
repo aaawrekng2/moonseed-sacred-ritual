@@ -10,7 +10,7 @@
  * resulting reading is visually identical (Fix 9).
  */
 import { useState } from "react";
-import { X, RotateCw } from "lucide-react";
+import { X } from "lucide-react";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { ManualSpreadSlots } from "@/components/tabletop/SpreadLayout";
