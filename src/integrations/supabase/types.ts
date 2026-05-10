@@ -792,6 +792,7 @@ export type Database = {
           show_labels: boolean
           show_question_prompt: boolean
           show_reversals: boolean
+          spread_entry_modes: Json
           subscription_type: string
           sun_sign: string | null
           tarotpulse_import_done: boolean
@@ -856,6 +857,7 @@ export type Database = {
           show_labels?: boolean
           show_question_prompt?: boolean
           show_reversals?: boolean
+          spread_entry_modes?: Json
           subscription_type?: string
           sun_sign?: string | null
           tarotpulse_import_done?: boolean
@@ -920,6 +922,7 @@ export type Database = {
           show_labels?: boolean
           show_question_prompt?: boolean
           show_reversals?: boolean
+          spread_entry_modes?: Json
           subscription_type?: string
           sun_sign?: string | null
           tarotpulse_import_done?: boolean
