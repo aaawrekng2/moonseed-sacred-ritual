@@ -424,10 +424,41 @@ export async function buildDeckImageMap(
 export function resolveCardImage(
   cardIndex: number,
   map: DeckImageMap | null | undefined,
-  size: "display" | "thumbnail" = "display",
+  size: "display" | "thumbnail" | "sm" | "md" | "full" = "display",
 ): string | null {
-  const override = map ? map[size][cardIndex] : undefined;
-  if (override) return override;
+  if (map) {
+    const v = map.variants[cardIndex];
+    if (v) {
+      // Q28 — resolve in priority order; fall through to nearby tiers
+      // when the exact one isn't generated yet.
+      let picked: string | undefined;
+      switch (size) {
+        case "sm":
+          picked = v.sm ?? v.thumbnail ?? v.md ?? v.full ?? v.display;
+          break;
+        case "md":
+          picked = v.md ?? v.full ?? v.display ?? v.sm ?? v.thumbnail;
+          break;
+        case "full":
+          picked = v.full ?? v.display ?? v.md ?? v.sm ?? v.thumbnail;
+          break;
+        case "thumbnail":
+          picked = v.thumbnail ?? v.sm ?? v.md ?? v.full ?? v.display;
+          break;
+        case "display":
+        default:
+          picked = v.display ?? v.full ?? v.md ?? v.sm ?? v.thumbnail;
+          break;
+      }
+      if (picked) return picked;
+    }
+    // Legacy fallback for callers reading the old maps.
+    const legacy =
+      size === "thumbnail" || size === "sm"
+        ? map.thumbnail[cardIndex]
+        : map.display[cardIndex];
+    if (legacy) return legacy;
+  }
   // 26-05-08-Q6 — Fix 1: return null (was "") for oracle ids without a
   // map entry. Empty string broke `??` fallback chains in CardImage and
   // share-card-shared because "" is not nullish — so when both specific
