@@ -484,3 +484,59 @@ export async function isUserPremium(userId: string | null | undefined): Promise<
     return false;
   }
 }
+
+/**
+ * Q31 — convenience wrapper for callers that want the legacy Anthropic
+ * model fallback chain (sonnet-4-6 → sonnet-4-5 → haiku-4-5). Each
+ * tried model produces an independent ai_call_log row so accounting
+ * stays accurate when the first model 404s.
+ */
+export async function callAnthropicWithFallback(opts: {
+  callType: AICallType;
+  userId: string | null;
+  isPremium?: boolean;
+  readingId?: string | null;
+  patternId?: string | null;
+  system: string;
+  user: string;
+  maxTokens: number;
+  models?: string[];
+}): Promise<{ ok: true; content: string } | { ok: false; error: CallAIFailure["error"] }> {
+  const models = opts.models ?? [
+    "claude-sonnet-4-6",
+    "claude-sonnet-4-5-20250929",
+    "claude-haiku-4-5-20251001",
+  ];
+  let lastErr: CallAIFailure["error"] = "ai_unavailable";
+  for (const model of models) {
+    const r = await callAI({
+      callType: opts.callType,
+      provider: "anthropic",
+      model,
+      userId: opts.userId,
+      isPremium: opts.isPremium,
+      readingId: opts.readingId,
+      patternId: opts.patternId,
+      system: opts.system,
+      messages: [{ role: "user", content: opts.user }],
+      maxTokens: opts.maxTokens,
+    });
+    if (r.ok && r.content) return { ok: true, content: r.content };
+    if (!r.ok) {
+      lastErr = r.error;
+      // Quota/rate/disabled: stop fast — no point trying other models.
+      if (
+        r.error === "quota_exceeded" ||
+        r.error === "rate_limited" ||
+        r.error === "ai_disabled"
+      ) {
+        return { ok: false, error: r.error };
+      }
+      // 404/410-style "model not found" → try next model.
+      if (r.status === 404 || r.status === 410) continue;
+      // Any other provider/app error: bail.
+      return { ok: false, error: r.error };
+    }
+  }
+  return { ok: false, error: lastErr };
+}
