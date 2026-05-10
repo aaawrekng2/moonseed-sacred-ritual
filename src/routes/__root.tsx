@@ -6,7 +6,8 @@ import { BottomNav } from "@/components/nav/BottomNav";
 import { useAuth } from "@/lib/auth";
 import { usePreferencesSync } from "@/lib/use-preferences-sync";
 import { OracleModeProvider } from "@/lib/use-oracle-mode";
-import { useTapToPeek } from "@/lib/use-tap-to-peek";
+// Q24 Fix 1 — useTapToPeek is dormant; Clarity feature was dropped, and
+// "tap empty space → menu opens" is no longer desired UX.
 import { usePWA } from "@/lib/use-pwa";
 import { FloatingMenu } from "@/components/nav/FloatingMenu";
 import { FloatingMenuProvider } from "@/lib/floating-menu-context";
