@@ -5,6 +5,9 @@ import {
   generatePatternInterpretation,
   type PatternInterpretation,
 } from "@/lib/pattern-interpretation.functions";
+import { generateCardEvidenceProse } from "@/lib/card-evidence.functions";
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { usePremium } from "@/lib/premium";
 import { ChevronLeft, Pencil, Archive, StickyNote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
