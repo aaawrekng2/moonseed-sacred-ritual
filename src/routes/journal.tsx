@@ -1142,7 +1142,7 @@ function ReadingCard({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                navigate({ to: "/threads", search: { focus: reading.pattern_id! } });
+                navigate({ to: "/stories", search: { focus: reading.pattern_id! } });
               }}
               aria-label="In Story"
               title={`View Story: ${patternsById[reading.pattern_id].name}`}
@@ -1626,7 +1626,7 @@ function ThreadsView({
         return (
           <Link
             key={pid}
-            to="/threads/$patternId"
+            to="/stories/$patternId"
             params={{ patternId: pid }}
             style={{
               display: "block",

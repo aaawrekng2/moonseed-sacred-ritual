@@ -81,7 +81,7 @@ export const Route = createFileRoute("/stories/$patternId")({
       <button
         type="button"
         onClick={() => {
-          if (typeof window !== "undefined") window.location.href = "/threads";
+          if (typeof window !== "undefined") window.location.href = "/stories";
         }}
         style={{
           marginTop: 16,
@@ -327,7 +327,7 @@ function PatternChamber() {
       >
       <button
         type="button"
-        onClick={() => void navigate({ to: "/threads" })}
+        onClick={() => void navigate({ to: "/stories" })}
         style={{
           background: "none",
           border: "none",
@@ -2223,7 +2223,7 @@ function ChamberWeaveGraph({
               const sid = node.id.slice(2);
               if (focusId === sid) {
                 void navigate({
-                  to: "/threads/$patternId",
+                  to: "/stories/$patternId",
                   params: { patternId: sid },
                 });
               } else {
@@ -2241,7 +2241,7 @@ function ChamberWeaveGraph({
             if (node.id.startsWith("p:") && node.id !== `p:${pattern.id}`) {
               const sid = node.id.slice(2);
               void navigate({
-                to: "/threads/$patternId",
+                to: "/stories/$patternId",
                 params: { patternId: sid },
               });
             }

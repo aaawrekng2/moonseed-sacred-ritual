@@ -1090,11 +1090,11 @@ function StoryMembershipIcon({
   const goToStory = () => {
     if (memberOf.length === 1) {
       void navigate({
-        to: "/threads/$patternId",
+        to: "/stories/$patternId",
         params: { patternId: memberOf[0].id },
       });
     } else {
-      void navigate({ to: "/threads" });
+      void navigate({ to: "/stories" });
     }
   };
 
@@ -1612,7 +1612,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
           This reading aligns with your{" "}
         </span>
         <Link
-          to="/threads"
+          to="/stories"
           search={{ focus: pattern.id }}
           title={`Open the ${pattern.name} Story`}
           aria-label={`Open the ${pattern.name} Story`}
@@ -1757,7 +1757,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
       >
         <span>This is your Story: </span>
         <Link
-          to="/threads/$patternId"
+          to="/stories/$patternId"
           params={{ patternId: s.id }}
           style={{
             color: "var(--accent, var(--gold))",

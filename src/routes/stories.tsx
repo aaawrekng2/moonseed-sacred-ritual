@@ -66,7 +66,7 @@ type View = "active" | "weaves" | "archive";
 function ThreadsLayout() {
   const matches = useMatches();
   const hasChildRoute = matches.some(
-    (m) => m.routeId !== "/threads" && m.routeId.startsWith("/threads"),
+    (m) => m.routeId !== "/stories" && m.routeId.startsWith("/stories"),
   );
   if (hasChildRoute) return <Outlet />;
   return <ThreadsPage />;
@@ -145,7 +145,7 @@ function ThreadsPage() {
     if (view !== "active") return;
     if (active.length === 1) {
       void navigate({
-        to: "/threads/$patternId",
+        to: "/stories/$patternId",
         params: { patternId: active[0].id },
         replace: true,
       });
@@ -307,7 +307,7 @@ function PatternRow({
   const count = readingCount || pattern.reading_ids.length;
   return (
     <Link
-      to="/threads/$patternId"
+      to="/stories/$patternId"
       params={{ patternId: pattern.id }}
       style={{
         display: "flex",

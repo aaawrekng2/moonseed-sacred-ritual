@@ -7,7 +7,7 @@ import { usePatternsCount } from "@/lib/patterns";
 import { useEffect, useState } from "react";
 
 type Tab = {
-  to: "/" | "/journal" | "/settings" | "/threads" | "/insights";
+  to: "/" | "/journal" | "/settings" | "/stories" | "/insights";
   label: string;
   Icon: LucideIcon;
   primary?: boolean;
@@ -22,7 +22,7 @@ const BASE_TABS: readonly Tab[] = [
   { to: "/settings", label: "Settings", Icon: SlidersHorizontal },
 ] as const;
 
-const THREADS_TAB: Tab = { to: "/threads", label: "Stories", Icon: Network };
+const THREADS_TAB: Tab = { to: "/stories", label: "Stories", Icon: Network };
 
 export function BottomNav() {
   const location = useLocation();
@@ -83,7 +83,7 @@ export function BottomNav() {
           const tabAlpha = active
             ? "var(--ro-plus-10)"
             : "var(--ro-plus-0)";
-          const isThreadsTab = to === "/threads";
+          const isThreadsTab = to === "/stories";
           return (
             <li
               key={to}
