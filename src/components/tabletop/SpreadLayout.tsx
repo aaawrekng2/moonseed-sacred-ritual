@@ -904,6 +904,8 @@ export function ManualSpreadSlots({
   onSlotTap,
   showLabels = true,
   customCount,
+  onSlotReorder,
+  ambiguousSlots,
 }: {
   spread: SpreadMode;
   picks: ManualSlotPick[];
@@ -911,6 +913,10 @@ export function ManualSpreadSlots({
   showLabels?: boolean;
   /** 9-6-O — used when spread === "custom". */
   customCount?: number;
+  /** Q17 Fix 2 — drag/drop reorder. fromIdx may equal toIdx (no-op). */
+  onSlotReorder?: (fromIdx: number, toIdx: number) => void;
+  /** Q17 Fix 1 — slots filled via paste with ambiguous match. */
+  ambiguousSlots?: number[];
 }) {
   const meta = SPREAD_META[spread];
   const labels = meta.positions ?? meta.positionsShort ?? [];
@@ -975,16 +981,37 @@ export function ManualSpreadSlots({
   const Slot = ({ pick, slotIndex, rotated }: { pick: ManualSlotPick; slotIndex: number; rotated?: boolean }) => {
     const aspect = pick ? pickAspects[slotIndex] ?? defaultAspect : defaultAspect;
     const height = pick ? Math.round(sizing.w / aspect) : sizing.h;
+    const isAmbiguous = ambiguousSlots?.includes(slotIndex);
     return (
       <button
         type="button"
         onClick={() => onSlotTap(slotIndex)}
+        draggable={!!pick && !!onSlotReorder}
+        onDragStart={(e) => {
+          if (!pick || !onSlotReorder) return;
+          e.dataTransfer.setData("text/plain", String(slotIndex));
+          e.dataTransfer.effectAllowed = "move";
+        }}
+        onDragOver={(e) => {
+          if (!onSlotReorder) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+        }}
+        onDrop={(e) => {
+          if (!onSlotReorder) return;
+          e.preventDefault();
+          const raw = e.dataTransfer.getData("text/plain");
+          const fromIdx = parseInt(raw, 10);
+          if (Number.isNaN(fromIdx) || fromIdx === slotIndex) return;
+          onSlotReorder(fromIdx, slotIndex);
+        }}
         aria-label={pick ? `Replace ${nameForPick(pick)}` : `Pick card for ${labels[slotIndex] ?? `position ${slotIndex + 1}`}`}
         className={cn(
           "relative transition active:scale-[0.98]",
           pick
             ? "overflow-hidden"
             : "border-2 border-dashed border-foreground/25 bg-foreground/[0.04] hover:border-gold/50 hover:bg-gold/5",
+          isAmbiguous && "ring-2 ring-yellow-400/70",
         )}
         style={{
           width: sizing.w,
