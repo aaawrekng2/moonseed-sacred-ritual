@@ -1014,49 +1014,68 @@ export function Tabletop({
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-cosmos">
-      {/* Q19 — Unified entry-mode toggle replaces the legacy
-          "Manual entry" pill. Owned by draw.tsx; we render only when
-          the parent supplied an onSwitchToManual callback. */}
-      {onSwitchToManual && (
-        <EntryModeToggle
-          ref={entryToggleRef}
-          current="table"
-          onToggle={onSwitchToManual}
-        />
-      )}
+      {/* Q20 Fix 4 — Unified header strip: toggle (left) + stepper
+          (centered) on the same row. */}
+      <div
+        style={{
+          position: "absolute",
+          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          left: 0,
+          right: 0,
+          zIndex: 50,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          pointerEvents: "none",
+        }}
+      >
+        <div style={{ pointerEvents: "auto", paddingLeft: 16 }}>
+          {onSwitchToManual && (
+            <EntryModeToggle
+              ref={entryToggleRef}
+              current="table"
+              onToggle={onSwitchToManual}
+            />
+          )}
+        </div>
+        <div
+          style={{
+            pointerEvents: "auto",
+            flex: 1,
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          {spread === "custom" && customCount && onCustomCountChange && (
+            <CustomCountStepper
+              ref={stepperRef}
+              count={customCount}
+              onChange={onCustomCountChange}
+            />
+          )}
+        </div>
+        {/* Right spacer balances FloatingMenu hit area. */}
+        <div style={{ pointerEvents: "none", paddingRight: 56 }} />
+      </div>
       {showEntryHint && onSwitchToManual && (
         <Hint
           hintId="entry_mode_toggle"
-          text="Drew physical cards already? Tap here to enter them by name."
+          text={'Drew elsewhere? Tap "Type" to record cards you already drew.'}
           anchorRef={entryToggleRef}
           position="bottom"
           pointerAlign="start"
           onDismiss={() => setShowEntryHint(false)}
         />
       )}
-      {/* Q19 — Custom-count stepper sits centered under the safe-area
-          inset, only on the custom spread when the parent wires the
-          callback. */}
-      {spread === "custom" && customCount && onCustomCountChange && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(env(safe-area-inset-top, 0px) + 8px)",
-            left: 0,
-            right: 0,
-            zIndex: 49,
-            display: "flex",
-            justifyContent: "center",
-            pointerEvents: "none",
-          }}
-        >
-          <div style={{ pointerEvents: "auto" }}>
-            <CustomCountStepper
-              count={customCount}
-              onChange={onCustomCountChange}
-            />
-          </div>
-        </div>
+      {showCountHint && spread === "custom" && onCustomCountChange && (
+        <Hint
+          hintId="custom_count_stepper"
+          text="Pick how many cards. Tap the chevrons to change how many cards you draw."
+          anchorRef={stepperRef}
+          position="bottom"
+          pointerAlign="center"
+          onDismiss={() => setShowCountHint(false)}
+        />
       )}
 
       {/* Undo / Redo moved into the upper-right cluster below so all
