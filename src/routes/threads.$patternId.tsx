@@ -5,6 +5,9 @@ import {
   generatePatternInterpretation,
   type PatternInterpretation,
 } from "@/lib/pattern-interpretation.functions";
+import { generateCardEvidenceProse } from "@/lib/card-evidence.functions";
+import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { usePremium } from "@/lib/premium";
 import { ChevronLeft, Pencil, Archive, StickyNote } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -844,43 +847,139 @@ function ChamberCardEvidence({
   patternId: string;
   userId: string | undefined;
 }) {
-  const [threads, setThreads] = useState<
-    Array<{
-      id: string;
-      summary: string;
-      card_ids: number[];
-      recurrence_count: number;
-      title: string | null;
-    }>
-  >([]);
+  // 26-05-08-Q23 — AI-generated Card Evidence prose. Replaces the
+  // deterministic placeholder. Cached on `symbolic_threads.evidence_prose`
+  // and regenerated only when recurrence_count grows or the prose
+  // version bumps.
+  const navigate = useNavigate();
+  const { isPremium } = usePremium(userId);
+  const generateProse = useServerFn(generateCardEvidenceProse);
 
+  type ThreadRow = {
+    id: string;
+    summary: string;
+    card_ids: number[];
+    recurrence_count: number;
+    title: string | null;
+    evidence_prose: string | null;
+    evidence_prose_version: number | null;
+    evidence_prose_reading_count: number | null;
+  };
+
+  const [threads, setThreads] = useState<ThreadRow[]>([]);
+  const [generating, setGenerating] = useState<Set<string>>(new Set());
+  const [proseByThread, setProseByThread] = useState<Record<string, string>>({});
+
+  // Initial load
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
     void (async () => {
       const { data } = await supabase
         .from("symbolic_threads")
-        .select("id, summary, card_ids, recurrence_count, title")
+        .select(
+          "id, summary, card_ids, recurrence_count, title, evidence_prose, evidence_prose_version, evidence_prose_reading_count",
+        )
         .eq("user_id", userId)
         .eq("pattern_id", patternId)
         .order("detected_at", { ascending: false });
       if (cancelled) return;
-      const mapped = (data ?? []).map((t) => ({
+      const mapped: ThreadRow[] = (data ?? []).map((row) => {
+        const t = row as Record<string, unknown>;
+        return {
           id: t.id as string,
           summary: (t.summary as string) ?? "",
           card_ids: ((t.card_ids as number[] | null) ?? []),
           recurrence_count: ((t.recurrence_count as number | null) ?? 0),
           title: (t.title as string | null) ?? null,
-      }));
-      // Q16 Fix 2 — paragraphs must follow descending frequency so the
-      // prose order matches the "Cards that keep returning" list above.
+          evidence_prose: (t.evidence_prose as string | null) ?? null,
+          evidence_prose_version:
+            (t.evidence_prose_version as number | null) ?? null,
+          evidence_prose_reading_count:
+            (t.evidence_prose_reading_count as number | null) ?? null,
+        };
+      });
       mapped.sort((a, b) => b.recurrence_count - a.recurrence_count);
       setThreads(mapped);
+
+      const cached: Record<string, string> = {};
+      for (const t of mapped) {
+        if (
+          t.evidence_prose &&
+          t.evidence_prose_version === 2 &&
+          t.evidence_prose_reading_count === t.recurrence_count
+        ) {
+          cached[t.id] = t.evidence_prose;
+        }
+      }
+      setProseByThread(cached);
     })();
     return () => {
       cancelled = true;
     };
   }, [patternId, userId]);
+
+  // Local deterministic fallback for "insufficient_data" threads.
+  function formatDeterministicLocal(t: ThreadRow): string {
+    const names = t.card_ids
+      .slice(0, 3)
+      .map((c) => getCardName(c))
+      .filter(Boolean);
+    const namesPhrase =
+      names.length === 0
+        ? t.title || "These cards"
+        : names.length === 1
+          ? names[0]
+          : names.length === 2
+            ? `${names[0]} and ${names[1]}`
+            : `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
+    return t.recurrence_count > 1
+      ? `${namesPhrase} have returned ${t.recurrence_count} times — a recurring presence in your story.`
+      : `${namesPhrase} surfaced as a recurring presence in your story.`;
+  }
+
+  async function generateForThread(threadId: string, force = false) {
+    setGenerating((s) => new Set(s).add(threadId));
+    try {
+      const result = await generateProse({
+        data: { threadId, forceRegenerate: force },
+      });
+      if (result.ok) {
+        setProseByThread((p) => ({ ...p, [threadId]: result.prose }));
+      } else if (result.error === "insufficient_data") {
+        const t = threads.find((x) => x.id === threadId);
+        if (t) {
+          setProseByThread((p) => ({
+            ...p,
+            [threadId]: formatDeterministicLocal(t),
+          }));
+        }
+      }
+    } catch (err) {
+      console.error("[card-evidence] generation failed", err);
+    } finally {
+      setGenerating((s) => {
+        const n = new Set(s);
+        n.delete(threadId);
+        return n;
+      });
+    }
+  }
+
+  // Stagger generation so a brand-new pattern with many threads doesn't
+  // hammer Anthropic.
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    threads.forEach((t, idx) => {
+      if (proseByThread[t.id]) return;
+      if (generating.has(t.id)) return;
+      timers.push(setTimeout(() => void generateForThread(t.id), idx * 200));
+    });
+    return () => {
+      for (const tm of timers) clearTimeout(tm);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threads]);
 
   if (threads.length === 0) return null;
 
@@ -905,51 +1004,119 @@ function ChamberCardEvidence({
           margin: 0,
           padding: 0,
           display: "grid",
-          gap: "var(--space-2, 8px)",
+          gap: "var(--space-3, 12px)",
         }}
       >
-        {threads.map((t) => {
-          // Q15 Fix 2 — deterministic prose using ONLY the cards we
-          // know belong to this thread. Replaces the AI-generated
-          // summary which hallucinated cards that weren't in the
-          // evidence list.
-          const names = t.card_ids
-            .slice(0, 3)
-            .map((c) => getCardName(c))
-            .filter(Boolean);
-          const namesPhrase =
-            names.length === 0
-              ? t.title || "These cards"
-              : names.length === 1
-                ? names[0]
-                : names.length === 2
-                  ? `${names[0]} and ${names[1]}`
-                  : `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`;
-          const count = t.recurrence_count;
-          const recurrencePhrase =
-            count > 1
-              ? `${namesPhrase} have returned ${count} times — a recurring presence in your story.`
-              : `${namesPhrase} surfaced as a recurring presence in your story.`;
-          return (
-            <li
-              key={t.id}
-              style={{
-                padding: "var(--space-3, 12px)",
-                borderRadius: "var(--radius-md, 10px)",
-                background: "var(--surface-card, rgba(255,255,255,0.03))",
-                border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
-                fontSize: "var(--text-body-sm)",
-                color: "var(--color-foreground)",
-                opacity: 0.85,
-                lineHeight: 1.5,
-              }}
-            >
-              {recurrencePhrase}
-            </li>
-          );
-        })}
+        {threads.map((t) => (
+          <li
+            key={t.id}
+            style={{
+              padding: "var(--space-3, 12px)",
+              borderRadius: "var(--radius-md, 10px)",
+              background: "var(--surface-card, rgba(255,255,255,0.03))",
+              border: "1px solid var(--border-subtle, rgba(255,255,255,0.08))",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              opacity: 0.9,
+              lineHeight: 1.6,
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+            }}
+          >
+            {proseByThread[t.id] ? (
+              <ProseRender text={proseByThread[t.id]} />
+            ) : (
+              <LoadingSkeleton heights={[60, 40, 60]} />
+            )}
+            {isPremium && proseByThread[t.id] && (
+              <button
+                type="button"
+                onClick={() => void generateForThread(t.id, true)}
+                disabled={generating.has(t.id)}
+                style={{
+                  marginTop: "var(--space-2, 8px)",
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption, 12px)",
+                  color: "var(--gold, var(--color-foreground))",
+                  opacity: generating.has(t.id) ? 0.5 : 0.7,
+                  cursor: generating.has(t.id) ? "default" : "pointer",
+                }}
+              >
+                {generating.has(t.id) ? "Refreshing…" : "Refresh insights"}
+              </button>
+            )}
+          </li>
+        ))}
       </ul>
+      {!isPremium && Object.keys(proseByThread).length > 0 && (
+        <PremiumUpsellCard onOpen={() => navigate({ to: "/settings/moon" })} />
+      )}
     </section>
+  );
+}
+
+function ProseRender({ text }: { text: string }) {
+  const paragraphs = text.split(/\n\s*\n/).filter((p) => p.trim().length > 0);
+  return (
+    <div style={{ display: "grid", gap: "var(--space-3, 12px)" }}>
+      {paragraphs.map((p, i) => (
+        <p key={i} style={{ margin: 0 }}>
+          {p.trim()}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function PremiumUpsellCard({ onOpen }: { onOpen: () => void }) {
+  return (
+    <div
+      style={{
+        marginTop: "var(--space-4, 16px)",
+        padding: "var(--space-3, 12px) var(--space-4, 16px)",
+        borderRadius: "var(--radius-md, 10px)",
+        background: "var(--surface-card, rgba(255,255,255,0.03))",
+        border: "1px solid var(--gold, rgba(212,175,55,0.3))",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "var(--space-3, 12px)",
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-body-sm)",
+          color: "var(--color-foreground)",
+          opacity: 0.85,
+        }}
+      >
+        Unlock moon cycle and birth chart insights
+      </span>
+      <button
+        type="button"
+        onClick={onOpen}
+        style={{
+          background: "var(--gold, #d4af37)",
+          color: "#1a1a1a",
+          border: "none",
+          borderRadius: "var(--radius-sm, 6px)",
+          padding: "6px 14px",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-caption, 12px)",
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+        }}
+      >
+        Premium
+      </button>
+    </div>
   );
 }
 
