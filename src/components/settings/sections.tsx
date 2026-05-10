@@ -328,6 +328,7 @@ function ProfileSectionInner({
 
           <DevModeToggle userId={user.id} />
           <ResetHintsRow userId={user.id} />
+          <WelcomeReplayRow />
         </div>
       )}
     </SettingsSection>
