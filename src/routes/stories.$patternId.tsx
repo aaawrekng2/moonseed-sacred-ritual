@@ -92,7 +92,7 @@ export const Route = createFileRoute("/stories/$patternId")({
           fontStyle: "italic",
         }}
       >
-        Return to threads
+        Return to stories
       </button>
     </div>
   ),
@@ -341,7 +341,7 @@ function PatternChamber() {
           marginBottom: "var(--space-4, 16px)",
         }}
       >
-        <ChevronLeft size={16} /> Threads
+        <ChevronLeft size={16} /> Stories
       </button>
 
       {/* 26-05-08-J — Fix 9: deterministic strength banner at the top. */}
