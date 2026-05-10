@@ -291,7 +291,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
         <LoadingText className="mb-3">Loading stalkers…</LoadingText>
       )}
 
-      <div className="mx-auto w-full max-w-3xl mb-8">
+      <div className="mx-auto w-full max-w-xl md:max-w-2xl mb-8">
         <div className="grid grid-cols-5 gap-2 sm:gap-3 md:gap-4">
           {mode === "singles" &&
             singlesList.map((s) => (
@@ -380,7 +380,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
       {mode === "singles" && selectedSingle ? (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row items-start gap-6">
-            <div className="w-1/2 md:w-2/5 max-w-md mx-auto md:mx-0">
+            <div className="w-1/2 md:w-1/3 max-w-xs mx-auto md:mx-0">
               <CardImage cardId={selectedSingle.cardId} size="hero" style={{ width: "100%", minHeight: 0 }} />
             </div>
             <div className="flex-1">
@@ -441,7 +441,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
       {mode === "reversed" && selectedReversed ? (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col md:flex-row items-start gap-6">
-            <div className="w-1/2 md:w-2/5 max-w-md mx-auto md:mx-0">
+            <div className="w-1/2 md:w-1/3 max-w-xs mx-auto md:mx-0">
               <CardImage cardId={selectedReversed.cardId} size="hero" reversed style={{ width: "100%", minHeight: 0 }} />
             </div>
             <div className="flex-1">
