@@ -151,7 +151,9 @@ function cardImageReducer(
       });
     case "SAFETY_TIMEOUT_FIRED":
       if (state.status !== "loading") return state;
-      console.warn("[CardImage:safety-timeout] forcing loaded", {
+      // Q30 Fix B2 — downgrade to console.debug so it's only visible
+      // when DevTools verbose level is enabled. Cards rendered fine.
+      console.debug("[CardImage:safety-timeout] forcing loaded", {
         srcShort: state.committedSrc?.slice(0, 80) ?? null,
       });
       return log({ ...state, status: "loaded" });
@@ -387,11 +389,15 @@ export function CardImage({
   useEffect(() => {
     if (state.status !== "loading") return;
     if (variant !== "face") return;
+    // Q30 Fix B2 — tier-aware timeout (full variants legitimately
+    // take longer to load than thumbnails).
+    const safetyTimeoutMs =
+      variantTier === "full" ? 8000 : variantTier === "md" ? 5000 : 3000;
     const t = window.setTimeout(() => {
       dispatch({ type: "SAFETY_TIMEOUT_FIRED" });
-    }, 3000);
+    }, safetyTimeoutMs);
     return () => window.clearTimeout(t);
-  }, [state.status, variant]);
+  }, [state.status, variant, variantTier]);
 
   const showFaceShimmer =
     variant === "face" &&

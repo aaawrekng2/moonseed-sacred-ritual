@@ -1246,7 +1246,8 @@ function PatternSynthesisLoader({
     setState({ kind: "loading" });
     void (async () => {
       try {
-        const res = await generate({ data: { patternId } });
+        const headers = await getAuthHeaders();
+        const res = await generate({ data: { patternId }, headers });
         if (cancelled) return;
         if (res.ok) {
           const data = res.interpretation;
@@ -1267,7 +1268,11 @@ function PatternSynthesisLoader({
             setState({ kind: "ready" });
           };
           if (isLegacy) {
-            const fresh = await generate({ data: { patternId, force: true } });
+            const headersFresh = await getAuthHeaders();
+            const fresh = await generate({
+              data: { patternId, force: true },
+              headers: headersFresh,
+            });
             if (cancelled) return;
             if (fresh.ok) finalize(fresh.interpretation);
             else setState({ kind: "error", message: fresh.error });

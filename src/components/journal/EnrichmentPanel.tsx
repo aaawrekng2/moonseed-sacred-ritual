@@ -9,7 +9,7 @@
  * each section rather than blocking spinners, so the panel still feels like
  * "a gentle invitation, not a form" (per the Phase 6 spec).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Camera, CameraOff, Check, CheckCheck, Copy, Heart, Loader2, Network, Pencil, Plus, Share2, StickyNote, Tag as TagIcon, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -244,6 +244,9 @@ export function EnrichmentPanel({
   >(defaultNoteOpen ? "note" : null);
   const [tagInput, setTagInput] = useState("");
   const noteTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Q30 Fix B3 — auto-grow the note textarea so long notes never
+  // gain an inner scrollbar.
 
   // Photos for this reading.
   const [photos, setPhotos] = useState<EnrichmentPhoto[]>([]);
@@ -775,7 +778,6 @@ export function EnrichmentPanel({
             ref={noteTextareaRef}
             value={note}
             onChange={(e) => handleNoteChange(e.target.value)}
-            rows={4}
             placeholder={
               defaultNoteOpen
                 ? "What does this reading mean to you?"
@@ -791,6 +793,7 @@ export function EnrichmentPanel({
               opacity: "var(--ro-plus-40)",
               padding: "12px 16px",
               minHeight: 120,
+              overflow: "hidden",
             }}
           />
           <button

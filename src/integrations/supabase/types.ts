@@ -486,6 +486,9 @@ export type Database = {
       }
       patterns: {
         Row: {
+          ai_generated_at: string | null
+          ai_reading_count_at_gen: number | null
+          ai_version: string | null
           created_at: string
           description: string | null
           id: string
@@ -494,13 +497,21 @@ export type Database = {
           is_user_named: boolean
           lifecycle_state: string
           name: string
+          narrative_arc: string | null
+          per_reading_roles: Json
           reading_ids: string[]
+          remarkable_moments: Json
           retired_at: string | null
+          story_description: string | null
+          story_name: string | null
           thread_ids: string[]
           updated_at: string
           user_id: string
         }
         Insert: {
+          ai_generated_at?: string | null
+          ai_reading_count_at_gen?: number | null
+          ai_version?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -509,13 +520,21 @@ export type Database = {
           is_user_named?: boolean
           lifecycle_state?: string
           name: string
+          narrative_arc?: string | null
+          per_reading_roles?: Json
           reading_ids?: string[]
+          remarkable_moments?: Json
           retired_at?: string | null
+          story_description?: string | null
+          story_name?: string | null
           thread_ids?: string[]
           updated_at?: string
           user_id: string
         }
         Update: {
+          ai_generated_at?: string | null
+          ai_reading_count_at_gen?: number | null
+          ai_version?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -524,8 +543,13 @@ export type Database = {
           is_user_named?: boolean
           lifecycle_state?: string
           name?: string
+          narrative_arc?: string | null
+          per_reading_roles?: Json
           reading_ids?: string[]
+          remarkable_moments?: Json
           retired_at?: string | null
+          story_description?: string | null
+          story_name?: string | null
           thread_ids?: string[]
           updated_at?: string
           user_id?: string
