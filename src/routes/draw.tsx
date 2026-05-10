@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Tabletop } from "@/components/tabletop/Tabletop";
+import { ManualEntryBuilder, type ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { SpreadLayout } from "@/components/tabletop/SpreadLayout";
 import { ReadingScreen } from "@/components/reading/ReadingScreen";
 import { isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
@@ -12,6 +13,13 @@ import { updateUserPreferences } from "@/lib/user-preferences-write";
 import { generateOrientations } from "@/lib/tarot-mechanics";
 import { useActiveDeck } from "@/lib/active-deck";
 import { fetchDeckProcessingStatus, type DeckProcessingStatus } from "@/lib/custom-decks";
+import {
+  useSpreadEntryModes,
+  resolveModeFromMap,
+  resolveCountFromMap,
+  type EntryMode,
+} from "@/lib/use-spread-entry-modes";
+import { clearTabletopSession } from "@/components/tabletop/config";
 
 type Search = { spread?: string; question?: string; n?: number };
 
@@ -32,9 +40,51 @@ function DrawPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const spread: SpreadMode = isValidSpreadMode(search.spread) ? search.spread : "daily";
-  // 9-6-O — Custom spread cardinality, threaded through the draw flow.
-  const customCount = spread === "custom" ? Math.max(1, Math.min(10, search.n ?? 3)) : undefined;
   const { recordDraw } = useStreak();
+  const { user } = useAuth();
+
+  // Q19 — per-spread entry-mode + custom-count memory. Hydrates from
+  // localStorage immediately and from user_preferences once authed.
+  const { modes, loaded: modesLoaded, setMode, setCustomCount } =
+    useSpreadEntryModes(user?.id ?? null);
+
+  // Custom-count: URL `?n=` wins on initial mount; otherwise hydrate
+  // from the persisted memory so home → /draw routes land on the
+  // seeker's last-used count.
+  const [customCount, setCustomCountLocal] = useState<number | undefined>(
+    () =>
+      spread === "custom"
+        ? Math.max(
+            1,
+            Math.min(10, search.n ?? resolveCountFromMap(modes)),
+          )
+        : undefined,
+  );
+  useEffect(() => {
+    if (spread !== "custom") return;
+    if (search.n !== undefined) return; // explicit URL wins
+    if (!modesLoaded) return;
+    const next = resolveCountFromMap(modes);
+    setCustomCountLocal((cur) => (cur === next ? cur : next));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modesLoaded, spread]);
+
+  // Q19 — entry mode (table | manual) lifted out of Tabletop so the
+  // toggle can flip surfaces mid-draw without losing state.
+  const [entrySurface, setEntrySurface] = useState<EntryMode>(() =>
+    resolveModeFromMap(modes, spread),
+  );
+  useEffect(() => {
+    if (!modesLoaded) return;
+    setEntrySurface(resolveModeFromMap(modes, spread));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modesLoaded, spread]);
+
+  // Q19 Fix 8 — cache in-progress manual picks at the route level so
+  // toggling Manual → Table → Manual preserves the seeker's selections.
+  const [manualPicksCache, setManualPicksCache] = useState<
+    (ManualPick | null)[] | undefined
+  >(undefined);
 
   const [picks, setPicks] = useState<
     { id: number; cardIndex: number; isReversed: boolean; deckId?: string | null }[] | null
@@ -52,7 +102,6 @@ function DrawPage() {
   // seed from the URL search param when arriving from a legacy entry
   // point that still passes `?question=…`.
   const [question, setQuestion] = useState<string>(search.question ?? "");
-  const { user } = useAuth();
   // Gate the entire QuestionPanel on the seeker's preference. We must
   // wait for the preference to load before mounting anything — otherwise
   // the card flashes open for users who have turned it off. Once loaded:
@@ -164,6 +213,23 @@ function DrawPage() {
     );
   }
 
+  // Q19 — surface toggles. Manual ↔ Table swaps the rendered builder
+  // and persists the choice for next time. Table cards keep their
+  // session via the existing tabletopSessions map; manual picks
+  // survive via the route-level cache below.
+  const switchToManual = () => {
+    setEntrySurface("manual");
+    setMode(spread, "manual");
+  };
+  const switchToTable = () => {
+    setEntrySurface("table");
+    setMode(spread, "table");
+  };
+  const handleCustomCountChange = (next: number) => {
+    setCustomCountLocal(next);
+    setCustomCount(next);
+  };
+
   return (
     <div className="relative h-[100dvh] w-full">
       {showProcessingBanner && phase === "select" && (
@@ -195,6 +261,34 @@ function DrawPage() {
           deckId={activeDeckId}
           customCount={customCount}
         />
+      ) : entrySurface === "manual" && phase === "select" ? (
+        <ManualEntryBuilder
+          spread={spread}
+          customCount={customCount}
+          question={question}
+          onQuestionChange={setQuestion}
+          initialPicks={manualPicksCache}
+          onPicksChange={setManualPicksCache}
+          onSwitchToTable={switchToTable}
+          onCustomCountChange={
+            spread === "custom" ? handleCustomCountChange : undefined
+          }
+          onCancel={exit}
+          onComplete={(manualPicks) => {
+            clearTabletopSession(spread);
+            setManualPicksCache(undefined);
+            const mapped = manualPicks.map((p) => ({
+              id: p.id,
+              cardIndex: p.cardIndex,
+              isReversed: p.isReversed,
+              deckId: p.deckId ?? null,
+            }));
+            setPicks(mapped);
+            setEntryMode("manual");
+            setPhase("reading");
+            void recordDraw();
+          }}
+        />
       ) : (
         <Tabletop
           spread={spread}
@@ -202,6 +296,10 @@ function DrawPage() {
           customCount={customCount}
           question={question}
           onQuestionChange={setQuestion}
+          onSwitchToManual={switchToManual}
+          onCustomCountChange={
+            spread === "custom" ? handleCustomCountChange : undefined
+          }
           onComplete={(p, mode, meta) => {
             // Phase 9.55 — assign orientation per card based on the
             // seeker's preference. `generateOrientations` returns
