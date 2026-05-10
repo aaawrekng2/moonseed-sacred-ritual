@@ -1656,14 +1656,14 @@ function EvidenceSection({
         style={{
           margin: 0,
           marginBottom: "var(--space-4, 16px)",
-          fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
-          fontSize: "var(--text-caption)",
-          letterSpacing: "0.22em",
-          color: "var(--accent, var(--gold))",
-          fontWeight: 600,
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-heading-md, 17px)",
+          color: "var(--color-foreground)",
+          opacity: 0.6,
         }}
       >
-        ▍ THE EVIDENCE
+        the evidence
       </h2>
 
       {cardFrequency.length > 0 && (
