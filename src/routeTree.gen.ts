@@ -29,6 +29,7 @@ import { Route as SettingsProfileRouteImport } from './routes/settings.profile'
 import { Route as SettingsPreferencesRouteImport } from './routes/settings.preferences'
 import { Route as SettingsMoonRouteImport } from './routes/settings.moon'
 import { Route as SettingsGuidesRouteImport } from './routes/settings.guides'
+import { Route as SettingsFeedbackRouteImport } from './routes/settings.feedback'
 import { Route as SettingsDecksRouteImport } from './routes/settings.decks'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
@@ -141,6 +142,11 @@ const SettingsGuidesRoute = SettingsGuidesRouteImport.update({
   path: '/guides',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsFeedbackRoute = SettingsFeedbackRouteImport.update({
+  id: '/feedback',
+  path: '/feedback',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsDecksRoute = SettingsDecksRouteImport.update({
   id: '/decks',
   path: '/decks',
@@ -216,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/decks': typeof SettingsDecksRoute
+  '/settings/feedback': typeof SettingsFeedbackRoute
   '/settings/guides': typeof SettingsGuidesRoute
   '/settings/moon': typeof SettingsMoonRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
@@ -248,6 +255,7 @@ export interface FileRoutesByTo {
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/decks': typeof SettingsDecksRoute
+  '/settings/feedback': typeof SettingsFeedbackRoute
   '/settings/guides': typeof SettingsGuidesRoute
   '/settings/moon': typeof SettingsMoonRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
@@ -282,6 +290,7 @@ export interface FileRoutesById {
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
   '/settings/decks': typeof SettingsDecksRoute
+  '/settings/feedback': typeof SettingsFeedbackRoute
   '/settings/guides': typeof SettingsGuidesRoute
   '/settings/moon': typeof SettingsMoonRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
@@ -317,6 +326,7 @@ export interface FileRouteTypes {
     | '/settings/blueprint'
     | '/settings/data'
     | '/settings/decks'
+    | '/settings/feedback'
     | '/settings/guides'
     | '/settings/moon'
     | '/settings/preferences'
@@ -349,6 +359,7 @@ export interface FileRouteTypes {
     | '/settings/blueprint'
     | '/settings/data'
     | '/settings/decks'
+    | '/settings/feedback'
     | '/settings/guides'
     | '/settings/moon'
     | '/settings/preferences'
@@ -382,6 +393,7 @@ export interface FileRouteTypes {
     | '/settings/blueprint'
     | '/settings/data'
     | '/settings/decks'
+    | '/settings/feedback'
     | '/settings/guides'
     | '/settings/moon'
     | '/settings/preferences'
@@ -556,6 +568,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsGuidesRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/feedback': {
+      id: '/settings/feedback'
+      path: '/feedback'
+      fullPath: '/settings/feedback'
+      preLoaderRoute: typeof SettingsFeedbackRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/settings/decks': {
       id: '/settings/decks'
       path: '/decks'
@@ -690,6 +709,7 @@ interface SettingsRouteChildren {
   SettingsBlueprintRoute: typeof SettingsBlueprintRoute
   SettingsDataRoute: typeof SettingsDataRoute
   SettingsDecksRoute: typeof SettingsDecksRoute
+  SettingsFeedbackRoute: typeof SettingsFeedbackRoute
   SettingsGuidesRoute: typeof SettingsGuidesRoute
   SettingsMoonRoute: typeof SettingsMoonRoute
   SettingsPreferencesRoute: typeof SettingsPreferencesRoute
@@ -702,6 +722,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsBlueprintRoute: SettingsBlueprintRoute,
   SettingsDataRoute: SettingsDataRoute,
   SettingsDecksRoute: SettingsDecksRoute,
+  SettingsFeedbackRoute: SettingsFeedbackRoute,
   SettingsGuidesRoute: SettingsGuidesRoute,
   SettingsMoonRoute: SettingsMoonRoute,
   SettingsPreferencesRoute: SettingsPreferencesRoute,

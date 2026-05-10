@@ -502,6 +502,71 @@ export type Database = {
         }
         Relationships: []
       }
+      feedback_posts: {
+        Row: {
+          admin_note: string | null
+          approved_at: string | null
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          status: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          approved_at?: string | null
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          status?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          approved_at?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          status?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      feedback_votes: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_votes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_batches: {
         Row: {
           created_at: string
@@ -1043,6 +1108,7 @@ export type Database = {
           ui_density: number
           updated_at: string
           user_id: string
+          welcome_modal_seen: boolean
         }
         Insert: {
           accent?: string
@@ -1110,6 +1176,7 @@ export type Database = {
           ui_density?: number
           updated_at?: string
           user_id: string
+          welcome_modal_seen?: boolean
         }
         Update: {
           accent?: string
@@ -1177,6 +1244,7 @@ export type Database = {
           ui_density?: number
           updated_at?: string
           user_id?: string
+          welcome_modal_seen?: boolean
         }
         Relationships: []
       }
