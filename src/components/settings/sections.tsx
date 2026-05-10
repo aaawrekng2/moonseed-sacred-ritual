@@ -436,11 +436,6 @@ function DevModeToggle({ userId }: { userId: string }) {
  * the next time it would be shown.
  */
 function ResetHintsRow({ userId }: { userId: string }) {
-  void userId;
-  return _ResetHintsRowImpl({ userId });
-}
-
-function _ResetHintsRowImpl({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const reset = async () => {
