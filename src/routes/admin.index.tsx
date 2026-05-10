@@ -4003,3 +4003,404 @@ function Badge({ children }: { children: React.ReactNode }) {
     </span>
   );
 }
+/* ---------------- Feedback tab (Q35a) ---------------- */
+
+type FeedbackSubTab = "pending" | "live" | "archived";
+
+function FeedbackTab() {
+  const [sub, setSub] = useState<FeedbackSubTab>("pending");
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          gap: 24,
+          borderBottom: "0.5px solid #30363d",
+          marginBottom: 24,
+        }}
+      >
+        {(["pending", "live", "archived"] as FeedbackSubTab[]).map((s) => {
+          const active = sub === s;
+          return (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setSub(s)}
+              style={{
+                ...display,
+                fontSize: 11,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                background: "none",
+                border: "none",
+                padding: "8px 0",
+                cursor: "pointer",
+                color: active
+                  ? "var(--accent, var(--gold))"
+                  : "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+                borderBottom: active
+                  ? "1px solid var(--accent, var(--gold))"
+                  : "1px solid transparent",
+              }}
+            >
+              {s}
+            </button>
+          );
+        })}
+      </div>
+      {sub === "pending" && <FeedbackPendingList />}
+      {sub === "live" && <FeedbackLiveList />}
+      {sub === "archived" && <FeedbackArchivedList />}
+    </div>
+  );
+}
+
+function FeedbackEmpty({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        ...serif,
+        fontStyle: "italic",
+        color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+        padding: 24,
+        textAlign: "center",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function FeedbackCategoryBadge({ category }: { category: "bug" | "feature" }) {
+  const isBug = category === "bug";
+  return (
+    <span
+      style={{
+        ...display,
+        fontSize: 9,
+        letterSpacing: "0.18em",
+        textTransform: "uppercase",
+        padding: "2px 6px",
+        color: isBug
+          ? "color-mix(in oklch, #d97706 80%, var(--color-foreground))"
+          : "var(--accent, var(--gold))",
+        background: isBug
+          ? "color-mix(in oklch, #d97706 20%, transparent)"
+          : "color-mix(in oklch, var(--accent, var(--gold)) 18%, transparent)",
+      }}
+    >
+      {isBug ? "BUG" : "FEATURE"}
+    </span>
+  );
+}
+
+function FeedbackStatusBadge({
+  status,
+}: {
+  status: AdminFeedbackItem["status"];
+}) {
+  const labels: Record<AdminFeedbackItem["status"], string> = {
+    pending: "Pending",
+    under_review: "Under review",
+    planned: "Planned",
+    in_progress: "In progress",
+    done: "Done",
+    dismissed: "Dismissed",
+  };
+  return (
+    <span
+      style={{
+        ...display,
+        fontSize: 9,
+        letterSpacing: "0.18em",
+        textTransform: "uppercase",
+        padding: "2px 6px",
+        color: "var(--accent, var(--gold))",
+        background:
+          "color-mix(in oklch, var(--accent, var(--gold)) 14%, transparent)",
+      }}
+    >
+      {labels[status]}
+    </span>
+  );
+}
+
+function timeSince(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = Math.round(ms / 60000);
+  if (m < 60) return `${m}m`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.round(h / 24);
+  return `${d}d`;
+}
+
+function FeedbackPendingList() {
+  const [items, setItems] = useState<AdminFeedbackItem[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const headers = await authHeaders();
+        const r = await getPendingFeedback({ headers });
+        setItems(r);
+      } catch (e) {
+        console.error("[admin.feedback] pending", e);
+        setItems([]);
+      }
+    })();
+  }, []);
+
+  async function handle(action: "approve" | "dismiss", id: string) {
+    setBusy(id);
+    try {
+      const headers = await authHeaders();
+      if (action === "approve") await approveFeedback({ data: { postId: id }, headers });
+      else await dismissFeedback({ data: { postId: id }, headers });
+      setItems((prev) => (prev ?? []).filter((x) => x.id !== id));
+      toast.success(action === "approve" ? "Approved" : "Dismissed");
+    } catch (e) {
+      console.error("[admin.feedback]", e);
+      toast.error("Failed");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (items === null) return <div style={{ opacity: 0.5 }}>loading…</div>;
+  if (items.length === 0) return <FeedbackEmpty>No feedback awaiting review.</FeedbackEmpty>;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {items.map((it) => (
+        <div
+          key={it.id}
+          style={{
+            background: "#161b22",
+            border: "1px solid #30363d",
+            borderRadius: 8,
+            padding: 16,
+          }}
+        >
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
+            <FeedbackCategoryBadge category={it.category} />
+            <span
+              style={{
+                ...serif,
+                fontSize: 11,
+                color: "color-mix(in oklab, var(--color-foreground) 50%, transparent)",
+              }}
+            >
+              {it.submitter_email ?? it.submitter_name ?? it.user_id.slice(0, 8)}
+              {" · "}
+              {timeSince(it.created_at)} ago
+            </span>
+          </div>
+          <div style={{ ...serif, fontStyle: "italic", fontSize: 16, marginBottom: 6 }}>
+            {it.title}
+          </div>
+          {it.description && (
+            <div
+              style={{
+                ...serif,
+                fontSize: 13,
+                color: "color-mix(in oklab, var(--color-foreground) 75%, transparent)",
+                lineHeight: 1.5,
+                marginBottom: 12,
+              }}
+            >
+              {it.description}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 16 }}>
+            <button
+              type="button"
+              onClick={() => handle("approve", it.id)}
+              disabled={busy === it.id}
+              style={{
+                ...serif,
+                fontStyle: "italic",
+                fontSize: 13,
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                color: "var(--accent, var(--gold))",
+                opacity: busy === it.id ? 0.4 : 1,
+              }}
+            >
+              Approve
+            </button>
+            <button
+              type="button"
+              onClick={() => handle("dismiss", it.id)}
+              disabled={busy === it.id}
+              style={{
+                ...serif,
+                fontStyle: "italic",
+                fontSize: 13,
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                color: "color-mix(in oklab, var(--color-foreground) 60%, transparent)",
+                opacity: busy === it.id ? 0.4 : 1,
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FeedbackLiveList() {
+  const [items, setItems] = useState<AdminFeedbackItem[] | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const headers = await authHeaders();
+        const r = await getAllFeedback({ headers });
+        setItems(r);
+      } catch (e) {
+        console.error("[admin.feedback] live", e);
+        setItems([]);
+      }
+    })();
+  }, []);
+
+  async function changeStatus(id: string, status: AdminFeedbackItem["status"]) {
+    setItems((prev) =>
+      (prev ?? []).map((x) => (x.id === id ? { ...x, status } : x)),
+    );
+    try {
+      const headers = await authHeaders();
+      await updateFeedbackStatus({
+        data: {
+          postId: id,
+          status: status as "under_review" | "planned" | "in_progress" | "done",
+        },
+        headers,
+      });
+    } catch (e) {
+      console.error("[admin.feedback] update", e);
+      toast.error("Failed to update");
+    }
+  }
+
+  if (items === null) return <div style={{ opacity: 0.5 }}>loading…</div>;
+  if (items.length === 0) return <FeedbackEmpty>No approved feedback yet.</FeedbackEmpty>;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {items.map((it) => (
+        <div
+          key={it.id}
+          style={{
+            background: "#161b22",
+            border: "1px solid #30363d",
+            borderRadius: 8,
+            padding: 16,
+          }}
+        >
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
+            <FeedbackCategoryBadge category={it.category} />
+            <FeedbackStatusBadge status={it.status} />
+            <span
+              style={{
+                ...serif,
+                fontSize: 11,
+                color: "color-mix(in oklab, var(--color-foreground) 50%, transparent)",
+              }}
+            >
+              {it.voteCount} vote{it.voteCount === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div style={{ ...serif, fontStyle: "italic", fontSize: 16, marginBottom: 8 }}>
+            {it.title}
+          </div>
+          {it.admin_note && (
+            <div
+              style={{
+                ...serif,
+                fontStyle: "italic",
+                fontSize: 12,
+                color: "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+                marginBottom: 8,
+              }}
+            >
+              note: {it.admin_note}
+            </div>
+          )}
+          <select
+            value={it.status === "dismissed" || it.status === "pending" ? "under_review" : it.status}
+            onChange={(e) =>
+              changeStatus(it.id, e.target.value as AdminFeedbackItem["status"])
+            }
+            style={{
+              ...serif,
+              fontSize: 13,
+              background: "#0f1117",
+              color: "#e6edf3",
+              border: "1px solid #30363d",
+              padding: "4px 8px",
+              borderRadius: 4,
+            }}
+          >
+            <option value="under_review">Under review</option>
+            <option value="planned">Planned</option>
+            <option value="in_progress">In progress</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function FeedbackArchivedList() {
+  const [items, setItems] = useState<AdminFeedbackItem[] | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const headers = await authHeaders();
+        const r = await getArchivedFeedback({ headers });
+        setItems(r);
+      } catch (e) {
+        console.error("[admin.feedback] archived", e);
+        setItems([]);
+      }
+    })();
+  }, []);
+
+  if (items === null) return <div style={{ opacity: 0.5 }}>loading…</div>;
+  if (items.length === 0) return <FeedbackEmpty>Nothing archived yet.</FeedbackEmpty>;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {items.map((it) => (
+        <div
+          key={it.id}
+          style={{
+            background: "#161b22",
+            border: "1px solid #30363d",
+            borderRadius: 8,
+            padding: 16,
+            opacity: 0.85,
+          }}
+        >
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexWrap: "wrap" }}>
+            <FeedbackCategoryBadge category={it.category} />
+            <FeedbackStatusBadge status={it.status} />
+          </div>
+          <div style={{ ...serif, fontStyle: "italic", fontSize: 15 }}>{it.title}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
