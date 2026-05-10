@@ -1168,12 +1168,12 @@ function ChamberCardEvidence({
           fontStyle: "italic",
           fontSize: "var(--text-heading-sm, 17px)",
           color: "var(--color-foreground)",
-          opacity: 0.7,
+          opacity: 0.6,
           margin: 0,
           marginBottom: "var(--space-3, 12px)",
         }}
       >
-        Card evidence
+        card evidence
       </h3>
       <ul
         style={{
@@ -1202,9 +1202,9 @@ function ChamberCardEvidence({
           >
             {proseByThread[t.id] ? (
               <ProseRender text={proseByThread[t.id]} />
-            ) : (
+            ) : generating.has(t.id) ? (
               <LoadingSkeleton heights={[60, 40, 60]} />
-            )}
+            ) : null}
             {isPremium && proseByThread[t.id] && (
               <button
                 type="button"
