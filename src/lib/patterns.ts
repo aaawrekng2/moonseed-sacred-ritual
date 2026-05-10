@@ -40,6 +40,19 @@ export type Pattern = {
   reading_ids: string[];
   is_premium: boolean;
   is_user_named: boolean;
+  // Q30 — story orchestration fields persisted on patterns row.
+  story_name?: string | null;
+  story_description?: string | null;
+  per_reading_roles?: Record<string, { role: string; generated_at?: string }> | null;
+  remarkable_moments?: Array<{
+    date: string;
+    caption: string;
+    reading_ids?: string[];
+  }> | null;
+  narrative_arc?: string | null;
+  ai_generated_at?: string | null;
+  ai_version?: string | null;
+  ai_reading_count_at_gen?: number | null;
 };
 
 export type Thread = {
