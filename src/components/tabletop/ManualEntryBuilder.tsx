@@ -9,7 +9,7 @@
  * the same SpreadLayout → ReadingScreen path as a digital draw so the
  * resulting reading is visually identical (Fix 9).
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { ManualSpreadSlots } from "@/components/tabletop/SpreadLayout";
@@ -21,6 +21,8 @@ import { SmartCardInput, type PasteOutcome, type SmartPick } from "@/components/
 import { useActiveDeck } from "@/lib/active-deck";
 import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
+import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
+import { useAuth } from "@/lib/auth";
 
 const CELTIC_POSITION_LABELS = [
   "Significator",
@@ -85,6 +87,42 @@ export function ManualEntryBuilder({
     ? Math.max(1, Math.min(10, customCount ?? 3))
     : meta.count;
   const labels = meta.positions ?? [];
+
+  // Q20 Fix 3 — two staggered first-mount hints (toggle + stepper).
+  const { user: authUser, loading: authLoading } = useAuth();
+  const entryToggleRef = useRef<HTMLButtonElement | null>(null);
+  const stepperRef = useRef<HTMLDivElement | null>(null);
+  const [showEntryHint, setShowEntryHint] = useState(false);
+  const [showCountHint, setShowCountHint] = useState(false);
+  useEffect(() => {
+    if (authLoading) return;
+    let cancelled = false;
+    const timers: number[] = [];
+    void (async () => {
+      if (onSwitchToTable) {
+        const dismissedB = await isHintHardDismissed(
+          "entry_mode_toggle",
+          authUser?.id ?? null,
+        );
+        if (!cancelled && !dismissedB) {
+          timers.push(window.setTimeout(() => setShowEntryHint(true), 400));
+        }
+      }
+      if (spread === "custom" && onCustomCountChange) {
+        const dismissedA = await isHintHardDismissed(
+          "custom_count_stepper",
+          authUser?.id ?? null,
+        );
+        if (!cancelled && !dismissedA) {
+          timers.push(window.setTimeout(() => setShowCountHint(true), 800));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      timers.forEach((t) => window.clearTimeout(t));
+    };
+  }, [authUser, authLoading, onSwitchToTable, onCustomCountChange, spread]);
 
   const [picks, setPicks] = useState<(ManualPick | null)[]>(() => {
     if (initialPicks && initialPicks.length > 0) {
@@ -217,37 +255,74 @@ export function ManualEntryBuilder({
   };
 
   return (
-    <FullScreenSheet open onClose={onCancel} entry="slide-up" showCloseButton={false}>
+    <FullScreenSheet open onClose={onCancel} entry="fade" showCloseButton={false}>
     <div className="flex h-full w-full flex-col bg-cosmos text-foreground">
-      {/* Q19 — Header swap: the X close button is gone; the unified
-          EntryModeToggle (rendered as a sibling so its own absolute
-          positioning is honoured) sits at the upper-left. The custom
-          spread shows the chevron stepper centered; other spreads
-          show the small static "Manual entry · <label>" caption. */}
-      {onSwitchToTable && (
-        <EntryModeToggle current="manual" onToggle={onSwitchToTable} />
+      {/* Q20 Fix 4 — Unified header strip: toggle (left) + stepper
+          (centered) on the same row. */}
+      <div
+        className="relative w-full border-b border-border/40"
+        style={{
+          minHeight: 48,
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 4px)",
+          paddingBottom: 8,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <div style={{ paddingLeft: 16 }}>
+          {onSwitchToTable && (
+            <EntryModeToggle
+              ref={entryToggleRef}
+              current="manual"
+              onToggle={onSwitchToTable}
+            />
+          )}
+        </div>
+        <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+          {spread === "custom" && onCustomCountChange ? (
+            <CustomCountStepper
+              ref={stepperRef}
+              count={required}
+              onChange={onCustomCountChange}
+            />
+          ) : (
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-caption, 0.7rem)",
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+                opacity: 0.55,
+              }}
+            >
+              {meta.label}
+            </div>
+          )}
+        </div>
+        <div style={{ paddingRight: 56 }} />
+      </div>
+      {showEntryHint && onSwitchToTable && (
+        <Hint
+          hintId="entry_mode_toggle"
+          text={'Want to physically draw? Tap "Table" to draw from the 78-card scatter.'}
+          anchorRef={entryToggleRef}
+          position="bottom"
+          pointerAlign="start"
+          onDismiss={() => setShowEntryHint(false)}
+        />
       )}
-      <header className="flex items-center justify-center border-b border-border/40 px-4 py-3 min-h-[48px]">
-        {spread === "custom" && onCustomCountChange ? (
-          <CustomCountStepper
-            count={required}
-            onChange={onCustomCountChange}
-          />
-        ) : (
-          <div
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-caption, 0.7rem)",
-              letterSpacing: "0.18em",
-              textTransform: "uppercase",
-              opacity: 0.55,
-            }}
-          >
-            Manual entry · {meta.label}
-          </div>
-        )}
-      </header>
+      {showCountHint && spread === "custom" && onCustomCountChange && (
+        <Hint
+          hintId="custom_count_stepper"
+          text="Pick how many cards. Tap the chevrons to change how many cards you draw."
+          anchorRef={stepperRef}
+          position="bottom"
+          pointerAlign="center"
+          onDismiss={() => setShowCountHint(false)}
+        />
+      )}
 
       <div
         className={cn(
