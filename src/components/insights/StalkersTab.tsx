@@ -207,6 +207,16 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
   const singlesList: StalkerCard[] = singles?.stalkerCards ?? [];
   const twinsList: StalkerTwin[] = twins?.twins ?? [];
   const tripletsList: StalkerTriplet[] = triplets?.triplets ?? [];
+  // Q29 Fix 6 — flag any incomplete triplets so we can investigate
+  // the data side. Render still degrades gracefully via placeholder
+  // slots below.
+  useEffect(() => {
+    tripletsList.forEach((t, i) => {
+      if (!t.cardIds || t.cardIds.length < 3) {
+        console.warn("[stalkers] incomplete triplet at index", i, t);
+      }
+    });
+  }, [tripletsList]);
   const reversedList: ReversedStalker[] = reversed?.reversedStalkers ?? [];
 
   const twinCount = twinsList.length;
