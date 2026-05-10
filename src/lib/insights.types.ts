@@ -42,7 +42,7 @@ export const DEFAULT_FILTERS: InsightsFilters = {
 
 export type InsightsOverview = {
   totalReadings: number;
-  suitBalance: { wands: number; cups: number; swords: number; pentacles: number };
+  suitBalance: { major: number; wands: number; cups: number; swords: number; pentacles: number };
   majorMinor: { major: number; minor: number };
   moonPhaseDistribution: Record<string, number>;
   reversalRate: number;
