@@ -14,6 +14,7 @@ import { Camera, CameraOff, Check, CheckCheck, Copy, Heart, Loader2, Network, Pe
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
+import { uploadWithQuota } from "@/lib/storage-upload";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { HelpIcon } from "@/components/help/HelpIcon";
 import { CardImage } from "@/components/card/CardImage";
