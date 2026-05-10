@@ -64,7 +64,7 @@ export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
           display: "inline-flex",
         }}
       >
-        <ChevronLeft size={18} aria-hidden="true" />
+        <ChevronLeft size={18} aria-hidden="true" style={{ pointerEvents: "none" }} />
       </button>
       <span style={{ minWidth: 80, textAlign: "center" }}>
         {count} card{count === 1 ? "" : "s"}
@@ -85,7 +85,7 @@ export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
           display: "inline-flex",
         }}
       >
-        <ChevronRight size={18} aria-hidden="true" />
+        <ChevronRight size={18} aria-hidden="true" style={{ pointerEvents: "none" }} />
       </button>
     </div>
   );
