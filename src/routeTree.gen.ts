@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ThreadsRouteImport } from './routes/threads'
 import { Route as StoriesRouteImport } from './routes/stories'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScatterTestRouteImport } from './routes/scatter-test'
@@ -19,6 +20,7 @@ import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as DrawRouteImport } from './routes/draw'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ThreadsPatternIdRouteImport } from './routes/threads.$patternId'
 import { Route as StoriesPatternIdRouteImport } from './routes/stories.$patternId'
 import { Route as SettingsThemesRouteImport } from './routes/settings.themes'
 import { Route as SettingsProfileRouteImport } from './routes/settings.profile'
@@ -35,6 +37,11 @@ import { Route as HelpCategoryArticleRouteImport } from './routes/help.$category
 import { Route as ApiPublicDetectWeavesRouteImport } from './routes/api/public/detect-weaves'
 import { Route as ApiPublicDetectWeavesStatusRouteImport } from './routes/api/public/detect-weaves/status'
 
+const ThreadsRoute = ThreadsRouteImport.update({
+  id: '/threads',
+  path: '/threads',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StoriesRoute = StoriesRouteImport.update({
   id: '/stories',
   path: '/stories',
@@ -84,6 +91,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ThreadsPatternIdRoute = ThreadsPatternIdRouteImport.update({
+  id: '/$patternId',
+  path: '/$patternId',
+  getParentRoute: () => ThreadsRoute,
 } as any)
 const StoriesPatternIdRoute = StoriesPatternIdRouteImport.update({
   id: '/$patternId',
@@ -174,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
+  '/threads': typeof ThreadsRouteWithChildren
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -184,6 +197,7 @@ export interface FileRoutesByFullPath {
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
   '/stories/$patternId': typeof StoriesPatternIdRoute
+  '/threads/$patternId': typeof ThreadsPatternIdRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -201,6 +215,7 @@ export interface FileRoutesByTo {
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
+  '/threads': typeof ThreadsRouteWithChildren
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -211,6 +226,7 @@ export interface FileRoutesByTo {
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
   '/stories/$patternId': typeof StoriesPatternIdRoute
+  '/threads/$patternId': typeof ThreadsPatternIdRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -229,6 +245,7 @@ export interface FileRoutesById {
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
+  '/threads': typeof ThreadsRouteWithChildren
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -239,6 +256,7 @@ export interface FileRoutesById {
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
   '/stories/$patternId': typeof StoriesPatternIdRoute
+  '/threads/$patternId': typeof ThreadsPatternIdRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -258,6 +276,7 @@ export interface FileRouteTypes {
     | '/scatter-test'
     | '/settings'
     | '/stories'
+    | '/threads'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -268,6 +287,7 @@ export interface FileRouteTypes {
     | '/settings/profile'
     | '/settings/themes'
     | '/stories/$patternId'
+    | '/threads/$patternId'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -285,6 +305,7 @@ export interface FileRouteTypes {
     | '/scatter-test'
     | '/settings'
     | '/stories'
+    | '/threads'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -295,6 +316,7 @@ export interface FileRouteTypes {
     | '/settings/profile'
     | '/settings/themes'
     | '/stories/$patternId'
+    | '/threads/$patternId'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -312,6 +334,7 @@ export interface FileRouteTypes {
     | '/scatter-test'
     | '/settings'
     | '/stories'
+    | '/threads'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -322,6 +345,7 @@ export interface FileRouteTypes {
     | '/settings/profile'
     | '/settings/themes'
     | '/stories/$patternId'
+    | '/threads/$patternId'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -340,11 +364,19 @@ export interface RootRouteChildren {
   ScatterTestRoute: typeof ScatterTestRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   StoriesRoute: typeof StoriesRouteWithChildren
+  ThreadsRoute: typeof ThreadsRouteWithChildren
   ApiPublicDetectWeavesRoute: typeof ApiPublicDetectWeavesRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/threads': {
+      id: '/threads'
+      path: '/threads'
+      fullPath: '/threads'
+      preLoaderRoute: typeof ThreadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/stories': {
       id: '/stories'
       path: '/stories'
@@ -414,6 +446,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/threads/$patternId': {
+      id: '/threads/$patternId'
+      path: '/$patternId'
+      fullPath: '/threads/$patternId'
+      preLoaderRoute: typeof ThreadsPatternIdRouteImport
+      parentRoute: typeof ThreadsRoute
     }
     '/stories/$patternId': {
       id: '/stories/$patternId'
@@ -586,6 +625,17 @@ const StoriesRouteChildren: StoriesRouteChildren = {
 const StoriesRouteWithChildren =
   StoriesRoute._addFileChildren(StoriesRouteChildren)
 
+interface ThreadsRouteChildren {
+  ThreadsPatternIdRoute: typeof ThreadsPatternIdRoute
+}
+
+const ThreadsRouteChildren: ThreadsRouteChildren = {
+  ThreadsPatternIdRoute: ThreadsPatternIdRoute,
+}
+
+const ThreadsRouteWithChildren =
+  ThreadsRoute._addFileChildren(ThreadsRouteChildren)
+
 interface ApiPublicDetectWeavesRouteChildren {
   ApiPublicDetectWeavesStatusRoute: typeof ApiPublicDetectWeavesStatusRoute
 }
@@ -610,8 +660,18 @@ const rootRouteChildren: RootRouteChildren = {
   ScatterTestRoute: ScatterTestRoute,
   SettingsRoute: SettingsRouteWithChildren,
   StoriesRoute: StoriesRouteWithChildren,
+  ThreadsRoute: ThreadsRouteWithChildren,
   ApiPublicDetectWeavesRoute: ApiPublicDetectWeavesRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
