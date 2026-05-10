@@ -267,6 +267,18 @@ function Sidebar({
           onClick={() => setTab(t.key)}
         />
       ))}
+      <Link
+        to="/admin/usage"
+        className="flex items-center gap-2 px-2 py-2 text-left transition-opacity hover:opacity-80"
+        style={{
+          ...serif,
+          fontSize: "var(--text-body)",
+          color:
+            "color-mix(in oklab, var(--color-foreground) 70%, transparent)",
+        }}
+      >
+        Usage
+      </Link>
       <div className="mt-2">
         <Link
           to="/"
@@ -436,6 +448,19 @@ function MobileTabBar({
           {t.label}
         </button>
       ))}
+      <Link
+        to="/admin/usage"
+        style={{
+          ...display,
+          fontSize: 10,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color:
+            "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+        }}
+      >
+        Usage
+      </Link>
       <Link
         to="/"
         style={{
