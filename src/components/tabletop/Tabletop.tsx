@@ -1354,9 +1354,9 @@ export function Tabletop({
                     lineHeight: 1.15,
                     letterSpacing: "0.06em",
                     textShadow: "0 0 14px rgba(212,175,55,0.55)",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
+                    // Q19 Fix 6 — allow long position names ("Hopes &
+                    // Fears") to wrap rather than be cut off mid-word.
+                    textAlign: "center",
                     maxWidth: "100%",
                     pointerEvents: "none",
                     transition: "opacity 200ms ease-out",
