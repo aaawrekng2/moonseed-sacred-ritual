@@ -78,9 +78,9 @@ export const generateStoryOrchestration = createServerFn({ method: "POST" })
     };
 
     const { data: rawPattern, error: patternErr } = await supabase
-      .from("symbolic_threads")
+      .from("patterns")
       .select(
-        "id, user_id, reading_ids, card_ids, story_name, story_description, per_reading_roles, remarkable_moments, narrative_arc, evidence_prose, ai_generated_at, ai_version, ai_reading_count_at_gen",
+        "id, user_id, reading_ids, thread_ids, story_name, story_description, per_reading_roles, remarkable_moments, narrative_arc, ai_generated_at, ai_version, ai_reading_count_at_gen",
       )
       .eq("id", data.patternId)
       .maybeSingle();
