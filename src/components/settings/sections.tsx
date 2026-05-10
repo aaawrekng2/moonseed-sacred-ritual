@@ -812,7 +812,6 @@ function WelcomeReplayRow() {
     </div>
   );
 }
-}
 
 /**
  * Timezone control for the Profile section.
