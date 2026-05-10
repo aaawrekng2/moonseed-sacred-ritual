@@ -80,6 +80,138 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_settings: {
+        Row: {
+          description: string | null
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value: Json
+        }
+        Update: {
+          description?: string | null
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
+      ai_call_log: {
+        Row: {
+          cached_input_tokens: number
+          call_type: string
+          cost_usd: number
+          created_at: string
+          credits_consumed: number
+          duration_ms: number | null
+          error_code: string | null
+          id: string
+          idempotency_key: string | null
+          input_tokens: number
+          model: string
+          output_tokens: number
+          pattern_id: string | null
+          plan_at_time: string
+          provider: string
+          reading_id: string | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          cached_input_tokens?: number
+          call_type: string
+          cost_usd?: number
+          created_at?: string
+          credits_consumed?: number
+          duration_ms?: number | null
+          error_code?: string | null
+          id?: string
+          idempotency_key?: string | null
+          input_tokens?: number
+          model: string
+          output_tokens?: number
+          pattern_id?: string | null
+          plan_at_time?: string
+          provider: string
+          reading_id?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          cached_input_tokens?: number
+          call_type?: string
+          cost_usd?: number
+          created_at?: string
+          credits_consumed?: number
+          duration_ms?: number | null
+          error_code?: string | null
+          id?: string
+          idempotency_key?: string | null
+          input_tokens?: number
+          model?: string
+          output_tokens?: number
+          pattern_id?: string | null
+          plan_at_time?: string
+          provider?: string
+          reading_id?: string | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_call_log_pattern_id_fkey"
+            columns: ["pattern_id"]
+            isOneToOne: false
+            referencedRelation: "patterns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_call_log_reading_id_fkey"
+            columns: ["reading_id"]
+            isOneToOne: false
+            referencedRelation: "readings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_credit_grants: {
+        Row: {
+          created_at: string
+          credits_amount: number
+          expires_at: string | null
+          id: string
+          metadata: Json
+          source: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_amount: number
+          expires_at?: string | null
+          id?: string
+          metadata?: Json
+          source: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_amount?: number
+          expires_at?: string | null
+          id?: string
+          metadata?: Json
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       custom_deck_cards: {
         Row: {
           archived_at: string | null
@@ -701,6 +833,50 @@ export type Database = {
           },
         ]
       }
+      storage_event_log: {
+        Row: {
+          bucket: string
+          created_at: string
+          deck_id: string | null
+          event_type: string
+          id: string
+          path: string
+          reading_id: string | null
+          size_bytes: number
+          user_id: string | null
+        }
+        Insert: {
+          bucket: string
+          created_at?: string
+          deck_id?: string | null
+          event_type: string
+          id?: string
+          path: string
+          reading_id?: string | null
+          size_bytes?: number
+          user_id?: string | null
+        }
+        Update: {
+          bucket?: string
+          created_at?: string
+          deck_id?: string | null
+          event_type?: string
+          id?: string
+          path?: string
+          reading_id?: string | null
+          size_bytes?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storage_event_log_reading_id_fkey"
+            columns: ["reading_id"]
+            isOneToOne: false
+            referencedRelation: "readings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       symbolic_threads: {
         Row: {
           ai_generated_at: string | null
@@ -1098,6 +1274,7 @@ export type Database = {
           last_run_cap_hit: boolean
         }[]
       }
+      grant_monthly_credits: { Args: never; Returns: undefined }
       has_admin_role: { Args: { _user_id: string }; Returns: boolean }
       log_admin_action: {
         Args: {

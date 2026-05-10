@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { SPREAD_META, isValidSpreadMode } from "@/lib/spreads";
 import { getCardName } from "@/lib/tarot";
 import { buildGuideSystemPrompt } from "@/lib/guides";
+import { callAI, isUserPremium } from "@/lib/ai-call.server";
 
 /**
  * Map a Lens id (UI-facing kebab-case) to the snapshot_type column value
@@ -85,12 +86,6 @@ export type InterpretError = {
   error: "daily_limit_reached" | "ai_unavailable" | "invalid_response" | "internal";
   message: string;
 };
-
-const ANTHROPIC_MODELS = [
-  "claude-sonnet-4-6",
-  "claude-sonnet-4-5-20250929",
-  "claude-haiku-4-5-20251001",
-] as const;
 
 /**
  * Server-side gate + Claude call. Lives in `.functions.ts` so the TanStack
@@ -244,87 +239,26 @@ export const interpretReading = createServerFn({ method: "POST" })
         ? `${memoryPreamble}${userPromptWithQuestion}`
         : userPromptWithQuestion;
 
-      // 3. Call the Anthropic Messages API.
-      const apiKey = process.env.ANTHROPIC_API_KEY;
-      if (!apiKey) {
-        console.error("[interpretReading] ANTHROPIC_API_KEY is not set");
-        return { ok: false, error: "ai_unavailable", message: "Interpreter is not configured." };
-      }
-
-      let rawText = "";
-      let lastProviderError = "";
-      // Scale max_tokens with spread size so large spreads (Celtic Cross
-      // = 10 cards) don't get cut off mid-JSON. Base 600 tokens overhead
-      // + 150 per position. Celtic = 600 + 1500 = 2100. Cap at 4096.
+      // 3. Call AI through the metered chokepoint.
       const maxTokens = Math.min(4096, 600 + data.picks.length * 150);
-      try {
-        for (const model of ANTHROPIC_MODELS) {
-          const resp = await fetch("https://api.anthropic.com/v1/messages", {
-            method: "POST",
-            headers: {
-              "x-api-key": apiKey,
-              "anthropic-version": "2023-06-01",
-              "content-type": "application/json",
-            },
-            body: JSON.stringify({
-              model,
-              max_tokens: maxTokens,
-              system: systemPromptWithReversal,
-              messages: [{ role: "user", content: userPromptWithMemory }],
-            }),
-          });
-
-          if (!resp.ok) {
-            const errText = await resp.text().catch(() => "");
-            lastProviderError = errText;
-            console.error("[interpretReading] Anthropic API error", {
-              model,
-              status: resp.status,
-              statusText: resp.statusText,
-              body: errText.slice(0, 500),
-            });
-
-            // If a model has been retired or is not enabled for this key,
-            // try the next currently-listed model before failing the reading.
-            if (resp.status === 404 || resp.status === 410) {
-              continue;
-            }
-
-            return {
-              ok: false,
-              error: "ai_unavailable",
-              message: "The reader could not be reached. Please try again.",
-            };
-          }
-
-          const json = (await resp.json()) as {
-            content?: Array<{ type: string; text?: string }>;
-          };
-          rawText =
-            json.content?.find((c) => c.type === "text")?.text?.trim() ?? "";
-          console.log("[interpretReading] Anthropic OK", { model, textLen: rawText.length });
-          break;
+      const isPremium = await isUserPremium(userId);
+      const aiResult = await callAI({
+        callType: "interpretation",
+        provider: "anthropic",
+        model: "claude-sonnet-4-6",
+        userId,
+        isPremium,
+        messages: [{ role: "user", content: userPromptWithMemory }],
+        system: systemPromptWithReversal,
+        maxTokens,
+      });
+      if (!aiResult.ok) {
+        if (aiResult.error === "quota_exceeded" || aiResult.error === "ai_disabled" || aiResult.error === "rate_limited") {
+          return { ok: false, error: "daily_limit_reached", message: "You've reached your AI quota for this cycle." };
         }
-
-        if (!rawText) {
-          console.error("[interpretReading] Anthropic exhausted all fallback models", {
-            models: ANTHROPIC_MODELS,
-            lastProviderError: lastProviderError.slice(0, 500),
-          });
-          return {
-            ok: false,
-            error: "ai_unavailable",
-            message: "The reader could not be reached. Please try again.",
-          };
-        }
-      } catch (networkErr) {
-        console.error("[interpretReading] Anthropic network/fetch failure", networkErr);
-        return {
-          ok: false,
-          error: "ai_unavailable",
-          message: "The reader could not be reached. Please try again.",
-        };
+        return { ok: false, error: "ai_unavailable", message: "The reader could not be reached. Please try again." };
       }
+      const rawText = aiResult.content;
 
       // 4. Parse the JSON response. Models occasionally wrap output in
       // ```json fences even when told not to — strip them defensively.
