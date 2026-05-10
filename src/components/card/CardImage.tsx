@@ -422,7 +422,11 @@ export function CardImage({
     }
   };
   const handleImgLoad = () => {
-    dispatch({ type: "LOAD_SUCCEEDED" });
+    // Q29 Fix 4 — lock the tier once we've successfully loaded once.
+    if (lockedTierRef.current === null) {
+      lockedTierRef.current = variantTier;
+    }
+    dispatch({ type: "LOAD_SUCCEEDED", tier: variantTier });
   };
 
   // FC-1 — Flip mode: render face + back inside a 3D wrapper. The
