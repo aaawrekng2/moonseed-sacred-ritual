@@ -224,14 +224,14 @@ const SIZE_PX: Record<Exclude<CardImageSize, "custom">, number> = {
   small: 40,
 };
 
-// EZ-7 — Pick the lightest variant that still meets the rendered size.
-const SIZE_TO_VARIANT: Record<CardImageSize, "sm" | "md" | "full"> = {
-  small: "sm",      // 40px target → 200px sm is plenty
-  thumbnail: "sm",  // 74px target → sm
-  medium: "md",     // 180px target → 400px md
-  hero: "full",     // 320px target → original
-  custom: "md",     // safe default for unknown sizes
-};
+// Q27 Fix 2 — Derive variant tier from EFFECTIVE rendered width, not
+// from the size enum alone. size="custom" with widthPx=32 was fetching
+// the 400px md variant; now it correctly grabs the 200px sm.
+function pickVariantTier(widthPx: number): "sm" | "md" | "full" {
+  if (widthPx <= 80) return "sm";
+  if (widthPx <= 200) return "md";
+  return "full";
+}
 
 function resolveWidth(size: CardImageSize, widthPx?: number): number {
   if (size === "custom") {
@@ -366,22 +366,13 @@ export function CardImage({
   const activeSrc =
     typeof cardId === "number" ? activeResolve(cardId) : null;
   const baseFaceSrc = specificSrc ?? activeSrc;
-  // EZ-7 — Use a smaller variant when one would suffice for the
-  // rendered size. If the variant URL later 404s, onError flips
-  // variantFailedFor and we re-render with the original.
-  const variantTier = SIZE_TO_VARIANT[size];
-  // 26-05-08-Q7 — Fix 1: when baseFaceSrc is null, never produce a
-  // stale variantSrc (which would leave faceSrc null and prevent any
-  // <img> from entering the DOM, stranding the shimmer overlay
-  // forever). When baseFaceSrc is set but variantUrlFor returns null,
-  // fall back to baseFaceSrc immediately so the img renders and its
-  // onError ladder can run. Larger sizes (medium/hero/custom) skip
-  // the smaller variant entirely.
+  // Q27 Fix 2 — variant tier is now derived from rendered width.
+  const variantTier = pickVariantTier(width);
   const variantSrc = !baseFaceSrc
     ? null
-    : size === "thumbnail" || size === "small"
-      ? (variantUrlFor(baseFaceSrc, variantTier) ?? baseFaceSrc)
-      : baseFaceSrc;
+    : variantTier === "full"
+      ? baseFaceSrc
+      : (variantUrlFor(baseFaceSrc, variantTier) ?? baseFaceSrc);
   const baseChosen =
     state.variantFailed ? baseFaceSrc : variantSrc;
   const faceSrc =
