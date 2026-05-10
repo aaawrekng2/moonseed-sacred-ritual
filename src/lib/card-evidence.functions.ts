@@ -20,6 +20,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getCardName, TAROT_DECK } from "@/lib/tarot";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
+import { callAnthropicWithFallback } from "@/lib/ai-call.server";
 
 const Input = z.object({
   threadId: z.string().uuid(),
@@ -30,7 +31,7 @@ const SONNET_MODELS = [
   "claude-sonnet-4-6",
   "claude-sonnet-4-5-20250929",
   "claude-sonnet-4-20250514",
-] as const;
+];
 
 const PROSE_VERSION = 2;
 
@@ -165,44 +166,20 @@ export const generateCardEvidenceProse = createServerFn({ method: "POST" })
       isPremium,
     });
 
-    // 6. Call Anthropic Sonnet
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) return { ok: false, error: "ai_unavailable" };
-
-    let prose = "";
-    for (const model of SONNET_MODELS) {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: 1200,
-          system: prompt.system,
-          messages: [{ role: "user", content: prompt.user }],
-        }),
-      });
-      if (!resp.ok) {
-        if (resp.status === 404 || resp.status === 410) continue;
-        const errText = await resp.text().catch(() => "");
-        console.error(
-          "[card-evidence] anthropic error",
-          resp.status,
-          errText.slice(0, 300),
-        );
-        return { ok: false, error: "ai_unavailable" };
-      }
-      const json = (await resp.json()) as {
-        content?: Array<{ type: string; text?: string }>;
-      };
-      prose = (json.content?.find((c) => c.type === "text")?.text ?? "").trim();
-      if (prose) break;
+    // 6. Call Anthropic Sonnet via metered chokepoint.
+    const aiResult = await callAnthropicWithFallback({
+      callType: "card_evidence",
+      userId,
+      isPremium,
+      system: prompt.system,
+      user: prompt.user,
+      maxTokens: 1200,
+      models: SONNET_MODELS,
+    });
+    if (!aiResult.ok) {
+      return { ok: false, error: aiResult.error === "quota_exceeded" ? "quota_exceeded" : "ai_unavailable" };
     }
-
-    if (!prose) return { ok: false, error: "ai_unavailable" };
+    let prose = aiResult.content;
     console.log(`[card-evidence-fn] anthropic call done`, {
       proseLength: prose.length,
       preview: prose.slice(0, 100),
