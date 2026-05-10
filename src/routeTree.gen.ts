@@ -9,7 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as ThreadsRouteImport } from './routes/threads'
+import { Route as StoriesRouteImport } from './routes/stories'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScatterTestRouteImport } from './routes/scatter-test'
 import { Route as JournalRouteImport } from './routes/journal'
@@ -19,7 +19,7 @@ import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as DrawRouteImport } from './routes/draw'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ThreadsPatternIdRouteImport } from './routes/threads.$patternId'
+import { Route as StoriesPatternIdRouteImport } from './routes/stories.$patternId'
 import { Route as SettingsThemesRouteImport } from './routes/settings.themes'
 import { Route as SettingsProfileRouteImport } from './routes/settings.profile'
 import { Route as SettingsPreferencesRouteImport } from './routes/settings.preferences'
@@ -35,9 +35,9 @@ import { Route as HelpCategoryArticleRouteImport } from './routes/help.$category
 import { Route as ApiPublicDetectWeavesRouteImport } from './routes/api/public/detect-weaves'
 import { Route as ApiPublicDetectWeavesStatusRouteImport } from './routes/api/public/detect-weaves/status'
 
-const ThreadsRoute = ThreadsRouteImport.update({
-  id: '/threads',
-  path: '/threads',
+const StoriesRoute = StoriesRouteImport.update({
+  id: '/stories',
+  path: '/stories',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -85,10 +85,10 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ThreadsPatternIdRoute = ThreadsPatternIdRouteImport.update({
+const StoriesPatternIdRoute = StoriesPatternIdRouteImport.update({
   id: '/$patternId',
   path: '/$patternId',
-  getParentRoute: () => ThreadsRoute,
+  getParentRoute: () => StoriesRoute,
 } as any)
 const SettingsThemesRoute = SettingsThemesRouteImport.update({
   id: '/themes',
@@ -173,7 +173,7 @@ export interface FileRoutesByFullPath {
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
-  '/threads': typeof ThreadsRouteWithChildren
+  '/stories': typeof StoriesRouteWithChildren
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -183,7 +183,7 @@ export interface FileRoutesByFullPath {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
-  '/threads/$patternId': typeof ThreadsPatternIdRoute
+  '/stories/$patternId': typeof StoriesPatternIdRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -200,7 +200,7 @@ export interface FileRoutesByTo {
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
-  '/threads': typeof ThreadsRouteWithChildren
+  '/stories': typeof StoriesRouteWithChildren
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -210,7 +210,7 @@ export interface FileRoutesByTo {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
-  '/threads/$patternId': typeof ThreadsPatternIdRoute
+  '/stories/$patternId': typeof StoriesPatternIdRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -228,7 +228,7 @@ export interface FileRoutesById {
   '/journal': typeof JournalRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
-  '/threads': typeof ThreadsRouteWithChildren
+  '/stories': typeof StoriesRouteWithChildren
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -238,7 +238,7 @@ export interface FileRoutesById {
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
   '/settings/themes': typeof SettingsThemesRoute
-  '/threads/$patternId': typeof ThreadsPatternIdRoute
+  '/stories/$patternId': typeof StoriesPatternIdRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -257,7 +257,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/scatter-test'
     | '/settings'
-    | '/threads'
+    | '/stories'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -267,7 +267,7 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
-    | '/threads/$patternId'
+    | '/stories/$patternId'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -284,7 +284,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/scatter-test'
     | '/settings'
-    | '/threads'
+    | '/stories'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -294,7 +294,7 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
-    | '/threads/$patternId'
+    | '/stories/$patternId'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -311,7 +311,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/scatter-test'
     | '/settings'
-    | '/threads'
+    | '/stories'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -321,7 +321,7 @@ export interface FileRouteTypes {
     | '/settings/preferences'
     | '/settings/profile'
     | '/settings/themes'
-    | '/threads/$patternId'
+    | '/stories/$patternId'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -339,17 +339,17 @@ export interface RootRouteChildren {
   JournalRoute: typeof JournalRoute
   ScatterTestRoute: typeof ScatterTestRoute
   SettingsRoute: typeof SettingsRouteWithChildren
-  ThreadsRoute: typeof ThreadsRouteWithChildren
+  StoriesRoute: typeof StoriesRouteWithChildren
   ApiPublicDetectWeavesRoute: typeof ApiPublicDetectWeavesRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/threads': {
-      id: '/threads'
-      path: '/threads'
-      fullPath: '/threads'
-      preLoaderRoute: typeof ThreadsRouteImport
+    '/stories': {
+      id: '/stories'
+      path: '/stories'
+      fullPath: '/stories'
+      preLoaderRoute: typeof StoriesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -415,12 +415,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/threads/$patternId': {
-      id: '/threads/$patternId'
+    '/stories/$patternId': {
+      id: '/stories/$patternId'
       path: '/$patternId'
-      fullPath: '/threads/$patternId'
-      preLoaderRoute: typeof ThreadsPatternIdRouteImport
-      parentRoute: typeof ThreadsRoute
+      fullPath: '/stories/$patternId'
+      preLoaderRoute: typeof StoriesPatternIdRouteImport
+      parentRoute: typeof StoriesRoute
     }
     '/settings/themes': {
       id: '/settings/themes'
@@ -575,16 +575,16 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
   SettingsRouteChildren,
 )
 
-interface ThreadsRouteChildren {
-  ThreadsPatternIdRoute: typeof ThreadsPatternIdRoute
+interface StoriesRouteChildren {
+  StoriesPatternIdRoute: typeof StoriesPatternIdRoute
 }
 
-const ThreadsRouteChildren: ThreadsRouteChildren = {
-  ThreadsPatternIdRoute: ThreadsPatternIdRoute,
+const StoriesRouteChildren: StoriesRouteChildren = {
+  StoriesPatternIdRoute: StoriesPatternIdRoute,
 }
 
-const ThreadsRouteWithChildren =
-  ThreadsRoute._addFileChildren(ThreadsRouteChildren)
+const StoriesRouteWithChildren =
+  StoriesRoute._addFileChildren(StoriesRouteChildren)
 
 interface ApiPublicDetectWeavesRouteChildren {
   ApiPublicDetectWeavesStatusRoute: typeof ApiPublicDetectWeavesStatusRoute
@@ -609,9 +609,18 @@ const rootRouteChildren: RootRouteChildren = {
   JournalRoute: JournalRoute,
   ScatterTestRoute: ScatterTestRoute,
   SettingsRoute: SettingsRouteWithChildren,
-  ThreadsRoute: ThreadsRouteWithChildren,
+  StoriesRoute: StoriesRouteWithChildren,
   ApiPublicDetectWeavesRoute: ApiPublicDetectWeavesRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
