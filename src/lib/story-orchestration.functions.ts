@@ -33,7 +33,7 @@ type ThreadRow = {
   card_ids: number[] | null;
   story_name: string | null;
   story_description: string | null;
-  per_reading_roles: Record<string, unknown> | null;
+  per_reading_roles: { [k: string]: unknown } | null;
   remarkable_moments: unknown[] | null;
   narrative_arc: string | null;
   evidence_prose: string | null;
@@ -68,7 +68,7 @@ function thresholdCrossed(prev: number | null, current: number): boolean {
 export const generateStoryOrchestration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => Input.parse(data))
-  .handler(async ({ data, context }): Promise<StoryOrchestrationResult> => {
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context as {
       supabase: SupabaseClient;
       userId: string;
@@ -298,7 +298,11 @@ export const generateStoryOrchestration = createServerFn({ method: "POST" })
       return { ok: false, error: "ai_unavailable" };
     }
 
-    return { ok: true, cached: false, pattern: updated as unknown as ThreadRow };
+    return {
+      ok: true as const,
+      cached: false,
+      pattern: updated as unknown as ThreadRow,
+    };
   });
 
 const ResubmitInput = z.object({ patternId: z.string().uuid() });
@@ -306,7 +310,7 @@ const ResubmitInput = z.object({ patternId: z.string().uuid() });
 export const resubmitStoryToAi = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => ResubmitInput.parse(data))
-  .handler(async ({ data, context }): Promise<StoryOrchestrationResult> => {
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context as {
       supabase: SupabaseClient;
       userId: string;
@@ -331,7 +335,7 @@ export const resubmitStoryToAi = createServerFn({ method: "POST" })
         ai_generated_at: null,
       })
       .eq("id", data.patternId);
-    return generateStoryOrchestration({
+    return (await generateStoryOrchestration({
       data: { patternId: data.patternId, force: true },
-    });
+    })) as StoryOrchestrationResult;
   });
