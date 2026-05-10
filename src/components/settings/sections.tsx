@@ -1106,7 +1106,7 @@ function MemorySection({
 
   return (
     <SettingsSection
-      title="Memory & Threads"
+      title="Memory & Stories"
       description="When on, your guide notices recurring symbols across your readings and weaves that memory into future interpretations. Only patterns and tags are remembered — never the raw text of past readings."
     >
       <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">

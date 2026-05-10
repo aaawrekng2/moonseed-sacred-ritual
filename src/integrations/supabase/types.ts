@@ -679,6 +679,9 @@ export type Database = {
       }
       symbolic_threads: {
         Row: {
+          ai_generated_at: string | null
+          ai_reading_count_at_gen: number | null
+          ai_version: string | null
           card_ids: number[]
           description: string | null
           detected_at: string
@@ -692,10 +695,15 @@ export type Database = {
           is_premium: boolean
           last_seen_at: string
           name: string | null
+          narrative_arc: string | null
           pattern_id: string | null
+          per_reading_roles: Json
           reading_ids: string[]
           recurrence_count: number
+          remarkable_moments: Json
           status: string
+          story_description: string | null
+          story_name: string | null
           summary: string
           tags: string[]
           title: string | null
@@ -703,6 +711,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ai_generated_at?: string | null
+          ai_reading_count_at_gen?: number | null
+          ai_version?: string | null
           card_ids?: number[]
           description?: string | null
           detected_at?: string
@@ -716,10 +727,15 @@ export type Database = {
           is_premium?: boolean
           last_seen_at?: string
           name?: string | null
+          narrative_arc?: string | null
           pattern_id?: string | null
+          per_reading_roles?: Json
           reading_ids?: string[]
           recurrence_count?: number
+          remarkable_moments?: Json
           status?: string
+          story_description?: string | null
+          story_name?: string | null
           summary: string
           tags?: string[]
           title?: string | null
@@ -727,6 +743,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ai_generated_at?: string | null
+          ai_reading_count_at_gen?: number | null
+          ai_version?: string | null
           card_ids?: number[]
           description?: string | null
           detected_at?: string
@@ -740,10 +759,15 @@ export type Database = {
           is_premium?: boolean
           last_seen_at?: string
           name?: string | null
+          narrative_arc?: string | null
           pattern_id?: string | null
+          per_reading_roles?: Json
           reading_ids?: string[]
           recurrence_count?: number
+          remarkable_moments?: Json
           status?: string
+          story_description?: string | null
+          story_name?: string | null
           summary?: string
           tags?: string[]
           title?: string | null
