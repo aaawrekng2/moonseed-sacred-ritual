@@ -324,6 +324,12 @@ code, pre, kbd {
   letter-spacing: -0.01em;
   font-weight: 500;
 }
+/* Q29 Fix 5 — Tailwind v4 with `source(none)` does NOT auto-generate
+   the `font-serif` utility. Define it explicitly so callers like
+   `className="font-serif italic"` resolve to Cormorant Garamond. */
+.font-serif {
+  font-family: var(--font-serif), 'Cormorant Garamond', Georgia, serif;
+}
 .scrollbar-none { scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .panel {

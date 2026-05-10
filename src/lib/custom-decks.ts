@@ -388,6 +388,35 @@ async function buildDeckImageMapUncached(
   } catch {
     // ignore logging errors
   }
+  // Q29 Fix 7 — variant coverage diagnostic. Helps spot cards whose
+  // sm/md/full variants never finished generating in the edge function.
+  try {
+    const cardIds = Object.keys(map.variants).map((c) => Number(c));
+    const cardsWithFullVariants = cardIds.filter(
+      (cid) => map.variants[cid].full !== undefined,
+    ).length;
+    const cardsWithSmVariants = cardIds.filter(
+      (cid) => map.variants[cid].sm !== undefined,
+    ).length;
+    const cardsWithMdVariants = cardIds.filter(
+      (cid) => map.variants[cid].md !== undefined,
+    ).length;
+    console.log(
+      "[buildDeckImageMap] variant coverage",
+      "deck=",
+      deckId,
+      "fullVariants=",
+      cardsWithFullVariants,
+      "mdVariants=",
+      cardsWithMdVariants,
+      "smVariants=",
+      cardsWithSmVariants,
+      "totalCards=",
+      cardIds.length,
+    );
+  } catch {
+    // ignore logging errors
+  }
   return map;
 }
 
@@ -464,7 +493,17 @@ export function resolveCardImage(
   // share-card-shared because "" is not nullish — so when both specific
   // and active resolvers missed, baseFaceSrc stayed "" and downstream
   // variantUrlFor("") returned null, leaving the <img> unrendered.
-  if (cardIndex >= 1000) return null;
+  if (cardIndex >= 1000) {
+    // Q29 Fix 7 — surface oracle-card resolution failures so we can
+    // see which cards never got variants generated.
+    console.warn("[resolveCardImage] no image for oracle cardId", cardIndex, {
+      hasMap: !!map,
+      hasVariants: !!map?.variants[cardIndex],
+      hasDisplay: !!map?.display[cardIndex],
+      hasThumbnail: !!map?.thumbnail[cardIndex],
+    });
+    return null;
+  }
   return getDefaultCardImagePath(cardIndex);
 }
 

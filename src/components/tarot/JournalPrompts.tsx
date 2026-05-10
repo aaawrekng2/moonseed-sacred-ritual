@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Lightbulb, Eye, EyeOff, Loader2, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lightbulb, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type JournalPromptsProps = {
@@ -129,89 +129,189 @@ export function JournalPrompts({
         <button
           type="button"
           onClick={() => setHidden(false)}
-          className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-widest text-muted-foreground hover:text-gold transition-colors"
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            color: "var(--color-foreground)",
+            opacity: 0.55,
+          }}
         >
-          <Eye className="h-3 w-3" />
-          Show prompts
+          show prompts
         </button>
       </div>
     );
   }
 
   return (
-    <div
-      className={cn(
-        "rounded-xl border border-gold/30 bg-gold/5 p-4 md:p-5 backdrop-blur-sm",
-        className,
-      )}
+    // Q29 Fix 9 — redesign per moonseed_styling_doc.docx:
+    //  - no pill button (Section 2.1 — pills only for EmptyHero CTA)
+    //  - no uppercase tracking on the section header (Section 5)
+    //  - all values via design tokens (Section 4)
+    //  - editorial italic display font for actions and label
+    <section
+      className={className}
+      style={{
+        background: "var(--surface-card)",
+        border: "0.5px solid var(--border-subtle)",
+        borderRadius: "var(--radius-lg, 12px)",
+        padding: "var(--space-5, 20px)",
+        marginBottom: "var(--space-4, 16px)",
+      }}
     >
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-gold">
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          marginBottom: 12,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {isPlaceholder ? (
-            <Sparkles className="h-3.5 w-3.5" />
+            <Sparkles size={14} style={{ color: "var(--accent, var(--gold))", opacity: 0.7 }} />
           ) : (
-            <Lightbulb className="h-3.5 w-3.5" />
+            <Lightbulb size={14} style={{ color: "var(--accent, var(--gold))", opacity: 0.7 }} />
           )}
-          <span>{isPlaceholder ? "Tailored Prompt" : "Journaling Prompt"}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="text-[11px] text-muted-foreground tabular-nums mr-1">
-            {index + 1} of {total}
+          <span
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              opacity: 0.55,
+            }}
+          >
+            {isPlaceholder ? "a tailored prompt" : "a journaling prompt"}
           </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <button
             type="button"
             onClick={() => go(-1)}
             aria-label="Previous prompt"
             disabled={total <= 1}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/40 text-muted-foreground transition-colors hover:border-gold/50 hover:text-gold disabled:opacity-40 disabled:pointer-events-none"
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--color-foreground)",
+              opacity: total <= 1 ? 0.2 : 0.5,
+              cursor: total <= 1 ? "not-allowed" : "pointer",
+              padding: 6,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft size={16} />
           </button>
+          <span
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption)",
+              color: "var(--color-foreground)",
+              opacity: 0.5,
+            }}
+          >
+            {index + 1} of {total}
+          </span>
           <button
             type="button"
             onClick={() => go(1)}
             aria-label="Next prompt"
             disabled={total <= 1}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/40 text-muted-foreground transition-colors hover:border-gold/50 hover:text-gold disabled:opacity-40 disabled:pointer-events-none"
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--color-foreground)",
+              opacity: total <= 1 ? 0.2 : 0.5,
+              cursor: total <= 1 ? "not-allowed" : "pointer",
+              padding: 6,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight size={16} />
           </button>
         </div>
       </div>
 
-      <div className="min-h-[56px] overflow-hidden">
-        <p
-          key={animKeyRef.current}
-          className={cn(
-            "font-display italic text-base md:text-lg leading-relaxed text-gold animate-in fade-in duration-300",
-            isPlaceholder && "opacity-70",
-            direction === "right" ? "slide-in-from-right-4" : "slide-in-from-left-4",
-          )}
-        >
-          "{current}"
-        </p>
-      </div>
+      <p
+        key={animKeyRef.current}
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-body-lg, 1.05rem)",
+          lineHeight: 1.5,
+          color: "var(--color-foreground)",
+          opacity: isPlaceholder ? 0.6 : 0.9,
+          margin: 0,
+        }}
+        className={cn(
+          "animate-in fade-in duration-300",
+          direction === "right" ? "slide-in-from-right-4" : "slide-in-from-left-4",
+        )}
+      >
+        "{current}"
+      </p>
 
-      <div className="mt-3 flex items-center justify-between gap-3">
+      <div
+        style={{
+          marginTop: 16,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 16,
+        }}
+      >
         <button
           type="button"
           onClick={() => void insertPrompt()}
           disabled={!!loading}
-          className="inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/10 px-3 py-1.5 text-xs uppercase tracking-widest text-gold transition-colors hover:bg-gold/20 min-h-9 disabled:opacity-60 disabled:pointer-events-none"
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: loading ? "wait" : "pointer",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body)",
+            color: "var(--accent, var(--gold))",
+            opacity: loading ? 0.5 : 0.85,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
         >
           {loading && <Loader2 className="h-3 w-3 animate-spin" />}
-          Tap to use this prompt
+          use this prompt
         </button>
         <button
           type="button"
           onClick={() => setHidden(true)}
-          className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-widest text-muted-foreground hover:text-gold transition-colors"
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            color: "var(--color-foreground)",
+            opacity: 0.4,
+          }}
         >
-          <EyeOff className="h-3 w-3" />
-          Hide prompts
+          hide prompts
         </button>
       </div>
-    </div>
+    </section>
   );
 }
 
