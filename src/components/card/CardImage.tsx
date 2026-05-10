@@ -308,6 +308,31 @@ export function CardImage({
       ? `${baseChosen}${baseChosen.includes("?") ? "&" : "?"}r=${retryTs}`
       : baseChosen;
 
+  // Q22 Fix 1 — only reset imageLoaded when the actual image SOURCE
+  // changes. Resetting on every cardId/deckId/cachedFaceAspect change
+  // races with <img onLoad> for cached images and strands the shimmer
+  // overlay forever.
+  useEffect(() => {
+    if (prevFaceSrcRef.current !== faceSrc) {
+      prevFaceSrcRef.current = faceSrc;
+      setImageLoaded(false);
+      setVariantFailedFor(null);
+      setRetryCount(0);
+      setRetryTs(0);
+    }
+  }, [faceSrc]);
+
+  // Q22 Fix 1 safety net — if onLoad never fires (cached image,
+  // browser quirk), force shimmer off after 5s so the card eventually
+  // renders.
+  useEffect(() => {
+    if (variant !== "face") return;
+    if (!faceSrc) return;
+    if (imageLoaded) return;
+    const t = window.setTimeout(() => setImageLoaded(true), 5000);
+    return () => window.clearTimeout(t);
+  }, [variant, faceSrc, imageLoaded]);
+
   const showFaceShimmer =
     variant === "face" && !loading && (faceSrc == null || !imageLoaded);
 
