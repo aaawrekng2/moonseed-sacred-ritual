@@ -39,3 +39,20 @@ export function stripMarkdown(input: string | null | undefined): string {
   s = s.replace(/^\s*\d+\.\s+/gm, "");
   return s;
 }
+
+/**
+ * Q16 Fix 3 — strip the legacy "{spread} — Moonseed reading" prefix
+ * that older readings captured into `readings.interpretation` because
+ * `buildCopyText` was being persisted instead of the body.
+ * Defensive: applied at render time wherever the interpretation is
+ * shown, in addition to the one-time DB cleanup migration.
+ */
+export function stripLegacyMoonseedPrefix(
+  input: string | null | undefined,
+): string {
+  if (!input) return "";
+  return String(input).replace(
+    /^[A-Za-z]+(\s+[A-Za-z]+)?\s+—\s+Moonseed reading\s*\n*/i,
+    "",
+  );
+}

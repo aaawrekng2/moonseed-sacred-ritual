@@ -17,7 +17,7 @@ import {
   formatMonthYear,
 } from "@/lib/dates";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
-import { stripMarkdown } from "@/lib/strip-markdown";
+import { stripMarkdown, stripLegacyMoonseedPrefix } from "@/lib/strip-markdown";
 import {
   useDeckImage,
   useDeckCornerRadius,
@@ -496,6 +496,7 @@ function JournalPage() {
       note: string | null;
       is_favorite: boolean;
       tags: string[] | null;
+      journal_prompt_used?: boolean;
     }) => {
       setReadings((prev) =>
         prev.map((r) =>
@@ -505,6 +506,9 @@ function JournalPage() {
                 note: next.note,
                 is_favorite: next.is_favorite,
                 tags: next.tags,
+                ...(next.journal_prompt_used !== undefined
+                  ? { journal_prompt_used: next.journal_prompt_used }
+                  : {}),
               }
             : r,
         ),
@@ -974,7 +978,9 @@ function ReadingCard({
   const hasNote = (reading.note ?? "").trim().length > 0;
   const hasQuestion = (reading.question ?? "").trim().length > 0;
   const hasTags = (reading.tags ?? []).length > 0;
-  const interpFirst = (reading.interpretation ?? "")
+  // Q16 Fix 3 — strip the legacy "{spread} — Moonseed reading" prefix
+  // from older readings before rendering the row excerpt.
+  const interpFirst = stripLegacyMoonseedPrefix(reading.interpretation ?? "")
     .replace(/\s+/g, " ")
     .trim();
   const interpClean = stripMarkdown(interpFirst);
@@ -1951,6 +1957,7 @@ function ReadingDetail({
     note: string | null;
     is_favorite: boolean;
     tags: string[] | null;
+    journal_prompt_used?: boolean;
   }) => void;
   onTagLibraryChange: (next: EnrichmentTag[]) => void;
   onPhotoCountChange: (readingId: string, count: number) => void;
@@ -2322,7 +2329,7 @@ function ReadingDetail({
               whiteSpace: "pre-wrap",
             }}
           >
-            {stripMarkdown(reading.interpretation)}
+            {stripMarkdown(stripLegacyMoonseedPrefix(reading.interpretation))}
           </article>
         )}
 
@@ -2448,6 +2455,15 @@ function ReadingDetail({
           defaultNoteOpen
           journalPromptUsed={!!reading.journal_prompt_used}
           onJournalPromptUsed={() => {
+            // Q16 Fix 1 secondary — update local state too so the panel
+            // collapses immediately without waiting for a refetch.
+            onReadingChange({
+              id: reading.id,
+              note: reading.note,
+              is_favorite: reading.is_favorite,
+              tags: reading.tags,
+              journal_prompt_used: true,
+            });
             void supabase
               .from("readings")
               .update({ journal_prompt_used: true })
