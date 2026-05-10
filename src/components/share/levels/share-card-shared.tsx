@@ -291,24 +291,44 @@ export function ShareCardRow({
                   : 16,
             }}
           >
-            <img
-              src={
-                getImage(p.cardIndex) ??
-                getActive(p.cardIndex) ??
-                getCardImagePath(p.cardIndex)
+            {(() => {
+              // Q33b Fix 5 — show a skeleton while a custom deck's
+              // images are still resolving so we never flash the
+              // default Rider-Waite art under the seeker's deck.
+              const customSrc = getImage(p.cardIndex) ?? getActive(p.cardIndex);
+              const isLoading = effectiveDeckId !== null && customSrc === null;
+              if (isLoading) {
+                return (
+                  <div
+                    aria-hidden
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      borderRadius: "inherit",
+                      background:
+                        "color-mix(in oklab, var(--color-foreground) 8%, transparent)",
+                      animation: "pulse 1.5s ease-in-out infinite",
+                    }}
+                  />
+                );
               }
-              alt=""
-              crossOrigin="anonymous"
-              style={{
-                width: "100%",
-                height: "100%",
-                // DC-3.1 — contain so non–Rider-Waite custom decks
-                // (varying aspect ratios) aren't sliced mid-card.
-                objectFit: "contain",
-                display: "block",
-                transform: p.isReversed ? "rotate(180deg)" : undefined,
-              }}
-            />
+              return (
+                <img
+                  src={customSrc ?? getCardImagePath(p.cardIndex)}
+                  alt=""
+                  crossOrigin="anonymous"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    // DC-3.1 — contain so non–Rider-Waite custom decks
+                    // (varying aspect ratios) aren't sliced mid-card.
+                    objectFit: "contain",
+                    display: "block",
+                    transform: p.isReversed ? "rotate(180deg)" : undefined,
+                  }}
+                />
+              );
+            })()}
           </div>
           <div
             style={{
