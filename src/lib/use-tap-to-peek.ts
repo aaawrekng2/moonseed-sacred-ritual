@@ -25,7 +25,7 @@ const PEEK_FADE_MS = 600;
 const INTERACTIVE_SELECTOR =
   'button, a, input, textarea, select, [role="button"], [role="link"], ' +
   '[role="menuitem"], [role="checkbox"], [role="switch"], [role="tab"], ' +
-  '[contenteditable="true"], [data-no-peek], label';
+  '[contenteditable="true"], [data-no-peek], label, svg, path, [aria-label]';
 
 let active = false;
 let holdTimer: ReturnType<typeof setTimeout> | null = null;
@@ -75,14 +75,17 @@ export function triggerPeek(holdMs: number = PEEK_HOLD_MS) {
 export function useTapToPeek() {
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const handler = (e: PointerEvent) => {
+    // Q22 audit reapply (Q21 Fix 3) — listen on `click` not
+    // `pointerdown` so React's onClick handlers + their
+    // stopPropagation/data-no-peek guards run first.
+    const handler = (e: MouseEvent) => {
       if (e.button !== undefined && e.button !== 0) return;
       if (isInteractive(e.target)) return;
       triggerPeek(PEEK_HOLD_MS);
     };
-    document.addEventListener("pointerdown", handler, { capture: true });
+    document.addEventListener("click", handler, { capture: true });
     return () => {
-      document.removeEventListener("pointerdown", handler, { capture: true });
+      document.removeEventListener("click", handler, { capture: true });
       if (holdTimer) {
         clearTimeout(holdTimer);
         holdTimer = null;
