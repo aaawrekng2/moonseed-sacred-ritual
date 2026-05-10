@@ -104,8 +104,12 @@ function DrawPage() {
   const { setCloseHandler } = useFloatingMenu();
   useEffect(() => {
     console.log("[draw] close handler effect", { phase });
-    if (phase !== "select") {
-      console.log("[draw] clearing close handler (phase != select)");
+    // Q27 Fix 5 — register close handler for ANY draw phase except
+    // "reading" (which has its own X via ReadingScreen). Previous
+    // gate on phase==="select" caused the X to disappear when
+    // Custom remounted intermediate components.
+    if (phase === "reading") {
+      console.log("[draw] clearing close handler (phase=reading)");
       setCloseHandler(null);
       return;
     }

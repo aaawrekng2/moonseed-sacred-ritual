@@ -86,6 +86,24 @@ export const EMPTY_DECK_IMAGE_MAP: DeckImageMap = {
   nameByCardId: {},
 };
 
+// Q27 Fix 1 — Module-level cache for buildDeckImageMap, shared across
+// all CardImage instances. Without this, every CardImage independently
+// fetches the deck map and generates fresh signed URLs, causing
+// thousands of parallel requests that cancel each other.
+const deckImageMapCache = new Map<string, Promise<DeckImageMap>>();
+const deckImageMapCacheExpiry = new Map<string, number>();
+const DECK_MAP_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+export function invalidateDeckImageMap(deckId: string): void {
+  deckImageMapCache.delete(deckId);
+  deckImageMapCacheExpiry.delete(deckId);
+}
+
+export function invalidateAllDeckImageMaps(): void {
+  deckImageMapCache.clear();
+  deckImageMapCacheExpiry.clear();
+}
+
 export async function fetchUserDecks(userId: string): Promise<CustomDeck[]> {
   const { data, error } = await supabase
     .from("custom_decks")
@@ -122,7 +140,9 @@ export async function fetchDeckCards(deckId: string): Promise<CustomDeckCard[]> 
   return (data ?? []) as CustomDeckCard[];
 }
 
-export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
+async function buildDeckImageMapUncached(
+  deckId: string,
+): Promise<DeckImageMap> {
   const cards = await fetchDeckCards(deckId);
   const map: DeckImageMap = {
     display: {},
@@ -310,6 +330,28 @@ export async function buildDeckImageMap(deckId: string): Promise<DeckImageMap> {
     // ignore logging errors
   }
   return map;
+}
+
+// Q27 Fix 1 — Cached entry point. Multiple concurrent callers await
+// the SAME promise, collapsing N parallel fetches into 1.
+export async function buildDeckImageMap(
+  deckId: string,
+): Promise<DeckImageMap> {
+  const now = Date.now();
+  const expiry = deckImageMapCacheExpiry.get(deckId) ?? 0;
+  if (deckImageMapCache.has(deckId) && now < expiry) {
+    return deckImageMapCache.get(deckId)!;
+  }
+  const promise = buildDeckImageMapUncached(deckId);
+  deckImageMapCache.set(deckId, promise);
+  deckImageMapCacheExpiry.set(deckId, now + DECK_MAP_CACHE_TTL_MS);
+  promise.catch(() => {
+    if (deckImageMapCache.get(deckId) === promise) {
+      deckImageMapCache.delete(deckId);
+      deckImageMapCacheExpiry.delete(deckId);
+    }
+  });
+  return promise;
 }
 
 /**

@@ -318,8 +318,11 @@ function SpreadContent({
     // Q25 Fix 5 — for 5+ cards, use the Celtic single-row responsive
     // formula so the row always fits any viewport with no wrap.
     if (count >= 5) {
-      const viewportW = typeof window !== "undefined" ? window.innerWidth : 380;
-      const slotW = responsiveSlotWidth(viewportW, count);
+      // Q27 Fix 8 — subtract container padding from viewport so the
+      // slot rail actually fits the available content area.
+      const rawViewportW = typeof window !== "undefined" ? window.innerWidth : 380;
+      const effectiveViewportW = Math.max(280, rawViewportW - 64);
+      const slotW = responsiveSlotWidth(effectiveViewportW, count);
       const slotH = Math.round(slotW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
       const gap = count >= 10 ? 4 : 8;
       return (
@@ -1195,8 +1198,9 @@ export function ManualSpreadSlots({
     // formula so the manual entry slot rail always fits any viewport
     // with no wrap. For 1-4 cards, keep the natural wider sizing.
     if (count >= 5) {
-      const viewportW = typeof window !== "undefined" ? window.innerWidth : 380;
-      const slotW = responsiveSlotWidth(viewportW, count);
+      const rawViewportW = typeof window !== "undefined" ? window.innerWidth : 380;
+      const effectiveViewportW = Math.max(280, rawViewportW - 64);
+      const slotW = responsiveSlotWidth(effectiveViewportW, count);
       const gap = count >= 10 ? 4 : 8;
       return (
         <div

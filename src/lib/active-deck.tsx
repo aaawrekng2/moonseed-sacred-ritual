@@ -12,6 +12,7 @@ import {
   EMPTY_DECK_IMAGE_MAP,
   fetchActiveDeck,
   resolveCardImage,
+  invalidateDeckImageMap,
   type CustomDeck,
   type DeckImageMap,
 } from "@/lib/custom-decks";
@@ -134,11 +135,17 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
   // 9-6-J — re-fetch when any code path edits the deck back image.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const onUpdate = () => setRefreshTick((n) => n + 1);
+    const onUpdate = () => {
+      // Q27 Fix 1 — invalidate the module-level cache so the
+      // refetch produces fresh signed URLs (otherwise the cached
+      // promise resolves with the now-stale back image).
+      if (activeDeck?.id) invalidateDeckImageMap(activeDeck.id);
+      setRefreshTick((n) => n + 1);
+    };
     window.addEventListener("arcana:deck-back-updated", onUpdate);
     return () =>
       window.removeEventListener("arcana:deck-back-updated", onUpdate);
-  }, []);
+  }, [activeDeck?.id]);
 
   const value = useMemo<Ctx>(
     () => ({ activeDeck, imageMap, loading, refresh }),

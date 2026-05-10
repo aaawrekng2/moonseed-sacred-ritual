@@ -53,17 +53,26 @@ export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
       <button
         type="button"
         onClick={dec}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          dec(e as unknown as React.MouseEvent);
+        }}
         disabled={count <= min}
         aria-label="Fewer cards"
         data-no-peek=""
         style={{
           background: "none",
           border: "none",
-          padding: isMobile ? 4 : 6,
+          padding: isMobile ? 12 : 6,
+          minWidth: isMobile ? 44 : undefined,
+          minHeight: isMobile ? 44 : undefined,
           color: "inherit",
           opacity: count <= min ? 0.3 : 1,
           cursor: count <= min ? "not-allowed" : "pointer",
           display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          touchAction: "manipulation",
         }}
       >
         <ChevronLeft size={18} aria-hidden="true" style={{ pointerEvents: "none" }} />
@@ -74,17 +83,26 @@ export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
       <button
         type="button"
         onClick={inc}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          inc(e as unknown as React.MouseEvent);
+        }}
         disabled={count >= max}
         aria-label="More cards"
         data-no-peek=""
         style={{
           background: "none",
           border: "none",
-          padding: isMobile ? 4 : 6,
+          padding: isMobile ? 12 : 6,
+          minWidth: isMobile ? 44 : undefined,
+          minHeight: isMobile ? 44 : undefined,
           color: "inherit",
           opacity: count >= max ? 0.3 : 1,
           cursor: count >= max ? "not-allowed" : "pointer",
           display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          touchAction: "manipulation",
         }}
       >
         <ChevronRight size={18} aria-hidden="true" style={{ pointerEvents: "none" }} />
