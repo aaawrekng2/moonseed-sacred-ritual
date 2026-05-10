@@ -180,7 +180,6 @@ export function Tabletop({
   // (0,0). Also reset the initializedRef flag so initialScatter
   // recomputes against the freshly-measured container.
   useEffect(() => {
-    if (manualOpen) return;
     let cancelled = false;
     let raf: number | null = null;
     const tryMeasure = () => {
@@ -205,7 +204,7 @@ export function Tabletop({
       cancelled = true;
       if (raf !== null) cancelAnimationFrame(raf);
     };
-  }, [manualOpen]);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
