@@ -332,6 +332,28 @@ async function buildDeckImageMapUncached(
   return map;
 }
 
+// Q27 Fix 1 — Cached entry point. Multiple concurrent callers await
+// the SAME promise, collapsing N parallel fetches into 1.
+export async function buildDeckImageMap(
+  deckId: string,
+): Promise<DeckImageMap> {
+  const now = Date.now();
+  const expiry = deckImageMapCacheExpiry.get(deckId) ?? 0;
+  if (deckImageMapCache.has(deckId) && now < expiry) {
+    return deckImageMapCache.get(deckId)!;
+  }
+  const promise = buildDeckImageMapUncached(deckId);
+  deckImageMapCache.set(deckId, promise);
+  deckImageMapCacheExpiry.set(deckId, now + DECK_MAP_CACHE_TTL_MS);
+  promise.catch(() => {
+    if (deckImageMapCache.get(deckId) === promise) {
+      deckImageMapCache.delete(deckId);
+      deckImageMapCacheExpiry.delete(deckId);
+    }
+  });
+  return promise;
+}
+
 /**
  * Sync resolver. If `map` has an override for `cardIndex`, returns it;
  * otherwise falls back to the default Rider-Waite asset path.
