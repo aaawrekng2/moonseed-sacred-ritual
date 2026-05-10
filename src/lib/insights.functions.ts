@@ -997,53 +997,23 @@ export const getEarliestReadingDate = createServerFn({ method: "GET" })
  * EP — Premium AI server functions
  * ============================================================ */
 
-const ANTHROPIC_MODELS = [
-  "claude-sonnet-4-6",
-  "claude-sonnet-4-5-20250929",
-  "claude-haiku-4-5-20251001",
-] as const;
+import { callAnthropicWithFallback, isUserPremium } from "@/lib/ai-call.server";
 
 async function callAnthropicShort(
   systemPrompt: string,
   userPrompt: string,
   maxTokens = 200,
+  userId?: string | null,
 ): Promise<string | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    console.error("[ep-ai] ANTHROPIC_API_KEY not set");
-    return null;
-  }
-  for (const model of ANTHROPIC_MODELS) {
-    try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: maxTokens,
-          system: systemPrompt,
-          messages: [{ role: "user", content: userPrompt }],
-        }),
-      });
-      if (!resp.ok) {
-        if (resp.status === 404 || resp.status === 410) continue;
-        const t = await resp.text().catch(() => "");
-        console.error("[ep-ai] anthropic error", resp.status, t.slice(0, 300));
-        return null;
-      }
-      const json = (await resp.json()) as { content?: Array<{ type: string; text?: string }> };
-      const text = json.content?.find((c) => c.type === "text")?.text?.trim();
-      if (text) return text;
-    } catch (e) {
-      console.error("[ep-ai] fetch failure", e);
-      return null;
-    }
-  }
-  return null;
+  const r = await callAnthropicWithFallback({
+    callType: "insights",
+    userId: userId ?? null,
+    isPremium: userId ? await isUserPremium(userId) : false,
+    system: systemPrompt,
+    user: userPrompt,
+    maxTokens,
+  });
+  return r.ok ? r.content : null;
 }
 
 async function readCachedReflection(
@@ -1158,7 +1128,7 @@ export const getStalkerReflection = createServerFn({ method: "POST" })
     const cardName = getCardName(data.cardId);
     const systemPrompt = buildStalkerSystemPrompt(tone);
     const userPrompt = buildStalkerUserPrompt(cardName, data);
-    const reflection = await callAnthropicShort(systemPrompt, userPrompt, 200);
+    const reflection = await callAnthropicShort(systemPrompt, userPrompt, 200, userId);
     if (!reflection) return { ok: false as const, error: "ai_unavailable" };
     await writeCachedReflection(supabase, userId, cacheKey, reflection);
     return { ok: true as const, reflection };
@@ -1253,7 +1223,7 @@ export const getQuestionThemes = createServerFn({ method: "POST" })
       "Questions:\n" +
       questions.slice(0, 100).map((s, i) => `${i + 1}. ${s}`).join("\n") +
       "\n\nReturn the JSON array now.";
-    const raw = await callAnthropicShort(systemPrompt, userPrompt, 1500);
+    const raw = await callAnthropicShort(systemPrompt, userPrompt, 1500, userId);
     if (!raw) return { ok: false as const, error: "ai_unavailable" };
     const themes = parseThemesResponse(raw);
     if (!themes || themes.length === 0) return { ok: false as const, error: "invalid_response" };
@@ -1422,7 +1392,7 @@ export const getLunationReflection = createServerFn({ method: "POST" })
     const tone = await getAIToneServerSide(supabase, userId);
     const systemPrompt = buildLunationSystemPrompt(tone);
     const userPrompt = buildLunationUserPrompt(summary);
-    const raw = await callAnthropicShort(systemPrompt, userPrompt, 600);
+    const raw = await callAnthropicShort(systemPrompt, userPrompt, 600, userId);
     if (!raw) return { ok: false as const, error: "ai_unavailable" };
     await writeCachedReflection(supabase, userId, cacheKey, raw);
     return { ok: true as const, reflection: raw };
@@ -1657,7 +1627,7 @@ export const getYearOfLunationsReflection = createServerFn({ method: "POST" })
       "Write the 4-paragraph reflection now.",
     ].join("\n");
     const systemPrompt = buildYearReflectionSystemPrompt(tone);
-    const raw = await callAnthropicShort(systemPrompt, userPrompt, 800);
+    const raw = await callAnthropicShort(systemPrompt, userPrompt, 800, userId);
     if (!raw) return { ok: false as const, error: "ai_unavailable" };
     await writeCachedReflection(supabase, userId, cacheKey, raw);
     return { ok: true as const, reflection: raw };
