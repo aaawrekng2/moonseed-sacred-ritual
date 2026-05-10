@@ -16,6 +16,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { encodeOne, type ProcessOpts } from "./deck-image-pipeline";
 import type { ImportImage } from "./import-session";
+import { uploadWithQuota } from "./storage-upload";
 
 const DECK_BUCKET = "custom-deck-images";
 /** Cap on concurrent saveCard / removeCard / restoreSlot writes. */
@@ -103,28 +104,37 @@ async function uploadEncoded(
   const thumbPath = `${base}-thumb.webp`;
   const smPath = `${base}-sm.webp`;
   const mdPath = `${base}-md.webp`;
-  // 26-05-08-P — Fix 1: storage upload errors come back as `{ error }`
-  // (NOT thrown). Audit each result individually so silent failures on
-  // non-critical variants don't poison the whole save, and so that
-  // critical (display/thumb) failures surface immediately.
-  const opts = { contentType: "image/webp", upsert: true } as const;
+  // Q31 Fix 6: every upload routes through uploadWithQuota so deck
+  // storage events get logged. Critical variants (display/thumb) throw
+  // on failure; sm/md degrade silently.
+  const eventType = cardId === "BACK" ? "deck_back" : "deck_card";
+  const upArgs = (path: string, file: Blob) => ({
+    userId,
+    bucket: DECK_BUCKET,
+    path,
+    file,
+    eventType: eventType as "deck_back" | "deck_card",
+    contentType: "image/webp",
+    upsert: true,
+    deckId,
+  });
   const [displayRes, thumbRes, smRes, mdRes] = await Promise.all([
-    supabase.storage.from(DECK_BUCKET).upload(displayPath, displayBlob, opts),
-    supabase.storage.from(DECK_BUCKET).upload(thumbPath, thumbBlob, opts),
+    uploadWithQuota(upArgs(displayPath, displayBlob)),
+    uploadWithQuota(upArgs(thumbPath, thumbBlob)),
     smBlob
-      ? supabase.storage.from(DECK_BUCKET).upload(smPath, smBlob, opts)
-      : Promise.resolve({ error: null }),
+      ? uploadWithQuota(upArgs(smPath, smBlob))
+      : Promise.resolve({ ok: true as const, path: smPath }),
     mdBlob
-      ? supabase.storage.from(DECK_BUCKET).upload(mdPath, mdBlob, opts)
-      : Promise.resolve({ error: null }),
+      ? uploadWithQuota(upArgs(mdPath, mdBlob))
+      : Promise.resolve({ ok: true as const, path: mdPath }),
   ]);
-  if (displayRes.error)
-    throw new Error(`display upload failed: ${displayRes.error.message}`);
-  if (thumbRes.error)
-    throw new Error(`thumb upload failed: ${thumbRes.error.message}`);
-  if (smRes.error)
+  if (!displayRes.ok)
+    throw new Error(`display upload failed: ${displayRes.error}`);
+  if (!thumbRes.ok)
+    throw new Error(`thumb upload failed: ${thumbRes.error}`);
+  if (!smRes.ok)
     console.warn("[per-card-save] sm upload failed (non-fatal)", smRes.error);
-  if (mdRes.error)
+  if (!mdRes.ok)
     console.warn("[per-card-save] md upload failed (non-fatal)", mdRes.error);
   const yearSecs = 60 * 60 * 24 * 365;
   const [{ data: d1 }, { data: d2 }] = await Promise.all([

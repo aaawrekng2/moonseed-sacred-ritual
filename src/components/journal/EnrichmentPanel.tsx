@@ -14,6 +14,7 @@ import { Camera, CameraOff, Check, CheckCheck, Copy, Heart, Loader2, Network, Pe
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { compressImage } from "@/lib/compress-image";
+import { uploadWithQuota } from "@/lib/storage-upload";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { HelpIcon } from "@/components/help/HelpIcon";
 import { CardImage } from "@/components/card/CardImage";
@@ -531,14 +532,19 @@ export function EnrichmentPanel({
     extension: string,
   ) => {
     const path = `${reading.user_id}/${reading.id}/${crypto.randomUUID()}.${extension}`;
-    const { error: upErr } = await supabase.storage
-      .from("reading-photos")
-      .upload(path, blob, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType,
-      });
-    if (upErr) throw upErr;
+    const upRes = await uploadWithQuota({
+      userId: reading.user_id,
+      isPremium: !!isPremium,
+      bucket: "reading-photos",
+      path,
+      file: blob,
+      eventType: "photo",
+      contentType,
+      cacheControl: "3600",
+      upsert: false,
+      readingId: reading.id,
+    });
+    if (!upRes.ok) throw new Error(upRes.error);
     const { data: row, error: insErr } = await supabase
       .from("reading_photos")
       .insert({
