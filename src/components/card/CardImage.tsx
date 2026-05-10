@@ -32,7 +32,6 @@ import {
   useDeckCardName,
   useDeckCornerRadius,
   useDeckImage,
-  variantUrlFor,
 } from "@/lib/active-deck";
 import type { CardBackId } from "@/lib/card-backs";
 
@@ -134,15 +133,10 @@ function cardImageReducer(
       if (state.status === "loaded") return state;
       return log({ ...state, status: "loaded" });
     case "LOAD_FAILED": {
-      if (!state.variantFailed && action.hasBaseSrcAvailable) {
-        return log({
-          ...state,
-          variantFailed: true,
-          retryCount: 0,
-          retryTs: 0,
-          status: "loading",
-        });
-      }
+      // Q28 — Variant fallback is no longer needed (the resolver
+      // returns a pre-signed URL for the chosen tier). Just retry
+      // up to 2× via RETRY_TICK before giving up.
+      void action.hasBaseSrcAvailable;
       if (state.retryCount < 2) {
         return state; // wait for RETRY_TICK
       }
@@ -224,14 +218,8 @@ const SIZE_PX: Record<Exclude<CardImageSize, "custom">, number> = {
   small: 40,
 };
 
-// Q27 Fix 2 — Derive variant tier from EFFECTIVE rendered width, not
-// from the size enum alone. size="custom" with widthPx=32 was fetching
-// the 400px md variant; now it correctly grabs the 200px sm.
-function pickVariantTier(widthPx: number): "sm" | "md" | "full" {
-  if (widthPx <= 80) return "sm";
-  if (widthPx <= 200) return "md";
-  return "full";
-}
+  // Q28 — variant tier derived inline from rendered width and passed
+  // straight to the resolver. No URL-mutation step.
 
 function resolveWidth(size: CardImageSize, widthPx?: number): number {
   if (size === "custom") {
@@ -355,26 +343,19 @@ export function CardImage({
     ...(style ?? {}),
   };
 
-  // Image src — `useDeckImage(deckId)` may return null while the
-  // specific deck's image map is still loading. Q5 Fix 1: always
-  // fall back to the active deck resolver (and ultimately the
-  // bundled Rider-Waite default) so card art renders immediately
-  // even when a historical/mixed-deck pick references a deck whose
-  // map is still being fetched.
+  // Q28 — pick the variant tier from rendered width and ask the
+  // resolver directly. The resolver returns a pre-signed URL for
+  // exactly that physical file in storage (no path mutation).
+  const variantTier: "sm" | "md" | "full" =
+    width <= 80 ? "sm" : width <= 200 ? "md" : "full";
   const specificSrc =
-    typeof cardId === "number" && useSpecific ? specificResolve(cardId) : null;
+    typeof cardId === "number" && useSpecific
+      ? specificResolve(cardId, variantTier)
+      : null;
   const activeSrc =
-    typeof cardId === "number" ? activeResolve(cardId) : null;
+    typeof cardId === "number" ? activeResolve(cardId, variantTier) : null;
   const baseFaceSrc = specificSrc ?? activeSrc;
-  // Q27 Fix 2 — variant tier is now derived from rendered width.
-  const variantTier = pickVariantTier(width);
-  const variantSrc = !baseFaceSrc
-    ? null
-    : variantTier === "full"
-      ? baseFaceSrc
-      : (variantUrlFor(baseFaceSrc, variantTier) ?? baseFaceSrc);
-  const baseChosen =
-    state.variantFailed ? baseFaceSrc : variantSrc;
+  const baseChosen = baseFaceSrc;
   const faceSrc =
     baseChosen && state.retryTs > 0
       ? `${baseChosen}${baseChosen.includes("?") ? "&" : "?"}r=${state.retryTs}`
@@ -411,8 +392,8 @@ export function CardImage({
     variant === "face" && state.status === "failed-final";
 
   const handleImgError = () => {
-    const wantsRetry =
-      state.variantFailed && state.retryCount < 2 && !!baseFaceSrc;
+    // Q28 — simple retry ladder, no variant-fallback branch.
+    const wantsRetry = state.retryCount < 2 && !!baseFaceSrc;
     dispatch({
       type: "LOAD_FAILED",
       hasBaseSrcAvailable: !!baseFaceSrc,
