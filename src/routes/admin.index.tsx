@@ -169,6 +169,7 @@ function AdminPage() {
             {tab === "users" && (
               <UsersTab myRole={myRole} myUserId={user!.id} />
             )}
+            {tab === "feedback" && <FeedbackTab />}
             {tab === "backups" && <BackupsTab />}
             {tab === "audit" && <AuditTab />}
           </div>
