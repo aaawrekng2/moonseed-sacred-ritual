@@ -249,8 +249,14 @@ function DrawPage() {
     setMode(spread, "manual");
   };
   const switchToTable = () => {
-    setEntrySurface("table");
+    // Q33b Fix 4 — defer entrySurface flip a frame so Tabletop mounts
+    // into a settled DOM and its RAF measurement loop sees real sizes.
     setMode(spread, "table");
+    if (typeof window !== "undefined") {
+      requestAnimationFrame(() => setEntrySurface("table"));
+    } else {
+      setEntrySurface("table");
+    }
   };
   const handleCustomCountChange = (next: number) => {
     setCustomCountLocal(next);
