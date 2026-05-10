@@ -260,6 +260,12 @@ export function CardImage({
   const customBackUrl = useActiveCardBackUrl();
   const devMode = useDevMode();
 
+  // Q29 Fix 4 — once we successfully load at a tier, lock it for the
+  // lifetime of the component. Subsequent width fluctuations (from
+  // layout settling, parent reflow, etc) MUST NOT retrigger src
+  // changes — that's what was causing the safety-timeout flood.
+  const lockedTierRef = useRef<"sm" | "md" | "full" | null>(null);
+
   // FC-1 / 9-6-V — Track BOTH face and back natural aspects so the
   // flip wrapper matches whichever side is currently showing. Without
   // this, a back image with a different aspect than the face will
@@ -343,11 +349,21 @@ export function CardImage({
     ...(style ?? {}),
   };
 
-  // Q28 — pick the variant tier from rendered width and ask the
-  // resolver directly. The resolver returns a pre-signed URL for
-  // exactly that physical file in storage (no path mutation).
+  // Q29 Fix 4 — pick the natural tier from rendered width, but
+  // honor the lock once an image has loaded. Default to "md" when
+  // width is 0 (initial mount before measurement) so we don't
+  // pick "sm" by accident and immediately switch to a different
+  // signed URL once the real width arrives.
+  const naturalTier: "sm" | "md" | "full" =
+    width === 0
+      ? "md"
+      : width <= 80
+        ? "sm"
+        : width <= 200
+          ? "md"
+          : "full";
   const variantTier: "sm" | "md" | "full" =
-    width <= 80 ? "sm" : width <= 200 ? "md" : "full";
+    lockedTierRef.current ?? naturalTier;
   const specificSrc =
     typeof cardId === "number" && useSpecific
       ? specificResolve(cardId, variantTier)
