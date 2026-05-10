@@ -6,9 +6,9 @@ import {
   useState,
 } from "react";
 import { Undo2, Redo2, X } from "lucide-react";
-import { Hand } from "lucide-react";
-import { ManualEntryBuilder } from "@/components/tabletop/ManualEntryBuilder";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
+import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
+import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
 import { useAuth } from "@/lib/auth";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
@@ -55,36 +55,38 @@ export function Tabletop({
   customCount,
   question,
   onQuestionChange,
+  onSwitchToManual,
+  onCustomCountChange,
 }: TabletopProps) {
   const meta = SPREAD_META[spread];
   // 9-6-O — Custom spread overrides the meta count with the user's pick.
   const required = spread === "custom" ? Math.max(1, Math.min(10, customCount ?? 3)) : meta.count;
   const usesSlots = spreadUsesSlots(spread, required);
 
-  // AU — Manual card entry. Bypass the scatter and let the seeker pick
-  // cards from a 78-card grid (used for logging a physical reading).
-  const [manualOpen, setManualOpen] = useState(false);
-  // DZ-2 — Manual-draw hint, anchored to the "Manual entry" button.
-  // Fired by an event from draw.tsx after the question modal closes.
+  // Q19 — manual entry is now hoisted to draw.tsx; Tabletop only
+  // surfaces the unified EntryModeToggle and asks the parent to swap
+  // surfaces. The Q5/DZ-2 "manual draw" hint is now anchored to the
+  // toggle and lives at the draw-route level.
   const { user: authUser, loading: authLoading } = useAuth();
-  const manualBtnRef = useRef<HTMLButtonElement | null>(null);
-  const [showManualHint, setShowManualHint] = useState(false);
+  const entryToggleRef = useRef<HTMLButtonElement | null>(null);
+  const [showEntryHint, setShowEntryHint] = useState(false);
   useEffect(() => {
-    if (authLoading) return; // 9-6-K — wait for auth before checking dismissal
+    if (authLoading) return;
+    if (!onSwitchToManual) return;
     const onTrigger = async () => {
       const dismissed = await isHintHardDismissed(
-        "manual_draw_choose_cards",
+        "entry_mode_toggle",
         authUser?.id ?? null,
       );
       if (!dismissed) {
-        window.setTimeout(() => setShowManualHint(true), 300);
+        window.setTimeout(() => setShowEntryHint(true), 300);
       }
     };
     window.addEventListener("moonseed:question-modal-closed", onTrigger);
     return () => {
       window.removeEventListener("moonseed:question-modal-closed", onTrigger);
     };
-  }, [authUser, authLoading]);
+  }, [authUser, authLoading, onSwitchToManual]);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
