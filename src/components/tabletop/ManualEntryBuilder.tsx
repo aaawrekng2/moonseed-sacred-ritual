@@ -219,28 +219,37 @@ export function ManualEntryBuilder({
   return (
     <FullScreenSheet open onClose={onCancel} entry="slide-up" showCloseButton={false}>
     <div className="flex h-full w-full flex-col bg-cosmos text-foreground">
-      <header className="flex items-center justify-between border-b border-border/40 px-4 py-3">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-full p-2 hover:bg-foreground/10"
-          aria-label="Cancel"
-        >
-          <X className="h-5 w-5" />
-        </button>
-        <div
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "var(--text-caption, 0.7rem)",
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            opacity: 0.55,
-          }}
-        >
-          Manual entry · {meta.label}
-        </div>
-        <div className="w-9" />
+      {/* Q19 — Header swap: the X close button is gone (the seeker
+          uses the FloatingMenu close icon to leave /draw entirely),
+          and the upper-left now hosts the unified EntryModeToggle so
+          flipping back to the draw table is a single tap. The
+          custom-count stepper centers above the slot grid when the
+          parent supplies a callback. */}
+      <header className="relative flex items-center justify-center border-b border-border/40 px-4 py-3 min-h-[48px]">
+        {onSwitchToTable && (
+          <div className="absolute left-2 top-1/2 -translate-y-1/2">
+            <EntryModeToggle current="manual" onToggle={onSwitchToTable} />
+          </div>
+        )}
+        {spread === "custom" && onCustomCountChange ? (
+          <CustomCountStepper
+            count={required}
+            onChange={onCustomCountChange}
+          />
+        ) : (
+          <div
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption, 0.7rem)",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              opacity: 0.55,
+            }}
+          >
+            Manual entry · {meta.label}
+          </div>
+        )}
       </header>
 
       <div
