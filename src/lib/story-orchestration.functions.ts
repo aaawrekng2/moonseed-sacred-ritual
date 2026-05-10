@@ -30,13 +30,14 @@ type ThreadRow = {
   id: string;
   user_id: string;
   reading_ids: string[] | null;
-  card_ids: number[] | null;
+  card_ids?: number[] | null;
+  thread_ids?: string[] | null;
   story_name: string | null;
   story_description: string | null;
   per_reading_roles: { [k: string]: unknown } | null;
   remarkable_moments: unknown[] | null;
   narrative_arc: string | null;
-  evidence_prose: string | null;
+  evidence_prose?: string | null;
   ai_generated_at: string | null;
   ai_version: string | null;
   ai_reading_count_at_gen: number | null;
@@ -77,9 +78,9 @@ export const generateStoryOrchestration = createServerFn({ method: "POST" })
     };
 
     const { data: rawPattern, error: patternErr } = await supabase
-      .from("symbolic_threads")
+      .from("patterns")
       .select(
-        "id, user_id, reading_ids, card_ids, story_name, story_description, per_reading_roles, remarkable_moments, narrative_arc, evidence_prose, ai_generated_at, ai_version, ai_reading_count_at_gen",
+        "id, user_id, reading_ids, thread_ids, story_name, story_description, per_reading_roles, remarkable_moments, narrative_arc, ai_generated_at, ai_version, ai_reading_count_at_gen",
       )
       .eq("id", data.patternId)
       .maybeSingle();
@@ -131,10 +132,18 @@ export const generateStoryOrchestration = createServerFn({ method: "POST" })
       }
     };
 
-    const recurringCards = (pattern.card_ids ?? []).map((id) => ({
-      id,
-      name: cardNameOf(id),
-    }));
+    // Derive recurring cards from readings (most-frequent appearing cards).
+    const cardCounts = new Map<number, number>();
+    for (const r of readings) {
+      for (const id of r.card_ids ?? []) {
+        cardCounts.set(id, (cardCounts.get(id) ?? 0) + 1);
+      }
+    }
+    const recurringCards = Array.from(cardCounts.entries())
+      .filter(([, c]) => c >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([id]) => ({ id, name: cardNameOf(id) }));
 
     const firstTs = new Date(readings[0]!.created_at).getTime();
     const lastTs = new Date(readings.at(-1)!.created_at).getTime();
@@ -281,18 +290,27 @@ export const generateStoryOrchestration = createServerFn({ method: "POST" })
       story_description: storyDescription,
       per_reading_roles: perReadingRoles,
       remarkable_moments: remarkableMoments,
-      evidence_prose: evidenceProse.length > 0 ? evidenceProse : null,
       ai_generated_at: generatedAt,
       ai_version: AI_VERSION,
       ai_reading_count_at_gen: readings.length,
     };
+    if (evidenceProse.length > 0) {
+      try {
+        await supabase
+          .from("symbolic_threads")
+          .update({ evidence_prose: evidenceProse })
+          .eq("pattern_id", data.patternId);
+      } catch (err) {
+        console.error("[story-orchestration] thread evidence write failed", err);
+      }
+    }
 
     const { data: updated, error: updateErr } = await supabase
-      .from("symbolic_threads")
+      .from("patterns")
       .update(updates)
       .eq("id", data.patternId)
       .select(
-        "id, user_id, reading_ids, card_ids, story_name, story_description, per_reading_roles, remarkable_moments, narrative_arc, evidence_prose, ai_generated_at, ai_version, ai_reading_count_at_gen",
+        "id, user_id, reading_ids, story_name, story_description, per_reading_roles, remarkable_moments, narrative_arc, ai_generated_at, ai_version, ai_reading_count_at_gen",
       )
       .single();
     if (updateErr || !updated) {
@@ -318,7 +336,7 @@ export const resubmitStoryToAi = createServerFn({ method: "POST" })
       userId: string;
     };
     const { data: pattern } = await supabase
-      .from("symbolic_threads")
+      .from("patterns")
       .select("user_id")
       .eq("id", data.patternId)
       .maybeSingle();
@@ -327,7 +345,7 @@ export const resubmitStoryToAi = createServerFn({ method: "POST" })
       return { ok: false, error: "forbidden" };
     }
     await supabase
-      .from("symbolic_threads")
+      .from("patterns")
       .update({
         story_name: null,
         story_description: null,

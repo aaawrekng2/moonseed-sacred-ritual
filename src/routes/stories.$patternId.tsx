@@ -36,6 +36,18 @@ import {
   type Viewport,
 } from "@xyflow/react";
 import { useConfirm } from "@/hooks/use-confirm";
+import {
+  StoryHero,
+  StoryActions as Q30StoryActions,
+  StatsRibbon,
+  TheArc,
+  RemarkableMoments,
+  StoryConstellation,
+} from "@/components/stories/Q30Sections";
+import {
+  generateStoryOrchestration,
+  resubmitStoryToAi,
+} from "@/lib/story-orchestration.functions";
 
 const VIEWPORT_STORAGE_PREFIX = "weave-viewport:";
 
@@ -104,6 +116,11 @@ function PatternChamber() {
   const navigate = useNavigate();
   const confirm = useConfirm();
   const [pattern, setPattern] = useState<Pattern | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isOrchestrationInFlight, setIsOrchestrationInFlight] = useState(false);
+  const [isResubmitting, setIsResubmitting] = useState(false);
+  const orchestrateFn = useServerFn(generateStoryOrchestration);
+  const resubmitFn = useServerFn(resubmitStoryToAi);
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
@@ -207,6 +224,67 @@ function PatternChamber() {
       cancelled = true;
     };
   }, [user, patternId]);
+
+  // Q30 — admin role for dev resubmit.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const role = (data as { role?: string } | null)?.role;
+      setIsAdmin(role === "admin" || role === "super_admin");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  // Q30 A9 — kick off story orchestration on mount when needed.
+  useEffect(() => {
+    if (!pattern || !patternId) return;
+    if (pattern.reading_ids.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        setIsOrchestrationInFlight(true);
+        const headers = await getAuthHeaders();
+        console.log("[story] orchestration kicked off", { patternId });
+        const res = await orchestrateFn({ data: { patternId }, headers });
+        if (cancelled) return;
+        if (res?.ok && !res.cached && res.pattern) {
+          setPattern((prev) => (prev ? { ...prev, ...(res.pattern as Pattern) } : prev));
+        }
+      } catch (err) {
+        console.error("[story] orchestration failed", err);
+      } finally {
+        if (!cancelled) setIsOrchestrationInFlight(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patternId, pattern?.id]);
+
+  const handleResubmit = async () => {
+    if (!pattern) return;
+    if (typeof window !== "undefined" && !window.confirm("Resubmit this story to AI for full regeneration?")) return;
+    setIsResubmitting(true);
+    try {
+      const headers = await getAuthHeaders();
+      await resubmitFn({ data: { patternId }, headers });
+      if (typeof window !== "undefined") window.location.reload();
+    } catch (err) {
+      console.error("[story] resubmit failed", err);
+    } finally {
+      setIsResubmitting(false);
+    }
+  };
 
   const saveName = async () => {
     if (!pattern) return;
@@ -348,6 +426,74 @@ function PatternChamber() {
       <PatternStrengthBanner
         readingCount={pattern.reading_ids.length}
         spanDays={computeSpanDays(chamberReadings, pattern.created_at)}
+      />
+
+      {/* Q30 — Stage 2 Stories sections */}
+      {isAdmin && (
+        <div style={{ marginBottom: 12, textAlign: "right" }}>
+          <button
+            type="button"
+            onClick={handleResubmit}
+            disabled={isResubmitting}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontFamily: "var(--font-sans)",
+              fontSize: "var(--text-caption)",
+              letterSpacing: "0.12em",
+              color: "var(--accent, var(--gold))",
+              opacity: isResubmitting ? 0.3 : 0.55,
+              textTransform: "uppercase",
+            }}
+          >
+            {isResubmitting ? "regenerating..." : "dev · resubmit to ai ↻"}
+          </button>
+        </div>
+      )}
+      <StoryHero
+        storyName={pattern.story_name}
+        storyDescription={pattern.story_description}
+        fallbackName={pattern.name}
+        metaLine={`First seen ${formatDateLong(pattern.created_at)} · ${pattern.reading_ids.length} readings · ${computeSpanDays(chamberReadings, pattern.created_at)} days${pattern.lifecycle_state === "active" ? " · active" : ""}`}
+      />
+      <StatsRibbon
+        readingCount={pattern.reading_ids.length}
+        recurringCardCount={
+          new Set(
+            (chamberReadings ?? []).flatMap((r) => r.card_ids ?? []),
+          ).size
+        }
+        reversalCount={0}
+        dominantMoonPhase={"—"}
+      />
+      <TheArc
+        readings={(chamberReadings ?? []).map((r) => ({
+          id: r.id,
+          created_at: r.created_at,
+          card_ids: r.card_ids,
+        }))}
+        onOpenReading={setOpenReadingId}
+      />
+      <RemarkableMoments
+        moments={(pattern.remarkable_moments as Array<{ date: string; caption: string; reading_ids?: string[] }>) ?? []}
+        onOpenReading={setOpenReadingId}
+        isGenerating={isOrchestrationInFlight}
+      />
+      <StoryConstellation
+        readings={(chamberReadings ?? []).map((r) => ({ id: r.id, card_ids: r.card_ids }))}
+      />
+      <Q30StoryActions
+        onRename={() => setEditing(true)}
+        onAddNote={() => {
+          if (noteOpen) void closeNoteEditor();
+          else setNoteOpen(true);
+        }}
+        onRetire={openRetireFlow}
+        retired={pattern.lifecycle_state === "retired"}
+        hasNote={!!(pattern.description && pattern.description.trim())}
+        noteOpen={noteOpen}
       />
 
       {editing ? (
