@@ -27,7 +27,7 @@ import {
   type Edge,
 } from "@xyflow/react";
 
-export const Route = createFileRoute("/threads")({
+export const Route = createFileRoute("/stories")({
   head: () => ({
     meta: [
       { title: "Stories — Moonseed" },

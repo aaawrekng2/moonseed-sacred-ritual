@@ -70,7 +70,7 @@ function saveViewport(patternId: string, vp: Viewport) {
   }
 }
 
-export const Route = createFileRoute("/threads/$patternId")({
+export const Route = createFileRoute("/stories/$patternId")({
   component: PatternChamber,
   errorComponent: ({ error }) => (
     <div style={{ padding: 24, fontStyle: "italic", opacity: 0.6, textAlign: "center" }}>
