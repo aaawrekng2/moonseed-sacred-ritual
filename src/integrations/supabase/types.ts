@@ -682,6 +682,11 @@ export type Database = {
           card_ids: number[]
           description: string | null
           detected_at: string
+          evidence_prose: string | null
+          evidence_prose_generated_at: string | null
+          evidence_prose_layers: Json | null
+          evidence_prose_reading_count: number | null
+          evidence_prose_version: number | null
           first_seen_at: string
           id: string
           is_premium: boolean
@@ -701,6 +706,11 @@ export type Database = {
           card_ids?: number[]
           description?: string | null
           detected_at?: string
+          evidence_prose?: string | null
+          evidence_prose_generated_at?: string | null
+          evidence_prose_layers?: Json | null
+          evidence_prose_reading_count?: number | null
+          evidence_prose_version?: number | null
           first_seen_at?: string
           id?: string
           is_premium?: boolean
@@ -720,6 +730,11 @@ export type Database = {
           card_ids?: number[]
           description?: string | null
           detected_at?: string
+          evidence_prose?: string | null
+          evidence_prose_generated_at?: string | null
+          evidence_prose_layers?: Json | null
+          evidence_prose_reading_count?: number | null
+          evidence_prose_version?: number | null
           first_seen_at?: string
           id?: string
           is_premium?: boolean
