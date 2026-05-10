@@ -1147,19 +1147,30 @@ export function ManualSpreadSlots({
   }
 
   if (spread === "custom") {
+    // Q20 Fix 6 — max 5 cards per row; cards size DOWN to fit on
+    // narrow viewports. 1-5 cards keep their natural sizing.w; 6-10
+    // wrap as 5+N with each cell taking 1/5 of the row width.
+    const slotsPerRow = Math.min(5, picks.length);
+    const HORIZONTAL_GAP = 16;
+    const cellWidthStyle: React.CSSProperties =
+      picks.length <= 5
+        ? { flex: "0 0 auto", width: sizing.w }
+        : {
+            flex: `0 0 calc((100% - ${
+              HORIZONTAL_GAP * (slotsPerRow - 1)
+            }px) / ${slotsPerRow})`,
+            maxWidth: sizing.w,
+          };
+    const responsive = picks.length > 5;
     return (
-      // Q19 Fix 5 — wrap onto multiple rows so 7-10 card custom
-      // spreads aren't trapped inside a horizontal scroller. Each
-      // card+label pair lives in its own column so wrapping keeps
-      // the position label glued to its card.
-      <div className="flex flex-wrap items-end justify-center gap-x-4 gap-y-3 px-2 max-w-full">
+      <div className="flex flex-wrap items-end justify-center gap-x-4 gap-y-3 px-2 max-w-full w-full">
         {picks.map((pick, i) => (
           <div
             key={`cell-${i}`}
-            className="flex flex-col items-center gap-1"
-            style={{ flex: "0 0 auto", width: sizing.w }}
+            className="flex flex-col items-center gap-1 min-w-0"
+            style={cellWidthStyle}
           >
-            <Slot pick={pick} slotIndex={i} />
+            <Slot pick={pick} slotIndex={i} responsiveWidth={responsive} />
             {showLabels && (
               <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
             )}
