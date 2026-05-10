@@ -52,7 +52,16 @@ export type CustomDeckCard = {
 
 /** Per-card override map: card index (0..77) -> image URL. */
 export type DeckImageMap = {
+  /**
+   * Q28 — primary structure: per-variant pre-signed URLs. Each
+   * variant path must be signed individually because the JWT
+   * token is bound to the exact storage path; mutating the path
+   * after signing invalidates the signature (400 Bad Request).
+   */
+  variants: Record<number, CardVariantUrls>;
+  /** Legacy "display" — populated from variants for backward compat. */
   display: Record<number, string>;
+  /** Legacy "thumbnail" — populated from variants for backward compat. */
   thumbnail: Record<number, string>;
   back: string | null;
   /**
@@ -77,7 +86,22 @@ export type DeckImageMap = {
   nameByCardId: Record<number, string>;
 };
 
+/**
+ * Q28 — Pre-signed URLs per variant per card. Each variant is a
+ * physically distinct file in storage and must be signed separately.
+ */
+export type CardVariantUrls = {
+  sm?: string;
+  md?: string;
+  full?: string;
+  /** Legacy "thumbnail" stored file (kept for migration). */
+  thumbnail?: string;
+  /** Legacy "display" stored file (kept for migration). */
+  display?: string;
+};
+
 export const EMPTY_DECK_IMAGE_MAP: DeckImageMap = {
+  variants: {},
   display: {},
   thumbnail: {},
   back: null,
