@@ -214,9 +214,8 @@ function RootComponent() {
   // Apply the seeker's saved heading font + size globally — both from
   // localStorage on mount and from the server row once auth resolves.
   useThemeFontSync();
-  // Global "tap empty space to briefly reveal hidden UI" affordance.
-  // Active in any Clarity level — costless when the user is already at Seen.
-  useTapToPeek();
+  // Q24 Fix 1 — useTapToPeek() removed. Clarity feature was dropped;
+  // tapping empty space no longer opens the FloatingMenu.
   // Register the PWA service worker so Moonseed installs to home screen.
   usePWA();
   void location;
