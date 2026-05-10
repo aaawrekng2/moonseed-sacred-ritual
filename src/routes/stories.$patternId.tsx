@@ -147,6 +147,7 @@ function PatternChamber() {
     created_at: string;
     spread_type: string;
     card_ids: number[];
+    card_orientations: boolean[];
     question: string | null;
     note: string | null;
     interpretation: string | null;
@@ -161,7 +162,7 @@ function PatternChamber() {
     void (async () => {
       const { data } = await supabase
         .from("readings")
-        .select("id, created_at, spread_type, card_ids, question, note, interpretation")
+        .select("id, created_at, spread_type, card_ids, card_orientations, question, note, interpretation")
         .in("id", pattern.reading_ids)
         .is("archived_at", null)
         .order("created_at", { ascending: false });
@@ -172,6 +173,7 @@ function PatternChamber() {
           created_at: r.created_at as string,
           spread_type: r.spread_type as string,
           card_ids: (r.card_ids as number[]) ?? [],
+          card_orientations: (r.card_orientations as boolean[]) ?? [],
           question: (r.question as string | null) ?? null,
           note: (r.note as string | null) ?? null,
           interpretation: (r.interpretation as string | null) ?? null,
@@ -248,12 +250,18 @@ function PatternChamber() {
   useEffect(() => {
     if (!pattern || !patternId) return;
     if (pattern.reading_ids.length === 0) return;
+    const needsGen = !pattern.ai_generated_at;
+    const thresholds = [3, 5, 10, 25];
+    const lastGen = pattern.ai_reading_count_at_gen ?? 0;
+    const current = pattern.reading_ids?.length ?? 0;
+    const crossed = thresholds.some((t) => lastGen < t && current >= t);
+    if (!needsGen && !crossed) return;
     let cancelled = false;
     void (async () => {
       try {
         setIsOrchestrationInFlight(true);
         const headers = await getAuthHeaders();
-        console.log("[story] orchestration kicked off", { patternId });
+        console.log("[story] orchestration kicked off", { patternId, needsGen, crossed });
         const res = await orchestrateFn({ data: { patternId }, headers });
         if (cancelled) return;
         if (res?.ok && !res.cached && res.pattern) {
@@ -269,7 +277,7 @@ function PatternChamber() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patternId, pattern?.id]);
+  }, [patternId, pattern?.id, pattern?.ai_generated_at, pattern?.ai_reading_count_at_gen]);
 
   const handleResubmit = async () => {
     if (!pattern) return;
@@ -422,12 +430,6 @@ function PatternChamber() {
         <ChevronLeft size={16} /> Stories
       </button>
 
-      {/* 26-05-08-J — Fix 9: deterministic strength banner at the top. */}
-      <PatternStrengthBanner
-        readingCount={pattern.reading_ids.length}
-        spanDays={computeSpanDays(chamberReadings, pattern.created_at)}
-      />
-
       {/* Q30 — Stage 2 Stories sections */}
       {isAdmin && (
         <div style={{ marginBottom: 12, textAlign: "right" }}>
@@ -458,14 +460,32 @@ function PatternChamber() {
         fallbackName={pattern.name}
         metaLine={`First seen ${formatDateLong(pattern.created_at)} · ${pattern.reading_ids.length} readings · ${computeSpanDays(chamberReadings, pattern.created_at)} days${pattern.lifecycle_state === "active" ? " · active" : ""}`}
       />
+      <Q30StoryActions
+        onRename={() => setEditing(true)}
+        onAddNote={() => {
+          if (noteOpen) void closeNoteEditor();
+          else setNoteOpen(true);
+        }}
+        onRetire={openRetireFlow}
+        retired={pattern.lifecycle_state === "retired"}
+        hasNote={!!(pattern.description && pattern.description.trim())}
+        noteOpen={noteOpen}
+      />
       <StatsRibbon
         readingCount={pattern.reading_ids.length}
         recurringCardCount={
-          new Set(
-            (chamberReadings ?? []).flatMap((r) => r.card_ids ?? []),
-          ).size
+          (() => {
+            const counts = new Map<number, number>();
+            for (const r of chamberReadings ?? []) {
+              for (const id of r.card_ids ?? []) counts.set(id, (counts.get(id) ?? 0) + 1);
+            }
+            return Array.from(counts.values()).filter((c) => c >= 2).length;
+          })()
         }
-        reversalCount={0}
+        reversalCount={(chamberReadings ?? []).reduce(
+          (sum, r) => sum + (r.card_orientations ?? []).filter(Boolean).length,
+          0,
+        )}
         dominantMoonPhase={"—"}
       />
       <TheArc
@@ -483,17 +503,6 @@ function PatternChamber() {
       />
       <StoryConstellation
         readings={(chamberReadings ?? []).map((r) => ({ id: r.id, card_ids: r.card_ids }))}
-      />
-      <Q30StoryActions
-        onRename={() => setEditing(true)}
-        onAddNote={() => {
-          if (noteOpen) void closeNoteEditor();
-          else setNoteOpen(true);
-        }}
-        onRetire={openRetireFlow}
-        retired={pattern.lifecycle_state === "retired"}
-        hasNote={!!(pattern.description && pattern.description.trim())}
-        noteOpen={noteOpen}
       />
 
       {editing ? (
@@ -732,6 +741,7 @@ function PatternChamber() {
         readingIds={pattern.reading_ids}
         onOpenReading={setOpenReadingId}
         readingConnections={synthesis?.readingConnections ?? []}
+        perReadingRoles={pattern.per_reading_roles ?? null}
       />
 
       {openReadingId && (
@@ -1158,12 +1168,12 @@ function ChamberCardEvidence({
           fontStyle: "italic",
           fontSize: "var(--text-heading-sm, 17px)",
           color: "var(--color-foreground)",
-          opacity: 0.7,
+          opacity: 0.6,
           margin: 0,
           marginBottom: "var(--space-3, 12px)",
         }}
       >
-        Card evidence
+        card evidence
       </h3>
       <ul
         style={{
@@ -1192,9 +1202,9 @@ function ChamberCardEvidence({
           >
             {proseByThread[t.id] ? (
               <ProseRender text={proseByThread[t.id]} />
-            ) : (
+            ) : generating.has(t.id) ? (
               <LoadingSkeleton heights={[60, 40, 60]} />
-            )}
+            ) : null}
             {isPremium && proseByThread[t.id] && (
               <button
                 type="button"
@@ -1291,12 +1301,14 @@ function ChamberTimeline({
   readingIds,
   onOpenReading,
   readingConnections,
+  perReadingRoles,
 }: {
   readingIds: string[];
   onOpenReading: (readingId: string) => void;
   readingConnections?: Array<{ readingId: string; connector: string }>;
+  perReadingRoles?: Record<string, { role: string; generated_at?: string }> | null;
 }) {
-  return _ChamberTimeline({ readingIds, onOpenReading, readingConnections });
+  return _ChamberTimeline({ readingIds, onOpenReading, readingConnections, perReadingRoles });
 }
 
 /**
@@ -1644,14 +1656,14 @@ function EvidenceSection({
         style={{
           margin: 0,
           marginBottom: "var(--space-4, 16px)",
-          fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace",
-          fontSize: "var(--text-caption)",
-          letterSpacing: "0.22em",
-          color: "var(--accent, var(--gold))",
-          fontWeight: 600,
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-heading-md, 17px)",
+          color: "var(--color-foreground)",
+          opacity: 0.6,
         }}
       >
-        ▍ THE EVIDENCE
+        the evidence
       </h2>
 
       {cardFrequency.length > 0 && (
@@ -1784,10 +1796,12 @@ function _ChamberTimeline({
   readingIds,
   onOpenReading,
   readingConnections,
+  perReadingRoles,
 }: {
   readingIds: string[];
   onOpenReading: (readingId: string) => void;
   readingConnections?: Array<{ readingId: string; connector: string }>;
+  perReadingRoles?: Record<string, { role: string; generated_at?: string }> | null;
 }) {
   const [rows, setRows] = useState<
     Array<{ id: string; created_at: string; spread_type: string; card_ids: number[]; question: string | null; interpretation: string | null }>
@@ -1828,13 +1842,13 @@ function _ChamberTimeline({
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: "var(--text-heading-md)",
+          fontSize: "var(--text-heading-md, 17px)",
           color: "var(--color-foreground)",
-          opacity: 0.85,
+          opacity: 0.6,
           marginBottom: "var(--space-4, 16px)",
         }}
       >
-        The readings in this story
+        the readings
       </h2>
       <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
         {rows.map((r) => (
@@ -1849,6 +1863,7 @@ function _ChamberTimeline({
               reading={r}
               onOpen={onOpenReading}
               connector={
+                perReadingRoles?.[r.id]?.role ??
                 readingConnections?.find((c) => c.readingId === r.id)?.connector
               }
             />
