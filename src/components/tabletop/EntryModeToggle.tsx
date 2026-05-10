@@ -19,8 +19,8 @@ export const EntryModeToggle = forwardRef<HTMLButtonElement, Props>(
   function EntryModeToggle({ current, onToggle }, ref) {
     const goingTo: EntryMode = current === "table" ? "manual" : "table";
     const Icon = goingTo === "manual" ? Keyboard : LayoutGrid;
-    const label =
-      goingTo === "manual" ? "Enter cards manually" : "Draw from the table";
+    // Q20 Fix 2 — short vocabulary: "Type" / "Table".
+    const label = goingTo === "manual" ? "Type" : "Table";
     return (
       <button
         ref={ref}
@@ -28,11 +28,8 @@ export const EntryModeToggle = forwardRef<HTMLButtonElement, Props>(
         onClick={onToggle}
         className="entry-mode-toggle"
         aria-label={label}
+        data-no-peek=""
         style={{
-          position: "absolute",
-          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
-          left: 16,
-          zIndex: 50,
           display: "inline-flex",
           alignItems: "center",
           gap: 8,
