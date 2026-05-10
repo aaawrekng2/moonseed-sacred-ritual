@@ -49,7 +49,7 @@ export const EntryModeToggle = forwardRef<HTMLButtonElement, Props>(
         onFocus={(e) => (e.currentTarget.style.opacity = "1")}
         onBlur={(e) => (e.currentTarget.style.opacity = "0.7")}
       >
-        <Icon size={16} aria-hidden="true" />
+        <Icon size={16} aria-hidden="true" style={{ pointerEvents: "none" }} />
         {label}
       </button>
     );

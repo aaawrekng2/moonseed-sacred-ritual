@@ -2037,10 +2037,37 @@ function JournalPromptsSlot({
           | { ok: true; prompt: string }
           | { ok: false; error: string };
         if (!res.ok) {
-          if (res.error === "premium_required") onPremiumUpsell?.();
-          else if (res.error === "question_required")
-            toast("Add your question to enable tailored prompts.");
-          else toast.error("Couldn't generate a tailored prompt right now.");
+          // Q22 Fix 2 — branch on the structured error code so the
+          // seeker gets an actionable message (and we focus the
+          // question field when one is needed).
+          switch (res.error) {
+            case "premium_required":
+              onPremiumUpsell?.();
+              break;
+            case "question_required": {
+              toast(
+                "Add a question to this reading first — tailored prompts use it for context.",
+              );
+              const qInput = document.querySelector(
+                "[data-reading-question-input]",
+              ) as HTMLElement | null;
+              if (qInput) {
+                qInput.scrollIntoView({ behavior: "smooth", block: "center" });
+                window.setTimeout(() => qInput.focus(), 400);
+              }
+              break;
+            }
+            case "not_found":
+              toast.error("Reading not found.");
+              break;
+            case "ai_unavailable":
+              toast.error(
+                "Couldn't reach the AI right now. Try again in a moment.",
+              );
+              break;
+            default:
+              toast.error("Couldn't generate a tailored prompt right now.");
+          }
           return null;
         }
         setLocalTailored(res.prompt);

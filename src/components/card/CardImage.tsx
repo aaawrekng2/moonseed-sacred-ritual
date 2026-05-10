@@ -21,7 +21,7 @@
  * chrome. CardImage applies only the corner radius and orientation
  * transform to the IMG element.
  */
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { CardBack } from "@/components/cards/CardBack";
 import {
   useActiveCardBackUrl,
@@ -201,14 +201,15 @@ export function CardImage({
   );
   const [backAspect, setBackAspect] = useState<number | null>(null);
 
+  // Q22 Fix 1 — only reset transient image state; the imageLoaded
+  // reset is gated on actual faceSrc change below to avoid racing
+  // with <img onLoad> for cached images and stranding the shimmer
+  // overlay forever.
   useEffect(() => {
     setFaceAspect(cachedFaceAspect);
     setBackAspect(null);
-    setImageLoaded(false);
-    setVariantFailedFor(null);
-    setRetryCount(0);
-    setRetryTs(0);
   }, [cardId, deckId, cachedFaceAspect]);
+  const prevFaceSrcRef = useRef<string | null | undefined>(undefined);
 
   // EY-1 — Saturated diagnostic colors. The card art still
   // shows through the IMG layer at 50% opacity; everything else
@@ -306,6 +307,31 @@ export function CardImage({
     baseChosen && retryTs > 0
       ? `${baseChosen}${baseChosen.includes("?") ? "&" : "?"}r=${retryTs}`
       : baseChosen;
+
+  // Q22 Fix 1 — only reset imageLoaded when the actual image SOURCE
+  // changes. Resetting on every cardId/deckId/cachedFaceAspect change
+  // races with <img onLoad> for cached images and strands the shimmer
+  // overlay forever.
+  useEffect(() => {
+    if (prevFaceSrcRef.current !== faceSrc) {
+      prevFaceSrcRef.current = faceSrc;
+      setImageLoaded(false);
+      setVariantFailedFor(null);
+      setRetryCount(0);
+      setRetryTs(0);
+    }
+  }, [faceSrc]);
+
+  // Q22 Fix 1 safety net — if onLoad never fires (cached image,
+  // browser quirk), force shimmer off after 5s so the card eventually
+  // renders.
+  useEffect(() => {
+    if (variant !== "face") return;
+    if (!faceSrc) return;
+    if (imageLoaded) return;
+    const t = window.setTimeout(() => setImageLoaded(true), 5000);
+    return () => window.clearTimeout(t);
+  }, [variant, faceSrc, imageLoaded]);
 
   const showFaceShimmer =
     variant === "face" && !loading && (faceSrc == null || !imageLoaded);

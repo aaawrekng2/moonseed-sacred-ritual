@@ -526,6 +526,7 @@ export function SeekerQuestion({
   return (
     <figure
       className="w-full max-w-md text-center"
+      data-reading-question-input=""
       style={{
         fontFamily: "var(--font-serif)",
         fontStyle: "italic",
