@@ -55,6 +55,15 @@ import {
   runDetectWeavesAdmin,
   type DetectWeavesAlert,
 } from "@/lib/admin.functions";
+import {
+  approveFeedback,
+  dismissFeedback,
+  getAllFeedback,
+  getArchivedFeedback,
+  getPendingFeedback,
+  updateFeedbackStatus,
+  type AdminFeedbackItem,
+} from "@/lib/admin-feedback.functions";
 import { setDevMode } from "@/components/dev/DevOverlay";
 import { useConfirm } from "@/hooks/use-confirm";
 import { toast } from "sonner";
