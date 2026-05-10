@@ -20,6 +20,7 @@ import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as DrawRouteImport } from './routes/draw'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ThreadsPatternIdRouteImport } from './routes/threads.$patternId'
 import { Route as StoriesPatternIdRouteImport } from './routes/stories.$patternId'
 import { Route as SettingsThemesRouteImport } from './routes/settings.themes'
@@ -93,6 +94,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const ThreadsPatternIdRoute = ThreadsPatternIdRouteImport.update({
   id: '/$patternId',
@@ -211,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/settings/themes': typeof SettingsThemesRoute
   '/stories/$patternId': typeof StoriesPatternIdRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -220,7 +227,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRouteWithChildren
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -242,6 +248,7 @@ export interface FileRoutesByTo {
   '/settings/themes': typeof SettingsThemesRoute
   '/stories/$patternId': typeof StoriesPatternIdRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
+  '/admin': typeof AdminIndexRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -274,6 +281,7 @@ export interface FileRoutesById {
   '/settings/themes': typeof SettingsThemesRoute
   '/stories/$patternId': typeof StoriesPatternIdRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
+  '/admin/': typeof AdminIndexRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -307,6 +315,7 @@ export interface FileRouteTypes {
     | '/settings/themes'
     | '/stories/$patternId'
     | '/threads/$patternId'
+    | '/admin/'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -316,7 +325,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/admin'
     | '/draw'
     | '/guides'
     | '/help'
@@ -338,6 +346,7 @@ export interface FileRouteTypes {
     | '/settings/themes'
     | '/stories/$patternId'
     | '/threads/$patternId'
+    | '/admin'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -369,6 +378,7 @@ export interface FileRouteTypes {
     | '/settings/themes'
     | '/stories/$patternId'
     | '/threads/$patternId'
+    | '/admin/'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -470,6 +480,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/threads/$patternId': {
       id: '/threads/$patternId'
@@ -614,10 +631,12 @@ const AdminUsageRouteWithChildren = AdminUsageRoute._addFileChildren(
 
 interface AdminRouteChildren {
   AdminUsageRoute: typeof AdminUsageRouteWithChildren
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminUsageRoute: AdminUsageRouteWithChildren,
+  AdminIndexRoute: AdminIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
