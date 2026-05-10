@@ -84,7 +84,7 @@ type Role = "user" | "admin" | "super_admin";
 
 type AdminUser = Awaited<ReturnType<typeof listAdminUsers>>[number];
 
-type Tab = "dashboard" | "users" | "backups" | "audit";
+type Tab = "dashboard" | "users" | "feedback" | "backups" | "audit";
 
 const serif = { fontFamily: "var(--font-serif)" } as const;
 const display = { fontFamily: "var(--font-display)" } as const;
@@ -183,6 +183,7 @@ function Header({ tab, myRole }: { tab: Tab; myRole: Role }) {
   const titles: Record<Tab, string> = {
     dashboard: "Dashboard",
     users: "Users",
+    feedback: "Feedback",
     backups: "Backups",
     audit: "Audit Log",
   };
@@ -219,6 +220,7 @@ function Header({ tab, myRole }: { tab: Tab; myRole: Role }) {
 const TABS: Array<{ key: Tab; label: string }> = [
   { key: "dashboard", label: "Dashboard" },
   { key: "users", label: "Users" },
+  { key: "feedback", label: "Feedback" },
   { key: "backups", label: "Backups" },
   { key: "audit", label: "Audit Log" },
 ];
