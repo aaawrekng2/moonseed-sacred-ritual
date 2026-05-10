@@ -437,7 +437,7 @@ export function StoryConstellation({
                     boxShadow: "0 0 12px rgba(212,175,90,0.35)",
                   }}
                 >
-                  <CardImage cardId={p.cardId} sizeHint="small" />
+                  <CardImage cardId={p.cardId} size="thumbnail" />
                 </div>
               </foreignObject>
             </g>
