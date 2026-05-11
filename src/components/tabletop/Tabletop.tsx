@@ -1033,7 +1033,7 @@ export function Tabletop({
         style={{
           position: "absolute",
           top: "calc(env(safe-area-inset-top, 0px) + 10px)",
-          left: "calc(env(safe-area-inset-left, 0px) + 12px)",
+          right: "calc(env(safe-area-inset-right, 0px) + 12px)",
           zIndex: 60,
           padding: 8,
           color: "var(--color-foreground)",
