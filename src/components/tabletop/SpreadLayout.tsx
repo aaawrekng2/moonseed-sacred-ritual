@@ -1195,11 +1195,13 @@ export function ManualSpreadSlots({
 
   if (spread === "three") {
     return (
-      <div className="flex items-end gap-6">
+      <div className="flex items-end gap-6" style={{ alignItems: "flex-end" }}>
         {picks.map((pick, i) => (
-          <div key={i} className="flex flex-col items-center gap-2">
-            <Slot pick={pick} slotIndex={i} />
-            {showLabels && <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
+          <div
+            key={i}
+            className="flex items-center gap-2"
+            style={{ flexDirection: "column-reverse" }}
+          >
             {showLabels && pick && (
               <CardNameLabel
                 cardIndex={pick.cardIndex}
@@ -1208,6 +1210,8 @@ export function ManualSpreadSlots({
                 nameOverride={pick.cardName}
               />
             )}
+            {showLabels && <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
+            <Slot pick={pick} slotIndex={i} />
           </div>
         ))}
       </div>
@@ -1228,19 +1232,15 @@ export function ManualSpreadSlots({
       const gap = count >= 10 ? 4 : 8;
       return (
         <div
-          className="flex items-end justify-center w-full max-w-full"
-          style={{ gap }}
+          className="flex justify-center w-full max-w-full"
+          style={{ gap, alignItems: "flex-end" }}
         >
           {picks.map((pick, i) => (
             <div
               key={`cell-${i}`}
-              className="flex flex-col items-center gap-1 min-w-0"
-              style={{ width: slotW }}
+              className="flex items-center gap-1 min-w-0"
+              style={{ width: slotW, flexDirection: "column-reverse" }}
             >
-              <Slot pick={pick} slotIndex={i} responsiveWidth />
-              {showLabels && (
-                <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
-              )}
               {showLabels && pick && (
                 <CardNameLabel
                   cardIndex={pick.cardIndex}
@@ -1249,46 +1249,65 @@ export function ManualSpreadSlots({
                   nameOverride={pick.cardName}
                 />
               )}
+              {showLabels && (
+                <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
+              )}
+              <Slot pick={pick} slotIndex={i} responsiveWidth />
             </div>
           ))}
         </div>
       );
     }
-    return (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${
-            picks.length <= 5 ? picks.length : Math.ceil(picks.length / 2)
-          }, auto)`,
-          justifyContent: "center",
-          gap: "12px 16px",
-          width: "100%",
-          maxWidth: "100%",
-        }}
-      >
-        {picks.map((pick, i) => (
-          <div
-            key={`cell-${i}`}
-            className="flex flex-col items-center gap-1 min-w-0"
-            style={{ flex: "0 0 auto", width: sizing.w }}
-          >
-            <Slot pick={pick} slotIndex={i} />
-            {showLabels && (
-              <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
-            )}
-            {showLabels && pick && (
-              <CardNameLabel
-                cardIndex={pick.cardIndex}
-                isReversed={!!pick.isReversed}
-                cardWidth={sizing.w}
-                nameOverride={pick.cardName}
-              />
-            )}
-          </div>
-        ))}
-      </div>
-    );
+    {
+      const cols =
+        picks.length <= 5 ? picks.length : Math.ceil(picks.length / 2);
+      const gap = 8;
+      const sidePad = 16;
+      const availW =
+        typeof window !== "undefined"
+          ? Math.max(280, window.innerWidth - sidePad * 2)
+          : 320;
+      const cellW = Math.floor((availW - gap * (cols - 1)) / cols);
+      return (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${cols}, ${cellW}px)`,
+            justifyContent: "center",
+            alignItems: "end",
+            gap: `${gap}px`,
+            width: "100%",
+            maxWidth: "100%",
+            overflowX: "hidden",
+          }}
+        >
+          {picks.map((pick, i) => (
+            <div
+              key={`cell-${i}`}
+              className="flex items-center gap-1 min-w-0"
+              style={{
+                flex: "0 0 auto",
+                width: cellW,
+                flexDirection: "column-reverse",
+              }}
+            >
+              {showLabels && pick && (
+                <CardNameLabel
+                  cardIndex={pick.cardIndex}
+                  isReversed={!!pick.isReversed}
+                  cardWidth={cellW}
+                  nameOverride={pick.cardName}
+                />
+              )}
+              {showLabels && (
+                <PositionLabel cardWidth={cellW}>{`Card ${i + 1}`}</PositionLabel>
+              )}
+              <Slot pick={pick} slotIndex={i} cellWidth={cellW} />
+            </div>
+          ))}
+        </div>
+      );
+    }
   }
 
   // single / daily / yes_no
