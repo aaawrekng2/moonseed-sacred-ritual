@@ -399,7 +399,7 @@ export function ReadingScreen({
         <ArrowLeft size={16} strokeWidth={1.5} />
       </button>
       <div
-        className="mx-auto flex w-full max-w-2xl flex-col items-center gap-6 px-5"
+        className="mx-auto flex w-full max-w-2xl flex-col items-center gap-3 px-5"
         style={{
           paddingTop: "calc(var(--topbar-pad) + 16px)",
           // Reserve enough room above the 64px BottomNav so the share
@@ -407,7 +407,7 @@ export function ReadingScreen({
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)",
         }}
       >
-        <header className="flex flex-col items-center gap-1.5 text-center">
+        <header className="flex flex-col items-center gap-1 text-center">
           <span className="text-[10px] uppercase tracking-[0.3em] text-gold/70">
             {meta.label}
           </span>
@@ -829,9 +829,11 @@ function CardStrip({
   // card sizes instead.
   const swipeMobile = !isDesktop && cardCount > 3;
   if (swipeMobile) {
-    // Comfortable readable size on mobile — roughly the single-card
-    // baseline but trimmed so 3-4 fit visibly before scrolling.
-    w = 140;
+    const maxCardW = 140;
+    const minCardW = 80;
+    // Show ~2.5 cards visible on screen to hint at scrollability.
+    const hintW = Math.floor((vp.w - 32) / 2.5);
+    w = Math.max(minCardW, Math.min(maxCardW, hintW));
     h = Math.round(w * 1.75);
   }
   const stripInner = (
@@ -891,10 +893,15 @@ function CardStrip({
   if (swipeMobile) {
     return (
       <div
-        className="reading-cards-swipe overflow-x-auto snap-x snap-mandatory -mx-4 px-4"
+        className="reading-cards-swipe overflow-x-auto snap-x snap-mandatory"
         style={{
           scrollbarWidth: "none",
           WebkitOverflowScrolling: "touch",
+          overflowY: "visible",
+          marginLeft: "calc(-1 * var(--page-px, 20px))",
+          marginRight: "calc(-1 * var(--page-px, 20px))",
+          paddingLeft: "var(--page-px, 20px)",
+          paddingRight: "var(--page-px, 20px)",
           maskImage:
             "linear-gradient(to right, black 92%, transparent 100%)",
           WebkitMaskImage:
