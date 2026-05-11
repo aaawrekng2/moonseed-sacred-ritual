@@ -157,6 +157,8 @@ type ReadingRow = {
   import_batch_id?: string | null;
   /** DB-3.1 — saved deck for THIS reading (null = default Rider-Waite). */
   deck_id?: string | null;
+  /** Q38 Fix 1 — per-card source deck for mixed-deck readings. */
+  card_deck_ids?: string[] | null;
   /** DV — soft-delete timestamp; null = active reading. */
   archived_at?: string | null;
   /** Q12 — cached tailored journaling prompt for premium seekers. */
