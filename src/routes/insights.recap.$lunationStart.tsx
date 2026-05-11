@@ -628,58 +628,134 @@ function SlideTopTags({ data }: { data: RecapData }) {
 
 function PremiumReflectionSlide({
   lunationStart,
+  readingCount,
   onReflection,
 }: {
   lunationStart: string;
+  readingCount: number;
   onReflection?: (r: string | null) => void;
 }) {
   const fn = useServerFn(getLunationReflection);
+  const { user } = useAuth();
+  const reducePrompts = useReducePremiumPrompts(user?.id);
   const [text, setText] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  // Q42 — cache-only on mount; never auto-fire AI.
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
         const headers = await getAuthHeaders();
-        const r = await fn({ data: { lunationStart }, headers });
+        const r = await fn({ data: { lunationStart, cacheOnly: true }, headers });
         if (cancelled) return;
         if (r.ok) {
           setText(r.reflection);
+          setGeneratedAt(r.generatedAt ?? null);
           onReflection?.(r.reflection);
-        } else {
-          setErr(r.error);
-          onReflection?.(null);
         }
       } catch {
-        if (!cancelled) {
-          setErr("ai_unavailable");
-          onReflection?.(null);
-        }
+        /* ignore */
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [lunationStart, fn, onReflection]);
+
+  const onGenerate = useCallback(async () => {
+    setGenerating(true);
+    try {
+      const headers = await getAuthHeaders();
+      const r = await fn({ data: { lunationStart }, headers });
+      if (r.ok) {
+        setText(r.reflection);
+        setGeneratedAt(r.generatedAt ?? new Date().toISOString());
+        onReflection?.(r.reflection);
+      } else {
+        onReflection?.(null);
+      }
+    } finally {
+      setGenerating(false);
+    }
+  }, [lunationStart, fn, onReflection]);
+
+  const dataReady = readingCount >= 3;
+
   return (
     <SlideShell>
       <Eyebrow>Reflection</Eyebrow>
-      {!text && !err && <Caption>Listening to the lunation…</Caption>}
-      {err && <Caption>The reflection is unavailable right now.</Caption>}
-      {text && (
-        <div
+      {!dataReady && (
+        <Caption>
+          Reflections appear once you have at least 3 readings in a lunation.
+        </Caption>
+      )}
+      {dataReady && generating && <Caption>Listening to the lunation…</Caption>}
+      {dataReady && !generating && !text && !reducePrompts && (
+        <button
+          type="button"
+          onClick={() => void onGenerate()}
           style={{
+            background: "transparent",
+            border: "1px solid color-mix(in oklch, var(--gold) 40%, transparent)",
+            borderRadius: 14,
+            padding: "12px 20px",
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
-            fontSize: "var(--text-body)",
-            lineHeight: 1.6,
-            color: "var(--color-foreground)",
-            maxWidth: 420,
-            whiteSpace: "pre-line",
+            color: "var(--gold)",
+            marginTop: 12,
           }}
         >
-          {text}
-        </div>
+          Generate — 1 credit
+        </button>
+      )}
+      {dataReady && !generating && !text && reducePrompts && (
+        <Caption>Reflection — premium feature</Caption>
+      )}
+      {text && (
+        <>
+          <div
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body)",
+              lineHeight: 1.6,
+              color: "var(--color-foreground)",
+              maxWidth: 420,
+              whiteSpace: "pre-line",
+            }}
+          >
+            {text}
+          </div>
+          <div
+            style={{
+              marginTop: 12,
+              display: "flex",
+              gap: 16,
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "var(--text-caption, 0.75rem)",
+              fontStyle: "italic",
+            }}
+          >
+            <span style={{ opacity: 0.5 }}>
+              Last analyzed: {generatedAt ? formatTimeAgo(generatedAt) : "—"}
+            </span>
+            <button
+              type="button"
+              onClick={() => void onGenerate()}
+              style={{
+                background: "transparent",
+                color: "var(--gold)",
+                opacity: 0.7,
+                textDecoration: "underline",
+              }}
+            >
+              Refresh
+            </button>
+          </div>
+        </>
       )}
     </SlideShell>
   );
