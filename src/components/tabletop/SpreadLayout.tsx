@@ -1032,21 +1032,27 @@ export function ManualSpreadSlots({
     slotIndex,
     rotated,
     responsiveWidth,
+    cellWidth,
   }: {
     pick: ManualSlotPick;
     slotIndex: number;
     rotated?: boolean;
     responsiveWidth?: boolean;
+    cellWidth?: number;
   }) => {
     const aspect = pick ? pickAspects[slotIndex] ?? defaultAspect : defaultAspect;
-    const height = pick ? Math.round(sizing.w / aspect) : sizing.h;
+    const baseW = cellWidth ?? sizing.w;
+    const baseH = cellWidth ? Math.round(cellWidth / defaultAspect) : sizing.h;
+    const height = pick ? Math.round(baseW / aspect) : baseH;
     const isAmbiguous = ambiguousSlots?.includes(slotIndex);
     // Q20 Fix 6 — when the parent column controls the width (custom
     // spread max-5-per-row), let the slot fill the column and derive
     // height from the natural aspect.
     const sizeStyle: React.CSSProperties = responsiveWidth
       ? { width: "100%", aspectRatio: String(aspect) }
-      : { width: sizing.w, height };
+      : { width: baseW, height };
+    const showShimmer =
+      !!pick && pick.deckId != null && deckMapsLoading;
     return (
       <button
         type="button"
@@ -1088,6 +1094,18 @@ export function ManualSpreadSlots({
         }}
       >
         {pick ? (
+          showShimmer ? (
+            <div
+              className="animate-pulse"
+              style={{
+                width: "100%",
+                height: "100%",
+                background:
+                  "color-mix(in oklab, var(--color-foreground) 8%, transparent)",
+                borderRadius: "var(--radius-sm)",
+              }}
+            />
+          ) : (
           <img
             src={resolveForPick(pick) ?? undefined}
             alt={nameForPick(pick)}
@@ -1103,6 +1121,7 @@ export function ManualSpreadSlots({
             className="h-full w-full object-contain"
             style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
           />
+          )
         ) : (
           <span className="absolute inset-0 flex items-center justify-center text-[18px] font-light text-foreground/50">+</span>
         )}
