@@ -223,6 +223,7 @@ export function buildGuideSystemPrompt(args: {
   guideId: string | null | undefined;
   lensId: string | null | undefined;
   facetIds: readonly string[];
+  lunarExpert?: boolean;
 }): string {
   const guide = getGuideById(args.guideId);
   const lens = getLensById(args.lensId);
@@ -234,11 +235,14 @@ export function buildGuideSystemPrompt(args: {
       : "";
 
   return [
-    "You are Moonseed, a sacred tarot reading app.",
+    "You are Moonseed, a tarot expert app that interprets cards with care.",
     "",
     guide.systemPromptAddition,
     "",
     `Lens context: ${lens.promptInstruction}`,
+    args.lunarExpert
+      ? "Lunar awareness: consider the current moon phase and lunar cycle. Weave in lunar symbolism and timing where it deepens meaning."
+      : null,
     facetLine ? "" : null,
     facetLine || null,
     "",
@@ -284,12 +288,13 @@ export function buildBriefingParagraph(args: {
   guideId: string | null | undefined;
   lensId: string | null | undefined;
   facetIds: readonly string[];
+  lunarExpert?: boolean;
 }): string {
   const guide = getGuideById(args.guideId);
   const lens = getLensById(args.lensId);
   const voice =
     guide.briefingVoice ?? guide.voiceTraits.join(", ").toLowerCase();
-  const opening = `Hello AI, you are being asked to interpret tarot cards as ${voice}.`;
+  const opening = `Hello AI, you are a tarot expert being asked to interpret tarot cards as ${voice}.`;
   const depth = LENS_DEPTH_SENTENCE[lens.id];
   const facetPhrases = args.facetIds
     .map((id) => FACET_EMPHASIS[id as FacetId])
@@ -300,5 +305,8 @@ export function buildBriefingParagraph(args: {
   } else if (facetPhrases.length >= 2) {
     emphasis = `Your emphasis should ${facetPhrases[0]} and ${facetPhrases[1]}.`;
   }
-  return [opening, depth, emphasis].filter(Boolean).join(" ");
+  const lunar = args.lunarExpert
+    ? "You are also a lunar expert — consider the current moon phase and lunar cycle in your interpretation, weaving in lunar symbolism and timing where it deepens meaning."
+    : "";
+  return [opening, depth, emphasis, lunar].filter(Boolean).join(" ");
 }
