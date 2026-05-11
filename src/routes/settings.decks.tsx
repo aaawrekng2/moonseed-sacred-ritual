@@ -143,7 +143,25 @@ function DecksPage() {
     await Promise.all([load(), refreshActiveDeck()]);
   };
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <SettingsSection
+        title="My Decks"
+        description="The app uses Rider-Waite by default. Sign in to add custom decks."
+      >
+        <ul className="space-y-3">
+          <DefaultDeckRow anyActive={false} onActivate={() => {}} />
+        </ul>
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/" })}
+          className="mt-6 inline-flex items-center gap-2 rounded-md border border-gold/40 px-3 py-2 text-sm hover:bg-gold/10"
+        >
+          Sign in to add custom decks
+        </button>
+      </SettingsSection>
+    );
+  }
 
   if (view.kind === "create" || view.kind === "edit") {
     return (
@@ -205,14 +223,11 @@ function DecksPage() {
 
       {loading ? (
         <LoadingText>Loading decks…</LoadingText>
-      ) : decks.length === 0 ? (
-        <EmptyState onCreate={() => setView({ kind: "create" })} />
       ) : (
         <ul className="space-y-3">
-          {/* 9-6-N — Rider-Waite default pseudo-row. Tapping it
-              clears the active flag on all custom decks, restoring
-              the default tarot deck. The 'active' badge appears here
-              when no custom deck is is_active. */}
+          {/* 9-6-N — Rider-Waite default pseudo-row. Always rendered
+              first; Q43 made it visible even when the seeker has zero
+              custom decks. */}
           <DefaultDeckRow
             anyActive={decks.some((d) => d.is_active)}
             onActivate={async () => {
@@ -257,6 +272,14 @@ function DecksPage() {
               }}
             />
           ))}
+          {decks.length === 0 && (
+            <li
+              className="px-2 py-3 text-sm italic opacity-70"
+              style={{ fontFamily: "var(--font-serif)" }}
+            >
+              No custom decks yet. Tap "New deck" above to create one.
+            </li>
+          )}
         </ul>
       )}
 
