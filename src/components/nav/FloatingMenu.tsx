@@ -131,9 +131,9 @@ export function FloatingMenu() {
       const target = e.target as HTMLElement | null;
       if (target?.closest("button, input, a, [role=button], [data-no-peek]"))
         return;
+      cancel();
       pointerDownRef.current = true;
       pointerStartRef.current = { x: e.clientX, y: e.clientY };
-      cancel();
       timer = window.setTimeout(() => {
         timer = null;
         if (!pointerDownRef.current) return;
