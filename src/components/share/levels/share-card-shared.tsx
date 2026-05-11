@@ -6,9 +6,10 @@
  * preview re-uses the same DOM but is CSS-scaled (transform: scale)
  * by the parent ShareBuilder so we never maintain two layouts.
  */
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { useDeckImage, useDeckCornerRadius, useActiveDeck, useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
+import { buildDeckImageMap, resolveCardImage, type DeckImageMap } from "@/lib/custom-decks";
 import type { SharePick } from "../share-types";
 import type { ShareLevel } from "../share-types";
 import { getSigilForLevel, SigilWithGlow } from "../sigils";
@@ -256,6 +257,39 @@ export function ShareCardRow({
   const deckRadiusPx = useDeckCornerRadius(effectiveDeckId);
   const activeRadiusPx = useActiveDeckCornerRadius();
   const radiusPx = deckRadiusPx ?? activeRadiusPx;
+  // Q38 Fix 1H — pre-load image maps for any per-pick deckIds so each
+  // card can render from its own source deck.
+  const uniquePickDeckIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          picks
+            .map((p) => p.deckId ?? null)
+            .filter((d): d is string => !!d && d !== effectiveDeckId),
+        ),
+      ),
+    [picks, effectiveDeckId],
+  );
+  const uniqueKey = uniquePickDeckIds.join(",");
+  const [perPickMaps, setPerPickMaps] = useState<Record<string, DeckImageMap>>({});
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all(
+      uniquePickDeckIds.map(async (id) => {
+        const map = await buildDeckImageMap(id);
+        return [id, map] as const;
+      }),
+    ).then((entries) => {
+      if (cancelled) return;
+      const next: Record<string, DeckImageMap> = {};
+      for (const [id, map] of entries) if (map) next[id] = map;
+      setPerPickMaps(next);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uniqueKey]);
   return (
     <div
       style={{
@@ -292,11 +326,25 @@ export function ShareCardRow({
             }}
           >
             {(() => {
-              // Q33b Fix 5 — show a skeleton while a custom deck's
-              // images are still resolving so we never flash the
-              // default Rider-Waite art under the seeker's deck.
-              const customSrc = getImage(p.cardIndex) ?? getActive(p.cardIndex);
-              const isLoading = effectiveDeckId !== null && customSrc === null;
+              // Q38 Fix 1H — per-pick deckId wins; fall back to the
+              // reading-level deck, then the active deck, then default.
+              const pickDeckId = p.deckId ?? null;
+              const pickMap =
+                pickDeckId && pickDeckId !== effectiveDeckId
+                  ? perPickMaps[pickDeckId] ?? null
+                  : null;
+              const pickSrc = pickMap
+                ? resolveCardImage(p.cardIndex, pickMap, "display")
+                : null;
+              const customSrc =
+                pickSrc ?? getImage(p.cardIndex) ?? getActive(p.cardIndex);
+              const expectingPickDeck =
+                !!pickDeckId &&
+                pickDeckId !== effectiveDeckId &&
+                !perPickMaps[pickDeckId];
+              const isLoading =
+                expectingPickDeck ||
+                (effectiveDeckId !== null && customSrc === null);
               if (isLoading) {
                 return (
                   <div
