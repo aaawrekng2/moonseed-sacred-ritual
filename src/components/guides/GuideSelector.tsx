@@ -250,20 +250,6 @@ export function GuideSelector({
                     <p className="mt-1 text-[11px] text-muted-foreground">
                       {g.tagline}
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-1">
-                      {g.traits.slice(0, 4).map((t) => (
-                        <span
-                          key={t}
-                          className="text-[9px] uppercase tracking-wider"
-                          style={{
-                            color: "var(--gold)",
-                            opacity: "var(--ro-plus-20)",
-                          }}
-                        >
-                          {t}
-                        </span>
-                      ))}
-                    </div>
                     {g.custom && (
                       <span className="mt-3 inline-block text-[9px] uppercase tracking-wider text-gold/60">
                         {active ? "Custom · Active" : "Custom"}
