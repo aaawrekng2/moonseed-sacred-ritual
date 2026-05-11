@@ -555,7 +555,12 @@ export function ReadingScreen({
           context={{
             question,
             spread,
-            picks,
+            picks: picks.map((p) => ({
+              id: p.id,
+              cardIndex: p.cardIndex,
+              isReversed: p.isReversed,
+              deckId: p.deckId ?? deckId ?? null,
+            })),
             positionLabels,
             interpretation: state.interpretation,
             guideName: getGuideById(guideId).name,
