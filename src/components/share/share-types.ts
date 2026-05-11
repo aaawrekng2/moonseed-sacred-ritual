@@ -59,7 +59,7 @@ export function getShareColor(id: string | null | undefined): ShareColor {
 
 /** A drawn card in the reading. `isReversed` is optional for backwards
  * compatibility with older saved readings — treat missing as upright. */
-export type SharePick = { id: number; cardIndex: number; isReversed?: boolean };
+export type SharePick = { id: number; cardIndex: number; isReversed?: boolean; deckId?: string | null };
 
 /** The full data envelope a share level needs. */
 export type ShareContext = {
