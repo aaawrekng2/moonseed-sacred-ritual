@@ -1074,6 +1074,7 @@ export type Database = {
           initial_intention: string | null
           is_premium: boolean
           last_share_level: string | null
+          lunar_expert_enabled: boolean
           memory_ai_permission: boolean
           moon_ai_phase: boolean
           moon_ai_sign: boolean
@@ -1142,6 +1143,7 @@ export type Database = {
           initial_intention?: string | null
           is_premium?: boolean
           last_share_level?: string | null
+          lunar_expert_enabled?: boolean
           memory_ai_permission?: boolean
           moon_ai_phase?: boolean
           moon_ai_sign?: boolean
@@ -1210,6 +1212,7 @@ export type Database = {
           initial_intention?: string | null
           is_premium?: boolean
           last_share_level?: string | null
+          lunar_expert_enabled?: boolean
           memory_ai_permission?: boolean
           moon_ai_phase?: boolean
           moon_ai_sign?: boolean
