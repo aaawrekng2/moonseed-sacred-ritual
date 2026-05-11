@@ -1134,7 +1134,7 @@ export const getStalkerReflection = createServerFn({ method: "POST" })
     if (!isPremium) return { ok: false as const, error: "premium_required" };
     const cacheKey = `stalker:${data.cardId}:${data.count}:${data.latestDate}`;
     const cached = await readCachedReflection(supabase, userId, cacheKey);
-    if (cached) return { ok: true as const, reflection: cached };
+    if (cached) return { ok: true as const, reflection: cached.reflection };
     const tone = await getAIToneServerSide(supabase, userId);
     const cardName = getCardName(data.cardId);
     const systemPrompt = buildStalkerSystemPrompt(tone);
