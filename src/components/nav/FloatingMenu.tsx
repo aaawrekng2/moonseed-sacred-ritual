@@ -134,8 +134,6 @@ export function FloatingMenu() {
       pointerDownRef.current = true;
       pointerStartRef.current = { x: e.clientX, y: e.clientY };
       cancel();
-      pointerDownRef.current = true;
-      pointerStartRef.current = { x: e.clientX, y: e.clientY };
       timer = window.setTimeout(() => {
         timer = null;
         if (!pointerDownRef.current) return;
