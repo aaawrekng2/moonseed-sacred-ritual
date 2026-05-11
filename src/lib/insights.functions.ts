@@ -153,7 +153,6 @@ async function fetchFilteredReadings(
   }
   if (filters.spreadTypes.length > 0) q = q.in("spread_type", filters.spreadTypes);
   if (filters.deckIds.length > 0) q = q.in("deck_id", filters.deckIds);
-  if (filters.moonPhases.length > 0) q = q.in("moon_phase", filters.moonPhases);
   if (filters.deepOnly) q = q.eq("is_deep_reading", true);
   if (filters.tagIds.length > 0) q = q.overlaps("tags", filters.tagIds);
   const { data, error } = await q.order("created_at", { ascending: false }).limit(2000);
@@ -161,6 +160,13 @@ async function fetchFilteredReadings(
   let rows = (data ?? []) as ReadingRow[];
   if (filters.reversedOnly) {
     rows = rows.filter((r) => (r.card_orientations ?? []).some(Boolean));
+  }
+  if (filters.moonPhases.length > 0) {
+    const allowed = new Set(filters.moonPhases);
+    rows = rows.filter((r) => {
+      const phase = resolveMoonPhase(r.moon_phase, r.created_at);
+      return phase ? allowed.has(phase) : false;
+    });
   }
   return rows;
 }
