@@ -987,8 +987,10 @@ export function ManualSpreadSlots({
   );
   const uniqueKey = uniqueDeckIds.join(",");
   const [deckMaps, setDeckMaps] = useState<Record<string, DeckImageMap>>({});
+  const [deckMapsLoading, setDeckMapsLoading] = useState(true);
   useEffect(() => {
     let cancelled = false;
+    setDeckMapsLoading(true);
     void Promise.all(
       uniqueDeckIds.map(async (id) => {
         const map = await buildDeckImageMap(id);
@@ -1001,6 +1003,7 @@ export function ManualSpreadSlots({
         if (map) next[id] = map;
       }
       setDeckMaps(next);
+      setDeckMapsLoading(false);
     });
     return () => {
       cancelled = true;
