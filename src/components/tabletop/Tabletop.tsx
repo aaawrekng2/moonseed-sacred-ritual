@@ -1024,6 +1024,28 @@ export function Tabletop({
 
   return (
     <div className="fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-hidden bg-cosmos">
+      {/* Q39b Fix 5 — visible X close button (FloatingMenu X removed in Q33). */}
+      <button
+        type="button"
+        onClick={handleExit}
+        aria-label="Close draw table"
+        data-no-peek=""
+        style={{
+          position: "absolute",
+          top: "calc(env(safe-area-inset-top, 0px) + 10px)",
+          left: "calc(env(safe-area-inset-left, 0px) + 12px)",
+          zIndex: 60,
+          padding: 8,
+          color: "var(--color-foreground)",
+          opacity: 0.7,
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          touchAction: "manipulation",
+        }}
+      >
+        <X size={18} strokeWidth={1.5} />
+      </button>
       {/* Q20 Fix 4 — Unified header strip: toggle (left) + stepper
           (centered) on the same row. */}
       <div
