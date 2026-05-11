@@ -1199,9 +1199,16 @@ export function ManualSpreadSlots({
         {picks.map((pick, i) => (
           <div
             key={i}
-            className="flex items-center gap-2"
-            style={{ flexDirection: "column-reverse" }}
+            className="flex gap-2"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "flex-end",
+            }}
           >
+            <Slot pick={pick} slotIndex={i} />
+            {showLabels && <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
             {showLabels && pick && (
               <CardNameLabel
                 cardIndex={pick.cardIndex}
@@ -1210,8 +1217,6 @@ export function ManualSpreadSlots({
                 nameOverride={pick.cardName}
               />
             )}
-            {showLabels && <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
-            <Slot pick={pick} slotIndex={i} />
           </div>
         ))}
       </div>
@@ -1238,9 +1243,19 @@ export function ManualSpreadSlots({
           {picks.map((pick, i) => (
             <div
               key={`cell-${i}`}
-              className="flex items-center gap-1 min-w-0"
-              style={{ width: slotW, flexDirection: "column-reverse" }}
+              className="flex gap-1 min-w-0"
+              style={{
+                width: slotW,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "flex-end",
+              }}
             >
+              <Slot pick={pick} slotIndex={i} responsiveWidth />
+              {showLabels && (
+                <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
+              )}
               {showLabels && pick && (
                 <CardNameLabel
                   cardIndex={pick.cardIndex}
@@ -1249,10 +1264,6 @@ export function ManualSpreadSlots({
                   nameOverride={pick.cardName}
                 />
               )}
-              {showLabels && (
-                <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
-              )}
-              <Slot pick={pick} slotIndex={i} responsiveWidth />
             </div>
           ))}
         </div>
@@ -1284,13 +1295,20 @@ export function ManualSpreadSlots({
           {picks.map((pick, i) => (
             <div
               key={`cell-${i}`}
-              className="flex items-center gap-1 min-w-0"
+              className="flex gap-1 min-w-0"
               style={{
                 flex: "0 0 auto",
                 width: cellW,
-                flexDirection: "column-reverse",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "flex-end",
               }}
             >
+              <Slot pick={pick} slotIndex={i} cellWidth={cellW} />
+              {showLabels && (
+                <PositionLabel cardWidth={cellW}>{`Card ${i + 1}`}</PositionLabel>
+              )}
               {showLabels && pick && (
                 <CardNameLabel
                   cardIndex={pick.cardIndex}
@@ -1299,10 +1317,6 @@ export function ManualSpreadSlots({
                   nameOverride={pick.cardName}
                 />
               )}
-              {showLabels && (
-                <PositionLabel cardWidth={cellW}>{`Card ${i + 1}`}</PositionLabel>
-              )}
-              <Slot pick={pick} slotIndex={i} cellWidth={cellW} />
             </div>
           ))}
         </div>
