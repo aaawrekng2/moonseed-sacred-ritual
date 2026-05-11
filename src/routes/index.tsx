@@ -328,6 +328,12 @@ function Index() {
     // the seeker has already drawn for the new day.
     setTodayCard(null);
     setHasCheckedTodayDraw(false); // EX-2 — reset on day flip / re-check
+    // Q43 — If auth is resolved and there is no user, skip the DB query
+    // entirely. Render the card back immediately.
+    if (!authLoading && !user) {
+      setHasCheckedTodayDraw(true);
+      return;
+    }
     void (async () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const uid = sessionData.session?.user?.id;
@@ -363,7 +369,7 @@ function Index() {
     return () => {
       cancelled = true;
     };
-  }, [dayEpoch, effectiveTz]);
+  }, [dayEpoch, effectiveTz, user, authLoading]);
 
   // EG-3 — Mount the draw-type hint only when not hard-dismissed.
   useEffect(() => {

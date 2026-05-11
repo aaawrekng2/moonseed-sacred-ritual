@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { signOutAndClear } from "@/lib/sign-out";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
@@ -323,13 +324,7 @@ export function DataTab() {
 
   const signOut = async () => {
     setSigningOut(true);
-    const { error } = await supabase.auth.signOut();
-    setSigningOut(false);
-    if (error) {
-      toast.error("Couldn't sign out");
-      return;
-    }
-    window.location.href = "/";
+    await signOutAndClear();
   };
 
   const clearLocal = async () => {

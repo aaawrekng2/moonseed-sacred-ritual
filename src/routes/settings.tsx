@@ -26,6 +26,7 @@ import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
 import { supabase } from "@/lib/supabase";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
+import { signOutAndClear } from "@/lib/sign-out";
 
 /**
  * /settings — layout route. The route itself redirects to
@@ -229,7 +230,7 @@ function SettingsLayout() {
               <button
                 type="button"
                 onClick={async () => {
-                  await supabase.auth.signOut();
+                  await signOutAndClear();
                 }}
                 style={{
                   fontFamily: "var(--font-serif)",
