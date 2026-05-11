@@ -11,6 +11,7 @@
  */
 import { getCardName } from "@/lib/tarot";
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import { CardImage } from "@/components/card/CardImage";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import {
@@ -65,6 +66,26 @@ export function CardZoomModal({ cardId, reversed, onClose, deckId }: CardZoomMod
   const deckRadius = useSpecific ? specificRadius : activeRadius;
   return (
     <FullScreenSheet open onClose={onClose} entry="fade" showCloseButton={false}>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close zoom"
+        style={{
+          position: "absolute",
+          top: "calc(env(safe-area-inset-top, 0px) + 10px)",
+          right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+          zIndex: 10,
+          padding: 8,
+          color: "var(--color-foreground)",
+          opacity: 0.7,
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          touchAction: "manipulation",
+        }}
+      >
+        <X size={18} strokeWidth={1.5} />
+      </button>
       <div
         className="flex h-full flex-col items-center justify-center gap-4 p-4"
         onClick={onClose}
