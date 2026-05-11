@@ -106,7 +106,7 @@ export function DeepReadingPanel({
     try {
       const { data, error } = await supabase
         .from("readings")
-        .select("spread_type, card_ids, card_orientations, question, guide_id, deck_id")
+        .select("spread_type, card_ids, card_orientations, question, guide_id, deck_id, card_deck_ids")
         .eq("id", readingId)
         .maybeSingle();
       if (error || !data) return null;
@@ -115,10 +115,13 @@ export function DeepReadingPanel({
         : "single";
       const cardIds = (data.card_ids ?? []) as number[];
       const orientations = (data.card_orientations ?? []) as boolean[];
+      const cardDeckIds = ((data as { card_deck_ids?: string[] | null }).card_deck_ids ?? []) as string[];
+      const readingDeckId = (data as { deck_id?: string | null }).deck_id ?? null;
       const picks = cardIds.map((cardIndex, i) => ({
         id: i,
         cardIndex,
         isReversed: orientations[i] ?? false,
+        deckId: (cardDeckIds[i] ?? readingDeckId) ?? null,
       }));
       const positionLabels = SPREAD_META[spread].positions ?? picks.map((_, i) => `Card ${i + 1}`);
       const ctx: ShareContext = {

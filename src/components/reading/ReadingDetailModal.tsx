@@ -92,6 +92,7 @@ export function ReadingDetailModal({
                           reversed={reversed}
                           size="custom"
                           widthPx={96}
+                          deckId={(reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null}
                         />
                         {label && (
                           <span className="mt-1 text-center text-[10px] uppercase tracking-wider text-muted-foreground">

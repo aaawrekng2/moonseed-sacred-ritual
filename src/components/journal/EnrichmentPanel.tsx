@@ -1349,6 +1349,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
   // <CardImage deckId> — image resolution + corner radius are handled
   // inside the shared component.
   const [readingDeckId, setReadingDeckId] = useState<string | null>(null);
+  const [readingCardDeckIds, setReadingCardDeckIds] = useState<string[] | null>(null);
   // DU-12 — "Tell me more" disclosure for the surfaced match.
   const [tellMoreOpen, setTellMoreOpen] = useState(false);
   // DL-7 — first-tap "Connect" hint modal. Persisted via
@@ -1396,7 +1397,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
     void (async () => {
       const { data: r } = await supabase
         .from("readings")
-       .select("pattern_id, user_id, card_ids, card_orientations, tags, deck_id")
+       .select("pattern_id, user_id, card_ids, card_orientations, tags, deck_id, card_deck_ids")
         .eq("id", readingId)
         .maybeSingle();
       const row = r as
@@ -1407,10 +1408,12 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
             card_orientations: boolean[] | null;
             tags: string[] | null;
             deck_id: string | null;
+            card_deck_ids: string[] | null;
           }
         | null;
       if (!row || cancelled) return;
       setReadingDeckId(row.deck_id ?? null);
+      setReadingCardDeckIds(row.card_deck_ids ?? null);
       // Already attached → show the "aligns with your Story" line.
       if (row.pattern_id) {
         const { data: p } = await supabase
@@ -1738,7 +1741,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
               cardId={cardId}
               variant="face"
               size="thumbnail"
-              deckId={readingDeckId}
+              deckId={(readingCardDeckIds?.[cardId] ?? readingDeckId) ?? null}
               reversed={!!s.cardOrientations[cardId]}
               ariaLabel={getCardName(cardId)}
             />

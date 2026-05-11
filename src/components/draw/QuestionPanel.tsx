@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
 
 /**
  * Floating question panel that sits above the draw table.
@@ -86,7 +86,6 @@ export function QuestionPanel({
         onClick={onOpen}
         className="absolute left-1/2 -translate-x-1/2 z-50 flex items-center justify-center"
         style={{
-          // Sits 2px below the top safe-area inset.
           top: "calc(env(safe-area-inset-top, 0px) + 2px)",
           background: "transparent",
           border: "none",
@@ -95,24 +94,7 @@ export function QuestionPanel({
         }}
         aria-label="Open question"
       >
-        <span
-          className={showQuillScale ? undefined : "animate-quill-breathe"}
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            // Reduced 10% from the previous 22px.
-            fontSize: "var(--text-body-lg)",
-            color: "var(--gold)",
-            lineHeight: 1,
-            display: "inline-block",
-            transformOrigin: "center",
-            animation: showQuillScale
-              ? "quill-scale-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both"
-              : undefined,
-          }}
-        >
-          🪶
-        </span>
+        <MessageCircle size={18} strokeWidth={1.5} style={{ color: "var(--gold)" }} />
       </button>
     );
   }

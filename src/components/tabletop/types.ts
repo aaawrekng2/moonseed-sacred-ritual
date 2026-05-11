@@ -40,6 +40,12 @@ export type TabletopProps = {
    */
   onSwitchToManual?: () => void;
   /**
+   * Q38 Fix 6 — open the question panel from a button inside the
+   * Tabletop's top header strip. The panel itself remains rendered
+   * by the parent route; Tabletop just triggers it.
+   */
+  onOpenQuestion?: () => void;
+  /**
    * 26-05-08-Q19 — Custom-spread card-count stepper. When provided
    * (custom spread only), Tabletop renders a centered chevron
    * stepper that lets the seeker change the cardinality mid-table.

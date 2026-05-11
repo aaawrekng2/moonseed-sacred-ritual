@@ -1845,7 +1845,7 @@ export const getReadingsByIds = createServerFn({ method: "GET" })
     const { data: rows, error } = await supabase
       .from("readings")
       .select(
-        "id, created_at, spread_type, card_ids, card_orientations, question, deck_id, note, is_favorite, tags, guide_id, lens_id, moon_phase, is_deep_reading, deep_reading_lenses",
+        "id, created_at, spread_type, card_ids, card_orientations, question, deck_id, card_deck_ids, note, is_favorite, tags, guide_id, lens_id, moon_phase, is_deep_reading, deep_reading_lenses",
       )
       .eq("user_id", userId)
       .in("id", data.readingIds)

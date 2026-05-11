@@ -17,7 +17,7 @@ export const TABLETOP_CONFIG = {
   // On mobile, the floating ··· menu is much smaller than the old top bar
   // so cards can start higher. Desktop keeps the original reserve.
   TOP_RESERVE:
-    typeof window !== "undefined" && window.innerWidth < 768 ? 32 : 56,
+    typeof window !== "undefined" && window.innerWidth < 768 ? 64 : 72,
   SELECTION_GLOW_SPREAD: 6,
   SELECTION_GLOW_OPACITY: 0.8,
   // Slow, ceremonial flip — long enough to feel reverent without

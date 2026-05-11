@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Undo2, Redo2, X } from "lucide-react";
+import { Undo2, Redo2, X, MessageCircle } from "lucide-react";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
@@ -57,6 +57,7 @@ export function Tabletop({
   onQuestionChange,
   onSwitchToManual,
   onCustomCountChange,
+  onOpenQuestion,
 }: TabletopProps) {
   const meta = SPREAD_META[spread];
   // 9-6-O — Custom spread overrides the meta count with the user's pick.
@@ -1047,6 +1048,29 @@ export function Tabletop({
             />
           )}
         </div>
+        {onOpenQuestion && (
+          <div style={{ pointerEvents: "auto", paddingLeft: 12 }}>
+            <button
+              type="button"
+              onClick={onOpenQuestion}
+              aria-label="Add question"
+              data-no-peek=""
+              style={{
+                background: "none",
+                border: "none",
+                padding: 8,
+                color: "var(--accent, var(--gold))",
+                opacity: 0.7,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                touchAction: "manipulation",
+              }}
+            >
+              <MessageCircle size={18} strokeWidth={1.5} />
+            </button>
+          </div>
+        )}
         <div
           style={{
             pointerEvents: "auto",
@@ -1486,7 +1510,7 @@ export function Tabletop({
             style={{
               paddingBottom:
                 isMobile && showSlotRail
-                  ? 4
+                  ? "calc(env(safe-area-inset-bottom, 0px) + 4px)"
                   : "calc(env(safe-area-inset-bottom, 0px) + 12px)",
               paddingLeft: "calc(env(safe-area-inset-left, 0px) + 16px)",
               paddingRight: "calc(env(safe-area-inset-right, 0px) + 16px)",
