@@ -272,7 +272,9 @@ export function ReadingScreen({
                 spread_type: spread,
                 card_ids: picks.map((p) => p.cardIndex),
                 card_orientations: picks.map((p) => p.isReversed ?? false),
-                card_deck_ids: picks.map((p) => p.deckId ?? deckId ?? null),
+                card_deck_ids: picks.map(
+                  (p) => p.deckId ?? deckId ?? null,
+                ) as unknown as string[],
                 interpretation: interpretationText,
                 guide_id: guideId,
                 lens_id: lensId,
