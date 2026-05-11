@@ -1229,7 +1229,7 @@ export function ManualSpreadSlots({
     const cols =
       picks.length <= 5 ? picks.length : Math.ceil(picks.length / 2);
     const gap = 8;
-    const sidePad = 32; // matches ManualEntryBuilder p-4 (16px each side)
+    const sidePad = 48; // 16px each side + 8px safety margin each side
     const availW =
       typeof window !== "undefined"
         ? Math.max(280, window.innerWidth - sidePad)
