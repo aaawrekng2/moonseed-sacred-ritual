@@ -167,10 +167,20 @@ export const interpretReading = createServerFn({ method: "POST" })
 
       // Build the per-request system prompt from the active Guide / Lens /
       // Facets. Falls back to defaults when the client did not send them.
+      // Read lunar_expert pref alongside other prefs (a single round-trip).
+      const { data: lunarPrefs } = await supabase
+        .from("user_preferences")
+        .select("lunar_expert_enabled")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const lunarExpert =
+        (lunarPrefs as { lunar_expert_enabled?: boolean } | null)
+          ?.lunar_expert_enabled === true;
       const systemPrompt = buildGuideSystemPrompt({
         guideId: data.guideId,
         lensId: data.lensId,
         facetIds: data.facetIds ?? [],
+        lunarExpert,
       });
 
       // Phase 9.55 — when any drawn card is reversed, prepend a brief

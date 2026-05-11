@@ -84,6 +84,43 @@ export function GuideSelector({
   const [editingGuide, setEditingGuide] = useState<CustomGuide | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomGuide | null>(null);
   const [briefingOpen, setBriefingOpen] = useState(false);
+  // Q39b Fix 8 — lunar awareness toggle. Defaults from the seeker's moon
+  // settings (`moon_features_enabled`) and persists to
+  // `user_preferences.lunar_expert_enabled` when overridden here.
+  const [lunarExpert, setLunarExpert] = useState<boolean>(false);
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("moon_features_enabled, lunar_expert_enabled")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const row = data as
+        | { moon_features_enabled?: boolean; lunar_expert_enabled?: boolean | null }
+        | null;
+      if (row?.lunar_expert_enabled === true || row?.lunar_expert_enabled === false) {
+        setLunarExpert(row.lunar_expert_enabled);
+      } else {
+        setLunarExpert(row?.moon_features_enabled !== false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+  const persistLunar = (next: boolean) => {
+    setLunarExpert(next);
+    if (!user) return;
+    void supabase
+      .from("user_preferences")
+      .upsert(
+        { user_id: user.id, lunar_expert_enabled: next } as never,
+        { onConflict: "user_id" },
+      );
+  };
 
   // Load custom guides for the carousel.
   useEffect(() => {
@@ -399,6 +436,71 @@ export function GuideSelector({
         </section>
       </div>
 
+      {/* Q39b Fix 8 — lunar awareness toggle row. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "8px 16px 0",
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+            }}
+          >
+            Lunar awareness
+          </div>
+          <div
+            style={{
+              fontSize: "var(--text-caption)",
+              color: "var(--color-foreground-muted, var(--muted-foreground))",
+              opacity: 0.75,
+            }}
+          >
+            Have the AI consider the moon phase in interpretations.
+          </div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={lunarExpert}
+          onClick={() => persistLunar(!lunarExpert)}
+          style={{
+            width: 38,
+            height: 22,
+            borderRadius: 999,
+            border: "1px solid color-mix(in oklab, var(--gold) 35%, transparent)",
+            background: lunarExpert
+              ? "color-mix(in oklab, var(--gold) 55%, transparent)"
+              : "transparent",
+            position: "relative",
+            cursor: "pointer",
+            transition: "background 200ms ease",
+            flexShrink: 0,
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              top: 2,
+              left: lunarExpert ? 18 : 2,
+              width: 16,
+              height: 16,
+              borderRadius: "50%",
+              background: "var(--color-foreground)",
+              transition: "left 200ms ease",
+            }}
+          />
+        </button>
+      </div>
+
       {briefingOpen ? (
         <div
           style={{
@@ -432,7 +534,7 @@ export function GuideSelector({
               margin: 0,
             }}
           >
-            {buildBriefingParagraph({ guideId, lensId, facetIds })}
+            {buildBriefingParagraph({ guideId, lensId, facetIds, lunarExpert })}
           </p>
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
             <button

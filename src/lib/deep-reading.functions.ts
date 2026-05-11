@@ -204,10 +204,19 @@ export const interpretDeepReading = createServerFn({ method: "POST" })
         .join("\n");
       const hasReversed = orientations.some((o) => o === true);
 
+      const { data: lunarPrefs } = await supabase
+        .from("user_preferences")
+        .select("lunar_expert_enabled")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const lunarExpert =
+        (lunarPrefs as { lunar_expert_enabled?: boolean } | null)
+          ?.lunar_expert_enabled === true;
       const systemPrompt = `${buildGuideSystemPrompt({
         guideId: data.guideId ?? readingRow.guide_id ?? undefined,
         lensId: data.lensId ?? readingRow.lens_id ?? undefined,
         facetIds: data.facetIds ?? [],
+        lunarExpert,
       })}${hasReversed ? "\n\nWhen a card is marked (reversed), interpret it with awareness of reversal — its energy may be blocked, internalized, delayed, or expressed as its shadow. Reversed does not mean negative; it means nuanced." : ""}
 
 You are conducting a Deep Reading — a layered, reflective exploration that

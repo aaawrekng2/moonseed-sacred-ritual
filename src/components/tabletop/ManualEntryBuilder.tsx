@@ -25,6 +25,7 @@ import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { useAuth } from "@/lib/auth";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
+import { X } from "lucide-react";
 
 const CELTIC_POSITION_LABELS = [
   "Significator",
@@ -270,6 +271,26 @@ export function ManualEntryBuilder({
 
   return (
     <FullScreenSheet open onClose={onCancel} entry="fade" showCloseButton={false}>
+    <button
+      type="button"
+      onClick={onCancel}
+      aria-label="Close manual entry"
+      style={{
+        position: "absolute",
+        top: "calc(env(safe-area-inset-top, 0px) + 10px)",
+        right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+        zIndex: 10,
+        padding: 8,
+        color: "var(--color-foreground)",
+        opacity: 0.7,
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        touchAction: "manipulation",
+      }}
+    >
+      <X size={18} strokeWidth={1.5} />
+    </button>
     <div className="flex h-full w-full flex-col bg-cosmos text-foreground">
       {/* Q20 Fix 4 — Unified header strip: toggle (left) + stepper
           (centered) on the same row. */}

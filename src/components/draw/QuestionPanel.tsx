@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MessageCircle, X } from "lucide-react";
+import { X } from "lucide-react";
 
 /**
  * Floating question panel that sits above the draw table.
@@ -79,25 +79,11 @@ export function QuestionPanel({
     onClose();
   };
 
-  if (!open && !closing) {
-    return (
-      <button
-        type="button"
-        onClick={onOpen}
-        className="absolute left-1/2 -translate-x-1/2 z-50 flex items-center justify-center"
-        style={{
-          top: "calc(env(safe-area-inset-top, 0px) + 2px)",
-          background: "transparent",
-          border: "none",
-          padding: 4,
-          cursor: "pointer",
-        }}
-        aria-label="Open question"
-      >
-        <MessageCircle size={18} strokeWidth={1.5} style={{ color: "var(--gold)" }} />
-      </button>
-    );
-  }
+  // Q39b Fix 3 — collapsed-state trigger removed; the Tabletop header
+  // strip now owns the open affordance. Render nothing when closed.
+  if (!open && !closing) return null;
+  // `onOpen` is preserved on the public API for parity with callers.
+  void onOpen;
 
   return (
     <div

@@ -1,0 +1,1 @@
+ALTER TABLE public.user_preferences ADD COLUMN IF NOT EXISTS lunar_expert_enabled boolean NOT NULL DEFAULT false;

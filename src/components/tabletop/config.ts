@@ -77,7 +77,7 @@ export function responsiveSlotWidth(viewportW: number, count: number): number {
   // legible without dwarfing the rest of the table.
   if (count <= 0 || viewportW <= 0) return 48;
   const isMobile = viewportW < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
-  const railPad = isMobile ? 16 : 32; // Q25 Fix 6 - Celtic was a hair too wide
+  const railPad = isMobile ? 32 : 40; // Q39b Fix 2 - controls row outer+inner padding
   const gap = count >= 10 ? 4 : isMobile ? 6 : 8;
   const usable = Math.max(0, viewportW - railPad * 2 - gap * (count - 1));
   const naive = Math.floor(usable / count);

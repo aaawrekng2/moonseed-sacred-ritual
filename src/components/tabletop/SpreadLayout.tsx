@@ -315,47 +315,58 @@ function SpreadContent({
   }
   if (spread === "custom") {
     const count = picks.length;
-    // Q25 Fix 5 — for 5+ cards, use the Celtic single-row responsive
-    // formula so the row always fits any viewport with no wrap.
+    // Q39b Fix 6 — max 5 cards per row, wrap to 2 rows beyond.
     if (count >= 5) {
-      // Q27 Fix 8 — subtract container padding from viewport so the
-      // slot rail actually fits the available content area.
       const rawViewportW = typeof window !== "undefined" ? window.innerWidth : 380;
-      const effectiveViewportW = Math.max(280, rawViewportW - 64);
-      const slotW = responsiveSlotWidth(effectiveViewportW, count);
+      const effectiveViewportW = Math.max(280, rawViewportW - 24);
+      const cols = Math.min(count, 5);
+      const slotW = responsiveSlotWidth(effectiveViewportW, cols);
       const slotH = Math.round(slotW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
       const gap = count >= 10 ? 4 : 8;
-      return (
+      const rowSize = count <= 5 ? count : Math.ceil(count / 2);
+      const row1 = picks.slice(0, rowSize);
+      const row2 = picks.slice(rowSize);
+      const renderRow = (rowPicks: typeof picks, rowOffset: number) => (
         <div
+          key={`row-${rowOffset}`}
           className="flex items-end justify-center w-full max-w-full"
           style={{ gap }}
         >
-          {picks.map((pick, i) => (
-            <div key={pick.id} className="flex flex-col items-center gap-1 min-w-0">
-              <CardFace
-                pick={pick}
-                cardBack={cardBack}
-                revealed={!!revealedFlags[i]}
-                isNext={nextIndex === i}
-                isWrong={wrongIndex === i}
-                onTap={() => onTap(i)}
-                sizing={{ w: slotW, h: slotH }}
-                emergeDelayMs={i * 80}
-                isRevealPhase={isRevealPhase}
-                onZoom={onZoom}
-              />
-              {showLabels && (
-                <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
-              )}
-              {showLabels && revealedFlags[i] && (
-                <CardNameLabel
-                  cardIndex={pick.cardIndex}
-                  isReversed={!!pick.isReversed}
-                  cardWidth={slotW}
+          {rowPicks.map((pick, idx) => {
+            const i = rowOffset + idx;
+            return (
+              <div key={pick.id} className="flex flex-col items-center gap-1 min-w-0">
+                <CardFace
+                  pick={pick}
+                  cardBack={cardBack}
+                  revealed={!!revealedFlags[i]}
+                  isNext={nextIndex === i}
+                  isWrong={wrongIndex === i}
+                  onTap={() => onTap(i)}
+                  sizing={{ w: slotW, h: slotH }}
+                  emergeDelayMs={i * 80}
+                  isRevealPhase={isRevealPhase}
+                  onZoom={onZoom}
                 />
-              )}
-            </div>
-          ))}
+                {showLabels && (
+                  <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
+                )}
+                {showLabels && revealedFlags[i] && (
+                  <CardNameLabel
+                    cardIndex={pick.cardIndex}
+                    isReversed={!!pick.isReversed}
+                    cardWidth={slotW}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+      return (
+        <div className="flex flex-col items-center gap-3 w-full max-w-full">
+          {renderRow(row1, 0)}
+          {row2.length > 0 && renderRow(row2, rowSize)}
         </div>
       );
     }
@@ -1229,7 +1240,7 @@ export function ManualSpreadSlots({
     const cols =
       picks.length <= 5 ? picks.length : Math.ceil(picks.length / 2);
     const gap = 8;
-    const sidePad = 32; // matches ManualEntryBuilder p-4 (16px each side)
+    const sidePad = 48; // 16px each side + 8px safety margin each side
     const availW =
       typeof window !== "undefined"
         ? Math.max(280, window.innerWidth - sidePad)
