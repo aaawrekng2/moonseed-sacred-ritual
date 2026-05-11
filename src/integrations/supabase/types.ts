@@ -598,6 +598,7 @@ export type Database = {
         Row: {
           cache_key: string
           created_at: string
+          generated_at: string
           id: string
           reflection: string
           user_id: string
@@ -605,6 +606,7 @@ export type Database = {
         Insert: {
           cache_key: string
           created_at?: string
+          generated_at?: string
           id?: string
           reflection: string
           user_id: string
@@ -612,6 +614,7 @@ export type Database = {
         Update: {
           cache_key?: string
           created_at?: string
+          generated_at?: string
           id?: string
           reflection?: string
           user_id?: string
@@ -622,6 +625,7 @@ export type Database = {
         Row: {
           cache_key: string
           created_at: string
+          generated_at: string
           id: string
           themes: Json
           user_id: string
@@ -629,6 +633,7 @@ export type Database = {
         Insert: {
           cache_key: string
           created_at?: string
+          generated_at?: string
           id?: string
           themes: Json
           user_id: string
@@ -636,6 +641,7 @@ export type Database = {
         Update: {
           cache_key?: string
           created_at?: string
+          generated_at?: string
           id?: string
           themes?: Json
           user_id?: string
@@ -1091,6 +1097,7 @@ export type Database = {
           premium_tier: string | null
           premium_warning_sent_at: string | null
           reading_font_size: number
+          reduce_premium_prompts: boolean
           remembered_question: string | null
           resting_opacity: number
           rising_sign: string | null
@@ -1160,6 +1167,7 @@ export type Database = {
           premium_tier?: string | null
           premium_warning_sent_at?: string | null
           reading_font_size?: number
+          reduce_premium_prompts?: boolean
           remembered_question?: string | null
           resting_opacity?: number
           rising_sign?: string | null
@@ -1229,6 +1237,7 @@ export type Database = {
           premium_tier?: string | null
           premium_warning_sent_at?: string | null
           reading_font_size?: number
+          reduce_premium_prompts?: boolean
           remembered_question?: string | null
           resting_opacity?: number
           rising_sign?: string | null

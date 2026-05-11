@@ -1027,14 +1027,16 @@ async function readCachedReflection(
   supabase: any,
   userId: string,
   cacheKey: string,
-): Promise<string | null> {
+): Promise<{ reflection: string; generatedAt: string } | null> {
   const { data } = await supabase
     .from("insight_reflections")
-    .select("reflection")
+    .select("reflection, generated_at")
     .eq("user_id", userId)
     .eq("cache_key", cacheKey)
     .maybeSingle();
-  return (data as { reflection?: string } | null)?.reflection ?? null;
+  const row = data as { reflection?: string; generated_at?: string } | null;
+  if (!row?.reflection) return null;
+  return { reflection: row.reflection, generatedAt: row.generated_at ?? new Date().toISOString() };
 }
 
 async function writeCachedReflection(
@@ -1046,7 +1048,7 @@ async function writeCachedReflection(
   await supabase
     .from("insight_reflections")
     .upsert(
-      { user_id: userId, cache_key: cacheKey, reflection },
+      { user_id: userId, cache_key: cacheKey, reflection, generated_at: new Date().toISOString() },
       { onConflict: "user_id,cache_key" },
     );
 }
@@ -1055,14 +1057,16 @@ async function readCachedThemes(
   supabase: any,
   userId: string,
   cacheKey: string,
-): Promise<unknown | null> {
+): Promise<{ themes: unknown; generatedAt: string } | null> {
   const { data } = await supabase
     .from("insight_themes")
-    .select("themes")
+    .select("themes, generated_at")
     .eq("user_id", userId)
     .eq("cache_key", cacheKey)
     .maybeSingle();
-  return (data as { themes?: unknown } | null)?.themes ?? null;
+  const row = data as { themes?: unknown; generated_at?: string } | null;
+  if (row == null || row.themes == null) return null;
+  return { themes: row.themes, generatedAt: row.generated_at ?? new Date().toISOString() };
 }
 
 async function writeCachedThemes(
@@ -1074,7 +1078,7 @@ async function writeCachedThemes(
   await supabase
     .from("insight_themes")
     .upsert(
-      { user_id: userId, cache_key: cacheKey, themes },
+      { user_id: userId, cache_key: cacheKey, themes, generated_at: new Date().toISOString() },
       { onConflict: "user_id,cache_key" },
     );
 }
@@ -1130,7 +1134,7 @@ export const getStalkerReflection = createServerFn({ method: "POST" })
     if (!isPremium) return { ok: false as const, error: "premium_required" };
     const cacheKey = `stalker:${data.cardId}:${data.count}:${data.latestDate}`;
     const cached = await readCachedReflection(supabase, userId, cacheKey);
-    if (cached) return { ok: true as const, reflection: cached };
+    if (cached) return { ok: true as const, reflection: cached.reflection };
     const tone = await getAIToneServerSide(supabase, userId);
     const cardName = getCardName(data.cardId);
     const systemPrompt = buildStalkerSystemPrompt(tone);
@@ -1189,11 +1193,14 @@ function parseThemesResponse(raw: string): QuestionTheme[] | null {
 
 export const getQuestionThemes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .inputValidator((raw: unknown) =>
+    InsightsFiltersSchema.extend({ cacheOnly: z.boolean().optional() }).parse(raw),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
     const isPremium = await getIsPremium(supabase, userId);
     if (!isPremium) return { ok: false as const, error: "premium_required" };
+    const cacheOnly = (data as { cacheOnly?: boolean }).cacheOnly === true;
     const { days } = effectiveWindow(data.timeRange, isPremium);
 
     // Pull questions from the same filtered window.
@@ -1220,10 +1227,15 @@ export const getQuestionThemes = createServerFn({ method: "POST" })
     const tone = await getAIToneServerSide(supabase, userId);
     const sortedKey = [...questions].sort().join("|");
     const cacheKey = `themes:${tone}:${hashString(sortedKey)}`;
-    const cached = (await readCachedThemes(supabase, userId, cacheKey)) as
-      | QuestionTheme[]
-      | null;
-    if (cached) return { ok: true as const, themes: cached };
+    const cached = await readCachedThemes(supabase, userId, cacheKey);
+    if (cached) {
+      return {
+        ok: true as const,
+        themes: cached.themes as QuestionTheme[],
+        generatedAt: cached.generatedAt,
+      };
+    }
+    if (cacheOnly) return { ok: false as const, error: "no_cache" as const };
 
     const systemPrompt = buildThemesSystemPrompt(tone);
     const userPrompt =
@@ -1235,13 +1247,14 @@ export const getQuestionThemes = createServerFn({ method: "POST" })
     const themes = parseThemesResponse(raw);
     if (!themes || themes.length === 0) return { ok: false as const, error: "invalid_response" };
     await writeCachedThemes(supabase, userId, cacheKey, themes);
-    return { ok: true as const, themes };
+    return { ok: true as const, themes, generatedAt: new Date().toISOString() };
   });
 
 /* ---------------- EP-9 — Lunation reflection ---------------- */
 
 const LunationReflectionInput = z.object({
   lunationStart: z.string(),
+  cacheOnly: z.boolean().optional(),
 });
 
 function buildLunationSystemPrompt(tone: AITone): string {
@@ -1393,7 +1406,14 @@ export const getLunationReflection = createServerFn({ method: "POST" })
     if (!isPremium) return { ok: false as const, error: "premium_required" };
     const cacheKey = `lunation_ref:${data.lunationStart}`;
     const cached = await readCachedReflection(supabase, userId, cacheKey);
-    if (cached) return { ok: true as const, reflection: cached };
+    if (cached) {
+      return {
+        ok: true as const,
+        reflection: cached.reflection,
+        generatedAt: cached.generatedAt,
+      };
+    }
+    if (data.cacheOnly) return { ok: false as const, error: "no_cache" as const };
     const summary = await computeLunationSummaryForReflection(supabase, userId, data.lunationStart);
     if (!summary) return { ok: false as const, error: "no_data" };
     const tone = await getAIToneServerSide(supabase, userId);
@@ -1402,7 +1422,7 @@ export const getLunationReflection = createServerFn({ method: "POST" })
     const raw = await callAnthropicShort(systemPrompt, userPrompt, 600, userId);
     if (!raw) return { ok: false as const, error: "ai_unavailable" };
     await writeCachedReflection(supabase, userId, cacheKey, raw);
-    return { ok: true as const, reflection: raw };
+    return { ok: true as const, reflection: raw, generatedAt: new Date().toISOString() };
   });
 
 /* ---------------- EP-10 — Year of Lunations ---------------- */
@@ -1587,7 +1607,7 @@ export const getYearOfLunationsReflection = createServerFn({ method: "POST" })
     const weekKey = `${today.getUTCFullYear()}-${Math.floor((today.getTime() / 86400000 + 4) / 7)}`;
     const cacheKey = `yol_ref:${weekKey}`;
     const cached = await readCachedReflection(supabase, userId, cacheKey);
-    if (cached) return { ok: true as const, reflection: cached };
+    if (cached) return { ok: true as const, reflection: cached.reflection };
 
     // Pull a compact summary for the prompt.
     const earliest = new Date(today.getTime() - 13 * 30 * 86400000);
