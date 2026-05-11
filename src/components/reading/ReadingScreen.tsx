@@ -281,6 +281,7 @@ export function ReadingScreen({
                 mode: "reveal",
                 question: question || null,
                 entry_mode: entryMode ?? "digital",
+                moon_phase: getCurrentMoonPhase(new Date()).phase,
                 deck_id: deckId ?? null,
               });
         const { data, error } = await query
