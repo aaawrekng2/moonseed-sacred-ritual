@@ -436,6 +436,71 @@ export function GuideSelector({
         </section>
       </div>
 
+      {/* Q39b Fix 8 — lunar awareness toggle row. */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          padding: "8px 16px 0",
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+            }}
+          >
+            Lunar awareness
+          </div>
+          <div
+            style={{
+              fontSize: "var(--text-caption)",
+              color: "var(--color-foreground-muted, var(--muted-foreground))",
+              opacity: 0.75,
+            }}
+          >
+            Have the AI consider the moon phase in interpretations.
+          </div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={lunarExpert}
+          onClick={() => persistLunar(!lunarExpert)}
+          style={{
+            width: 38,
+            height: 22,
+            borderRadius: 999,
+            border: "1px solid color-mix(in oklab, var(--gold) 35%, transparent)",
+            background: lunarExpert
+              ? "color-mix(in oklab, var(--gold) 55%, transparent)"
+              : "transparent",
+            position: "relative",
+            cursor: "pointer",
+            transition: "background 200ms ease",
+            flexShrink: 0,
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              top: 2,
+              left: lunarExpert ? 18 : 2,
+              width: 16,
+              height: 16,
+              borderRadius: "50%",
+              background: "var(--color-foreground)",
+              transition: "left 200ms ease",
+            }}
+          />
+        </button>
+      </div>
+
       {briefingOpen ? (
         <div
           style={{
@@ -469,7 +534,7 @@ export function GuideSelector({
               margin: 0,
             }}
           >
-            {buildBriefingParagraph({ guideId, lensId, facetIds })}
+            {buildBriefingParagraph({ guideId, lensId, facetIds, lunarExpert })}
           </p>
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
             <button
