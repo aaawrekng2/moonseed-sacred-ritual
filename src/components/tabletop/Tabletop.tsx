@@ -1048,6 +1048,29 @@ export function Tabletop({
             />
           )}
         </div>
+        {onOpenQuestion && (
+          <div style={{ pointerEvents: "auto", paddingLeft: 12 }}>
+            <button
+              type="button"
+              onClick={onOpenQuestion}
+              aria-label="Add question"
+              data-no-peek=""
+              style={{
+                background: "none",
+                border: "none",
+                padding: 8,
+                color: "var(--accent, var(--gold))",
+                opacity: 0.7,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                touchAction: "manipulation",
+              }}
+            >
+              <MessageCircle size={18} strokeWidth={1.5} />
+            </button>
+          </div>
+        )}
         <div
           style={{
             pointerEvents: "auto",
