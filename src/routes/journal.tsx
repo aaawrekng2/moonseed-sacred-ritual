@@ -1183,7 +1183,7 @@ function ReadingCard({
                 variant="face"
                 reversed={isReversed}
                 size="thumbnail"
-                deckId={reading.deck_id ?? null}
+                deckId={(reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null}
                 className="flex-shrink-0"
                 style={{ opacity: "var(--ro-plus-30)" }}
               />
@@ -1203,7 +1203,7 @@ function ReadingCard({
                 variant="face"
                 reversed={isReversed}
                 size="thumbnail"
-                deckId={reading.deck_id ?? null}
+                deckId={(reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null}
                 style={{ opacity: "var(--ro-plus-30)" }}
               />
             );
