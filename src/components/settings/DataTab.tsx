@@ -323,13 +323,7 @@ export function DataTab() {
 
   const signOut = async () => {
     setSigningOut(true);
-    const { error } = await supabase.auth.signOut();
-    setSigningOut(false);
-    if (error) {
-      toast.error("Couldn't sign out");
-      return;
-    }
-    window.location.href = "/";
+    await signOutAndClear();
   };
 
   const clearLocal = async () => {
