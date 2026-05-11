@@ -1224,104 +1224,106 @@ export function ManualSpreadSlots({
   }
 
   if (spread === "custom") {
-    const count = picks.length;
-    // Q25 Fix 5 — for exactly 5 cards, use the Celtic single-row responsive
-    // formula so the manual entry slot rail always fits any viewport
-    // with no wrap. For 1-4 cards, keep the natural wider sizing.
-    // Q30 Fix B7 — for 6+ cards, allow wrap to 2 rows so each slot
-    // stays comfortably tappable instead of cramming into one row.
-    if (count === 5) {
-      const rawViewportW = typeof window !== "undefined" ? window.innerWidth : 380;
-      const effectiveViewportW = Math.max(280, rawViewportW - 64);
-      const slotW = responsiveSlotWidth(effectiveViewportW, count);
-      const gap = count >= 10 ? 4 : 8;
-      return (
-        <div
-          className="flex justify-center w-full max-w-full"
-          style={{ gap, alignItems: "flex-end" }}
-        >
-          {picks.map((pick, i) => (
-            <div
-              key={`cell-${i}`}
-              className="flex gap-1 min-w-0"
-              style={{
-                width: slotW,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "flex-end",
-              }}
-            >
-              <Slot pick={pick} slotIndex={i} responsiveWidth />
-              {showLabels && (
-                <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
-              )}
-              {showLabels && pick && (
-                <CardNameLabel
-                  cardIndex={pick.cardIndex}
-                  isReversed={!!pick.isReversed}
-                  cardWidth={slotW}
-                  nameOverride={pick.cardName}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      );
+    // Q39 Fix 3 — deterministic 1-10 card grid. Cards bottom-anchored to a
+    // shared floor; labels in a separate row aligned to the same top.
+    const cols =
+      picks.length <= 5 ? picks.length : Math.ceil(picks.length / 2);
+    const gap = 8;
+    const sidePad = 32; // matches ManualEntryBuilder p-4 (16px each side)
+    const availW =
+      typeof window !== "undefined"
+        ? Math.max(280, window.innerWidth - sidePad)
+        : 320;
+    const cellW = Math.floor((availW - gap * (cols - 1)) / cols);
+    const cardAreaH = Math.round(cellW * 1.71);
+    const rows: ManualSlotPick[][] = [];
+    if (picks.length <= 5) {
+      rows.push(picks);
+    } else {
+      rows.push(picks.slice(0, cols));
+      rows.push(picks.slice(cols));
     }
-    {
-      const cols =
-        picks.length <= 5 ? picks.length : Math.ceil(picks.length / 2);
-      const gap = 8;
-      const sidePad = 16;
-      const availW =
-        typeof window !== "undefined"
-          ? Math.max(280, window.innerWidth - sidePad * 2)
-          : 320;
-      const cellW = Math.floor((availW - gap * (cols - 1)) / cols);
-      return (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${cols}, ${cellW}px)`,
-            justifyContent: "center",
-            alignItems: "end",
-            gap: `${gap}px`,
-            width: "100%",
-            maxWidth: "100%",
-            overflowX: "hidden",
-          }}
-        >
-          {picks.map((pick, i) => (
-            <div
-              key={`cell-${i}`}
-              className="flex gap-1 min-w-0"
-              style={{
-                flex: "0 0 auto",
-                width: cellW,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "flex-end",
-              }}
-            >
-              <Slot pick={pick} slotIndex={i} cellWidth={cellW} />
-              {showLabels && (
-                <PositionLabel cardWidth={cellW}>{`Card ${i + 1}`}</PositionLabel>
-              )}
-              {showLabels && pick && (
-                <CardNameLabel
-                  cardIndex={pick.cardIndex}
-                  isReversed={!!pick.isReversed}
-                  cardWidth={cellW}
-                  nameOverride={pick.cardName}
-                />
-              )}
+    return (
+      <div style={{ width: "100%", overflowX: "hidden" }}>
+        {rows.map((rowPicks, rowIdx) => {
+          const offset = rowIdx * cols;
+          return (
+            <div key={`row-${rowIdx}`}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                  gap: `${gap}px`,
+                  alignItems: "end",
+                  width: "100%",
+                  marginBottom: 4,
+                }}
+              >
+                {rowPicks.map((pick, idx) => {
+                  const absIdx = offset + idx;
+                  return (
+                    <div
+                      key={`card-${absIdx}`}
+                      style={{
+                        height: cardAreaH,
+                        display: "flex",
+                        alignItems: "flex-end",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Slot
+                        pick={pick}
+                        slotIndex={absIdx}
+                        responsiveWidth
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                  gap: `${gap}px`,
+                  alignItems: "start",
+                  width: "100%",
+                  marginBottom: 8,
+                }}
+              >
+                {rowPicks.map((pick, idx) => {
+                  const absIdx = offset + idx;
+                  return (
+                    <div
+                      key={`label-${absIdx}`}
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 2,
+                      }}
+                    >
+                      {showLabels && (
+                        <PositionLabel cardWidth={cellW}>
+                          {`Card ${absIdx + 1}`}
+                        </PositionLabel>
+                      )}
+                      {showLabels && pick && (
+                        <CardNameLabel
+                          cardIndex={pick.cardIndex}
+                          isReversed={!!pick.isReversed}
+                          cardWidth={cellW}
+                          nameOverride={pick.cardName}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          ))}
-        </div>
-      );
-    }
+          );
+        })}
+      </div>
+    );
   }
 
   // single / daily / yes_no

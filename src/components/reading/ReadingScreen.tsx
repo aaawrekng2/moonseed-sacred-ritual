@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, CheckCheck, ChevronDown, ChevronRight, Copy, Share2 } from "lucide-react";
+import { ArrowLeft, CheckCheck, ChevronDown, ChevronRight, Copy, Share2, X } from "lucide-react";
 import { getCardName } from "@/lib/tarot";
 // EZ-1 — Card rendering goes through CardImage; the per-deck radius and
 // frame sizing are now owned by that component.
@@ -272,6 +272,9 @@ export function ReadingScreen({
                 spread_type: spread,
                 card_ids: picks.map((p) => p.cardIndex),
                 card_orientations: picks.map((p) => p.isReversed ?? false),
+                card_deck_ids: picks.map(
+                  (p) => p.deckId ?? deckId ?? null,
+                ) as unknown as string[],
                 interpretation: interpretationText,
                 guide_id: guideId,
                 lens_id: lensId,
@@ -398,17 +401,36 @@ export function ReadingScreen({
       >
         <ArrowLeft size={16} strokeWidth={1.5} />
       </button>
+      <button
+        type="button"
+        aria-label="Close reading"
+        onClick={onExit}
+        style={{
+          position: "absolute",
+          top: "calc(env(safe-area-inset-top, 0px) + 10px)",
+          right: 16,
+          zIndex: 5,
+          padding: 8,
+          color: "var(--color-foreground)",
+          opacity: 0.7,
+          cursor: "pointer",
+          background: "transparent",
+          border: "none",
+        }}
+      >
+        <X size={18} strokeWidth={1.5} />
+      </button>
       <div
         className="mx-auto flex w-full max-w-2xl flex-col items-center gap-3 px-5"
         style={{
-          paddingTop: "calc(var(--topbar-pad) + 16px)",
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 56px)",
           // Reserve enough room above the 64px BottomNav so the share
           // card, share button, and Done CTA are never clipped.
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)",
         }}
       >
         <header className="flex flex-col items-center gap-1 text-center">
-          <span className="text-[10px] uppercase tracking-[0.3em] text-gold/70">
+          <span className="text-[13px] uppercase tracking-[0.25em] text-gold/80">
             {meta.label}
           </span>
         </header>
@@ -834,10 +856,10 @@ function CardStrip({
   // card sizes instead.
   const swipeMobile = !isDesktop && cardCount > 3;
   if (swipeMobile) {
-    const maxCardW = 140;
-    const minCardW = 80;
-    // Show ~2.5 cards visible on screen to hint at scrollability.
-    const hintW = Math.floor((vp.w - 32) / 2.5);
+    const maxCardW = 180;
+    const minCardW = 110;
+    // Show ~1.8 cards visible on screen — bigger cards, swipe still hinted.
+    const hintW = Math.floor((vp.w - 32) / 1.8);
     w = Math.max(minCardW, Math.min(maxCardW, hintW));
     h = Math.round(w * 1.75);
   }
