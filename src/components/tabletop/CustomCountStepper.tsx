@@ -44,7 +44,7 @@ export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: isMobile ? 8 : 16,
+        gap: isMobile ? 2 : 8,
         fontFamily: "var(--font-display, var(--font-serif))",
         fontStyle: "italic",
         fontSize: "var(--text-body-lg, 1.05rem)",
@@ -79,7 +79,7 @@ export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
       >
         <ChevronLeft size={18} aria-hidden="true" style={{ pointerEvents: "none" }} />
       </button>
-      <span style={{ minWidth: 80, textAlign: "center" }}>
+      <span style={{ minWidth: 56, textAlign: "center", paddingInline: 4 }}>
         {count} card{count === 1 ? "" : "s"}
       </span>
       <button
