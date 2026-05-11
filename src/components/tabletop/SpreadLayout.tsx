@@ -987,8 +987,10 @@ export function ManualSpreadSlots({
   );
   const uniqueKey = uniqueDeckIds.join(",");
   const [deckMaps, setDeckMaps] = useState<Record<string, DeckImageMap>>({});
+  const [deckMapsLoading, setDeckMapsLoading] = useState(true);
   useEffect(() => {
     let cancelled = false;
+    setDeckMapsLoading(true);
     void Promise.all(
       uniqueDeckIds.map(async (id) => {
         const map = await buildDeckImageMap(id);
@@ -1001,6 +1003,7 @@ export function ManualSpreadSlots({
         if (map) next[id] = map;
       }
       setDeckMaps(next);
+      setDeckMapsLoading(false);
     });
     return () => {
       cancelled = true;
@@ -1029,21 +1032,27 @@ export function ManualSpreadSlots({
     slotIndex,
     rotated,
     responsiveWidth,
+    cellWidth,
   }: {
     pick: ManualSlotPick;
     slotIndex: number;
     rotated?: boolean;
     responsiveWidth?: boolean;
+    cellWidth?: number;
   }) => {
     const aspect = pick ? pickAspects[slotIndex] ?? defaultAspect : defaultAspect;
-    const height = pick ? Math.round(sizing.w / aspect) : sizing.h;
+    const baseW = cellWidth ?? sizing.w;
+    const baseH = cellWidth ? Math.round(cellWidth / defaultAspect) : sizing.h;
+    const height = pick ? Math.round(baseW / aspect) : baseH;
     const isAmbiguous = ambiguousSlots?.includes(slotIndex);
     // Q20 Fix 6 — when the parent column controls the width (custom
     // spread max-5-per-row), let the slot fill the column and derive
     // height from the natural aspect.
     const sizeStyle: React.CSSProperties = responsiveWidth
       ? { width: "100%", aspectRatio: String(aspect) }
-      : { width: sizing.w, height };
+      : { width: baseW, height };
+    const showShimmer =
+      !!pick && pick.deckId != null && deckMapsLoading;
     return (
       <button
         type="button"
@@ -1085,6 +1094,18 @@ export function ManualSpreadSlots({
         }}
       >
         {pick ? (
+          showShimmer ? (
+            <div
+              className="animate-pulse"
+              style={{
+                width: "100%",
+                height: "100%",
+                background:
+                  "color-mix(in oklab, var(--color-foreground) 8%, transparent)",
+                borderRadius: "var(--radius-sm)",
+              }}
+            />
+          ) : (
           <img
             src={resolveForPick(pick) ?? undefined}
             alt={nameForPick(pick)}
@@ -1100,6 +1121,7 @@ export function ManualSpreadSlots({
             className="h-full w-full object-contain"
             style={{ transform: pick.isReversed ? "rotate(180deg)" : undefined }}
           />
+          )
         ) : (
           <span className="absolute inset-0 flex items-center justify-center text-[18px] font-light text-foreground/50">+</span>
         )}
@@ -1173,11 +1195,13 @@ export function ManualSpreadSlots({
 
   if (spread === "three") {
     return (
-      <div className="flex items-end gap-6">
+      <div className="flex items-end gap-6" style={{ alignItems: "flex-end" }}>
         {picks.map((pick, i) => (
-          <div key={i} className="flex flex-col items-center gap-2">
-            <Slot pick={pick} slotIndex={i} />
-            {showLabels && <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
+          <div
+            key={i}
+            className="flex items-center gap-2"
+            style={{ flexDirection: "column-reverse" }}
+          >
             {showLabels && pick && (
               <CardNameLabel
                 cardIndex={pick.cardIndex}
@@ -1186,6 +1210,8 @@ export function ManualSpreadSlots({
                 nameOverride={pick.cardName}
               />
             )}
+            {showLabels && <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
+            <Slot pick={pick} slotIndex={i} />
           </div>
         ))}
       </div>
@@ -1206,19 +1232,15 @@ export function ManualSpreadSlots({
       const gap = count >= 10 ? 4 : 8;
       return (
         <div
-          className="flex items-end justify-center w-full max-w-full"
-          style={{ gap }}
+          className="flex justify-center w-full max-w-full"
+          style={{ gap, alignItems: "flex-end" }}
         >
           {picks.map((pick, i) => (
             <div
               key={`cell-${i}`}
-              className="flex flex-col items-center gap-1 min-w-0"
-              style={{ width: slotW }}
+              className="flex items-center gap-1 min-w-0"
+              style={{ width: slotW, flexDirection: "column-reverse" }}
             >
-              <Slot pick={pick} slotIndex={i} responsiveWidth />
-              {showLabels && (
-                <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
-              )}
               {showLabels && pick && (
                 <CardNameLabel
                   cardIndex={pick.cardIndex}
@@ -1227,46 +1249,65 @@ export function ManualSpreadSlots({
                   nameOverride={pick.cardName}
                 />
               )}
+              {showLabels && (
+                <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
+              )}
+              <Slot pick={pick} slotIndex={i} responsiveWidth />
             </div>
           ))}
         </div>
       );
     }
-    return (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${
-            picks.length <= 5 ? picks.length : Math.ceil(picks.length / 2)
-          }, auto)`,
-          justifyContent: "center",
-          gap: "12px 16px",
-          width: "100%",
-          maxWidth: "100%",
-        }}
-      >
-        {picks.map((pick, i) => (
-          <div
-            key={`cell-${i}`}
-            className="flex flex-col items-center gap-1 min-w-0"
-            style={{ flex: "0 0 auto", width: sizing.w }}
-          >
-            <Slot pick={pick} slotIndex={i} />
-            {showLabels && (
-              <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
-            )}
-            {showLabels && pick && (
-              <CardNameLabel
-                cardIndex={pick.cardIndex}
-                isReversed={!!pick.isReversed}
-                cardWidth={sizing.w}
-                nameOverride={pick.cardName}
-              />
-            )}
-          </div>
-        ))}
-      </div>
-    );
+    {
+      const cols =
+        picks.length <= 5 ? picks.length : Math.ceil(picks.length / 2);
+      const gap = 8;
+      const sidePad = 16;
+      const availW =
+        typeof window !== "undefined"
+          ? Math.max(280, window.innerWidth - sidePad * 2)
+          : 320;
+      const cellW = Math.floor((availW - gap * (cols - 1)) / cols);
+      return (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${cols}, ${cellW}px)`,
+            justifyContent: "center",
+            alignItems: "end",
+            gap: `${gap}px`,
+            width: "100%",
+            maxWidth: "100%",
+            overflowX: "hidden",
+          }}
+        >
+          {picks.map((pick, i) => (
+            <div
+              key={`cell-${i}`}
+              className="flex items-center gap-1 min-w-0"
+              style={{
+                flex: "0 0 auto",
+                width: cellW,
+                flexDirection: "column-reverse",
+              }}
+            >
+              {showLabels && pick && (
+                <CardNameLabel
+                  cardIndex={pick.cardIndex}
+                  isReversed={!!pick.isReversed}
+                  cardWidth={cellW}
+                  nameOverride={pick.cardName}
+                />
+              )}
+              {showLabels && (
+                <PositionLabel cardWidth={cellW}>{`Card ${i + 1}`}</PositionLabel>
+              )}
+              <Slot pick={pick} slotIndex={i} cellWidth={cellW} />
+            </div>
+          ))}
+        </div>
+      );
+    }
   }
 
   // single / daily / yes_no
