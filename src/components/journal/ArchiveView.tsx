@@ -340,7 +340,7 @@ function ArchiveRow({
                       "1px solid color-mix(in oklab, var(--gold) 14%, transparent)",
                   }}
                 >
-                  {src && (
+                  {src ? (
                     <img
                       src={src}
                       alt=""
@@ -351,7 +351,18 @@ function ArchiveRow({
                         objectFit: "cover",
                       }}
                     />
-                  )}
+                  ) : row.deck_id ? (
+                    <div
+                      className="animate-pulse"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        background:
+                          "color-mix(in oklab, var(--color-foreground) 8%, transparent)",
+                        borderRadius: "var(--radius-sm)",
+                      }}
+                    />
+                  ) : null}
                 </div>
               );
             })}
