@@ -23,6 +23,7 @@ import {
   FACETS,
   LENSES,
   MAX_ACTIVE_FACETS,
+  buildBriefingParagraph,
   type CustomGuide,
   type FacetId,
   type LensMode,
@@ -82,6 +83,7 @@ export function GuideSelector({
   const [creating, setCreating] = useState(false);
   const [editingGuide, setEditingGuide] = useState<CustomGuide | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomGuide | null>(null);
+  const [briefingOpen, setBriefingOpen] = useState(false);
 
   // Load custom guides for the carousel.
   useEffect(() => {
@@ -250,20 +252,6 @@ export function GuideSelector({
                     <p className="mt-1 text-[11px] text-muted-foreground">
                       {g.tagline}
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-1">
-                      {g.traits.slice(0, 4).map((t) => (
-                        <span
-                          key={t}
-                          className="text-[9px] uppercase tracking-wider"
-                          style={{
-                            color: "var(--gold)",
-                            opacity: "var(--ro-plus-20)",
-                          }}
-                        >
-                          {t}
-                        </span>
-                      ))}
-                    </div>
                     {g.custom && (
                       <span className="mt-3 inline-block text-[9px] uppercase tracking-wider text-gold/60">
                         {active ? "Custom · Active" : "Custom"}
@@ -410,6 +398,81 @@ export function GuideSelector({
           </div>
         </section>
       </div>
+
+      {briefingOpen ? (
+        <div
+          style={{
+            margin: "0 16px 12px",
+            padding: 14,
+            borderRadius: "var(--radius-md)",
+            border: "1px solid var(--border-subtle)",
+            background: "var(--surface-card)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "var(--text-caption)",
+              letterSpacing: "0.12em",
+              color: "var(--gold)",
+              opacity: 0.5,
+              marginBottom: 8,
+              textTransform: "uppercase",
+            }}
+          >
+            Your guide will be told
+          </div>
+          <p
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body-sm)",
+              color: "var(--color-foreground)",
+              opacity: 0.8,
+              lineHeight: 1.65,
+              margin: 0,
+            }}
+          >
+            {buildBriefingParagraph({ guideId, lensId, facetIds })}
+          </p>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+            <button
+              type="button"
+              onClick={() => setBriefingOpen(false)}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                fontSize: "var(--text-caption)",
+                color: "var(--color-foreground)",
+                opacity: 0.6,
+                padding: 0,
+              }}
+            >
+              close ×
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: "8px 16px" }}>
+          <button
+            type="button"
+            onClick={() => setBriefingOpen(true)}
+            style={{
+              background: "none",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption)",
+              color: "var(--gold)",
+              opacity: 0.7,
+            }}
+          >
+            See what your guide will be told ›
+          </button>
+        </div>
+      )}
 
       <footer className="border-t border-border/30 px-6 pt-4">
         <Button

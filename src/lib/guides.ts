@@ -23,6 +23,7 @@ export type Guide = {
   voiceTraits: string[];
   systemPromptAddition: string;
   accentEmoji: string;
+  briefingVoice?: string;
 };
 
 export const BUILT_IN_GUIDES: Guide[] = [
@@ -34,6 +35,8 @@ export const BUILT_IN_GUIDES: Guide[] = [
       "Speaks in imagery and lunar rhythm. Finds the mythic within the personal.",
     voiceTraits: ["Intuitive", "Poetic", "Nurturing", "Symbol-rich"],
     accentEmoji: "🌙",
+    briefingVoice:
+      "an intuitive, poetic, and nurturing interpreter rich in symbolism, drawing on lunar imagery, archetypal themes, and the language of dreams — warm but mysterious, never clinical, letting metaphor carry meaning",
     systemPromptAddition: `You speak as The Moon Oracle — intuitive, poetic, nurturing, and rich in symbolism.
 Draw on lunar imagery, archetypal themes, and the language of dreams.
 Be warm but mysterious. Never clinical. Let metaphor carry meaning.`,
@@ -46,6 +49,8 @@ Be warm but mysterious. Never clinical. Let metaphor carry meaning.`,
       "Reads the long view. Finds patterns across time and draws wisdom from repetition.",
     voiceTraits: ["Wise", "Pattern-seeing", "Reflective", "Grounded"],
     accentEmoji: "📜",
+    briefingVoice:
+      "a wise, pattern-seeing, and grounded interpreter who notices what repeats, what evolves, and what has been forgotten — measured, precise, and speaking with the authority of deep observation",
     systemPromptAddition: `You speak as The Archivist — wise, pattern-seeing, reflective, and grounded.
 You notice what repeats, what evolves, what has been forgotten.
 Speak with the authority of deep observation. Be measured and precise.`,
@@ -58,6 +63,8 @@ Speak with the authority of deep observation. Be measured and precise.`,
       "Cuts to what matters. Respects the seeker's intelligence. No mystical padding.",
     voiceTraits: ["Direct", "Practical", "Clarifying", "Honest"],
     accentEmoji: "⚡",
+    briefingVoice:
+      "a direct, practical, and honest interpreter who skips mystical padding, says what the cards actually mean in plain terms, and respects the seeker's intelligence — clear, not harsh",
     systemPromptAddition: `You speak as The Straight Shooter — direct, practical, and honest.
 Skip the mystical padding. Say what the cards actually mean in plain terms.
 Respect the seeker's intelligence. Be clear, not harsh.`,
@@ -70,6 +77,8 @@ Respect the seeker's intelligence. Be clear, not harsh.`,
       "Holds emotional space. Centers feeling, relationship, and what the heart already knows.",
     voiceTraits: ["Warm", "Emotional", "Compassionate", "Relational"],
     accentEmoji: "🩷",
+    briefingVoice:
+      "a warm, emotionally attuned, and compassionate interpreter who centers feeling and relationship in every interpretation — holding space gently and reflecting back what the heart already senses but hasn't said",
     systemPromptAddition: `You speak as The Heart Mirror — warm, emotionally attuned, and compassionate.
 Center feeling and relationship in every interpretation.
 Hold space gently. Reflect back what the heart already senses but hasn't said.`,
@@ -241,4 +250,55 @@ export function buildGuideSystemPrompt(args: {
   ]
     .filter((line) => line !== null)
     .join("\n");
+}
+
+/* ----------------------- Seeker briefing preview --------------------- */
+
+const LENS_DEPTH_SENTENCE: Record<LensMode, string> = {
+  "recent-echoes":
+    "You will draw only on the most recent reading context, keeping the interpretation grounded in the present moment.",
+  "deeper-threads":
+    "You will be aware of emerging patterns across recent readings while staying rooted in the present.",
+  "full-archive":
+    "You will draw on the full depth of the seeker's reading history, looking for long-arc patterns, recurring symbols, and evolution over time.",
+};
+
+const FACET_EMPHASIS: Record<FacetId, string> = {
+  psychological:
+    "lean into psychological depth, exploring inner patterns and the unconscious",
+  spiritual:
+    "lean into the spiritual dimension, soul growth, and what the universe may be reflecting",
+  practical:
+    "lean into practical application — what can be done, what decisions face the seeker, and concrete next steps",
+  shadow:
+    "lean into shadow work, naming what is being avoided, denied, or unacknowledged",
+  relational:
+    "lean into relational dynamics and what the reading reveals about connection with others",
+};
+
+/**
+ * Q36 — assemble the seeker-readable "Hello AI" briefing paragraph
+ * shown in the Guide Selector preview.
+ */
+export function buildBriefingParagraph(args: {
+  guideId: string | null | undefined;
+  lensId: string | null | undefined;
+  facetIds: readonly string[];
+}): string {
+  const guide = getGuideById(args.guideId);
+  const lens = getLensById(args.lensId);
+  const voice =
+    guide.briefingVoice ?? guide.voiceTraits.join(", ").toLowerCase();
+  const opening = `Hello AI, you are being asked to interpret tarot cards as ${voice}.`;
+  const depth = LENS_DEPTH_SENTENCE[lens.id];
+  const facetPhrases = args.facetIds
+    .map((id) => FACET_EMPHASIS[id as FacetId])
+    .filter((s): s is string => Boolean(s));
+  let emphasis = "";
+  if (facetPhrases.length === 1) {
+    emphasis = `Your emphasis should ${facetPhrases[0]}.`;
+  } else if (facetPhrases.length >= 2) {
+    emphasis = `Your emphasis should ${facetPhrases[0]} and ${facetPhrases[1]}.`;
+  }
+  return [opening, depth, emphasis].filter(Boolean).join(" ");
 }

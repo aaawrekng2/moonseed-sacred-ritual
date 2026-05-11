@@ -1063,8 +1063,6 @@ export function Tabletop({
             />
           )}
         </div>
-        {/* Right spacer balances FloatingMenu hit area. */}
-        <div style={{ pointerEvents: "none", paddingRight: 56 }} />
       </div>
       {showEntryHint && onSwitchToManual && (
         <Hint

@@ -265,6 +265,7 @@ export function FloatingMenu() {
         top: "env(safe-area-inset-top, 0px)",
         right: "calc(env(safe-area-inset-right, 0px) + 10px)",
         zIndex: "var(--z-modal-nested)",
+        pointerEvents: open ? "auto" : "none",
       }}
     >
       <div
