@@ -10,16 +10,17 @@
  * this lunation.
  */
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { X, Lock } from "lucide-react";
-import { formatDateLong } from "@/lib/dates";
+import { formatDateLong, formatTimeAgo } from "@/lib/dates";
 import { getLunationRecap, getLunationReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { CardImage } from "@/components/card/CardImage";
 import { formatLunationRange } from "@/lib/lunation";
 import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
+import { useReducePremiumPrompts } from "@/lib/use-reduce-premium-prompts";
 import { exportRecapPdf, shareRecapImage } from "@/lib/recap-export";
 import { useTrackReversals } from "@/lib/use-track-reversals";
 
@@ -417,7 +418,11 @@ function SlideContent({
   if (kind === "tags") return <SlideTopTags data={data} />;
   if (kind === "reflection")
     return (
-      <PremiumReflectionSlide lunationStart={lunationStart} onReflection={onReflection} />
+      <PremiumReflectionSlide
+        lunationStart={lunationStart}
+        readingCount={data.readingCount}
+        onReflection={onReflection}
+      />
     );
   if (kind === "closer")
     return <SlideSaveShareDone onClose={onClose} reflection={reflection} data={data} />;
