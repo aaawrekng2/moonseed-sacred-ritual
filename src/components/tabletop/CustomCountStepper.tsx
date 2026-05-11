@@ -27,12 +27,10 @@ export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
     return () => mq.removeEventListener("change", handler);
   }, []);
   const dec = (_e: React.MouseEvent) => {
-    console.log("[stepper] dec clicked", { count, min, disabled: count <= min });
     if (count <= min) return;
     onChange(Math.max(min, count - 1));
   };
   const inc = (_e: React.MouseEvent) => {
-    console.log("[stepper] inc clicked", { count, max, disabled: count >= max });
     if (count >= max) return;
     onChange(Math.min(max, count + 1));
   };
@@ -57,7 +55,6 @@ export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
     >
       <button
         type="button"
-        onClick={dec}
         onPointerUp={(e) => {
           e.preventDefault();
           dec(e as unknown as React.MouseEvent);
@@ -87,7 +84,6 @@ export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
       </span>
       <button
         type="button"
-        onClick={inc}
         onPointerUp={(e) => {
           e.preventDefault();
           inc(e as unknown as React.MouseEvent);
