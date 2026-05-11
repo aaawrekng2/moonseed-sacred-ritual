@@ -106,6 +106,8 @@ export function FloatingMenu() {
   const labelTimer = useRef<number | null>(null);
   const mountedRef = useRef(false);
   const pillRef = useRef<HTMLDivElement | null>(null);
+  const pointerDownRef = useRef(false);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const t = window.setTimeout(() => {
@@ -120,30 +122,45 @@ export function FloatingMenu() {
     if (typeof window === "undefined") return;
     let timer: number | null = null;
     const cancel = () => {
-      if (timer !== null) {
-        window.clearTimeout(timer);
-        timer = null;
-      }
+      if (timer !== null) { window.clearTimeout(timer); timer = null; }
+      pointerDownRef.current = false;
+      pointerStartRef.current = null;
     };
     const onDown = (e: PointerEvent) => {
+      if (e.button !== 0 && e.button !== -1) return;
       const target = e.target as HTMLElement | null;
-      if (target?.closest?.("button, input, a, [role=button], [data-no-peek]")) return;
+      if (target?.closest("button, input, a, [role=button], [data-no-peek]"))
+        return;
+      pointerDownRef.current = true;
+      pointerStartRef.current = { x: e.clientX, y: e.clientY };
       cancel();
+      pointerDownRef.current = true;
+      pointerStartRef.current = { x: e.clientX, y: e.clientY };
       timer = window.setTimeout(() => {
-        openMenu();
         timer = null;
-      }, 500);
+        if (!pointerDownRef.current) return;
+        openMenu();
+      }, 800);
     };
+    const onMove = (e: PointerEvent) => {
+      if (!pointerStartRef.current) return;
+      const dx = e.clientX - pointerStartRef.current.x;
+      const dy = e.clientY - pointerStartRef.current.y;
+      if (Math.sqrt(dx * dx + dy * dy) > 12) cancel();
+    };
+    const onUp = () => cancel();
     document.addEventListener("pointerdown", onDown);
-    document.addEventListener("pointerup", cancel);
-    document.addEventListener("pointermove", cancel);
-    document.addEventListener("pointercancel", cancel);
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onUp);
+    document.addEventListener("visibilitychange", cancel);
     return () => {
       cancel();
       document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("pointerup", cancel);
-      document.removeEventListener("pointermove", cancel);
-      document.removeEventListener("pointercancel", cancel);
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onUp);
+      document.removeEventListener("visibilitychange", cancel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
