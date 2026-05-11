@@ -88,41 +88,11 @@ export function ManualEntryBuilder({
   // Q30 Fix B5 — register the X close handler with the FloatingMenu so the
   // pop-down's X icon dismisses manual entry mode.
   useRegisterCloseHandler(onCancel);
-  // Q40 Fix 3 — TEMPORARY DIAGNOSTIC. Remove after we have data.
-  const debugRef = useRef<HTMLDivElement | null>(null);
   const meta = SPREAD_META[spread];
   const required = spread === "custom"
     ? Math.max(1, Math.min(10, customCount ?? 3))
     : meta.count;
   const labels = meta.positions ?? [];
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const el = debugRef.current;
-    if (!el) return;
-    const log = () => {
-      const r = el.getBoundingClientRect();
-      const scrollH = el.scrollHeight;
-      const clientH = el.clientHeight;
-      const canScroll = scrollH > clientH;
-      console.log("[Q40-DIAG] ManualEntry container:", {
-        viewportH: window.innerHeight,
-        viewportW: window.innerWidth,
-        containerRectH: Math.round(r.height),
-        containerRectTop: Math.round(r.top),
-        containerRectBottom: Math.round(r.bottom),
-        scrollHeight: scrollH,
-        clientHeight: clientH,
-        canScroll,
-        overflowAmount: Math.max(0, scrollH - clientH),
-        cardCount: required,
-      });
-    };
-    requestAnimationFrame(() => requestAnimationFrame(log));
-    const ro = new ResizeObserver(log);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [required]);
 
   // Q20 Fix 3 — two staggered first-mount hints (toggle + stepper).
   const { user: authUser, loading: authLoading } = useAuth();
@@ -389,10 +359,7 @@ export function ManualEntryBuilder({
       )}
 
       <div
-        ref={debugRef}
-        className={cn(
-          "flex flex-1 flex-col items-center justify-start gap-4 p-4 overflow-y-auto overflow-x-hidden min-h-0",
-        )}
+        className={cn("flex flex-col items-center gap-4 p-4")}
       >
         {/* Q17 Fix 1 — Smart bulk-input combobox. Hidden for oracle
             decks; standard tarot only. */}
