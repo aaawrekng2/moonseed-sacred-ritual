@@ -84,6 +84,43 @@ export function GuideSelector({
   const [editingGuide, setEditingGuide] = useState<CustomGuide | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CustomGuide | null>(null);
   const [briefingOpen, setBriefingOpen] = useState(false);
+  // Q39b Fix 8 — lunar awareness toggle. Defaults from the seeker's moon
+  // settings (`moon_features_enabled`) and persists to
+  // `user_preferences.lunar_expert_enabled` when overridden here.
+  const [lunarExpert, setLunarExpert] = useState<boolean>(false);
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("moon_features_enabled, lunar_expert_enabled")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const row = data as
+        | { moon_features_enabled?: boolean; lunar_expert_enabled?: boolean | null }
+        | null;
+      if (row?.lunar_expert_enabled === true || row?.lunar_expert_enabled === false) {
+        setLunarExpert(row.lunar_expert_enabled);
+      } else {
+        setLunarExpert(row?.moon_features_enabled !== false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+  const persistLunar = (next: boolean) => {
+    setLunarExpert(next);
+    if (!user) return;
+    void supabase
+      .from("user_preferences")
+      .upsert(
+        { user_id: user.id, lunar_expert_enabled: next } as never,
+        { onConflict: "user_id" },
+      );
+  };
 
   // Load custom guides for the carousel.
   useEffect(() => {
