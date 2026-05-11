@@ -340,10 +340,7 @@ export function ManualEntryBuilder({
 
       <div
         className={cn(
-          "flex flex-1 flex-col items-center justify-start gap-6 p-6 overflow-x-hidden",
-          // Q17 Fix 3B — only celtic needs scrolling; small spreads fit
-          // fine. Q14 Fix 8 set this gate; Q17 audit confirms it stays.
-          isCelticManualEntry && "overflow-y-auto",
+          "flex flex-1 flex-col items-center justify-start gap-4 p-4 overflow-y-auto overflow-x-hidden",
         )}
       >
         {/* Q17 Fix 1 — Smart bulk-input combobox. Hidden for oracle
