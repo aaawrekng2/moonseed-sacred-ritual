@@ -330,6 +330,7 @@ function DrawPage() {
           question={question}
           onQuestionChange={setQuestion}
           onSwitchToManual={switchToManual}
+          onOpenQuestion={() => setQuestionOpen(true)}
           onCustomCountChange={
             spread === "custom" ? handleCustomCountChange : undefined
           }
