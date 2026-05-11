@@ -1027,14 +1027,16 @@ async function readCachedReflection(
   supabase: any,
   userId: string,
   cacheKey: string,
-): Promise<string | null> {
+): Promise<{ reflection: string; generatedAt: string } | null> {
   const { data } = await supabase
     .from("insight_reflections")
-    .select("reflection")
+    .select("reflection, generated_at")
     .eq("user_id", userId)
     .eq("cache_key", cacheKey)
     .maybeSingle();
-  return (data as { reflection?: string } | null)?.reflection ?? null;
+  const row = data as { reflection?: string; generated_at?: string } | null;
+  if (!row?.reflection) return null;
+  return { reflection: row.reflection, generatedAt: row.generated_at ?? new Date().toISOString() };
 }
 
 async function writeCachedReflection(
@@ -1046,7 +1048,7 @@ async function writeCachedReflection(
   await supabase
     .from("insight_reflections")
     .upsert(
-      { user_id: userId, cache_key: cacheKey, reflection },
+      { user_id: userId, cache_key: cacheKey, reflection, generated_at: new Date().toISOString() },
       { onConflict: "user_id,cache_key" },
     );
 }
@@ -1055,14 +1057,16 @@ async function readCachedThemes(
   supabase: any,
   userId: string,
   cacheKey: string,
-): Promise<unknown | null> {
+): Promise<{ themes: unknown; generatedAt: string } | null> {
   const { data } = await supabase
     .from("insight_themes")
-    .select("themes")
+    .select("themes, generated_at")
     .eq("user_id", userId)
     .eq("cache_key", cacheKey)
     .maybeSingle();
-  return (data as { themes?: unknown } | null)?.themes ?? null;
+  const row = data as { themes?: unknown; generated_at?: string } | null;
+  if (row == null || row.themes == null) return null;
+  return { themes: row.themes, generatedAt: row.generated_at ?? new Date().toISOString() };
 }
 
 async function writeCachedThemes(
@@ -1074,7 +1078,7 @@ async function writeCachedThemes(
   await supabase
     .from("insight_themes")
     .upsert(
-      { user_id: userId, cache_key: cacheKey, themes },
+      { user_id: userId, cache_key: cacheKey, themes, generated_at: new Date().toISOString() },
       { onConflict: "user_id,cache_key" },
     );
 }
