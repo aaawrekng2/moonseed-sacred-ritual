@@ -73,6 +73,8 @@ function Index() {
   // EW-2 — track today's draw orientation so the gateway face rotates
   // 180° when the seeker drew a reversed card.
   const [todayReversed, setTodayReversed] = useState<boolean>(false);
+  // Q45 Fix 4 — per-card deck for the daily draw, so oracle decks render.
+  const [todayCardDeckId, setTodayCardDeckId] = useState<string | null>(null);
   // EX-2 — tracks whether we've finished checking the today-draw query
   // at least once, so we don't flash the card-back during the async
   // resolution on warm reopen.
@@ -327,6 +329,7 @@ function Index() {
     // calendar flips — the query below will re-populate it only if
     // the seeker has already drawn for the new day.
     setTodayCard(null);
+    setTodayCardDeckId(null);
     setHasCheckedTodayDraw(false); // EX-2 — reset on day flip / re-check
     // Q43 — If auth is resolved and there is no user, skip the DB query
     // entirely. Render the card back immediately.
@@ -346,7 +349,7 @@ function Index() {
       const end = getStartOfDayInTz(today, effectiveTz, 1);
       const { data } = await supabase
         .from("readings")
-        .select("card_ids,card_orientations")
+        .select("card_ids,card_orientations,deck_id,card_deck_ids")
         .eq("user_id", uid)
         .eq("spread_type", "single")
         .is("archived_at", null)
@@ -357,12 +360,22 @@ function Index() {
         .maybeSingle();
       if (cancelled) return;
       const row = data as
-        | { card_ids?: number[]; card_orientations?: boolean[] }
+        | {
+            card_ids?: number[];
+            card_orientations?: boolean[];
+            deck_id?: string | null;
+            card_deck_ids?: (string | null)[] | null;
+          }
         | null;
       const first = row?.card_ids?.[0];
       if (typeof first === "number") {
         setTodayCard(first);
         setTodayReversed(!!row?.card_orientations?.[0]);
+        // Q45 Fix 4 — prefer per-card deck for the first card, fall back
+        // to reading-level deck. Lets oracle daily draws render correctly.
+        const cardDeck = row?.card_deck_ids?.[0];
+        const readingDeck = row?.deck_id;
+        setTodayCardDeckId((cardDeck ?? readingDeck) ?? null);
       }
       setHasCheckedTodayDraw(true); // EX-2 — always set, even with no row
     })();
@@ -445,6 +458,7 @@ function Index() {
               the scanned card art reads as its own visual edge. */}
           <CardImage
             cardId={todayCard ?? undefined}
+            deckId={todayCardDeckId}
             variant={
               // EX-2 — while the today-draw check is still pending,
               // render face+loading (shimmer) so we never flash the
