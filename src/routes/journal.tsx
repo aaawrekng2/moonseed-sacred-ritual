@@ -996,7 +996,7 @@ function ReadingCard({
   const [archiving, setArchiving] = useState(false);
   const [swipeX, setSwipeX] = useState(0);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
-  const REVEAL_PX = 88;
+  const REVEAL_PX = 44;
   const onTouchStart = (e: React.TouchEvent) => {
     if (!isMobile || !onArchive) return;
     const t = e.touches[0];
