@@ -2029,18 +2029,29 @@ function ReadingDetail({
   }, []);
   const ezCardCount = reading.card_ids.length;
   const ezGapPx = 8;
+  // Q44 Fix 5 — split into 2 rows on desktop when more than 5 cards.
+  const useTwoRows = !isMobile && ezCardCount > 5;
+  const cardsPerRow = useTwoRows ? Math.ceil(ezCardCount / 2) : ezCardCount;
+  const row1Ids = useTwoRows
+    ? reading.card_ids.slice(0, cardsPerRow)
+    : reading.card_ids;
+  const row2Ids = useTwoRows ? reading.card_ids.slice(cardsPerRow) : [];
   // FB-3 — single-card readings get a larger card. Divisor 1.5 makes
   // the card ~2/3 of row width — about 2× the per-card width of a
   // 3-card spread. Multi-card spreads keep proportional sizing.
-  const ezBaseDivisor = ezCardCount === 1 ? 1.5 : Math.max(3, ezCardCount);
+  const ezBaseDivisor = ezCardCount === 1 ? 1.5 : Math.max(3, cardsPerRow);
   // FA-2 — use measured row width instead of hardcoded 320 so
   // single cards actually fill the available space.
-  const ezCardWidthPx = Math.max(
+  const ezCardWidthRaw = Math.max(
     32,
     Math.floor(
       (measuredRowWidth - ezGapPx * (ezBaseDivisor - 1)) / ezBaseDivisor,
     ),
   );
+  // Q44 Fix 4 — cap desktop single-card width so it does not
+  // dominate the entire screen. Mobile keeps responsive sizing.
+  const ezMaxCardWidth = !isMobile && ezCardCount === 1 ? 240 : 9999;
+  const ezCardWidthPx = Math.min(ezCardWidthRaw, ezMaxCardWidth);
   // DB-3.2 — deck override picker.
   const [decks, setDecks] = useState<CustomDeck[]>([]);
   const [deckMenuOpen, setDeckMenuOpen] = useState(false);
