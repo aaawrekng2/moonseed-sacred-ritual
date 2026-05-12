@@ -1981,10 +1981,26 @@ function ReadingDetail({
   // instead of "Card 1024". Uses the reading's saved deck_id for
   // historical accuracy; falls back to the active deck for legacy
   // rows without a deck_id.
+  // Q44 Fix 3A — resolve card names per-card so mixed-deck readings
+  // pick up each card's own deck override.
+  const allDeckIds = useMemo(() => {
+    const ids: (string | null | undefined)[] = [];
+    if (reading.deck_id) ids.push(reading.deck_id);
+    (reading.card_deck_ids ?? []).forEach((id) => {
+      if (id) ids.push(id);
+    });
+    return ids;
+  }, [reading.deck_id, reading.card_deck_ids]);
   const activeNameResolve = useActiveDeckCardName();
-  const specificNameResolve = useDeckCardName(reading.deck_id ?? null);
-  const resolveCardName = (id: number) =>
-    reading.deck_id ? specificNameResolve(id) : activeNameResolve(id);
+  const multiNameResolve = useMultiDeckCardName(allDeckIds);
+  // Q44 Fix 6 — preload all referenced deck image maps in parallel
+  // so oracle/custom cards appear instantly instead of after a roundtrip.
+  useMultiDeckImage(allDeckIds);
+  const resolveCardName = (id: number, idx: number) => {
+    const deckId = reading.card_deck_ids?.[idx] ?? reading.deck_id ?? null;
+    if (deckId) return multiNameResolve(id, deckId);
+    return activeNameResolve(id);
+  };
   // CZ Group 4 — mobile gets a horizontally swipeable card strip when a
   // reading has more cards than fit comfortably (>3). Desktop unchanged.
   const isMobile = useIsMobile();
