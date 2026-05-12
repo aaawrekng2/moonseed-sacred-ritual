@@ -263,6 +263,118 @@ export function useDeckCardName(
 }
 
 /**
+ * Q44 Fix 2A — multi-deck card-name resolver. Loads image maps for an
+ * ARRAY of deck ids in parallel, then returns a resolver that looks
+ * each card up in its specific deck. Used by mixed-deck readings
+ * where each card carries its own `card_deck_ids[idx]`.
+ */
+export function useMultiDeckCardName(
+  deckIds: readonly (string | null | undefined)[],
+): (cardId: number, deckId: string | null | undefined) => string {
+  const [maps, setMaps] = useState<Record<string, DeckImageMap>>({});
+  const joined = deckIds.filter(Boolean).join(",");
+  const uniqueIds = useMemo(() => {
+    const set = new Set<string>();
+    deckIds.forEach((id) => {
+      if (id) set.add(id);
+    });
+    return Array.from(set);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [joined]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const entries = await Promise.all(
+        uniqueIds.map(async (id) => {
+          try {
+            const map = await buildDeckImageMap(id);
+            return [id, map] as const;
+          } catch {
+            return [id, EMPTY_DECK_IMAGE_MAP] as const;
+          }
+        }),
+      );
+      if (!cancelled) {
+        const next: Record<string, DeckImageMap> = {};
+        entries.forEach(([id, map]) => {
+          next[id] = map;
+        });
+        setMaps(next);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [joined]);
+  return useCallback(
+    (cardId, deckId) => {
+      if (deckId && maps[deckId]?.nameByCardId[cardId]) {
+        return maps[deckId].nameByCardId[cardId];
+      }
+      return getCardName(cardId) ?? `Card ${cardId}`;
+    },
+    [maps],
+  );
+}
+
+/**
+ * Q44 Fix 2B — multi-deck image resolver. Mirror of useMultiDeckCardName
+ * but returns an image-URL resolver. Calling it (even discarding the
+ * return value) warms the in-memory deck-image cache so subsequent
+ * single-deck CardImage renders are instant.
+ */
+export function useMultiDeckImage(
+  deckIds: readonly (string | null | undefined)[],
+): (
+  cardIndex: number,
+  deckId: string | null | undefined,
+  size?: "display" | "thumbnail" | "sm" | "md" | "full",
+) => string | null {
+  const [maps, setMaps] = useState<Record<string, DeckImageMap>>({});
+  const joined = deckIds.filter(Boolean).join(",");
+  const uniqueIds = useMemo(() => {
+    const set = new Set<string>();
+    deckIds.forEach((id) => {
+      if (id) set.add(id);
+    });
+    return Array.from(set);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [joined]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const entries = await Promise.all(
+        uniqueIds.map(async (id) => {
+          try {
+            const map = await buildDeckImageMap(id);
+            return [id, map] as const;
+          } catch {
+            return [id, EMPTY_DECK_IMAGE_MAP] as const;
+          }
+        }),
+      );
+      if (!cancelled) {
+        const next: Record<string, DeckImageMap> = {};
+        entries.forEach(([id, map]) => {
+          next[id] = map;
+        });
+        setMaps(next);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [joined]);
+  return useCallback(
+    (cardIndex, deckId, size = "display") =>
+      resolveCardImage(cardIndex, (deckId && maps[deckId]) || null, size),
+    [maps],
+  );
+}
+
+/**
  * DB-3.1 — Resolve a card image for a SPECIFIC deck_id.
  *
  * Used when displaying a saved/historical reading: the reading's saved

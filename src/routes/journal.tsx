@@ -23,6 +23,8 @@ import {
   useDeckCornerRadius,
   useActiveDeckCardName,
   useDeckCardName,
+  useMultiDeckCardName,
+  useMultiDeckImage,
 } from "@/lib/active-deck";
 import { CardImage } from "@/components/card/CardImage";
 import { useElementWidth } from "@/lib/use-element-width";
@@ -994,7 +996,7 @@ function ReadingCard({
   const [archiving, setArchiving] = useState(false);
   const [swipeX, setSwipeX] = useState(0);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
-  const REVEAL_PX = 88;
+  const REVEAL_PX = 44;
   const onTouchStart = (e: React.TouchEvent) => {
     if (!isMobile || !onArchive) return;
     const t = e.touches[0];
@@ -1979,10 +1981,26 @@ function ReadingDetail({
   // instead of "Card 1024". Uses the reading's saved deck_id for
   // historical accuracy; falls back to the active deck for legacy
   // rows without a deck_id.
+  // Q44 Fix 3A — resolve card names per-card so mixed-deck readings
+  // pick up each card's own deck override.
+  const allDeckIds = useMemo(() => {
+    const ids: (string | null | undefined)[] = [];
+    if (reading.deck_id) ids.push(reading.deck_id);
+    (reading.card_deck_ids ?? []).forEach((id) => {
+      if (id) ids.push(id);
+    });
+    return ids;
+  }, [reading.deck_id, reading.card_deck_ids]);
   const activeNameResolve = useActiveDeckCardName();
-  const specificNameResolve = useDeckCardName(reading.deck_id ?? null);
-  const resolveCardName = (id: number) =>
-    reading.deck_id ? specificNameResolve(id) : activeNameResolve(id);
+  const multiNameResolve = useMultiDeckCardName(allDeckIds);
+  // Q44 Fix 6 — preload all referenced deck image maps in parallel
+  // so oracle/custom cards appear instantly instead of after a roundtrip.
+  useMultiDeckImage(allDeckIds);
+  const resolveCardName = (id: number, idx: number) => {
+    const deckId = reading.card_deck_ids?.[idx] ?? reading.deck_id ?? null;
+    if (deckId) return multiNameResolve(id, deckId);
+    return activeNameResolve(id);
+  };
   // CZ Group 4 — mobile gets a horizontally swipeable card strip when a
   // reading has more cards than fit comfortably (>3). Desktop unchanged.
   const isMobile = useIsMobile();
@@ -2011,18 +2029,29 @@ function ReadingDetail({
   }, []);
   const ezCardCount = reading.card_ids.length;
   const ezGapPx = 8;
+  // Q44 Fix 5 — split into 2 rows on desktop when more than 5 cards.
+  const useTwoRows = !isMobile && ezCardCount > 5;
+  const cardsPerRow = useTwoRows ? Math.ceil(ezCardCount / 2) : ezCardCount;
+  const row1Ids = useTwoRows
+    ? reading.card_ids.slice(0, cardsPerRow)
+    : reading.card_ids;
+  const row2Ids = useTwoRows ? reading.card_ids.slice(cardsPerRow) : [];
   // FB-3 — single-card readings get a larger card. Divisor 1.5 makes
   // the card ~2/3 of row width — about 2× the per-card width of a
   // 3-card spread. Multi-card spreads keep proportional sizing.
-  const ezBaseDivisor = ezCardCount === 1 ? 1.5 : Math.max(3, ezCardCount);
+  const ezBaseDivisor = ezCardCount === 1 ? 1.5 : Math.max(3, cardsPerRow);
   // FA-2 — use measured row width instead of hardcoded 320 so
   // single cards actually fill the available space.
-  const ezCardWidthPx = Math.max(
+  const ezCardWidthRaw = Math.max(
     32,
     Math.floor(
       (measuredRowWidth - ezGapPx * (ezBaseDivisor - 1)) / ezBaseDivisor,
     ),
   );
+  // Q44 Fix 4 — cap desktop single-card width so it does not
+  // dominate the entire screen. Mobile keeps responsive sizing.
+  const ezMaxCardWidth = !isMobile && ezCardCount === 1 ? 240 : 9999;
+  const ezCardWidthPx = Math.min(ezCardWidthRaw, ezMaxCardWidth);
   // DB-3.2 — deck override picker.
   const [decks, setDecks] = useState<CustomDeck[]>([]);
   const [deckMenuOpen, setDeckMenuOpen] = useState(false);
@@ -2108,7 +2137,7 @@ function ReadingDetail({
     isReversed: reading.card_orientations?.[idx] ?? false,
   }));
   const sharePositions =
-    positions ?? reading.card_ids.map((id) => resolveCardName(id));
+    positions ?? reading.card_ids.map((id, idx) => resolveCardName(id, idx));
 
   // Lock body scroll while the overlay is open.
   useEffect(() => {
@@ -2259,67 +2288,83 @@ function ReadingDetail({
               : { paddingBottom: 16 /* EZ-4 — room for drop shadow */ }
           }
         >
-          {reading.card_ids.map((id, idx) => {
-            const isReversed = !!reading.card_orientations?.[idx];
+          {(() => {
+            const renderCard = (id: number, idx: number) => {
+              const isReversed = !!reading.card_orientations?.[idx];
+              const perCardDeckId =
+                (reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null;
+              return (
+                <div
+                  key={`${id}-${idx}`}
+                  className={cn(
+                    "flex flex-col items-center",
+                    swipeMobile && "flex-shrink-0 snap-start",
+                  )}
+                >
+                  <CardImage
+                    cardId={id}
+                    reversed={isReversed}
+                    size="custom"
+                    widthPx={ezCardWidthPx}
+                    deckId={perCardDeckId}
+                    shadow
+                    ariaLabel={`Zoom ${resolveCardName(id, idx)}`}
+                    onClick={() =>
+                      setZoomedCard({ cardId: id, reversed: isReversed })
+                    }
+                  />
+                  <span
+                    className="mt-1 max-w-[120px] text-center font-display italic"
+                    style={{
+                      color: "var(--gold)",
+                      opacity: "var(--ro-plus-30)",
+                      fontSize: "var(--text-body-sm, 13px)",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {resolveCardName(id, idx)}
+                  </span>
+                  <span
+                    className="max-w-[120px] text-center font-display italic text-muted-foreground"
+                    style={{
+                      opacity: "var(--ro-plus-20)",
+                      fontSize: "var(--text-caption, 11px)",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    {positions?.[idx] ?? ""}
+                  </span>
+                  <span
+                    className="text-center font-display text-[10px] italic text-muted-foreground"
+                    style={{
+                      opacity: "var(--ro-plus-10)",
+                      minHeight: "1.4em",
+                      visibility: isReversed ? "visible" : "hidden",
+                    }}
+                  >
+                    reversed
+                  </span>
+                </div>
+              );
+            };
+            if (!useTwoRows) {
+              return reading.card_ids.map((id, idx) => renderCard(id, idx));
+            }
             return (
-              <div
-                key={`${id}-${idx}`}
-                className={cn(
-                  "flex flex-col items-center",
-                  swipeMobile && "flex-shrink-0 snap-start",
+              <div className="flex w-full flex-col items-center gap-4">
+                <div className="flex items-start justify-center gap-2">
+                  {row1Ids.map((id, rowIdx) => renderCard(id, rowIdx))}
+                </div>
+                {row2Ids.length > 0 && (
+                  <div className="flex items-start justify-center gap-2">
+                    {row2Ids.map((id, rowIdx) =>
+                      renderCard(id, cardsPerRow + rowIdx),
+                    )}
+                  </div>
                 )}
-              >
-                {/* EZ-2 / EZ-5 — Use CardImage with deck-aware
-                    rendering, theme-correct radius, drop shadow,
-                    and spread-aware sizing. */}
-                <CardImage
-                  cardId={id}
-                  reversed={isReversed}
-                  size="custom"
-                  widthPx={ezCardWidthPx}
-                  deckId={reading.deck_id ?? null}
-                  shadow
-                  ariaLabel={`Zoom ${resolveCardName(id)}`}
-                  onClick={() =>
-                    setZoomedCard({ cardId: id, reversed: isReversed })
-                  }
-                />
-                {/* Q14 Fix 7 — card name in accent (gold) above the
-                    smaller, muted position label. */}
-                <span
-                  className="mt-1 max-w-[120px] text-center font-display italic"
-                  style={{
-                    color: "var(--gold)",
-                    opacity: "var(--ro-plus-30)",
-                    fontSize: "var(--text-body-sm, 13px)",
-                    lineHeight: 1.2,
-                  }}
-                >
-                  {resolveCardName(id)}
-                </span>
-                <span
-                  className="max-w-[120px] text-center font-display italic text-muted-foreground"
-                  style={{
-                    opacity: "var(--ro-plus-20)",
-                    fontSize: "var(--text-caption, 11px)",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  {positions?.[idx] ?? ""}
-                </span>
-                <span
-                  className="text-center font-display text-[10px] italic text-muted-foreground"
-                  style={{
-                    opacity: "var(--ro-plus-10)",
-                    minHeight: "1.4em",
-                    visibility: isReversed ? "visible" : "hidden",
-                  }}
-                >
-                  reversed
-                </span>
               </div>
             );
-          })}
+          })()}
         </div>
 
         {/* Interpretation */}
