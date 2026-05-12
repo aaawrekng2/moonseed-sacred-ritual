@@ -2126,7 +2126,7 @@ function ReadingDetail({
     isReversed: reading.card_orientations?.[idx] ?? false,
   }));
   const sharePositions =
-    positions ?? reading.card_ids.map((id) => resolveCardName(id));
+    positions ?? reading.card_ids.map((id, idx) => resolveCardName(id, idx));
 
   // Lock body scroll while the overlay is open.
   useEffect(() => {
