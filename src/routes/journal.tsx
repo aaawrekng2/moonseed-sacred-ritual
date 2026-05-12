@@ -276,6 +276,20 @@ function JournalPage() {
   // of that list, so we lazily fetch them by id here.
   const [openOverride, setOpenOverride] = useState<ReadingRow | null>(null);
 
+  // Q45 Fix 1 – preload deck image maps for every deck referenced
+  // across all visible readings, so oracle cards render instantly.
+  const allJournalDeckIds = useMemo(() => {
+    const ids = new Set<string>();
+    readings.forEach((r) => {
+      if (r.deck_id) ids.add(r.deck_id);
+      (r.card_deck_ids ?? []).forEach((id) => {
+        if (id) ids.add(id);
+      });
+    });
+    return Array.from(ids);
+  }, [readings]);
+  useMultiDeckImage(allJournalDeckIds);
+
   // Fetch readings + tags + photo counts whenever the user resolves.
   useEffect(() => {
     if (authLoading) return;
@@ -2008,7 +2022,7 @@ function ReadingDetail({
   const [shareOpen, setShareOpen] = useState(false);
   // DD-4 — tap-to-zoom on saved-reading cards. Reuses the same modal
   // the active draw uses (CZ Group 3) so behavior matches everywhere.
-  const [zoomedCard, setZoomedCard] = useState<{ cardId: number; reversed: boolean } | null>(null);
+  const [zoomedCard, setZoomedCard] = useState<{ cardId: number; reversed: boolean; idx: number } | null>(null);
   // EZ-5 / FA-2 — Cards in journal reading-detail size to a 3-card-spread
   // baseline. A single-card reading renders at the same physical
   // width as one of three cards (centered, prominent — not full-row).
@@ -2310,7 +2324,7 @@ function ReadingDetail({
                     shadow
                     ariaLabel={`Zoom ${resolveCardName(id, idx)}`}
                     onClick={() =>
-                      setZoomedCard({ cardId: id, reversed: isReversed })
+                      setZoomedCard({ cardId: id, reversed: isReversed, idx })
                     }
                   />
                   <span
@@ -2600,7 +2614,7 @@ function ReadingDetail({
           cardId={zoomedCard.cardId}
           reversed={zoomedCard.reversed}
           onClose={() => setZoomedCard(null)}
-          deckId={reading.deck_id ?? null}
+          deckId={(reading.card_deck_ids?.[zoomedCard.idx] ?? reading.deck_id) ?? null}
         />
       )}
     </FullScreenSheet>
