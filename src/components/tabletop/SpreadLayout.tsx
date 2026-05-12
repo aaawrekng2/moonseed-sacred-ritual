@@ -567,7 +567,7 @@ function CardFace({
           aria-label={`Zoom ${getCardName(pick.cardIndex)}`}
           onClick={(e) => {
             e.stopPropagation();
-            onZoom(pick.cardIndex, !!pick.isReversed);
+            onZoom(pick.cardIndex, !!pick.isReversed, pick.deckId ?? null);
           }}
           className="absolute inset-0 cursor-zoom-in rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/40"
           style={{ background: "transparent", zIndex: 15 }}
