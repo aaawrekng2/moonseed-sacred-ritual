@@ -266,7 +266,7 @@ function SpreadContent({
   wrongIndex: number | null;
   onTap: (i: number) => void;
   showLabels: boolean;
-  onZoom: (cardIndex: number, reversed: boolean) => void;
+  onZoom: (cardIndex: number, reversed: boolean, pickDeckId: string | null) => void;
 }) {
   // Pick a card width that fits the spread + viewport. Celtic Cross has
   // the densest layout so it gets the smallest cards.
@@ -468,7 +468,7 @@ function CardFace({
   onTap?: () => void;
   emergeDelayMs?: number;
   isRevealPhase?: boolean;
-  onZoom?: (cardIndex: number, reversed: boolean) => void;
+  onZoom?: (cardIndex: number, reversed: boolean, pickDeckId: string | null) => void;
 }) {
   const interactive = !revealed && !!onTap;
   const cardImg = useActiveDeckImage();
@@ -681,7 +681,7 @@ function SingleCard({
   onTap: () => void;
   sizing: Sizing;
   isRevealPhase?: boolean;
-  onZoom?: (cardIndex: number, reversed: boolean) => void;
+  onZoom?: (cardIndex: number, reversed: boolean, pickDeckId: string | null) => void;
 }) {
   // DD-1 — under-card name labels also hide on mobile (matches the
   // position-label suppression at the parent level). The bottom-bar
@@ -737,7 +737,7 @@ function ThreeRow({
   sizing: Sizing;
   showLabels: boolean;
   isRevealPhase?: boolean;
-  onZoom?: (cardIndex: number, reversed: boolean) => void;
+  onZoom?: (cardIndex: number, reversed: boolean, pickDeckId: string | null) => void;
 }) {
   return (
     <div className="flex items-start gap-6">
@@ -805,7 +805,7 @@ function CelticCross({
   sizing: Sizing;
   showLabels: boolean;
   isRevealPhase?: boolean;
-  onZoom?: (cardIndex: number, reversed: boolean) => void;
+  onZoom?: (cardIndex: number, reversed: boolean, pickDeckId: string | null) => void;
 }) {
   // Spacing constants tuned to the chosen card size.
   const colGap = Math.round(sizing.w * 0.35);
