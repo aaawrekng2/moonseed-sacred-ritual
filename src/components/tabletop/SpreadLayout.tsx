@@ -21,7 +21,7 @@ import {
   useRegisterCopyText,
 } from "@/lib/floating-menu-context";
 
-type Pick = { id: number; cardIndex: number; isReversed?: boolean };
+type Pick = { id: number; cardIndex: number; isReversed?: boolean; deckId?: string | null };
 
 type Props = {
   spread: SpreadMode;
@@ -79,6 +79,7 @@ export function SpreadLayout({
   const [zoomedCard, setZoomedCard] = useState<{
     cardIndex: number;
     reversed: boolean;
+    pickDeckId: string | null;
   } | null>(null);
   // Once every card is face-up the inline reading flow takes over.
   // `copyText` is hoisted from <InlineReading> so the global
@@ -177,8 +178,8 @@ export function SpreadLayout({
           wrongIndex={wrongIndex}
           onTap={handleTap}
           showLabels={showSlotLabels}
-          onZoom={(cardIndex, reversed) =>
-            setZoomedCard({ cardIndex, reversed })
+          onZoom={(cardIndex, reversed, pickDeckId) =>
+            setZoomedCard({ cardIndex, reversed, pickDeckId })
           }
         />
       </div>
@@ -237,7 +238,7 @@ export function SpreadLayout({
           cardId={zoomedCard.cardIndex}
           reversed={zoomedCard.reversed}
           onClose={() => setZoomedCard(null)}
-          deckId={deckId ?? null}
+          deckId={zoomedCard.pickDeckId ?? deckId ?? null}
         />
       )}
     </main>
