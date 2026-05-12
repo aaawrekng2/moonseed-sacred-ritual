@@ -23,6 +23,8 @@ import {
   useDeckCornerRadius,
   useActiveDeckCardName,
   useDeckCardName,
+  useMultiDeckCardName,
+  useMultiDeckImage,
 } from "@/lib/active-deck";
 import { CardImage } from "@/components/card/CardImage";
 import { useElementWidth } from "@/lib/use-element-width";
