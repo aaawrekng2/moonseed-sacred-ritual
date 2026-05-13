@@ -2317,17 +2317,16 @@ function ReadingDetail({
           }
         >
           {(() => {
-            const renderCard = (id: number, idx: number) => {
+            // Q47 — swipeMobile keeps its existing per-card stacking; the
+            // scroll-snap row is unaffected by the alignment fix.
+            const renderSwipeCard = (id: number, idx: number) => {
               const isReversed = !!reading.card_orientations?.[idx];
               const perCardDeckId =
                 (reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null;
               return (
                 <div
                   key={`${id}-${idx}`}
-                  className={cn(
-                    "flex flex-col items-center",
-                    swipeMobile && "flex-shrink-0 snap-start",
-                  )}
+                  className="flex flex-col items-center flex-shrink-0 snap-start"
                 >
                   <CardImage
                     cardId={id}
@@ -2375,21 +2374,127 @@ function ReadingDetail({
                 </div>
               );
             };
+            if (swipeMobile) {
+              return reading.card_ids.map((id, idx) =>
+                renderSwipeCard(id, idx),
+              );
+            }
+            // Q47 — desktop / non-swipe path: cards anchored to a shared
+            // floor in a fixed-height grid; labels in a separate
+            // top-aligned grid below. Keeps mixed deck aspect ratios
+            // and reversed/wrap label variations from misaligning.
+            const cardAreaH = Math.round(ezCardWidthPx * 1.71);
+            const renderCardCell = (id: number, idx: number) => {
+              const isReversed = !!reading.card_orientations?.[idx];
+              const perCardDeckId =
+                (reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null;
+              return (
+                <div
+                  key={`card-${id}-${idx}`}
+                  style={{
+                    height: cardAreaH,
+                    display: "flex",
+                    alignItems: "flex-end",
+                    justifyContent: "center",
+                  }}
+                >
+                  <CardImage
+                    cardId={id}
+                    reversed={isReversed}
+                    size="custom"
+                    widthPx={ezCardWidthPx}
+                    deckId={perCardDeckId}
+                    shadow
+                    ariaLabel={`Zoom ${resolveCardName(id, idx)}`}
+                    onClick={() =>
+                      setZoomedCard({ cardId: id, reversed: isReversed, idx })
+                    }
+                  />
+                </div>
+              );
+            };
+            const renderLabelCell = (id: number, idx: number) => {
+              const isReversed = !!reading.card_orientations?.[idx];
+              return (
+                <div
+                  key={`label-${id}-${idx}`}
+                  className="flex flex-col items-center"
+                >
+                  <span
+                    className="mt-1 max-w-[120px] text-center font-display italic"
+                    style={{
+                      color: "var(--gold)",
+                      opacity: "var(--ro-plus-30)",
+                      fontSize: "var(--text-body-sm, 13px)",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {resolveCardName(id, idx)}
+                  </span>
+                  <span
+                    className="max-w-[120px] text-center font-display italic text-muted-foreground"
+                    style={{
+                      opacity: "var(--ro-plus-20)",
+                      fontSize: "var(--text-caption, 11px)",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    {positions?.[idx] ?? ""}
+                  </span>
+                  <span
+                    className="text-center font-display text-[10px] italic text-muted-foreground"
+                    style={{
+                      opacity: "var(--ro-plus-10)",
+                      minHeight: "1.4em",
+                      visibility: isReversed ? "visible" : "hidden",
+                    }}
+                  >
+                    reversed
+                  </span>
+                </div>
+              );
+            };
+            const renderRowPair = (
+              ids: number[],
+              startIdx: number,
+              key: string,
+            ) => {
+              const cols = ids.length;
+              return (
+                <div key={key}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: `repeat(${cols}, auto)`,
+                      justifyContent: "center",
+                      alignItems: "end",
+                      columnGap: 8,
+                    }}
+                  >
+                    {ids.map((id, i) => renderCardCell(id, startIdx + i))}
+                  </div>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: `repeat(${cols}, auto)`,
+                      justifyContent: "center",
+                      alignItems: "start",
+                      columnGap: 8,
+                    }}
+                  >
+                    {ids.map((id, i) => renderLabelCell(id, startIdx + i))}
+                  </div>
+                </div>
+              );
+            };
             if (!useTwoRows) {
-              return reading.card_ids.map((id, idx) => renderCard(id, idx));
+              return renderRowPair(reading.card_ids, 0, "row-single");
             }
             return (
               <div className="flex w-full flex-col items-center gap-4">
-                <div className="flex items-start justify-center gap-2">
-                  {row1Ids.map((id, rowIdx) => renderCard(id, rowIdx))}
-                </div>
-                {row2Ids.length > 0 && (
-                  <div className="flex items-start justify-center gap-2">
-                    {row2Ids.map((id, rowIdx) =>
-                      renderCard(id, cardsPerRow + rowIdx),
-                    )}
-                  </div>
-                )}
+                {renderRowPair(row1Ids, 0, "row-1")}
+                {row2Ids.length > 0 &&
+                  renderRowPair(row2Ids, cardsPerRow, "row-2")}
               </div>
             );
           })()}
