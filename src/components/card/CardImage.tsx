@@ -212,6 +212,9 @@ export interface CardImageProps {
   flipped?: boolean;
 }
 
+// Q48 Fix 5 — `eager` opts a CardImage out of native lazy loading,
+// for above-the-fold images (HeroCard, selected stalker card).
+
 // Standard widths in px. Aspect ratio 1 / 1.75.
 const SIZE_PX: Record<Exclude<CardImageSize, "custom">, number> = {
   hero: 320,
