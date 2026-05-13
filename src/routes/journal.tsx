@@ -288,7 +288,7 @@ function JournalPage() {
     });
     return Array.from(ids);
   }, [readings]);
-  useMultiDeckImage(allJournalDeckIds);
+  const { loading: journalMapsLoading } = useMultiDeckImage(allJournalDeckIds);
 
   // Fetch readings + tags + photo counts whenever the user resolves.
   useEffect(() => {
@@ -1192,6 +1192,8 @@ function ReadingCard({
         >
           {reading.card_ids.map((id, idx) => {
             const isReversed = !!reading.card_orientations?.[idx];
+            const perCardDeckId =
+              (reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null;
             return (
               <CardImage
                 key={`${id}-${idx}`}
@@ -1199,7 +1201,8 @@ function ReadingCard({
                 variant="face"
                 reversed={isReversed}
                 size="thumbnail"
-                deckId={(reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null}
+                deckId={perCardDeckId}
+                loading={journalMapsLoading && perCardDeckId != null}
                 className="flex-shrink-0"
                 style={{ opacity: "var(--ro-plus-30)" }}
               />
@@ -1212,6 +1215,8 @@ function ReadingCard({
             const idx = reading.card_ids.indexOf(id);
             const isReversed =
               idx >= 0 ? !!reading.card_orientations?.[idx] : false;
+            const perCardDeckId =
+              (reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null;
             return (
               <CardImage
                 key={id}
@@ -1219,7 +1224,8 @@ function ReadingCard({
                 variant="face"
                 reversed={isReversed}
                 size="thumbnail"
-                deckId={(reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null}
+                deckId={perCardDeckId}
+                loading={journalMapsLoading && perCardDeckId != null}
                 style={{ opacity: "var(--ro-plus-30)" }}
               />
             );
@@ -2009,7 +2015,8 @@ function ReadingDetail({
   const multiNameResolve = useMultiDeckCardName(allDeckIds);
   // Q44 Fix 6 — preload all referenced deck image maps in parallel
   // so oracle/custom cards appear instantly instead of after a roundtrip.
-  useMultiDeckImage(allDeckIds);
+  const { loading: _detailMapsLoading } = useMultiDeckImage(allDeckIds);
+  void _detailMapsLoading;
   const resolveCardName = (id: number, idx: number) => {
     const deckId = reading.card_deck_ids?.[idx] ?? reading.deck_id ?? null;
     if (deckId) return multiNameResolve(id, deckId);
@@ -2053,7 +2060,7 @@ function ReadingDetail({
   // FB-3 — single-card readings get a larger card. Divisor 1.5 makes
   // the card ~2/3 of row width — about 2× the per-card width of a
   // 3-card spread. Multi-card spreads keep proportional sizing.
-  const ezBaseDivisor = ezCardCount === 1 ? 1.5 : Math.max(3, cardsPerRow);
+  const ezBaseDivisor = ezCardCount === 1 ? 1.5 : cardsPerRow;
   // FA-2 — use measured row width instead of hardcoded 320 so
   // single cards actually fill the available space.
   const ezCardWidthRaw = Math.max(
@@ -2064,7 +2071,7 @@ function ReadingDetail({
   );
   // Q44 Fix 4 — cap desktop single-card width so it does not
   // dominate the entire screen. Mobile keeps responsive sizing.
-  const ezMaxCardWidth = !isMobile && ezCardCount === 1 ? 240 : 9999;
+  const ezMaxCardWidth = !isMobile && ezCardCount === 1 ? 380 : 9999;
   const ezCardWidthPx = Math.min(ezCardWidthRaw, ezMaxCardWidth);
   // DB-3.2 — deck override picker.
   const [decks, setDecks] = useState<CustomDeck[]>([]);
