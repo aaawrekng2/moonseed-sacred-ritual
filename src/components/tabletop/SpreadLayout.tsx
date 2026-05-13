@@ -739,34 +739,81 @@ function ThreeRow({
   isRevealPhase?: boolean;
   onZoom?: (cardIndex: number, reversed: boolean, pickDeckId: string | null) => void;
 }) {
+  // Q47 — two-row pattern: cards bottom-anchored to a shared floor,
+  // labels in a separate top-aligned row below.
+  const cardAreaH = Math.round(sizing.w * 1.71);
+  const cols = picks.length;
   return (
-    <div className="flex items-start gap-6">
-      {picks.map((pick, i) => (
-        <div key={pick.id} className="flex flex-col items-center gap-2">
-          <CardFace
-            pick={pick}
-            cardBack={cardBack}
-            revealed={!!revealedFlags[i]}
-            isNext={nextIndex === i}
-            isWrong={wrongIndex === i}
-            onTap={() => onTap(i)}
-            sizing={sizing}
-            emergeDelayMs={i * 90}
-            isRevealPhase={isRevealPhase}
-            onZoom={onZoom}
-          />
-          {showLabels && (
-            <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>
-          )}
-          {showLabels && revealedFlags[i] && (
-            <CardNameLabel
-              cardIndex={pick.cardIndex}
-              isReversed={!!pick.isReversed}
-              cardWidth={sizing.w}
+    <div style={{ width: "100%" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${cols}, 1fr)`,
+          gap: 24,
+          alignItems: "end",
+          justifyItems: "center",
+          marginBottom: 8,
+        }}
+      >
+        {picks.map((pick, i) => (
+          <div
+            key={`card-${pick.id}-${i}`}
+            style={{
+              height: cardAreaH,
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "center",
+            }}
+          >
+            <CardFace
+              pick={pick}
+              cardBack={cardBack}
+              revealed={!!revealedFlags[i]}
+              isNext={nextIndex === i}
+              isWrong={wrongIndex === i}
+              onTap={() => onTap(i)}
+              sizing={sizing}
+              emergeDelayMs={i * 90}
+              isRevealPhase={isRevealPhase}
+              onZoom={onZoom}
             />
-          )}
-        </div>
-      ))}
+          </div>
+        ))}
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${cols}, 1fr)`,
+          gap: 24,
+          alignItems: "start",
+          justifyItems: "center",
+        }}
+      >
+        {picks.map((pick, i) => (
+          <div
+            key={`label-${pick.id}-${i}`}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            {showLabels && (
+              <PositionLabel cardWidth={sizing.w}>
+                {labels[i] ?? `Card ${i + 1}`}
+              </PositionLabel>
+            )}
+            {showLabels && revealedFlags[i] && (
+              <CardNameLabel
+                cardIndex={pick.cardIndex}
+                isReversed={!!pick.isReversed}
+                cardWidth={sizing.w}
+              />
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
