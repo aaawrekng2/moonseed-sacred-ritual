@@ -326,11 +326,14 @@ export function useMultiDeckCardName(
  */
 export function useMultiDeckImage(
   deckIds: readonly (string | null | undefined)[],
-): (
-  cardIndex: number,
-  deckId: string | null | undefined,
-  size?: "display" | "thumbnail" | "sm" | "md" | "full",
-) => string | null {
+): {
+  resolve: (
+    cardIndex: number,
+    deckId: string | null | undefined,
+    size?: "display" | "thumbnail" | "sm" | "md" | "full",
+  ) => string | null;
+  loading: boolean;
+} {
   const [maps, setMaps] = useState<Record<string, DeckImageMap>>({});
   const joined = deckIds.filter(Boolean).join(",");
   const uniqueIds = useMemo(() => {
@@ -367,11 +370,47 @@ export function useMultiDeckImage(
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [joined]);
-  return useCallback(
-    (cardIndex, deckId, size = "display") =>
-      resolveCardImage(cardIndex, (deckId && maps[deckId]) || null, size),
+  // Q46 Fix 1 — prefetch image bytes into the browser HTTP cache as
+  // soon as deck maps populate. Without this, <img src={url}> triggers
+  // the actual byte download lazily on mount, causing the 3-5s
+  // oracle-card lag on journal list. Creating new Image() with the URL
+  // kicks off the browser fetch immediately; subsequent renders read
+  // from the browser cache instantly.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const seen = new Set<string>();
+    const kick = (url: string | undefined | null) => {
+      if (!url || seen.has(url)) return;
+      seen.add(url);
+      const img = new Image();
+      img.src = url;
+    };
+    Object.values(maps).forEach((map) => {
+      if (!map) return;
+      Object.values(map.variants ?? {}).forEach((variant) => {
+        if (!variant) return;
+        kick(variant.display);
+        kick(variant.thumbnail);
+        kick(variant.sm);
+        kick(variant.md);
+        kick(variant.full);
+      });
+      Object.values(map.display ?? {}).forEach(kick);
+      Object.values(map.thumbnail ?? {}).forEach(kick);
+      kick(map.back);
+    });
+  }, [maps]);
+  // Q46 Fix 2 — expose loading so consumers can show shimmer.
+  const loading = uniqueIds.some((id) => !maps[id]);
+  const resolve = useCallback(
+    (
+      cardIndex: number,
+      deckId: string | null | undefined,
+      size: "display" | "thumbnail" | "sm" | "md" | "full" = "display",
+    ) => resolveCardImage(cardIndex, (deckId && maps[deckId]) || null, size),
     [maps],
   );
+  return { resolve, loading };
 }
 
 /**
