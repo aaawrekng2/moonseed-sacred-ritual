@@ -210,7 +210,12 @@ export interface CardImageProps {
    * the same component owns face/back rendering everywhere.
    */
   flipped?: boolean;
+  /** Q48 Fix 5 — when true, IMG uses loading="eager" instead of "lazy". */
+  eager?: boolean;
 }
+
+// Q48 Fix 5 — `eager` opts a CardImage out of native lazy loading,
+// for above-the-fold images (HeroCard, selected stalker card).
 
 // Standard widths in px. Aspect ratio 1 / 1.75.
 const SIZE_PX: Record<Exclude<CardImageSize, "custom">, number> = {
@@ -249,6 +254,7 @@ export function CardImage({
   ariaLabel,
   shadow = false,
   flipped,
+  eager = false,
 }: CardImageProps) {
   // Resolve image source + radius from active deck OR a specific deck
   // when `deckId` is supplied. Both hooks are always called (Rules of
@@ -595,7 +601,7 @@ export function CardImage({
           <img
             src={faceSrc}
             alt={ariaLabel ?? resolvedName}
-            loading="lazy"
+            loading={eager ? "eager" : "lazy"}
             onLoad={handleImgLoad}
             onError={handleImgError}
             style={{

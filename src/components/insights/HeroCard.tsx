@@ -55,6 +55,7 @@ export function HeroCard({
         size="custom"
         widthPx={120}
         ariaLabel={cardName}
+        eager
         style={{ flexShrink: 0 }}
       />
       <div className="flex flex-1 flex-col justify-center gap-1">

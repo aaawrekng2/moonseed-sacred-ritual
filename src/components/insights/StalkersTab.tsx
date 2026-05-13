@@ -19,6 +19,35 @@ import { StalkerCalendar } from "./StalkerCalendar";
 import { StalkerOccurrenceList } from "./StalkerOccurrenceList";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { LoadingText } from "@/components/ui/loading-text";
+
+// Q48 Fix 4 — count rendered ABOVE the card. Selected card gets a
+// larger pill badge for readability.
+function StalkerCount({ count, selected }: { count: number; selected: boolean }) {
+  if (selected) {
+    return (
+      <span
+        className="tabular-nums"
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-body-lg, 16px)",
+          color: "var(--gold)",
+          background: "color-mix(in oklab, var(--gold) 14%, transparent)",
+          border: "1px solid color-mix(in oklab, var(--gold) 35%, transparent)",
+          borderRadius: 999,
+          padding: "2px 10px",
+          minWidth: 32,
+          textAlign: "center",
+        }}
+      >
+        {count}×
+      </span>
+    );
+  }
+  return (
+    <span className="text-xs text-muted-foreground tabular-nums">{count}×</span>
+  );
+}
 import type {
   InsightsFilters,
   TimeRange,
@@ -320,14 +349,21 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
           {mode === "singles" &&
             singlesList.map((s) => (
               <div key={s.cardId} className="flex flex-col items-center gap-1">
+                {/* Q48 Fix 4 — count above the card. Selected card gets a larger badge for readability. */}
+                <StalkerCount count={s.count} selected={selectedKey === s.cardId} />
                 <button
                   type="button"
                   onClick={() => setSelectedKey(s.cardId)}
                   className={"w-full transition-opacity duration-200 " + selClass(selectedKey, s.cardId)}
                 >
-                  <CardImage cardId={s.cardId} size="medium" className="w-full" style={{ width: "100%", minHeight: 0 }} />
+                  <CardImage
+                    cardId={s.cardId}
+                    size="medium"
+                    className="w-full"
+                    style={{ width: "100%", minHeight: 0 }}
+                    eager={selectedKey === s.cardId}
+                  />
                 </button>
-                <span className="text-xs text-muted-foreground tabular-nums">{s.count}</span>
               </div>
             ))}
 
@@ -336,6 +372,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
               const key = `${t.cardA}-${t.cardB}`;
               return (
                 <div key={key} className="flex flex-col items-center gap-1">
+                  <StalkerCount count={t.count} selected={selectedKey === key} />
                   <button
                     type="button"
                     onClick={() => setSelectedKey(key)}
@@ -348,7 +385,6 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
                       <CardImage cardId={t.cardB} size="medium" style={{ width: "100%", minHeight: 0 }} />
                     </div>
                   </button>
-                  <span className="text-xs text-muted-foreground tabular-nums">{t.count}</span>
                 </div>
               );
             })}
@@ -358,6 +394,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
               const key = t.cardIds.join("-");
               return (
                 <div key={key} className="flex flex-col items-center gap-1">
+                  <StalkerCount count={t.count} selected={selectedKey === key} />
                   <button
                     type="button"
                     onClick={() => setSelectedKey(key)}
@@ -373,7 +410,6 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
                       <CardImage cardId={t.cardIds[2]} size="medium" style={{ width: "100%", minHeight: 0 }} />
                     </div>
                   </button>
-                  <span className="text-xs text-muted-foreground tabular-nums">{t.count}</span>
                 </div>
               );
             })}
@@ -381,14 +417,20 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
           {mode === "reversed" &&
             reversedList.map((r) => (
               <div key={r.cardId} className="flex flex-col items-center gap-1">
+                <StalkerCount count={r.reversedCount} selected={selectedKey === r.cardId} />
                 <button
                   type="button"
                   onClick={() => setSelectedKey(r.cardId)}
                   className={"w-full transition-opacity duration-200 " + selClass(selectedKey, r.cardId)}
                 >
-                  <CardImage cardId={r.cardId} size="medium" reversed style={{ width: "100%", minHeight: 0 }} />
+                  <CardImage
+                    cardId={r.cardId}
+                    size="medium"
+                    reversed
+                    style={{ width: "100%", minHeight: 0 }}
+                    eager={selectedKey === r.cardId}
+                  />
                 </button>
-                <span className="text-xs text-muted-foreground tabular-nums">{r.reversedCount}</span>
               </div>
             ))}
 

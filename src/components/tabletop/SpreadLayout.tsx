@@ -1301,18 +1301,28 @@ export function ManualSpreadSlots({
   }
 
   if (spread === "three") {
-    // Q47 — two-row pattern (matches the custom branch below).
-    const cardAreaH = Math.round(sizing.w * 1.71);
+    // Q48 Fix 1 — use the same viewport-responsive sizing as the
+    // custom branch so a 3-card three spread and a 3-card custom
+    // spread render identically. Avoids top-cropping when filled
+    // card aspect ratios exceed sizing.w * 1.71.
     const cols = picks.length;
+    const gap = 8;
+    const sidePad = 48;
+    const availW =
+      typeof window !== "undefined"
+        ? Math.max(280, window.innerWidth - sidePad)
+        : 320;
+    const cellW = Math.floor((availW - gap * (cols - 1)) / cols);
+    const cardAreaH = Math.round(cellW * 1.71);
     return (
-      <div style={{ width: "100%" }}>
+      <div style={{ width: "100%", overflowX: "hidden" }}>
         <div
           style={{
             display: "grid",
             gridTemplateColumns: `repeat(${cols}, 1fr)`,
-            gap: 16,
+            gap: `${gap}px`,
             alignItems: "end",
-            justifyItems: "center",
+            width: "100%",
             marginBottom: 4,
           }}
         >
@@ -1326,7 +1336,7 @@ export function ManualSpreadSlots({
                 justifyContent: "center",
               }}
             >
-              <Slot pick={pick} slotIndex={i} />
+              <Slot pick={pick} slotIndex={i} responsiveWidth />
             </div>
           ))}
         </div>
@@ -1334,9 +1344,10 @@ export function ManualSpreadSlots({
           style={{
             display: "grid",
             gridTemplateColumns: `repeat(${cols}, 1fr)`,
-            gap: 16,
+            gap: `${gap}px`,
             alignItems: "start",
-            justifyItems: "center",
+            width: "100%",
+            marginBottom: 8,
           }}
         >
           {picks.map((pick, i) => (
@@ -1350,7 +1361,7 @@ export function ManualSpreadSlots({
               }}
             >
               {showLabels && (
-                <PositionLabel cardWidth={sizing.w}>
+                <PositionLabel cardWidth={cellW}>
                   {labels[i] ?? `Card ${i + 1}`}
                 </PositionLabel>
               )}
@@ -1358,7 +1369,7 @@ export function ManualSpreadSlots({
                 <CardNameLabel
                   cardIndex={pick.cardIndex}
                   isReversed={!!pick.isReversed}
-                  cardWidth={sizing.w}
+                  cardWidth={cellW}
                   nameOverride={pick.cardName}
                 />
               )}
