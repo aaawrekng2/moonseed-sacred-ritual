@@ -1209,7 +1209,7 @@ function ReadingCard({
                 reversed={isReversed}
                 size="thumbnail"
                 deckId={perCardDeckId}
-                loading={journalMapsLoading && perCardDeckId != null}
+                loading={!!mapsLoading && perCardDeckId != null}
                 className="flex-shrink-0"
                 style={{ opacity: "var(--ro-plus-30)" }}
               />
@@ -1232,7 +1232,7 @@ function ReadingCard({
                 reversed={isReversed}
                 size="thumbnail"
                 deckId={perCardDeckId}
-                loading={journalMapsLoading && perCardDeckId != null}
+                loading={!!mapsLoading && perCardDeckId != null}
                 style={{ opacity: "var(--ro-plus-30)" }}
               />
             );
