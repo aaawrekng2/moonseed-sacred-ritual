@@ -417,6 +417,25 @@ function PatternChamber() {
             "calc(env(safe-area-inset-top) + var(--space-4, 16px)) var(--space-4, 16px) calc(var(--bottom-nav-height, 72px) + env(safe-area-inset-bottom, 0px) + var(--space-8, 48px))",
         }}
       >
+      {/* Q48 Fix 3 — fixed X close in upper-right, consistent with the rest of the app. */}
+      <div
+        style={{
+          position: "fixed",
+          top: "calc(env(safe-area-inset-top, 0px) + 12px)",
+          right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+          zIndex: 50,
+        }}
+      >
+        <button
+          type="button"
+          aria-label="Close story"
+          onClick={() => void navigate({ to: "/stories" })}
+          className="flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          style={{ opacity: "var(--ro-plus-20, 0.7)" }}
+        >
+          <X size={18} strokeWidth={1.5} aria-hidden="true" />
+        </button>
+      </div>
       <button
         type="button"
         onClick={() => void navigate({ to: "/stories" })}
