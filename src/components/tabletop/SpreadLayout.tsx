@@ -1301,31 +1301,70 @@ export function ManualSpreadSlots({
   }
 
   if (spread === "three") {
+    // Q47 — two-row pattern (matches the custom branch below).
+    const cardAreaH = Math.round(sizing.w * 1.71);
+    const cols = picks.length;
     return (
-      <div className="flex items-end gap-6" style={{ alignItems: "flex-end" }}>
-        {picks.map((pick, i) => (
-          <div
-            key={i}
-            className="flex gap-2"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "flex-end",
-            }}
-          >
-            <Slot pick={pick} slotIndex={i} />
-            {showLabels && <PositionLabel cardWidth={sizing.w}>{labels[i] ?? `Card ${i + 1}`}</PositionLabel>}
-            {showLabels && pick && (
-              <CardNameLabel
-                cardIndex={pick.cardIndex}
-                isReversed={!!pick.isReversed}
-                cardWidth={sizing.w}
-                nameOverride={pick.cardName}
-              />
-            )}
-          </div>
-        ))}
+      <div style={{ width: "100%" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${cols}, 1fr)`,
+            gap: 16,
+            alignItems: "end",
+            justifyItems: "center",
+            marginBottom: 4,
+          }}
+        >
+          {picks.map((pick, i) => (
+            <div
+              key={`card-${i}`}
+              style={{
+                height: cardAreaH,
+                display: "flex",
+                alignItems: "flex-end",
+                justifyContent: "center",
+              }}
+            >
+              <Slot pick={pick} slotIndex={i} />
+            </div>
+          ))}
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${cols}, 1fr)`,
+            gap: 16,
+            alignItems: "start",
+            justifyItems: "center",
+          }}
+        >
+          {picks.map((pick, i) => (
+            <div
+              key={`label-${i}`}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
+              {showLabels && (
+                <PositionLabel cardWidth={sizing.w}>
+                  {labels[i] ?? `Card ${i + 1}`}
+                </PositionLabel>
+              )}
+              {showLabels && pick && (
+                <CardNameLabel
+                  cardIndex={pick.cardIndex}
+                  isReversed={!!pick.isReversed}
+                  cardWidth={sizing.w}
+                  nameOverride={pick.cardName}
+                />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
