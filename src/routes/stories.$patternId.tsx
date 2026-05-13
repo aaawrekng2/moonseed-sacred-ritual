@@ -9,7 +9,7 @@ import { generateCardEvidenceProse } from "@/lib/card-evidence.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { usePremium } from "@/lib/premium";
-import { ChevronLeft, Pencil, Archive, StickyNote } from "lucide-react";
+import { ChevronLeft, Pencil, Archive, StickyNote, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
