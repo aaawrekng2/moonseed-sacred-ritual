@@ -210,6 +210,8 @@ export interface CardImageProps {
    * the same component owns face/back rendering everywhere.
    */
   flipped?: boolean;
+  /** Q48 Fix 5 — when true, IMG uses loading="eager" instead of "lazy". */
+  eager?: boolean;
 }
 
 // Q48 Fix 5 — `eager` opts a CardImage out of native lazy loading,
