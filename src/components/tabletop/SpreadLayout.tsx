@@ -327,43 +327,91 @@ function SpreadContent({
       const rowSize = count <= 5 ? count : Math.ceil(count / 2);
       const row1 = picks.slice(0, rowSize);
       const row2 = picks.slice(rowSize);
-      const renderRow = (rowPicks: typeof picks, rowOffset: number) => (
-        <div
-          key={`row-${rowOffset}`}
-          className="flex items-end justify-center w-full max-w-full"
-          style={{ gap }}
-        >
-          {rowPicks.map((pick, idx) => {
-            const i = rowOffset + idx;
-            return (
-              <div key={pick.id} className="flex flex-col items-center gap-1 min-w-0">
-                <CardFace
-                  pick={pick}
-                  cardBack={cardBack}
-                  revealed={!!revealedFlags[i]}
-                  isNext={nextIndex === i}
-                  isWrong={wrongIndex === i}
-                  onTap={() => onTap(i)}
-                  sizing={{ w: slotW, h: slotH }}
-                  emergeDelayMs={i * 80}
-                  isRevealPhase={isRevealPhase}
-                  onZoom={onZoom}
-                />
-                {showLabels && (
-                  <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
-                )}
-                {showLabels && revealedFlags[i] && (
-                  <CardNameLabel
-                    cardIndex={pick.cardIndex}
-                    isReversed={!!pick.isReversed}
-                    cardWidth={slotW}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      );
+      // Q47 — two-row pattern: cards anchored to a shared floor,
+      // labels in a separate top-aligned row below. Eliminates the
+      // per-cell stacking misalignment when only some cards are
+      // revealed.
+      const cardAreaH = Math.round(slotW * 1.71);
+      const renderRow = (rowPicks: typeof picks, rowOffset: number) => {
+        const colsInRow = rowPicks.length;
+        return (
+          <div key={`row-${rowOffset}`} style={{ width: "100%" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: `repeat(${colsInRow}, 1fr)`,
+                gap: `${gap}px`,
+                alignItems: "end",
+                justifyItems: "center",
+                marginBottom: 4,
+              }}
+            >
+              {rowPicks.map((pick, idx) => {
+                const i = rowOffset + idx;
+                return (
+                  <div
+                    key={`card-${pick.id}`}
+                    style={{
+                      height: cardAreaH,
+                      display: "flex",
+                      alignItems: "flex-end",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <CardFace
+                      pick={pick}
+                      cardBack={cardBack}
+                      revealed={!!revealedFlags[i]}
+                      isNext={nextIndex === i}
+                      isWrong={wrongIndex === i}
+                      onTap={() => onTap(i)}
+                      sizing={{ w: slotW, h: slotH }}
+                      emergeDelayMs={i * 80}
+                      isRevealPhase={isRevealPhase}
+                      onZoom={onZoom}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: `repeat(${colsInRow}, 1fr)`,
+                gap: `${gap}px`,
+                alignItems: "start",
+                justifyItems: "center",
+              }}
+            >
+              {rowPicks.map((pick, idx) => {
+                const i = rowOffset + idx;
+                return (
+                  <div
+                    key={`label-${pick.id}`}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 2,
+                    }}
+                  >
+                    {showLabels && (
+                      <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
+                    )}
+                    {showLabels && revealedFlags[i] && (
+                      <CardNameLabel
+                        cardIndex={pick.cardIndex}
+                        isReversed={!!pick.isReversed}
+                        cardWidth={slotW}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      };
       return (
         <div className="flex flex-col items-center gap-3 w-full max-w-full">
           {renderRow(row1, 0)}
