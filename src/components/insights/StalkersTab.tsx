@@ -349,8 +349,6 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
           {mode === "singles" &&
             singlesList.map((s) => (
               <div key={s.cardId} className="flex flex-col items-center gap-1">
-                {/* Q48 Fix 4 — count above the card. Selected card gets a larger badge for readability. */}
-                <StalkerCount count={s.count} selected={selectedKey === s.cardId} />
                 <button
                   type="button"
                   onClick={() => setSelectedKey(s.cardId)}
@@ -364,6 +362,30 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
                     eager={selectedKey === s.cardId}
                   />
                 </button>
+                {/* Q49 Fix 1 — count below card in same-size badge; only color differs. */}
+                <span
+                  className="tabular-nums"
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body-sm, 13px)",
+                    color: selectedKey === s.cardId ? "var(--gold)" : "var(--color-foreground-muted)",
+                    background:
+                      selectedKey === s.cardId
+                        ? "color-mix(in oklab, var(--gold) 14%, transparent)"
+                        : "color-mix(in oklab, var(--color-foreground) 5%, transparent)",
+                    border:
+                      selectedKey === s.cardId
+                        ? "1px solid color-mix(in oklab, var(--gold) 35%, transparent)"
+                        : "1px solid color-mix(in oklab, var(--color-foreground) 15%, transparent)",
+                    borderRadius: "999px",
+                    padding: "1px 8px",
+                    minWidth: "28px",
+                    textAlign: "center",
+                  }}
+                >
+                  {s.count}×
+                </span>
               </div>
             ))}
 

@@ -331,7 +331,7 @@ function SpreadContent({
       // labels in a separate top-aligned row below. Eliminates the
       // per-cell stacking misalignment when only some cards are
       // revealed.
-      const cardAreaH = Math.round(slotW * 1.71);
+      const cardAreaH = Math.round(slotW * 2);
       const renderRow = (rowPicks: typeof picks, rowOffset: number) => {
         const colsInRow = rowPicks.length;
         return (
@@ -789,7 +789,9 @@ function ThreeRow({
 }) {
   // Q47 — two-row pattern: cards bottom-anchored to a shared floor,
   // labels in a separate top-aligned row below.
-  const cardAreaH = Math.round(sizing.w * 1.71);
+  // Q49 Fix 2 — cardAreaH * 2 instead of * 1.71 so taller-aspect
+  // card images (oracle decks) do not overflow the cell upward.
+  const cardAreaH = Math.round(sizing.w * 2);
   const cols = picks.length;
   return (
     <div style={{ width: "100%" }}>
@@ -1312,8 +1314,11 @@ export function ManualSpreadSlots({
       typeof window !== "undefined"
         ? Math.max(280, window.innerWidth - sidePad)
         : 320;
-    const cellW = Math.floor((availW - gap * (cols - 1)) / cols);
-    const cardAreaH = Math.round(cellW * 1.71);
+    // Q49 Fix 2 — cap cellW so desktop does not render giant cards;
+    // use cellW * 2 so any reasonable card aspect fits without top-crop.
+    const cellWRaw = Math.floor((availW - gap * (cols - 1)) / cols);
+    const cellW = Math.min(cellWRaw, 120);
+    const cardAreaH = Math.round(cellW * 2);
     return (
       <div style={{ width: "100%", overflowX: "hidden" }}>
         <div
@@ -1391,8 +1396,9 @@ export function ManualSpreadSlots({
       typeof window !== "undefined"
         ? Math.max(280, window.innerWidth - sidePad)
         : 320;
-    const cellW = Math.floor((availW - gap * (cols - 1)) / cols);
-    const cardAreaH = Math.round(cellW * 1.71);
+    const cellWRaw = Math.floor((availW - gap * (cols - 1)) / cols);
+    const cellW = Math.min(cellWRaw, 120);
+    const cardAreaH = Math.round(cellW * 2);
     const rows: ManualSlotPick[][] = [];
     if (picks.length <= 5) {
       rows.push(picks);

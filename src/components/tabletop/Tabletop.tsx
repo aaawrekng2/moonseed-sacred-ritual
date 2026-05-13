@@ -1309,6 +1309,9 @@ export function Tabletop({
               className={cn(
                 "flex items-end justify-center px-1 pb-1",
                 required >= 10 ? "gap-1" : "gap-2",
+                // Q49 Fix 3 — wrap to 2 rows when 8+ slots so they fit
+                // within narrow phone viewports.
+                required >= 8 ? "flex-wrap gap-y-2" : "flex-nowrap",
                 // Slot row must allow the active "breathing" beacon's
                 // box-shadow to bleed past its own bounds; hidden overflow
                 // would clip the gold pulse. (Was overflow-x-auto.)
