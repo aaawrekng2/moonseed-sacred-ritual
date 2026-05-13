@@ -810,6 +810,7 @@ function JournalPage() {
             photoCounts={photoCounts}
             patternsById={patternsById}
             onOpen={setOpenId}
+            mapsLoading={journalMapsLoading}
             onArchive={(id) => {
               setReadings((prev) => prev.filter((r) => r.id !== id));
               setArchiveCounter((c) => c + 1);
@@ -837,6 +838,7 @@ function JournalPage() {
             photoCounts={photoCounts}
             patternsById={patternsById}
             onOpen={setOpenId}
+            mapsLoading={journalMapsLoading}
             onArchive={(id) => {
               setReadings((prev) => prev.filter((r) => r.id !== id));
               setArchiveCounter((c) => c + 1);
@@ -938,6 +940,7 @@ function ReadingsList({
   emptyPlain,
   emptyCta,
   onArchive,
+  mapsLoading,
 }: {
   items: ReadingRow[];
   isOracle: boolean;
@@ -948,6 +951,7 @@ function ReadingsList({
   emptyPlain?: string;
   emptyCta?: { label: string; onClick: () => void };
   onArchive?: (id: string) => void;
+  mapsLoading?: boolean;
 }) {
   if (items.length === 0) {
     return (
@@ -969,6 +973,7 @@ function ReadingsList({
             patternsById={patternsById}
             onArchive={onArchive}
             hasPhoto={(photoCounts[r.id] ?? 0) > 0}
+            mapsLoading={mapsLoading}
           />
         </li>
       ))}
@@ -982,12 +987,14 @@ function ReadingCard({
   patternsById,
   onArchive,
   hasPhoto,
+  mapsLoading,
 }: {
   reading: ReadingRow;
   onOpen: (id: string) => void;
   patternsById: Record<string, PatternRow>;
   onArchive?: (id: string) => void;
   hasPhoto?: boolean;
+  mapsLoading?: boolean;
 }) {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
