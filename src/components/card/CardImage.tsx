@@ -254,6 +254,7 @@ export function CardImage({
   ariaLabel,
   shadow = false,
   flipped,
+  eager = false,
 }: CardImageProps) {
   // Resolve image source + radius from active deck OR a specific deck
   // when `deckId` is supplied. Both hooks are always called (Rules of
@@ -600,7 +601,7 @@ export function CardImage({
           <img
             src={faceSrc}
             alt={ariaLabel ?? resolvedName}
-            loading="lazy"
+            loading={eager ? "eager" : "lazy"}
             onLoad={handleImgLoad}
             onError={handleImgError}
             style={{
