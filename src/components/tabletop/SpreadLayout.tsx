@@ -345,7 +345,12 @@ function SpreadContent({
       const effectiveViewportW = Math.max(280, rawViewportW - 24);
       const cols = Math.min(count, 5);
       const slotW = responsiveSlotWidth(effectiveViewportW, cols);
-      const slotH = Math.round(slotW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
+      // Q50 Fix 7 — in reveal phase the cards stop being small slot-rail
+      // tap targets and become the focal display. Scale slotW up (capped
+      // at 140) so they don't read as tiny.
+      const revealScale = isRevealPhase ? 1.6 : 1.0;
+      const displayW = Math.min(Math.round(slotW * revealScale), 140);
+      const slotH = Math.round(displayW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
       const gap = count >= 10 ? 4 : 8;
       const rowSize = count <= 5 ? count : Math.ceil(count / 2);
       const row1 = picks.slice(0, rowSize);
@@ -354,7 +359,7 @@ function SpreadContent({
       // labels in a separate top-aligned row below. Eliminates the
       // per-cell stacking misalignment when only some cards are
       // revealed.
-      const cardAreaH = Math.round(slotW * 2);
+      const cardAreaH = Math.round(displayW * 2);
       const renderRow = (rowPicks: typeof picks, rowOffset: number) => {
         const colsInRow = rowPicks.length;
         return (
@@ -388,7 +393,7 @@ function SpreadContent({
                       isNext={nextIndex === i}
                       isWrong={wrongIndex === i}
                       onTap={() => onTap(i)}
-                      sizing={{ w: slotW, h: slotH }}
+                      sizing={{ w: displayW, h: slotH }}
                       emergeDelayMs={i * 80}
                       isRevealPhase={isRevealPhase}
                       onZoom={onZoom}
@@ -419,13 +424,13 @@ function SpreadContent({
                     }}
                   >
                     {showLabels && (
-                      <PositionLabel cardWidth={slotW}>{`Card ${i + 1}`}</PositionLabel>
+                      <PositionLabel cardWidth={displayW}>{`Card ${i + 1}`}</PositionLabel>
                     )}
                     {showLabels && revealedFlags[i] && (
                       <CardNameLabel
                         cardIndex={pick.cardIndex}
                         isReversed={!!pick.isReversed}
-                        cardWidth={slotW}
+                        cardWidth={displayW}
                       />
                     )}
                   </div>
