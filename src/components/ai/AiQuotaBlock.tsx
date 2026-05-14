@@ -81,6 +81,21 @@ export function AiQuotaBlock({
           upgrade to premium
         </button>
       )}
+      <div style={{ marginTop: "var(--space-2, 8px)" }}>
+        <a
+          href="/settings/usage"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm, 14px)",
+            color: "var(--color-foreground, var(--foreground))",
+            opacity: 0.7,
+            textDecoration: "underline",
+          }}
+        >
+          View my usage
+        </a>
+      </div>
     </div>
   );
 }
