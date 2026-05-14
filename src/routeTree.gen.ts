@@ -13,6 +13,7 @@ import { Route as ThreadsRouteImport } from './routes/threads'
 import { Route as StoriesRouteImport } from './routes/stories'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScatterTestRouteImport } from './routes/scatter-test'
+import { Route as NumerologyRouteImport } from './routes/numerology'
 import { Route as JournalRouteImport } from './routes/journal'
 import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as HelpRouteImport } from './routes/help'
@@ -60,6 +61,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const ScatterTestRoute = ScatterTestRouteImport.update({
   id: '/scatter-test',
   path: '/scatter-test',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NumerologyRoute = NumerologyRouteImport.update({
+  id: '/numerology',
+  path: '/numerology',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JournalRoute = JournalRouteImport.update({
@@ -213,6 +219,7 @@ export interface FileRoutesByFullPath {
   '/help': typeof HelpRouteWithChildren
   '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
+  '/numerology': typeof NumerologyRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
@@ -246,6 +253,7 @@ export interface FileRoutesByTo {
   '/help': typeof HelpRouteWithChildren
   '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
+  '/numerology': typeof NumerologyRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
@@ -281,6 +289,7 @@ export interface FileRoutesById {
   '/help': typeof HelpRouteWithChildren
   '/insights': typeof InsightsRouteWithChildren
   '/journal': typeof JournalRoute
+  '/numerology': typeof NumerologyRoute
   '/scatter-test': typeof ScatterTestRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stories': typeof StoriesRouteWithChildren
@@ -317,6 +326,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/insights'
     | '/journal'
+    | '/numerology'
     | '/scatter-test'
     | '/settings'
     | '/stories'
@@ -350,6 +360,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/insights'
     | '/journal'
+    | '/numerology'
     | '/scatter-test'
     | '/settings'
     | '/stories'
@@ -384,6 +395,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/insights'
     | '/journal'
+    | '/numerology'
     | '/scatter-test'
     | '/settings'
     | '/stories'
@@ -419,6 +431,7 @@ export interface RootRouteChildren {
   HelpRoute: typeof HelpRouteWithChildren
   InsightsRoute: typeof InsightsRouteWithChildren
   JournalRoute: typeof JournalRoute
+  NumerologyRoute: typeof NumerologyRoute
   ScatterTestRoute: typeof ScatterTestRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   StoriesRoute: typeof StoriesRouteWithChildren
@@ -454,6 +467,13 @@ declare module '@tanstack/react-router' {
       path: '/scatter-test'
       fullPath: '/scatter-test'
       preLoaderRoute: typeof ScatterTestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/numerology': {
+      id: '/numerology'
+      path: '/numerology'
+      fullPath: '/numerology'
+      preLoaderRoute: typeof NumerologyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/journal': {
@@ -778,6 +798,7 @@ const rootRouteChildren: RootRouteChildren = {
   HelpRoute: HelpRouteWithChildren,
   InsightsRoute: InsightsRouteWithChildren,
   JournalRoute: JournalRoute,
+  NumerologyRoute: NumerologyRoute,
   ScatterTestRoute: ScatterTestRoute,
   SettingsRoute: SettingsRouteWithChildren,
   StoriesRoute: StoriesRouteWithChildren,
