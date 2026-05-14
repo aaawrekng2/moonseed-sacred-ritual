@@ -1062,6 +1062,7 @@ export type Database = {
           bg_gradient_from: string | null
           bg_gradient_to: string | null
           birth_date: string | null
+          birth_name: string | null
           birth_place: string | null
           birth_time: string | null
           card_back: string
@@ -1132,6 +1133,7 @@ export type Database = {
           bg_gradient_from?: string | null
           bg_gradient_to?: string | null
           birth_date?: string | null
+          birth_name?: string | null
           birth_place?: string | null
           birth_time?: string | null
           card_back?: string
@@ -1202,6 +1204,7 @@ export type Database = {
           bg_gradient_from?: string | null
           bg_gradient_to?: string | null
           birth_date?: string | null
+          birth_name?: string | null
           birth_place?: string | null
           birth_time?: string | null
           card_back?: string
