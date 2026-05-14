@@ -2190,7 +2190,7 @@ function ReadingDetail({
   useRegisterCloseHandler(onClose);
 
   return (
-    <FullScreenSheet open onClose={onClose} entry="fade" showCloseButton={false}>
+    <FullScreenSheet open onClose={onClose} entry="fade" showCloseButton>
       <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+56px)]">
         {isArchived && (
           <div
