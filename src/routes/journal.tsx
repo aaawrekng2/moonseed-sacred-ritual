@@ -2064,10 +2064,13 @@ function ReadingDetail({
     ? reading.card_ids.slice(0, cardsPerRow)
     : reading.card_ids;
   const row2Ids = useTwoRows ? reading.card_ids.slice(cardsPerRow) : [];
-  // FB-3 — single-card readings get a larger card. Divisor 1.5 makes
-  // the card ~2/3 of row width — about 2× the per-card width of a
-  // 3-card spread. Multi-card spreads keep proportional sizing.
-  const ezBaseDivisor = ezCardCount === 1 ? 1.5 : cardsPerRow;
+  // Q50 Fix 6 — scale cards up so they feel focal instead of cramped.
+  const ezBaseDivisor =
+    ezCardCount === 1
+      ? 1.5
+      : cardsPerRow <= 3
+        ? cardsPerRow * 0.7
+        : cardsPerRow * 0.85;
   // FA-2 — use measured row width instead of hardcoded 320 so
   // single cards actually fill the available space.
   const ezCardWidthRaw = Math.max(
@@ -2190,7 +2193,7 @@ function ReadingDetail({
   useRegisterCloseHandler(onClose);
 
   return (
-    <FullScreenSheet open onClose={onClose} entry="fade" showCloseButton={false}>
+    <FullScreenSheet open onClose={onClose} entry="fade" showCloseButton>
       <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+56px)]">
         {isArchived && (
           <div
@@ -2355,7 +2358,7 @@ function ReadingDetail({
                     className="max-w-[120px] text-center font-display italic text-muted-foreground"
                     style={{
                       opacity: "var(--ro-plus-20)",
-                      fontSize: "var(--text-caption, 11px)",
+                      fontSize: "var(--text-body-sm, 13px)",
                       letterSpacing: "0.05em",
                     }}
                   >
@@ -2383,7 +2386,9 @@ function ReadingDetail({
             // floor in a fixed-height grid; labels in a separate
             // top-aligned grid below. Keeps mixed deck aspect ratios
             // and reversed/wrap label variations from misaligning.
-            const cardAreaH = Math.round(ezCardWidthPx * 1.71);
+            // Q50 Fix 6 — multiplier 2 so taller card aspects (oracle)
+            // do not crop upward.
+            const cardAreaH = Math.round(ezCardWidthPx * 2);
             const renderCardCell = (id: number, idx: number) => {
               const isReversed = !!reading.card_orientations?.[idx];
               const perCardDeckId =
