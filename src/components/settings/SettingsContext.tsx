@@ -21,6 +21,7 @@ export type Prefs = {
   birth_date: string | null;
   birth_time: string | null;
   birth_place: string | null;
+  birth_name: string | null;
   sun_sign: string | null;
   rising_sign: string | null;
   initial_intention: string | null;
@@ -52,6 +53,7 @@ const DEFAULT_PREFS: Prefs = {
   birth_date: null,
   birth_time: null,
   birth_place: null,
+  birth_name: null,
   sun_sign: null,
   rising_sign: null,
   initial_intention: null,
@@ -104,7 +106,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("user_preferences")
         .select(
-          "display_name, birth_date, birth_time, birth_place, sun_sign, rising_sign, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_carousel_size, moon_ai_phase, moon_ai_sign, moon_void_warning, memory_ai_permission, show_question_prompt, allow_reversed_cards, track_reversals, reduce_premium_prompts, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
+          "display_name, birth_date, birth_time, birth_place, birth_name, sun_sign, rising_sign, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_carousel_size, moon_ai_phase, moon_ai_sign, moon_void_warning, memory_ai_permission, show_question_prompt, allow_reversed_cards, track_reversals, reduce_premium_prompts, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -129,6 +131,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         birth_date: n("birth_date"),
         birth_time: n("birth_time"),
         birth_place: n("birth_place"),
+        birth_name: n("birth_name"),
         sun_sign: n("sun_sign"),
         rising_sign: n("rising_sign"),
         initial_intention: n("initial_intention"),

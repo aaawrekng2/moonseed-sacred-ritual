@@ -26,7 +26,6 @@ import {
   type StalkerCardsResult,
   type TimeRange,
 } from "@/lib/insights.types";
-import { StalkerCardsSection } from "@/components/insights/StalkerCardsSection";
 import { CardFrequencySection } from "@/components/insights/CardFrequencySection";
 import { CardPairsSection } from "@/components/insights/CardPairsSection";
 import { ReversalPatternsSection } from "@/components/insights/ReversalPatternsSection";
@@ -35,11 +34,11 @@ import { MoonPhaseInsightRing } from "@/components/insights/MoonPhaseInsightRing
 import { TimeOfDayRadial } from "@/components/insights/TimeOfDayRadial";
 import { StreakHistory } from "@/components/insights/StreakHistory";
 import { TagCloud } from "@/components/insights/TagCloud";
-import { GuidePreferences } from "@/components/insights/GuidePreferences";
 import { QuestionThemesLocked } from "@/components/insights/QuestionThemesLocked";
 import { RecapTab } from "@/components/insights/RecapTab";
 import { LunationBanner } from "@/components/insights/LunationBanner";
 import { StalkersTab } from "@/components/insights/StalkersTab";
+import { NumerologyTab } from "@/components/insights/NumerologyTab";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { EmptyHero } from "@/components/ui/empty-hero";
 import type { MoonPhaseName } from "@/lib/moon";
@@ -55,15 +54,15 @@ export const Route = createFileRoute("/insights")({
   component: InsightsRoute,
 });
 
-// FL-1 — new Stalkers tab between Themes and Recap.
-type Tab = "overview" | "cards" | "calendar" | "themes" | "stalkers" | "recap";
+// Q51a — Themes tab removed; Numerology tab added.
+type Tab = "overview" | "cards" | "calendar" | "stalkers" | "numerology" | "recap";
 
 const TABS: ReadonlyArray<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "cards", label: "Cards" },
   { id: "calendar", label: "Calendar" },
-  { id: "themes", label: "Themes" },
   { id: "stalkers", label: "Stalkers" },
+  { id: "numerology", label: "Numerology" },
   { id: "recap", label: "Recap" },
 ];
 
@@ -283,19 +282,30 @@ function InsightsRoute() {
         ) : null}
         <div className="mx-auto">
           {tab === "overview" && (
-            <OverviewTab
-              loading={loading}
-              overview={overview}
-              stalkers={stalkers}
-              filtersActive={hasAnyActive(globalFilters)}
-              onClearFilters={() => setFilters(DEFAULT_FILTERS)}
-              onTapHero={() => setTab("cards")}
-              onEmptyCta={() => navigate({ to: "/" })}
-            />
+            <>
+              <OverviewTab
+                loading={loading}
+                overview={overview}
+                stalkers={stalkers}
+                filtersActive={hasAnyActive(globalFilters)}
+                onClearFilters={() => setFilters(DEFAULT_FILTERS)}
+                onTapHero={() => setTab("cards")}
+                onEmptyCta={() => navigate({ to: "/" })}
+              />
+              <div className="flex flex-col gap-12 pt-8 pb-12">
+                <TagCloud
+                  filters={filters}
+                  onTagSelect={(tagId) => {
+                    setFilters((f) => ({ ...f, tagIds: [tagId] }));
+                    setTab("cards");
+                  }}
+                />
+                <QuestionThemesLocked filters={filters} />
+              </div>
+            </>
           )}
           {tab === "cards" && (
             <div className="flex flex-col gap-8 pb-12">
-              <StalkerCardsSection filters={filters} />
               <CardFrequencySection filters={filters} />
               <CardPairsSection filters={filters} />
               <ReversalPatternsSection filters={filters} />
@@ -317,20 +327,8 @@ function InsightsRoute() {
               <StreakHistory />
             </div>
           )}
-          {tab === "themes" && (
-            <div className="flex flex-col gap-12 pb-12">
-              <TagCloud
-                filters={filters}
-                onTagSelect={(tagId) => {
-                  setFilters((f) => ({ ...f, tagIds: [tagId] }));
-                  setTab("cards");
-                }}
-              />
-              <GuidePreferences filters={filters} />
-              <QuestionThemesLocked filters={filters} />
-            </div>
-          )}
           {tab === "stalkers" && <StalkersTab filters={filters} />}
+          {tab === "numerology" && <NumerologyTab />}
           {tab === "recap" && <RecapTab />}
         </div>
       </main>
