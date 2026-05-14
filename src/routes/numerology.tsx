@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { NumerologyTodayTab } from "@/components/numerology/NumerologyTodayTab";
+import { NumerologyBlueprintTab } from "@/components/numerology/NumerologyBlueprintTab";
 
 export const Route = createFileRoute("/numerology")({
   head: () => ({
@@ -228,10 +229,7 @@ function NumerologyPage() {
             <NumerologyTodayTab birthDate={birthDate} birthName={birthName} />
           )}
           {tab === "blueprint" && (
-            <ComingSoonStub
-              label="Blueprint"
-              intro="The static map of your numbers: Birth Cards, Life Path, Expression, Soul Urge, Personality, Karmic Lessons, and more."
-            />
+            <NumerologyBlueprintTab birthDate={birthDate} birthName={birthName} />
           )}
           {tab === "cycles" && (
             <ComingSoonStub
