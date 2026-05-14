@@ -26,7 +26,6 @@ import {
   type StalkerCardsResult,
   type TimeRange,
 } from "@/lib/insights.types";
-import { StalkerCardsSection } from "@/components/insights/StalkerCardsSection";
 import { CardFrequencySection } from "@/components/insights/CardFrequencySection";
 import { CardPairsSection } from "@/components/insights/CardPairsSection";
 import { ReversalPatternsSection } from "@/components/insights/ReversalPatternsSection";
@@ -283,15 +282,27 @@ function InsightsRoute() {
         ) : null}
         <div className="mx-auto">
           {tab === "overview" && (
-            <OverviewTab
-              loading={loading}
-              overview={overview}
-              stalkers={stalkers}
-              filtersActive={hasAnyActive(globalFilters)}
-              onClearFilters={() => setFilters(DEFAULT_FILTERS)}
-              onTapHero={() => setTab("cards")}
-              onEmptyCta={() => navigate({ to: "/" })}
-            />
+            <>
+              <OverviewTab
+                loading={loading}
+                overview={overview}
+                stalkers={stalkers}
+                filtersActive={hasAnyActive(globalFilters)}
+                onClearFilters={() => setFilters(DEFAULT_FILTERS)}
+                onTapHero={() => setTab("cards")}
+                onEmptyCta={() => navigate({ to: "/" })}
+              />
+              <div className="flex flex-col gap-12 pt-8 pb-12">
+                <TagCloud
+                  filters={filters}
+                  onTagSelect={(tagId) => {
+                    setFilters((f) => ({ ...f, tagIds: [tagId] }));
+                    setTab("cards");
+                  }}
+                />
+                <QuestionThemesLocked filters={filters} />
+              </div>
+            </>
           )}
           {tab === "cards" && (
             <div className="flex flex-col gap-8 pb-12">
