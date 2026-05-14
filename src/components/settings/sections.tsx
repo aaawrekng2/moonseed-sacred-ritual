@@ -626,6 +626,7 @@ function BlueprintSectionInner({
   );
   const [birthTime, setBirthTime] = useState(prefs.birth_time ?? "");
   const [birthPlace, setBirthPlace] = useState(prefs.birth_place ?? "");
+  const [birthName, setBirthName] = useState<string>(prefs.birth_name ?? "");
   const [saving, setSaving] = useState(false);
 
   const sunSign = useMemo<SunSign | null>(
@@ -643,6 +644,7 @@ function BlueprintSectionInner({
       birth_date: birthDate ? format(birthDate, "yyyy-MM-dd") : null,
       birth_time: birthTime || null,
       birth_place: birthPlace.trim() || null,
+      birth_name: birthName.trim() || null,
       sun_sign: sunSign,
       rising_sign: risingSign,
     });
@@ -656,6 +658,7 @@ function BlueprintSectionInner({
       birth_date: birthDate ? format(birthDate, "yyyy-MM-dd") : null,
       birth_time: birthTime || null,
       birth_place: birthPlace.trim() || null,
+      birth_name: birthName.trim() || null,
       sun_sign: sunSign,
       rising_sign: risingSign,
     });
@@ -726,6 +729,20 @@ function BlueprintSectionInner({
             onChange={(e) => setBirthPlace(e.target.value)}
             placeholder="e.g. Lisbon, Portugal"
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="birth-name">Full birth name (optional)</Label>
+          <Input
+            id="birth-name"
+            type="text"
+            value={birthName}
+            onChange={(e) => setBirthName(e.target.value)}
+            placeholder="e.g. Jane Marie Doe"
+          />
+          <p className="text-xs text-muted-foreground">
+            First, middle, and last as written on your birth certificate. Used for name-based numerology numbers (Expression, Soul Urge, Personality).
+          </p>
         </div>
 
         {(sunSign || risingSign) && (
