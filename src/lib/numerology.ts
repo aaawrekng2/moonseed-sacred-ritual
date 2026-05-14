@@ -92,8 +92,8 @@ export function personalDay(
 // ===== Birth Cards (Major Arcana from birth date sum) =====
 
 export type BirthCards = {
-  primary: number; // Major Arcana index 1-21
-  secondary: number; // Major Arcana index 1-9
+  primary: number; // Major Arcana 1-21 (the larger of the two)
+  secondary: number | null; // Single digit 1-9, or null if same as primary
   third: number | null;
 };
 
@@ -108,11 +108,13 @@ export function birthCards(birthDate: string): BirthCards {
       .reduce((s, c) => s + Number(c), 0);
   }
   const primary = sum;
-  let secondary = primary;
-  while (secondary > 9) {
-    secondary = String(secondary)
-      .split("")
-      .reduce((s, c) => s + Number(c), 0);
+  let secondary: number | null = null;
+  if (primary > 9) {
+    let s = primary;
+    while (s > 9) {
+      s = String(s).split("").reduce((acc, c) => acc + Number(c), 0);
+    }
+    secondary = s;
   }
   const third = seen.includes(19) ? 10 : null;
   return { primary, secondary, third };

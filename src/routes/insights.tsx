@@ -38,7 +38,7 @@ import { QuestionThemesLocked } from "@/components/insights/QuestionThemesLocked
 import { RecapTab } from "@/components/insights/RecapTab";
 import { LunationBanner } from "@/components/insights/LunationBanner";
 import { StalkersTab } from "@/components/insights/StalkersTab";
-import { NumerologyTab } from "@/components/insights/NumerologyTab";
+import { StoriesTab } from "@/components/insights/StoriesTab";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { EmptyHero } from "@/components/ui/empty-hero";
 import type { MoonPhaseName } from "@/lib/moon";
@@ -51,24 +51,33 @@ export const Route = createFileRoute("/insights")({
       { name: "description", content: "Patterns, rhythms, and stalker cards across your readings." },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    tab: typeof search.tab === "string" ? (search.tab as string) : undefined,
+  }),
   component: InsightsRoute,
 });
 
-// Q51a — Themes tab removed; Numerology tab added.
-type Tab = "overview" | "cards" | "calendar" | "stalkers" | "numerology" | "recap";
+// Q52a — Numerology promoted to /numerology; Stories absorbed as a sub-tab.
+type Tab = "overview" | "cards" | "calendar" | "stalkers" | "stories" | "recap";
 
 const TABS: ReadonlyArray<{ id: Tab; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "cards", label: "Cards" },
   { id: "calendar", label: "Calendar" },
   { id: "stalkers", label: "Stalkers" },
-  { id: "numerology", label: "Numerology" },
+  { id: "stories", label: "Stories" },
   { id: "recap", label: "Recap" },
 ];
 
 function InsightsRoute() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>("overview");
+  const search = Route.useSearch();
+  const initialTab: Tab = (
+    ["overview", "cards", "calendar", "stalkers", "stories", "recap"] as Tab[]
+  ).includes(search.tab as Tab)
+    ? (search.tab as Tab)
+    : "overview";
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => {
     void supabase.auth.getUser().then(({ data }) => {
@@ -328,7 +337,7 @@ function InsightsRoute() {
             </div>
           )}
           {tab === "stalkers" && <StalkersTab filters={filters} />}
-          {tab === "numerology" && <NumerologyTab />}
+          {tab === "stories" && <StoriesTab />}
           {tab === "recap" && <RecapTab />}
         </div>
       </main>
