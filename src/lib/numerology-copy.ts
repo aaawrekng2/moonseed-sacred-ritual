@@ -72,3 +72,52 @@ export const NUMBER_MEANINGS: Record<number, NumberMeaning> = {
     full: "The teacher whose lesson is presence itself. You are asked to love at scale, without losing the small and tender places in yourself. Compassion is the discipline.",
   },
 };
+
+/**
+ * Q51b — Moon × Numerology synthesis lookup.
+ *
+ * Static composition of (digit 1-9) × (8 moon phases) = 72 short oracle
+ * lines. Built programmatically at module load to keep this file small
+ * while still satisfying the lookup contract: callers do
+ * `MOON_NUMEROLOGY_SYNTHESIS["${digit}_${phase}"]` and fall back to
+ * `NUMBER_MEANINGS[digit].short` if missing.
+ *
+ * Master numbers (11/22/33) are not separately keyed; the digit they
+ * reduce to is used by the caller. Moonseed voice: serif, italic,
+ * brief, never longer than ~120 chars.
+ */
+
+const DIGIT_SUBJECT: Record<number, string> = {
+  1: "A beginning",
+  2: "A partnership",
+  3: "A creation",
+  4: "A foundation",
+  5: "A change",
+  6: "A tending",
+  7: "An inward turn",
+  8: "A held power",
+  9: "A completion",
+};
+
+const PHASE_CLAUSE: Record<string, string> = {
+  "New Moon": "meets the dark — plant the seed before you can see it.",
+  "Waxing Crescent": "draws its first breath — name what you intend.",
+  "First Quarter": "asks for a decision — choose, then commit the body.",
+  "Waxing Gibbous": "gathers momentum — refine, do not rush the bloom.",
+  "Full Moon": "stands fully lit — see what you have actually built.",
+  "Waning Gibbous": "gives thanks and teaches — share what is already true.",
+  "Last Quarter": "asks what to release — forgive the version that brought you here.",
+  "Waning Crescent": "rests in the long quiet — listen before the next seed.",
+};
+
+function buildSynthesis(): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (let d = 1; d <= 9; d++) {
+    for (const phase of Object.keys(PHASE_CLAUSE)) {
+      out[`${d}_${phase}`] = `${DIGIT_SUBJECT[d]} ${PHASE_CLAUSE[phase]}`;
+    }
+  }
+  return out;
+}
+
+export const MOON_NUMEROLOGY_SYNTHESIS: Record<string, string> = buildSynthesis();
