@@ -121,3 +121,88 @@ function buildSynthesis(): Record<string, string> {
 }
 
 export const MOON_NUMEROLOGY_SYNTHESIS: Record<string, string> = buildSynthesis();
+
+// ===== Q52b — Karmic Debt, Karmic Lessons, Letter Energy =====
+
+export const KARMIC_DEBT_MEANINGS: Record<number, NumberMeaning> = {
+  13: {
+    keyword: "The Sacred Labor",
+    short: "Build through effort, not shortcuts.",
+    full: "A debt of discipline. In another lifetime the easy road was chosen; this time the work itself is the medicine. Lay one stone, then another — refuse the shortcut and the foundation becomes unshakable.",
+  },
+  14: {
+    keyword: "The Disciplined Freedom",
+    short: "Master restraint, then receive abundance.",
+    full: "A debt of moderation. Once, the senses ruled; now they must be apprenticed. Freedom returns when desire learns to serve the soul instead of devouring it.",
+  },
+  16: {
+    keyword: "The Tower's Lesson",
+    short: "Pride dismantled, ego rebuilt in truth.",
+    full: "A debt of humility. Structures built on ego will fall — and the falling is the gift. What rises after is yours, finally and truly.",
+  },
+  19: {
+    keyword: "The Solitary Sun",
+    short: "Stand in your own light, alone if needed.",
+    full: "A debt of self-reliance. In another life, power was used over others; here it must be carried without leaning on them. The reward is sovereignty — light that needs no audience.",
+  },
+};
+
+export const KARMIC_LESSON_MEANINGS: Record<number, NumberMeaning> = {
+  1: {
+    keyword: "Underdeveloped 1",
+    short: "Learning to lead.",
+    full: "Initiative does not yet feel native. The lesson is to choose first — to begin without waiting for permission, and to let your direction become a path others can follow.",
+  },
+  2: {
+    keyword: "Underdeveloped 2",
+    short: "Learning to partner.",
+    full: "Cooperation, patience, and the soft arts of relationship are the work. The lesson is to listen as deeply as you speak, and to trust that softness is also strength.",
+  },
+  3: {
+    keyword: "Underdeveloped 3",
+    short: "Learning to express.",
+    full: "Voice, joy, and creative play feel held back. The lesson is to make — to risk being seen, to let colour leave the body before it dims inside it.",
+  },
+  4: {
+    keyword: "Underdeveloped 4",
+    short: "Learning to build.",
+    full: "Structure and follow-through are the apprenticeship. The lesson is to stay — to finish what you start, slowly, and to discover that ground is freedom too.",
+  },
+  5: {
+    keyword: "Underdeveloped 5",
+    short: "Learning to flow.",
+    full: "Change, risk, and the body's appetite for adventure are underused. The lesson is to move — to release the grip and let life surprise you again.",
+  },
+  6: {
+    keyword: "Underdeveloped 6",
+    short: "Learning to tend.",
+    full: "Responsibility for others — and for beauty — is the work. The lesson is to weave a hearth, to take loving care without losing yourself in the giving.",
+  },
+  7: {
+    keyword: "Underdeveloped 7",
+    short: "Learning to seek.",
+    full: "Solitude, depth, and the inward turn are unfamiliar. The lesson is to sit in the quiet long enough for what is true to surface.",
+  },
+  8: {
+    keyword: "Underdeveloped 8",
+    short: "Learning to hold power.",
+    full: "Money, authority, and the visible use of force feel foreign. The lesson is to claim — to wield real power with integrity, neither apologising for it nor weaponising it.",
+  },
+  9: {
+    keyword: "Underdeveloped 9",
+    short: "Learning to complete.",
+    full: "Endings, release, and service to something larger are the work. The lesson is to let go cleanly — and to discover the wisdom that comes with closing a circle well.",
+  },
+};
+
+export const LETTER_ENERGY_MEANINGS: Record<number, string> = {
+  1: "Begins with bold initiative — first foot forward, decisively.",
+  2: "Begins gently — sensing the room before stepping into it.",
+  3: "Begins with expression — a word, a song, a coloured gesture.",
+  4: "Begins by laying ground — methodically, stone by stone.",
+  5: "Begins in motion — the doorway opens and you are already through.",
+  6: "Begins by tending — making a place soft enough for what comes next.",
+  7: "Begins inwardly — a long pause, then a quiet, considered step.",
+  8: "Begins with strategy — measuring scope before commitment.",
+  9: "Begins from completion — closing the last circle to free the new one.",
+};
