@@ -2358,7 +2358,7 @@ function ReadingDetail({
                     className="max-w-[120px] text-center font-display italic text-muted-foreground"
                     style={{
                       opacity: "var(--ro-plus-20)",
-                      fontSize: "var(--text-caption, 11px)",
+                      fontSize: "var(--text-body-sm, 13px)",
                       letterSpacing: "0.05em",
                     }}
                   >
