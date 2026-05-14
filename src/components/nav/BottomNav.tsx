@@ -1,55 +1,27 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Moon, BookOpen, SlidersHorizontal, Network, BarChart3 } from "lucide-react";
+import { Moon, BookOpen, SlidersHorizontal, Hash, BarChart3 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/lib/auth";
-import { usePatternsCount } from "@/lib/patterns";
-import { useEffect, useState } from "react";
 
 type Tab = {
-  to: "/" | "/journal" | "/settings" | "/stories" | "/insights";
+  to: "/" | "/journal" | "/settings" | "/numerology" | "/insights";
   label: string;
   Icon: LucideIcon;
   primary?: boolean;
 };
 
-// EJ-2 — Order: Journal (left), Insights, Home (center, primary), Settings (right).
-// Stories appears as a 5th tab when the seeker has any patterns.
-const BASE_TABS: readonly Tab[] = [
+// Q52a — Symmetric 5-tab layout: Numerology promoted to its own page,
+// Stories moved into Insights as a sub-tab.
+const TABS: readonly Tab[] = [
   { to: "/journal", label: "Journal", Icon: BookOpen },
-  { to: "/insights", label: "Insights", Icon: BarChart3 },
+  { to: "/numerology", label: "Numerology", Icon: Hash },
   { to: "/", label: "Home", Icon: Moon, primary: true },
+  { to: "/insights", label: "Insights", Icon: BarChart3 },
   { to: "/settings", label: "Settings", Icon: SlidersHorizontal },
 ] as const;
 
-const THREADS_TAB: Tab = { to: "/stories", label: "Stories", Icon: Network };
-
 export function BottomNav() {
   const location = useLocation();
-  const { user } = useAuth();
-  const { count } = usePatternsCount(user?.id);
-  // Once a pattern exists we mount the tab and fade it in (200ms).
-  // We never *unmount* it after first appearance within this session
-  // even if the count drops back to 0 mid-flight — patterns becoming
-  // ephemeral would be jarring.
-  const [showThreads, setShowThreads] = useState(false);
-  const [threadsOpacity, setThreadsOpacity] = useState(0);
-  useEffect(() => {
-    if (count > 0 && !showThreads) {
-      setShowThreads(true);
-      // next paint -> fade in
-      requestAnimationFrame(() => setThreadsOpacity(1));
-    } else if (count > 0) {
-      setThreadsOpacity(1);
-    }
-  }, [count, showThreads]);
-
-  // EN-0 — 5-tab order: Journal | Stories | Home | Insights | Settings,
-  // so Home (primary) sits at the true geometric center (index 2 of 5).
-  // BASE_TABS is [Journal, Insights, Home, Settings].
-  const tabs: Tab[] = showThreads
-    ? [BASE_TABS[0], THREADS_TAB, BASE_TABS[2], BASE_TABS[1], BASE_TABS[3]]
-    : [...BASE_TABS];
 
   return (
     <nav
@@ -65,47 +37,29 @@ export function BottomNav() {
     >
       <ul
         className="mx-auto flex items-center justify-center px-4"
-        style={{ height: 72, maxWidth: showThreads ? 440 : 360, gap: showThreads ? 28 : 36, paddingTop: 8 }}
+        style={{ height: 72, maxWidth: 440, gap: 28, paddingTop: 8 }}
       >
-        {tabs.map(({ to, label, Icon, primary }) => {
-          // Tabs that own sub-routes (/settings/*, /threads/*, /insights/*)
-          // need prefix matching so the icon stays highlighted on the
-          // detail pages. "/" and "/journal" don't have sub-routes; they
-          // use exact match (otherwise "/" would stay active everywhere).
+        {TABS.map(({ to, label, Icon, primary }) => {
           const path = location.pathname;
           const hasSubRoutes = to !== "/" && to !== "/journal";
           const active = hasSubRoutes
             ? path === to || path.startsWith(`${to}/`)
             : path === to;
           const iconSize = primary ? 36 : 20;
-          // Active = signature gold. Inactive (including Home) = neutral
-          // foreground/white tint. Primary keeps a slight size advantage.
-          const tabAlpha = active
-            ? "var(--ro-plus-10)"
-            : "var(--ro-plus-0)";
-          const isThreadsTab = to === "/stories";
+          const tabAlpha = active ? "var(--ro-plus-10)" : "var(--ro-plus-0)";
           return (
-            <li
-              key={to}
-              style={
-                isThreadsTab
-                  ? { opacity: threadsOpacity, transition: "opacity 200ms ease-out" }
-                  : undefined
-              }
-            >
+            <li key={to}>
               <Link
                 to={to}
                 aria-label={`${label}${active ? " (current page)" : ""}`}
                 style={{
-                  opacity: isThreadsTab ? undefined : tabAlpha,
+                  opacity: tabAlpha,
                   color: active ? "var(--gold)" : undefined,
                 }}
                 className={cn(
                   "flex flex-col items-center gap-1 rounded-lg px-2 py-1 transition-all hover:opacity-100",
                   "outline-none focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                  active
-                    ? "text-gold"
-                    : "text-foreground",
+                  active ? "text-gold" : "text-foreground",
                 )}
                 aria-current={active ? "page" : undefined}
               >
@@ -118,10 +72,6 @@ export function BottomNav() {
                         inset: -12,
                         borderRadius: "50%",
                         background:
-                          // ET-7 — softened from 25% to 12% so the halo
-                          // reads as a subtle glow on every theme rather
-                          // than a hard circle behind the Home moon icon
-                          // when the theme accent is a saturated colour.
                           "radial-gradient(circle, color-mix(in oklab, var(--gold) 12%, transparent) 0%, transparent 70%)",
                         pointerEvents: "none",
                       }}
