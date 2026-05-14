@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { CardBack } from "@/components/cards/CardBack";
 import { getStoredCardBack, type CardBackId } from "@/lib/card-backs";
 import { getCardName } from "@/lib/tarot";
@@ -150,6 +151,28 @@ export function SpreadLayout({
         overflowY: "auto",
       }}
     >
+      {/* Q50 Fix 3 — close X for cast/flip phase (Tabletop's X is gone,
+          ReadingScreen's X isn't here yet). */}
+      <button
+        type="button"
+        onClick={onExit}
+        aria-label="Close reading"
+        style={{
+          position: "fixed",
+          top: "calc(env(safe-area-inset-top, 0px) + 10px)",
+          right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+          zIndex: 60,
+          padding: 8,
+          color: "var(--color-foreground)",
+          opacity: 0.7,
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          touchAction: "manipulation",
+        }}
+      >
+        <X size={18} strokeWidth={1.5} />
+      </button>
       {/* Cards block — ALWAYS anchored at the top with a stable
           paddingTop. We do NOT use `flex-1` or `items-center` because
           that would cause the cards to "jump" the moment the inline
