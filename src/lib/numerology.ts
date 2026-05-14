@@ -37,7 +37,7 @@ function letterValue(c: string): number {
   return LETTER_VALUES[c.toUpperCase()] ?? 0;
 }
 
-function sumLetters(name: string, predicate: (c: string) => boolean): number {
+export function sumLetters(name: string, predicate: (c: string) => boolean): number {
   let total = 0;
   for (const ch of name) {
     const upper = ch.toUpperCase();
@@ -140,4 +140,122 @@ export function numberToMajorArcana(n: number): number | null {
   if (n >= 1 && n <= 21) return n;
   if (n === 22) return 0; // The Fool wraps
   return null;
+}
+
+// ===== Q52b — Karmic Debt, Lessons, Hidden Passion, Cornerstone/Capstone, Maturity =====
+
+export type KarmicDebt = {
+  number: 13 | 14 | 16 | 19;
+  source: "lifePath" | "expression" | "soulUrge" | "personality" | "birthday";
+};
+
+const KARMIC_SET = new Set([13, 14, 16, 19]);
+
+function traceForKarmic(start: number): 13 | 14 | 16 | 19 | null {
+  let v = start;
+  while (v > 9 && v !== 11 && v !== 22 && v !== 33) {
+    if (KARMIC_SET.has(v)) return v as 13 | 14 | 16 | 19;
+    v = String(v).split("").reduce((s, c) => s + Number(c), 0);
+  }
+  return null;
+}
+
+export function detectKarmicDebt(
+  birthDate: string,
+  birthName: string | null,
+): KarmicDebt[] {
+  const debts: KarmicDebt[] = [];
+
+  const digits = birthDate.replace(/-/g, "").split("").map(Number);
+  const lpSum = digits.reduce((s, d) => s + d, 0);
+  const lpKarmic = traceForKarmic(lpSum);
+  if (lpKarmic) debts.push({ number: lpKarmic, source: "lifePath" });
+
+  const day = Number(birthDate.split("-")[2]);
+  if (KARMIC_SET.has(day)) {
+    debts.push({ number: day as 13 | 14 | 16 | 19, source: "birthday" });
+  }
+
+  if (birthName && birthName.trim().length > 0) {
+    const VOWELS_LOCAL = new Set(["A", "E", "I", "O", "U"]);
+    const checks: Array<[number, KarmicDebt["source"]]> = [
+      [sumLetters(birthName, () => true), "expression"],
+      [sumLetters(birthName, (c) => VOWELS_LOCAL.has(c)), "soulUrge"],
+      [sumLetters(birthName, (c) => !VOWELS_LOCAL.has(c)), "personality"],
+    ];
+    for (const [sum, source] of checks) {
+      const k = traceForKarmic(sum);
+      if (k) debts.push({ number: k, source });
+    }
+  }
+
+  return debts;
+}
+
+export function karmicLessons(birthName: string): number[] {
+  const present = new Set<number>();
+  for (const ch of birthName.toUpperCase()) {
+    if (ch >= "A" && ch <= "Z") {
+      present.add(((ch.charCodeAt(0) - 65) % 9) + 1);
+    }
+  }
+  const lessons: number[] = [];
+  for (let n = 1; n <= 9; n++) {
+    if (!present.has(n)) lessons.push(n);
+  }
+  return lessons;
+}
+
+export function hiddenPassion(birthName: string): Numerogram {
+  const counts: Record<number, number> = {};
+  for (const ch of birthName.toUpperCase()) {
+    if (ch >= "A" && ch <= "Z") {
+      const n = ((ch.charCodeAt(0) - 65) % 9) + 1;
+      counts[n] = (counts[n] ?? 0) + 1;
+    }
+  }
+  let topNum = 1;
+  let topCount = -1;
+  for (let n = 1; n <= 9; n++) {
+    if ((counts[n] ?? 0) > topCount) {
+      topNum = n;
+      topCount = counts[n] ?? 0;
+    }
+  }
+  return { digit: topNum, master: null };
+}
+
+export function cornerstone(
+  birthName: string,
+): { letter: string; value: Numerogram } | null {
+  const first = birthName.trim().split(/\s+/)[0]?.toUpperCase() ?? "";
+  if (!first) return null;
+  const letter = first[0];
+  if (!/[A-Z]/.test(letter)) return null;
+  return {
+    letter,
+    value: { digit: ((letter.charCodeAt(0) - 65) % 9) + 1, master: null },
+  };
+}
+
+export function capstone(
+  birthName: string,
+): { letter: string; value: Numerogram } | null {
+  const first = birthName.trim().split(/\s+/)[0]?.toUpperCase() ?? "";
+  if (!first) return null;
+  const letter = first[first.length - 1];
+  if (!/[A-Z]/.test(letter)) return null;
+  return {
+    letter,
+    value: { digit: ((letter.charCodeAt(0) - 65) % 9) + 1, master: null },
+  };
+}
+
+export function maturityNumber(
+  birthDate: string,
+  birthName: string,
+): Numerogram {
+  const lp = lifePath(birthDate);
+  const ex = expressionNumber(birthName);
+  return reduceToDigit(lp.digit + ex.digit);
 }
