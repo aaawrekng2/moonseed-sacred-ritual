@@ -469,19 +469,8 @@ function TagsSection({
   return (
     <section>
       <SectionHeader>Tags</SectionHeader>
-      <div className="flex flex-wrap gap-x-3 gap-y-2">
-        {userTags.map((t) => (
-          <ToggleRow
-            key={t.id}
-            active={filters.tags.includes(t.name)}
-            onClick={() => toggle(t.name)}
-          >
-            {t.name}
-          </ToggleRow>
-        ))}
-      </div>
       {filters.tags.length >= 2 && (
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mb-3 flex items-center gap-3">
           <span className="font-display text-[10px] uppercase tracking-[0.18em] text-foreground/85">
             Match
           </span>
@@ -507,6 +496,17 @@ function TagsSection({
           })}
         </div>
       )}
+      <div className="flex flex-wrap gap-x-3 gap-y-2">
+        {userTags.map((t) => (
+          <ToggleRow
+            key={t.id}
+            active={filters.tags.includes(t.name)}
+            onClick={() => toggle(t.name)}
+          >
+            {t.name}
+          </ToggleRow>
+        ))}
+      </div>
     </section>
   );
 }
