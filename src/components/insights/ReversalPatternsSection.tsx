@@ -50,8 +50,6 @@ export function ReversalPatternsSection({ filters }: { filters: InsightsFilters 
     };
   }, [filters, fn, prefLoaded, trackReversals]);
 
-  if (prefLoaded && !trackReversals) return null;
-
   const sortBy: CardSortBy = filters.cardSortBy ?? "frequency";
   const sortedPatterns = useMemo(() => {
     const list = data?.patterns ?? [];
@@ -77,6 +75,8 @@ export function ReversalPatternsSection({ filters }: { filters: InsightsFilters 
     };
     return list.slice().sort(cmp);
   }, [data, sortBy]);
+
+  if (prefLoaded && !trackReversals) return null;
 
   return (
     <section className="space-y-3">
