@@ -24,6 +24,29 @@ import { getLunationContaining } from "@/lib/lunation";
 import { getAIToneServerSide, TONE_FRAGMENTS, type AITone } from "@/lib/ai-tone";
 import { getCurrentMoonPhase } from "@/lib/moon";
 
+// ============================================================================
+// Q58 — Suit Trends server function.
+//
+// Auto-adaptive bucket granularity:
+//   range <= 31 days  → daily buckets
+//   range 32-180 days → weekly buckets
+//   range  > 180 days → monthly buckets
+// ============================================================================
+
+export type SuitBucket = {
+  /** Sortable ISO key for the bucket start. */
+  key: string;
+  /** Display label for the X-axis. */
+  label: string;
+  major: number;
+  wands: number;
+  cups: number;
+  swords: number;
+  pentacles: number;
+};
+
+export type SuitGranularity = "daily" | "weekly" | "monthly";
+
 /**
  * ES-4 — Older readings predate the `moon_phase` column; derive a
  * phase from `created_at` on the fly so phase rings / distributions /
