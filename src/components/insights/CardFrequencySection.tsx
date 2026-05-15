@@ -273,14 +273,26 @@ function BarRow({ cardId, count, max }: { cardId: number; count: number; max: nu
         ariaLabel={getCardName(cardId)}
         style={{ opacity: count === 0 ? 0.4 : 1 }}
       />
+      {/* Q62 Fix 9 — count moved BEFORE the bar; gold + larger so it
+          reads as the primary scanning anchor. */}
+      <div
+        style={{
+          minWidth: 28,
+          textAlign: "right",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-body)",
+          color: "var(--gold)",
+          fontWeight: 500,
+        }}
+      >
+        {count}
+      </div>
       <div className="flex-1">
         <div style={{ fontStyle: "italic", fontSize: "var(--text-body-sm)" }}>{getCardName(cardId)}</div>
         <div className="mt-1 h-1.5 overflow-hidden rounded-full" style={{ background: "color-mix(in oklch, var(--gold) 8%, transparent)" }}>
           <div style={{ width: `${w}%`, height: "100%", background: "var(--gold)", opacity: 0.7 }} />
         </div>
-      </div>
-      <div style={{ minWidth: 24, textAlign: "right", fontStyle: "italic", fontSize: "var(--text-body-sm)", opacity: 0.8 }}>
-        {count}
       </div>
       <ChevronRight className="h-4 w-4 opacity-50" />
     </button>

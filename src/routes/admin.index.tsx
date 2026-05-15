@@ -1743,7 +1743,12 @@ function UsersTab({
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return users.filter((u) => {
-      if (q && !(u.email ?? "").toLowerCase().includes(q)) return false;
+      if (q) {
+        // Q62 Fix 12 — search both email and display_name.
+        const emailMatch = (u.email ?? "").toLowerCase().includes(q);
+        const nameMatch = (u.display_name ?? "").toLowerCase().includes(q);
+        if (!emailMatch && !nameMatch) return false;
+      }
       if (roleFilter !== "all" && u.role !== roleFilter) return false;
       if (premiumFilter === "premium" && !u.is_premium) return false;
       if (premiumFilter === "free" && u.is_premium) return false;
@@ -1791,7 +1796,7 @@ function UsersTab({
           <SearchInput
             value={search}
             onChange={setSearch}
-            placeholder="Search by email…"
+            placeholder="Search by email or name…"
           />
         </div>
         <FilterSelect
@@ -1909,7 +1914,10 @@ function UserListRow({
 }) {
   const [hover, setHover] = useState(false);
   const name = user.display_name?.trim() || null;
-  const primary = name ?? user.email ?? `${user.user_id.slice(0, 8)}…`;
+  // Q62 Fix 11 — anomalous accounts (no email + no name) get a clear
+  // "— no email —" label with a tiny user-id stub underneath instead of
+  // looking like an empty row.
+  const primary = name ?? user.email ?? `— no email —`;
   const showEmailLine = !!name && !!user.email;
   const unconfirmed = !!user.email && !user.email_confirmed_at;
   return (
@@ -1940,6 +1948,18 @@ function UserListRow({
           >
             {user.email}
             {unconfirmed && <UnconfirmedBadge />}
+          </div>
+        )}
+        {!user.email && !name && (
+          <div
+            style={{
+              fontSize: "var(--text-caption)",
+              opacity: 0.5,
+              fontFamily: "monospace",
+              marginTop: 2,
+            }}
+          >
+            {user.user_id.slice(0, 8)}…
           </div>
         )}
         {!showEmailLine && unconfirmed && (
