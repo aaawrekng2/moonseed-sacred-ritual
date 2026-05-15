@@ -2290,3 +2290,84 @@ export const getNumerologyReading = createServerFn({ method: "POST" })
       generatedAt: new Date().toISOString(),
     };
   });
+
+// ============================================================================
+// Q58 — getSuitTrends
+// ============================================================================
+export const getSuitTrends = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .handler(async ({ data, context }): Promise<{ buckets: SuitBucket[]; granularity: SuitGranularity }> => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
+    const rows = await fetchFilteredReadings(supabase, userId, data, days);
+
+    const granularity: SuitGranularity =
+      days <= 31 ? "daily" : days <= 180 ? "weekly" : "monthly";
+
+    const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+    const isoMonth = (d: Date) => d.toISOString().slice(0, 7);
+    const isoWeek = (d: Date) => {
+      const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      const dayNum = tmp.getUTCDay() || 7;
+      tmp.setUTCDate(tmp.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+      const week = Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+      return `${tmp.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+    };
+
+    const dayLabel = (d: Date) =>
+      d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const monthLabel = (d: Date) =>
+      d.toLocaleDateString(undefined, { month: "short", year: days > 365 ? "numeric" : undefined });
+    const weekLabel = (d: Date) => {
+      const start = new Date(d);
+      const wk = start.getDay() || 7;
+      start.setDate(start.getDate() + 1 - wk);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      const fmt = (x: Date) =>
+        x.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      return `${fmt(start)}–${fmt(end)}`;
+    };
+
+    const keyOf = (d: Date) =>
+      granularity === "daily" ? isoDay(d) : granularity === "weekly" ? isoWeek(d) : isoMonth(d);
+    const labelOf = (d: Date) =>
+      granularity === "daily" ? dayLabel(d) : granularity === "weekly" ? weekLabel(d) : monthLabel(d);
+
+    type BucketAcc = SuitBucket & { _firstDate: Date };
+    const buckets: Record<string, BucketAcc> = {};
+
+    for (const r of rows) {
+      const created = new Date(r.created_at);
+      const k = keyOf(created);
+      if (!buckets[k]) {
+        buckets[k] = {
+          key: k,
+          label: labelOf(created),
+          major: 0,
+          wands: 0,
+          cups: 0,
+          swords: 0,
+          pentacles: 0,
+          _firstDate: created,
+        };
+      }
+      for (const cid of r.card_ids ?? []) {
+        if (cid < 0 || cid >= 78) continue;
+        if (cid <= 21) buckets[k].major += 1;
+        else if (cid <= 35) buckets[k].wands += 1;
+        else if (cid <= 49) buckets[k].cups += 1;
+        else if (cid <= 63) buckets[k].swords += 1;
+        else buckets[k].pentacles += 1;
+      }
+    }
+
+    const result: SuitBucket[] = Object.values(buckets)
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .map(({ _firstDate: _omit, ...rest }) => rest);
+
+    return { buckets: result, granularity };
+  });
