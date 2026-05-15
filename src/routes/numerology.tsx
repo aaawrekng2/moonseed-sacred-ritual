@@ -55,6 +55,8 @@ function NumerologyPage() {
   const [birthName, setBirthName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("today");
+  const activeTabLabel = TABS.find((t) => t.id === tab)?.label ?? "";
+  const pageTitle = activeTabLabel ? `Numerology: ${activeTabLabel}` : "Numerology";
   const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
   const scrollRef = useRef<HTMLElement | null>(null);
   const collapseProgress = useScrollCollapse(scrollRef, 40);
@@ -235,7 +237,7 @@ function NumerologyPage() {
               lineHeight: 1,
             }}
           >
-            Numerology
+            {pageTitle}
           </h1>
         </div>
         {showFilters && (
@@ -312,7 +314,7 @@ function NumerologyPage() {
             lineHeight: 1.25,
           }}
         >
-          Numerology
+          {pageTitle}
         </h1>
         {tab === "today" && (
           <NumerologyTodayTab birthDate={birthDate} birthName={birthName} />

@@ -4,7 +4,6 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
-import { getCurrentMoonPhase } from "@/lib/moon";
 
 function mostRecent(appearances: Array<{ date: string }>): Date {
   if (appearances.length === 0) return new Date();
@@ -54,6 +53,15 @@ export function StalkerCalendar({
     () => new Set(appearanceDates.map((d) => d.toDateString())),
     [appearanceDates],
   );
+  // Q57 Fix 5C — count draws per date, X-badge displayed when >1.
+  const appearanceCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const d of appearanceDates) {
+      const k = d.toDateString();
+      m[k] = (m[k] ?? 0) + 1;
+    }
+    return m;
+  }, [appearanceDates]);
 
   // Q34 Fix 4 — smart 1 / 2 / 4 month layout based on viewport AND data span.
   const [viewportWide, setViewportWide] = useState(false);
@@ -80,12 +88,25 @@ export function StalkerCalendar({
   }, [appearances, monthsShown]);
 
   const dayButton = (props: any) => {
-    const isAppearance = appearanceKeys.has(props.day.date.toDateString());
-    const glyph = isAppearance ? getCurrentMoonPhase(props.day.date).glyph : null;
+    const key = props.day.date.toDateString();
+    const count = appearanceCounts[key] ?? 0;
+    void appearanceKeys;
     return (
       <CalendarDayButton {...props}>
         <span className="leading-none">{props.day.date.getDate()}</span>
-        {glyph && <span className="text-[9px] leading-none">{glyph}</span>}
+        {count > 1 && (
+          <span
+            className="leading-none"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "0.65em",
+              color: "var(--gold)",
+            }}
+          >
+            ×{count}
+          </span>
+        )}
       </CalendarDayButton>
     );
   };

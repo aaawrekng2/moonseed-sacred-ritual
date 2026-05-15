@@ -45,6 +45,8 @@ export type GlobalFilterBarProps = {
    * (Journal uses this for the active-date chip).
    */
   trailingChips?: React.ReactNode;
+  /** Optional dropdowns rendered to the right of the time range. */
+  trailingDropdowns?: React.ReactNode;
 };
 
 const STORIES_DEFAULT_VISIBLE = 5;
@@ -57,6 +59,7 @@ export function GlobalFilterBar({
   userTags = [],
   allStories = [],
   trailingChips,
+  trailingDropdowns,
 }: GlobalFilterBarProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -137,6 +140,8 @@ export function GlobalFilterBar({
         </button>
 
         {timeRange && <TimeRangeDropdown {...timeRange} />}
+
+        {trailingDropdowns}
 
         {showClear && (
           <button

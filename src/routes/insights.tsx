@@ -239,6 +239,34 @@ function InsightsRoute() {
                 setFilters({ ...filters, timeRange: v as TimeRange }),
             }}
             userTags={userTags}
+            trailingDropdowns={
+              tab === "cards" ? (
+                <>
+                  <Dropdown
+                    prefix="Group"
+                    value={filters.cardGroupBy ?? "none"}
+                    options={CARD_GROUP_BY.map((v) => ({
+                      value: v,
+                      label: CARD_GROUP_BY_LABEL[v],
+                    }))}
+                    onChange={(v) =>
+                      setFilters({ ...filters, cardGroupBy: v as CardGroupBy })
+                    }
+                  />
+                  <Dropdown
+                    prefix="Sort"
+                    value={filters.cardSortBy ?? "frequency"}
+                    options={CARD_SORT_BY.map((v) => ({
+                      value: v,
+                      label: CARD_SORT_BY_LABEL[v],
+                    }))}
+                    onChange={(v) =>
+                      setFilters({ ...filters, cardSortBy: v as CardSortBy })
+                    }
+                  />
+                </>
+              ) : undefined
+            }
           />
         )}
         {/* Tab strip */}
@@ -326,7 +354,6 @@ function InsightsRoute() {
           )}
           {tab === "cards" && (
             <div className="flex flex-col gap-8 pb-12">
-              <CardsTabControls filters={filters} onChange={setFilters} />
               <CardFrequencySection filters={filters} />
               <CardPairsSection filters={filters} />
               <ReversalPatternsSection filters={filters} />
@@ -473,39 +500,4 @@ function OverviewTab({
 function log(cardType: string) {
   // eslint-disable-next-line no-console
   console.log("insights.overview.tapped", { cardType });
-}
-
-function CardsTabControls({
-  filters,
-  onChange,
-}: {
-  filters: InsightsFilters;
-  onChange: (next: InsightsFilters) => void;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-4">
-      <Dropdown
-        prefix="Group"
-        value={filters.cardGroupBy ?? "none"}
-        options={CARD_GROUP_BY.map((v) => ({
-          value: v,
-          label: CARD_GROUP_BY_LABEL[v],
-        }))}
-        onChange={(v) =>
-          onChange({ ...filters, cardGroupBy: v as CardGroupBy })
-        }
-      />
-      <Dropdown
-        prefix="Sort"
-        value={filters.cardSortBy ?? "frequency"}
-        options={CARD_SORT_BY.map((v) => ({
-          value: v,
-          label: CARD_SORT_BY_LABEL[v],
-        }))}
-        onChange={(v) =>
-          onChange({ ...filters, cardSortBy: v as CardSortBy })
-        }
-      />
-    </div>
-  );
 }

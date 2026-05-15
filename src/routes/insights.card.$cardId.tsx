@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, X, Lock } from "lucide-react";
+import { ArrowLeft, X, Lock, ChevronDown } from "lucide-react";
+import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
@@ -141,6 +142,10 @@ function StalkerDetailRoute() {
                 height={32}
               />
 
+              <CardDescriptionFade cardId={cid} />
+
+              <CardDetailCalendar appearances={data.appearances} />
+
               {isPremium ? (
                 /* EQ-1 — wire real AI reflection. */
                 <PremiumDetailReflection
@@ -213,6 +218,160 @@ function StalkerDetailRoute() {
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+/**
+ * Q57 Fix 5A — Card description with fade-out and twirl-expand.
+ * TODO: source from a real card-meanings library when available.
+ */
+function getCardDescription(cardId: number): string {
+  void cardId;
+  return "This card invites a moment of reflection. Its presence in your readings suggests a thread worth following — patterns of meaning that surface when you pay attention. Sit with the imagery; the symbols whisper before they speak.";
+}
+
+function CardDescriptionFade({ cardId }: { cardId: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const description = getCardDescription(cardId);
+  return (
+    <div className="flex w-full flex-col items-center gap-2">
+      <div
+        style={{
+          maxHeight: expanded ? "none" : "3.2em",
+          overflow: "hidden",
+          position: "relative",
+          width: "100%",
+          maxWidth: 480,
+        }}
+      >
+        <p
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body)",
+            lineHeight: 1.6,
+            margin: 0,
+            textAlign: "center",
+          }}
+        >
+          {description}
+        </p>
+        {!expanded && (
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: "1.6em",
+              background:
+                "linear-gradient(to right, transparent 0%, transparent 50%, var(--background) 100%)",
+              pointerEvents: "none",
+            }}
+          />
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        style={{
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          color: "var(--gold)",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-caption)",
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
+        }}
+      >
+        {expanded ? "Show less" : "Show more"}
+        <ChevronDown
+          size={14}
+          style={{
+            transform: expanded ? "rotate(180deg)" : "none",
+            transition: "transform 200ms",
+          }}
+        />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Q57 Fix 5B — 2-month calendar (previous + current month) highlighting
+ * every date the card was drawn, with X-badge on multi-draw days. No
+ * moon glyphs (matches StalkerCalendar Fix 5C).
+ */
+function CardDetailCalendar({
+  appearances,
+}: {
+  appearances: Detail["appearances"];
+}) {
+  const appearanceDates = useMemo(
+    () =>
+      appearances.map((a) => {
+        const d = new Date(a.date);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      }),
+    [appearances],
+  );
+  const counts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const d of appearanceDates) {
+      const k = d.toDateString();
+      m[k] = (m[k] ?? 0) + 1;
+    }
+    return m;
+  }, [appearanceDates]);
+  const now = new Date();
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  const dayButton = (props: any) => {
+    const k = props.day.date.toDateString();
+    const c = counts[k] ?? 0;
+    return (
+      <CalendarDayButton {...props}>
+        <span className="leading-none">{props.day.date.getDate()}</span>
+        {c > 1 && (
+          <span
+            className="leading-none"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "0.65em",
+              color: "var(--gold)",
+            }}
+          >
+            ×{c}
+          </span>
+        )}
+      </CalendarDayButton>
+    );
+  };
+
+  return (
+    <div
+      className="block w-full rounded-lg p-2 max-w-full overflow-hidden"
+      style={{
+        background: "var(--surface-card)",
+        border: "1px solid var(--border-subtle)",
+        ["--cell-size" as never]:
+          "clamp(1.3rem, calc((100vw - 64px) / 18), 2rem)",
+      }}
+    >
+      <Calendar
+        numberOfMonths={2}
+        mode="multiple"
+        selected={appearanceDates}
+        month={lastMonth}
+        showOutsideDays={false}
+        onSelect={() => {}}
+        components={{ DayButton: dayButton }}
+      />
     </div>
   );
 }
