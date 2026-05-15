@@ -12,6 +12,7 @@ import { getCardName } from "@/lib/tarot";
 import { NUMBER_MEANINGS } from "@/lib/numerology-copy";
 import { lifePath } from "@/lib/numerology";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { useElementWidth } from "@/lib/use-element-width";
 
 type Stalker = {
   number: number;
@@ -58,17 +59,6 @@ export function NumerologyStalkersTab({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <h2
-        style={{
-          fontFamily: "var(--font-display)",
-          fontStyle: "italic",
-          fontSize: "var(--text-heading-md)",
-          color: "var(--color-foreground)",
-          margin: "0 0 var(--space-3, 12px) 0",
-        }}
-      >
-        Numerology Stalkers
-      </h2>
       <p
         style={{
           fontFamily: "var(--font-serif)",
@@ -170,45 +160,14 @@ function StalkerEntry({
       </div>
       <div
         style={{
-          display: "flex",
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
           gap: 12,
           alignItems: "flex-end",
-          flexWrap: "wrap",
         }}
       >
         {stalker.topCards.map(({ cardId, count }) => (
-          <div
-            key={cardId}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 4,
-            }}
-          >
-            <CardImage cardId={cardId} size="custom" widthPx={72} />
-            <span
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-caption)",
-                textAlign: "center",
-                maxWidth: 80,
-              }}
-            >
-              {getCardName(cardId)}
-            </span>
-            <span
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-caption)",
-                color: "var(--gold)",
-              }}
-            >
-              {count}×
-            </span>
-          </div>
+          <StalkerTopCard key={cardId} cardId={cardId} count={count} />
         ))}
       </div>
       {isLifePath && (
@@ -226,6 +185,46 @@ function StalkerEntry({
           soul's curriculum back to you.
         </p>
       )}
+    </div>
+  );
+}
+
+function StalkerTopCard({ cardId, count }: { cardId: number; count: number }) {
+  const { ref: imgRef, width: imgW } = useElementWidth<HTMLDivElement>();
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4,
+      }}
+    >
+      <div ref={imgRef} style={{ width: "100%", maxWidth: 140 }}>
+        {imgW > 0 && (
+          <CardImage cardId={cardId} size="custom" widthPx={Math.round(imgW)} />
+        )}
+      </div>
+      <span
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-caption)",
+          textAlign: "center",
+        }}
+      >
+        {getCardName(cardId)}
+      </span>
+      <span
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-caption)",
+          color: "var(--gold)",
+        }}
+      >
+        {count}×
+      </span>
     </div>
   );
 }

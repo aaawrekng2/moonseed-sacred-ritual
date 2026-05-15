@@ -125,17 +125,6 @@ export function NumerologyCyclesTab({ birthDate }: { birthDate: string }) {
 
   return (
     <div className="flex flex-col gap-10 pb-12">
-      <h2
-        style={{
-          fontFamily: "var(--font-display)",
-          fontStyle: "italic",
-          fontSize: "var(--text-heading-md)",
-          color: "var(--color-foreground)",
-          margin: "0 0 var(--space-3, 12px) 0",
-        }}
-      >
-        Your Cycles
-      </h2>
       {/* Personal Year hero */}
       <Section header={`${year} — Your Year`} subtitle="Your year ahead.">
         <div

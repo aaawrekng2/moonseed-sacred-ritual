@@ -17,6 +17,7 @@ import {
 } from "@/lib/numerology-copy";
 import { CardImage } from "@/components/card/CardImage";
 import { getCurrentMoonPhase } from "@/lib/moon";
+import { useElementWidth } from "@/lib/use-element-width";
 
 const sectionHeaderStyle: React.CSSProperties = {
   fontFamily: "var(--font-display)",
@@ -61,17 +62,6 @@ export function NumerologyTodayTab({
 
   return (
     <div className="flex flex-col gap-10 pb-12">
-      <h2
-        style={{
-          fontFamily: "var(--font-display)",
-          fontStyle: "italic",
-          fontSize: "var(--text-heading-md)",
-          color: "var(--color-foreground)",
-          margin: "0 0 var(--space-3, 12px) 0",
-        }}
-      >
-        Today
-      </h2>
       {/* Today's Numbers */}
       <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <h3 style={sectionHeaderStyle}>Today&rsquo;s Numbers</h3>
@@ -197,6 +187,7 @@ export function NumerologyTodayTab({
 function NumberCell({ value, label }: { value: Numerogram; label: string }) {
   const arcana = numberToMajorArcana(value.digit);
   const meaning = NUMBER_MEANINGS[value.digit] ?? NUMBER_MEANINGS[1];
+  const { ref: thumbRef, width: thumbW } = useElementWidth<HTMLDivElement>();
   return (
     <div
       style={{
@@ -244,7 +235,19 @@ function NumberCell({ value, label }: { value: Numerogram; label: string }) {
         {meaning.keyword}
       </span>
       {arcana !== null && (
-        <CardImage cardId={arcana} size="custom" widthPx={44} />
+        <div
+          ref={thumbRef}
+          style={{
+            width: "100%",
+            maxWidth: 220,
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          {thumbW > 0 && (
+            <CardImage cardId={arcana} size="custom" widthPx={Math.round(thumbW)} />
+          )}
+        </div>
       )}
     </div>
   );
