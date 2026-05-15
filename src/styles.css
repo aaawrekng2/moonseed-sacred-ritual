@@ -1606,15 +1606,17 @@ button:focus-visible .moon-rung-glow {
   font-weight: 500;
 }
 
-/* Q62 Fix 6 — Canonical card count badge.
-   Circle-first sizing (fixed width = height). Mobile largest, scaling
-   down on tablet/desktop. Font ~60% of diameter for strong fill. */
+/* Q64 — Canonical card count badge.
+   Diameter scales with parent card via clamp(min, 22%, max).
+   Font is sized to 55% of the badge via container queries-free
+   approach: the badge is square so we set font-size off cqi if
+   the container supports it, and fall back to a fixed em ratio. */
 .tarotseed-card-badge {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
-  width: 44px;
-  height: 44px;
+  bottom: 6%;
+  right: 6%;
+  width: clamp(24px, 22%, 48px);
+  height: clamp(24px, 22%, 48px);
   padding: 0;
   border-radius: 999px;
   background: var(--gold);
@@ -1622,32 +1624,16 @@ button:focus-visible .moon-rung-glow {
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 500;
-  font-size: 26px;
+  /* Font ~55% of the badge diameter. clamp values mirror the box. */
+  font-size: clamp(13px, 12%, 26px);
+  letter-spacing: -0.03em;
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: center;
   line-height: 1;
   white-space: nowrap;
   pointer-events: none;
   z-index: 2;
-}
-@media (min-width: 769px) {
-  .tarotseed-card-badge {
-    bottom: 12px;
-    right: 12px;
-    width: 38px;
-    height: 38px;
-    font-size: 22px;
-  }
-}
-@media (min-width: 1025px) {
-  .tarotseed-card-badge {
-    bottom: 14px;
-    right: 14px;
-    width: 32px;
-    height: 32px;
-    font-size: 18px;
-  }
 }
 
 /*

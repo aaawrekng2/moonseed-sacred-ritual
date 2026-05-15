@@ -12,7 +12,8 @@ export function CardCountBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
     <span className="tarotseed-card-badge" aria-label={`${count} appearances`}>
-      {count}×
+      {count}
+      <span style={{ fontSize: "0.7em", marginLeft: "0.05em" }}>×</span>
     </span>
   );
 }
