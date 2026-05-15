@@ -522,6 +522,22 @@ export const getStalkerCardDetail = createServerFn({ method: "GET" })
       });
     }
     appearances.sort((a, b) => (a.date < b.date ? 1 : -1));
+    // Q64 — Co-occurrence: count other cards in readings that contain this card.
+    const coCounts = new Map<number, number>();
+    for (const r of rows) {
+      const cards = r.card_ids ?? [];
+      if (!cards.includes(data.cardId)) continue;
+      const seen = new Set<number>();
+      for (const cid of cards) {
+        if (cid === data.cardId || seen.has(cid)) continue;
+        seen.add(cid);
+        coCounts.set(cid, (coCounts.get(cid) ?? 0) + 1);
+      }
+    }
+    const coOccurrences = Array.from(coCounts.entries())
+      .map(([cardId, count]) => ({ cardId, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
     return {
       cardId: data.cardId,
       cardName: getCardName(data.cardId),
@@ -530,6 +546,7 @@ export const getStalkerCardDetail = createServerFn({ method: "GET" })
       firstSeen: appearances.length ? appearances[appearances.length - 1].date : null,
       lastSeen: appearances.length ? appearances[0].date : null,
       appearances,
+      coOccurrences,
     };
   });
 
