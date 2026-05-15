@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { getStalkerCards, getStalkerReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
-import { CardImage } from "@/components/card/CardImage";
+import { CardCellWithBadge } from "./CardCellWithBadge";
 import { Lock } from "lucide-react";
 import type { InsightsFilters, StalkerCardsResult } from "@/lib/insights.types";
 import { StalkerSparkline } from "./StalkerSparkline";
@@ -67,14 +67,10 @@ export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
                 borderRadius: 14,
               }}
             >
-              {/* EY-7 — unified card render. */}
-              <CardImage
-                cardId={s.cardId}
-                variant="face"
-                size="custom"
-                widthPx={48}
-                ariaLabel={s.cardName}
-              />
+              {/* Q60 Fix 1 — canonical card-with-badge cell. */}
+              <div style={{ width: 64, flexShrink: 0 }}>
+                <CardCellWithBadge cardId={s.cardId} count={s.count} />
+              </div>
               <div className="flex-1">
                 <div
                   style={{
@@ -84,15 +80,6 @@ export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
                   }}
                 >
                   {s.cardName}
-                </div>
-                <div
-                  style={{
-                    fontStyle: "italic",
-                    fontSize: "var(--text-body-sm)",
-                    opacity: 0.7,
-                  }}
-                >
-                  {s.count} appearances
                 </div>
                 <div className="mt-1">
                   <StalkerSparkline
