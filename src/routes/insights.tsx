@@ -44,6 +44,8 @@ import { TagCloud } from "@/components/insights/TagCloud";
 import { QuestionThemesLocked } from "@/components/insights/QuestionThemesLocked";
 import { RecapTab } from "@/components/insights/RecapTab";
 import { LunationBanner } from "@/components/insights/LunationBanner";
+import { LunationHint } from "@/components/insights/LunationHint";
+import { useMoonPrefs } from "@/lib/use-moon-prefs";
 import { SuitTrendsChart } from "@/components/insights/SuitTrendsChart";
 import { StalkersTab } from "@/components/insights/StalkersTab";
 import { StoriesTab } from "@/components/insights/StoriesTab";
@@ -80,13 +82,21 @@ const TABS: ReadonlyArray<{ id: Tab; label: string }> = [
 function InsightsRoute() {
   const navigate = useNavigate();
   const search = Route.useSearch();
+  const moonPrefs = useMoonPrefs();
+  const moonEnabled = moonPrefs.moon_features_enabled;
   const initialTab: Tab = (
     ["overview", "cards", "calendar", "stalkers", "stories", "recap"] as Tab[]
   ).includes(search.tab as Tab)
     ? (search.tab as Tab)
     : "overview";
   const [tab, setTab] = useState<Tab>(initialTab);
-  const activeTabLabel = TABS.find((t) => t.id === tab)?.label ?? "";
+  // Q60 Fix 9 — Hide Recap tab entirely when moon features disabled.
+  const visibleTabs = moonEnabled ? TABS : TABS.filter((t) => t.id !== "recap");
+  // If user landed on /insights?tab=recap with moon features off, fall back.
+  useEffect(() => {
+    if (!moonEnabled && tab === "recap") setTab("overview");
+  }, [moonEnabled, tab]);
+  const activeTabLabel = visibleTabs.find((t) => t.id === tab)?.label ?? "";
   const pageTitle = activeTabLabel ? `Insights: ${activeTabLabel}` : "Insights";
   const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => {
@@ -271,7 +281,7 @@ function InsightsRoute() {
         )}
         {/* Tab strip */}
         <HorizontalScroll className="py-2" contentClassName="items-center gap-6 px-4">
-          {TABS.map((t) => {
+          {visibleTabs.map((t) => {
             const active = tab === t.id;
             return (
               <button
@@ -338,6 +348,7 @@ function InsightsRoute() {
                 onClearFilters={() => setFilters(DEFAULT_FILTERS)}
                 onTapHero={() => setTab("cards")}
                 onEmptyCta={() => navigate({ to: "/" })}
+                moonEnabled={moonEnabled}
               />
               <div className="flex flex-col gap-12 pt-8 pb-12">
                 <SuitTrendsChart filters={filters} />
@@ -377,7 +388,7 @@ function InsightsRoute() {
           )}
           {tab === "stalkers" && <StalkersTab filters={filters} />}
           {tab === "stories" && <StoriesTab />}
-          {tab === "recap" && <RecapTab />}
+          {tab === "recap" && moonEnabled && <RecapTab />}
         </div>
       </main>
       {/* Q60 Fix 3 — child routes (/insights/card/$cardId,
@@ -396,6 +407,7 @@ function OverviewTab({
   onClearFilters,
   onTapHero,
   onEmptyCta,
+  moonEnabled,
 }: {
   loading: boolean;
   overview: InsightsOverview | null;
@@ -404,6 +416,7 @@ function OverviewTab({
   onClearFilters: () => void;
   onTapHero: () => void;
   onEmptyCta: () => void;
+  moonEnabled: boolean;
 }) {
   if (loading && !overview) {
     return <LoadingSkeleton heights={[220, 160, 160, 160]} />;
@@ -439,7 +452,12 @@ function OverviewTab({
 
   return (
     <div className="space-y-4">
-      <LunationBanner />
+      {moonEnabled && (
+        <>
+          <LunationHint />
+          <LunationBanner />
+        </>
+      )}
       {lowData && (
         <div
           className="rounded-lg p-3 text-center"
