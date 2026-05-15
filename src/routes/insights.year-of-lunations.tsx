@@ -16,6 +16,8 @@ import { exportYearOfLunationsPdf, shareRecapImage } from "@/lib/recap-export";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
+import { useMoonPrefs } from "@/lib/use-moon-prefs";
+import { LunationHint } from "@/components/insights/LunationHint";
 
 export const Route = createFileRoute("/insights/year-of-lunations")({
   head: () => ({
@@ -36,6 +38,13 @@ function YearOfLunationsRoute() {
   const fn = useServerFn(getYearOfLunationsRecap);
   const { user } = useAuth();
   const { isPremium } = usePremium(user?.id);
+  // Q61 Fix 2 — moon_features_enabled gate.
+  const moonPrefs = useMoonPrefs();
+  useEffect(() => {
+    if (moonPrefs.loaded && !moonPrefs.moon_features_enabled) {
+      void navigate({ to: "/insights" });
+    }
+  }, [moonPrefs.loaded, moonPrefs.moon_features_enabled, navigate]);
   const [data, setData] = useState<YearData | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
@@ -107,6 +116,10 @@ function YearOfLunationsRoute() {
             }}
           />
         ))}
+      </div>
+      {/* Q61 Fix 3 — mount LunationHint on year-of-lunations. */}
+      <div className="px-4 pt-2">
+        <LunationHint />
       </div>
 
       <button

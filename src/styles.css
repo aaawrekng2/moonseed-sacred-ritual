@@ -1606,16 +1606,16 @@ button:focus-visible .moon-rung-glow {
   font-weight: 500;
 }
 
-/* Q60 Fix 4 — Canonical card count badge. Inside card image bounds,
-   bottom-right corner. Big-tech precedent (Apple, Instagram, Pinterest,
-   Spotify): inside-bounds badges, no border. Mobile-bigger via media
-   query so the count stays readable on phones. */
+/* Q61 Fix 6 — Canonical card count badge sizing (mobile-first).
+   Three breakpoints: mobile (default) / tablet / desktop. Inset values
+   are deliberately generous so the badge clears the white scan frame
+   on the physical card images. */
 .moonseed-card-badge {
   position: absolute;
-  bottom: 6px;
-  right: 6px;
-  min-width: 28px;
-  height: 28px;
+  bottom: 10px;
+  right: 10px;
+  min-width: 36px;
+  height: 36px;
   padding: 0 8px;
   border-radius: 999px;
   background: var(--gold);
@@ -1623,19 +1623,31 @@ button:focus-visible .moon-rung-glow {
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 500;
-  font-size: 13px;
+  font-size: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
   white-space: nowrap;
   pointer-events: none;
+  z-index: 2;
 }
-@media (max-width: 768px) {
+@media (min-width: 769px) {
   .moonseed-card-badge {
-    min-width: 36px;
-    height: 36px;
-    font-size: 16px;
+    bottom: 12px;
+    right: 12px;
+    min-width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+}
+@media (min-width: 1025px) {
+  .moonseed-card-badge {
+    bottom: 14px;
+    right: 14px;
+    min-width: 28px;
+    height: 28px;
+    font-size: 13px;
   }
 }
 

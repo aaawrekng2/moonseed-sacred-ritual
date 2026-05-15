@@ -1,8 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, X, Lock, ChevronDown } from "lucide-react";
-import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
@@ -14,6 +13,7 @@ import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
 import { formatDateLong } from "@/lib/dates";
+import { DrawCalendar } from "@/components/insights/DrawCalendar";
 
 export const Route = createFileRoute("/insights/card/$cardId")({
   component: StalkerDetailRoute,
@@ -95,6 +95,7 @@ function StalkerDetailRoute() {
       </header>
 
       <main className="flex-1 overflow-y-auto px-5 pb-12 pt-4">
+        {/* Q61 Fix 11 — narrow column for hero + description. */}
         <div className="mx-auto flex max-w-md flex-col items-center gap-4">
           <div ref={ref} style={{ width: 200 }}>
             <AdaptiveCardImage src={url} alt={cardName} />
@@ -143,9 +144,21 @@ function StalkerDetailRoute() {
               />
 
               <CardDescriptionFade cardId={cid} />
+            </>
+          )}
+        </div>
 
-              <CardDetailCalendar appearances={data.appearances} />
+        {/* Q61 Fix 11 — calendar breaks out of max-w-md to a wider container. */}
+        {data && (
+          <div className="mx-auto my-6" style={{ maxWidth: 960 }}>
+            <DrawCalendar appearances={data.appearances} monthsBack={1} />
+          </div>
+        )}
 
+        {/* Narrow column resumes for reflection + appearances list. */}
+        <div className="mx-auto flex max-w-md flex-col items-center gap-4">
+          {data && (
+            <>
               {isPremium ? (
                 /* EQ-1 — wire real AI reflection. */
                 <PremiumDetailReflection
@@ -297,81 +310,6 @@ function CardDescriptionFade({ cardId }: { cardId: number }) {
           }}
         />
       </button>
-    </div>
-  );
-}
-
-/**
- * Q57 Fix 5B — 2-month calendar (previous + current month) highlighting
- * every date the card was drawn, with X-badge on multi-draw days. No
- * moon glyphs (matches StalkerCalendar Fix 5C).
- */
-function CardDetailCalendar({
-  appearances,
-}: {
-  appearances: Detail["appearances"];
-}) {
-  const appearanceDates = useMemo(
-    () =>
-      appearances.map((a) => {
-        const d = new Date(a.date);
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      }),
-    [appearances],
-  );
-  const counts = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const d of appearanceDates) {
-      const k = d.toDateString();
-      m[k] = (m[k] ?? 0) + 1;
-    }
-    return m;
-  }, [appearanceDates]);
-  const now = new Date();
-  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-
-  const dayButton = (props: any) => {
-    const k = props.day.date.toDateString();
-    const c = counts[k] ?? 0;
-    return (
-      <CalendarDayButton {...props}>
-        <span className="leading-none">{props.day.date.getDate()}</span>
-        {c > 1 && (
-          <span
-            className="leading-none"
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "0.65em",
-              color: "var(--gold)",
-            }}
-          >
-            ×{c}
-          </span>
-        )}
-      </CalendarDayButton>
-    );
-  };
-
-  return (
-    <div
-      className="block w-full rounded-lg p-2 max-w-full overflow-hidden"
-      style={{
-        background: "var(--surface-card)",
-        border: "1px solid var(--border-subtle)",
-        ["--cell-size" as never]:
-          "clamp(1.3rem, calc((100vw - 64px) / 18), 2rem)",
-      }}
-    >
-      <Calendar
-        numberOfMonths={2}
-        mode="multiple"
-        selected={appearanceDates}
-        month={lastMonth}
-        showOutsideDays={false}
-        onSelect={() => {}}
-        components={{ DayButton: dayButton }}
-      />
     </div>
   );
 }
