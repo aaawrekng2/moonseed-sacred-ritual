@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, X, Lock } from "lucide-react";
+import { ArrowLeft, X, Lock, ChevronDown } from "lucide-react";
+import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
@@ -140,6 +141,10 @@ function StalkerDetailRoute() {
                 width={280}
                 height={32}
               />
+
+              <CardDescriptionFade cardId={cid} />
+
+              <CardDetailCalendar appearances={data.appearances} />
 
               {isPremium ? (
                 /* EQ-1 — wire real AI reflection. */
