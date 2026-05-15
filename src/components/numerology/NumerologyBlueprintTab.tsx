@@ -165,6 +165,14 @@ export function NumerologyBlueprintTab({
   const hasName = !!(birthName && birthName.trim().length > 0);
   const cards = birthCards(birthDate);
 
+  const birthCardColumns: Array<{ n: number; primary: boolean }> = [
+    { n: cards.primary, primary: true },
+  ];
+  if (cards.secondary !== null)
+    birthCardColumns.push({ n: cards.secondary, primary: false });
+  if (cards.third !== null)
+    birthCardColumns.push({ n: cards.third, primary: false });
+
   return (
     <div className="flex flex-col gap-10 pb-12">
       {/* Hero: Birth Cards */}
@@ -176,18 +184,39 @@ export function NumerologyBlueprintTab({
             : "The archetypes that shape your lifetime journey."
         }
       >
+        {/* Cards row — the shelf. */}
         <div
           style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "flex-end",
+            display: "grid",
+            gridTemplateColumns: `repeat(${birthCardColumns.length}, 1fr)`,
             gap: 16,
-            flexWrap: "wrap",
+            alignItems: "end",
+            justifyItems: "center",
           }}
         >
-          <BirthCardItem n={cards.primary} primary />
-          {cards.secondary !== null && <BirthCardItem n={cards.secondary} />}
-          {cards.third !== null && <BirthCardItem n={cards.third} />}
+          {birthCardColumns.map((bc, i) => (
+            <BirthCardThumb key={i} cardNumber={bc.n} primary={bc.primary} />
+          ))}
+        </div>
+        {/* Labels row — same columns, names wrap freely. */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${birthCardColumns.length}, 1fr)`,
+            gap: 16,
+            justifyItems: "center",
+            alignItems: "start",
+          }}
+        >
+          {birthCardColumns.map((bc, i) => {
+            const arcana = numberToMajorArcana(bc.n);
+            const name = arcana !== null ? MAJOR_ARCANA_NAMES[arcana] : `#${bc.n}`;
+            return (
+              <span key={i} style={{ ...keywordStyle, opacity: 0.85 }}>
+                {name}
+              </span>
+            );
+          })}
         </div>
       </Section>
 
@@ -226,38 +255,31 @@ export function NumerologyBlueprintTab({
   );
 }
 
-function BirthCardItem({ n, primary }: { n: number; primary?: boolean }) {
-  const arcana = numberToMajorArcana(n);
+function BirthCardThumb({
+  cardNumber,
+  primary,
+}: {
+  cardNumber: number;
+  primary: boolean;
+}) {
+  const arcana = numberToMajorArcana(cardNumber);
   const { ref: boxRef, width: boxW } = useElementWidth<HTMLDivElement>();
   const containerWidth = primary
     ? "clamp(140px, 38vw, 280px)"
     : "clamp(100px, 26vw, 200px)";
+  if (arcana === null) return null;
   return (
     <div
+      ref={boxRef}
       style={{
+        width: containerWidth,
         display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 6,
+        justifyContent: "center",
       }}
     >
-      {arcana !== null && (
-        <div
-          ref={boxRef}
-          style={{
-            width: containerWidth,
-            display: "flex",
-            justifyContent: "center",
-          }}
-        >
-          {boxW > 0 && (
-            <CardImage cardId={arcana} size="custom" widthPx={Math.round(boxW)} />
-          )}
-        </div>
+      {boxW > 0 && (
+        <CardImage cardId={arcana} size="custom" widthPx={Math.round(boxW)} />
       )}
-      <span style={keywordStyle}>
-        {arcana !== null ? MAJOR_ARCANA_NAMES[arcana] : `#${n}`}
-      </span>
     </div>
   );
 }
@@ -299,6 +321,7 @@ function CoreNumbers({
             ? "repeat(auto-fill, minmax(140px, 1fr))"
             : "repeat(2, 1fr)",
           gap: 12,
+          alignItems: "stretch",
         }}
       >
         {cells.map((c, i) => (
