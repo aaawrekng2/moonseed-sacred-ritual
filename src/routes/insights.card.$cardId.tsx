@@ -5,7 +5,6 @@ import { ArrowLeft, X, Lock, ChevronDown } from "lucide-react";
 import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
-import { useElementWidth } from "@/lib/use-element-width";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { DEFAULT_FILTERS } from "@/lib/insights.types";
 import { StalkerSparkline } from "@/components/insights/StalkerSparkline";
@@ -42,9 +41,7 @@ function StalkerDetailRoute() {
   const [data, setData] = useState<Detail | null>(null);
   const resolveImage = useActiveDeckImage();
   const radiusPct = useActiveDeckCornerRadius();
-  const { ref, width } = useElementWidth<HTMLDivElement>();
   void radiusPct;
-  void width;
   const { user } = useAuth();
   const { isPremium } = usePremium(user?.id);
 
