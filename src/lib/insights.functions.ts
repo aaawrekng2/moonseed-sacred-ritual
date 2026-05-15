@@ -1999,3 +1999,59 @@ export const getSynchronicities = createServerFn({ method: "GET" })
     hits.sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
     return { hits, totalReadings: rows.length };
   });
+
+/**
+ * Q52e — Stalkers grouped by numerology number. Returns, for each
+ * digit 1-9 plus master numbers with count >= STALKER_BY_NUMBER_THRESHOLD,
+ * the total occurrence count and the top contributing cards.
+ */
+export const getStalkersByNumber = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
+    const rows = await fetchFilteredReadings(supabase, userId, data, days);
+
+    const STALKER_BY_NUMBER_THRESHOLD = 3;
+
+    const counts: Record<number, number> = {
+      1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0,
+      11: 0, 22: 0, 33: 0,
+    };
+    const contribByNumber: Record<number, Record<number, number>> = {};
+    for (const n of Object.keys(counts).map(Number)) {
+      contribByNumber[n] = {};
+    }
+
+    for (const r of rows) {
+      for (const cid of r.card_ids ?? []) {
+        const v = reduceCardToNumerology(cid);
+        if (v === null) continue;
+        if (counts[v] === undefined) continue;
+        counts[v] += 1;
+        contribByNumber[v][cid] = (contribByNumber[v][cid] ?? 0) + 1;
+      }
+    }
+
+    type Stalker = {
+      number: number;
+      count: number;
+      topCards: { cardId: number; count: number }[];
+    };
+    const stalkers: Stalker[] = [];
+    for (const [k, v] of Object.entries(counts)) {
+      if (v < STALKER_BY_NUMBER_THRESHOLD) continue;
+      const num = Number(k);
+      const contrib = contribByNumber[num];
+      const topCards = Object.entries(contrib)
+        .map(([cid, c]) => ({ cardId: Number(cid), count: c as number }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3);
+      stalkers.push({ number: num, count: v, topCards });
+    }
+    stalkers.sort((a, b) => b.count - a.count);
+
+    return { stalkers, totalReadings: rows.length };
+  });

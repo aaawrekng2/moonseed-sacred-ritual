@@ -2,25 +2,15 @@
  * Q52d — Numerology Patterns tab. Reading-data driven; reuses the
  * Insights filter bar (GlobalFilterBar) and the InsightsFilters shape.
  */
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { supabase } from "@/integrations/supabase/client";
 import {
   getNumberFrequency,
   getSynchronicities,
 } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
-import {
-  DEFAULT_FILTERS,
-  type InsightsFilters,
-  type TimeRange,
-} from "@/lib/insights.types";
-import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
-import {
-  EMPTY_GLOBAL_FILTERS,
-  type GlobalFilters,
-} from "@/lib/filters.types";
+import type { InsightsFilters } from "@/lib/insights.types";
 import { CardImage } from "@/components/card/CardImage";
 import { getCardName } from "@/lib/tarot";
 import { formatTimeAgo } from "@/lib/dates";
@@ -60,8 +50,12 @@ const subtitleStyle: CSSProperties = {
   margin: 0,
 };
 
-export function NumerologyPatternsTab() {
-  const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
+export function NumerologyPatternsTab({
+  filters,
+}: {
+  filters: InsightsFilters;
+  onFiltersChange?: (f: InsightsFilters) => void;
+}) {
   const freqFn = useServerFn(getNumberFrequency);
   const syncFn = useServerFn(getSynchronicities);
   const [freqData, setFreqData] = useState<FreqData | null>(null);
@@ -69,32 +63,18 @@ export function NumerologyPatternsTab() {
   const [loading, setLoading] = useState(true);
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [openReadingId, setOpenReadingId] = useState<string | null>(null);
-  const [userTags, setUserTags] = useState<
-    Array<{ id: string; name: string; usage_count: number }>
-  >([]);
+  const contribRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
-      const { data } = await supabase
-        .from("user_tags")
-        .select("id, name, usage_count")
-        .eq("user_id", user.id)
-        .order("usage_count", { ascending: false })
-        .limit(50);
-      if (cancelled) return;
-      setUserTags(
-        (data ?? []) as Array<{ id: string; name: string; usage_count: number }>,
-      );
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (selectedNumber !== null) {
+      requestAnimationFrame(() => {
+        contribRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    }
+  }, [selectedNumber]);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,46 +102,19 @@ export function NumerologyPatternsTab() {
     };
   }, [filters, freqFn, syncFn]);
 
-  const globalFilters: GlobalFilters = {
-    ...EMPTY_GLOBAL_FILTERS,
-    timeRange: filters.timeRange,
-    tags: filters.tagIds,
-    spreadTypes: filters.spreadTypes,
-    moonPhases: filters.moonPhases,
-    deepOnly: filters.deepOnly,
-    reversedOnly: filters.reversedOnly,
-  };
-  const handleGlobalChange = (next: GlobalFilters) => {
-    setFilters({
-      ...filters,
-      tagIds: next.tags,
-      spreadTypes: next.spreadTypes,
-      moonPhases: next.moonPhases as InsightsFilters["moonPhases"],
-      deepOnly: next.deepOnly,
-      reversedOnly: next.reversedOnly,
-    });
-  };
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <GlobalFilterBar
-        filters={globalFilters}
-        onChange={handleGlobalChange}
-        sections={["tags", "spreadTypes", "moonPhases", "depth", "reversed"]}
-        timeRange={{
-          value: filters.timeRange,
-          options: [
-            { value: "7d", label: "Last 7 days" },
-            { value: "30d", label: "Last 30 days" },
-            { value: "90d", label: "Last 90 days" },
-            { value: "365d", label: "Last 365 days" },
-            { value: "all", label: "All time" },
-          ],
-          onChange: (v) =>
-            setFilters({ ...filters, timeRange: v as TimeRange }),
+      <h2
+        style={{
+          fontFamily: "var(--font-display)",
+          fontStyle: "italic",
+          fontSize: "var(--text-heading-md)",
+          color: "var(--color-foreground)",
+          margin: "0 0 var(--space-3, 12px) 0",
         }}
-        userTags={userTags}
-      />
+      >
+        Patterns in Your Readings
+      </h2>
 
       {loading && !freqData ? (
         <LoadingSkeleton heights={[260, 200]} />
@@ -179,6 +132,7 @@ export function NumerologyPatternsTab() {
 
           {selectedNumber !== null && (
             <CardsBehindSection
+              sectionRef={contribRef}
               number={selectedNumber}
               contributions={freqData.contribByNumber[selectedNumber] ?? {}}
             />
@@ -397,9 +351,11 @@ function NumberFrequencySection({
 }
 
 function CardsBehindSection({
+  sectionRef,
   number,
   contributions,
 }: {
+  sectionRef?: React.Ref<HTMLElement>;
   number: number;
   contributions: Record<number, number>;
 }) {
@@ -408,7 +364,10 @@ function CardsBehindSection({
     .sort((a, b) => b.count - a.count);
 
   return (
-    <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <section
+      ref={sectionRef}
+      style={{ display: "flex", flexDirection: "column", gap: 12 }}
+    >
       <h3 style={sectionHeaderStyle}>Cards Behind the {number}</h3>
       {entries.length === 0 ? (
         <p style={subtitleStyle}>No cards yet for this number.</p>

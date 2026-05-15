@@ -61,6 +61,17 @@ export function NumerologyTodayTab({
 
   return (
     <div className="flex flex-col gap-10 pb-12">
+      <h2
+        style={{
+          fontFamily: "var(--font-display)",
+          fontStyle: "italic",
+          fontSize: "var(--text-heading-md)",
+          color: "var(--color-foreground)",
+          margin: "0 0 var(--space-3, 12px) 0",
+        }}
+      >
+        Today
+      </h2>
       {/* Today's Numbers */}
       <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <h3 style={sectionHeaderStyle}>Today&rsquo;s Numbers</h3>
