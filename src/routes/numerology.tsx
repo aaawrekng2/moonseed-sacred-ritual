@@ -3,14 +3,26 @@
  * 6 sub-tabs; only Today is wired in Q52a.
  */
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
+import { useScrollCollapse } from "@/lib/use-scroll-collapse";
+import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
+import {
+  EMPTY_GLOBAL_FILTERS,
+  type GlobalFilters,
+} from "@/lib/filters.types";
+import {
+  DEFAULT_FILTERS,
+  type InsightsFilters,
+  type TimeRange,
+} from "@/lib/insights.types";
 import { NumerologyTodayTab } from "@/components/numerology/NumerologyTodayTab";
 import { NumerologyBlueprintTab } from "@/components/numerology/NumerologyBlueprintTab";
 import { NumerologyCyclesTab } from "@/components/numerology/NumerologyCyclesTab";
 import { NumerologyPatternsTab } from "@/components/numerology/NumerologyPatternsTab";
+import { NumerologyStalkersTab } from "@/components/numerology/NumerologyStalkersTab";
 
 export const Route = createFileRoute("/numerology")({
   head: () => ({
