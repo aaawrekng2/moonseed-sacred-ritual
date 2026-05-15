@@ -17,9 +17,11 @@ export type DrawCalendarAppearance = {
 
 export function DrawCalendar({
   appearances,
+  monthsBack,
 }: {
   appearances: DrawCalendarAppearance[];
-  /** Deprecated in Q62 — month selection is automatic. Kept for API compat. */
+  /** Q64 — when provided, caps the visible months from the current month
+   *  back. Falls back to viewport-based auto-selection when omitted. */
   monthsBack?: number;
 }) {
   const appearanceDates = useMemo(
@@ -41,9 +43,16 @@ export function DrawCalendar({
   }, [appearanceDates]);
 
   const months = useMemo(() => {
-    // Q62 Fix 2 — auto-pick months that contain draws + always show
-    // the current month. Cap by viewport: 2 on mobile, 4 on tablet+.
     const now = new Date();
+    if (typeof monthsBack === "number" && monthsBack > 0) {
+      // Q64 — show the last `monthsBack` months ending with the current month.
+      const out: Date[] = [];
+      for (let i = monthsBack - 1; i >= 0; i -= 1) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        out.push(d);
+      }
+      return out;
+    }
     const currentKey = `${now.getFullYear()}-${now.getMonth()}`;
     const set = new Set<string>();
     for (const d of appearanceDates) {
@@ -60,7 +69,7 @@ export function DrawCalendar({
         const [y, m] = k.split("-").map(Number);
         return new Date(y, m, 1);
       });
-  }, [appearanceDates]);
+  }, [appearanceDates, monthsBack]);
 
   const dayButton = (props: any) => {
     const k = props.day.date.toDateString();
@@ -68,11 +77,14 @@ export function DrawCalendar({
     // Q62 Fix 3 — heatmap intensity scaled by daily count (inline so
     // we don't depend on data-attr forwarding through CalendarDayButton).
     let bg: string | undefined;
+    // Q64 — wider opacity range so heavy-draw cards stand out.
     if (c === 1) bg = "color-mix(in oklab, var(--gold) 15%, transparent)";
-    else if (c === 2) bg = "color-mix(in oklab, var(--gold) 28%, transparent)";
-    else if (c === 3) bg = "color-mix(in oklab, var(--gold) 38%, transparent)";
-    else if (c === 4) bg = "color-mix(in oklab, var(--gold) 46%, transparent)";
-    else if (c >= 5) bg = "color-mix(in oklab, var(--gold) 55%, transparent)";
+    else if (c === 2) bg = "color-mix(in oklab, var(--gold) 25%, transparent)";
+    else if (c === 3) bg = "color-mix(in oklab, var(--gold) 35%, transparent)";
+    else if (c === 4) bg = "color-mix(in oklab, var(--gold) 45%, transparent)";
+    else if (c < 8) bg = "color-mix(in oklab, var(--gold) 55%, transparent)";
+    else if (c < 12) bg = "color-mix(in oklab, var(--gold) 70%, transparent)";
+    else bg = "color-mix(in oklab, var(--gold) 85%, transparent)";
     return (
       <CalendarDayButton
         {...props}
