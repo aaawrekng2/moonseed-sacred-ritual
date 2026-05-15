@@ -12,6 +12,7 @@ import {
 import { CardImage } from "@/components/card/CardImage";
 import { CardCellWithBadge } from "./CardCellWithBadge";
 import { ChevronRight } from "lucide-react";
+import { useElementWidth } from "@/lib/use-element-width";
 import type {
   InsightsFilters,
   CardSortBy,
@@ -102,7 +103,8 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
     totalReadings: number;
   } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mode, setMode] = useState<Mode>("bar");
+  // Q60 Fix 5 — Grid is the default mode.
+  const [mode, setMode] = useState<Mode>("grid");
   const [showAll, setShowAll] = useState(false);
 
   const sortBy: CardSortBy = filters.cardSortBy ?? "frequency";
@@ -222,8 +224,9 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
 
 function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => void }) {
   const items: Array<{ id: Mode; label: string }> = [
-    { id: "bar", label: "Bar" },
+    // Q60 Fix 5 — Grid first, then Bar, then Deck.
     { id: "grid", label: "Grid" },
+    { id: "bar", label: "Bar" },
     { id: "deck", label: "Deck" },
   ];
   return (
@@ -346,58 +349,62 @@ function DeckView({ entries }: { entries: Array<{ cardId: number; count: number 
     { name: "Pentacles", start: 64 },
   ];
   return (
-    <div className="space-y-3">
-      <div>
+    // Q60 Fix 6 — unified horizontal blocks. Majors = 2 rows of 11.
+    // Each suit = 2 rows of 7. Same visual rhythm app-wide.
+    <div className="space-y-4">
+      <section>
         <div className="mb-1 text-[10px] uppercase tracking-widest opacity-60">Majors</div>
         <div className="grid grid-cols-11 gap-1">
           {majors.map((id) => (
             <DeckCell key={id} cardId={id} count={lookup.get(id) ?? 0} />
           ))}
         </div>
-      </div>
-      <div className="grid grid-cols-4 gap-2">
-        {suits.map((s) => (
-          <div key={s.name}>
-            <div className="mb-1 text-[10px] uppercase tracking-widest opacity-60">{s.name}</div>
-            <div className="grid grid-cols-2 gap-1">
-              {Array.from({ length: 14 }, (_, i) => s.start + i).map((id) => (
-                <DeckCell key={id} cardId={id} count={lookup.get(id) ?? 0} />
-              ))}
-            </div>
+      </section>
+      {suits.map((s) => (
+        <section key={s.name}>
+          <div className="mb-1 text-[10px] uppercase tracking-widest opacity-60">{s.name}</div>
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: 14 }, (_, i) => s.start + i).map((id) => (
+              <DeckCell key={id} cardId={id} count={lookup.get(id) ?? 0} />
+            ))}
           </div>
-        ))}
-      </div>
+        </section>
+      ))}
     </div>
   );
 }
 
 function DeckCell({ cardId, count }: { cardId: number; count: number }) {
   const navigate = useNavigate();
+  const { ref, width } = useElementWidth<HTMLDivElement>();
   return (
     <button
       type="button"
       onClick={() =>
         navigate({ to: "/insights/card/$cardId", params: { cardId: String(cardId) } })
       }
-      className="relative"
-      style={{ opacity: count === 0 ? 0.3 : 1, display: "block" }}
+      style={{
+        position: "relative",
+        background: "transparent",
+        border: "none",
+        padding: 0,
+        cursor: "pointer",
+        opacity: count === 0 ? 0.3 : 1,
+        width: "100%",
+      }}
+      ref={ref as never}
     >
-      <CardImage
-        cardId={cardId}
-        variant="face"
-        size="custom"
-        widthPx={120}
-        ariaLabel={getCardName(cardId)}
-        style={{ width: "100%", display: "block" }}
-      />
-      {count > 0 && (
-        <span
-          className="absolute right-1 top-1 inline-flex items-center justify-center rounded-full px-1.5 text-[10px]"
-          style={{ background: "var(--gold)", color: "var(--cosmos, #0a0a14)", fontStyle: "italic", minWidth: 18 }}
-        >
-          {count}
-        </span>
+      {width > 0 && (
+        <CardImage
+          cardId={cardId}
+          variant="face"
+          size="custom"
+          widthPx={Math.round(width)}
+          ariaLabel={getCardName(cardId)}
+          style={{ width: "100%", display: "block" }}
+        />
       )}
+      {count > 0 && <span className="moonseed-card-badge">{count}×</span>}
     </button>
   );
 }
