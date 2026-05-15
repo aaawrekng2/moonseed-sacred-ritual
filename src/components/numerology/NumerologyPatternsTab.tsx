@@ -361,59 +361,78 @@ function CardsBehindSection({
       {entries.length === 0 ? (
         <p style={subtitleStyle}>No cards yet for this number.</p>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
-            gap: 12,
-          }}
-        >
-          {entries.map(({ cid, count }) => (
-            <ContributionCardCell key={cid} cardId={cid} count={count} />
-          ))}
-        </div>
+        <>
+          {/* Cards row — bottom-aligned shelf. */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
+              gap: 12,
+              alignItems: "end",
+              justifyItems: "center",
+            }}
+          >
+            {entries.map(({ cid }) => (
+              <ContributionCardThumb key={cid} cardId={cid} />
+            ))}
+          </div>
+          {/* Labels row — same auto-fill formula = same column count. */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
+              gap: 12,
+              justifyItems: "center",
+              alignItems: "start",
+            }}
+          >
+            {entries.map(({ cid, count }) => (
+              <div
+                key={cid}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-caption)",
+                    textAlign: "center",
+                    opacity: 0.85,
+                  }}
+                >
+                  {getCardName(cid)}
+                </span>
+                <span
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-caption)",
+                    color: "var(--gold)",
+                  }}
+                >
+                  {count}×
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </section>
   );
 }
 
-function ContributionCardCell({ cardId, count }: { cardId: number; count: number }) {
+function ContributionCardThumb({ cardId }: { cardId: number }) {
   const { ref: imgRef, width: imgW } = useElementWidth<HTMLDivElement>();
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 4,
-      }}
-    >
-      <div ref={imgRef} style={{ width: "100%" }}>
-        {imgW > 0 && (
-          <CardImage cardId={cardId} size="custom" widthPx={Math.round(imgW)} />
-        )}
-      </div>
-      <span
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-caption)",
-          textAlign: "center",
-          opacity: 0.85,
-        }}
-      >
-        {getCardName(cardId)}
-      </span>
-      <span
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-caption)",
-          color: "var(--gold)",
-        }}
-      >
-        {count}×
-      </span>
+    <div ref={imgRef} style={{ width: "100%" }}>
+      {imgW > 0 && (
+        <CardImage cardId={cardId} size="custom" widthPx={Math.round(imgW)} />
+      )}
     </div>
   );
 }

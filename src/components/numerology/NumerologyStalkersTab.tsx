@@ -158,16 +158,61 @@ function StalkerEntry({
           </p>
         </div>
       </div>
+      {/* Cards row — bottom-aligned shelf. */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
+          gridTemplateColumns: `repeat(${stalker.topCards.length}, 1fr)`,
           gap: 12,
-          alignItems: "flex-end",
+          alignItems: "end",
+          justifyItems: "center",
+        }}
+      >
+        {stalker.topCards.map(({ cardId }) => (
+          <StalkerTopCardThumb key={cardId} cardId={cardId} />
+        ))}
+      </div>
+      {/* Labels row — same columns; names wrap freely. */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `repeat(${stalker.topCards.length}, 1fr)`,
+          gap: 12,
+          justifyItems: "center",
+          alignItems: "start",
         }}
       >
         {stalker.topCards.map(({ cardId, count }) => (
-          <StalkerTopCard key={cardId} cardId={cardId} count={count} />
+          <div
+            key={cardId}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-caption)",
+                textAlign: "center",
+              }}
+            >
+              {getCardName(cardId)}
+            </span>
+            <span
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-caption)",
+                color: "var(--gold)",
+              }}
+            >
+              {count}×
+            </span>
+          </div>
         ))}
       </div>
       {isLifePath && (
@@ -189,42 +234,13 @@ function StalkerEntry({
   );
 }
 
-function StalkerTopCard({ cardId, count }: { cardId: number; count: number }) {
+function StalkerTopCardThumb({ cardId }: { cardId: number }) {
   const { ref: imgRef, width: imgW } = useElementWidth<HTMLDivElement>();
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 4,
-      }}
-    >
-      <div ref={imgRef} style={{ width: "100%", maxWidth: 140 }}>
-        {imgW > 0 && (
-          <CardImage cardId={cardId} size="custom" widthPx={Math.round(imgW)} />
-        )}
-      </div>
-      <span
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-caption)",
-          textAlign: "center",
-        }}
-      >
-        {getCardName(cardId)}
-      </span>
-      <span
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-caption)",
-          color: "var(--gold)",
-        }}
-      >
-        {count}×
-      </span>
+    <div ref={imgRef} style={{ width: "100%", maxWidth: 140 }}>
+      {imgW > 0 && (
+        <CardImage cardId={cardId} size="custom" widthPx={Math.round(imgW)} />
+      )}
     </div>
   );
 }

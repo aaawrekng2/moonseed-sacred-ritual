@@ -70,6 +70,7 @@ export function NumerologyTodayTab({
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",
             gap: 12,
+            alignItems: "end",
           }}
         >
           <NumberCell value={pd} label="Day" />

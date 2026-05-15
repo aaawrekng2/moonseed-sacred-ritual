@@ -306,7 +306,7 @@ function NumerologyPage() {
         <h1
           className="font-serif italic mb-4"
           style={{
-            fontSize: "var(--text-display, 32px)",
+            fontSize: "clamp(24px, 7vw, 32px)",
             color: "var(--color-foreground)",
             opacity: 0.9,
             lineHeight: 1.25,
