@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Outlet } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
@@ -380,6 +380,10 @@ function InsightsRoute() {
           {tab === "recap" && <RecapTab />}
         </div>
       </main>
+      {/* Q60 Fix 3 — child routes (/insights/card/$cardId,
+          /insights/recap/$lunationStart, /insights/year-of-lunations)
+          mount here. They use position: fixed for full-screen takeover. */}
+      <Outlet />
     </div>
   );
 }
