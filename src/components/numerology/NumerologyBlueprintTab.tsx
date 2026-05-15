@@ -133,9 +133,11 @@ function Section({
 function ExpandableCard({
   children,
   fullText,
+  style,
 }: {
   children: ReactNode;
   fullText?: string;
+  style?: CSSProperties;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -147,6 +149,7 @@ function ExpandableCard({
         display: "flex",
         flexDirection: "column",
         gap: 10,
+        ...style,
       }}
     >
       {children}
@@ -350,15 +353,34 @@ function CoreNumberCard({
   const arcana = numberToMajorArcana(value.digit);
   const { ref: thumbRef, width: thumbW } = useElementWidth<HTMLDivElement>();
   return (
-    <ExpandableCard fullText={`${subtitle}. ${meaning.full}`}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-        <span style={goldDigitStyle}>{value.digit}</span>
-        <span style={labelStyle}>{label}</span>
-        <span style={keywordStyle}>{meaning.keyword}</span>
+    <ExpandableCard fullText={`${subtitle}. ${meaning.full}`} style={{ height: "100%" }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 6,
+          flex: 1,
+          justifyContent: "space-between",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <span style={goldDigitStyle}>{value.digit}</span>
+          <span style={labelStyle}>{label}</span>
+          <span style={keywordStyle}>{meaning.keyword}</span>
+        </div>
         {arcana !== null && (
           <div
             ref={thumbRef}
             style={{
+              marginTop: "auto",
               width: "70%",
               maxWidth: 180,
               display: "flex",
