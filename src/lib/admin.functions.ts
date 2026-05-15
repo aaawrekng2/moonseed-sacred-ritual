@@ -122,7 +122,11 @@ export const listAdminUsers = createServerFn({ method: "GET" })
     // surfaced separately via getPendingSignupCount.
     return allUsers
       .filter((u) => {
-        if ((u as any).email_confirmed_at) return true;
+        // Q62 Fix 10 — require BOTH email and email_confirmed_at to weed
+        // out orphaned auth rows that render as 8-char user-id stubs.
+        const hasEmail = !!u.email;
+        const isConfirmed = !!(u as any).email_confirmed_at;
+        if (hasEmail && isConfirmed) return true;
         const p = prefMap.get(u.id);
         if (p?.role === "admin" || p?.role === "super_admin") return true;
         return false;
