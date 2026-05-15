@@ -16,6 +16,7 @@ import { getCardName } from "@/lib/tarot";
 import { formatTimeAgo } from "@/lib/dates";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
+import { useElementWidth } from "@/lib/use-element-width";
 
 type FreqData = {
   counts: Record<number, number>;
@@ -104,18 +105,6 @@ export function NumerologyPatternsTab({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <h2
-        style={{
-          fontFamily: "var(--font-display)",
-          fontStyle: "italic",
-          fontSize: "var(--text-heading-md)",
-          color: "var(--color-foreground)",
-          margin: "0 0 var(--space-3, 12px) 0",
-        }}
-      >
-        Patterns in Your Readings
-      </h2>
-
       {loading && !freqData ? (
         <LoadingSkeleton heights={[260, 200]} />
       ) : !freqData || freqData.totalCards === 0 ? (
@@ -375,47 +364,57 @@ function CardsBehindSection({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
             gap: 12,
           }}
         >
           {entries.map(({ cid, count }) => (
-            <div
-              key={cid}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <CardImage cardId={cid} size="custom" widthPx={64} />
-              <span
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: "var(--text-caption)",
-                  textAlign: "center",
-                  opacity: 0.85,
-                }}
-              >
-                {getCardName(cid)}
-              </span>
-              <span
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: "var(--text-caption)",
-                  color: "var(--gold)",
-                }}
-              >
-                {count}×
-              </span>
-            </div>
+            <ContributionCardCell key={cid} cardId={cid} count={count} />
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+function ContributionCardCell({ cardId, count }: { cardId: number; count: number }) {
+  const { ref: imgRef, width: imgW } = useElementWidth<HTMLDivElement>();
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4,
+      }}
+    >
+      <div ref={imgRef} style={{ width: "100%" }}>
+        {imgW > 0 && (
+          <CardImage cardId={cardId} size="custom" widthPx={Math.round(imgW)} />
+        )}
+      </div>
+      <span
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-caption)",
+          textAlign: "center",
+          opacity: 0.85,
+        }}
+      >
+        {getCardName(cardId)}
+      </span>
+      <span
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-caption)",
+          color: "var(--gold)",
+        }}
+      >
+        {count}×
+      </span>
+    </div>
   );
 }
 
