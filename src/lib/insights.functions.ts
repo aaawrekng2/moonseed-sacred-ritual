@@ -131,10 +131,11 @@ type ReadingRow = {
   is_deep_reading: boolean | null;
   deck_id: string | null;
   tags: string[] | null;
+  question?: string | null;
 };
 
 const READING_COLUMNS =
-  "id, created_at, card_ids, card_orientations, spread_type, moon_phase, guide_id, lens_id, is_deep_reading, deck_id, tags";
+  "id, created_at, card_ids, card_orientations, spread_type, moon_phase, guide_id, lens_id, is_deep_reading, deck_id, tags, question";
 
 async function fetchFilteredReadings(
   supabase: any,
@@ -1879,4 +1880,122 @@ export const getReadingsByIds = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
     if (error) throw error;
     return { readings: rows ?? [] };
+  });
+
+// ===== Q52d — Numerology Patterns =====
+
+function reduceCardToNumerology(cid: number): number | null {
+  if (cid < 0 || cid >= 78) return null;
+  let num: number | null = null;
+  if (cid > 0 && cid <= 21) {
+    num = cid;
+  } else if (cid >= 22 && cid <= 77) {
+    const pos = (cid - 22) % 14;
+    if (pos >= 0 && pos <= 9) num = pos + 1;
+  }
+  if (num === null) return null;
+  let v = num;
+  while (v > 9 && v !== 11 && v !== 22 && v !== 33) {
+    v = String(v).split("").reduce((s, c) => s + Number(c), 0);
+  }
+  return v;
+}
+
+/**
+ * Q52d — Aggregate the numerology of every card drawn within the
+ * filtered reading set. Counts digits 1-9 plus master numbers 11/22/33.
+ * Courts and The Fool are excluded.
+ */
+export const getNumberFrequency = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
+    const rows = await fetchFilteredReadings(supabase, userId, data, days);
+
+    const counts: Record<number, number> = {
+      1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0,
+      11: 0, 22: 0, 33: 0,
+    };
+    const contribByNumber: Record<number, Record<number, number>> = {};
+    for (const n of Object.keys(counts).map(Number)) {
+      contribByNumber[n] = {};
+    }
+    let totalCards = 0;
+    let excludedCards = 0;
+
+    for (const r of rows) {
+      for (const cid of r.card_ids ?? []) {
+        if (cid < 0 || cid >= 78) continue;
+        const v = reduceCardToNumerology(cid);
+        if (v === null) {
+          excludedCards += 1;
+          continue;
+        }
+        if (counts[v] !== undefined) {
+          counts[v] += 1;
+          totalCards += 1;
+          contribByNumber[v][cid] = (contribByNumber[v][cid] ?? 0) + 1;
+        }
+      }
+    }
+
+    return {
+      counts,
+      contribByNumber,
+      totalCards,
+      excludedCards,
+      totalReadings: rows.length,
+    };
+  });
+
+/**
+ * Q52d — Find readings where 2+ cards in the same reading share a
+ * numerology number. One Hit per (reading, number) bucket.
+ */
+export const getSynchronicities = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
+    const rows = await fetchFilteredReadings(supabase, userId, data, days);
+
+    type Hit = {
+      readingId: string;
+      createdAt: string;
+      number: number;
+      cardIds: number[];
+      question: string | null;
+    };
+    const hits: Hit[] = [];
+
+    for (const r of rows) {
+      const ids: number[] = r.card_ids ?? [];
+      if (ids.length < 2) continue;
+      const byNumber: Record<number, number[]> = {};
+      for (const cid of ids) {
+        const v = reduceCardToNumerology(cid);
+        if (v === null) continue;
+        byNumber[v] = byNumber[v] ?? [];
+        byNumber[v].push(cid);
+      }
+      for (const [num, sharedCards] of Object.entries(byNumber)) {
+        if (sharedCards.length >= 2) {
+          hits.push({
+            readingId: r.id,
+            createdAt: r.created_at,
+            number: Number(num),
+            cardIds: sharedCards,
+            question: r.question ?? null,
+          });
+        }
+      }
+    }
+
+    hits.sort((a, b) => (a.createdAt > b.createdAt ? -1 : 1));
+    return { hits, totalReadings: rows.length };
   });
