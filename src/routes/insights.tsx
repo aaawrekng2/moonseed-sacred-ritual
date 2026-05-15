@@ -501,38 +501,3 @@ function log(cardType: string) {
   // eslint-disable-next-line no-console
   console.log("insights.overview.tapped", { cardType });
 }
-
-function CardsTabControls({
-  filters,
-  onChange,
-}: {
-  filters: InsightsFilters;
-  onChange: (next: InsightsFilters) => void;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-4">
-      <Dropdown
-        prefix="Group"
-        value={filters.cardGroupBy ?? "none"}
-        options={CARD_GROUP_BY.map((v) => ({
-          value: v,
-          label: CARD_GROUP_BY_LABEL[v],
-        }))}
-        onChange={(v) =>
-          onChange({ ...filters, cardGroupBy: v as CardGroupBy })
-        }
-      />
-      <Dropdown
-        prefix="Sort"
-        value={filters.cardSortBy ?? "frequency"}
-        options={CARD_SORT_BY.map((v) => ({
-          value: v,
-          label: CARD_SORT_BY_LABEL[v],
-        }))}
-        onChange={(v) =>
-          onChange({ ...filters, cardSortBy: v as CardSortBy })
-        }
-      />
-    </div>
-  );
-}
