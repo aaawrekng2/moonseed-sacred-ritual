@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, X, Lock, ChevronDown } from "lucide-react";
+import { ArrowLeft, X, Lock } from "lucide-react";
 import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
@@ -47,6 +47,13 @@ function StalkerDetailRoute() {
   void width;
   const { user } = useAuth();
   const { isPremium } = usePremium(user?.id);
+
+  // Q62 Fix 8 — instant scroll to hero on mount so the page doesn't
+  // open at an arbitrary scroll position.
+  const heroRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    heroRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+  }, [cid]);
 
   useEffect(() => {
     void (async () => {
@@ -97,7 +104,7 @@ function StalkerDetailRoute() {
       <main className="flex-1 overflow-y-auto px-5 pb-12 pt-4">
         {/* Q61 Fix 11 — narrow column for hero + description. */}
         <div className="mx-auto flex max-w-md flex-col items-center gap-4">
-          <div ref={ref} style={{ width: 200 }}>
+          <div ref={(el) => { ref.current = el; heroRef.current = el; }} style={{ width: 200 }}>
             <AdaptiveCardImage src={url} alt={cardName} />
           </div>
 
@@ -142,8 +149,9 @@ function StalkerDetailRoute() {
                 width={280}
                 height={32}
               />
-
-              <CardDescriptionFade cardId={cid} />
+              {/* Q62 Fix 7 — description hidden until a real card-meanings
+                  library exists. When ready, re-mount <CardDescriptionFade
+                  cardId={cid} /> here. */}
             </>
           )}
         </div>
