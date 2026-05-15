@@ -376,7 +376,7 @@ function DeckView({ entries }: { entries: Array<{ cardId: number; count: number 
 
 function DeckCell({ cardId, count }: { cardId: number; count: number }) {
   const navigate = useNavigate();
-  const { ref, width } = useElementWidth<HTMLDivElement>();
+  const { ref, width } = useElementWidth<HTMLButtonElement>();
   return (
     <button
       type="button"
