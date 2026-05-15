@@ -63,28 +63,21 @@ export function StalkerCalendar({
     return m;
   }, [appearanceDates]);
 
-  // Q34 Fix 4 — smart 1 / 2 / 4 month layout based on viewport AND data span.
-  const [viewportWide, setViewportWide] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const mql = window.matchMedia("(min-width: 400px)");
-    const update = () => setViewportWide(mql.matches);
-    update();
-    mql.addEventListener("change", update);
-    return () => mql.removeEventListener("change", update);
-  }, []);
-
+  // Q60 Fix 7 — render every month in the appearance span individually
+  // and let an auto-fit grid pack as many as comfortably fit. Cell-size
+  // is now derived from each grid cell's own width (not the viewport),
+  // so months scale correctly inside their allocated track.
   const span = useMemo(() => monthSpan(appearances), [appearances]);
-  const monthsShown: 1 | 2 | 4 =
-    span <= 1 ? 1 : span >= 4 && viewportWide ? 4 : 2;
-
-  const [month, setMonth] = useState<Date>(() =>
-    initialMonth(appearances, monthsShown),
-  );
-  // Re-anchor when the stalker changes OR layout mode changes.
-  useEffect(() => {
-    setMonth(initialMonth(appearances, monthsShown));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Cap months rendered so a long history (years) doesn't generate a
+  // wall of calendars. Anchor to most recent activity.
+  const MAX_MONTHS = 12;
+  const monthsShown = Math.min(Math.max(span, 1), MAX_MONTHS);
+  const months = useMemo(() => {
+    const anchor = initialMonth(appearances, monthsShown);
+    return Array.from({ length: monthsShown }, (_, i) => {
+      const d = new Date(anchor.getFullYear(), anchor.getMonth() + i, 1);
+      return { iso: `${d.getFullYear()}-${d.getMonth()}`, month: d };
+    });
   }, [appearances, monthsShown]);
 
   const dayButton = (props: any) => {
@@ -111,69 +104,36 @@ export function StalkerCalendar({
     );
   };
 
-  if (monthsShown === 4) {
-    // Two stacked Calendar instances, each showing 2 consecutive months,
-    // arranged in a 2×2 grid. The second row begins 2 months after `month`.
-    const secondRowMonth = new Date(month.getFullYear(), month.getMonth() + 2, 1);
-    const handleTopMonthChange = (next: Date) => setMonth(next);
-    const handleBottomMonthChange = (next: Date) =>
-      setMonth(new Date(next.getFullYear(), next.getMonth() - 2, 1));
-    return (
-      <div
-        className="block rounded-lg p-2 max-w-full overflow-hidden"
-        style={{
-          background: "var(--surface-card)",
-          display: "grid",
-          gridTemplateRows: "auto auto",
-          gap: 8,
-          // Q55 — viewport-responsive cell size so the calendar never
-          // overflows on narrow mobile. Scales from ~14px on 320px
-          // screens up to the standard 32px on tablet+.
-          ["--cell-size" as never]: "clamp(1.3rem, calc((100vw - 64px) / 18), 2rem)",
-        }}
-      >
-        <Calendar
-          numberOfMonths={2}
-          mode="multiple"
-          selected={appearanceDates}
-          month={month}
-          onMonthChange={handleTopMonthChange}
-          showOutsideDays={false}
-          onSelect={() => {}}
-          components={{ DayButton: dayButton }}
-        />
-        <Calendar
-          numberOfMonths={2}
-          mode="multiple"
-          selected={appearanceDates}
-          month={secondRowMonth}
-          onMonthChange={handleBottomMonthChange}
-          showOutsideDays={false}
-          onSelect={() => {}}
-          components={{ DayButton: dayButton }}
-        />
-      </div>
-    );
-  }
-
   return (
     <div
-      className="block rounded-lg p-2 max-w-full overflow-hidden"
+      className="block rounded-lg p-2 max-w-full"
       style={{
         background: "var(--surface-card)",
-        ["--cell-size" as never]: "clamp(1.3rem, calc((100vw - 64px) / 18), 2rem)",
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+        gap: 16,
       }}
     >
-      <Calendar
-        numberOfMonths={monthsShown}
-        mode="multiple"
-        selected={appearanceDates}
-        month={month}
-        onMonthChange={setMonth}
-        showOutsideDays={false}
-        onSelect={() => {}}
-        components={{ DayButton: dayButton }}
-      />
+      {months.map((m) => (
+        <div
+          key={m.iso}
+          style={{
+            // Cell-size derives from each grid track's own width.
+            ["--cell-size" as never]:
+              "clamp(28px, calc((100% - 16px) / 8), 40px)",
+          }}
+        >
+          <Calendar
+            numberOfMonths={1}
+            mode="multiple"
+            selected={appearanceDates}
+            month={m.month}
+            showOutsideDays={false}
+            onSelect={() => {}}
+            components={{ DayButton: dayButton }}
+          />
+        </div>
+      ))}
     </div>
   );
 }
