@@ -12,6 +12,7 @@ import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { getLunationHistory, formatLunationRange, type Lunation } from "@/lib/lunation";
 import { MiniLunationRing } from "./MiniLunationRing";
 import { YearOfLunationsLocked } from "./YearOfLunationsLocked";
+import { LunationHint } from "./LunationHint";
 
 export function RecapTab() {
   const earliestFn = useServerFn(getEarliestReadingDate);
@@ -46,6 +47,7 @@ export function RecapTab() {
 
   return (
     <div className="flex flex-col gap-6 pb-12">
+      <LunationHint />
       <header className="text-center">
         <h1
           style={{
