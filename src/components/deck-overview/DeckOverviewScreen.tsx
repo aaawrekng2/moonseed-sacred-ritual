@@ -30,7 +30,7 @@ import {
   List as ListIcon,
   Pencil,
   Plus,
-  Sparkles,
+  Wand2,
   Trash2,
   Upload,
   X,
