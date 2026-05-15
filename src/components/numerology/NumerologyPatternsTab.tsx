@@ -3,7 +3,7 @@
  * Insights filter bar (GlobalFilterBar) and the InsightsFilters shape.
  */
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   getNumberFrequency,
@@ -12,6 +12,7 @@ import {
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import type { InsightsFilters } from "@/lib/insights.types";
 import { CardImage } from "@/components/card/CardImage";
+import { CardCellWithBadge } from "@/components/insights/CardCellWithBadge";
 import { getCardName } from "@/lib/tarot";
 import { formatTimeAgo } from "@/lib/dates";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
@@ -348,6 +349,7 @@ function CardsBehindSection({
   number: number;
   contributions: Record<number, number>;
 }) {
+  const navigate = useNavigate();
   const entries = Object.entries(contributions)
     .map(([cidStr, count]) => ({ cid: Number(cidStr), count: Number(count) }))
     .sort((a, b) => b.count - a.count);
@@ -372,8 +374,18 @@ function CardsBehindSection({
               justifyItems: "center",
             }}
           >
-            {entries.map(({ cid }) => (
-              <ContributionCardThumb key={cid} cardId={cid} />
+            {entries.map(({ cid, count }) => (
+              <CardCellWithBadge
+                key={cid}
+                cardId={cid}
+                count={count}
+                onClick={() =>
+                  navigate({
+                    to: "/insights/card/$cardId",
+                    params: { cardId: String(cid) },
+                  })
+                }
+              />
             ))}
           </div>
           {/* Labels row — same auto-fill formula = same column count. */}
@@ -382,58 +394,29 @@ function CardsBehindSection({
               display: "grid",
               gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
               gap: 12,
+              marginTop: 8,
               justifyItems: "center",
               alignItems: "start",
             }}
           >
-            {entries.map(({ cid, count }) => (
-              <div
+            {entries.map(({ cid }) => (
+              <span
                 key={cid}
                 style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 2,
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption)",
+                  textAlign: "center",
+                  opacity: 0.85,
                 }}
               >
-                <span
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-caption)",
-                    textAlign: "center",
-                    opacity: 0.85,
-                  }}
-                >
-                  {getCardName(cid)}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-caption)",
-                    color: "var(--gold)",
-                  }}
-                >
-                  {count}×
-                </span>
-              </div>
+                {getCardName(cid)}
+              </span>
             ))}
           </div>
         </>
       )}
     </section>
-  );
-}
-
-function ContributionCardThumb({ cardId }: { cardId: number }) {
-  const { ref: imgRef, width: imgW } = useElementWidth<HTMLDivElement>();
-  return (
-    <div ref={imgRef} style={{ width: "100%" }}>
-      {imgW > 0 && (
-        <CardImage cardId={cardId} size="custom" widthPx={Math.round(imgW)} />
-      )}
-    </div>
   );
 }
 
