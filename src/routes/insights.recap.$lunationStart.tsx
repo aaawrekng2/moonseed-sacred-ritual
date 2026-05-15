@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/auth";
 import { useReducePremiumPrompts } from "@/lib/use-reduce-premium-prompts";
 import { exportRecapPdf, shareRecapImage } from "@/lib/recap-export";
 import { useTrackReversals } from "@/lib/use-track-reversals";
+import { useMoonPrefs } from "@/lib/use-moon-prefs";
 
 export const Route = createFileRoute("/insights/recap/$lunationStart")({
   head: () => ({
@@ -73,6 +74,14 @@ function LunationRecapRoute() {
   // rewrite the time portion after the 'T'.
   const lunationStart = decodeIsoLunationParam(lunationStartRaw);
   const navigate = useNavigate();
+  // Q60 Fix 9 — When moon features are off, the recap surface is
+  // semantically meaningless. Bounce back to /insights.
+  const moonPrefs = useMoonPrefs();
+  useEffect(() => {
+    if (moonPrefs.loaded && !moonPrefs.moon_features_enabled) {
+      void navigate({ to: "/insights" });
+    }
+  }, [moonPrefs.loaded, moonPrefs.moon_features_enabled, navigate]);
   const fn = useServerFn(getLunationRecap);
   const [data, setData] = useState<RecapData | null>(null);
   const [loading, setLoading] = useState(true);
