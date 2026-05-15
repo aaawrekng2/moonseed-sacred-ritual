@@ -10,6 +10,8 @@ import {
   cardNumerologyReduced,
 } from "@/lib/tarot";
 import { CardImage } from "@/components/card/CardImage";
+import { CardCellWithBadge } from "./CardCellWithBadge";
+import { ChevronRight } from "lucide-react";
 import type {
   InsightsFilters,
   CardSortBy,
@@ -250,13 +252,10 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
 function BarRow({ cardId, count, max }: { cardId: number; count: number; max: number }) {
   const navigate = useNavigate();
   const w = max === 0 ? 0 : (count / max) * 100;
-  const tappable = count >= 3;
   return (
     <button
       type="button"
-      disabled={!tappable}
       onClick={() =>
-        tappable &&
         navigate({ to: "/insights/card/$cardId", params: { cardId: String(cardId) } })
       }
       className="flex w-full items-center gap-2 py-1.5 text-left"
@@ -279,6 +278,7 @@ function BarRow({ cardId, count, max }: { cardId: number; count: number; max: nu
       <div style={{ minWidth: 24, textAlign: "right", fontStyle: "italic", fontSize: "var(--text-body-sm)", opacity: 0.8 }}>
         {count}
       </div>
+      <ChevronRight className="h-4 w-4 opacity-50" />
     </button>
   );
 }
@@ -293,45 +293,45 @@ function BarView({ entries, max }: { entries: Array<{ cardId: number; count: num
   );
 }
 
-function GridCell({ cardId, count }: { cardId: number; count: number }) {
-  const navigate = useNavigate();
-  return (
-    <button
-      type="button"
-      onClick={() =>
-        count >= 3 &&
-        navigate({ to: "/insights/card/$cardId", params: { cardId: String(cardId) } })
-      }
-      className="relative"
-      style={{ opacity: count === 0 ? 0.3 : 1, display: "block" }}
-    >
-      {/* EY-7 — unified card render; width 100% via custom + container. */}
-      <CardImage
-        cardId={cardId}
-        variant="face"
-        size="custom"
-        widthPx={120}
-        ariaLabel={getCardName(cardId)}
-        style={{ width: "100%", display: "block" }}
-      />
-      {count > 0 && (
-        <span
-          className="absolute right-1 top-1 inline-flex items-center justify-center rounded-full px-1.5 text-[10px]"
-          style={{ background: "var(--gold)", color: "var(--cosmos, #0a0a14)", fontStyle: "italic", minWidth: 18 }}
-        >
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
-
 function GridView({ entries }: { entries: Array<{ cardId: number; count: number }> }) {
+  const navigate = useNavigate();
+  const visible = entries.filter((e) => e.count > 0);
+  const gridStyle = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+    gap: 16,
+    justifyItems: "center",
+  } as const;
   return (
-    <div className="grid grid-cols-3 gap-2 md:grid-cols-4 lg:grid-cols-5">
-      {entries.map((e) => (
-        <GridCell key={e.cardId} cardId={e.cardId} count={e.count} />
-      ))}
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ ...gridStyle, alignItems: "end" }}>
+        {visible.map((e) => (
+          <CardCellWithBadge
+            key={e.cardId}
+            cardId={e.cardId}
+            count={e.count}
+            onClick={() =>
+              navigate({ to: "/insights/card/$cardId", params: { cardId: String(e.cardId) } })
+            }
+          />
+        ))}
+      </div>
+      <div style={{ ...gridStyle, alignItems: "start", marginTop: 8 }}>
+        {visible.map((e) => (
+          <span
+            key={e.cardId}
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption)",
+              textAlign: "center",
+              opacity: 0.85,
+            }}
+          >
+            {getCardName(e.cardId)}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -351,7 +351,7 @@ function DeckView({ entries }: { entries: Array<{ cardId: number; count: number 
         <div className="mb-1 text-[10px] uppercase tracking-widest opacity-60">Majors</div>
         <div className="grid grid-cols-11 gap-1">
           {majors.map((id) => (
-            <GridCell key={id} cardId={id} count={lookup.get(id) ?? 0} />
+            <DeckCell key={id} cardId={id} count={lookup.get(id) ?? 0} />
           ))}
         </div>
       </div>
@@ -361,12 +361,43 @@ function DeckView({ entries }: { entries: Array<{ cardId: number; count: number 
             <div className="mb-1 text-[10px] uppercase tracking-widest opacity-60">{s.name}</div>
             <div className="grid grid-cols-2 gap-1">
               {Array.from({ length: 14 }, (_, i) => s.start + i).map((id) => (
-                <GridCell key={id} cardId={id} count={lookup.get(id) ?? 0} />
+                <DeckCell key={id} cardId={id} count={lookup.get(id) ?? 0} />
               ))}
             </div>
           </div>
         ))}
       </div>
     </div>
+  );
+}
+
+function DeckCell({ cardId, count }: { cardId: number; count: number }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        navigate({ to: "/insights/card/$cardId", params: { cardId: String(cardId) } })
+      }
+      className="relative"
+      style={{ opacity: count === 0 ? 0.3 : 1, display: "block" }}
+    >
+      <CardImage
+        cardId={cardId}
+        variant="face"
+        size="custom"
+        widthPx={120}
+        ariaLabel={getCardName(cardId)}
+        style={{ width: "100%", display: "block" }}
+      />
+      {count > 0 && (
+        <span
+          className="absolute right-1 top-1 inline-flex items-center justify-center rounded-full px-1.5 text-[10px]"
+          style={{ background: "var(--gold)", color: "var(--cosmos, #0a0a14)", fontStyle: "italic", minWidth: 18 }}
+        >
+          {count}
+        </span>
+      )}
+    </button>
   );
 }
