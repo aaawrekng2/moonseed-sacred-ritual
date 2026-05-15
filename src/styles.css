@@ -1597,6 +1597,48 @@ button:focus-visible .moon-rung-glow {
   -webkit-backdrop-filter: blur(8px);
 }
 
+/* Q60 Fix 2 — Card detail + StalkerCalendar drawn-day highlight. */
+.rdp-drawn,
+.rdp-drawn button {
+  background: color-mix(in oklab, var(--gold) 18%, transparent);
+  border-radius: 4px;
+  color: var(--color-foreground);
+  font-weight: 500;
+}
+
+/* Q60 Fix 4 — Canonical card count badge. Inside card image bounds,
+   bottom-right corner. Big-tech precedent (Apple, Instagram, Pinterest,
+   Spotify): inside-bounds badges, no border. Mobile-bigger via media
+   query so the count stays readable on phones. */
+.moonseed-card-badge {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--background);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+@media (max-width: 768px) {
+  .moonseed-card-badge {
+    min-width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+}
+
 /*
  * FU-7 — Canonical sticky-header glass effect. Theme-aware,
  * uses backdrop-blur for the iOS-canonical translucent header.
