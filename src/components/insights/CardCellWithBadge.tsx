@@ -39,31 +39,7 @@ export function CardCellWithBadge({
           <CardImage cardId={cardId} size="custom" widthPx={Math.round(width)} />
         )}
         {count !== undefined && (
-          <span
-            style={{
-              position: "absolute",
-              minWidth: "clamp(28px, 8vw, 36px)",
-              height: "clamp(28px, 8vw, 36px)",
-              bottom: "calc(clamp(28px, 8vw, 36px) / -2)",
-              right: "calc(clamp(28px, 8vw, 36px) / -2)",
-              background: "var(--gold)",
-              color: "var(--background)",
-              borderRadius: 999,
-              border: "2px solid var(--background)",
-              padding: "0 8px",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "clamp(12px, 3.2vw, 14px)",
-              fontWeight: 500,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              lineHeight: 1,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {count}×
-          </span>
+          <span className="moonseed-card-badge">{count}×</span>
         )}
       </div>
       {name !== undefined && (
