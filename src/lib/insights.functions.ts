@@ -131,10 +131,11 @@ type ReadingRow = {
   is_deep_reading: boolean | null;
   deck_id: string | null;
   tags: string[] | null;
+  question?: string | null;
 };
 
 const READING_COLUMNS =
-  "id, created_at, card_ids, card_orientations, spread_type, moon_phase, guide_id, lens_id, is_deep_reading, deck_id, tags";
+  "id, created_at, card_ids, card_orientations, spread_type, moon_phase, guide_id, lens_id, is_deep_reading, deck_id, tags, question";
 
 async function fetchFilteredReadings(
   supabase: any,
