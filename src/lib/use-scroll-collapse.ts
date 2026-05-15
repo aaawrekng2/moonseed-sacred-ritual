@@ -14,9 +14,19 @@ export function useScrollCollapse(
   threshold = 40,
 ): number {
   const [progress, setProgress] = useState(0);
+  // Q60 Fix 8 — track scrollRef.current changes so the effect re-binds
+  // when the target element mounts after an early-return branch
+  // (e.g. Numerology's birthDate empty-state). Without this, the
+  // effect would bind to window scroll on first render and never
+  // rebind to the real <main> once it mounts.
+  const [el, setEl] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const next = scrollRef?.current ?? null;
+    setEl((prev) => (prev === next ? prev : next));
+  });
 
   useEffect(() => {
-    const target = scrollRef?.current ?? null;
+    const target = el;
     const getScrollTop = () =>
       target
         ? target.scrollTop
@@ -35,7 +45,7 @@ export function useScrollCollapse(
     }
     window.addEventListener("scroll", handler, { passive: true });
     return () => window.removeEventListener("scroll", handler);
-  }, [scrollRef, threshold]);
+  }, [el, threshold]);
 
   return progress;
 }
