@@ -54,6 +54,32 @@ function NumerologyPage() {
   const [birthName, setBirthName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("today");
+  const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
+  const scrollRef = useRef<HTMLElement | null>(null);
+  const collapseProgress = useScrollCollapse(scrollRef, 40);
+  const [userTags, setUserTags] = useState<
+    Array<{ id: string; name: string; usage_count: number }>
+  >([]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_tags")
+        .select("id, name, usage_count")
+        .eq("user_id", user.id)
+        .order("usage_count", { ascending: false })
+        .limit(50);
+      if (cancelled) return;
+      setUserTags(
+        (data ?? []) as Array<{ id: string; name: string; usage_count: number }>,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -156,6 +182,28 @@ function NumerologyPage() {
     );
   }
 
+  const showFilters = tab === "patterns" || tab === "stalkers";
+
+  const globalFilters: GlobalFilters = {
+    ...EMPTY_GLOBAL_FILTERS,
+    timeRange: filters.timeRange,
+    tags: filters.tagIds,
+    spreadTypes: filters.spreadTypes,
+    moonPhases: filters.moonPhases,
+    deepOnly: filters.deepOnly,
+    reversedOnly: filters.reversedOnly,
+  };
+  const handleGlobalChange = (next: GlobalFilters) => {
+    setFilters({
+      ...filters,
+      tagIds: next.tags,
+      spreadTypes: next.spreadTypes,
+      moonPhases: next.moonPhases as InsightsFilters["moonPhases"],
+      deepOnly: next.deepOnly,
+      reversedOnly: next.reversedOnly,
+    });
+  };
+
   return (
     <div
       className="relative flex h-dvh flex-col"
@@ -166,10 +214,12 @@ function NumerologyPage() {
         style={{ zIndex: "var(--z-sticky-header)" }}
       >
         <div
-          className="px-4 flex items-center"
+          className="px-4 overflow-hidden flex items-center"
           style={{
-            paddingTop: "calc(env(safe-area-inset-top, 0px) + 6px)",
-            paddingBottom: 6,
+            paddingTop: `calc(env(safe-area-inset-top,0px) + ${collapseProgress * 6}px)`,
+            paddingBottom: `${collapseProgress * 6}px`,
+            maxHeight: `${collapseProgress * 32}px`,
+            transition: "max-height 150ms ease-out, padding 150ms ease-out",
           }}
         >
           <h1
@@ -177,7 +227,8 @@ function NumerologyPage() {
             style={{
               fontSize: "var(--text-heading-sm)",
               color: "var(--color-foreground)",
-              opacity: 0.9,
+              opacity: 0.9 * collapseProgress,
+              transition: "opacity 150ms ease-out",
               margin: 0,
               lineHeight: 1,
             }}
@@ -185,6 +236,26 @@ function NumerologyPage() {
             Numerology
           </h1>
         </div>
+        {showFilters && (
+          <GlobalFilterBar
+            filters={globalFilters}
+            onChange={handleGlobalChange}
+            sections={["tags", "spreadTypes", "moonPhases", "depth", "reversed"]}
+            timeRange={{
+              value: filters.timeRange,
+              options: [
+                { value: "7d", label: "Last 7 days" },
+                { value: "30d", label: "Last 30 days" },
+                { value: "90d", label: "Last 90 days" },
+                { value: "365d", label: "Last 365 days" },
+                { value: "all", label: "All time" },
+              ],
+              onChange: (v) =>
+                setFilters({ ...filters, timeRange: v as TimeRange }),
+            }}
+            userTags={userTags}
+          />
+        )}
         <HorizontalScroll
           className="py-2"
           contentClassName="items-center gap-6 px-4"
@@ -226,14 +297,19 @@ function NumerologyPage() {
         </HorizontalScroll>
       </div>
 
-      <main className="flex-1 overflow-y-auto px-4 pb-28 pt-4">
+      <main
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 pb-28 pt-4"
+      >
         <div style={{ maxWidth: 720, margin: "0 auto" }}>
           <h1
-            className="font-serif italic mb-4"
+            className="font-display italic mb-4"
             style={{
               fontSize: "var(--text-display, 32px)",
               color: "var(--color-foreground)",
-              opacity: 0.9,
+              margin: "0 0 16px 0",
+              opacity: collapseProgress,
+              transition: "opacity 150ms ease-out",
               lineHeight: 1.25,
             }}
           >
@@ -246,16 +322,15 @@ function NumerologyPage() {
             <NumerologyBlueprintTab birthDate={birthDate} birthName={birthName} />
           )}
           {tab === "cycles" && <NumerologyCyclesTab birthDate={birthDate} />}
-          {tab === "patterns" && <NumerologyPatternsTab />}
+          {tab === "patterns" && (
+            <NumerologyPatternsTab filters={filters} onFiltersChange={setFilters} />
+          )}
           {tab === "stalkers" && (
-            <ComingSoonStub
-              label="Stalkers"
-              intro="The numbers and cards that recur in your readings, grouped by their numerology."
-            />
+            <NumerologyStalkersTab filters={filters} birthDate={birthDate} />
           )}
           {tab === "reading" && (
             <ComingSoonStub
-              label="Reading"
+              label="Your Numerology Reading"
               intro="An AI-woven numerology reading drawing your complete chart into a single narrative."
             />
           )}
