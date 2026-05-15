@@ -239,6 +239,34 @@ function InsightsRoute() {
                 setFilters({ ...filters, timeRange: v as TimeRange }),
             }}
             userTags={userTags}
+            trailingDropdowns={
+              tab === "cards" ? (
+                <>
+                  <Dropdown
+                    prefix="Group"
+                    value={filters.cardGroupBy ?? "none"}
+                    options={CARD_GROUP_BY.map((v) => ({
+                      value: v,
+                      label: CARD_GROUP_BY_LABEL[v],
+                    }))}
+                    onChange={(v) =>
+                      setFilters({ ...filters, cardGroupBy: v as CardGroupBy })
+                    }
+                  />
+                  <Dropdown
+                    prefix="Sort"
+                    value={filters.cardSortBy ?? "frequency"}
+                    options={CARD_SORT_BY.map((v) => ({
+                      value: v,
+                      label: CARD_SORT_BY_LABEL[v],
+                    }))}
+                    onChange={(v) =>
+                      setFilters({ ...filters, cardSortBy: v as CardSortBy })
+                    }
+                  />
+                </>
+              ) : undefined
+            }
           />
         )}
         {/* Tab strip */}
