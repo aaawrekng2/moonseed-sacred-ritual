@@ -23,6 +23,7 @@ import { NumerologyBlueprintTab } from "@/components/numerology/NumerologyBluepr
 import { NumerologyCyclesTab } from "@/components/numerology/NumerologyCyclesTab";
 import { NumerologyPatternsTab } from "@/components/numerology/NumerologyPatternsTab";
 import { NumerologyStalkersTab } from "@/components/numerology/NumerologyStalkersTab";
+import { NumerologyReadingTab } from "@/components/numerology/NumerologyReadingTab";
 
 export const Route = createFileRoute("/numerology")({
   head: () => ({
@@ -182,7 +183,8 @@ function NumerologyPage() {
     );
   }
 
-  const showFilters = tab === "patterns" || tab === "stalkers";
+  const showFilters =
+    tab === "patterns" || tab === "stalkers" || tab === "reading";
 
   const globalFilters: GlobalFilters = {
     ...EMPTY_GLOBAL_FILTERS,
@@ -328,12 +330,7 @@ function NumerologyPage() {
           {tab === "stalkers" && (
             <NumerologyStalkersTab filters={filters} birthDate={birthDate} />
           )}
-          {tab === "reading" && (
-            <ComingSoonStub
-              label="Your Numerology Reading"
-              intro="An AI-woven numerology reading drawing your complete chart into a single narrative."
-            />
-          )}
+          {tab === "reading" && <NumerologyReadingTab filters={filters} />}
         </div>
       </main>
     </div>
