@@ -99,12 +99,16 @@ export function StalkerCalendar({
       setMonth(new Date(next.getFullYear(), next.getMonth() - 2, 1));
     return (
       <div
-        className="block rounded-lg p-2 max-w-full"
+        className="block rounded-lg p-2 max-w-full overflow-hidden"
         style={{
           background: "var(--surface-card)",
           display: "grid",
           gridTemplateRows: "auto auto",
           gap: 8,
+          // Q55 — viewport-responsive cell size so the calendar never
+          // overflows on narrow mobile. Scales from ~14px on 320px
+          // screens up to the standard 32px on tablet+.
+          ["--cell-size" as never]: "clamp(1.3rem, calc((100vw - 64px) / 18), 2rem)",
         }}
       >
         <Calendar
@@ -133,8 +137,11 @@ export function StalkerCalendar({
 
   return (
     <div
-      className="block rounded-lg p-2 max-w-full"
-      style={{ background: "var(--surface-card)" }}
+      className="block rounded-lg p-2 max-w-full overflow-hidden"
+      style={{
+        background: "var(--surface-card)",
+        ["--cell-size" as never]: "clamp(1.3rem, calc((100vw - 64px) / 18), 2rem)",
+      }}
     >
       <Calendar
         numberOfMonths={monthsShown}
