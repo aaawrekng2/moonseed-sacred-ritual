@@ -100,3 +100,33 @@ export function getCardSuit(id: TarotCardId): CardSuit {
   if (id <= 63) return "Swords";
   return "Pentacles";
 }
+
+// Q52d — Map a tarot card id (0-77) to its raw numerology number.
+// Majors: The Fool (0) is unnumbered; Majors 1-21 use their card number.
+// Minors Ace-Ten: rank 1-10. Courts and oracle cards return null.
+export function cardNumerologyNumber(cardId: TarotCardId): number | null {
+  if (cardId < 0) return null;
+  if (cardId >= 1000) return null; // oracle cards out of scope
+  if (cardId <= 21) {
+    if (cardId === 0) return null;
+    return cardId;
+  }
+  if (cardId > 77) return null;
+  const positionInSuit = (cardId - 22) % 14;
+  if (positionInSuit >= 0 && positionInSuit <= 9) {
+    return positionInSuit + 1;
+  }
+  return null; // courts
+}
+
+// Q52d — Reduce a card's numerology to a single digit (or master 11/22/33).
+// Returns null when the card has no numerology (courts, Fool, oracle).
+export function cardNumerologyReduced(cardId: TarotCardId): number | null {
+  const n = cardNumerologyNumber(cardId);
+  if (n === null) return null;
+  let v = n;
+  while (v > 9 && v !== 11 && v !== 22 && v !== 33) {
+    v = String(v).split("").reduce((s, c) => s + Number(c), 0);
+  }
+  return v;
+}
