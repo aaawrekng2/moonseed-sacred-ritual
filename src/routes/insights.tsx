@@ -44,6 +44,7 @@ import { TagCloud } from "@/components/insights/TagCloud";
 import { QuestionThemesLocked } from "@/components/insights/QuestionThemesLocked";
 import { RecapTab } from "@/components/insights/RecapTab";
 import { LunationBanner } from "@/components/insights/LunationBanner";
+import { SuitTrendsChart } from "@/components/insights/SuitTrendsChart";
 import { StalkersTab } from "@/components/insights/StalkersTab";
 import { StoriesTab } from "@/components/insights/StoriesTab";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
@@ -311,6 +312,7 @@ function InsightsRoute() {
                 onEmptyCta={() => navigate({ to: "/" })}
               />
               <div className="flex flex-col gap-12 pt-8 pb-12">
+                <SuitTrendsChart filters={filters} />
                 <TagCloud
                   filters={filters}
                   onTagSelect={(tagId) => {
