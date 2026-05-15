@@ -141,7 +141,7 @@ export function AuthScreen({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `moonseed-backup-${new Date()
+      a.download = `tarotseed-backup-${new Date()
         .toISOString()
         .slice(0, 10)}.zip`;
       a.click();

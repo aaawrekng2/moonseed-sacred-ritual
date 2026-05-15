@@ -5,7 +5,7 @@
  *  - Zero network coupling: events are appended to an in-memory ring
  *    buffer and mirrored to localStorage so they survive reloads.
  *  - Pluggable: each call also dispatches a `CustomEvent` named
- *    "moonseed:analytics" on `window`. A future PostHog/Plausible/etc
+ *    "tarotseed:analytics" on `window`. A future PostHog/Plausible/etc
  *    integration can subscribe without touching call sites.
  *  - Safe to call from any environment (SSR, tests). All browser APIs
  *    are guarded.
@@ -14,7 +14,7 @@
  * measure which rituals seekers actually pick.
  */
 
-const STORAGE_KEY = "moonseed.analytics.events";
+const STORAGE_KEY = "tarotseed.analytics.events";
 const MAX_EVENTS = 500;
 
 export type AnalyticsEvent = {
@@ -64,7 +64,7 @@ export function track(name: string, props?: Record<string, unknown>): void {
 
     try {
       window.dispatchEvent(
-        new CustomEvent("moonseed:analytics", { detail: evt }),
+        new CustomEvent("tarotseed:analytics", { detail: evt }),
       );
     } catch {
       // No-op.

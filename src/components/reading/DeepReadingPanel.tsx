@@ -297,7 +297,7 @@ export function DeepReadingPanel({
         <AiQuotaBlock
           resetAt={flow.nextDawn}
           isPremium={isPremium}
-          onUpgrade={() => window.dispatchEvent(new CustomEvent("moonseed:open-premium"))}
+          onUpgrade={() => window.dispatchEvent(new CustomEvent("tarotseed:open-premium"))}
         />
       </>
     );

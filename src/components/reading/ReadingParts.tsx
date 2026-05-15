@@ -223,7 +223,7 @@ export function InlineReading({
         if (!uid) return;
         const token = sessionData.session?.access_token;
         // Q16 Fix 3 — persist body only, never the
-        // "{spread} — Moonseed reading" prefix used for clipboard.
+        // "{spread} — Tarot Seed reading" prefix used for clipboard.
         const interpretationText = buildInterpretationBody({
           interpretation: loadedInterpretation,
           picks,
@@ -1315,7 +1315,7 @@ export function buildCopyText({
   positionLabels: string[];
 }): string {
   const lines: string[] = [];
-  lines.push(`${spreadLabel} — Moonseed reading`);
+  lines.push(`${spreadLabel} — Tarot Seed reading`);
   lines.push("");
   lines.push(buildInterpretationBody({ interpretation, picks, positionLabels }));
   return lines.join("\n").trim() + "\n";
@@ -1324,7 +1324,7 @@ export function buildCopyText({
 /**
  * Q16 Fix 3 — body-only formatter used when persisting the
  * interpretation to `readings.interpretation`. Omits the
- * "{spread} — Moonseed reading" prefix that buildCopyText adds for
+ * "{spread} — Tarot Seed reading" prefix that buildCopyText adds for
  * clipboard output, since that prefix was leaking into journal/
  * story excerpts of older rows.
  */

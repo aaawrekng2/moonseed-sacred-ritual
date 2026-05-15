@@ -11,7 +11,7 @@ import { DEFAULT_CAROUSEL_SIZE, type CarouselSize } from "@/lib/use-moon-prefs";
  * tab panels. Panels mutate via {@link updateUserPreferences} and then
  * call `setPrefs(...)` to keep local state in sync.
  *
- * Moonseed is personal-only — there is no `current_mode` / `app_mode` /
+ * Tarot Seed is personal-only — there is no `current_mode` / `app_mode` /
  * `default_life_area` / `show_reversals` / outcome-reminders here. The
  * source bundle's dual-mode + reversal toggles were intentionally
  * removed per the port spec.

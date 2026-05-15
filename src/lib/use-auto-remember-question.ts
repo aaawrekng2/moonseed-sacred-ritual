@@ -13,10 +13,10 @@
 import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "auto-remember-question";
-const EVENT = "moonseed:auto-remember-question-change";
+const EVENT = "tarotseed:auto-remember-question-change";
 
 const SCOPE_KEY = "question-remember-scope";
-const SCOPE_EVENT = "moonseed:question-remember-scope-change";
+const SCOPE_EVENT = "tarotseed:question-remember-scope-change";
 
 /**
  * Where a remembered question is stored.

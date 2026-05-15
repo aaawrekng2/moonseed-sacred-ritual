@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchDeckCards, type CustomDeckCard } from "./custom-decks";
 import { makeLimiter, DEFAULT_LIMIT } from "./per-card-save";
 
-const DB_NAME = "moonseed_import_snapshots";
+const DB_NAME = "tarotseed_import_snapshots";
 const DB_VERSION = 1;
 const STORE = "snapshots";
 const KEY_PREFIX = "import_snapshot_";

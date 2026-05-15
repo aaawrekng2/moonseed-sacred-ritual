@@ -80,7 +80,7 @@ export async function exportRecapPdf(data: RecapData, reflection: string | null)
 
   // Cover
   drawBg();
-  eyebrow("Moonseed", 60);
+  eyebrow("Tarot Seed", 60);
   heading("Your Lunation", 110);
   body(fmtRange(data.lunationStart, data.lunationEnd), 138, { size: 10 });
   big(String(data.readingCount), pageH / 2);
@@ -247,7 +247,7 @@ export async function exportYearOfLunationsPdf(data: YearOfLunationsPdfData): Pr
 
   // Page 1 — Hero
   drawBg();
-  eyebrow("Moonseed", 60);
+  eyebrow("Tarot Seed", 60);
   heading("A Year of Lunations", 110);
   body(`${data.startDate} – ${data.endDate}`, 138, { size: 10 });
   big(String(data.totalReadings), pageH / 2);
@@ -332,7 +332,7 @@ export async function shareRecapImage(node: HTMLElement, filename: string) {
   };
   if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
     try {
-      await nav.share({ files: [file], title: "Moonseed — Lunation Recap" });
+      await nav.share({ files: [file], title: "Tarot Seed — Lunation Recap" });
       return { shared: true };
     } catch {
       // user cancelled — fall through to download

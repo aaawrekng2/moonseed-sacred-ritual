@@ -360,7 +360,7 @@ export function Tabletop({
   // gesture and dropping onto slots. Persists "seen" via localStorage so
   // returning users aren't nagged. Fades out after the first successful
   // drop into a slot (or any drop, for spreads without slots).
-  const HINT_STORAGE_KEY = "moonseed:tabletop:drag-hint-seen";
+  const HINT_STORAGE_KEY = "tarotseed:tabletop:drag-hint-seen";
   const [showDragHint, setShowDragHint] = useState(false);
   useEffect(() => {
     try {

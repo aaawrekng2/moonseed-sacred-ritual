@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 
-const LS_KEY = "moonseed:reading-font-size";
+const LS_KEY = "tarotseed:reading-font-size";
 // Bumped from 15 → 17 so the reading body matches the readability of
 // the Settings screen body text. The slider still spans 12-20.
 export const READING_FONT_DEFAULT = 17;

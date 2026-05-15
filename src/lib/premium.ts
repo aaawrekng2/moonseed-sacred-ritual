@@ -1,5 +1,5 @@
 /**
- * Premium gating for Moonseed (CU).
+ * Premium gating for Tarot Seed (CU).
  *
  * `usePremium(userId)` reads `user_preferences.is_premium` (and related
  * columns) and exposes the canonical `PremiumState` consumed across the
@@ -27,7 +27,7 @@ export type PremiumState = {
   refresh: () => Promise<void>;
 };
 
-const PREMIUM_CHANGED_EVENT = "moonseed:premium-changed";
+const PREMIUM_CHANGED_EVENT = "tarotseed:premium-changed";
 
 export function emitPremiumChanged(): void {
   if (typeof window === "undefined") return;

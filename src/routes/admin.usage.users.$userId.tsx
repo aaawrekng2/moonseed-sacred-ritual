@@ -14,7 +14,7 @@ import {
 import { formatDateTime } from "@/lib/dates";
 
 export const Route = createFileRoute("/admin/usage/users/$userId")({
-  head: () => ({ meta: [{ title: "Seeker — Admin · Moonseed" }] }),
+  head: () => ({ meta: [{ title: "Seeker — Admin · Tarot Seed" }] }),
   component: SeekerPage,
 });
 

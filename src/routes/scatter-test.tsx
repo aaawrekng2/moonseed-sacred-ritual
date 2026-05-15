@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/scatter-test")({
   head: () => ({
     meta: [
-      { title: "Scatter clipping test — Moonseed" },
+      { title: "Scatter clipping test — Tarot Seed" },
       {
         name: "description",
         content:

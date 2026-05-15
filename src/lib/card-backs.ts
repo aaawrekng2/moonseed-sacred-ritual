@@ -9,7 +9,7 @@ export const CARD_BACKS = [
 ] as const;
 
 export const DEFAULT_CARD_BACK: CardBackId = "celestial";
-const STORAGE_KEY = "moonseed:card-back";
+const STORAGE_KEY = "tarotseed:card-back";
 
 export function getStoredCardBack(): CardBackId {
   if (typeof window === "undefined") return DEFAULT_CARD_BACK;
@@ -22,6 +22,6 @@ export function setStoredCardBack(id: CardBackId): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, id);
   window.dispatchEvent(
-    new CustomEvent<CardBackId>("moonseed:card-back-changed", { detail: id }),
+    new CustomEvent<CardBackId>("tarotseed:card-back-changed", { detail: id }),
   );
 }

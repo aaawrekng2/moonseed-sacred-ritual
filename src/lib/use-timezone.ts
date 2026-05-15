@@ -17,9 +17,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 
-const DISMISS_KEY = "moonseed:tz-mismatch-dismissed";
-const TZ_LOCAL_KEY = "moonseed:timezone";
-const TZ_MODE_LOCAL_KEY = "moonseed:tz-mode";
+const DISMISS_KEY = "tarotseed:tz-mismatch-dismissed";
+const TZ_LOCAL_KEY = "tarotseed:timezone";
+const TZ_MODE_LOCAL_KEY = "tarotseed:tz-mode";
 
 export type TzMode = "auto" | "fixed";
 

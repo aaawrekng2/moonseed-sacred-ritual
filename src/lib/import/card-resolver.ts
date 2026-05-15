@@ -2,7 +2,7 @@
  * CSV import — card resolver (CS).
  *
  * Resolves arbitrary tarot-card name strings (across many app exports
- * and notational quirks) into Moonseed's canonical 0..77 deck index.
+ * and notational quirks) into Tarot Seed's canonical 0..77 deck index.
  *
  * Coverage:
  *   - 22 Major Arcana (full / short / Roman / Arabic / all-caps)

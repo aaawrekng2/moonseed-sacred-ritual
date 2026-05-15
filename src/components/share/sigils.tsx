@@ -3,8 +3,8 @@
  *
  * Each sigil is a small line-art SVG rendered top-left on the share
  * canvas. Stroke colour defaults to `var(--accent)` so the marks
- * inherit whichever theme is active. The MoonseedMark component is
- * the matching upper-right wordmark (crescent + "moonseed").
+ * inherit whichever theme is active. The TarotSeedMark component is
+ * the matching upper-right wordmark (crescent + "tarotseed").
  */
 import type { ReactElement } from "react";
 import type { ShareLevel } from "./share-types";
@@ -202,10 +202,10 @@ export function getSigilForLevel(
 }
 
 /**
- * Upper-right wordmark — crescent glyph + "moonseed" in serif italic.
+ * Upper-right wordmark — crescent glyph + "tarotseed" in serif italic.
  * Mirrors the level sigil in the opposite corner.
  */
-export function MoonseedMark({
+export function TarotSeedMark({
   color = "var(--accent)",
 }: {
   color?: string;
@@ -238,7 +238,7 @@ export function MoonseedMark({
           letterSpacing: "0.04em",
         }}
       >
-        moonseed
+        tarotseed
       </span>
     </div>
   );

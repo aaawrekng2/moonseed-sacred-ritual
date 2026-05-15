@@ -29,7 +29,7 @@ export type AIGatedSectionProps = {
 
 function openPremium(featureName: string) {
   window.dispatchEvent(
-    new CustomEvent("moonseed:open-premium", {
+    new CustomEvent("tarotseed:open-premium", {
       detail: { feature: featureName, featureName },
     }),
   );

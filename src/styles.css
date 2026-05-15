@@ -3,7 +3,7 @@
 @import "@xyflow/react/dist/style.css";
 
 /**
- * MOONSEED DESIGN TOKEN SYSTEM
+ * TAROTSEED DESIGN TOKEN SYSTEM
  *
  * Two layers:
  *   1. Base tokens   — fixed raw values (--fs-*, --space-*, --radius-*).
@@ -1609,7 +1609,7 @@ button:focus-visible .moon-rung-glow {
 /* Q62 Fix 6 — Canonical card count badge.
    Circle-first sizing (fixed width = height). Mobile largest, scaling
    down on tablet/desktop. Font ~60% of diameter for strong fill. */
-.moonseed-card-badge {
+.tarotseed-card-badge {
   position: absolute;
   bottom: 10px;
   right: 10px;
@@ -1632,7 +1632,7 @@ button:focus-visible .moon-rung-glow {
   z-index: 2;
 }
 @media (min-width: 769px) {
-  .moonseed-card-badge {
+  .tarotseed-card-badge {
     bottom: 12px;
     right: 12px;
     width: 38px;
@@ -1641,7 +1641,7 @@ button:focus-visible .moon-rung-glow {
   }
 }
 @media (min-width: 1025px) {
-  .moonseed-card-badge {
+  .tarotseed-card-badge {
     bottom: 14px;
     right: 14px;
     width: 32px;

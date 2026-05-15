@@ -6,14 +6,14 @@
  * Returns `loaded: false` until the server row has been read so callers
  * can avoid flashing moon UI before the user's true preference resolves.
  *
- * Listens for `moonseed:moon-prefs-changed` so toggles in Settings
+ * Listens for `tarotseed:moon-prefs-changed` so toggles in Settings
  * propagate live to the home page without a full refetch.
  */
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
-export const MOON_PREFS_EVENT = "moonseed:moon-prefs-changed";
+export const MOON_PREFS_EVENT = "tarotseed:moon-prefs-changed";
 export type CarouselSize = "small" | "medium" | "large";
 export const DEFAULT_CAROUSEL_SIZE: CarouselSize = "medium";
 
@@ -23,7 +23,7 @@ export const DEFAULT_CAROUSEL_SIZE: CarouselSize = "medium";
 // boot with carousel OFF still uses the DEFAULTS (carousel=true) for
 // the first render's cardHeight calc, baking in a too-small height
 // that the next frame can't recover from until the user toggles.
-const LS_KEY = "moonseed:moon-prefs-cache";
+const LS_KEY = "tarotseed:moon-prefs-cache";
 
 export type MoonPrefs = {
   moon_features_enabled: boolean;

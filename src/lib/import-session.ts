@@ -10,7 +10,7 @@
  * scope (last writer wins).
  */
 
-const DB_NAME = "moonseed_import_sessions";
+const DB_NAME = "tarotseed_import_sessions";
 const DB_VERSION = 1;
 const STORE = "sessions";
 const KEY_PREFIX = "import_session_v1::";

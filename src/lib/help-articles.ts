@@ -25,7 +25,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   {
     id: "getting-started",
     name: "Getting Started",
-    blurb: "What Moonseed is, and how to begin.",
+    blurb: "What Tarot Seed is, and how to begin.",
   },
   {
     id: "tarot-and-readings",
@@ -35,7 +35,7 @@ export const HELP_CATEGORIES: HelpCategory[] = [
   {
     id: "stories-and-memory",
     name: "Stories & Memory",
-    blurb: "How Moonseed remembers you across readings.",
+    blurb: "How Tarot Seed remembers you across readings.",
   },
   {
     id: "sharing",
@@ -71,8 +71,8 @@ export const HELP_ARTICLES: HelpArticle[] = [
     id: "getting-started",
     title: "Getting Started",
     category: "getting-started",
-    summary: "Your first reading, and what makes Moonseed different.",
-    body: `Moonseed is tarot that remembers you. It is a daily ritual app built around three small movements — a *draw*, a *reading*, and a *journal* — that, together, become a record of your inner weather over time.
+    summary: "Your first reading, and what makes Tarot Seed different.",
+    body: `Tarot Seed is tarot that remembers you. It is a daily ritual app built around three small movements — a *draw*, a *reading*, and a *journal* — that, together, become a record of your inner weather over time.
 
 ## A first reading
 
@@ -86,7 +86,7 @@ Tap the deck on the home screen. Choose a spread (start with a single card if yo
 
 ## "Tarot that remembers you"
 
-Most tarot apps treat each reading as a fresh stranger. Moonseed does not. As you accumulate readings, recurring themes surface as [Stories](#stories), and your guide grows more specific to the patterns of your life. The cards stay the same; the conversation deepens.`,
+Most tarot apps treat each reading as a fresh stranger. Tarot Seed does not. As you accumulate readings, recurring themes surface as [Stories](#stories), and your guide grows more specific to the patterns of your life. The cards stay the same; the conversation deepens.`,
     related: ["how-interpretation-works", "stories"],
   },
   {
@@ -94,7 +94,7 @@ Most tarot apps treat each reading as a fresh stranger. Moonseed does not. As yo
     title: "How interpretation works",
     category: "tarot-and-readings",
     summary: "Standard readings, Deep Readings, and the guide system.",
-    body: `When you reveal cards, Moonseed asks an AI — held inside the *voice* of your chosen guide — to write a short interpretation. The interpretation reflects three things: the cards drawn, the spread positions, and (if you offered one) your question.
+    body: `When you reveal cards, Tarot Seed asks an AI — held inside the *voice* of your chosen guide — to write a short interpretation. The interpretation reflects three things: the cards drawn, the spread positions, and (if you offered one) your question.
 
 ## Standard vs. Deep Reading
 
@@ -120,7 +120,7 @@ The more you journal, the more the system knows about your patterns. Future read
     title: "Stories & Memory",
     category: "stories-and-memory",
     summary: "How recurring threads across your readings become a Story.",
-    body: `A **Story** is a short evocative name — usually two or three words — that Moonseed surfaces when it notices the same theme returning across several of your readings.
+    body: `A **Story** is a short evocative name — usually two or three words — that Tarot Seed surfaces when it notices the same theme returning across several of your readings.
 
 ## How a Story forms
 
@@ -150,7 +150,7 @@ An Artifact is a composed image-and-text card that treats the reading as a small
 
 ## When it surfaces
 
-The Artifact share becomes available when a reading has been **revisited**, **journaled into**, or **linked to a [Story](#stories)** — i.e., when it has earned the weight to be one. A first-pull single-card reading does not need to be an Artifact, and Moonseed will not pretend that it is.
+The Artifact share becomes available when a reading has been **revisited**, **journaled into**, or **linked to a [Story](#stories)** — i.e., when it has earned the weight to be one. A first-pull single-card reading does not need to be an Artifact, and Tarot Seed will not pretend that it is.
 
 ## How to share one
 
@@ -182,9 +182,9 @@ If you are sharing a moment, choose **Single Pull**. If you are sharing the *ins
     title: "The Four Lenses of a Deep Reading",
     category: "tarot-and-readings",
     summary: "Present Resonance, Thread Awareness, Shadow Layer, Mirror Artifact.",
-    body: `A Deep Reading is what happens when you ask Moonseed to look more carefully at a reading you've already drawn. Where the regular interpretation gives you one cohesive read, a Deep Reading offers four distinct perspectives — four lenses through which the same cards reveal different layers.
+    body: `A Deep Reading is what happens when you ask Tarot Seed to look more carefully at a reading you've already drawn. Where the regular interpretation gives you one cohesive read, a Deep Reading offers four distinct perspectives — four lenses through which the same cards reveal different layers.
 
-This isn't decoration. Tarot has always invited multiple readings of the same draw. The cards don't change; what shifts is the question you bring to them. The four lenses formalize four classic angles of inquiry that experienced readers naturally cycle through. Moonseed makes them explicit so you can use them deliberately.
+This isn't decoration. Tarot has always invited multiple readings of the same draw. The cards don't change; what shifts is the question you bring to them. The four lenses formalize four classic angles of inquiry that experienced readers naturally cycle through. Tarot Seed makes them explicit so you can use them deliberately.
 
 ## Present Resonance
 

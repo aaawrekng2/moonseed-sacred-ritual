@@ -3,7 +3,7 @@ import { MoonFeaturesPage } from "@/components/settings/MoonFeaturesPage";
 
 export const Route = createFileRoute("/settings/moon")({
   head: () => ({
-    meta: [{ title: "Moon — Settings — Moonseed" }],
+    meta: [{ title: "Moon — Settings — Tarot Seed" }],
   }),
   component: MoonFeaturesPage,
 });

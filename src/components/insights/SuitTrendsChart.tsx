@@ -19,7 +19,7 @@ import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { Dropdown } from "@/components/filters/Dropdown";
 import type { InsightsFilters } from "@/lib/insights.types";
 
-// Reuse Moonseed-toned suit colors (mirrors SuitBalanceChart).
+// Reuse Tarot Seed-toned suit colors (mirrors SuitBalanceChart).
 const SUIT_COLOR: Record<string, string> = {
   major: "color-mix(in oklch, var(--accent) 90%, white)",
   wands: "color-mix(in oklch, var(--accent) 55%, oklch(0.62 0.20 35))",

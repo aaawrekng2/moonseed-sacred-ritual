@@ -148,7 +148,7 @@ export function JournalPrompts({
   }
 
   return (
-    // Q29 Fix 9 — redesign per moonseed_styling_doc.docx:
+    // Q29 Fix 9 — redesign per tarotseed_styling_doc.docx:
     //  - no pill button (Section 2.1 — pills only for EmptyHero CTA)
     //  - no uppercase tracking on the section header (Section 5)
     //  - all values via design tokens (Section 4)

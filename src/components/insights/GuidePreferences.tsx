@@ -10,7 +10,7 @@ import type { InsightsFilters } from "@/lib/insights.types";
 import { SectionHeader, SkeletonRow } from "./StalkerCardsSection";
 import { EmptyNote } from "@/components/ui/empty-note";
 
-// Distinct, non-suit hues. Aligned with Moonseed palette but not elemental.
+// Distinct, non-suit hues. Aligned with Tarot Seed palette but not elemental.
 const GUIDE_COLORS = [
   "var(--gold)",
   "color-mix(in oklab, var(--gold) 60%, var(--cosmos, #2a2860) 40%)",

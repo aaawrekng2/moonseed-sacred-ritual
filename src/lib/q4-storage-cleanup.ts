@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
-const CLEANUP_KEY = "moonseed_q4_storage_cleanup_done";
+const CLEANUP_KEY = "tarotseed_q4_storage_cleanup_done";
 const DECK_BUCKET = "custom-deck-images";
 
 /**

@@ -1925,10 +1925,10 @@ function ReadingExcerptCard({
   const spreadLabel = reading.spread_type.replace(/_/g, " ").toUpperCase();
   const excerpt = (() => {
     if (!reading.interpretation) return null;
-    // Q16 Fix 3 — strip the legacy "{spread} — Moonseed reading"
+    // Q16 Fix 3 — strip the legacy "{spread} — Tarot Seed reading"
     // prefix from older readings that captured it into the body.
     let stripped = reading.interpretation
-      .replace(/^[A-Za-z]+(\s+[A-Za-z]+)?\s+—\s+Moonseed reading\s*\n*/i, "")
+      .replace(/^[A-Za-z]+(\s+[A-Za-z]+)?\s+—\s+Tarot Seed reading\s*\n*/i, "")
       .replace(/[*_#`]/g, "")
       .replace(/\s+/g, " ")
       .trim();
@@ -1985,7 +1985,7 @@ function ReadingExcerptCard({
           // Q15 Fix 3 — always render a meaningful identifier line:
           // seeker's question, else a short list of card names, else
           // a graceful "untitled reading" fallback. Replaces the old
-          // redundant "spread · Moonseed reading" filler.
+          // redundant "spread · Tarot Seed reading" filler.
           const q = reading.question?.trim();
           if (q) {
             return (

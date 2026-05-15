@@ -13,7 +13,7 @@ import { emitMoonPrefsChanged } from "@/lib/use-moon-prefs";
 /**
  * Moon & Lunar Features section in Settings → Preferences.
  *
- * In Moonseed every feature is unlocked (`usePremium` returns
+ * In Tarot Seed every feature is unlocked (`usePremium` returns
  * `isPremium: true`) so the locked-state branches are present for
  * source-bundle parity but never render in practice.
  */

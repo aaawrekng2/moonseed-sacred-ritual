@@ -7,7 +7,7 @@
  * `active_theme_slot` tracks which slot is currently applied so the
  * Themes tab can highlight it.
  *
- * Adapted from the source bundle for Moonseed's personal-only model:
+ * Adapted from the source bundle for Tarot Seed's personal-only model:
  * single accent (no per-mode), single heading font, single icon set.
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -135,7 +135,7 @@ export function applyHeadingFont(font: ThemeFont) {
   );
   try {
     if (typeof window !== "undefined") {
-      window.localStorage.setItem("moonseed:heading-font", font);
+      window.localStorage.setItem("tarotseed:heading-font", font);
     }
   } catch {
     /* ignore */
@@ -152,7 +152,7 @@ export function applyHeadingFontSize(sizePx: number) {
   document.documentElement.style.setProperty("--heading-scale", String(scale));
   try {
     if (typeof window !== "undefined") {
-      window.localStorage.setItem("moonseed:heading-font-size", String(clamped));
+      window.localStorage.setItem("tarotseed:heading-font-size", String(clamped));
     }
   } catch {
     /* ignore */
@@ -180,7 +180,7 @@ export function applyBodyFontSize(sizePx: number) {
   document.documentElement.style.setProperty("--body-scale", String(scale));
   try {
     if (typeof window !== "undefined") {
-      window.localStorage.setItem("moonseed:body-font-size", String(clamped));
+      window.localStorage.setItem("tarotseed:body-font-size", String(clamped));
     }
   } catch {
     /* ignore */

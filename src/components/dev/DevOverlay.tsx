@@ -8,7 +8,7 @@
  *
  * Visible only when:
  *   1) the signed-in user has role 'admin' or 'super_admin', AND
- *   2) the localStorage flag `moonseed:dev_mode` is "true".
+ *   2) the localStorage flag `tarotseed:dev_mode` is "true".
  *
  * Toggled from the Admin panel — never tied to a specific email.
  */
@@ -16,13 +16,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
-export const APP_VERSION_LETTER = "260515_Q62";
-const DEV_MODE_KEY = "moonseed:dev_mode";
-const MIST_KEY = "moonseed:mist-level";
-const OPACITY_KEY = "moonseed:resting-opacity";
-const MIST_EVENT = "moonseed:mist-level-changed";
+export const APP_VERSION_LETTER = "260515_Q63";
+const DEV_MODE_KEY = "tarotseed:dev_mode";
+const MIST_KEY = "tarotseed:mist-level";
+const OPACITY_KEY = "tarotseed:resting-opacity";
+const MIST_EVENT = "tarotseed:mist-level-changed";
 const OPACITY_EVENT = "arcana:resting-opacity-changed";
-const DEV_EVENT = "moonseed:dev-mode-changed";
+const DEV_EVENT = "tarotseed:dev-mode-changed";
 
 function readDevMode(): boolean {
   if (typeof window === "undefined") return false;

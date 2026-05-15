@@ -4,7 +4,7 @@
  * Reads from `user_preferences` on mount, mirrors to localStorage for
  * instant hydration on subsequent visits, and writes changes back to
  * Supabase fire-and-forget. Other components can subscribe via the
- * `moonseed:active-guide-changed` event so every surface (home screen
+ * `tarotseed:active-guide-changed` event so every surface (home screen
  * badge, selector modal, draw flow) updates in lockstep.
  */
 import { useCallback, useEffect, useState } from "react";
@@ -20,8 +20,8 @@ import {
   type LensMode,
 } from "@/lib/guides";
 
-const LS_KEY = "moonseed:active-guide";
-const EVENT_NAME = "moonseed:active-guide-changed";
+const LS_KEY = "tarotseed:active-guide";
+const EVENT_NAME = "tarotseed:active-guide-changed";
 
 type GuideState = {
   guideId: string;

@@ -67,7 +67,7 @@ export function CardPairsSection({ filters }: { filters: InsightsFilters }) {
               type="button"
               onClick={() =>
                 window.dispatchEvent(
-                  new CustomEvent("moonseed:open-premium", { detail: { feature: "Card Pairs" } }),
+                  new CustomEvent("tarotseed:open-premium", { detail: { feature: "Card Pairs" } }),
                 )
               }
               className="absolute inset-0 flex flex-col items-center justify-center gap-2"

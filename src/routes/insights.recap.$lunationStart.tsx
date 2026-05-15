@@ -28,7 +28,7 @@ import { LunationHint } from "@/components/insights/LunationHint";
 
 export const Route = createFileRoute("/insights/recap/$lunationStart")({
   head: () => ({
-    meta: [{ title: "Lunation Recap — Moonseed" }],
+    meta: [{ title: "Lunation Recap — Tarot Seed" }],
   }),
   component: LunationRecapRoute,
 });
@@ -228,7 +228,7 @@ function LunationRecapRoute() {
             onClose={close}
             onPremium={() => {
               window.dispatchEvent(
-                new CustomEvent("moonseed:open-premium", {
+                new CustomEvent("tarotseed:open-premium", {
                   detail: { feature: "Full Lunation Recap", featureName: "Full Lunation Recap" },
                 }),
               );
@@ -856,7 +856,7 @@ function SlideSaveShareDone({
       >
         <div style={{ textAlign: "center" }}>
           <div style={{ letterSpacing: "0.25em", fontSize: 12, opacity: 0.6, textTransform: "uppercase" }}>
-            Moonseed
+            Tarot Seed
           </div>
           <div style={{ color: "#cea85c", fontSize: 36, marginTop: 18 }}>Your Lunation</div>
           <div style={{ opacity: 0.7, fontSize: 14, marginTop: 6 }}>
@@ -878,7 +878,7 @@ function SlideSaveShareDone({
           )}
         </div>
         <div style={{ textAlign: "center", opacity: 0.55, fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase" }}>
-          moonseed
+          tarotseed
         </div>
       </div>
       <div

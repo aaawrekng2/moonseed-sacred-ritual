@@ -1,6 +1,6 @@
 /**
  * BW2 — Reusable in-app confirm dialog. Replaces native window.confirm
- * with a Moonseed-styled AlertDialog. Wrap the app in <ConfirmProvider>
+ * with a Tarot Seed-styled AlertDialog. Wrap the app in <ConfirmProvider>
  * once at the root, then call `const confirm = useConfirm()` and await
  * `confirm({ title, description, destructive })` from any component.
  */

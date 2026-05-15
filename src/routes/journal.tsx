@@ -17,7 +17,7 @@ import {
   formatMonthYear,
 } from "@/lib/dates";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
-import { stripMarkdown, stripLegacyMoonseedPrefix } from "@/lib/strip-markdown";
+import { stripMarkdown, stripLegacyTarotSeedPrefix } from "@/lib/strip-markdown";
 import {
   useDeckImage,
   useDeckCornerRadius,
@@ -119,13 +119,13 @@ export const Route = createFileRoute("/journal")({
   }),
   head: () => ({
     meta: [
-      { title: "Journal — Moonseed" },
+      { title: "Journal — Tarot Seed" },
       {
         name: "description",
         content:
           "Your archive of tarot readings — search, filter, and revisit.",
       },
-      { property: "og:title", content: "Journal — Moonseed" },
+      { property: "og:title", content: "Journal — Tarot Seed" },
       {
         property: "og:description",
         content: "Your archive of tarot readings.",
@@ -1003,9 +1003,9 @@ function ReadingCard({
   const hasNote = (reading.note ?? "").trim().length > 0;
   const hasQuestion = (reading.question ?? "").trim().length > 0;
   const hasTags = (reading.tags ?? []).length > 0;
-  // Q16 Fix 3 — strip the legacy "{spread} — Moonseed reading" prefix
+  // Q16 Fix 3 — strip the legacy "{spread} — Tarot Seed reading" prefix
   // from older readings before rendering the row excerpt.
-  const interpFirst = stripLegacyMoonseedPrefix(reading.interpretation ?? "")
+  const interpFirst = stripLegacyTarotSeedPrefix(reading.interpretation ?? "")
     .replace(/\s+/g, " ")
     .trim();
   const interpClean = stripMarkdown(interpFirst);
@@ -2514,7 +2514,7 @@ function ReadingDetail({
               whiteSpace: "pre-wrap",
             }}
           >
-            {stripMarkdown(stripLegacyMoonseedPrefix(reading.interpretation))}
+            {stripMarkdown(stripLegacyTarotSeedPrefix(reading.interpretation))}
           </article>
         )}
 

@@ -38,7 +38,7 @@ function useApplyRestingOpacityEarly() {
   const location = useLocation();
   useLayoutEffect(() => {
     if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem("moonseed:resting-opacity");
+    const raw = window.localStorage.getItem("tarotseed:resting-opacity");
     if (raw == null) return;
     const n = Number(raw);
     if (!Number.isFinite(n)) return;
@@ -77,28 +77,28 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover" },
-      { title: "Moonseed — Tarot that remembers you" },
+      { title: "Tarot Seed — Tarot that remembers you" },
       {
         name: "description",
         content: "A daily tarot ritual. Sacred, luminous, and calm.",
       },
-      { name: "author", content: "Moonseed" },
+      { name: "author", content: "Tarot Seed" },
       { name: "theme-color", content: "#0f0c29" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "Moonseed" },
-      { property: "og:title", content: "Moonseed — Tarot that remembers you" },
+      { name: "apple-mobile-web-app-title", content: "Tarot Seed" },
+      { property: "og:title", content: "Tarot Seed — Tarot that remembers you" },
       {
         property: "og:description",
         content: "A daily tarot ritual. Sacred, luminous, and calm.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:title", content: "Moonseed — Tarot that remembers you" },
-      { name: "description", content: "Moonseed is a tarot ritual web app that offers a sacred, daily experience with personalized tarot readings." },
-      { property: "og:description", content: "Moonseed is a tarot ritual web app that offers a sacred, daily experience with personalized tarot readings." },
-      { name: "twitter:description", content: "Moonseed is a tarot ritual web app that offers a sacred, daily experience with personalized tarot readings." },
+      { name: "twitter:title", content: "Tarot Seed — Tarot that remembers you" },
+      { name: "description", content: "Tarot Seed is a tarot ritual web app that offers a sacred, daily experience with personalized tarot readings." },
+      { property: "og:description", content: "Tarot Seed is a tarot ritual web app that offers a sacred, daily experience with personalized tarot readings." },
+      { name: "twitter:description", content: "Tarot Seed is a tarot ritual web app that offers a sacred, daily experience with personalized tarot readings." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/8816e549-6b01-4556-8eb7-f41f3b24a55c/id-preview-9d9015a6--ba6ec5a7-7b63-4a64-8eba-dff94a3cdd6a.lovable.app-1777058776337.png" },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/8816e549-6b01-4556-8eb7-f41f3b24a55c/id-preview-9d9015a6--ba6ec5a7-7b63-4a64-8eba-dff94a3cdd6a.lovable.app-1777058776337.png" },
     ],
@@ -141,7 +141,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var v=localStorage.getItem('moonseed:resting-opacity');var n=v?Math.max(25,Math.min(100,Math.round(Number(v)))):50;document.documentElement.style.setProperty('--resting-opacity',String(n/100));}catch(e){}",
+              "try{var v=localStorage.getItem('tarotseed:resting-opacity');var n=v?Math.max(25,Math.min(100,Math.round(Number(v)))):50;document.documentElement.style.setProperty('--resting-opacity',String(n/100));}catch(e){}",
           }}
         />
         {/*
@@ -153,7 +153,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var v=localStorage.getItem('moonseed:reading-font-size');var n=v?Math.max(12,Math.min(32,Math.round(Number(v)))):17;document.documentElement.style.setProperty('--reading-font-size',n+'px');}catch(e){}",
+              "try{var v=localStorage.getItem('tarotseed:reading-font-size');var n=v?Math.max(12,Math.min(32,Math.round(Number(v)))):17;document.documentElement.style.setProperty('--reading-font-size',n+'px');}catch(e){}",
           }}
         />
         {/*
@@ -165,7 +165,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var f=localStorage.getItem('moonseed:heading-font');if(f){document.documentElement.style.setProperty('--font-serif','\"'+f+'\", ui-serif, Georgia, serif');}var s=localStorage.getItem('moonseed:heading-font-size');if(s){var n=Math.max(16,Math.min(32,Math.round(Number(s))));if(Number.isFinite(n))document.documentElement.style.setProperty('--heading-scale',String(n/22));}var b=localStorage.getItem('moonseed:body-font-size');if(b){var m=Math.max(12,Math.min(22,Math.round(Number(b))));if(Number.isFinite(m))document.documentElement.style.setProperty('--body-scale',String(m/15));}}catch(e){}",
+              "try{var f=localStorage.getItem('tarotseed:heading-font');if(f){document.documentElement.style.setProperty('--font-serif','\"'+f+'\", ui-serif, Georgia, serif');}var s=localStorage.getItem('tarotseed:heading-font-size');if(s){var n=Math.max(16,Math.min(32,Math.round(Number(s))));if(Number.isFinite(n))document.documentElement.style.setProperty('--heading-scale',String(n/22));}var b=localStorage.getItem('tarotseed:body-font-size');if(b){var m=Math.max(12,Math.min(22,Math.round(Number(b))));if(Number.isFinite(m))document.documentElement.style.setProperty('--body-scale',String(m/15));}}catch(e){}",
           }}
         />
         {/*
@@ -179,7 +179,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{var T={'mystic-default':{bgL:'#1e1b4b',bgR:'#2d1b69',sf:'#252056',se:'#2d2664',bs:'#ffffff14',bd:'#ffffff1f',fg:'#f5f3ff',fm:'#c4b8e8',ac:'#f59e0b',af:'#1e1b4b',ao:'#5b21b66b'},'midnight-oracle':{bgL:'#0a0a0f',bgR:'#1e0a3c',sf:'#16162e',se:'#1e1e3d',bs:'#ffffff14',bd:'#ffffff1f',fg:'#ede9fe',fm:'#a78bfa',ac:'#a78bfa',af:'#0a0a0f',ao:'#4c1d9540'},'blood-moon':{bgL:'#1a0000',bgR:'#5c0000',sf:'#330505',se:'#421010',bs:'#ffffff14',bd:'#ffffff1f',fg:'#fff5f0',fm:'#fca5a5',ac:'#fb7185',af:'#1a0000',ao:'#7f1d1d66'},'citrine-dawn':{bgL:'#1a1308',bgR:'#3d2c0a',sf:'#2a1f0c',se:'#372a14',bs:'#ffffff14',bd:'#ffffff1f',fg:'#fefce8',fm:'#fde68a',ac:'#facc15',af:'#1a1308',ao:'#a162074d'},'cups-tide':{bgL:'#001a2c',bgR:'#042234',sf:'#0a2a3f',se:'#10374f',bs:'#ffffff14',bd:'#ffffff1f',fg:'#ecfeff',fm:'#a5f3fc',ac:'#67e8f9',af:'#001a2c',ao:'#0e74904d'},'wands-ember':{bgL:'#1c0a0a',bgR:'#3d1408',sf:'#2a1410',se:'#3a1d18',bs:'#ffffff14',bd:'#ffffff1f',fg:'#fff7ed',fm:'#fed7aa',ac:'#fb923c',af:'#1c0a0a',ao:'#9a34124d'},'pentacles-moss':{bgL:'#0a1a14',bgR:'#16352b',sf:'#102a20',se:'#173a2c',bs:'#ffffff14',bd:'#ffffff1f',fg:'#ecfdf5',fm:'#86efac',ac:'#34d399',af:'#0a1a14',ao:'#1665344d'},'peacocks-tail':{bgL:'#0d0a1f',bgR:'#2a0a3d',sf:'#1a1430',se:'#241a3f',bs:'#ffffff14',bd:'#ffffff1f',fg:'#faf5ff',fm:'#d8b4fe',ac:'#c084fc',af:'#0d0a1f',ao:'#6b21a866'},'nightfall':{bgL:'#000000',bgR:'#1d1d1f',sf:'#1c1c1e',se:'#2c2c2e',bs:'#ffffff14',bd:'#ffffff1f',fg:'#f5f5f7',fm:'#aeaeb2',ac:'#0a84ff',af:'#ffffff'},'daybreak':{bgL:'#ffffff',bgR:'#f5f5f7',sf:'#ffffff',se:'#fbfbfd',bs:'#0000000f',bd:'#0000001f',fg:'#1d1d1f',fm:'#6e6e73',ac:'#0066cc',af:'#ffffff'}};var k=localStorage.getItem('moonseed:community-theme');if(!k||!T[k])k='mystic-default';var t=T[k];var r=document.documentElement;var s=r.style;s.setProperty('--bg-gradient-left',t.bgL);s.setProperty('--bg-gradient-right',t.bgR);s.setProperty('--surface-card',t.sf);s.setProperty('--surface-card-hover',t.se);s.setProperty('--surface-elevated',t.se);s.setProperty('--border-subtle',t.bs);s.setProperty('--border-default',t.bd);s.setProperty('--border',t.bd);s.setProperty('--color-foreground',t.fg);s.setProperty('--foreground',t.fg);s.setProperty('--foreground-muted',t.fm);s.setProperty('--muted-foreground',t.fm);s.setProperty('--gold',t.ac);s.setProperty('--accent-color',t.ac);s.setProperty('--primary',t.ac);s.setProperty('--accent',t.ac);s.setProperty('--accent-foreground',t.af);s.setProperty('--gold-foreground',t.af);s.setProperty('--ring',t.ac+'99');if(t.ao){s.setProperty('--atmosphere-overlay',t.ao);s.setProperty('--atmosphere-enabled','1');}else{s.setProperty('--atmosphere-enabled','0');}var a=localStorage.getItem('moonseed:accent-theme');if(a&&a!=='default')r.setAttribute('data-theme',a);}catch(e){}",
+              "try{var T={'mystic-default':{bgL:'#1e1b4b',bgR:'#2d1b69',sf:'#252056',se:'#2d2664',bs:'#ffffff14',bd:'#ffffff1f',fg:'#f5f3ff',fm:'#c4b8e8',ac:'#f59e0b',af:'#1e1b4b',ao:'#5b21b66b'},'midnight-oracle':{bgL:'#0a0a0f',bgR:'#1e0a3c',sf:'#16162e',se:'#1e1e3d',bs:'#ffffff14',bd:'#ffffff1f',fg:'#ede9fe',fm:'#a78bfa',ac:'#a78bfa',af:'#0a0a0f',ao:'#4c1d9540'},'blood-moon':{bgL:'#1a0000',bgR:'#5c0000',sf:'#330505',se:'#421010',bs:'#ffffff14',bd:'#ffffff1f',fg:'#fff5f0',fm:'#fca5a5',ac:'#fb7185',af:'#1a0000',ao:'#7f1d1d66'},'citrine-dawn':{bgL:'#1a1308',bgR:'#3d2c0a',sf:'#2a1f0c',se:'#372a14',bs:'#ffffff14',bd:'#ffffff1f',fg:'#fefce8',fm:'#fde68a',ac:'#facc15',af:'#1a1308',ao:'#a162074d'},'cups-tide':{bgL:'#001a2c',bgR:'#042234',sf:'#0a2a3f',se:'#10374f',bs:'#ffffff14',bd:'#ffffff1f',fg:'#ecfeff',fm:'#a5f3fc',ac:'#67e8f9',af:'#001a2c',ao:'#0e74904d'},'wands-ember':{bgL:'#1c0a0a',bgR:'#3d1408',sf:'#2a1410',se:'#3a1d18',bs:'#ffffff14',bd:'#ffffff1f',fg:'#fff7ed',fm:'#fed7aa',ac:'#fb923c',af:'#1c0a0a',ao:'#9a34124d'},'pentacles-moss':{bgL:'#0a1a14',bgR:'#16352b',sf:'#102a20',se:'#173a2c',bs:'#ffffff14',bd:'#ffffff1f',fg:'#ecfdf5',fm:'#86efac',ac:'#34d399',af:'#0a1a14',ao:'#1665344d'},'peacocks-tail':{bgL:'#0d0a1f',bgR:'#2a0a3d',sf:'#1a1430',se:'#241a3f',bs:'#ffffff14',bd:'#ffffff1f',fg:'#faf5ff',fm:'#d8b4fe',ac:'#c084fc',af:'#0d0a1f',ao:'#6b21a866'},'nightfall':{bgL:'#000000',bgR:'#1d1d1f',sf:'#1c1c1e',se:'#2c2c2e',bs:'#ffffff14',bd:'#ffffff1f',fg:'#f5f5f7',fm:'#aeaeb2',ac:'#0a84ff',af:'#ffffff'},'daybreak':{bgL:'#ffffff',bgR:'#f5f5f7',sf:'#ffffff',se:'#fbfbfd',bs:'#0000000f',bd:'#0000001f',fg:'#1d1d1f',fm:'#6e6e73',ac:'#0066cc',af:'#ffffff'}};var k=localStorage.getItem('tarotseed:community-theme');if(!k||!T[k])k='mystic-default';var t=T[k];var r=document.documentElement;var s=r.style;s.setProperty('--bg-gradient-left',t.bgL);s.setProperty('--bg-gradient-right',t.bgR);s.setProperty('--surface-card',t.sf);s.setProperty('--surface-card-hover',t.se);s.setProperty('--surface-elevated',t.se);s.setProperty('--border-subtle',t.bs);s.setProperty('--border-default',t.bd);s.setProperty('--border',t.bd);s.setProperty('--color-foreground',t.fg);s.setProperty('--foreground',t.fg);s.setProperty('--foreground-muted',t.fm);s.setProperty('--muted-foreground',t.fm);s.setProperty('--gold',t.ac);s.setProperty('--accent-color',t.ac);s.setProperty('--primary',t.ac);s.setProperty('--accent',t.ac);s.setProperty('--accent-foreground',t.af);s.setProperty('--gold-foreground',t.af);s.setProperty('--ring',t.ac+'99');if(t.ao){s.setProperty('--atmosphere-overlay',t.ao);s.setProperty('--atmosphere-enabled','1');}else{s.setProperty('--atmosphere-enabled','0');}var a=localStorage.getItem('tarotseed:accent-theme');if(a&&a!=='default')r.setAttribute('data-theme',a);}catch(e){}",
           }}
         />
         <HeadContent />
@@ -219,7 +219,7 @@ function RootComponent() {
   useThemeFontSync();
   // Q24 Fix 1 — useTapToPeek() removed. Clarity feature was dropped;
   // tapping empty space no longer opens the FloatingMenu.
-  // Register the PWA service worker so Moonseed installs to home screen.
+  // Register the PWA service worker so Tarot Seed installs to home screen.
   usePWA();
   void location;
   // Render the sonner Toaster only after mount. Sonner injects a DOM
@@ -234,7 +234,7 @@ function RootComponent() {
   useEffect(() => {
     void cleanupStaleSessions();
   }, []);
-  // Global listener for the "moonseed:open-premium" event dispatched
+  // Global listener for the "tarotseed:open-premium" event dispatched
   // from anywhere in the app (e.g. the Deep Reading limit overlay's
   // "Or continue without waiting" button). Opens the PremiumModal in
   // place without requiring a route change.
@@ -247,8 +247,8 @@ function RootComponent() {
       setPremiumFeature(feature);
       setPremiumOpen(true);
     };
-    window.addEventListener("moonseed:open-premium", handler);
-    return () => window.removeEventListener("moonseed:open-premium", handler);
+    window.addEventListener("tarotseed:open-premium", handler);
+    return () => window.removeEventListener("tarotseed:open-premium", handler);
   }, []);
   // Q35b — Welcome modal: show once per signed-in (non-anonymous) seeker.
   const [welcomeOpen, setWelcomeOpen] = useState(false);
@@ -272,8 +272,8 @@ function RootComponent() {
   }, [user?.id, user?.email]);
   useEffect(() => {
     const handler = () => setWelcomeOpen(true);
-    window.addEventListener("moonseed:show-welcome", handler);
-    return () => window.removeEventListener("moonseed:show-welcome", handler);
+    window.addEventListener("tarotseed:show-welcome", handler);
+    return () => window.removeEventListener("tarotseed:show-welcome", handler);
   }, []);
   const handleWelcomeClose = () => {
     setWelcomeOpen(false);

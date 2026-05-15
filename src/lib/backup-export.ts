@@ -76,7 +76,7 @@ export async function createBackup({
 }: Opts): Promise<Blob> {
   const zip = new JSZip();
   const manifest: Record<string, unknown> = {
-    app: "Moonseed",
+    app: "Tarot Seed",
     schema_version: BACKUP_SCHEMA_VERSION,
     exported_at: new Date().toISOString(),
     user_id: userId,

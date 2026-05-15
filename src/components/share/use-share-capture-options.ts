@@ -20,8 +20,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ShareLevel } from "./share-types";
 
-const LS_KEY = "moonseed:share-capture-options";
-const EVENT_NAME = "moonseed:share-capture-options-changed";
+const LS_KEY = "tarotseed:share-capture-options";
+const EVENT_NAME = "tarotseed:share-capture-options-changed";
 
 export type CaptureOptionsByLevel = Partial<{
   pull: { includeQuestion?: boolean };

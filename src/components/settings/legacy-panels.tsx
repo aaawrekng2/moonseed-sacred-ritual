@@ -1,7 +1,7 @@
 /**
  * Legacy localStorage-backed Settings panels.
  *
- * These are the original Moonseed panels migrated out of the old single
+ * These are the original Tarot Seed panels migrated out of the old single
  * `/settings` route file so the new nested-route shell can render them
  * verbatim while the full source-bundle port is rolled out
  * tab-by-tab. Each panel still uses localStorage; they will be replaced
@@ -122,9 +122,9 @@ export function ToggleRow({
 
 export function ProfilePanel() {
   const { user } = useAuth();
-  const [displayName, setDisplayName] = useLocalString("moonseed:display-name");
-  const [intention, setIntention] = useLocalString("moonseed:intention");
-  const email = user?.email ?? "Anonymous Moonseed session";
+  const [displayName, setDisplayName] = useLocalString("tarotseed:display-name");
+  const [intention, setIntention] = useLocalString("tarotseed:intention");
+  const email = user?.email ?? "Anonymous Tarot Seed session";
 
   return (
     <section className="panel grid gap-5">
@@ -157,11 +157,11 @@ export function ProfilePanel() {
 }
 
 export function BlueprintPanel() {
-  const [birthDate, setBirthDate] = useLocalString("moonseed:birth-date");
-  const [birthTime, setBirthTime] = useLocalString("moonseed:birth-time");
-  const [birthPlace, setBirthPlace] = useLocalString("moonseed:birth-place");
-  const [sunSign, setSunSign] = useLocalString("moonseed:sun-sign");
-  const [risingSign, setRisingSign] = useLocalString("moonseed:rising-sign");
+  const [birthDate, setBirthDate] = useLocalString("tarotseed:birth-date");
+  const [birthTime, setBirthTime] = useLocalString("tarotseed:birth-time");
+  const [birthPlace, setBirthPlace] = useLocalString("tarotseed:birth-place");
+  const [sunSign, setSunSign] = useLocalString("tarotseed:sun-sign");
+  const [risingSign, setRisingSign] = useLocalString("tarotseed:rising-sign");
 
   return (
     <section className="panel grid gap-5">
@@ -216,15 +216,15 @@ export function BlueprintPanel() {
 
 export function PreferencesPanel() {
   const [defaultSpread, setDefaultSpread] = useLocalString(
-    "moonseed:default-spread",
+    "tarotseed:default-spread",
     "daily",
   );
   const [moonPhase, setMoonPhase] = useLocalBoolean(
-    "moonseed:moon-phase",
+    "tarotseed:moon-phase",
     true,
   );
   const [newMoon, setNewMoon] = useLocalBoolean(
-    "moonseed:new-moon-rituals",
+    "tarotseed:new-moon-rituals",
     true,
   );
   const { showLabels, setShowLabels } = useShowLabels();
@@ -288,7 +288,7 @@ export function PreferencesPanel() {
 export function ThemesPanel() {
   const [cardBack, setCardBack] = useState<CardBackId>("celestial");
   const { preset, setPreset } = useBgGradient();
-  const [theme, setTheme] = useLocalString("moonseed:accent-theme", "default");
+  const [theme, setTheme] = useLocalString("tarotseed:accent-theme", "default");
 
   useEffect(() => setCardBack(getStoredCardBack()), []);
   useEffect(() => {
@@ -387,18 +387,18 @@ export function DataPanel() {
     if (typeof window === "undefined") return;
     const data = Object.fromEntries(
       Object.entries(localStorage).filter(([key]) =>
-        key.startsWith("moonseed:"),
+        key.startsWith("tarotseed:"),
       ),
     );
     const blob = new Blob(
-      [JSON.stringify({ app: "Moonseed", data }, null, 2)],
+      [JSON.stringify({ app: "Tarot Seed", data }, null, 2)],
       { type: "application/json" },
     );
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     const date = new Date().toISOString().slice(0, 10);
-    a.download = `moonseed-export-${date}.json`;
+    a.download = `tarotseed-export-${date}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -406,11 +406,11 @@ export function DataPanel() {
   const clearData = () => {
     if (typeof window === "undefined") return;
     const ok = window.confirm(
-      "Delete Moonseed settings stored on this device?",
+      "Delete Tarot Seed settings stored on this device?",
     );
     if (!ok) return;
     Object.keys(localStorage)
-      .filter((key) => key.startsWith("moonseed:"))
+      .filter((key) => key.startsWith("tarotseed:"))
       .forEach((key) => localStorage.removeItem(key));
     window.location.reload();
   };
@@ -439,7 +439,7 @@ export function DataPanel() {
         </Button>
       </div>
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Moon className="h-4 w-4 text-gold" /> Moonseed keeps your ritual
+        <Moon className="h-4 w-4 text-gold" /> Tarot Seed keeps your ritual
         preferences close.
       </div>
       <button

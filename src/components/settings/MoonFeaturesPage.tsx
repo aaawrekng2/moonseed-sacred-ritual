@@ -71,7 +71,7 @@ export function MoonFeaturesPage() {
             letterSpacing: "0.01em",
           }}
         >
-          Moonseed Moon
+          Tarot Seed Moon
         </h1>
         <p
           className="mt-3 text-foreground/60"

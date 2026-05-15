@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Section card with a faint gold accent. The source bundle named this
- * "CrownSection" because it prefixed the heading with a 👑 — the Moonseed
+ * "CrownSection" because it prefixed the heading with a 👑 — the Tarot Seed
  * spec removes all crown icons, so this is now a plain titled card.
  * Kept under its source-bundle name for drop-in compatibility.
  */

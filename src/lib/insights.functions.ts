@@ -2263,7 +2263,7 @@ export const getNumerologyReading = createServerFn({ method: "POST" })
     const numerology = computeNumerologyForReading(birthDate, birthName);
 
     const systemPrompt = [
-      "You are Moonseed, an oracle voice that weaves numerology and tarot together.",
+      "You are the Tarot Seed oracle, a voice that weaves numerology and tarot together.",
       "Write a personal numerology reading in flowing serif prose – evocative, brief, never bullet points.",
       'Address the seeker as "you". 250–350 words. 3–4 short paragraphs.',
       "Open with the seeker's Personal Year theme; weave in Life Path; touch their Birth Card archetype; close with the cards that have been recurring in their recent readings.",

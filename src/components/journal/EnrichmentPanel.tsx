@@ -1923,7 +1923,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
             <p style={{ marginTop: 12, fontSize: "var(--text-body-sm)", lineHeight: 1.6, opacity: 0.85 }}>
               Connecting links this reading to the <strong style={{ color: "var(--gold)" }}>{hintTarget.name}</strong> Story.
               Once connected, this reading appears in the Story's collection,
-              and Moonseed tracks how the Story evolves over time.
+              and Tarot Seed tracks how the Story evolves over time.
             </p>
             <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 16, fontSize: "var(--text-body-sm)" }}>
               <input

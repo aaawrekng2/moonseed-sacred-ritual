@@ -1,7 +1,7 @@
 /**
  * CSV import — spread inference (CS).
  *
- * Maps a row's filled-card count to a Moonseed `spread_type`.
+ * Maps a row's filled-card count to a Tarot Seed `spread_type`.
  * Lossy fallbacks return `fits=false` and ask the caller to append
  * cards 4..N to the imported reading's note field so no card is lost.
  */

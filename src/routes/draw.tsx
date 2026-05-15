@@ -380,7 +380,7 @@ function DrawPage() {
             // Only "Don't ask again" hides the quill for this session.
             // DY-4 — fire chained-trigger event for the manual-draw hint.
             try {
-              window.dispatchEvent(new CustomEvent("moonseed:question-modal-closed"));
+              window.dispatchEvent(new CustomEvent("tarotseed:question-modal-closed"));
             } catch {
               /* SSR / CustomEvent unavailable */
             }
@@ -394,7 +394,7 @@ function DrawPage() {
                   });
                   setSessionDismissed(true);
                   try {
-                    window.dispatchEvent(new CustomEvent("moonseed:question-modal-closed"));
+                    window.dispatchEvent(new CustomEvent("tarotseed:question-modal-closed"));
                   } catch {
                     /* ignore */
                   }
