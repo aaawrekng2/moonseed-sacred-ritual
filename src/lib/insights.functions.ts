@@ -2303,8 +2303,9 @@ export const getSuitTrends = createServerFn({ method: "GET" })
     const { days } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
 
+    const effectiveDays = days ?? 9999;
     const granularity: SuitGranularity =
-      days <= 31 ? "daily" : days <= 180 ? "weekly" : "monthly";
+      effectiveDays <= 31 ? "daily" : effectiveDays <= 180 ? "weekly" : "monthly";
 
     const isoDay = (d: Date) => d.toISOString().slice(0, 10);
     const isoMonth = (d: Date) => d.toISOString().slice(0, 7);
@@ -2320,7 +2321,7 @@ export const getSuitTrends = createServerFn({ method: "GET" })
     const dayLabel = (d: Date) =>
       d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
     const monthLabel = (d: Date) =>
-      d.toLocaleDateString(undefined, { month: "short", year: days > 365 ? "numeric" : undefined });
+      d.toLocaleDateString(undefined, { month: "short", year: effectiveDays > 365 ? "numeric" : undefined });
     const weekLabel = (d: Date) => {
       const start = new Date(d);
       const wk = start.getDay() || 7;
