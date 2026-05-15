@@ -2055,3 +2055,203 @@ export const getStalkersByNumber = createServerFn({ method: "GET" })
 
     return { stalkers, totalReadings: rows.length };
   });
+
+/* ============================================================
+ * Q52f — Numerology Reading (AI synthesis)
+ * ============================================================ */
+
+export const NumerologyReadingInputSchema = InsightsFiltersSchema.extend({
+  cacheOnly: z.boolean().optional().default(false),
+});
+
+function computeNumerologyForReading(
+  birthDate: string,
+  birthName: string | null,
+) {
+  const reduce = (n: number, preserveMaster = true): number => {
+    let v = Math.abs(n);
+    while (v > 9) {
+      if (preserveMaster && (v === 11 || v === 22 || v === 33)) return v;
+      v = String(v).split("").reduce((s, c) => s + Number(c), 0);
+    }
+    return v;
+  };
+  const digits = birthDate.replace(/-/g, "").split("").map(Number);
+  const lpSum = digits.reduce((s, d) => s + d, 0);
+  const lifePath = reduce(lpSum);
+
+  const [, monthStr, dayStr] = birthDate.split("-");
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  const now = new Date();
+  const yearDigits = String(now.getFullYear())
+    .split("")
+    .reduce((s, c) => s + Number(c), 0);
+  const personalYear = reduce(month + day + yearDigits, false);
+
+  let sum = lpSum;
+  while (sum > 21) sum = String(sum).split("").reduce((s, c) => s + Number(c), 0);
+  const birthCardPrimary = sum;
+
+  let expression: number | null = null;
+  let soulUrge: number | null = null;
+  let personality: number | null = null;
+  if (birthName && birthName.trim().length > 0) {
+    const VOWELS = new Set(["A", "E", "I", "O", "U"]);
+    let all = 0;
+    let vSum = 0;
+    let cSum = 0;
+    for (const ch of birthName.toUpperCase()) {
+      if (ch >= "A" && ch <= "Z") {
+        const val = ((ch.charCodeAt(0) - 65) % 9) + 1;
+        all += val;
+        if (VOWELS.has(ch)) vSum += val;
+        else cSum += val;
+      }
+    }
+    expression = reduce(all);
+    soulUrge = reduce(vSum);
+    personality = reduce(cSum);
+  }
+
+  return {
+    birthDate,
+    birthName: birthName ?? null,
+    lifePath,
+    personalYear,
+    birthCardPrimary,
+    expression,
+    soulUrge,
+    personality,
+  };
+}
+
+function buildNumerologyUserPrompt(
+  num: ReturnType<typeof computeNumerologyForReading>,
+  readings: Array<{
+    id: string;
+    card_ids: number[] | null;
+    question?: string | null;
+    created_at: string;
+  }>,
+): string {
+  const cardCounts: Record<number, number> = {};
+  for (const r of readings) {
+    for (const cid of r.card_ids ?? []) {
+      if (cid < 0 || cid >= 78) continue;
+      let n: number | null = null;
+      if (cid > 0 && cid <= 21) n = cid;
+      else if (cid >= 22 && cid <= 77) {
+        const pos = (cid - 22) % 14;
+        if (pos >= 0 && pos <= 9) n = pos + 1;
+      }
+      if (n === null) continue;
+      let v = n;
+      while (v > 9 && v !== 11 && v !== 22 && v !== 33) {
+        v = String(v).split("").reduce((s, c) => s + Number(c), 0);
+      }
+      cardCounts[v] = (cardCounts[v] ?? 0) + 1;
+    }
+  }
+  const topNumbers = Object.entries(cardCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 3)
+    .map(([n, c]) => `${n} (${c}×)`);
+
+  const lines: string[] = [
+    `Birth date: ${num.birthDate}`,
+    `Life Path: ${num.lifePath}`,
+    `Personal Year: ${num.personalYear}`,
+    `Primary Birth Card index (0-21 Major Arcana): ${num.birthCardPrimary}`,
+  ];
+  if (num.expression !== null) lines.push(`Expression: ${num.expression}`);
+  if (num.soulUrge !== null) lines.push(`Soul Urge: ${num.soulUrge}`);
+  if (num.personality !== null) lines.push(`Personality: ${num.personality}`);
+  if (topNumbers.length > 0) {
+    lines.push(
+      `Top recurring card-numerology in recent readings: ${topNumbers.join(", ")}`,
+    );
+  } else {
+    lines.push("Recent readings: none in window.");
+  }
+  lines.push(`Reading count in window: ${readings.length}`);
+  return lines.join("\n");
+}
+
+export const getNumerologyReading = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => NumerologyReadingInputSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+
+    const { data: prefs } = await supabase
+      .from("user_preferences")
+      .select("birth_date, birth_name")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const birthDate = (prefs as any)?.birth_date as string | null;
+    const birthName = (prefs as any)?.birth_name as string | null;
+
+    if (!birthDate) {
+      return {
+        ok: false as const,
+        reason: "no_birth_date" as const,
+        reading: null,
+        generatedAt: null,
+      };
+    }
+
+    const cacheKey = `numerology:${birthDate}:${birthName ?? ""}:${data.timeRange}`;
+
+    if (data.cacheOnly) {
+      const cached = await readCachedReflection(supabase, userId, cacheKey);
+      if (cached) {
+        return {
+          ok: true as const,
+          reading: cached.reflection,
+          generatedAt: cached.generatedAt,
+        };
+      }
+      return {
+        ok: false as const,
+        reason: "no_cache" as const,
+        reading: null,
+        generatedAt: null,
+      };
+    }
+
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.timeRange, isPremium);
+    const rows = await fetchFilteredReadings(supabase, userId, data, days);
+    const recentReadings = rows.slice(0, 25);
+
+    const numerology = computeNumerologyForReading(birthDate, birthName);
+
+    const systemPrompt = [
+      "You are Moonseed, an oracle voice that weaves numerology and tarot together.",
+      "Write a personal numerology reading in flowing serif prose – evocative, brief, never bullet points.",
+      'Address the seeker as "you". 250–350 words. 3–4 short paragraphs.',
+      "Open with the seeker's Personal Year theme; weave in Life Path; touch their Birth Card archetype; close with the cards that have been recurring in their recent readings.",
+      "Be specific to their actual numbers and recent cards. No generic horoscope filler. No advice imperatives.",
+    ].join("\n");
+
+    const userPrompt = buildNumerologyUserPrompt(numerology, recentReadings);
+
+    const reading = await callAnthropicShort(systemPrompt, userPrompt, 800, userId);
+    if (!reading) {
+      return {
+        ok: false as const,
+        reason: "ai_failed" as const,
+        reading: null,
+        generatedAt: null,
+      };
+    }
+
+    await writeCachedReflection(supabase, userId, cacheKey, reading);
+
+    return {
+      ok: true as const,
+      reading,
+      generatedAt: new Date().toISOString(),
+    };
+  });
