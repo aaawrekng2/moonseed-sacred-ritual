@@ -2,7 +2,7 @@
  * FQ-2 — Calendar showing a stalker's appearance dates highlighted.
  * Wraps the shared shadcn Calendar (react-day-picker) in read-only mode.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 
 function mostRecent(appearances: Array<{ date: string }>): Date {
