@@ -62,34 +62,6 @@ import { StalkerOccurrenceList } from "./StalkerOccurrenceList";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { LoadingText } from "@/components/ui/loading-text";
 
-// Q48 Fix 4 — count rendered ABOVE the card. Selected card gets a
-// larger pill badge for readability.
-function StalkerCount({ count, selected }: { count: number; selected: boolean }) {
-  if (selected) {
-    return (
-      <span
-        className="tabular-nums"
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-body-lg, 16px)",
-          color: "var(--gold)",
-          background: "color-mix(in oklab, var(--gold) 14%, transparent)",
-          border: "1px solid color-mix(in oklab, var(--gold) 35%, transparent)",
-          borderRadius: 999,
-          padding: "2px 10px",
-          minWidth: 32,
-          textAlign: "center",
-        }}
-      >
-        {count}×
-      </span>
-    );
-  }
-  return (
-    <span className="text-xs text-muted-foreground tabular-nums">{count}×</span>
-  );
-}
 import type {
   InsightsFilters,
   TimeRange,
