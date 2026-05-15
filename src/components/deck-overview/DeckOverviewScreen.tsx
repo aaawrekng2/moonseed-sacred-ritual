@@ -30,7 +30,7 @@ import {
   List as ListIcon,
   Pencil,
   Plus,
-  Sparkles,
+  Wand2,
   Trash2,
   Upload,
   X,
@@ -885,7 +885,7 @@ export function DeckOverviewScreen({
             borderColor: "color-mix(in oklab, var(--accent) 30%, transparent)",
           }}
         >
-          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
+          <Wand2 className="mt-0.5 h-5 w-5 shrink-0 text-gold" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium">
               Matched {importResult.matchedCount} of {totalSlots || importResult.matchedCount} from filenames

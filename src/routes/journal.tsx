@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Camera, Ghost, Heart, Image as ImageIcon, MessageCircle, Network, Sparkles, Star, StickyNote, Tag as TagIcon, X as XIcon } from "lucide-react";
+import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Camera, Ghost, Heart, Image as ImageIcon, MessageCircle, Network, Star, StickyNote, Tag as TagIcon, Wand2, X as XIcon } from "lucide-react";
 import { usePremium } from "@/lib/premium";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -1145,10 +1145,10 @@ function ReadingCard({
             </Star>
           )}
           {reading.interpretation && reading.interpretation.trim() !== "" && (
-            <Sparkles size={16} strokeWidth={1.5} fill="currentColor"
+            <Wand2 size={16} strokeWidth={1.5} fill="currentColor"
               style={{ color: "var(--accent)", opacity: 0.7 }} aria-label="AI interpreted">
               <title>AI interpreted</title>
-            </Sparkles>
+            </Wand2>
           )}
           {hasTags && (
             <TagIcon size={16} strokeWidth={1.5} fill="currentColor"
@@ -2273,7 +2273,7 @@ function ReadingDetail({
                 />
               )}
               {reading.is_deep_reading && (
-                <Sparkles
+                <Wand2
                   size={16}
                   strokeWidth={1.5}
                   fill="currentColor"

@@ -5,7 +5,7 @@
  * getReversedStalkers. Mode/cooccurrence/filter changes refetch.
  */
 import { useEffect, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { Wand2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { CardImage } from "@/components/card/CardImage";
 import { CardCellWithBadge } from "./CardCellWithBadge";
@@ -516,7 +516,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
 
       {!loading && filledCount === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
-          <Sparkles className="h-8 w-8 mb-2 opacity-40" />
+          <Wand2 className="h-8 w-8 mb-2 opacity-40" />
           <p className="text-sm font-serif italic">No {mode} stalkers in this time range yet.</p>
           <p className="text-xs mt-1 opacity-70">Try a wider time range or different filters.</p>
         </div>

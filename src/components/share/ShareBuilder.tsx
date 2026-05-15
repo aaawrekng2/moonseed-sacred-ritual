@@ -22,7 +22,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Eye, Layers, Quote, Sparkles, Star, X } from "lucide-react";
+import { Eye, Layers, Quote, Wand2, Star, X } from "lucide-react";
 import {
   Dialog,
   DialogDescription,
@@ -67,13 +67,13 @@ import {
 type LevelSpec = {
   id: ShareLevel;
   label: string;
-  icon: typeof Sparkles;
+  icon: typeof Wand2;
   /** Background color used when capturing the PNG. */
   captureBackground: string;
 };
 
 const LEVEL_SPECS: Record<ShareLevel, LevelSpec> = {
-  pull:     { id: "pull",     label: "Pull",     icon: Sparkles, captureBackground: "#06060c" },
+  pull:     { id: "pull",     label: "Pull",     icon: Wand2, captureBackground: "#06060c" },
   reading:  { id: "reading",  label: "Reading",  icon: Layers,   captureBackground: "#07070d" },
   position: { id: "position", label: "Position", icon: Quote,    captureBackground: "#07070d" },
   lens:     { id: "lens",     label: "Lens",     icon: Eye,      captureBackground: "#050509" },

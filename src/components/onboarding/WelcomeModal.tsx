@@ -6,7 +6,7 @@
  */
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Wand2, BookOpen, Sparkles, Settings as SettingsIcon } from "lucide-react";
+import { Wand2, BookOpen, Settings as SettingsIcon } from "lucide-react";
 
 type Props = { open: boolean; onClose: () => void };
 
@@ -112,7 +112,7 @@ export function WelcomeModal({ open, onClose }: Props) {
           text="Your readings are saved to your journal automatically."
         />
         <Item
-          icon={<Sparkles size={16} />}
+          icon={<Wand2 size={16} />}
           text="Patterns emerge in Insights as you read over time."
         />
       </div>
