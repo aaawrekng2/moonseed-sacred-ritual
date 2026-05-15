@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Lightbulb, Loader2, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lightbulb, Loader2, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type JournalPromptsProps = {
@@ -174,7 +174,7 @@ export function JournalPrompts({
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {isPlaceholder ? (
-            <Sparkles size={14} style={{ color: "var(--accent, var(--gold))", opacity: 0.7 }} />
+            <Wand2 size={14} style={{ color: "var(--accent, var(--gold))", opacity: 0.7 }} />
           ) : (
             <Lightbulb size={14} style={{ color: "var(--accent, var(--gold))", opacity: 0.7 }} />
           )}
