@@ -78,16 +78,6 @@ export function NumerologyReadingTab({ filters }: { filters: InsightsFilters }) 
 
   return (
     <section style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <h2
-        style={{
-          fontFamily: "var(--font-display)",
-          fontStyle: "italic",
-          fontSize: "var(--text-heading-md)",
-          margin: 0,
-        }}
-      >
-        Your Numerology Reading
-      </h2>
       <AIGatedSection
         title="Numerology Synthesis"
         caption="Your chart, woven into prose."
