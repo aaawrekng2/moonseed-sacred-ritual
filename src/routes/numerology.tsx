@@ -23,6 +23,7 @@ import { NumerologyBlueprintTab } from "@/components/numerology/NumerologyBluepr
 import { NumerologyCyclesTab } from "@/components/numerology/NumerologyCyclesTab";
 import { NumerologyPatternsTab } from "@/components/numerology/NumerologyPatternsTab";
 import { NumerologyStalkersTab } from "@/components/numerology/NumerologyStalkersTab";
+import { NumerologyReadingTab } from "@/components/numerology/NumerologyReadingTab";
 
 export const Route = createFileRoute("/numerology")({
   head: () => ({
@@ -182,7 +183,8 @@ function NumerologyPage() {
     );
   }
 
-  const showFilters = tab === "patterns" || tab === "stalkers";
+  const showFilters =
+    tab === "patterns" || tab === "stalkers" || tab === "reading";
 
   const globalFilters: GlobalFilters = {
     ...EMPTY_GLOBAL_FILTERS,
@@ -328,51 +330,9 @@ function NumerologyPage() {
           {tab === "stalkers" && (
             <NumerologyStalkersTab filters={filters} birthDate={birthDate} />
           )}
-          {tab === "reading" && (
-            <ComingSoonStub
-              label="Your Numerology Reading"
-              intro="An AI-woven numerology reading drawing your complete chart into a single narrative."
-            />
-          )}
+          {tab === "reading" && <NumerologyReadingTab filters={filters} />}
         </div>
       </main>
     </div>
-  );
-}
-
-function ComingSoonStub({ label, intro }: { label: string; intro: string }) {
-  return (
-    <section style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <h2
-        style={{
-          fontFamily: "var(--font-display)",
-          fontStyle: "italic",
-          fontSize: "var(--text-heading-md)",
-          margin: 0,
-        }}
-      >
-        {label}
-      </h2>
-      <p
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          opacity: 0.85,
-          margin: 0,
-        }}
-      >
-        {intro}
-      </p>
-      <p
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          opacity: 0.5,
-          margin: 0,
-        }}
-      >
-        Coming soon.
-      </p>
-    </section>
   );
 }
