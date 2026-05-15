@@ -10,6 +10,7 @@ import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { NumerologyTodayTab } from "@/components/numerology/NumerologyTodayTab";
 import { NumerologyBlueprintTab } from "@/components/numerology/NumerologyBlueprintTab";
 import { NumerologyCyclesTab } from "@/components/numerology/NumerologyCyclesTab";
+import { NumerologyPatternsTab } from "@/components/numerology/NumerologyPatternsTab";
 
 export const Route = createFileRoute("/numerology")({
   head: () => ({
@@ -233,12 +234,7 @@ function NumerologyPage() {
             <NumerologyBlueprintTab birthDate={birthDate} birthName={birthName} />
           )}
           {tab === "cycles" && <NumerologyCyclesTab birthDate={birthDate} />}
-          {tab === "patterns" && (
-            <ComingSoonStub
-              label="Patterns"
-              intro="Number frequency and synchronicities woven from your readings."
-            />
-          )}
+          {tab === "patterns" && <NumerologyPatternsTab />}
           {tab === "stalkers" && (
             <ComingSoonStub
               label="Stalkers"
