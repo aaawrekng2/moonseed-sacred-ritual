@@ -11,13 +11,11 @@ import {
 } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import type { InsightsFilters } from "@/lib/insights.types";
-import { CardImage } from "@/components/card/CardImage";
 import { CardCellWithBadge } from "@/components/insights/CardCellWithBadge";
 import { getCardName } from "@/lib/tarot";
 import { formatTimeAgo } from "@/lib/dates";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
-import { useElementWidth } from "@/lib/use-element-width";
 
 type FreqData = {
   counts: Record<number, number>;
