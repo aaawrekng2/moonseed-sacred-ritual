@@ -628,9 +628,7 @@ function CoOccurrenceStrip({
             }}
             aria-label={`${getCardName(e.cardId)} — ${e.count} co-occurrences`}
           >
-            <div style={{ width: 60, height: 100 }}>
-              <CardImage cardId={e.cardId} />
-            </div>
+            <CardImage cardId={e.cardId} size="custom" widthPx={60} />
             <div
               style={{
                 marginTop: 4,
