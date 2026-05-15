@@ -501,6 +501,8 @@ export const getStalkerCardDetail = createServerFn({ method: "GET" })
       date: string;
       spreadType: string | null;
       isReversed: boolean;
+      question: string | null;
+      cardIds: number[];
     }> = [];
     let total = 0;
     let reversed = 0;
@@ -517,6 +519,8 @@ export const getStalkerCardDetail = createServerFn({ method: "GET" })
             date: r.created_at,
             spreadType: r.spread_type,
             isReversed: isRev,
+            question: r.question ?? null,
+            cardIds: cards,
           });
         }
       });
