@@ -206,3 +206,62 @@ export const LETTER_ENERGY_MEANINGS: Record<number, string> = {
   8: "Begins with strategy — measuring scope before commitment.",
   9: "Begins from completion — closing the last circle to free the new one.",
 };
+
+// ===== Q52c — Cycles copy: Pinnacles, Challenges, Period Cycles, Personal Year =====
+
+export const PINNACLE_MEANINGS: Record<number, NumberMeaning> = {
+  1: { keyword: "Self & Independence", short: "A chapter of becoming your own person.", full: "This chapter asks you to stand on your own feet — to choose your direction and walk it without waiting for company. The work is initiation; the gift is sovereignty." },
+  2: { keyword: "Partnership & Patience", short: "A chapter of softening and cooperation.", full: "A long apprenticeship in relationship. You learn to listen, to share the weight, to build with someone rather than past them. The reward is intimacy that does not erode the self." },
+  3: { keyword: "Expression & Joy", short: "A chapter of voice, creation, and lightness.", full: "Your voice wants to leave the body. Make, speak, sing, write — let colour out of you. This chapter rewards the willingness to be seen mid-bloom." },
+  4: { keyword: "Foundation & Discipline", short: "A chapter of building stability.", full: "Stone upon stone. Slow, patient, devotional work that outlasts the mood that began it. Glamour is scarce; ground is abundant." },
+  5: { keyword: "Change & Adventure", short: "A chapter of movement and reinvention.", full: "Plans rearrange themselves; the body wants to travel. Stay loose. The lesson is to ride change rather than brace against it." },
+  6: { keyword: "Love & Service", short: "A chapter of family, harmony, and care.", full: "Hearth, home, and the long arts of devotion. You are weaving the people around you into something that holds — without losing yourself in the weaving." },
+  7: { keyword: "Wisdom & Solitude", short: "A chapter of inner study and depth.", full: "The hermit on the hill. Pull back, study, listen. Truths arrive in the quiet that crowds cannot deliver." },
+  8: { keyword: "Power & Mastery", short: "A chapter of material and worldly achievement.", full: "Authority, money, and the visible use of influence rise toward you. Hold them with integrity and they bless what you build." },
+  9: { keyword: "Completion & Humanitarianism", short: "A chapter of release and service to the larger whole.", full: "A great circle is closing. You give back what you have learned and let what is finished go cleanly. Wisdom is the harvest." },
+  11: { keyword: "Illumination", short: "A chapter of intuition and spiritual sight.", full: "The veil thins. You receive what others cannot yet see. Protect the channel — sensitivity is the price of clarity." },
+  22: { keyword: "Master Building", short: "A chapter of manifesting the grand vision.", full: "Vision married to hand. Bring large things into form, slowly, faithfully, with others. Do not shrink the dream to fit the room." },
+  33: { keyword: "Master Teaching", short: "A chapter of service through love.", full: "Teach by presence. Love at scale, without losing the small and tender places in yourself. Compassion becomes the discipline." },
+};
+
+export const CHALLENGE_MEANINGS: Record<number, NumberMeaning> = {
+  0: { keyword: "Amplified Test", short: "Tested on all fronts — a season of rapid spiritual growth.", full: "All challenges are available; the soul chose the full curriculum. Meet each test as it comes and the chapter forges unusual depth." },
+  1: { keyword: "Asserting Self", short: "Learning to lead without overpowering.", full: "The work is to claim your direction without needing to flatten anyone else's. Real leadership grows from rooted self-trust, not volume." },
+  2: { keyword: "Sensitivity", short: "Learning to feel without being consumed.", full: "Other people's weather moves through you. The challenge is to stay porous without losing your own shape." },
+  3: { keyword: "Scattered Focus", short: "Learning to channel creative energy.", full: "Inspiration is plentiful; finishing is rare. The work is to choose one thread and follow it all the way to a finished thing." },
+  4: { keyword: "Rigidity", short: "Learning structure without becoming brittle.", full: "Discipline that cannot bend will break. The challenge is to build a life solid enough to hold you and soft enough to let you grow." },
+  5: { keyword: "Restlessness", short: "Learning freedom without recklessness.", full: "The wanting to leave is constant. The work is to discern when motion is the medicine and when it is the avoidance." },
+  6: { keyword: "Burden of Care", short: "Learning to serve without self-erasure.", full: "Responsibility for others can become the place you hide. The challenge is to give from fullness, not from the desire to be needed." },
+  7: { keyword: "Isolation", short: "Learning solitude without withdrawal.", full: "Depth wants quiet; the soul also wants to be known. The work is to take the inner journey without disappearing from your own life." },
+  8: { keyword: "Material Test", short: "Learning power without grasping.", full: "Money and authority test the hand that holds them. Wield real power for what it can build — not for the proof that you have it." },
+};
+
+export const PERIOD_CYCLE_MEANINGS: Record<number, NumberMeaning> = {
+  1: { keyword: "Self-Direction", short: "A phase of asserting independence.", full: "The early work of choosing your own path. You are learning to begin, to stand alone long enough for direction to clarify." },
+  2: { keyword: "Cooperation", short: "A phase of partnership and patience.", full: "You grow through relationship. Listening, weighing, partnering — these are the soul's apprenticeship in this phase." },
+  3: { keyword: "Expression", short: "A phase of creativity and voice.", full: "A long season of making and speaking. The work is to let what is in you out, in colour and word and song." },
+  4: { keyword: "Foundation", short: "A phase of structure and persistence.", full: "Slow building. You lay ground others will eventually stand on, including the future self you are becoming." },
+  5: { keyword: "Change", short: "A phase of motion and learning.", full: "Travel, study, reinvention. The phase rewards the willingness to be a beginner more than once." },
+  6: { keyword: "Service", short: "A phase of love and responsibility.", full: "Family, hearth, devotion. You are tending — to people, to beauty, to the conditions in which others can flourish." },
+  7: { keyword: "Inner Work", short: "A phase of reflection and study.", full: "A long inward turn. Solitude becomes a teacher; depth becomes the gift you carry forward." },
+  8: { keyword: "Achievement", short: "A phase of building and stewarding power.", full: "Visible mastery. Material and structural success arrive in proportion to the integrity that holds them." },
+  9: { keyword: "Completion", short: "A phase of release and wisdom-sharing.", full: "An era closes. You give back what you have learned and let what is finished go, with grace." },
+  11: { keyword: "Illumination", short: "A phase of heightened intuition.", full: "A long stretch of thinned veil. Insight arrives unbidden; the work is to honour and protect the channel." },
+  22: { keyword: "Master Building", short: "A phase of grand-scale manifestation.", full: "Vision becomes architecture. You build the kind of structure that outlives its builder." },
+  33: { keyword: "Master Teaching", short: "A phase of devotional service.", full: "Love made visible at scale. Presence itself becomes the lesson you offer." },
+};
+
+export const PERSONAL_YEAR_MEANINGS: Record<number, NumberMeaning> = {
+  1: { keyword: "Year of Beginnings", short: "Plant the seed. Set the direction.", full: "A new nine-year cycle opens. Choose with care — what you start now shapes the next decade. Move first; perfection comes later." },
+  2: { keyword: "Year of Patience", short: "Build slowly. Cooperate.", full: "The soil is still settling. Partner, listen, wait. Forced action this year tends to undo itself; gentle action compounds." },
+  3: { keyword: "Year of Joy", short: "Create. Express. Celebrate.", full: "Voice wants out. Make, share, gather, play. The work is to enjoy the work — your colour returns to the room." },
+  4: { keyword: "Year of Foundation", short: "Build the structure. Work the work.", full: "Steady hands. Discipline, systems, ground. Glamour is thin; what you build this year holds for years." },
+  5: { keyword: "Year of Change", short: "Expect the unexpected. Stay flexible.", full: "Plans rearrange. Travel, pivots, surprise openings. Stay loose; the year rewards adaptability over control." },
+  6: { keyword: "Year of Service", short: "Tend to home, family, love.", full: "Hearth and harmony. Relationships, beauty, and care take the foreground. Tend without losing yourself in the tending." },
+  7: { keyword: "Year of Reflection", short: "Turn inward. Study. Listen.", full: "A quieter chapter. Less doing, more sensing. Truths surface that the busy years could not bring forward." },
+  8: { keyword: "Year of Power", short: "Step into mastery. Steward abundance.", full: "Visible return. Money, authority, recognition arrive in proportion to the work. Hold them with integrity." },
+  9: { keyword: "Year of Completion", short: "Release. Forgive. Make space.", full: "An era ends. Let go cleanly — the next 1 year cannot fully arrive while you cling to what is finished." },
+  11: { keyword: "Master Year of Illumination", short: "Heightened intuition. Listen carefully.", full: "A 2 year intensified to a master octave. Insight is unusually available; sensitivity is too. Move slowly and protect the channel." },
+  22: { keyword: "Master Year of Building", short: "A grand structure wants to come through.", full: "A 4 year intensified. Large-scale building is favoured — vision married to discipline. Do not shrink the dream." },
+  33: { keyword: "Master Year of Teaching", short: "Love made visible.", full: "A 6 year intensified. Service through presence is the calling. Lead by tending; teach by being tended-to first." },
+};

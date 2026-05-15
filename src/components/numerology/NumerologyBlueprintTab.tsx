@@ -206,7 +206,11 @@ export function NumerologyBlueprintTab({
           <KarmicLessonsSection birthName={birthName!} />
           <HiddenPassionSection birthName={birthName!} />
           <CornerCapSection birthName={birthName!} />
-          <MaturitySection birthDate={birthDate} birthName={birthName!} />
+          <MaturitySection
+            birthDate={birthDate}
+            birthName={birthName!}
+            primaryBirthCard={cards.primary}
+          />
         </>
       ) : (
         <div style={cardStyle}>
@@ -313,7 +317,7 @@ function CoreNumberCard({
         <span style={labelStyle}>{label}</span>
         <span style={keywordStyle}>{meaning.keyword}</span>
         {arcana !== null && (
-          <CardImage cardId={arcana} size="custom" widthPx={44} />
+          <CardImage cardId={arcana} size="custom" widthPx={80} />
         )}
       </div>
     </ExpandableCard>
@@ -532,13 +536,16 @@ function LetterCard({
 function MaturitySection({
   birthDate,
   birthName,
+  primaryBirthCard,
 }: {
   birthDate: string;
   birthName: string;
+  primaryBirthCard: number;
 }) {
   const mat = maturityNumber(birthDate, birthName);
   const m = NUMBER_MEANINGS[mat.digit] ?? NUMBER_MEANINGS[1];
   const arcana = numberToMajorArcana(mat.digit);
+  const matchesBirthCard = arcana !== null && arcana === primaryBirthCard;
   return (
     <Section
       header="Maturity Number"
@@ -564,6 +571,21 @@ function MaturitySection({
           )}
         </div>
       </ExpandableCard>
+      {matchesBirthCard && (
+        <p
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-sm)",
+            color: "var(--gold)",
+            opacity: 0.85,
+            textAlign: "center",
+            margin: "8px 0 0 0",
+          }}
+        >
+          Your destination matches your origin. The journey returns you to where you began — fully embodied.
+        </p>
+      )}
     </Section>
   );
 }

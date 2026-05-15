@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { NumerologyTodayTab } from "@/components/numerology/NumerologyTodayTab";
 import { NumerologyBlueprintTab } from "@/components/numerology/NumerologyBlueprintTab";
+import { NumerologyCyclesTab } from "@/components/numerology/NumerologyCyclesTab";
 
 export const Route = createFileRoute("/numerology")({
   head: () => ({
@@ -231,12 +232,7 @@ function NumerologyPage() {
           {tab === "blueprint" && (
             <NumerologyBlueprintTab birthDate={birthDate} birthName={birthName} />
           )}
-          {tab === "cycles" && (
-            <ComingSoonStub
-              label="Cycles"
-              intro="The long rhythms of your life: Personal Year forecast, Pinnacles, Challenges, and Period Cycles."
-            />
-          )}
+          {tab === "cycles" && <NumerologyCyclesTab birthDate={birthDate} />}
           {tab === "patterns" && (
             <ComingSoonStub
               label="Patterns"
