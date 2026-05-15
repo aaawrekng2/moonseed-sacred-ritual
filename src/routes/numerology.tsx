@@ -303,35 +303,31 @@ function NumerologyPage() {
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-4 pb-28 pt-4"
       >
-        <div style={{ maxWidth: 720, margin: "0 auto" }}>
-          <h1
-            className="font-display italic mb-4"
-            style={{
-              fontSize: "var(--text-display, 32px)",
-              color: "var(--color-foreground)",
-              margin: "0 0 16px 0",
-              opacity: collapseProgress,
-              transition: "opacity 150ms ease-out",
-              lineHeight: 1.25,
-            }}
-          >
-            Numerology
-          </h1>
-          {tab === "today" && (
-            <NumerologyTodayTab birthDate={birthDate} birthName={birthName} />
-          )}
-          {tab === "blueprint" && (
-            <NumerologyBlueprintTab birthDate={birthDate} birthName={birthName} />
-          )}
-          {tab === "cycles" && <NumerologyCyclesTab birthDate={birthDate} />}
-          {tab === "patterns" && (
-            <NumerologyPatternsTab filters={filters} onFiltersChange={setFilters} />
-          )}
-          {tab === "stalkers" && (
-            <NumerologyStalkersTab filters={filters} birthDate={birthDate} />
-          )}
-          {tab === "reading" && <NumerologyReadingTab filters={filters} />}
-        </div>
+        <h1
+          className="font-serif italic mb-4"
+          style={{
+            fontSize: "var(--text-display, 32px)",
+            color: "var(--color-foreground)",
+            opacity: 0.9,
+            lineHeight: 1.25,
+          }}
+        >
+          Numerology
+        </h1>
+        {tab === "today" && (
+          <NumerologyTodayTab birthDate={birthDate} birthName={birthName} />
+        )}
+        {tab === "blueprint" && (
+          <NumerologyBlueprintTab birthDate={birthDate} birthName={birthName} />
+        )}
+        {tab === "cycles" && <NumerologyCyclesTab birthDate={birthDate} />}
+        {tab === "patterns" && (
+          <NumerologyPatternsTab filters={filters} onFiltersChange={setFilters} />
+        )}
+        {tab === "stalkers" && (
+          <NumerologyStalkersTab filters={filters} birthDate={birthDate} />
+        )}
+        {tab === "reading" && <NumerologyReadingTab filters={filters} />}
       </main>
     </div>
   );
