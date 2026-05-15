@@ -101,6 +101,24 @@ export function getCardSuit(id: TarotCardId): CardSuit {
   return "Pentacles";
 }
 
+// Q56 — Suit grouping. Returns one of "Majors" / "Wands" / "Cups" / "Swords" / "Pentacles".
+export function cardSuit(
+  cardId: TarotCardId,
+): "Majors" | "Wands" | "Cups" | "Swords" | "Pentacles" {
+  if (cardId <= 21) return "Majors";
+  if (cardId <= 35) return "Wands";
+  if (cardId <= 49) return "Cups";
+  if (cardId <= 63) return "Swords";
+  return "Pentacles";
+}
+
+// Q56 — Type grouping. Returns "Major" / "Court" / "Pip".
+export function cardType(cardId: TarotCardId): "Major" | "Court" | "Pip" {
+  if (cardId <= 21) return "Major";
+  const pos = (cardId - 22) % 14;
+  return pos >= 10 ? "Court" : "Pip";
+}
+
 // Q52d — Map a tarot card id (0-77) to its raw numerology number.
 // Majors: The Fool (0) is unnumbered; Majors 1-21 use their card number.
 // Minors Ace-Ten: rank 1-10. Courts and oracle cards return null.
