@@ -3,16 +3,16 @@
  * ranked by how often they've appeared in the filtered window.
  */
 import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { getStalkersByNumber } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import type { InsightsFilters } from "@/lib/insights.types";
-import { CardImage } from "@/components/card/CardImage";
+import { CardCellWithBadge } from "@/components/insights/CardCellWithBadge";
 import { getCardName } from "@/lib/tarot";
 import { NUMBER_MEANINGS } from "@/lib/numerology-copy";
 import { lifePath } from "@/lib/numerology";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
-import { useElementWidth } from "@/lib/use-element-width";
 
 type Stalker = {
   number: number;
@@ -109,6 +109,7 @@ function StalkerEntry({
   isLifePath: boolean;
 }) {
   const meaning = NUMBER_MEANINGS[stalker.number];
+  const navigate = useNavigate();
   return (
     <div
       style={{
@@ -168,8 +169,18 @@ function StalkerEntry({
           justifyItems: "center",
         }}
       >
-        {stalker.topCards.map(({ cardId }) => (
-          <StalkerTopCardThumb key={cardId} cardId={cardId} />
+        {stalker.topCards.map(({ cardId, count }) => (
+          <CardCellWithBadge
+            key={cardId}
+            cardId={cardId}
+            count={count}
+            onClick={() =>
+              navigate({
+                to: "/insights/card/$cardId",
+                params: { cardId: String(cardId) },
+              })
+            }
+          />
         ))}
       </div>
       {/* Labels row — same columns; names wrap freely. */}
@@ -178,41 +189,23 @@ function StalkerEntry({
           display: "grid",
           gridTemplateColumns: `repeat(${stalker.topCards.length}, 1fr)`,
           gap: 12,
+          marginTop: 8,
           justifyItems: "center",
           alignItems: "start",
         }}
       >
-        {stalker.topCards.map(({ cardId, count }) => (
-          <div
+        {stalker.topCards.map(({ cardId }) => (
+          <span
             key={cardId}
             style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 2,
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption)",
+              textAlign: "center",
             }}
           >
-            <span
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-caption)",
-                textAlign: "center",
-              }}
-            >
-              {getCardName(cardId)}
-            </span>
-            <span
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-caption)",
-                color: "var(--gold)",
-              }}
-            >
-              {count}×
-            </span>
-          </div>
+            {getCardName(cardId)}
+          </span>
         ))}
       </div>
       {isLifePath && (
@@ -229,17 +222,6 @@ function StalkerEntry({
           This is your Life Path number. The cards are mirroring your
           soul's curriculum back to you.
         </p>
-      )}
-    </div>
-  );
-}
-
-function StalkerTopCardThumb({ cardId }: { cardId: number }) {
-  const { ref: imgRef, width: imgW } = useElementWidth<HTMLDivElement>();
-  return (
-    <div ref={imgRef} style={{ width: "100%", maxWidth: 140 }}>
-      {imgW > 0 && (
-        <CardImage cardId={cardId} size="custom" widthPx={Math.round(imgW)} />
       )}
     </div>
   );
