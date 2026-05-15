@@ -5,6 +5,6 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: "Admin — Moonseed" }] }),
+  head: () => ({ meta: [{ title: "Admin — Tarot Seed" }] }),
   component: () => <Outlet />,
 });

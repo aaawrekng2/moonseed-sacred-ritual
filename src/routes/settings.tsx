@@ -39,7 +39,7 @@ import { signOutAndClear } from "@/lib/sign-out";
  */
 export const Route = createFileRoute("/settings")({
   head: () => ({
-    meta: [{ title: "Settings — Moonseed" }],
+    meta: [{ title: "Settings — Tarot Seed" }],
   }),
   beforeLoad: ({ location }) => {
     if (

@@ -16,7 +16,7 @@ import {
 } from "@/lib/feedback.functions";
 
 export const Route = createFileRoute("/settings/feedback")({
-  head: () => ({ meta: [{ title: "Feedback — Settings · Moonseed" }] }),
+  head: () => ({ meta: [{ title: "Feedback — Settings · Tarot Seed" }] }),
   component: FeedbackPage,
 });
 

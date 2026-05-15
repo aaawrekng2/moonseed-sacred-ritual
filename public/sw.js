@@ -1,9 +1,9 @@
-/* Moonseed minimal service worker.
+/* Tarot Seed minimal service worker.
  * Caches the app shell so the home screen icon launches even when offline.
  * We deliberately keep the cache small and use network-first for navigations
  * so deploys propagate without needing a manual "update" prompt.
  */
-const CACHE = "moonseed-shell-v3";
+const CACHE = "tarotseed-shell-v3";
 // Only cache truly static assets — never HTML or JS bundles. Caching JS
 // (cache-first) caused hydration mismatches because the SW would serve a
 // stale client bundle against a fresh SSR HTML response.

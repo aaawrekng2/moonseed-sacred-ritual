@@ -1,7 +1,7 @@
 /**
  * Community Themes — curated, named (gradient + accent) presets that
  * apply instantly when tapped. Stored selection persists in
- * localStorage under `moonseed:community-theme` so it survives reload
+ * localStorage under `tarotseed:community-theme` so it survives reload
  * without a DB migration. Applying a community theme also writes the
  * gradient + accent through to user_preferences via the caller.
  */
@@ -293,7 +293,7 @@ export function resolveCommunityTheme(
   return COMMUNITY_THEMES.find((t) => t.key === "mystic-default") ?? null;
 }
 
-const STORAGE_KEY = "moonseed:community-theme";
+const STORAGE_KEY = "tarotseed:community-theme";
 
 export function getStoredCommunityTheme(): string | null {
   if (typeof window === "undefined") return null;

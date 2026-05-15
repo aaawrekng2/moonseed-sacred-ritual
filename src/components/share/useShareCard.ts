@@ -433,7 +433,7 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         setLastError(null);
         const dataUrl = await renderToPng(node, backgroundColor);
         const captureMs = Math.round(performance.now() - captureStart);
-        const filename = `moonseed-${new Date()
+        const filename = `tarotseed-${new Date()
           .toISOString()
           .slice(0, 10)}.png`;
         setPreview({ intent, dataUrl, filename });
@@ -522,7 +522,7 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
       };
       if (nav.canShare && nav.canShare({ files: [file] })) {
         shareStart = performance.now();
-        await nav.share({ files: [file], title: "Moonseed" });
+        await nav.share({ files: [file], title: "Tarot Seed" });
         shareMs = Math.round(performance.now() - shareStart);
         flash("Shared");
         callbacks.onShareSuccess?.({ blobMs, shareMs });

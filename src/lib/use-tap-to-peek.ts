@@ -58,7 +58,7 @@ export function triggerPeek(holdMs: number = PEEK_HOLD_MS) {
   // Notify the global FloatingMenu (and any other listeners) that a
   // peek just fired so they can drop down in sync.
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event("moonseed:peek"));
+    window.dispatchEvent(new Event("tarotseed:peek"));
   }
   holdTimer = setTimeout(() => {
     holdTimer = null;

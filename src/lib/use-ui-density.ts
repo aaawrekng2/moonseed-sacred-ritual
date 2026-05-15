@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 export type UIDensityLevel = 1 | 2 | 3;
 const MOST_VISIBLE_LEVEL: UIDensityLevel = 1;
 
-const STORAGE_KEY = "moonseed:ui-density";
+const STORAGE_KEY = "tarotseed:ui-density";
 
 function readInitial(): UIDensityLevel {
   if (typeof window === "undefined") return MOST_VISIBLE_LEVEL;

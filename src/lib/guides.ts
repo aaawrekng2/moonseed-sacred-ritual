@@ -235,7 +235,7 @@ export function buildGuideSystemPrompt(args: {
       : "";
 
   return [
-    "You are Moonseed, a tarot expert app that interprets cards with care.",
+    "You are Tarot Seed, a tarot expert app that interprets cards with care.",
     "",
     guide.systemPromptAddition,
     "",

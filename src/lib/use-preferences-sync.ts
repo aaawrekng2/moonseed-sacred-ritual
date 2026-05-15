@@ -15,10 +15,10 @@ import {
 } from "@/lib/community-themes";
 import { applyCommunityTheme } from "@/lib/theme-apply";
 
-const OPACITY_STORAGE_KEY = "moonseed:resting-opacity";
+const OPACITY_STORAGE_KEY = "tarotseed:resting-opacity";
 const OPACITY_EVENT = "arcana:resting-opacity-changed";
-const SHOW_LABELS_STORAGE_KEY = "moonseed:show-spread-labels";
-const CARD_BACK_STORAGE_KEY = "moonseed:card-back";
+const SHOW_LABELS_STORAGE_KEY = "tarotseed:show-spread-labels";
+const CARD_BACK_STORAGE_KEY = "tarotseed:card-back";
 
 type PrefsRow = {
   resting_opacity: number;
@@ -184,8 +184,8 @@ export function usePreferencesSync(): void {
 
     window.addEventListener("storage", onStorage);
     window.addEventListener(OPACITY_EVENT, onOpacity);
-    window.addEventListener("moonseed:show-labels-changed", onOpacity);
-    window.addEventListener("moonseed:card-back-changed", onOpacity);
+    window.addEventListener("tarotseed:show-labels-changed", onOpacity);
+    window.addEventListener("tarotseed:card-back-changed", onOpacity);
 
     // Also poll on visibility change — covers same-tab writes from
     // useShowLabels which only notifies in-process subscribers.
@@ -197,8 +197,8 @@ export function usePreferencesSync(): void {
     return () => {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener(OPACITY_EVENT, onOpacity);
-      window.removeEventListener("moonseed:show-labels-changed", onOpacity);
-      window.removeEventListener("moonseed:card-back-changed", onOpacity);
+      window.removeEventListener("tarotseed:show-labels-changed", onOpacity);
+      window.removeEventListener("tarotseed:card-back-changed", onOpacity);
       document.removeEventListener("visibilitychange", onVisibility);
       if (timer) clearTimeout(timer);
     };

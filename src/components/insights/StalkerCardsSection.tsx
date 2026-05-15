@@ -164,7 +164,7 @@ function LockedReflection() {
       onClick={(e) => {
         e.stopPropagation();
         window.dispatchEvent(
-          new CustomEvent("moonseed:open-premium", { detail: { feature: "Stalker Reflections" } }),
+          new CustomEvent("tarotseed:open-premium", { detail: { feature: "Stalker Reflections" } }),
         );
       }}
       className="mt-2 inline-flex items-center gap-1.5 rounded-full px-2 py-1"

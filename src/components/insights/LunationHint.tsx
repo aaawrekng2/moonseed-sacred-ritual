@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
-const STORAGE_KEY = "moonseed:lunationHintDismissed";
+const STORAGE_KEY = "tarotseed:lunationHintDismissed";
 
 export function LunationHint() {
   const [show, setShow] = useState(false);
@@ -61,7 +61,7 @@ export function LunationHint() {
           }}
         >
           A lunation is one moon cycle — about 29 days from New Moon to New
-          Moon. Moonseed groups your readings into these natural chapters so
+          Moon. Tarot Seed groups your readings into these natural chapters so
           you can revisit what emerged during each cycle.
         </div>
       </div>

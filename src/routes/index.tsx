@@ -612,7 +612,7 @@ function Index() {
                   const raw =
                     typeof window !== "undefined"
                       ? window.localStorage.getItem(
-                          "moonseed.spread_entry_modes",
+                          "tarotseed.spread_entry_modes",
                         )
                       : null;
                   if (raw) {

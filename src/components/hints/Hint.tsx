@@ -23,8 +23,8 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const ANON_LS_KEY = "moonseed.hardDismissedHints";
-const userLsKey = (userId: string) => `moonseed:hard-dismiss:${userId}`;
+const ANON_LS_KEY = "tarotseed.hardDismissedHints";
+const userLsKey = (userId: string) => `tarotseed:hard-dismiss:${userId}`;
 
 function readAnonHardDismissed(): Record<string, boolean> {
   if (typeof window === "undefined") return {};

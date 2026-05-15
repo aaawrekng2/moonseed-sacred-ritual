@@ -23,7 +23,7 @@ export type SpreadEntryModes = {
   [key: string]: EntryMode | { mode: EntryMode; count: number } | undefined;
 };
 
-const LS_KEY = "moonseed.spread_entry_modes";
+const LS_KEY = "tarotseed.spread_entry_modes";
 
 function readLocal(): SpreadEntryModes {
   if (typeof window === "undefined") return {};

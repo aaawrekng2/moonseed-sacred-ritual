@@ -21,7 +21,7 @@ import { LunationHint } from "@/components/insights/LunationHint";
 
 export const Route = createFileRoute("/insights/year-of-lunations")({
   head: () => ({
-    meta: [{ title: "Year of Lunations — Moonseed" }],
+    meta: [{ title: "Year of Lunations — Tarot Seed" }],
   }),
   component: YearOfLunationsRoute,
 });
@@ -57,7 +57,7 @@ function YearOfLunationsRoute() {
     if (!user) return;
     if (!isPremium) {
       window.dispatchEvent(
-        new CustomEvent("moonseed:open-premium", {
+        new CustomEvent("tarotseed:open-premium", {
           detail: { feature: "Year of Lunations", featureName: "Year of Lunations" },
         }),
       );
@@ -518,7 +518,7 @@ function SlideYearSaveShareDone({
           fontFamily: "var(--font-serif)",
         }}
       >
-        <div style={{ fontSize: 12, letterSpacing: "0.2em", opacity: 0.6 }}>MOONSEED</div>
+        <div style={{ fontSize: 12, letterSpacing: "0.2em", opacity: 0.6 }}>TAROTSEED</div>
         <div style={{ fontSize: 32, fontStyle: "italic", color: "var(--gold)" }}>A Year of Lunations</div>
         <div style={{ fontSize: 14, opacity: 0.75 }}>{data.dateRange}</div>
         <div style={{ fontSize: 96, fontStyle: "italic", color: "var(--gold)", lineHeight: 1 }}>

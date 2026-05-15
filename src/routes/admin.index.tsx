@@ -85,7 +85,7 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 export const Route = createFileRoute("/admin/")({
-  head: () => ({ meta: [{ title: "Admin — Moonseed" }] }),
+  head: () => ({ meta: [{ title: "Admin — Tarot Seed" }] }),
   component: AdminPage,
 });
 
@@ -246,7 +246,7 @@ function Sidebar({
 }) {
   const [devOn, setDevOn] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("moonseed:dev_mode") === "true";
+    return window.localStorage.getItem("tarotseed:dev_mode") === "true";
   });
   return (
     <aside
@@ -269,7 +269,7 @@ function Sidebar({
           marginBottom: 24,
         }}
       >
-        Moonseed Admin
+        Tarot Seed Admin
       </div>
       {TABS.map((t) => (
         <SidebarItem

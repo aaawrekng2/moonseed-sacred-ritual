@@ -9,7 +9,7 @@ import { ChevronRight, X } from "lucide-react";
 import { getLunationContaining, formatLunationRange } from "@/lib/lunation";
 import { useMoonPrefs } from "@/lib/use-moon-prefs";
 
-const STORAGE_KEY = "moonseed:lastViewedLunationStart";
+const STORAGE_KEY = "tarotseed:lastViewedLunationStart";
 
 export function LunationBanner() {
   const navigate = useNavigate();

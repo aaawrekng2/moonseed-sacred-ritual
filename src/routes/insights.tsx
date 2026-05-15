@@ -57,7 +57,7 @@ import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats
 export const Route = createFileRoute("/insights")({
   head: () => ({
     meta: [
-      { title: "Insights — Moonseed" },
+      { title: "Insights — Tarot Seed" },
       { name: "description", content: "Patterns, rhythms, and stalker cards across your readings." },
     ],
   }),

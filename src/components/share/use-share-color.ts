@@ -20,8 +20,8 @@ import {
   type ShareColorId,
 } from "./share-types";
 
-const LS_KEY = "moonseed:default-share-color";
-const EVENT_NAME = "moonseed:default-share-color-changed";
+const LS_KEY = "tarotseed:default-share-color";
+const EVENT_NAME = "tarotseed:default-share-color-changed";
 
 function isShareColorId(v: unknown): v is ShareColorId {
   return typeof v === "string" && SHARE_COLORS.some((c) => c.id === v);

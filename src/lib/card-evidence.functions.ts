@@ -302,7 +302,7 @@ function buildCardEvidencePrompt({
   isPremium: boolean;
 }) {
   const system =
-    `You write reflective Card Evidence prose for a tarot journaling app called Moonseed.
+    `You write reflective Card Evidence prose for a tarot journaling app called Tarot Seed.
 Your job is to synthesize REAL PATTERNS from a seeker's reading history into short,
 evocative paragraphs that help them see what their cards have been telling them.
 

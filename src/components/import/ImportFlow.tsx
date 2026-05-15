@@ -31,7 +31,7 @@ import {
   detectFormat,
   suggestField,
   type FormatSignature,
-  type MoonseedField,
+  type TarotSeedField,
 } from "@/lib/import/format-detector";
 import {
   resolveCardName,
@@ -80,7 +80,7 @@ export function ImportFlow({ onClose, onImported }: Props) {
   const [step, setStep] = useState<Step>(1);
   const [parsed, setParsed] = useState<ParsedCsv | null>(null);
   const [format, setFormat] = useState<FormatSignature | null>(null);
-  const [mapping, setMapping] = useState<Record<string, MoonseedField>>({});
+  const [mapping, setMapping] = useState<Record<string, TarotSeedField>>({});
   const [decisions, setDecisions] = useState<Map<string, Decision>>(new Map());
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
@@ -95,7 +95,7 @@ export function ImportFlow({ onClose, onImported }: Props) {
         return;
       }
       const fmt = detectFormat(csv.headers);
-      const initialMap: Record<string, MoonseedField> = {};
+      const initialMap: Record<string, TarotSeedField> = {};
       if (fmt.preMap) {
         for (const h of csv.headers) {
           initialMap[h] = fmt.preMap[h] ?? suggestField(h);
@@ -502,7 +502,7 @@ function Step1({ onFile }: { onFile: (f: File) => void }) {
   );
 }
 
-const FIELD_LABELS: Record<MoonseedField, string> = (() => {
+const FIELD_LABELS: Record<TarotSeedField, string> = (() => {
   const map: Record<string, string> = {
     ignore: "— Ignore —",
     date: "Reading date",
@@ -516,11 +516,11 @@ const FIELD_LABELS: Record<MoonseedField, string> = (() => {
     map[`card_${i}_reversed`] = `Card ${i} reversed`;
     map[`card_${i}_position`] = `Card ${i} position`;
   }
-  return map as Record<MoonseedField, string>;
+  return map as Record<TarotSeedField, string>;
 })();
 
-const FIELD_OPTIONS: MoonseedField[] = (() => {
-  const arr: MoonseedField[] = [
+const FIELD_OPTIONS: TarotSeedField[] = (() => {
+  const arr: TarotSeedField[] = [
     "ignore",
     "date",
     "created_at_override",
@@ -529,9 +529,9 @@ const FIELD_OPTIONS: MoonseedField[] = (() => {
     "tags",
   ];
   for (let i = 1; i <= 10; i++) {
-    arr.push(`card_${i}` as MoonseedField);
-    arr.push(`card_${i}_reversed` as MoonseedField);
-    arr.push(`card_${i}_position` as MoonseedField);
+    arr.push(`card_${i}` as TarotSeedField);
+    arr.push(`card_${i}_reversed` as TarotSeedField);
+    arr.push(`card_${i}_position` as TarotSeedField);
   }
   return arr;
 })();
@@ -544,8 +544,8 @@ function Step2Mapping({
   onBack,
 }: {
   csv: ParsedCsv;
-  mapping: Record<string, MoonseedField>;
-  setMapping: (m: Record<string, MoonseedField>) => void;
+  mapping: Record<string, TarotSeedField>;
+  setMapping: (m: Record<string, TarotSeedField>) => void;
   onContinue: () => void;
   onBack: () => void;
 }) {
@@ -573,7 +573,7 @@ function Step2Mapping({
               onChange={(e) =>
                 setMapping({
                   ...mapping,
-                  [h]: e.target.value as MoonseedField,
+                  [h]: e.target.value as TarotSeedField,
                 })
               }
               className="rounded-md border border-border/60 bg-transparent px-2 py-1 text-sm"

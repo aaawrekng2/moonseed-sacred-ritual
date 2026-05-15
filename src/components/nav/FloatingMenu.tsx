@@ -49,7 +49,7 @@ export function FloatingMenu() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [devOn, setDevOn] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("moonseed:dev_mode") === "true";
+    return window.localStorage.getItem("tarotseed:dev_mode") === "true";
   });
   useEffect(() => {
     if (!user) {
@@ -78,12 +78,12 @@ export function FloatingMenu() {
       setDevOn(
         typeof detail === "boolean"
           ? detail
-          : window.localStorage.getItem("moonseed:dev_mode") === "true",
+          : window.localStorage.getItem("tarotseed:dev_mode") === "true",
       );
     };
-    window.addEventListener("moonseed:dev-mode-changed", onChange);
+    window.addEventListener("tarotseed:dev-mode-changed", onChange);
     return () =>
-      window.removeEventListener("moonseed:dev-mode-changed", onChange);
+      window.removeEventListener("tarotseed:dev-mode-changed", onChange);
   }, []);
   const navigate = useNavigate();
   const userInitial =
@@ -210,7 +210,7 @@ export function FloatingMenu() {
     labelTimer.current = window.setTimeout(() => setTapLabel(null), 1500);
   };
 
-  // Q24 Fix 1 — moonseed:peek listener removed. The ··· button is now
+  // Q24 Fix 1 — tarotseed:peek listener removed. The ··· button is now
   // the ONLY way to open the FloatingMenu; tap-to-peek is gone with
   // the Clarity feature.
 

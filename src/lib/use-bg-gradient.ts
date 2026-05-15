@@ -27,7 +27,7 @@ export const BG_PRESETS = [
   { value: "forest",     label: "Forest",     left: "#0a0a0a", right: "#0a2e1a" },
 ] as const;
 
-const STORAGE_KEY = "moonseed:bg-preset";
+const STORAGE_KEY = "tarotseed:bg-preset";
 const EVENT = "arcana:bg-gradient-changed";
 
 function applyPreset(name: BgPresetName) {

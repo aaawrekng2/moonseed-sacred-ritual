@@ -28,7 +28,7 @@ import { NumerologyReadingTab } from "@/components/numerology/NumerologyReadingT
 export const Route = createFileRoute("/numerology")({
   head: () => ({
     meta: [
-      { title: "Numerology — Moonseed" },
+      { title: "Numerology — Tarot Seed" },
       {
         name: "description",
         content: "Your numbers, your cycles, your tarot — woven together.",

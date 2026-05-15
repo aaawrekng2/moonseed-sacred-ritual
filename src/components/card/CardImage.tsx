@@ -43,23 +43,23 @@ import type { CardBackId } from "@/lib/card-backs";
 function useDevMode(): boolean {
   const [on, setOn] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("moonseed:dev_mode") === "true";
+    return window.localStorage.getItem("tarotseed:dev_mode") === "true";
   });
   useEffect(() => {
     if (typeof window === "undefined") return;
     const read = () =>
-      window.localStorage.getItem("moonseed:dev_mode") === "true";
+      window.localStorage.getItem("tarotseed:dev_mode") === "true";
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<boolean>).detail;
       setOn(typeof detail === "boolean" ? detail : read());
     };
     const onStorage = (e: StorageEvent) => {
-      if (e.key === "moonseed:dev_mode") setOn(read());
+      if (e.key === "tarotseed:dev_mode") setOn(read());
     };
-    window.addEventListener("moonseed:dev-mode-changed", handler);
+    window.addEventListener("tarotseed:dev-mode-changed", handler);
     window.addEventListener("storage", onStorage);
     return () => {
-      window.removeEventListener("moonseed:dev-mode-changed", handler);
+      window.removeEventListener("tarotseed:dev-mode-changed", handler);
       window.removeEventListener("storage", onStorage);
     };
   }, []);

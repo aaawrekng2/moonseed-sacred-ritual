@@ -53,7 +53,7 @@ import {
 
 /**
  * Settings page section components, ported from the source bundle and
- * adapted to Moonseed's personal-only schema (no dual-mode, no
+ * adapted to Tarot Seed's personal-only schema (no dual-mode, no
  * outcome reminders, no business-mode toggles). Each top-level export
  * pulls its data from {@link useSettings} so all panels stay in sync
  * with the same Supabase row.
@@ -350,7 +350,7 @@ function ProfileSectionInner({
  * Dev mode toggle — visible only to admin / super_admin. Mirrors the
  * toggle in /admin so seekers on mobile can flip dev overlays without
  * needing the desktop admin panel. Reads/writes the same localStorage
- * key (`moonseed:dev_mode`) the overlay listens to.
+ * key (`tarotseed:dev_mode`) the overlay listens to.
  */
 function DevModeToggle({ userId }: { userId: string }) {
   const [role, setRole] = useState<string | null>(null);
@@ -369,7 +369,7 @@ function DevModeToggle({ userId }: { userId: string }) {
       setRole(r);
     })();
     if (typeof window !== "undefined") {
-      setEnabled(window.localStorage.getItem("moonseed:dev_mode") === "true");
+      setEnabled(window.localStorage.getItem("tarotseed:dev_mode") === "true");
     }
     return () => {
       cancelled = true;
@@ -778,7 +778,7 @@ function BlueprintSectionInner({
 function WelcomeReplayRow() {
   const open = () => {
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("moonseed:show-welcome"));
+      window.dispatchEvent(new CustomEvent("tarotseed:show-welcome"));
     }
   };
   return (
@@ -805,7 +805,7 @@ function WelcomeReplayRow() {
             marginTop: 2,
           }}
         >
-          Revisit the introduction to Moonseed.
+          Revisit the introduction to Tarot Seed.
         </div>
       </div>
       <button

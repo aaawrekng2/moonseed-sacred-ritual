@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
  * Future, Celtic Cross positions, etc.) are shown across the draw flow.
  * Defaults to ON — annotated view is the friendlier first impression.
  */
-const STORAGE_KEY = "moonseed:show-spread-labels";
+const STORAGE_KEY = "tarotseed:show-spread-labels";
 
 function readInitial(): boolean {
   if (typeof window === "undefined") return true;
@@ -62,7 +62,7 @@ export function useShowLabels(): {
     try {
       window.localStorage.setItem(STORAGE_KEY, v ? "1" : "0");
       window.dispatchEvent(
-        new CustomEvent<boolean>("moonseed:show-labels-changed", { detail: v }),
+        new CustomEvent<boolean>("tarotseed:show-labels-changed", { detail: v }),
       );
     } catch {
       /* ignore storage errors */
@@ -97,7 +97,7 @@ export function peekShowLabels(): () => void {
   listeners.forEach((l) => l(true));
   try {
     window.dispatchEvent(
-      new CustomEvent<boolean>("moonseed:show-labels-changed", { detail: true }),
+      new CustomEvent<boolean>("tarotseed:show-labels-changed", { detail: true }),
     );
   } catch {
     /* ignore */
@@ -106,7 +106,7 @@ export function peekShowLabels(): () => void {
     listeners.forEach((l) => l(current));
     try {
       window.dispatchEvent(
-        new CustomEvent<boolean>("moonseed:show-labels-changed", {
+        new CustomEvent<boolean>("tarotseed:show-labels-changed", {
           detail: current,
         }),
       );

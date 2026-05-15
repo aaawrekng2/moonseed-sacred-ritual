@@ -1,7 +1,7 @@
 /**
  * Q51a — Static archetype copy for numerology numbers.
  * Used by Numerology page UI in Q51b+.
- * Moonseed voice: oracle / serif / italic / brief.
+ * Tarot Seed voice: oracle / serif / italic / brief.
  */
 
 export type NumberMeaning = {
@@ -83,7 +83,7 @@ export const NUMBER_MEANINGS: Record<number, NumberMeaning> = {
  * `NUMBER_MEANINGS[digit].short` if missing.
  *
  * Master numbers (11/22/33) are not separately keyed; the digit they
- * reduce to is used by the caller. Moonseed voice: serif, italic,
+ * reduce to is used by the caller. Tarot Seed voice: serif, italic,
  * brief, never longer than ~120 chars.
  */
 

@@ -11,13 +11,13 @@
  * can include `epoch` in an effect's dep list to re-run their daily
  * queries / refresh stale UI.
  *
- * Also dispatches a global `moonseed:daily-reset` CustomEvent so
+ * Also dispatches a global `tarotseed:daily-reset` CustomEvent so
  * sibling components in different trees can react without prop-drilling.
  */
 import { useEffect, useState } from "react";
 import { getYmdInTz, getDeviceTimezone } from "@/lib/use-timezone";
 
-export const DAILY_RESET_EVENT = "moonseed:daily-reset";
+export const DAILY_RESET_EVENT = "tarotseed:daily-reset";
 
 /**
  * YYYY-MM-DD key for "today" as observed in the given IANA timezone.

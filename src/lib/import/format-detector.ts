@@ -6,7 +6,7 @@
  * "generic" entry is the catch-all fallback.
  */
 
-export type MoonseedField =
+export type TarotSeedField =
   | "date"
   | "created_at_override"
   | "question"
@@ -30,11 +30,11 @@ export type FormatSignature = {
   id: FormatId;
   label: string;
   detect: (headers: string[]) => boolean;
-  preMap?: Record<string, MoonseedField>;
+  preMap?: Record<string, TarotSeedField>;
 };
 
-function buildTarotPulsePreMap(): Record<string, MoonseedField> {
-  const map: Record<string, MoonseedField> = {
+function buildTarotPulsePreMap(): Record<string, TarotSeedField> {
+  const map: Record<string, TarotSeedField> = {
     Date: "date",
     "Question Text": "question",
     Notes: "notes",
@@ -42,9 +42,9 @@ function buildTarotPulsePreMap(): Record<string, MoonseedField> {
     "Created At": "created_at_override",
   };
   for (let i = 1; i <= 10; i++) {
-    map[`Card ${i}`] = `card_${i}` as MoonseedField;
-    map[`Card ${i} Reversed`] = `card_${i}_reversed` as MoonseedField;
-    map[`Card ${i} Position`] = `card_${i}_position` as MoonseedField;
+    map[`Card ${i}`] = `card_${i}` as TarotSeedField;
+    map[`Card ${i} Reversed`] = `card_${i}_reversed` as TarotSeedField;
+    map[`Card ${i} Position`] = `card_${i}_position` as TarotSeedField;
   }
   return map;
 }
@@ -79,8 +79,8 @@ export function detectFormat(headers: string[]): FormatSignature {
   return KNOWN_FORMATS[KNOWN_FORMATS.length - 1];
 }
 
-/** Suggest a Moonseed field for a single CSV header by fuzzy keyword match. */
-export function suggestField(header: string): MoonseedField {
+/** Suggest a Tarot Seed field for a single CSV header by fuzzy keyword match. */
+export function suggestField(header: string): TarotSeedField {
   const h = header.trim().toLowerCase().replace(/[._-]/g, " ").replace(/\s+/g, " ");
   if (!h) return "ignore";
 
@@ -91,12 +91,12 @@ export function suggestField(header: string): MoonseedField {
     if (n >= 1 && n <= 10) {
       const rest = cardN[2].trim();
       if (/(reversed|reverse|orientation|inverted)/.test(rest)) {
-        return `card_${n}_reversed` as MoonseedField;
+        return `card_${n}_reversed` as TarotSeedField;
       }
       if (/(position|slot|pos|spot|placement)/.test(rest)) {
-        return `card_${n}_position` as MoonseedField;
+        return `card_${n}_position` as TarotSeedField;
       }
-      return `card_${n}` as MoonseedField;
+      return `card_${n}` as TarotSeedField;
     }
   }
   if (h === "first card") return "card_1";

@@ -17,8 +17,8 @@ import { useAuth } from "@/lib/auth";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 import type { ShareLevel } from "./share-types";
 
-const LS_KEY = "moonseed:last-share-level";
-const EVENT_NAME = "moonseed:last-share-level-changed";
+const LS_KEY = "tarotseed:last-share-level";
+const EVENT_NAME = "tarotseed:last-share-level-changed";
 const VALID: ShareLevel[] = ["pull", "reading", "position", "lens", "artifact"];
 
 function isShareLevel(v: unknown): v is ShareLevel {

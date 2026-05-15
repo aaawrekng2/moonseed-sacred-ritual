@@ -20,7 +20,7 @@ const PHOTO_BUCKET = "reading-photos";
 const IMAGE_CONCURRENCY = 4;
 
 export type BackupManifestV1 = {
-  app: "Moonseed";
+  app: "Tarot Seed";
   schema_version: 1;
   exported_at: string;
   user_id: string;
@@ -83,14 +83,14 @@ export async function readBackupManifest(file: File): Promise<{
   }
   const m = parsed as Partial<BackupManifestV1> | null;
   if (!m || typeof m !== "object") throw new Error("Invalid backup file.");
-  if (m.app !== "Moonseed" || m.schema_version !== 1) {
+  if (m.app !== "Tarot Seed" || m.schema_version !== 1) {
     throw new Error(
-      "This backup was made with a different version of Moonseed and cannot be restored.",
+      "This backup was made with a different version of Tarot Seed and cannot be restored.",
     );
   }
   if (!Array.isArray(m.categories)) throw new Error("Invalid backup file.");
   const manifest: BackupManifestV1 = {
-    app: "Moonseed",
+    app: "Tarot Seed",
     schema_version: 1,
     exported_at: String(m.exported_at ?? ""),
     user_id: String(m.user_id ?? ""),
@@ -255,13 +255,13 @@ export async function executeRestore(params: {
     const entry = zip.file("manifest.json");
     if (!entry) throw new Error("One of the backup parts is missing its manifest.");
     const m = JSON.parse(await entry.async("string")) as Partial<BackupManifestV1>;
-    if (m.app !== "Moonseed" || m.schema_version !== 1) {
+    if (m.app !== "Tarot Seed" || m.schema_version !== 1) {
       throw new Error(
-        "This backup was made with a different version of Moonseed and cannot be restored.",
+        "This backup was made with a different version of Tarot Seed and cannot be restored.",
       );
     }
     manifests.push({
-      app: "Moonseed",
+      app: "Tarot Seed",
       schema_version: 1,
       exported_at: String(m.exported_at ?? ""),
       user_id: String(m.user_id ?? ""),

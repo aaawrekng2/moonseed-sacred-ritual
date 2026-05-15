@@ -2,12 +2,12 @@
  * Shared event bus for "the active visual theme just changed."
  *
  * Before this module existed each dispatcher fired bare `CustomEvent`s
- * (`moonseed:sanctuary-changed` + `moonseed:theme-changed`) with no
+ * (`tarotseed:sanctuary-changed` + `tarotseed:theme-changed`) with no
  * payload, forcing every listener (CurrentThemeBadge, useSavedThemes,
  * CommunityThemesSection) to re-fetch from Supabase / localStorage to
  * figure out what just happened.
  *
- * Now we have one event — `moonseed:active-theme-changed` — carrying a
+ * Now we have one event — `tarotseed:active-theme-changed` — carrying a
  * structured `ActiveThemeDetail` describing the source of the change
  * (`sanctuary` / `community` / `accent` / `custom` / `cleared`) plus
  * the resolved name, accent dot, and (when applicable) the active
@@ -39,12 +39,12 @@ export type ActiveThemeDetail = {
   communityKey: string | null;
 };
 
-export const ACTIVE_THEME_EVENT = "moonseed:active-theme-changed" as const;
+export const ACTIVE_THEME_EVENT = "tarotseed:active-theme-changed" as const;
 
 /** Legacy event names kept for back-compat with any external listeners. */
 const LEGACY_EVENTS = [
-  "moonseed:theme-changed",
-  "moonseed:sanctuary-changed",
+  "tarotseed:theme-changed",
+  "tarotseed:sanctuary-changed",
 ] as const;
 
 export function dispatchActiveThemeChanged(detail: ActiveThemeDetail) {

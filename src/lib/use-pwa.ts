@@ -1,5 +1,5 @@
 /**
- * Registers the Moonseed service worker and surfaces the manifest so the
+ * Registers the Tarot Seed service worker and surfaces the manifest so the
  * app can be installed to the home screen. Mounted once at the root.
  * Failures (no SW support, network blocked) are non-fatal.
  */
@@ -14,7 +14,7 @@ export function usePWA() {
       navigator.serviceWorker
         .register("/sw.js")
         .catch((err) => {
-          console.warn("[Moonseed] SW registration failed:", err);
+          console.warn("[Tarot Seed] SW registration failed:", err);
         });
     };
     if (document.readyState === "complete") {

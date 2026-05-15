@@ -176,7 +176,7 @@ export function DeckOverviewScreen({
   // 26-05-08-Q — Fix 8: default deck-edit view is the editable list
   // (card_name + card_description per row for AI prompt context).
   // Persist user's preference per browser.
-  const VIEW_MODE_KEY = "moonseed:deck-edit-view-mode";
+  const VIEW_MODE_KEY = "tarotseed:deck-edit-view-mode";
   const [viewMode, setViewMode] = useState<"list" | "grid">(() => {
     if (typeof window === "undefined") return "list";
     const v = window.localStorage.getItem(VIEW_MODE_KEY);

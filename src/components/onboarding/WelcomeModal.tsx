@@ -2,7 +2,7 @@
  * Q35b — First-run welcome modal. Shown once per signed-in seeker
  * (gated by user_preferences.welcome_modal_seen). Three slides
  * advanced via a single CTA button. Replayable from Settings via
- * the "moonseed:show-welcome" custom event.
+ * the "tarotseed:show-welcome" custom event.
  */
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -84,7 +84,7 @@ export function WelcomeModal({ open, onClose }: Props) {
 
   const slides = [
     <div key="s0" style={{ display: "grid", gap: 18 }}>
-      <h2 style={titleStyle}>Welcome to Moonseed.</h2>
+      <h2 style={titleStyle}>Welcome to Tarot Seed.</h2>
       <p style={bodyStyle}>
         Tarot that remembers you. Draw cards, reflect, and watch your
         patterns emerge over time.
@@ -168,7 +168,7 @@ export function WelcomeModal({ open, onClose }: Props) {
       }}
       role="dialog"
       aria-modal="true"
-      aria-label="Welcome to Moonseed"
+      aria-label="Welcome to Tarot Seed"
     >
       <div
         style={{

@@ -22,8 +22,8 @@ import {
 } from "@/lib/use-timezone";
 import { carouselHeightForSize, type CarouselSize } from "@/lib/use-moon-prefs";
 
-// Moonseed-native accent resolver — reads --gold from active CSS theme.
-function useMoonseedAccent(): string {
+// Tarot Seed-native accent resolver — reads --gold from active CSS theme.
+function useTarotSeedAccent(): string {
   const [accent, setAccent] = useState("#f1ba4b");
   useEffect(() => {
     const update = () => {
@@ -89,7 +89,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
     prevOffsetRef.current = offset;
   }, [offset]);
 
-  const accent = useMoonseedAccent();
+  const accent = useTarotSeedAccent();
   const { opacity } = useRestingOpacity();
   const restingAlpha = Math.max(0, Math.min(1, opacity / 100));
   const { effectiveTz } = useTimezone();

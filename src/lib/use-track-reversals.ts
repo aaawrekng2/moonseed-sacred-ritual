@@ -5,14 +5,14 @@
  *
  * Returns `loaded: false` until the row has been read so callers can
  * avoid flashing reversal UI before the user's true preference
- * resolves. Listens for `moonseed:track-reversals-changed` so the
+ * resolves. Listens for `tarotseed:track-reversals-changed` so the
  * Settings toggle propagates live without a full refetch.
  */
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 
-export const TRACK_REVERSALS_EVENT = "moonseed:track-reversals-changed";
+export const TRACK_REVERSALS_EVENT = "tarotseed:track-reversals-changed";
 
 export function emitTrackReversalsChanged(): void {
   if (typeof window === "undefined") return;

@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 /**
  * "🔒 Premium" outlined pill.
  *
- * In Moonseed premium is always unlocked, so this is rarely shown — but it
+ * In Tarot Seed premium is always unlocked, so this is rarely shown — but it
  * is exported for source-bundle parity and used as a visual tag in spots
  * where the spec calls for a "locked state" placeholder. Pair with a tap
  * target that opens {@link PremiumModal} when needed.

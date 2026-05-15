@@ -154,8 +154,8 @@ export function ShareCardFrame({
           <SigilWithGlow Sigil={Sigil} size={132} />
         </div>
       )}
-      {/* DT-13 — The upper-right ☽ moonseed wordmark was removed from
-          the share canvas. Sigil top-left + Moonseed.com bottom-center
+      {/* DT-13 — The upper-right ☽ tarotseed wordmark was removed from
+          the share canvas. Sigil top-left + TarotSeed.com bottom-center
           anchor the composition; the upper-right is intentionally
           empty for asymmetric balance. */}
       <div
@@ -188,7 +188,7 @@ export function ShareCardFrame({
 }
 
 /**
- * Oracle name (small italic) over Moonseed.com (smaller still).
+ * Oracle name (small italic) over TarotSeed.com (smaller still).
  * Identical across every level — the brand sign-off.
  */
 export function ShareCardFooter({
@@ -212,7 +212,7 @@ export function ShareCardFooter({
         style={{
           fontFamily: "var(--font-serif)",
           // DT-9 — bumped from 26 → 38 and opacity 0.5 → 0.7 so the
-          // bottom Moonseed.com wordmark stays legible at thumbnail
+          // bottom TarotSeed.com wordmark stays legible at thumbnail
           // sizes without dominating the composition.
           fontSize: 38,
           letterSpacing: "0.18em",
@@ -221,7 +221,7 @@ export function ShareCardFooter({
           opacity: 0.7,
         }}
       >
-        Moonseed.com
+        TarotSeed.com
       </div>
     </div>
   );

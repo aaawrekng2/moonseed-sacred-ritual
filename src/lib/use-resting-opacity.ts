@@ -4,7 +4,7 @@ const EVENT = "arcana:resting-opacity-changed";
 export const DEFAULT_RESTING_OPACITY = 100;
 export const MIN_RESTING_OPACITY = 25;
 export const MAX_RESTING_OPACITY = 100;
-const STORAGE_KEY = "moonseed:resting-opacity";
+const STORAGE_KEY = "tarotseed:resting-opacity";
 
 function clamp(n: number): number {
   if (Number.isNaN(n)) return DEFAULT_RESTING_OPACITY;

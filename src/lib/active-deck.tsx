@@ -21,8 +21,8 @@ import { getCardName } from "@/lib/tarot";
 
 // ES-5 — Persist last-known active deck so warm reopen doesn't flash
 // the Rider-Waite default before the live fetch returns.
-const STORAGE_KEY_DECK = "moonseed.activeDeck";
-const STORAGE_KEY_IMAGES = "moonseed.activeDeckImages";
+const STORAGE_KEY_DECK = "tarotseed.activeDeck";
+const STORAGE_KEY_IMAGES = "tarotseed.activeDeckImages";
 
 function readCachedDeck(): { deck: CustomDeck | null; map: DeckImageMap } {
   if (typeof window === "undefined") {

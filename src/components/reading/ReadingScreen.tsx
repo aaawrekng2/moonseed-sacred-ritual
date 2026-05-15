@@ -244,7 +244,7 @@ export function ReadingScreen({
         if (!uid) return;
         const token = sessionData.session?.access_token;
         // Q16 Fix 3 — persist body only, never the
-        // "{spread} — Moonseed reading" prefix used for clipboard.
+        // "{spread} — Tarot Seed reading" prefix used for clipboard.
         const interpretationText = buildInterpretationBody({
           interpretation: loadedInterpretation,
           picks,
@@ -1594,7 +1594,7 @@ function buildCopyText({
   positionLabels: string[];
 }): string {
   const lines: string[] = [];
-  lines.push(`${spreadLabel} — Moonseed reading`);
+  lines.push(`${spreadLabel} — Tarot Seed reading`);
   lines.push("");
   lines.push(buildInterpretationBody({ interpretation, picks, positionLabels }));
   return lines.join("\n").trim() + "\n";
@@ -1782,7 +1782,7 @@ function ShareReadingButton({
         typeof navigator.share === "function"
       ) {
         await navigator.share({
-          title: isOracle ? "A reading from Moonseed" : "My tarot reading",
+          title: isOracle ? "A reading from Tarot Seed" : "My tarot reading",
           text,
         });
         setDone("shared");

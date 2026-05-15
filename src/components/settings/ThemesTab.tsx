@@ -1,5 +1,5 @@
 /**
- * Settings → Themes tab (Moonseed personal-only port).
+ * Settings → Themes tab (Tarot Seed personal-only port).
  *
  * Sections (top → bottom):
  *   1. Reset to defaults (header right action)
@@ -212,8 +212,8 @@ function ThemesTabInner() {
  * Displays an "always-current" pill below the Themes tab title showing
  * the active theme's name and accent color. Updates instantly when the
  * user loads a sanctuary, applies a Celestial Palette, or changes the
- * accent preset — driven by the `moonseed:theme-changed` and
- * `moonseed:sanctuary-changed` custom events plus reactive state from
+ * accent preset — driven by the `tarotseed:theme-changed` and
+ * `tarotseed:sanctuary-changed` custom events plus reactive state from
  * `useSavedThemes`/`useSettings`.
  */
 function CurrentThemeBadge() {
@@ -384,7 +384,7 @@ function ResetToDefaultsButton() {
     });
     markClean();
     setOpen(false);
-    toast.success("Reset to default Moonseed");
+    toast.success("Reset to default Tarot Seed");
   };
 
   return (
@@ -438,7 +438,7 @@ function CardBackSection() {
     // Notify the live preview (and any other listener) that the card
     // back changed so they re-read getStoredCardBack().
     if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("moonseed:card-back-changed"));
+      window.dispatchEvent(new Event("tarotseed:card-back-changed"));
     }
   };
 
@@ -511,11 +511,11 @@ function LiveThemePreview() {
     if (typeof window === "undefined") return;
     const sync = () => setCardBack(getStoredCardBack());
     window.addEventListener("storage", sync);
-    window.addEventListener("moonseed:card-back-changed", sync);
+    window.addEventListener("tarotseed:card-back-changed", sync);
     const unsub = subscribeActiveThemeChanged(sync);
     return () => {
       window.removeEventListener("storage", sync);
-      window.removeEventListener("moonseed:card-back-changed", sync);
+      window.removeEventListener("tarotseed:card-back-changed", sync);
       unsub();
     };
   }, []);
@@ -1548,7 +1548,7 @@ function SavedThemesSection() {
     };
   };
 
-  const dontAskKey = "moonseed:overwrite-confirm-skip";
+  const dontAskKey = "tarotseed:overwrite-confirm-skip";
   const skipOverwriteConfirm = () =>
     typeof window !== "undefined" &&
     window.localStorage.getItem(dontAskKey) === "1";

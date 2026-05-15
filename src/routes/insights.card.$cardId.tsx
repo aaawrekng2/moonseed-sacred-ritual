@@ -177,7 +177,7 @@ function StalkerDetailRoute() {
                   type="button"
                   onClick={() =>
                     window.dispatchEvent(
-                      new CustomEvent("moonseed:open-premium", {
+                      new CustomEvent("tarotseed:open-premium", {
                         detail: { feature: "Stalker Reflections" },
                       }),
                     )

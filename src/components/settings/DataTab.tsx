@@ -309,7 +309,7 @@ export function DataTab() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `moonseed-backup-${new Date().toISOString().slice(0, 10)}.zip`;
+      a.download = `tarotseed-backup-${new Date().toISOString().slice(0, 10)}.zip`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Backup downloaded");
@@ -331,14 +331,14 @@ export function DataTab() {
     if (typeof window === "undefined") return;
     const ok = await confirm({
       title: "Clear cached settings?",
-      description: "All locally cached Moonseed settings on this device will be removed. Your account data is unaffected.",
+      description: "All locally cached Tarot Seed settings on this device will be removed. Your account data is unaffected.",
       confirmLabel: "Clear",
       cancelLabel: "Cancel",
       destructive: true,
     });
     if (!ok) return;
     Object.keys(localStorage)
-      .filter((k) => k.startsWith("moonseed:") || k.startsWith("arcana:"))
+      .filter((k) => k.startsWith("tarotseed:") || k.startsWith("arcana:"))
       .forEach((k) => localStorage.removeItem(k));
     window.location.reload();
   };

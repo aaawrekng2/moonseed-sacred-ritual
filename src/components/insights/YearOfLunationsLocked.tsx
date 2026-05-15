@@ -1,6 +1,6 @@
 /**
  * EN-5 — Locked premium teaser at the bottom of the Recap tab.
- * Tap dispatches `moonseed:open-premium` with featureName "Year of Lunations".
+ * Tap dispatches `tarotseed:open-premium` with featureName "Year of Lunations".
  */
 import { Lock } from "lucide-react";
 import { usePremium } from "@/lib/premium";
@@ -50,7 +50,7 @@ export function YearOfLunationsLocked() {
   }
   const open = () =>
     window.dispatchEvent(
-      new CustomEvent("moonseed:open-premium", {
+      new CustomEvent("tarotseed:open-premium", {
         detail: { feature: "Year of Lunations", featureName: "Year of Lunations" },
       }),
     );

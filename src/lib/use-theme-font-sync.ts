@@ -32,8 +32,8 @@ import {
   type ThemeFont,
 } from "@/lib/use-saved-themes";
 
-const FONT_KEY = "moonseed:heading-font";
-const SIZE_KEY = "moonseed:heading-font-size";
+const FONT_KEY = "tarotseed:heading-font";
+const SIZE_KEY = "tarotseed:heading-font-size";
 
 function readLocalFont(): ThemeFont | null {
   if (typeof window === "undefined") return null;

@@ -20,7 +20,7 @@ import {
 import { formatDateLong } from "@/lib/dates";
 
 export const Route = createFileRoute("/admin/usage")({
-  head: () => ({ meta: [{ title: "Usage — Admin · Moonseed" }] }),
+  head: () => ({ meta: [{ title: "Usage — Admin · Tarot Seed" }] }),
   component: AdminUsagePage,
 });
 

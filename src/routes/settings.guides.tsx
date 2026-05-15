@@ -10,7 +10,7 @@ import { SettingsSection } from "@/components/settings/sections";
  */
 export const Route = createFileRoute("/settings/guides")({
   head: () => ({
-    meta: [{ title: "Guides — Settings — Moonseed" }],
+    meta: [{ title: "Guides — Settings — Tarot Seed" }],
   }),
   component: SettingsGuidesPage,
 });

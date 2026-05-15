@@ -6,7 +6,7 @@ type Props = {
   text: string;
   /** Title for the native share sheet (mobile). */
   title?: string;
-  /** Optional preface inserted before the text (e.g. "A reading from Moonseed:"). */
+  /** Optional preface inserted before the text (e.g. "A reading from Tarot Seed:"). */
   preface?: string;
   /** Override the default 18px icon size. */
   size?: number;
@@ -24,7 +24,7 @@ type Props = {
  */
 export function ShareButton({
   text,
-  title = "A reading from Moonseed",
+  title = "A reading from Tarot Seed",
   preface,
   size = 18,
   ariaLabel = "Share",

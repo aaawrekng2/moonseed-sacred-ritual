@@ -52,7 +52,7 @@ import { cn } from "@/lib/utils";
 import { SettingsSection } from "@/components/settings/sections";
 
 export const Route = createFileRoute("/settings/decks")({
-  head: () => ({ meta: [{ title: "My Decks — Moonseed" }] }),
+  head: () => ({ meta: [{ title: "My Decks — Tarot Seed" }] }),
   component: DecksPage,
 });
 
