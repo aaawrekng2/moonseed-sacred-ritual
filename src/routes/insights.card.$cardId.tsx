@@ -1,8 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, X, Lock, ChevronDown } from "lucide-react";
-import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage, useActiveDeckCornerRadius } from "@/lib/active-deck";
@@ -14,6 +13,7 @@ import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
 import { formatDateLong } from "@/lib/dates";
+import { DrawCalendar } from "@/components/insights/DrawCalendar";
 
 export const Route = createFileRoute("/insights/card/$cardId")({
   component: StalkerDetailRoute,
@@ -95,6 +95,7 @@ function StalkerDetailRoute() {
       </header>
 
       <main className="flex-1 overflow-y-auto px-5 pb-12 pt-4">
+        {/* Q61 Fix 11 — narrow column for hero + description. */}
         <div className="mx-auto flex max-w-md flex-col items-center gap-4">
           <div ref={ref} style={{ width: 200 }}>
             <AdaptiveCardImage src={url} alt={cardName} />
@@ -143,9 +144,21 @@ function StalkerDetailRoute() {
               />
 
               <CardDescriptionFade cardId={cid} />
+            </>
+          )}
+        </div>
 
-              <CardDetailCalendar appearances={data.appearances} />
+        {/* Q61 Fix 11 — calendar breaks out of max-w-md to a wider container. */}
+        {data && (
+          <div className="mx-auto my-6" style={{ maxWidth: 960 }}>
+            <DrawCalendar appearances={data.appearances} monthsBack={1} />
+          </div>
+        )}
 
+        {/* Narrow column resumes for reflection + appearances list. */}
+        <div className="mx-auto flex max-w-md flex-col items-center gap-4">
+          {data && (
+            <>
               {isPremium ? (
                 /* EQ-1 — wire real AI reflection. */
                 <PremiumDetailReflection

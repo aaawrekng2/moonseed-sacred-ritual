@@ -24,6 +24,7 @@ import { useReducePremiumPrompts } from "@/lib/use-reduce-premium-prompts";
 import { exportRecapPdf, shareRecapImage } from "@/lib/recap-export";
 import { useTrackReversals } from "@/lib/use-track-reversals";
 import { useMoonPrefs } from "@/lib/use-moon-prefs";
+import { LunationHint } from "@/components/insights/LunationHint";
 
 export const Route = createFileRoute("/insights/recap/$lunationStart")({
   head: () => ({
@@ -156,6 +157,10 @@ function LunationRecapRoute() {
             }}
           />
         ))}
+      </div>
+      {/* Q61 Fix 4 — mount LunationHint on recap detail route. */}
+      <div className="px-4 pt-2">
+        <LunationHint />
       </div>
 
       <button

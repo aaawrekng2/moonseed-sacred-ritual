@@ -4,6 +4,7 @@
  */
 import { CardImage } from "@/components/card/CardImage";
 import { useElementWidth } from "@/lib/use-element-width";
+import { CardCountBadge } from "@/components/ui/CardCountBadge";
 
 export function CardCellWithBadge({
   cardId,
@@ -38,9 +39,7 @@ export function CardCellWithBadge({
         {width > 0 && (
           <CardImage cardId={cardId} size="custom" widthPx={Math.round(width)} />
         )}
-        {count !== undefined && (
-          <span className="moonseed-card-badge">{count}×</span>
-        )}
+        {count !== undefined && <CardCountBadge count={count} />}
       </div>
       {name !== undefined && (
         <span

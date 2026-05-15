@@ -11,6 +11,7 @@ import {
 } from "@/lib/tarot";
 import { CardImage } from "@/components/card/CardImage";
 import { CardCellWithBadge } from "./CardCellWithBadge";
+import { CardCountBadge } from "@/components/ui/CardCountBadge";
 import { ChevronRight } from "lucide-react";
 import { useElementWidth } from "@/lib/use-element-width";
 import type {
@@ -404,7 +405,7 @@ function DeckCell({ cardId, count }: { cardId: number; count: number }) {
           style={{ width: "100%", display: "block" }}
         />
       )}
-      {count > 0 && <span className="moonseed-card-badge">{count}×</span>}
+      {count > 0 && <CardCountBadge count={count} />}
     </button>
   );
 }

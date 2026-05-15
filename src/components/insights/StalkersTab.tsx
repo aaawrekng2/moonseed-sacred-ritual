@@ -9,6 +9,7 @@ import { Sparkles } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { CardImage } from "@/components/card/CardImage";
 import { CardCellWithBadge } from "./CardCellWithBadge";
+import { CardCountBadge } from "@/components/ui/CardCountBadge";
 import { getCardName } from "@/lib/tarot";
 
 const twinTripletNameStyle: React.CSSProperties = {
@@ -20,36 +21,6 @@ const twinTripletNameStyle: React.CSSProperties = {
   marginTop: 8,
 };
 
-function CornerBadge({ count }: { count: number }) {
-  return (
-    <span
-      style={{
-        position: "absolute",
-        minWidth: "clamp(28px, 8vw, 36px)",
-        height: "clamp(28px, 8vw, 36px)",
-        bottom: "calc(clamp(28px, 8vw, 36px) / -2)",
-        right: "calc(clamp(28px, 8vw, 36px) / -2)",
-        background: "var(--gold)",
-        color: "var(--background)",
-        borderRadius: 999,
-        border: "2px solid var(--background)",
-        padding: "0 8px",
-        fontFamily: "var(--font-serif)",
-        fontStyle: "italic",
-        fontSize: "clamp(12px, 3.2vw, 14px)",
-        fontWeight: 500,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        lineHeight: 1,
-        whiteSpace: "nowrap",
-        zIndex: 2,
-      }}
-    >
-      {count}×
-    </span>
-  );
-}
 import {
   getStalkerCards,
   getStalkerTwins,
@@ -391,7 +362,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
                     <div className="absolute inset-0 translate-x-1 translate-y-1">
                       <CardImage cardId={t.cardB} size="medium" style={{ width: "100%", minHeight: 0 }} />
                     </div>
-                    <CornerBadge count={t.count} />
+                    <CardCountBadge count={t.count} />
                   </button>
                   <span style={twinTripletNameStyle}>
                     {getCardName(t.cardA)} + {getCardName(t.cardB)}
@@ -419,7 +390,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
                     <div className="absolute inset-0 translate-x-1.5 translate-y-1.5">
                       <CardImage cardId={t.cardIds[2]} size="medium" style={{ width: "100%", minHeight: 0 }} />
                     </div>
-                    <CornerBadge count={t.count} />
+                    <CardCountBadge count={t.count} />
                   </button>
                   <span style={twinTripletNameStyle}>
                     {t.cardIds.map((c) => getCardName(c as number)).join(" + ")}

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronRight, X } from "lucide-react";
 import { getLunationContaining, formatLunationRange } from "@/lib/lunation";
+import { useMoonPrefs } from "@/lib/use-moon-prefs";
 
 const STORAGE_KEY = "moonseed:lastViewedLunationStart";
 
@@ -15,6 +16,8 @@ export function LunationBanner() {
   const [show, setShow] = useState(false);
   const [previousStart, setPreviousStart] = useState<Date | null>(null);
   const [previousEnd, setPreviousEnd] = useState<Date | null>(null);
+  // Q61 Fix 1 — respect moon_features_enabled master switch.
+  const moonPrefs = useMoonPrefs();
 
   useEffect(() => {
     try {
@@ -35,6 +38,7 @@ export function LunationBanner() {
     }
   }, []);
 
+  if (moonPrefs.loaded && !moonPrefs.moon_features_enabled) return null;
   if (!show || !previousStart || !previousEnd) return null;
 
   const dismiss = () => {
