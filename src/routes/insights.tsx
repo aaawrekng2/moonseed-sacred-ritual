@@ -407,6 +407,7 @@ function OverviewTab({
   onClearFilters,
   onTapHero,
   onEmptyCta,
+  moonEnabled,
 }: {
   loading: boolean;
   overview: InsightsOverview | null;
@@ -415,6 +416,7 @@ function OverviewTab({
   onClearFilters: () => void;
   onTapHero: () => void;
   onEmptyCta: () => void;
+  moonEnabled: boolean;
 }) {
   if (loading && !overview) {
     return <LoadingSkeleton heights={[220, 160, 160, 160]} />;
@@ -450,7 +452,12 @@ function OverviewTab({
 
   return (
     <div className="space-y-4">
-      <LunationBanner />
+      {moonEnabled && (
+        <>
+          <LunationHint />
+          <LunationBanner />
+        </>
+      )}
       {lowData && (
         <div
           className="rounded-lg p-3 text-center"
