@@ -104,7 +104,7 @@ function StalkerDetailRoute() {
       <main className="flex-1 overflow-y-auto px-5 pb-12 pt-4">
         {/* Q61 Fix 11 — narrow column for hero + description. */}
         <div className="mx-auto flex max-w-md flex-col items-center gap-4">
-          <div ref={(el) => { ref.current = el; heroRef.current = el; }} style={{ width: 200 }}>
+          <div ref={heroRef} style={{ width: 200 }}>
             <AdaptiveCardImage src={url} alt={cardName} />
           </div>
 
