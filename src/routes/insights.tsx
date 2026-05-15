@@ -85,6 +85,8 @@ function InsightsRoute() {
     ? (search.tab as Tab)
     : "overview";
   const [tab, setTab] = useState<Tab>(initialTab);
+  const activeTabLabel = TABS.find((t) => t.id === tab)?.label ?? "";
+  const pageTitle = activeTabLabel ? `Insights: ${activeTabLabel}` : "Insights";
   const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => {
     void supabase.auth.getUser().then(({ data }) => {
@@ -209,7 +211,7 @@ function InsightsRoute() {
               lineHeight: 1,
             }}
           >
-            Insights
+            {pageTitle}
           </h1>
         </div>
         {tab !== "recap" && (
@@ -281,7 +283,7 @@ function InsightsRoute() {
             lineHeight: 1.25,
           }}
         >
-          Insights
+          {pageTitle}
         </h1>
         {statsLine ? (
           <p
