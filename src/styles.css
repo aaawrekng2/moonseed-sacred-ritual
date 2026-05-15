@@ -1606,24 +1606,23 @@ button:focus-visible .moon-rung-glow {
   font-weight: 500;
 }
 
-/* Q61 Fix 6 — Canonical card count badge sizing (mobile-first).
-   Three breakpoints: mobile (default) / tablet / desktop. Inset values
-   are deliberately generous so the badge clears the white scan frame
-   on the physical card images. */
+/* Q62 Fix 6 — Canonical card count badge.
+   Circle-first sizing (fixed width = height). Mobile largest, scaling
+   down on tablet/desktop. Font ~60% of diameter for strong fill. */
 .moonseed-card-badge {
   position: absolute;
   bottom: 10px;
   right: 10px;
-  min-width: 36px;
-  height: 36px;
-  padding: 0 8px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
   border-radius: 999px;
   background: var(--gold);
   color: var(--background);
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 500;
-  font-size: 16px;
+  font-size: 26px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1636,18 +1635,18 @@ button:focus-visible .moon-rung-glow {
   .moonseed-card-badge {
     bottom: 12px;
     right: 12px;
-    min-width: 32px;
-    height: 32px;
-    font-size: 14px;
+    width: 38px;
+    height: 38px;
+    font-size: 22px;
   }
 }
 @media (min-width: 1025px) {
   .moonseed-card-badge {
     bottom: 14px;
     right: 14px;
-    min-width: 28px;
-    height: 28px;
-    font-size: 13px;
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
   }
 }
 
