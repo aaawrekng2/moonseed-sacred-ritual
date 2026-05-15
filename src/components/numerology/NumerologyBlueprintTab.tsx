@@ -313,7 +313,7 @@ function CoreNumberCard({
         <span style={labelStyle}>{label}</span>
         <span style={keywordStyle}>{meaning.keyword}</span>
         {arcana !== null && (
-          <CardImage cardId={arcana} size="custom" widthPx={44} />
+          <CardImage cardId={arcana} size="custom" widthPx={80} />
         )}
       </div>
     </ExpandableCard>
