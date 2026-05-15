@@ -29,6 +29,7 @@ import {
   NUMBER_MEANINGS,
 } from "@/lib/numerology-copy";
 import { CardImage } from "@/components/card/CardImage";
+import { useElementWidth } from "@/lib/use-element-width";
 
 const MAJOR_ARCANA_NAMES: Record<number, string> = {
   0: "The Fool",
@@ -166,17 +167,6 @@ export function NumerologyBlueprintTab({
 
   return (
     <div className="flex flex-col gap-10 pb-12">
-      <h2
-        style={{
-          fontFamily: "var(--font-display)",
-          fontStyle: "italic",
-          fontSize: "var(--text-heading-md)",
-          color: "var(--color-foreground)",
-          margin: "0 0 var(--space-3, 12px) 0",
-        }}
-      >
-        Your Blueprint
-      </h2>
       {/* Hero: Birth Cards */}
       <Section
         header="Birth Cards"
@@ -238,7 +228,10 @@ export function NumerologyBlueprintTab({
 
 function BirthCardItem({ n, primary }: { n: number; primary?: boolean }) {
   const arcana = numberToMajorArcana(n);
-  const width = primary ? 160 : 110;
+  const { ref: boxRef, width: boxW } = useElementWidth<HTMLDivElement>();
+  const containerWidth = primary
+    ? "clamp(140px, 38vw, 280px)"
+    : "clamp(100px, 26vw, 200px)";
   return (
     <div
       style={{
@@ -249,7 +242,18 @@ function BirthCardItem({ n, primary }: { n: number; primary?: boolean }) {
       }}
     >
       {arcana !== null && (
-        <CardImage cardId={arcana} size="custom" widthPx={width} />
+        <div
+          ref={boxRef}
+          style={{
+            width: containerWidth,
+            display: "flex",
+            justifyContent: "center",
+          }}
+        >
+          {boxW > 0 && (
+            <CardImage cardId={arcana} size="custom" widthPx={Math.round(boxW)} />
+          )}
+        </div>
       )}
       <span style={keywordStyle}>
         {arcana !== null ? MAJOR_ARCANA_NAMES[arcana] : `#${n}`}
@@ -292,7 +296,7 @@ function CoreNumbers({
         style={{
           display: "grid",
           gridTemplateColumns: hasName
-            ? "repeat(auto-fit, minmax(140px, 1fr))"
+            ? "repeat(auto-fill, minmax(140px, 1fr))"
             : "repeat(2, 1fr)",
           gap: 12,
         }}
@@ -321,6 +325,7 @@ function CoreNumberCard({
 }) {
   const meaning = NUMBER_MEANINGS[value.digit] ?? NUMBER_MEANINGS[1];
   const arcana = numberToMajorArcana(value.digit);
+  const { ref: thumbRef, width: thumbW } = useElementWidth<HTMLDivElement>();
   return (
     <ExpandableCard fullText={`${subtitle}. ${meaning.full}`}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
@@ -328,7 +333,19 @@ function CoreNumberCard({
         <span style={labelStyle}>{label}</span>
         <span style={keywordStyle}>{meaning.keyword}</span>
         {arcana !== null && (
-          <CardImage cardId={arcana} size="custom" widthPx={80} />
+          <div
+            ref={thumbRef}
+            style={{
+              width: "70%",
+              maxWidth: 180,
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            {thumbW > 0 && (
+              <CardImage cardId={arcana} size="custom" widthPx={Math.round(thumbW)} />
+            )}
+          </div>
         )}
       </div>
     </ExpandableCard>
