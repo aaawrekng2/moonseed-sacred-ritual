@@ -354,7 +354,6 @@ function InsightsRoute() {
           )}
           {tab === "cards" && (
             <div className="flex flex-col gap-8 pb-12">
-              <CardsTabControls filters={filters} onChange={setFilters} />
               <CardFrequencySection filters={filters} />
               <CardPairsSection filters={filters} />
               <ReversalPatternsSection filters={filters} />
