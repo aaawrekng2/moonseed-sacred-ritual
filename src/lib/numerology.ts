@@ -139,6 +139,7 @@ export function personalityNumber(birthName: string): Numerogram {
 export function numberToMajorArcana(n: number): number | null {
   if (n >= 1 && n <= 21) return n;
   if (n === 22) return 0; // The Fool wraps
+  if (n === 33) return 6; // Master Teacher reduces to The Lovers
   return null;
 }
 
@@ -258,4 +259,127 @@ export function maturityNumber(
   const lp = lifePath(birthDate);
   const ex = expressionNumber(birthName);
   return reduceToDigit(lp.digit + ex.digit);
+}
+
+// ===== Q52c — Cycles: Pinnacles, Challenges, Period Cycles, PY forecast =====
+
+export type Pinnacle = {
+  index: 1 | 2 | 3 | 4;
+  value: Numerogram;
+  startAge: number;
+  endAge: number | null;
+};
+
+function lpForAgeCalc(birthDate: string): number {
+  const lp = lifePath(birthDate);
+  if (!lp.master) return lp.digit;
+  return String(lp.digit)
+    .split("")
+    .reduce((s, c) => s + Number(c), 0);
+}
+
+export function pinnacles(birthDate: string): Pinnacle[] {
+  const [yearStr, monthStr, dayStr] = birthDate.split("-");
+  const m = reduceToDigit(Number(monthStr));
+  const d = reduceToDigit(Number(dayStr));
+  const y = reduceToDigit(
+    String(Number(yearStr)).split("").reduce((s, c) => s + Number(c), 0),
+  );
+
+  const p1 = reduceToDigit(m.digit + d.digit);
+  const p2 = reduceToDigit(d.digit + y.digit);
+  const p3 = reduceToDigit(p1.digit + p2.digit);
+  const p4 = reduceToDigit(m.digit + y.digit);
+
+  const p1End = 36 - lpForAgeCalc(birthDate);
+
+  return [
+    { index: 1, value: p1, startAge: 0, endAge: p1End },
+    { index: 2, value: p2, startAge: p1End + 1, endAge: p1End + 9 },
+    { index: 3, value: p3, startAge: p1End + 10, endAge: p1End + 18 },
+    { index: 4, value: p4, startAge: p1End + 19, endAge: null },
+  ];
+}
+
+export type Challenge = {
+  index: 1 | 2 | 3 | 4;
+  value: Numerogram;
+  startAge: number;
+  endAge: number | null;
+};
+
+export function challenges(birthDate: string): Challenge[] {
+  const [yearStr, monthStr, dayStr] = birthDate.split("-");
+  const m = reduceToDigit(Number(monthStr), false).digit;
+  const d = reduceToDigit(Number(dayStr), false).digit;
+  const y = reduceToDigit(
+    String(Number(yearStr)).split("").reduce((s, c) => s + Number(c), 0),
+    false,
+  ).digit;
+
+  const c1 = Math.abs(m - d);
+  const c2 = Math.abs(d - y);
+  const c3 = Math.abs(c1 - c2);
+  const c4 = Math.abs(m - y);
+
+  const p1End = 36 - lpForAgeCalc(birthDate);
+  const wrap = (n: number): Numerogram => ({ digit: n, master: null });
+  return [
+    { index: 1, value: wrap(c1), startAge: 0, endAge: p1End },
+    { index: 2, value: wrap(c2), startAge: p1End + 1, endAge: p1End + 9 },
+    { index: 3, value: wrap(c3), startAge: p1End + 10, endAge: p1End + 18 },
+    { index: 4, value: wrap(c4), startAge: p1End + 19, endAge: null },
+  ];
+}
+
+export type PeriodCycle = {
+  label: "Formative" | "Productive" | "Harvest";
+  value: Numerogram;
+  startAge: number;
+  endAge: number | null;
+};
+
+export function periodCycles(birthDate: string): PeriodCycle[] {
+  const [yearStr, monthStr, dayStr] = birthDate.split("-");
+  const m = reduceToDigit(Number(monthStr));
+  const d = reduceToDigit(Number(dayStr));
+  const y = reduceToDigit(
+    String(Number(yearStr)).split("").reduce((s, c) => s + Number(c), 0),
+  );
+
+  const firstEnd = 27 + (9 - lpForAgeCalc(birthDate));
+
+  return [
+    { label: "Formative", value: m, startAge: 0, endAge: firstEnd },
+    { label: "Productive", value: d, startAge: firstEnd + 1, endAge: firstEnd + 27 },
+    { label: "Harvest", value: y, startAge: firstEnd + 28, endAge: null },
+  ];
+}
+
+export type PersonalYearForecast = {
+  year: number;
+  personalYear: Numerogram;
+  months: { month: number; value: Numerogram }[];
+};
+
+export function personalYearForecast(
+  birthDate: string,
+  year: number,
+): PersonalYearForecast {
+  const py = personalYear(birthDate, year);
+  const months: { month: number; value: Numerogram }[] = [];
+  for (let m = 1; m <= 12; m++) {
+    months.push({ month: m, value: personalMonth(birthDate, year, m) });
+  }
+  return { year, personalYear: py, months };
+}
+
+export function currentAge(birthDate: string, today: Date = new Date()): number {
+  const [y, m, d] = birthDate.split("-").map(Number);
+  let age = today.getFullYear() - y;
+  const beforeBirthday =
+    today.getMonth() + 1 < m ||
+    (today.getMonth() + 1 === m && today.getDate() < d);
+  if (beforeBirthday) age -= 1;
+  return Math.max(0, age);
 }
