@@ -3,20 +3,108 @@ import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { getCardFrequency } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
-import { getCardName } from "@/lib/tarot";
+import {
+  getCardName,
+  cardSuit,
+  cardType,
+  cardNumerologyReduced,
+} from "@/lib/tarot";
 import { CardImage } from "@/components/card/CardImage";
-import type { InsightsFilters } from "@/lib/insights.types";
+import type {
+  InsightsFilters,
+  CardSortBy,
+  CardGroupBy,
+} from "@/lib/insights.types";
 import { SectionHeader, SkeletonRow } from "./StalkerCardsSection";
 import { EmptyNote } from "@/components/ui/empty-note";
 
 type Mode = "bar" | "grid" | "deck";
 
+type Entry = {
+  cardId: number;
+  count: number;
+  reversedCount: number;
+  lastSeen: string | null;
+};
+
+export function makeCardComparator(sortBy: CardSortBy) {
+  return (a: Entry, b: Entry) => {
+    switch (sortBy) {
+      case "frequency":
+        return b.count - a.count || a.cardId - b.cardId;
+      case "recent": {
+        const ra = a.lastSeen ?? "";
+        const rb = b.lastSeen ?? "";
+        return rb.localeCompare(ra);
+      }
+      case "suit_order":
+        return a.cardId - b.cardId;
+      case "card_number": {
+        // Majors first by index; within each suit, by rank (1..14).
+        const ra = a.cardId <= 21 ? a.cardId : ((a.cardId - 22) % 14) + 1;
+        const rb = b.cardId <= 21 ? b.cardId : ((b.cardId - 22) % 14) + 1;
+        return ra - rb || a.cardId - b.cardId;
+      }
+      case "reversed_pct": {
+        const pa = a.count > 0 ? a.reversedCount / a.count : 0;
+        const pb = b.count > 0 ? b.reversedCount / b.count : 0;
+        return pb - pa || b.count - a.count;
+      }
+      case "alpha":
+        return getCardName(a.cardId).localeCompare(getCardName(b.cardId));
+      default:
+        return 0;
+    }
+  };
+}
+
+function groupKey(cardId: number, groupBy: CardGroupBy): string {
+  switch (groupBy) {
+    case "suit":
+      return cardSuit(cardId);
+    case "number": {
+      const n = cardNumerologyReduced(cardId);
+      return n === null ? "Courts" : String(n);
+    }
+    case "type":
+      return cardType(cardId);
+    case "none":
+    default:
+      return "all";
+  }
+}
+
+const SUIT_ORDER = ["Majors", "Wands", "Cups", "Swords", "Pentacles"];
+const TYPE_ORDER = ["Major", "Court", "Pip"];
+
+function compareGroupKeys(groupBy: CardGroupBy, a: string, b: string): number {
+  if (groupBy === "suit") {
+    return SUIT_ORDER.indexOf(a) - SUIT_ORDER.indexOf(b);
+  }
+  if (groupBy === "type") {
+    return TYPE_ORDER.indexOf(a) - TYPE_ORDER.indexOf(b);
+  }
+  if (groupBy === "number") {
+    if (a === "Courts") return 1;
+    if (b === "Courts") return -1;
+    return Number(a) - Number(b);
+  }
+  return 0;
+}
+
 export function CardFrequencySection({ filters }: { filters: InsightsFilters }) {
   const fn = useServerFn(getCardFrequency);
-  const [data, setData] = useState<{ cards: Array<{ cardId: number; count: number }>; totalDraws: number; totalReadings: number } | null>(null);
+  const [data, setData] = useState<{
+    cards: Entry[];
+    totalDraws: number;
+    totalReadings: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<Mode>("bar");
   const [showAll, setShowAll] = useState(false);
+
+  const sortBy: CardSortBy = filters.cardSortBy ?? "frequency";
+  const groupBy: CardGroupBy = filters.cardGroupBy ?? "none";
 
   useEffect(() => {
     let cancelled = false;
@@ -39,10 +127,24 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
   }, [filters, fn]);
 
   const sorted = useMemo(
-    () => (data?.cards ?? []).slice().sort((a, b) => b.count - a.count),
-    [data],
+    () => (data?.cards ?? []).slice().sort(makeCardComparator(sortBy)),
+    [data, sortBy],
   );
   const max = sorted[0]?.count ?? 0;
+
+  const groups = useMemo(() => {
+    if (groupBy === "none") return null;
+    const map = new Map<string, Entry[]>();
+    for (const e of sorted) {
+      if (e.count === 0) continue;
+      const k = groupKey(e.cardId, groupBy);
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(e);
+    }
+    return Array.from(map.entries()).sort((a, b) =>
+      compareGroupKeys(groupBy, a[0], b[0]),
+    );
+  }, [sorted, groupBy]);
 
   return (
     <section className="space-y-3">
@@ -67,6 +169,29 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
       )}
       {!loading && data && data.totalReadings > 0 && (
         <>
+          {groups ? (
+            <div className="flex flex-col gap-4">
+              {groups.map(([key, entries]) => (
+                <div key={key} className="space-y-2">
+                  <div
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: "var(--text-caption, 0.75rem)",
+                      opacity: 0.7,
+                    }}
+                  >
+                    {key} · {entries.length} card
+                    {entries.length === 1 ? "" : "s"}
+                  </div>
+                  {mode === "bar" && <BarView entries={entries} max={max} />}
+                  {mode === "grid" && <GridView entries={entries} />}
+                  {mode === "deck" && <GridView entries={entries} />}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
           {mode === "bar" && (
             <BarView
               entries={(showAll ? sorted : sorted.slice(0, 30)).filter((e) => e.count > 0 || showAll)}
@@ -84,6 +209,8 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
             >
               Show all 78
             </button>
+          )}
+            </>
           )}
         </>
       )}

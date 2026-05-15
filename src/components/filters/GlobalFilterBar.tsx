@@ -8,9 +8,10 @@
  * as the historical Journal drawer) with sections rendered in the order
  * specified by the `sections` prop.
  */
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, SlidersHorizontal, X as XIcon } from "lucide-react";
+import { SlidersHorizontal, X as XIcon } from "lucide-react";
+import { Dropdown } from "@/components/filters/Dropdown";
 import {
   DRAW_TYPE_LABEL,
   DRAW_TYPE_KEYS,
@@ -186,95 +187,7 @@ export function GlobalFilterBar({
 /* ---------- Time-range dropdown ---------- */
 
 function TimeRangeDropdown({ value, options, onChange }: TimeRangeProp) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const [coords, setCoords] = useState<{ left: number; top: number } | null>(
-    null,
-  );
-
-  useLayoutEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const r = triggerRef.current.getBoundingClientRect();
-    setCoords({ left: r.left, top: r.bottom + 4 });
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      const t = e.target as Node;
-      if (ref.current?.contains(t)) return;
-      // Popover is portaled — check if click is inside it via data attr.
-      const el = t as HTMLElement;
-      if (el.closest?.("[data-time-range-popover]")) return;
-      setOpen(false);
-    }
-    window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
-  }, [open]);
-
-  const current = options.find((o) => o.value === value);
-
-  return (
-    <div ref={ref} className="relative shrink-0">
-      <button
-        ref={triggerRef}
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1 text-xs"
-        style={{
-          color: "var(--color-foreground)",
-          opacity: 0.85,
-          fontStyle: "italic",
-        }}
-      >
-        {current?.label ?? value}
-        <ChevronDown
-          className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
-      {open && coords && typeof document !== "undefined" &&
-        createPortal(
-          <div
-            data-time-range-popover
-            className="fixed min-w-[10rem] overflow-hidden rounded-md border shadow-lg"
-            style={{
-              left: coords.left,
-              top: coords.top,
-              background: "var(--surface-overlay)",
-              borderColor: "var(--border-subtle)",
-              zIndex: "var(--z-drawer)",
-            }}
-          >
-          {options.map((o) => {
-            const active = o.value === value;
-            return (
-              <button
-                key={o.value}
-                type="button"
-                onClick={() => {
-                  onChange(o.value);
-                  setOpen(false);
-                }}
-                className="block w-full px-3 py-1 text-left text-xs"
-                style={{
-                  color: active ? "var(--gold)" : "var(--color-foreground)",
-                  opacity: active ? 1 : 0.85,
-                  fontStyle: "italic",
-                  borderBottom: active
-                    ? "1px solid var(--gold)"
-                    : "1px solid transparent",
-                }}
-              >
-                {o.label}
-              </button>
-            );
-          })}
-          </div>,
-          document.body,
-        )}
-    </div>
-  );
+  return <Dropdown value={value} options={options} onChange={onChange} />;
 }
 
 /* ---------- Right-side flyout drawer ---------- */
@@ -469,19 +382,8 @@ function TagsSection({
   return (
     <section>
       <SectionHeader>Tags</SectionHeader>
-      <div className="flex flex-wrap gap-x-3 gap-y-2">
-        {userTags.map((t) => (
-          <ToggleRow
-            key={t.id}
-            active={filters.tags.includes(t.name)}
-            onClick={() => toggle(t.name)}
-          >
-            {t.name}
-          </ToggleRow>
-        ))}
-      </div>
       {filters.tags.length >= 2 && (
-        <div className="mt-3 flex items-center gap-3">
+        <div className="mb-3 flex items-center gap-3">
           <span className="font-display text-[10px] uppercase tracking-[0.18em] text-foreground/85">
             Match
           </span>
@@ -507,6 +409,17 @@ function TagsSection({
           })}
         </div>
       )}
+      <div className="flex flex-wrap gap-x-3 gap-y-2">
+        {userTags.map((t) => (
+          <ToggleRow
+            key={t.id}
+            active={filters.tags.includes(t.name)}
+            onClick={() => toggle(t.name)}
+          >
+            {t.name}
+          </ToggleRow>
+        ))}
+      </div>
     </section>
   );
 }

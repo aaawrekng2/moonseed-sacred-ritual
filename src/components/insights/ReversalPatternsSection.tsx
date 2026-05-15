@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { getReversalPatterns } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { CardImage } from "@/components/card/CardImage";
-import type { InsightsFilters } from "@/lib/insights.types";
+import type { InsightsFilters, CardSortBy } from "@/lib/insights.types";
+import { getCardName } from "@/lib/tarot";
 import { SectionHeader, SkeletonRow } from "./StalkerCardsSection";
 import { EmptyNote } from "@/components/ui/empty-note";
 import { useTrackReversals } from "@/lib/use-track-reversals";
@@ -49,6 +50,32 @@ export function ReversalPatternsSection({ filters }: { filters: InsightsFilters 
     };
   }, [filters, fn, prefLoaded, trackReversals]);
 
+  const sortBy: CardSortBy = filters.cardSortBy ?? "frequency";
+  const sortedPatterns = useMemo(() => {
+    const list = data?.patterns ?? [];
+    const cmp = (a: Pattern, b: Pattern) => {
+      switch (sortBy) {
+        case "frequency":
+          return b.totalCount - a.totalCount || a.cardId - b.cardId;
+        case "suit_order":
+          return a.cardId - b.cardId;
+        case "card_number": {
+          const ra = a.cardId <= 21 ? a.cardId : ((a.cardId - 22) % 14) + 1;
+          const rb = b.cardId <= 21 ? b.cardId : ((b.cardId - 22) % 14) + 1;
+          return ra - rb || a.cardId - b.cardId;
+        }
+        case "reversed_pct":
+          return b.reversedRate - a.reversedRate || b.reversedCount - a.reversedCount;
+        case "alpha":
+          return getCardName(a.cardId).localeCompare(getCardName(b.cardId));
+        case "recent":
+        default:
+          return b.reversedCount - a.reversedCount;
+      }
+    };
+    return list.slice().sort(cmp);
+  }, [data, sortBy]);
+
   if (prefLoaded && !trackReversals) return null;
 
   return (
@@ -65,7 +92,7 @@ export function ReversalPatternsSection({ filters }: { filters: InsightsFilters 
         <EmptyNote text="No reversal patterns surface yet. Cards need to appear several times before a pattern emerges." />
       )}
       {!loading &&
-        data?.patterns.map((p) => (
+        sortedPatterns.map((p) => (
           <ReversalRow key={p.cardId} pattern={p} onTap={() =>
             navigate({ to: "/insights/card/$cardId", params: { cardId: String(p.cardId) } })
           } />
