@@ -332,17 +332,29 @@ export const getCardFrequency = createServerFn({ method: "GET" })
     const { days } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
     const counts = new Array<number>(78).fill(0);
+    const reversedCounts = new Array<number>(78).fill(0);
+    const recent: Array<string | null> = new Array<string | null>(78).fill(null);
     let totalDraws = 0;
     for (const r of rows) {
-      for (const cid of r.card_ids ?? []) {
-        if (cid >= 0 && cid < 78) {
-          counts[cid] += 1;
-          totalDraws += 1;
-        }
+      const ids = r.card_ids ?? [];
+      const orients = r.card_orientations ?? [];
+      const ts = r.created_at;
+      for (let i = 0; i < ids.length; i++) {
+        const cid = ids[i];
+        if (cid < 0 || cid >= 78) continue;
+        counts[cid] += 1;
+        totalDraws += 1;
+        if (orients[i]) reversedCounts[cid] += 1;
+        if (!recent[cid] || ts > (recent[cid] as string)) recent[cid] = ts;
       }
     }
     return {
-      cards: counts.map((count, cardId) => ({ cardId, count })),
+      cards: counts.map((count, cardId) => ({
+        cardId,
+        count,
+        reversedCount: reversedCounts[cardId],
+        lastSeen: recent[cardId],
+      })),
       totalDraws,
       totalReadings: rows.length,
     };
