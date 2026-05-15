@@ -8,6 +8,8 @@ import { useEffect, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { CardImage } from "@/components/card/CardImage";
+import { CardCellWithBadge } from "./CardCellWithBadge";
+import { getCardName } from "@/lib/tarot";
 import {
   getStalkerCards,
   getStalkerTwins,
@@ -348,44 +350,16 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
         <div className="grid grid-cols-5 gap-x-2 sm:gap-x-3 md:gap-x-4 gap-y-5 sm:gap-y-6 md:gap-y-7">
           {mode === "singles" &&
             singlesList.map((s) => (
-              <div key={s.cardId} className="flex flex-col items-center gap-1">
-                <button
-                  type="button"
+              <div
+                key={s.cardId}
+                className={"transition-opacity duration-200 " + selClass(selectedKey, s.cardId)}
+              >
+                <CardCellWithBadge
+                  cardId={s.cardId}
+                  count={s.count}
+                  name={getCardName(s.cardId)}
                   onClick={() => setSelectedKey(s.cardId)}
-                  className={"w-full transition-opacity duration-200 " + selClass(selectedKey, s.cardId)}
-                >
-                  <CardImage
-                    cardId={s.cardId}
-                    size="medium"
-                    className="w-full"
-                    style={{ width: "100%", minHeight: 0 }}
-                    eager={selectedKey === s.cardId}
-                  />
-                </button>
-                {/* Q49 Fix 1 — count below card in same-size badge; only color differs. */}
-                <span
-                  className="tabular-nums"
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: "var(--text-body-sm, 13px)",
-                    color: selectedKey === s.cardId ? "var(--gold)" : "var(--color-foreground-muted)",
-                    background:
-                      selectedKey === s.cardId
-                        ? "color-mix(in oklab, var(--gold) 14%, transparent)"
-                        : "color-mix(in oklab, var(--color-foreground) 5%, transparent)",
-                    border:
-                      selectedKey === s.cardId
-                        ? "1px solid color-mix(in oklab, var(--gold) 35%, transparent)"
-                        : "1px solid color-mix(in oklab, var(--color-foreground) 15%, transparent)",
-                    borderRadius: "999px",
-                    padding: "1px 8px",
-                    minWidth: "28px",
-                    textAlign: "center",
-                  }}
-                >
-                  {s.count}×
-                </span>
+                />
               </div>
             ))}
 
@@ -394,7 +368,6 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
               const key = `${t.cardA}-${t.cardB}`;
               return (
                 <div key={key} className="flex flex-col items-center gap-1">
-                  <StalkerCount count={t.count} selected={selectedKey === key} />
                   <button
                     type="button"
                     onClick={() => setSelectedKey(key)}
@@ -406,7 +379,11 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
                     <div className="absolute inset-0 translate-x-1 translate-y-1">
                       <CardImage cardId={t.cardB} size="medium" style={{ width: "100%", minHeight: 0 }} />
                     </div>
+                    <CornerBadge count={t.count} />
                   </button>
+                  <span style={twinTripletNameStyle}>
+                    {getCardName(t.cardA)} + {getCardName(t.cardB)}
+                  </span>
                 </div>
               );
             })}
@@ -416,7 +393,6 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
               const key = t.cardIds.join("-");
               return (
                 <div key={key} className="flex flex-col items-center gap-1">
-                  <StalkerCount count={t.count} selected={selectedKey === key} />
                   <button
                     type="button"
                     onClick={() => setSelectedKey(key)}
@@ -431,28 +407,27 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
                     <div className="absolute inset-0 translate-x-1.5 translate-y-1.5">
                       <CardImage cardId={t.cardIds[2]} size="medium" style={{ width: "100%", minHeight: 0 }} />
                     </div>
+                    <CornerBadge count={t.count} />
                   </button>
+                  <span style={twinTripletNameStyle}>
+                    {t.cardIds.map((c) => getCardName(c as number)).join(" + ")}
+                  </span>
                 </div>
               );
             })}
 
           {mode === "reversed" &&
             reversedList.map((r) => (
-              <div key={r.cardId} className="flex flex-col items-center gap-1">
-                <StalkerCount count={r.reversedCount} selected={selectedKey === r.cardId} />
-                <button
-                  type="button"
+              <div
+                key={r.cardId}
+                className={"transition-opacity duration-200 " + selClass(selectedKey, r.cardId)}
+              >
+                <CardCellWithBadge
+                  cardId={r.cardId}
+                  count={r.reversedCount}
+                  name={getCardName(r.cardId)}
                   onClick={() => setSelectedKey(r.cardId)}
-                  className={"w-full transition-opacity duration-200 " + selClass(selectedKey, r.cardId)}
-                >
-                  <CardImage
-                    cardId={r.cardId}
-                    size="medium"
-                    reversed
-                    style={{ width: "100%", minHeight: 0 }}
-                    eager={selectedKey === r.cardId}
-                  />
-                </button>
+                />
               </div>
             ))}
 
