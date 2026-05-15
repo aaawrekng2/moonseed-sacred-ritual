@@ -25,7 +25,14 @@ import {
   type InsightsOverview,
   type StalkerCardsResult,
   type TimeRange,
+  CARD_GROUP_BY,
+  CARD_GROUP_BY_LABEL,
+  CARD_SORT_BY,
+  CARD_SORT_BY_LABEL,
+  type CardGroupBy,
+  type CardSortBy,
 } from "@/lib/insights.types";
+import { Dropdown } from "@/components/filters/Dropdown";
 import { CardFrequencySection } from "@/components/insights/CardFrequencySection";
 import { CardPairsSection } from "@/components/insights/CardPairsSection";
 import { ReversalPatternsSection } from "@/components/insights/ReversalPatternsSection";
@@ -315,6 +322,7 @@ function InsightsRoute() {
           )}
           {tab === "cards" && (
             <div className="flex flex-col gap-8 pb-12">
+              <CardsTabControls filters={filters} onChange={setFilters} />
               <CardFrequencySection filters={filters} />
               <CardPairsSection filters={filters} />
               <ReversalPatternsSection filters={filters} />
