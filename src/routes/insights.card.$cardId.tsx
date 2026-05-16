@@ -327,19 +327,6 @@ function MeaningSection({
   const [expanded, setExpanded] = useState(false);
   return (
     <div className="flex w-full flex-col items-center gap-3">
-      {/* Q73 Fix 2 — orientation labels above each chip row. */}
-      <KeywordRowLabel>Upright</KeywordRowLabel>
-      <div className="flex w-full flex-wrap justify-center gap-2">
-        {meaning.uprightKeywords.map((k) => (
-          <KeywordChip key={`u-${k}`} text={k} variant="upright" />
-        ))}
-      </div>
-      <KeywordRowLabel>Reversed</KeywordRowLabel>
-      <div className="flex w-full flex-wrap justify-center gap-2">
-        {meaning.reversedKeywords.map((k) => (
-          <KeywordChip key={`r-${k}`} text={k} variant="reversed" />
-        ))}
-      </div>
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -378,7 +365,11 @@ function MeaningSection({
             borderRadius: 12,
           }}
         >
-          <p style={meaningPara}>{meaning.uprightMeaning}</p>
+          <div>
+            <MeaningHeading>Upright</MeaningHeading>
+            <p style={meaningPara}>{meaning.uprightKeywords.join(", ")}.</p>
+            <p style={{ ...meaningPara, marginTop: 8 }}>{meaning.uprightMeaning}</p>
+          </div>
           <div
             style={{
               borderTop:
@@ -386,21 +377,32 @@ function MeaningSection({
             }}
           />
           <div>
-            <div
-              style={{
-                fontSize: "var(--text-caption)",
-                opacity: 0.6,
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                marginBottom: 4,
-              }}
-            >
-              Reversed
-            </div>
-            <p style={meaningPara}>{meaning.reversedMeaning}</p>
+            <MeaningHeading>Reversed</MeaningHeading>
+            <p style={meaningPara}>{meaning.reversedKeywords.join(", ")}.</p>
+            <p style={{ ...meaningPara, marginTop: 8 }}>{meaning.reversedMeaning}</p>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function MeaningHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+        fontSize: "var(--text-caption)",
+        textTransform: "uppercase",
+        letterSpacing: "0.15em",
+        color: "var(--gold)",
+        opacity: 0.8,
+        marginBottom: 6,
+        textAlign: "center",
+      }}
+    >
+      {children}
     </div>
   );
 }
@@ -414,109 +416,62 @@ const meaningPara: React.CSSProperties = {
   textAlign: "center",
 };
 
-function KeywordChip({
-  text,
-  variant,
-}: {
-  text: string;
-  variant: "upright" | "reversed";
-}) {
-  const isUpright = variant === "upright";
-  return (
-    <span
-      style={{
-        fontFamily: "var(--font-serif)",
-        fontStyle: "italic",
-        fontSize: "var(--text-caption)",
-        padding: "4px 10px",
-        borderRadius: 999,
-        background: isUpright
-          ? "color-mix(in oklch, var(--gold) 18%, transparent)"
-          : "color-mix(in oklch, var(--color-foreground) 8%, transparent)",
-        color: isUpright ? "var(--gold)" : "var(--foreground-muted)",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {text}
-    </span>
-  );
-}
-
-function KeywordRowLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        fontSize: "var(--text-caption)",
-        color: "var(--foreground-muted)",
-        fontFamily: "var(--font-serif)",
-        fontStyle: "italic",
-        opacity: 0.85,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 /* ============================================================
  * 3c — Stats strip
  * ============================================================ */
 function StatsStrip({
-  data,
   count,
   reversedCount,
+  showReversalStat,
 }: {
-  data: Detail;
   count: number;
   reversedCount: number;
+  showReversalStat: boolean;
 }) {
   const reversalRate =
     count === 0 ? 0 : Math.round((reversedCount / count) * 100);
   if (count === 0) return null;
+  const showReversal = showReversalStat && reversalRate > 0;
   return (
     <div
-      className="grid w-full"
-      style={{
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: 12,
-        padding: "16px 8px",
-      }}
+      className="w-full flex flex-col items-center"
+      style={{ padding: "16px 8px", gap: 4 }}
     >
-      <Stat value={String(count)} label="appearances" />
-      <Stat
-        value={data.firstSeen ? formatDateShort(data.firstSeen) : "—"}
-        label="first drawn"
-      />
-      <Stat value={`${reversalRate}%`} label="reversed" />
-    </div>
-  );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div style={{ textAlign: "center" }}>
       <div
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: "1.6rem",
+          fontSize: "3rem",
           color: "var(--gold)",
-          lineHeight: 1.1,
+          lineHeight: 1,
         }}
       >
-        {value}
+        {count}
       </div>
       <div
         style={{
           fontSize: "var(--text-caption)",
           opacity: 0.7,
-          marginTop: 4,
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
         }}
       >
-        {label}
+        appearances
       </div>
+      {showReversal && (
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: "var(--text-caption)",
+            opacity: 0.6,
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            color: "var(--foreground-muted)",
+          }}
+        >
+          {reversalRate}% reversed
+        </div>
+      )}
     </div>
   );
 }
@@ -529,7 +484,7 @@ function CardTrendChart({
   win,
 }: {
   appearances: Appearance[];
-  win: TrendWindow;
+  win: TimeRange;
 }) {
   const data = useMemo(() => weeklyBuckets(appearances, win), [appearances, win]);
   return (
@@ -623,9 +578,14 @@ function PillButton({
   );
 }
 
-function weeklyBuckets(appearances: Appearance[], win: TrendWindow) {
+function weeklyBuckets(appearances: Appearance[], win: TimeRange) {
   const now = Date.now();
-  const days = win === "30d" ? 30 : win === "90d" ? 90 : win === "180d" ? 180 : null;
+  const days =
+    win === "7d" ? 7
+    : win === "30d" ? 30
+    : win === "90d" ? 90
+    : win === "365d" ? 365
+    : null;
   const start =
     days !== null
       ? now - days * 86400000
@@ -700,13 +660,13 @@ function CoOccurrenceStrip({
             }}
             aria-label={`${getCardName(e.cardId)} — ${e.count} co-occurrences`}
           >
-            {/* Q73 Fix 5 — bigger thumbnails (≈80px mobile / 100px desktop
-                from a ~0.62 aspect, giving 100/120px tall). */}
+            {/* Q74 — taller thumbnails (~110px mobile / 140px desktop tall
+                from ~0.62 aspect → widths of 68px and 87px). */}
             <div className="md:hidden">
-              <CardImage cardId={e.cardId} size="custom" widthPx={62} />
+              <CardImage cardId={e.cardId} size="custom" widthPx={68} />
             </div>
             <div className="hidden md:block">
-              <CardImage cardId={e.cardId} size="custom" widthPx={75} />
+              <CardImage cardId={e.cardId} size="custom" widthPx={87} />
             </div>
             <div
               style={{
@@ -799,11 +759,8 @@ function ExpandableCalendar({ appearances }: { appearances: Appearance[] }) {
 }
 
 /* ============================================================
- * 3h — Readings list with filters
+ * 3h — Readings list (Q74: top filter bar is the only filter)
  * ============================================================ */
-type SpreadFilter = "all" | "single" | "three" | "celtic" | "yesno" | "custom";
-type OrientationFilter = "all" | "upright" | "reversed";
-
 function ReadingsList({
   appearances,
   onOpen,
@@ -811,20 +768,6 @@ function ReadingsList({
   appearances: Appearance[];
   onOpen: (readingId: string) => void;
 }) {
-  const [spread, setSpread] = useState<SpreadFilter>("all");
-  const [orient, setOrient] = useState<OrientationFilter>("all");
-
-  const filtered = useMemo(
-    () =>
-      appearances.filter((a) => {
-        if (orient === "upright" && a.isReversed) return false;
-        if (orient === "reversed" && !a.isReversed) return false;
-        if (spread === "all") return true;
-        return matchesSpread(a.spreadType, spread);
-      }),
-    [appearances, spread, orient],
-  );
-
   return (
     <div className="flex w-full flex-col gap-3">
       <h2
@@ -837,41 +780,11 @@ function ReadingsList({
       >
         Your readings with this card
       </h2>
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            ["all", "All"],
-            ["single", "Single"],
-            ["three", "3-Card"],
-            ["celtic", "Celtic"],
-            ["yesno", "Yes/No"],
-            ["custom", "Custom"],
-          ] as Array<[SpreadFilter, string]>
-        ).map(([k, label]) => (
-          <PillButton key={k} active={spread === k} onClick={() => setSpread(k)}>
-            {label}
-          </PillButton>
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            ["all", "Both"],
-            ["upright", "Upright"],
-            ["reversed", "Reversed"],
-          ] as Array<[OrientationFilter, string]>
-        ).map(([k, label]) => (
-          <PillButton key={k} active={orient === k} onClick={() => setOrient(k)}>
-            {label}
-          </PillButton>
-        ))}
-      </div>
-
-      {filtered.length === 0 ? (
-        <EmptyNote text="No readings match these filters." />
+      {appearances.length === 0 ? (
+        <EmptyNote text="No readings in this time window." />
       ) : (
         <div className="flex flex-col">
-          {filtered.map((a) => (
+          {appearances.map((a) => (
             <ReadingRow
               key={`${a.readingId}-${a.date}`}
               readingId={a.readingId}
@@ -890,27 +803,6 @@ function ReadingsList({
       )}
     </div>
   );
-}
-
-function matchesSpread(
-  spreadType: string | null,
-  filter: SpreadFilter,
-): boolean {
-  const s = (spreadType ?? "").toLowerCase();
-  switch (filter) {
-    case "single":
-      return s.includes("single") || s === "1" || s.includes("daily");
-    case "three":
-      return s.includes("three") || s.includes("3");
-    case "celtic":
-      return s.includes("celtic");
-    case "yesno":
-      return s.includes("yes") || s.includes("no");
-    case "custom":
-      return s.includes("custom") || s === "" || s === null;
-    default:
-      return true;
-  }
 }
 
 /* ============================================================
