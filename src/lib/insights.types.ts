@@ -91,6 +91,8 @@ export type InsightsOverview = {
   availableSpreadTypes: string[];
   /** Q75 — unique moon_phase values present in the filtered readings. */
   availableMoonPhases: string[];
+  /** Q76 — unique tag names present in the time-window readings. */
+  availableTags: string[];
 };
 
 export type StalkerCard = {
