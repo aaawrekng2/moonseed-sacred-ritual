@@ -22,7 +22,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Eye, Layers, Quote, Wand2, Star, X } from "lucide-react";
+import { ClipboardCopy, Eye, Layers, Quote, Wand2, Star, X } from "lucide-react";
 import {
   Dialog,
   DialogDescription,
@@ -63,6 +63,9 @@ import {
   type ShareContext,
   type ShareLevel,
 } from "./share-types";
+import { getCardMeaning } from "@/lib/tarot-meanings";
+import { getCardName } from "@/lib/tarot";
+import { formatDateShort } from "@/lib/dates";
 
 type LevelSpec = {
   id: ShareLevel;
