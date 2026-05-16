@@ -40,6 +40,10 @@ export type GlobalFilterBarProps = {
   userTags?: ReadonlyArray<{ id: string; name: string; usage_count: number }>;
   /** Reference data for the Stories section (Journal only). */
   allStories?: ReadonlyArray<{ id: string; name: string }>;
+  /** Q75 — Restrict Spread Types section to these keys (dynamic from data). */
+  availableSpreadTypes?: ReadonlyArray<string>;
+  /** Q75 — Restrict Moon Phases section to these keys (dynamic from data). */
+  availableMoonPhases?: ReadonlyArray<string>;
   /**
    * Slot for surface-specific extras inside the chip area
    * (Journal uses this for the active-date chip).
@@ -58,6 +62,8 @@ export function GlobalFilterBar({
   timeRange,
   userTags = [],
   allStories = [],
+  availableSpreadTypes,
+  availableMoonPhases,
   trailingChips,
   trailingDropdowns,
 }: GlobalFilterBarProps) {
@@ -184,6 +190,8 @@ export function GlobalFilterBar({
         sections={sections}
         userTags={userTags}
         allStories={allStories}
+        availableSpreadTypes={availableSpreadTypes}
+        availableMoonPhases={availableMoonPhases}
       />
     </>
   );
@@ -205,6 +213,8 @@ function FilterDrawer({
   sections,
   userTags,
   allStories,
+  availableSpreadTypes,
+  availableMoonPhases,
 }: {
   open: boolean;
   onClose: () => void;
@@ -213,6 +223,8 @@ function FilterDrawer({
   sections: ReadonlyArray<FilterSectionKey>;
   userTags: ReadonlyArray<{ id: string; name: string; usage_count: number }>;
   allStories: ReadonlyArray<{ id: string; name: string }>;
+  availableSpreadTypes?: ReadonlyArray<string>;
+  availableMoonPhases?: ReadonlyArray<string>;
 }) {
   // FU-2 — Portal to document.body so the drawer escapes any ancestor
   // stacking/containing context (e.g. `backdrop-filter`, `transform`)
@@ -281,6 +293,7 @@ function FilterDrawer({
                     key={key}
                     filters={filters}
                     onChange={onChange}
+                    available={availableSpreadTypes}
                   />
                 );
               case "depth":
@@ -297,6 +310,7 @@ function FilterDrawer({
                     key={key}
                     filters={filters}
                     onChange={onChange}
+                    available={availableMoonPhases}
                   />
                 );
               case "reversed":
