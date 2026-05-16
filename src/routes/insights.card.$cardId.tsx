@@ -319,11 +319,14 @@ function MeaningSection({
   const [expanded, setExpanded] = useState(false);
   return (
     <div className="flex w-full flex-col items-center gap-3">
+      {/* Q73 Fix 2 — orientation labels above each chip row. */}
+      <KeywordRowLabel>Upright</KeywordRowLabel>
       <div className="flex w-full flex-wrap justify-center gap-2">
         {meaning.uprightKeywords.map((k) => (
           <KeywordChip key={`u-${k}`} text={k} variant="upright" />
         ))}
       </div>
+      <KeywordRowLabel>Reversed</KeywordRowLabel>
       <div className="flex w-full flex-wrap justify-center gap-2">
         {meaning.reversedKeywords.map((k) => (
           <KeywordChip key={`r-${k}`} text={k} variant="reversed" />
