@@ -497,9 +497,14 @@ export const getStalkerCardDetail = createServerFn({ method: "GET" })
     }> = [];
     let total = 0;
     let reversed = 0;
+    const availSpreads = new Set<string>();
+    const availMoonPhases = new Set<string>();
     for (const r of rows) {
       const cards = r.card_ids ?? [];
       const orients = r.card_orientations ?? [];
+      if (r.spread_type) availSpreads.add(r.spread_type);
+      const ph = resolveMoonPhase(r.moon_phase, r.created_at);
+      if (ph) availMoonPhases.add(ph);
       cards.forEach((cid, idx) => {
         if (cid === data.cardId) {
           total += 1;
@@ -542,6 +547,8 @@ export const getStalkerCardDetail = createServerFn({ method: "GET" })
       lastSeen: appearances.length ? appearances[0].date : null,
       appearances,
       coOccurrences,
+      availableSpreadTypes: Array.from(availSpreads).sort(),
+      availableMoonPhases: Array.from(availMoonPhases).sort(),
     };
   });
 
