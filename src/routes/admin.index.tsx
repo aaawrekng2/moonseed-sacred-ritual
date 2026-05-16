@@ -517,6 +517,13 @@ function DashboardTab() {
   } | null>(null);
   // 9-6-F — pending signup attempts (email present, not confirmed).
   const [pendingSignups, setPendingSignups] = useState<number | null>(null);
+  // Q68 — actual list of unconfirmed signups so admins can see who is stuck.
+  const [pendingList, setPendingList] = useState<Array<{
+    id: string;
+    email: string;
+    created_at: string;
+    last_sign_in_at: string | null;
+  }>>([]);
 
   useEffect(() => {
     void (async () => {
@@ -639,6 +646,12 @@ function DashboardTab() {
         setPendingSignups(p.count);
       } catch {
         setPendingSignups(0);
+      }
+      try {
+        const list = await listPendingSignups({ headers: await authHeaders() });
+        setPendingList(list);
+      } catch {
+        setPendingList([]);
       }
     })();
   }, []);
