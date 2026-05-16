@@ -117,16 +117,13 @@ export const listAdminUsers = createServerFn({ method: "GET" })
     const prefMap = new Map<string, any>();
     for (const p of prefs) prefMap.set((p as any).user_id, p);
 
-    // 9-6-F — Tighten filter: only confirmed users (email_confirmed_at)
-    // OR admins. Pending/abandoned signup attempts are excluded here and
-    // surfaced separately via getPendingSignupCount.
+    // Q68 — include unconfirmed signups so admins can act on them in
+    // the Users tab (gift premium, view detail, etc.). The Users tab
+    // shows an "Unconfirmed" badge next to these so the difference is
+    // visible. Orphaned auth rows with no email are still excluded.
     return allUsers
       .filter((u) => {
-        // Q62 Fix 10 — require BOTH email and email_confirmed_at to weed
-        // out orphaned auth rows that render as 8-char user-id stubs.
-        const hasEmail = !!u.email;
-        const isConfirmed = !!(u as any).email_confirmed_at;
-        if (hasEmail && isConfirmed) return true;
+        if (u.email) return true;
         const p = prefMap.get(u.id);
         if (p?.role === "admin" || p?.role === "super_admin") return true;
         return false;
@@ -137,6 +134,7 @@ export const listAdminUsers = createServerFn({ method: "GET" })
         user_id: u.id,
         email: u.email ?? null,
         email_confirmed_at: (u as any).email_confirmed_at ?? null,
+        email_confirmed: !!(u as any).email_confirmed_at,
         is_anonymous: !u.email,
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at ?? null,
