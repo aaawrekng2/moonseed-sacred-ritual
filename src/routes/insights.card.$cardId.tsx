@@ -692,7 +692,14 @@ function CoOccurrenceStrip({
             }}
             aria-label={`${getCardName(e.cardId)} — ${e.count} co-occurrences`}
           >
-            <CardImage cardId={e.cardId} size="custom" widthPx={60} />
+            {/* Q73 Fix 5 — bigger thumbnails (≈80px mobile / 100px desktop
+                from a ~0.62 aspect, giving 100/120px tall). */}
+            <div className="md:hidden">
+              <CardImage cardId={e.cardId} size="custom" widthPx={62} />
+            </div>
+            <div className="hidden md:block">
+              <CardImage cardId={e.cardId} size="custom" widthPx={75} />
+            </div>
             <div
               style={{
                 marginTop: 4,
