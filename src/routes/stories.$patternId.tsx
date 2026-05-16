@@ -9,7 +9,7 @@ import { generateCardEvidenceProse } from "@/lib/card-evidence.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { usePremium } from "@/lib/premium";
-import { ChevronLeft, Pencil, Archive, StickyNote, X } from "lucide-react";
+import { ChevronLeft, Pencil, Archive, Share2, StickyNote, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
@@ -49,6 +49,7 @@ import {
   resubmitStoryToAi,
 } from "@/lib/story-orchestration.functions";
 import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
+import { StoryShareModal } from "@/components/share/StoryShareModal";
 
 const VIEWPORT_STORAGE_PREFIX = "weave-viewport:";
 
@@ -137,6 +138,8 @@ function PatternChamber() {
     prevRetiredAt: string | null;
   } | null>(null);
   const [undoing, setUndoing] = useState(false);
+  // Q65 — Share2 modal for the Story detail header.
+  const [shareOpen, setShareOpen] = useState(false);
   // FU-14 — Reading detail modal state for the pattern timeline.
   const [openReadingId, setOpenReadingId] = useState<string | null>(null);
   // 9-6-AH continuation — synthesis is fetched once by PatternSynthesis,
@@ -424,8 +427,20 @@ function PatternChamber() {
           top: "calc(env(safe-area-inset-top, 0px) + 12px)",
           right: "calc(env(safe-area-inset-right, 0px) + 12px)",
           zIndex: 50,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
         }}
       >
+        <button
+          type="button"
+          aria-label="Share story"
+          onClick={() => setShareOpen(true)}
+          className="flex h-11 w-11 items-center justify-center rounded-full text-gold transition-opacity touch-manipulation hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
+          style={{ opacity: "var(--ro-plus-20, 0.7)" }}
+        >
+          <Share2 size={18} strokeWidth={1.5} aria-hidden="true" />
+        </button>
         <button
           type="button"
           aria-label="Close story"
