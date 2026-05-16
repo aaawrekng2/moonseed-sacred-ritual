@@ -4,11 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { getStalkerCards, getStalkerReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { CardCellWithBadge } from "./CardCellWithBadge";
-import { Lock } from "lucide-react";
 import type { InsightsFilters, StalkerCardsResult } from "@/lib/insights.types";
 import { StalkerSparkline } from "./StalkerSparkline";
-import { usePremium } from "@/lib/premium";
-import { useAuth } from "@/lib/auth";
 import { EmptyNote } from "@/components/ui/empty-note";
 
 /** EK-1 — Stalker Cards section in the Cards tab. */
@@ -17,8 +14,6 @@ export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
   const navigate = useNavigate();
   const [data, setData] = useState<StalkerCardsResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
-  const { isPremium } = usePremium(user?.id);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,15 +83,11 @@ export function StalkerCardsSection({ filters }: { filters: InsightsFilters }) {
                     windowEnd={windowEnd}
                   />
                 </div>
-                {isPremium ? (
-                  <PremiumReflection
-                    cardId={s.cardId}
-                    count={s.count}
-                    latestDate={s.appearances[0]?.date ?? new Date().toISOString()}
-                  />
-                ) : (
-                  <LockedReflection />
-                )}
+                <PremiumReflection
+                  cardId={s.cardId}
+                  count={s.count}
+                  latestDate={s.appearances[0]?.date ?? new Date().toISOString()}
+                />
               </div>
             </button>
           );
@@ -154,28 +145,6 @@ function PremiumReflection({
       onClick={(e) => e.stopPropagation()}
     >
       {text ?? "Reflection generating…"}
-    </div>
-  );
-}
-
-function LockedReflection() {
-  return (
-    <div
-      onClick={(e) => {
-        e.stopPropagation();
-        window.dispatchEvent(
-          new CustomEvent("tarotseed:open-premium", { detail: { feature: "Stalker Reflections" } }),
-        );
-      }}
-      className="mt-2 inline-flex items-center gap-1.5 rounded-full px-2 py-1"
-      style={{
-        background: "color-mix(in oklch, var(--gold) 14%, transparent)",
-        color: "var(--gold)",
-        fontStyle: "italic",
-        fontSize: "var(--text-caption, 0.7rem)",
-      }}
-    >
-      <Lock className="h-3 w-3" /> Reflection — premium
     </div>
   );
 }

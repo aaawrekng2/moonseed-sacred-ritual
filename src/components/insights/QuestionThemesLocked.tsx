@@ -6,7 +6,6 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
 import { useReducePremiumPrompts } from "@/lib/use-reduce-premium-prompts";
 import { getQuestionThemes, type QuestionTheme } from "@/lib/insights.functions";
@@ -18,7 +17,6 @@ import { AIGatedSection } from "@/components/ai/AIGatedSection";
 export function QuestionThemesLocked({ filters }: { filters?: InsightsFilters } = {}) {
   const effectiveFilters = filters ?? DEFAULT_FILTERS;
   const { user } = useAuth();
-  const { isPremium } = usePremium(user?.id);
   const reducePrompts = useReducePremiumPrompts(user?.id);
   const fn = useServerFn(getQuestionThemes);
 
@@ -29,7 +27,6 @@ export function QuestionThemesLocked({ filters }: { filters?: InsightsFilters } 
 
   // Cache-only read on mount / filter change. Never fires the model.
   useEffect(() => {
-    if (!isPremium) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -54,7 +51,7 @@ export function QuestionThemesLocked({ filters }: { filters?: InsightsFilters } 
     return () => {
       cancelled = true;
     };
-  }, [isPremium, effectiveFilters, fn]);
+  }, [effectiveFilters, fn]);
 
   const onGenerate = useCallback(async () => {
     setIsGenerating(true);
