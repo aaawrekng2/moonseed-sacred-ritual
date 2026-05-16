@@ -33,7 +33,6 @@ import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { DEFAULT_FILTERS } from "@/lib/insights.types";
 import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 import { CardImage } from "@/components/card/CardImage";
-import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
 import { formatDateShort } from "@/lib/dates";
 import { DrawCalendar } from "@/components/insights/DrawCalendar";
@@ -83,8 +82,7 @@ function CardTraceRoute() {
   const fn = useServerFn(getStalkerCardDetail);
   const [data, setData] = useState<Detail | null>(null);
   const resolveImage = useActiveDeckImage();
-  const { user } = useAuth();
-  const { isPremium } = usePremium(user?.id);
+  useAuth();
   const [openReadingId, setOpenReadingId] = useState<string | null>(null);
 
   const heroRef = useRef<HTMLDivElement | null>(null);
@@ -224,35 +222,11 @@ function CardTraceRoute() {
           )}
 
           {data && (
-            <>
-              {isPremium ? (
-                <PremiumDetailReflection
-                  cardId={cid}
-                  count={data.totalCount}
-                  latestDate={data.lastSeen ?? new Date().toISOString()}
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() =>
-                    window.dispatchEvent(
-                      new CustomEvent("tarotseed:open-premium", {
-                        detail: { feature: "Card Trace Reflections" },
-                      }),
-                    )
-                  }
-                  className="flex w-full items-center justify-center gap-2 p-4"
-                  style={{
-                    background: "color-mix(in oklch, var(--gold) 12%, transparent)",
-                    borderRadius: 14,
-                    color: "var(--gold)",
-                    fontStyle: "italic",
-                  }}
-                >
-                  <Lock className="h-4 w-4" /> Card Trace reflection — premium
-                </button>
-              )}
-            </>
+            <PremiumDetailReflection
+              cardId={cid}
+              count={data.totalCount}
+              latestDate={data.lastSeen ?? new Date().toISOString()}
+            />
           )}
         </div>
       </main>
