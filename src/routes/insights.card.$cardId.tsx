@@ -671,6 +671,9 @@ function CoOccurrenceStrip({
   entries: Array<{ cardId: number; count: number }>;
   onPick: (cardId: number) => void;
 }) {
+  // Q75 — on desktop, center the strip when ≤6 cards fit; otherwise
+  // fall back to horizontal scroll. Mobile always scrolls.
+  const fewEnough = entries.length <= 6;
   return (
     <div className="w-full">
       <h2
@@ -685,7 +688,11 @@ function CoOccurrenceStrip({
         Often appears with
       </h2>
       <div
-        className="flex gap-3 overflow-x-auto"
+        className={
+          fewEnough
+            ? "flex gap-3 overflow-x-auto md:justify-center md:overflow-visible"
+            : "flex gap-3 overflow-x-auto"
+        }
         style={{ paddingBottom: 6 }}
       >
         {entries.map((e) => (
@@ -703,13 +710,13 @@ function CoOccurrenceStrip({
             }}
             aria-label={`${getCardName(e.cardId)} — ${e.count} co-occurrences`}
           >
-            {/* Q74 — taller thumbnails (~110px mobile / 140px desktop tall
-                from ~0.62 aspect → widths of 68px and 87px). */}
+            {/* Q75 — larger thumbnails: 110px tall mobile (≈68px wide),
+                160px tall desktop (≈100px wide). */}
             <div className="md:hidden">
               <CardImage cardId={e.cardId} size="custom" widthPx={68} />
             </div>
             <div className="hidden md:block">
-              <CardImage cardId={e.cardId} size="custom" widthPx={87} />
+              <CardImage cardId={e.cardId} size="custom" widthPx={100} />
             </div>
             <div
               style={{
