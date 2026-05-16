@@ -13,7 +13,6 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   ArrowLeft,
   X,
-  Lock,
   ChevronDown,
   Sparkles,
 } from "lucide-react";
