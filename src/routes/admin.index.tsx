@@ -1678,7 +1678,7 @@ function DetectWeavesAlertsPanel() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value }: { label: string; value: number | string }) {
   return (
     <div
       style={{
