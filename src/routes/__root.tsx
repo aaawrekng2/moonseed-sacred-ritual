@@ -14,7 +14,6 @@ import { FloatingMenuProvider } from "@/lib/floating-menu-context";
 import { useThemeFontSync } from "@/lib/use-theme-font-sync";
 import { Toaster } from "@/components/ui/sonner";
 import { useFloatingMenu } from "@/lib/floating-menu-context";
-import { PremiumModal } from "@/components/premium/PremiumModal";
 import { DevOverlay } from "@/components/dev/DevOverlay";
 import { TimezoneMismatchDialog } from "@/components/settings/TimezoneMismatchDialog";
 import { ActiveDeckProvider } from "@/lib/active-deck";
@@ -234,22 +233,7 @@ function RootComponent() {
   useEffect(() => {
     void cleanupStaleSessions();
   }, []);
-  // Global listener for the "tarotseed:open-premium" event dispatched
-  // from anywhere in the app (e.g. the Deep Reading limit overlay's
-  // "Or continue without waiting" button). Opens the PremiumModal in
-  // place without requiring a route change.
-  const [premiumOpen, setPremiumOpen] = useState(false);
-  const [premiumFeature, setPremiumFeature] = useState<string>("Deep Readings");
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const feature =
-        (e as CustomEvent).detail?.feature ?? "Deep Readings";
-      setPremiumFeature(feature);
-      setPremiumOpen(true);
-    };
-    window.addEventListener("tarotseed:open-premium", handler);
-    return () => window.removeEventListener("tarotseed:open-premium", handler);
-  }, []);
+  // Q69 — premium tier removed; tarotseed:open-premium listener gone.
   // Q35b — Welcome modal: show once per signed-in (non-anonymous) seeker.
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   useEffect(() => {
@@ -305,11 +289,6 @@ function RootComponent() {
           <DevOverlay />
           {mounted && <Toaster />}
           <TimezoneMismatchDialog />
-          <PremiumModal
-            open={premiumOpen}
-            onOpenChange={setPremiumOpen}
-            featureName={premiumFeature}
-          />
           <WelcomeModal open={welcomeOpen} onClose={handleWelcomeClose} />
         </div>
         </ConfirmProvider>
