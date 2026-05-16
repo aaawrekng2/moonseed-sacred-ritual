@@ -1321,8 +1321,7 @@ export function Tabletop({
           >
             <div
               className={cn(
-                "flex items-end justify-center px-1 pb-1",
-                required >= 10 ? "gap-1" : "gap-2",
+                "flex items-end justify-center pb-1",
                 // Slot row must allow the active "breathing" beacon's
                 // box-shadow to bleed past its own bounds; hidden overflow
                 // would clip the gold pulse. (Was overflow-x-auto.)
@@ -1334,6 +1333,12 @@ export function Tabletop({
                   required,
                   slotW,
                 );
+                // Q68 — drive the rendered gap from the same function
+                // `responsiveSlotWidth` uses, instead of Tailwind
+                // gap-1/gap-2 (which were 4px / 8px and didn't match the
+                // 6px config gap on mobile). Without this the rail
+                // overflows on 8+ slot custom spreads by ~14px.
+                const gapPx = slotGap(required, isMobile);
                 // Q68 — when the rail can't fit even at the 16px floor,
                 // allow horizontal scroll and fade the edges so the
                 // overflow reads as a rail extending beyond the viewport
@@ -1341,6 +1346,7 @@ export function Tabletop({
                 if (!fits) {
                   return {
                     paddingTop: 12,
+                    gap: gapPx,
                     overflowX: "auto" as const,
                     overflowY: "visible" as const,
                     justifyContent: "flex-start" as const,
@@ -1350,7 +1356,16 @@ export function Tabletop({
                       "linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%)",
                   };
                 }
-                return { paddingTop: 12 };
+                // Q68 — overflow-x: hidden as a safety net against
+                // sub-pixel rounding overrun. box-shadow (the breathing
+                // beacon glow) is not clipped by overflow on the parent
+                // box, so the gold pulse still renders correctly.
+                return {
+                  paddingTop: 12,
+                  gap: gapPx,
+                  overflowX: "hidden" as const,
+                  overflowY: "visible" as const,
+                };
               })()}
               role="list"
               aria-label={`${meta.label} slots`}
