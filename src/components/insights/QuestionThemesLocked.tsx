@@ -80,7 +80,6 @@ export function QuestionThemesLocked({ filters }: { filters?: InsightsFilters } 
     <AIGatedSection
       title="Question Themes"
       caption="What you keep asking about."
-      isPremium={isPremium}
       reducePrompts={reducePrompts}
       dataReady={dataReady}
       dataReadyMessage="Ask a few more questions — themes appear after 5 readings with questions."
