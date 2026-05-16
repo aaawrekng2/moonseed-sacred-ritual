@@ -48,6 +48,7 @@ import {
   getBackupDownloadUrl,
   getPendingSignupCount,
   listAdminUsers,
+  listPendingSignups,
   listDetectWeavesAlerts,
   previewDetectWeavesAdmin,
   resolveDetectWeavesAlert,
