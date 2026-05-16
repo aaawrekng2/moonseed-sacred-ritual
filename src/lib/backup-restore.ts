@@ -241,10 +241,9 @@ export async function executeRestore(params: {
   zips: JSZip[];
   selectedCategories: string[];
   userId: string;
-  isPremium: boolean;
   onProgress?: (msg: string, pct: number) => void;
 }): Promise<RestoreResult> {
-  const { zips, selectedCategories, userId, isPremium, onProgress } = params;
+  const { zips, selectedCategories, userId, onProgress } = params;
   const result: RestoreResult = { perCategory: {} };
 
   onProgress?.("Validating backup…", 0);
@@ -400,11 +399,6 @@ export async function executeRestore(params: {
           new RegExp(`^custom_decks/${folder}/back\\.[a-z0-9]+$`).test(p),
         );
         if (backEntry) {
-          if (!isPremium) {
-            deckResult.filesSkippedPremium += 1;
-            backUrl = null;
-            backThumb = null;
-          } else {
             const [path, zip] = backEntry;
             const blob = await zip
               .file(path)!
