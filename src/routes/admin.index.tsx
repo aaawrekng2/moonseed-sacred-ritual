@@ -2437,58 +2437,42 @@ function UserDetailPage({
 
       {/* Panels */}
       <div className="mt-8 grid gap-6">
-        <DetailPanel title="Subscription">
-          <DetailRow
-            label="Status"
-            value={subscriptionStatusLabel(user)}
-          />
-          {user.is_premium && user.premium_expires_at && (
-            <DetailRow
-              label="Expires"
-              value={(() => {
-                const exp = new Date(user.premium_expires_at);
-                const days = Math.ceil(
-                  (exp.getTime() - Date.now()) / 86_400_000,
-                );
-                if (days < 0)
-                  return `Expired on ${formatDateLong(exp.toISOString())}`;
-                return `${formatDateLong(exp.toISOString())} · ${days} day${days === 1 ? "" : "s"} left`;
-              })()}
-            />
-          )}
-          <DetailRow
-            label="Months used"
-            value={String(user.premium_months_used ?? 0)}
-          />
+        <DetailPanel title="Grant Credits">
+          <div
+            style={{
+              ...serif,
+              fontSize: "var(--text-caption)",
+              opacity: 0.6,
+              marginBottom: 12,
+            }}
+          >
+            Quick grant AI credits to {targetLabel}.
+          </div>
           <ActionRow>
-            {!user.is_premium && (
-              <ActionBtn
-                tone="primary"
-                disabled={busyAction !== null}
-                onClick={() => setGrantOpen("grant")}
-              >
-                Grant Premium
-              </ActionBtn>
-            )}
-            {user.is_premium && (
-              <>
-                <ActionBtn
-                  tone="secondary"
-                  disabled={busyAction !== null}
-                  onClick={() => setGrantOpen("extend")}
-                >
-                  Extend Premium
-                </ActionBtn>
-                <ActionBtn
-                  tone="destructive"
-                  disabled={busyAction !== null}
-                  onClick={() => void onRevokePremium()}
-                >
-                  Revoke Premium
-                </ActionBtn>
-              </>
-            )}
+            <ActionBtn tone="primary" disabled={grantingCredits} onClick={() => void onQuickGrantCredits(50)}>+50 credits</ActionBtn>
+            <ActionBtn tone="primary" disabled={grantingCredits} onClick={() => void onQuickGrantCredits(200)}>+200 credits</ActionBtn>
+            <ActionBtn tone="primary" disabled={grantingCredits} onClick={() => void onQuickGrantCredits(500)}>+500 credits</ActionBtn>
           </ActionRow>
+          <DetailRow
+            label="More"
+            value={
+              <Link
+                to="/admin/usage/users/$userId"
+                params={{ userId: user.user_id }}
+                style={{
+                  ...display,
+                  fontSize: "var(--text-caption)",
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "var(--accent, var(--gold))",
+                  textDecoration: "underline",
+                  textUnderlineOffset: 3,
+                }}
+              >
+                Open full credit panel →
+              </Link>
+            }
+          />
         </DetailPanel>
 
         <DetailPanel title="AI Credits">
@@ -2746,24 +2730,6 @@ function UserDetailPage({
           </div>
         </DetailPanel>
       </div>
-      {grantOpen !== null && (
-        <GrantPremiumModal
-          mode={grantOpen}
-          targetLabel={targetLabel}
-          currentExpires={user.premium_expires_at}
-          onClose={() => setGrantOpen(null)}
-          onConfirm={async (months) => {
-            const type = grantOpen === "extend" ? "extend_premium" : "grant_premium";
-            const verb = grantOpen === "extend" ? "extended" : "granted";
-            setGrantOpen(null);
-            await runAction(
-              "premium",
-              { type, targetUserId: user.user_id, months },
-              `Premium ${verb} for ${targetLabel}`,
-            );
-          }}
-        />
-      )}
       {setPwOpen && (
         <SetPasswordModal
           targetEmail={user.email ?? targetLabel}
