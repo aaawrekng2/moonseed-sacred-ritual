@@ -7,6 +7,8 @@ export const TABLETOP_CONFIG = {
   // scatter an organic, hand-tossed feel. The adaptive curve below scales
   // this down on narrow portrait widths so cards don't visually overflow.
   CARD_MAX_ROTATION: 6,
+  // Q67 — viewport-aware: 10 on mobile, 24 on desktop. Use
+  // `scatterPadding()` helper below when reading at runtime.
   SCATTER_PADDING: 10,
   /**
    * Reserved vertical strip at the top of the scatter container so cards
@@ -37,6 +39,13 @@ export const TABLETOP_CONFIG = {
   MOBILE_BREAKPOINT: 768,
 };
 
+export function scatterPadding(viewportW?: number): number {
+  const w =
+    viewportW ??
+    (typeof window !== "undefined" ? window.innerWidth : 0);
+  return w >= 768 ? 24 : 10;
+}
+
 export function responsiveCardWidth(viewportW: number): number {
   // Mobile uses a tuned static value — kept as-is to avoid regressing
   // mobile layouts that already work well at 38px.
@@ -49,7 +58,9 @@ export function responsiveCardWidth(viewportW: number): number {
   const viewportH =
     typeof window !== "undefined" ? window.innerHeight : 720;
   const scatterH = viewportH * 0.6;
-  const density = 0.7;
+  // Q67 — was 0.7. Reduced to 0.5 for larger cards + more breathing
+  // room on desktop/iPad. Mobile is unchanged (early return above).
+  const density = 0.5;
   const aspectRatio = TABLETOP_CONFIG.CARD_ASPECT_RATIO;
   const deckSize = TABLETOP_CONFIG.DECK_SIZE;
   const computed = Math.sqrt(
@@ -81,7 +92,7 @@ export function responsiveSlotWidth(viewportW: number, count: number): number {
   const gap = count >= 10 ? 4 : isMobile ? 6 : 8;
   const usable = Math.max(0, viewportW - railPad * 2 - gap * (count - 1));
   const naive = Math.floor(usable / count);
-  const minW = isMobile ? 24 : 36;
+  const baseMinW = isMobile ? 24 : 36;
   const maxW = isMobile
     ? count <= 3
       ? 56
@@ -91,7 +102,30 @@ export function responsiveSlotWidth(viewportW: number, count: number): number {
       : count <= 5
         ? 80
         : 64;
-  return Math.max(minW, Math.min(maxW, naive));
+  // Q67 — if even the naive width can fit, use it. Otherwise reduce
+  // minW until the rail fits, with an absolute floor of 16px. Callers
+  // can detect the "doesn't fit" state by comparing slot rail total
+  // against viewport (see `slotRailFitsViewport`).
+  if (naive >= baseMinW) return Math.min(maxW, naive);
+  return Math.max(16, naive);
+}
+
+/**
+ * Q67 — does the slot rail (`count` slots @ `slotW` + gaps + padding)
+ * fit within `viewportW`? When false, the rail should switch to
+ * horizontal scrolling with edge fades.
+ */
+export function slotRailFitsViewport(
+  viewportW: number,
+  count: number,
+  slotW: number,
+): boolean {
+  if (count <= 0 || viewportW <= 0) return true;
+  const isMobile = viewportW < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
+  const railPad = isMobile ? 32 : 40;
+  const gap = count >= 10 ? 4 : isMobile ? 6 : 8;
+  const total = slotW * count + gap * (count - 1) + railPad * 2;
+  return total <= viewportW;
 }
 
 export function pickReturnSpot(
