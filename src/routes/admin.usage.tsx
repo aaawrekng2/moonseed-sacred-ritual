@@ -380,10 +380,14 @@ function SeekersTab() {
               textDecoration: "none",
             }}
           >
-            <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}>{r.email}</span>
-            {r.email_confirmed === false && (
-              <span style={{ opacity: 0.5, fontSize: 11, fontStyle: "italic", marginLeft: -4 }}>unconfirmed</span>
-            )}
+            <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}>
+              {r.email}
+              {r.email_confirmed === false && (
+                <span style={{ opacity: 0.5, fontSize: 11, marginLeft: 8, fontStyle: "italic" }}>
+                  unconfirmed
+                </span>
+              )}
+            </span>
             <span style={{ opacity: 0.7 }}>{r.plan}</span>
             <span>{fmtUsd(r.ai_cost_usd_this_month)}</span>
             <span>{fmtBytes(r.storage_bytes_current)}</span>
