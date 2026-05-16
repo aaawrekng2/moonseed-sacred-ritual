@@ -78,7 +78,10 @@ export function DrawCalendar({
     // we don't depend on data-attr forwarding through CalendarDayButton).
     let bg: string | undefined;
     // Q64 — wider opacity range so heavy-draw cards stand out.
-    if (c === 1) bg = "color-mix(in oklab, var(--gold) 15%, transparent)";
+    // Q73 Fix 6 — only highlight days with appearances. Without this
+    // `else if (c < 8)` was catching c === 0 and lighting every day.
+    if (c === 0) bg = undefined;
+    else if (c === 1) bg = "color-mix(in oklab, var(--gold) 15%, transparent)";
     else if (c === 2) bg = "color-mix(in oklab, var(--gold) 25%, transparent)";
     else if (c === 3) bg = "color-mix(in oklab, var(--gold) 35%, transparent)";
     else if (c === 4) bg = "color-mix(in oklab, var(--gold) 45%, transparent)";
