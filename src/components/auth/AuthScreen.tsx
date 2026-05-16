@@ -19,7 +19,6 @@ import { supabase } from "@/lib/supabase";
 import { X, Eye, EyeOff } from "lucide-react";
 import { createBackup, type BackupProgress } from "@/lib/backup-export";
 import { BACKUP_CATEGORIES } from "@/lib/backup-categories";
-import { usePremium } from "@/lib/premium";
 
 type AuthMode =
   | "signin"
