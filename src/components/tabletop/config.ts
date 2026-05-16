@@ -17,7 +17,7 @@ export const TABLETOP_CONFIG = {
   // On mobile, the floating ··· menu is much smaller than the old top bar
   // so cards can start higher. Desktop keeps the original reserve.
   TOP_RESERVE:
-    typeof window !== "undefined" && window.innerWidth < 768 ? 64 : 72,
+    typeof window !== "undefined" && window.innerWidth < 768 ? 96 : 72,
   SELECTION_GLOW_SPREAD: 6,
   SELECTION_GLOW_OPACITY: 0.8,
   // Slow, ceremonial flip — long enough to feel reverent without
@@ -82,8 +82,15 @@ export function responsiveSlotWidth(viewportW: number, count: number): number {
   const usable = Math.max(0, viewportW - railPad * 2 - gap * (count - 1));
   const naive = Math.floor(usable / count);
   const minW = isMobile ? 24 : 36;
-  const maxW =
-    count <= 3 ? (isMobile ? 56 : 80) : isMobile ? 48 : 64;
+  const maxW = isMobile
+    ? count <= 3
+      ? 56
+      : 48
+    : count <= 3
+      ? 100
+      : count <= 5
+        ? 80
+        : 64;
   return Math.max(minW, Math.min(maxW, naive));
 }
 

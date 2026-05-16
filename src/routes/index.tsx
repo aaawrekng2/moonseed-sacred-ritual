@@ -88,7 +88,10 @@ function Index() {
   // so the themed default never flashes before the photographed back.
   const { activeDeck, loading: deckLoading } = useActiveDeck();
   // EW-2 — heroImageLoaded state lives inside CardImage now.
-  const [skeletonTimedOut, setSkeletonTimedOut] = useState(false);
+  // Q66 — show the skeleton only while the deck query is actively
+  // loading. Once it resolves (custom deck OR null), CardBack renders
+  // its celestial fallback immediately — no infinite skeleton for
+  // brand-new users with no deck.
   // ES-1 — Watch the hero <section>'s actual content box. On warm
   // reopen, viewportH is correct but the moon carousel snaps in late
   // and shrinks the available pane after the initial layout pass.
@@ -121,14 +124,6 @@ function Index() {
     ro.observe(node);
     return () => ro.disconnect();
   }, []);
-  useEffect(() => {
-    if (!deckLoading) {
-      setSkeletonTimedOut(false);
-      return;
-    }
-    const t = window.setTimeout(() => setSkeletonTimedOut(true), 1500);
-    return () => window.clearTimeout(t);
-  }, [deckLoading]);
   const navigate = useNavigate();
   const { currentStreak, longestStreak, lastDrawDate } = useStreak();
   // EG-4 — Streak glyph is locked to streak progression (NOT today's
@@ -408,9 +403,7 @@ function Index() {
   // a shimmer here while the active deck is still resolving so the
   // CardBack fallback doesn't flash the default before we know whether
   // the seeker has a custom photographed back.
-  const showSkeleton =
-    (deckLoading && !skeletonTimedOut) ||
-    (todayCard === null && activeDeck === null && !skeletonTimedOut && !customBackUrl);
+  const showSkeleton = deckLoading;
 
   // DB-2.1 — Gateway padding tightens when the moon carousel is visible
   // so the spread icons aren't pushed past the bottom nav. The page also
