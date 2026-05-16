@@ -543,41 +543,6 @@ function CardTrendChart({
   );
 }
 
-function PillButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        padding: "4px 12px",
-        borderRadius: 999,
-        border: "1px solid",
-        borderColor: active
-          ? "var(--gold)"
-          : "color-mix(in oklab, var(--color-foreground) 14%, transparent)",
-        background: active
-          ? "color-mix(in oklch, var(--gold) 18%, transparent)"
-          : "transparent",
-        color: active ? "var(--gold)" : "var(--color-foreground)",
-        fontFamily: "var(--font-serif)",
-        fontStyle: "italic",
-        fontSize: "var(--text-caption)",
-        cursor: "pointer",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
 function weeklyBuckets(appearances: Appearance[], win: TimeRange) {
   const now = Date.now();
   const days =
