@@ -89,7 +89,7 @@ export function responsiveSlotWidth(viewportW: number, count: number): number {
   if (count <= 0 || viewportW <= 0) return 48;
   const isMobile = viewportW < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
   const railPad = isMobile ? 32 : 40; // Q39b Fix 2 - controls row outer+inner padding
-  const gap = count >= 10 ? 4 : isMobile ? 6 : 8;
+  const gap = slotGap(count, isMobile);
   const usable = Math.max(0, viewportW - railPad * 2 - gap * (count - 1));
   const naive = Math.floor(usable / count);
   const baseMinW = isMobile ? 24 : 36;
@@ -123,9 +123,21 @@ export function slotRailFitsViewport(
   if (count <= 0 || viewportW <= 0) return true;
   const isMobile = viewportW < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
   const railPad = isMobile ? 32 : 40;
-  const gap = count >= 10 ? 4 : isMobile ? 6 : 8;
+  const gap = slotGap(count, isMobile);
   const total = slotW * count + gap * (count - 1) + railPad * 2;
   return total <= viewportW;
+}
+
+/**
+ * Q68 — single source of truth for the slot-rail gap. Tabletop's DOM
+ * uses this value as an inline style (replacing the old gap-1/gap-2
+ * Tailwind classes) so the rendered gap matches what
+ * `responsiveSlotWidth` assumes when laying out the rail. Without this
+ * the math drifts by 1–2px per gap on mobile and pushes the last slot
+ * off-screen for 8+ card custom spreads.
+ */
+export function slotGap(count: number, isMobile: boolean): number {
+  return count >= 10 ? 4 : isMobile ? 6 : 8;
 }
 
 export function pickReturnSpot(
