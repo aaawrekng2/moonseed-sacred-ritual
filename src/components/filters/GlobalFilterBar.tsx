@@ -446,9 +446,11 @@ function TagsSection({
 function SpreadTypesSection({
   filters,
   onChange,
+  available,
 }: {
   filters: GlobalFilters;
   onChange: (next: GlobalFilters) => void;
+  available?: ReadonlyArray<string>;
 }) {
   const toggle = (k: string) => {
     const next = filters.spreadTypes.includes(k)
@@ -456,11 +458,15 @@ function SpreadTypesSection({
       : [...filters.spreadTypes, k];
     onChange({ ...filters, spreadTypes: next });
   };
+  const keys = available
+    ? DRAW_TYPE_KEYS.filter((k) => available.includes(k))
+    : DRAW_TYPE_KEYS;
+  if (keys.length === 0) return null;
   return (
     <section>
       <SectionHeader>Spread types</SectionHeader>
       <div className="flex flex-wrap gap-x-4 gap-y-2">
-        {DRAW_TYPE_KEYS.map((k) => (
+        {keys.map((k) => (
           <ToggleRow
             key={k}
             active={filters.spreadTypes.includes(k)}
@@ -507,9 +513,11 @@ function DepthSection({
 function MoonPhasesSection({
   filters,
   onChange,
+  available,
 }: {
   filters: GlobalFilters;
   onChange: (next: GlobalFilters) => void;
+  available?: ReadonlyArray<string>;
 }) {
   const toggle = (p: string) => {
     const next = filters.moonPhases.includes(p)
@@ -517,11 +525,15 @@ function MoonPhasesSection({
       : [...filters.moonPhases, p];
     onChange({ ...filters, moonPhases: next });
   };
+  const keys = available
+    ? MOON_PHASE_KEYS.filter((k) => available.includes(k))
+    : MOON_PHASE_KEYS;
+  if (keys.length === 0) return null;
   return (
     <section>
       <SectionHeader>Moon phases</SectionHeader>
       <div className="flex flex-wrap gap-x-3 gap-y-2">
-        {MOON_PHASE_KEYS.map((p) => (
+        {keys.map((p) => (
           <ToggleRow
             key={p}
             active={filters.moonPhases.includes(p)}
