@@ -522,6 +522,37 @@ export const getStalkerCardDetail = createServerFn({ method: "GET" })
     const { days } = effectiveWindow(data.timeRange, isPremium);
     const filters = InsightsFiltersSchema.parse({ ...data, cardId: undefined });
     const rows = await fetchFilteredReadings(supabase, userId, filters, days);
+    // Q76 — Available filter options computed from the time-window only,
+    // independent of the user's tag/spread/moon selections.
+    const timeOnly = {
+      ...filters,
+      tagIds: [],
+      spreadTypes: [],
+      moonPhases: [],
+      deepOnly: false,
+      reversedOnly: false,
+      deckIds: [],
+    };
+    const windowRows =
+      filters.tagIds.length === 0 &&
+      filters.spreadTypes.length === 0 &&
+      filters.moonPhases.length === 0 &&
+      !filters.deepOnly &&
+      !filters.reversedOnly &&
+      filters.deckIds.length === 0
+        ? rows
+        : await fetchFilteredReadings(supabase, userId, timeOnly, days);
+    const availTagsAll = new Set<string>();
+    const availSpreadsAll = new Set<string>();
+    const availMoonsAll = new Set<string>();
+    for (const r of windowRows) {
+      (r.tags ?? []).forEach((t) => {
+        if (t) availTagsAll.add(t);
+      });
+      if (r.spread_type) availSpreadsAll.add(r.spread_type);
+      const ph = resolveMoonPhase(r.moon_phase, r.created_at);
+      if (ph) availMoonsAll.add(ph);
+    }
     const appearances: Array<{
       readingId: string;
       date: string;
@@ -532,14 +563,9 @@ export const getStalkerCardDetail = createServerFn({ method: "GET" })
     }> = [];
     let total = 0;
     let reversed = 0;
-    const availSpreads = new Set<string>();
-    const availMoonPhases = new Set<string>();
     for (const r of rows) {
       const cards = r.card_ids ?? [];
       const orients = r.card_orientations ?? [];
-      if (r.spread_type) availSpreads.add(r.spread_type);
-      const ph = resolveMoonPhase(r.moon_phase, r.created_at);
-      if (ph) availMoonPhases.add(ph);
       cards.forEach((cid, idx) => {
         if (cid === data.cardId) {
           total += 1;
@@ -582,8 +608,9 @@ export const getStalkerCardDetail = createServerFn({ method: "GET" })
       lastSeen: appearances.length ? appearances[0].date : null,
       appearances,
       coOccurrences,
-      availableSpreadTypes: Array.from(availSpreads).sort(),
-      availableMoonPhases: Array.from(availMoonPhases).sort(),
+      availableSpreadTypes: Array.from(availSpreadsAll).sort(),
+      availableMoonPhases: Array.from(availMoonsAll).sort(),
+      availableTags: Array.from(availTagsAll).sort(),
     };
   });
 
