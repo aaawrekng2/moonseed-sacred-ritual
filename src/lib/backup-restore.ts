@@ -399,22 +399,21 @@ export async function executeRestore(params: {
           new RegExp(`^custom_decks/${folder}/back\\.[a-z0-9]+$`).test(p),
         );
         if (backEntry) {
-            const [path, zip] = backEntry;
-            const blob = await zip
-              .file(path)!
-              .async("blob")
-              .then((b) => new Blob([b], { type: contentTypeFor(extOf(path)) }));
-            const ext = extOf(path);
-            const storagePath = `${userId}/${deckId}/back-${Date.now()}.${ext}`;
-            const ok = await uploadIfMissing(DECK_BUCKET, storagePath, blob);
-            if (ok) {
-              const { data: signed } = await supabase.storage
-                .from(DECK_BUCKET)
-                .createSignedUrl(storagePath, 60 * 60 * 24 * 365);
-              backUrl = signed?.signedUrl ?? backUrl;
-              backThumb = signed?.signedUrl ?? backThumb;
-              deckResult.filesUploaded += 1;
-            }
+          const [path, zip] = backEntry;
+          const blob = await zip
+            .file(path)!
+            .async("blob")
+            .then((b) => new Blob([b], { type: contentTypeFor(extOf(path)) }));
+          const ext = extOf(path);
+          const storagePath = `${userId}/${deckId}/back-${Date.now()}.${ext}`;
+          const ok = await uploadIfMissing(DECK_BUCKET, storagePath, blob);
+          if (ok) {
+            const { data: signed } = await supabase.storage
+              .from(DECK_BUCKET)
+              .createSignedUrl(storagePath, 60 * 60 * 24 * 365);
+            backUrl = signed?.signedUrl ?? backUrl;
+            backThumb = signed?.signedUrl ?? backThumb;
+            deckResult.filesUploaded += 1;
           }
         }
       }
