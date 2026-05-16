@@ -371,18 +371,6 @@ export function ManualEntryBuilder({
           placedCardIds={placedIds}
           deckCards={deckCards}
         />
-        <p
-          className="text-center"
-          style={{
-            fontSize: "var(--text-caption, 0.72rem)",
-            color: "var(--color-foreground)",
-            opacity: 0.55,
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-          }}
-        >
-          Or tap a position below to pick from the deck. Drag a filled slot to reorder.
-        </p>
 
         {/* Phase 9.5b Fix 5 — slot positions match the SpreadLayout used
             by the reading screen exactly, so manual entry feels like the
@@ -522,7 +510,7 @@ export function ManualEntryBuilder({
             value={question}
             onChange={(e) => onQuestionChange(e.target.value)}
             rows={3}
-            placeholder="Tap to add your question…"
+            placeholder="Tap to add your question for the cards"
             className="w-full bg-transparent focus:outline-none text-center"
             style={{
               fontFamily: "var(--font-serif)",
