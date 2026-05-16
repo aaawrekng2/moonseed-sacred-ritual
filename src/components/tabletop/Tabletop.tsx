@@ -108,6 +108,9 @@ export function Tabletop({
   }, [authUser, authLoading, onSwitchToManual, onCustomCountChange, spread]);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // Q67 — lock device orientation while the draw table is active so
+  // accidental rotation doesn't scramble the scatter.
+  useLockOrientation();
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   // Q33b Fix 4 — tracks the previous measured size so the RAF loop
   // only resets initializedRef on the first valid measurement.
