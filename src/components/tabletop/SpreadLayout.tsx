@@ -1348,7 +1348,16 @@ export function ManualSpreadSlots({
     const cellW = Math.min(cellWRaw, 120);
     const cardAreaH = Math.round(cellW * 2);
     return (
-      <div style={{ width: "100%", overflowX: "hidden" }}>
+      <div
+        style={{
+          width: "100%",
+          overflowX: "hidden",
+          // Q73 Fix 9 — give the leftmost/rightmost cells room for their
+          // border + glow before the wrapper clips overflow.
+          paddingLeft: 12,
+          paddingRight: 12,
+        }}
+      >
         <div
           style={{
             display: "grid",
@@ -1435,7 +1444,14 @@ export function ManualSpreadSlots({
       rows.push(picks.slice(cols));
     }
     return (
-      <div style={{ width: "100%", overflowX: "hidden" }}>
+      <div
+        style={{
+          width: "100%",
+          overflowX: "hidden",
+          paddingLeft: 12,
+          paddingRight: 12,
+        }}
+      >
         {rows.map((rowPicks, rowIdx) => {
           const offset = rowIdx * cols;
           return (

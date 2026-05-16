@@ -15,10 +15,11 @@ import {
   X,
   ChevronDown,
   Sparkles,
+  Filter,
 } from "lucide-react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -84,6 +85,24 @@ function CardTraceRoute() {
   useAuth();
   const [openReadingId, setOpenReadingId] = useState<string | null>(null);
 
+  // Q73 Fix 1+3 — page-level time filter, defaults to "all" so the
+  // appearance count matches the grid view. The trend chart now reads
+  // from this shared window instead of its own pills.
+  const [trendWin, setTrendWin] = useState<TrendWindow>("all");
+
+  const filteredAppearances = useMemo<Appearance[]>(() => {
+    if (!data) return [];
+    if (trendWin === "all") return data.appearances;
+    const days = trendWin === "30d" ? 30 : trendWin === "90d" ? 90 : 180;
+    const cutoff = Date.now() - days * 86400000;
+    return data.appearances.filter((a) => new Date(a.date).getTime() >= cutoff);
+  }, [data, trendWin]);
+  const filteredCount = filteredAppearances.length;
+  const filteredReversed = useMemo(
+    () => filteredAppearances.filter((a) => a.isReversed).length,
+    [filteredAppearances],
+  );
+
   const heroRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     heroRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
@@ -148,6 +167,41 @@ function CardTraceRoute() {
         </button>
       </header>
 
+      {/* Q73 Fix 1 — page-level time filter bar at the top, matching the
+          main Insights pattern. Defaults to "all" (Fix 3) so the count
+          matches the grid view. */}
+      <div
+        className="flex items-center justify-center gap-3 px-4 py-2"
+        style={{ borderBottom: "1px solid var(--border-subtle)" }}
+      >
+        <Filter
+          className="h-4 w-4"
+          style={{ color: "var(--foreground-muted)", opacity: 0.8 }}
+          aria-hidden
+        />
+        <select
+          value={trendWin}
+          onChange={(e) => setTrendWin(e.target.value as TrendWindow)}
+          aria-label="Time range"
+          style={{
+            background: "transparent",
+            border: "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+            borderRadius: 999,
+            padding: "4px 12px",
+            color: "var(--color-foreground)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-caption)",
+            cursor: "pointer",
+          }}
+        >
+          <option value="all">All time</option>
+          <option value="180d">Last 180 days</option>
+          <option value="90d">Last 90 days</option>
+          <option value="30d">Last 30 days</option>
+        </select>
+      </div>
+
       <main className="flex-1 overflow-y-auto px-5 pb-12 pt-4">
         <div className="mx-auto flex max-w-md flex-col items-center gap-5">
           {/* 3a — Hero */}
@@ -176,11 +230,17 @@ function CardTraceRoute() {
           {meaning && <MeaningSection meaning={meaning} />}
 
           {/* 3c — Stats strip */}
-          {data && <StatsStrip data={data} />}
+          {data && (
+            <StatsStrip
+              data={data}
+              count={filteredCount}
+              reversedCount={filteredReversed}
+            />
+          )}
 
           {/* 3d — Trend line */}
-          {data && data.totalCount > 0 && (
-            <CardTrendChart appearances={data.appearances} />
+          {data && filteredCount > 0 && (
+            <CardTrendChart appearances={filteredAppearances} win={trendWin} />
           )}
 
           {/* 3e — Co-occurrence */}
@@ -201,9 +261,9 @@ function CardTraceRoute() {
         </div>
 
         {/* 3g — Calendar — wider container */}
-        {data && data.totalCount > 0 && (
+        {data && filteredCount > 0 && (
           <div className="mx-auto my-6" style={{ maxWidth: 960 }}>
-            <ExpandableCalendar appearances={data.appearances} />
+            <ExpandableCalendar appearances={filteredAppearances} />
           </div>
         )}
 
@@ -213,9 +273,9 @@ function CardTraceRoute() {
             <EmptyNote text="This card hasn't appeared in your readings yet." />
           )}
 
-          {data && data.totalCount > 0 && (
+          {data && filteredCount > 0 && (
             <ReadingsList
-              appearances={data.appearances}
+              appearances={filteredAppearances}
               onOpen={setOpenReadingId}
             />
           )}
@@ -259,11 +319,14 @@ function MeaningSection({
   const [expanded, setExpanded] = useState(false);
   return (
     <div className="flex w-full flex-col items-center gap-3">
+      {/* Q73 Fix 2 — orientation labels above each chip row. */}
+      <KeywordRowLabel>Upright</KeywordRowLabel>
       <div className="flex w-full flex-wrap justify-center gap-2">
         {meaning.uprightKeywords.map((k) => (
           <KeywordChip key={`u-${k}`} text={k} variant="upright" />
         ))}
       </div>
+      <KeywordRowLabel>Reversed</KeywordRowLabel>
       <div className="flex w-full flex-wrap justify-center gap-2">
         {meaning.reversedKeywords.map((k) => (
           <KeywordChip key={`r-${k}`} text={k} variant="reversed" />
@@ -371,15 +434,37 @@ function KeywordChip({
   );
 }
 
+function KeywordRowLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        fontSize: "var(--text-caption)",
+        color: "var(--foreground-muted)",
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+        opacity: 0.85,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 /* ============================================================
  * 3c — Stats strip
  * ============================================================ */
-function StatsStrip({ data }: { data: Detail }) {
+function StatsStrip({
+  data,
+  count,
+  reversedCount,
+}: {
+  data: Detail;
+  count: number;
+  reversedCount: number;
+}) {
   const reversalRate =
-    data.totalCount === 0
-      ? 0
-      : Math.round((data.reversedCount / data.totalCount) * 100);
-  if (data.totalCount === 0) return null;
+    count === 0 ? 0 : Math.round((reversedCount / count) * 100);
+  if (count === 0) return null;
   return (
     <div
       className="grid w-full"
@@ -389,7 +474,7 @@ function StatsStrip({ data }: { data: Detail }) {
         padding: "16px 8px",
       }}
     >
-      <Stat value={String(data.totalCount)} label="appearances" />
+      <Stat value={String(count)} label="appearances" />
       <Stat
         value={data.firstSeen ? formatDateShort(data.firstSeen) : "—"}
         label="first drawn"
@@ -431,21 +516,25 @@ function Stat({ value, label }: { value: string; label: string }) {
 /* ============================================================
  * 3d — Trend chart with time-window pills
  * ============================================================ */
-function CardTrendChart({ appearances }: { appearances: Appearance[] }) {
-  const [win, setWin] = useState<TrendWindow>("90d");
+function CardTrendChart({
+  appearances,
+  win,
+}: {
+  appearances: Appearance[];
+  win: TrendWindow;
+}) {
   const data = useMemo(() => weeklyBuckets(appearances, win), [appearances, win]);
   return (
     <div className="w-full">
-      <div className="mb-2 flex justify-center gap-2">
-        {(["30d", "90d", "180d", "all"] as TrendWindow[]).map((w) => (
-          <PillButton key={w} active={win === w} onClick={() => setWin(w)}>
-            {w === "all" ? "All" : w}
-          </PillButton>
-        ))}
-      </div>
       <div style={{ width: "100%", height: 140 }}>
         <ResponsiveContainer>
-          <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+            <defs>
+              <linearGradient id="cardTrendGold" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--gold)" stopOpacity={0.18} />
+                <stop offset="100%" stopColor="var(--gold)" stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
             <CartesianGrid
               strokeDasharray="2 4"
               stroke="color-mix(in oklab, var(--color-foreground) 12%, transparent)"
@@ -474,15 +563,17 @@ function CardTrendChart({ appearances }: { appearances: Appearance[] }) {
               }}
               labelStyle={{ color: "var(--foreground-muted)" }}
             />
-            <Line
+            <Area
               type="monotone"
               dataKey="count"
               stroke="var(--gold)"
               strokeWidth={2}
+              strokeOpacity={0.9}
+              fill="url(#cardTrendGold)"
               dot={false}
               isAnimationActive={false}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>
@@ -601,7 +692,14 @@ function CoOccurrenceStrip({
             }}
             aria-label={`${getCardName(e.cardId)} — ${e.count} co-occurrences`}
           >
-            <CardImage cardId={e.cardId} size="custom" widthPx={60} />
+            {/* Q73 Fix 5 — bigger thumbnails (≈80px mobile / 100px desktop
+                from a ~0.62 aspect, giving 100/120px tall). */}
+            <div className="md:hidden">
+              <CardImage cardId={e.cardId} size="custom" widthPx={62} />
+            </div>
+            <div className="hidden md:block">
+              <CardImage cardId={e.cardId} size="custom" widthPx={75} />
+            </div>
             <div
               style={{
                 marginTop: 4,

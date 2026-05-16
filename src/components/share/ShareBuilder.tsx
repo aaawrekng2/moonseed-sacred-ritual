@@ -22,7 +22,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Eye, Layers, Quote, Wand2, Star, X } from "lucide-react";
+import { ClipboardCopy, Eye, Layers, Quote, Wand2, Star, X } from "lucide-react";
 import {
   Dialog,
   DialogDescription,
@@ -63,6 +63,9 @@ import {
   type ShareContext,
   type ShareLevel,
 } from "./share-types";
+import { getCardMeaning } from "@/lib/tarot-meanings";
+import { getCardName } from "@/lib/tarot";
+import { formatDateShort } from "@/lib/dates";
 
 type LevelSpec = {
   id: ShareLevel;
@@ -810,6 +813,19 @@ export function ShareBuilder({
                 disabled={busy !== null}
               />
             </div>
+            {/* Q73 — Export to AI utility action. Lives next to the
+                share/save actions but is not a share level. Copies a
+                plain-text reading summary to the clipboard so the seeker
+                can paste it into ChatGPT / Gemini / etc. */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                paddingTop: "var(--space-1)",
+              }}
+            >
+              <ExportToAIButton context={context} />
+            </div>
             <div
               style={{
                 textAlign: "center",
@@ -1097,6 +1113,86 @@ function ToggleChip({
       {label}
     </button>
   );
+}
+
+/**
+ * Q73 — Export to AI. Copies a formatted plain-text summary of the
+ * current reading to the clipboard. No credits consumed; no AI call.
+ * The button label switches to "Copied!" for ~1.5s as confirmation
+ * (per styling doc: no toasts for confirmation).
+ */
+function ExportToAIButton({ context }: { context: ShareContext }) {
+  const [copied, setCopied] = useState(false);
+  const handleClick = () => {
+    const text = buildExportText(context);
+    void (async () => {
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1500);
+      } catch {
+        // Best-effort: silently fail. The user can retry; no toast.
+      }
+    })();
+  };
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        background: "transparent",
+        border: "1px solid var(--border-default)",
+        borderRadius: 999,
+        padding: "var(--space-1) var(--space-4)",
+        color: copied ? "var(--accent)" : "var(--color-foreground)",
+        opacity: copied ? 1 : 0.85,
+        fontFamily: "var(--font-sans)",
+        fontSize: "var(--text-caption)",
+        letterSpacing: "0.18em",
+        textTransform: "uppercase",
+        cursor: "pointer",
+      }}
+    >
+      <ClipboardCopy size={14} strokeWidth={1.5} />
+      <span>{copied ? "Copied!" : "Export to AI"}</span>
+    </button>
+  );
+}
+
+function buildExportText(ctx: ShareContext): string {
+  const today = formatDateShort(new Date().toISOString());
+  const question = ctx.question?.trim()
+    ? `"${ctx.question.trim()}"`
+    : "No question asked";
+  const lines: string[] = [];
+  lines.push(`Tarot Reading — ${today}`);
+  lines.push(`Spread: ${ctx.spread}`);
+  lines.push(`Question: ${question}`);
+  lines.push("");
+  ctx.picks.forEach((pick, idx) => {
+    const meaning = getCardMeaning(pick.cardIndex);
+    const name = meaning?.name ?? getCardName(pick.cardIndex);
+    const orient = pick.isReversed ? "reversed" : "upright";
+    const position =
+      ctx.positionLabels[idx] ?? `Card ${idx + 1}`;
+    lines.push(`Card ${idx + 1} — ${position}: ${name} (${orient})`);
+    const keywords = pick.isReversed
+      ? meaning?.reversedKeywords ?? []
+      : meaning?.uprightKeywords ?? [];
+    if (keywords.length > 0) {
+      lines.push(`Keywords: ${keywords.join(", ")}`);
+    }
+    lines.push("");
+  });
+  lines.push("---");
+  lines.push("");
+  lines.push(
+    `Ask your AI: "Based on this tarot reading, what insights can you share?"`,
+  );
+  return lines.join("\n");
 }
 
 function PlainAction({
