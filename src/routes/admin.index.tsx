@@ -495,6 +495,7 @@ function MobileTabBar({
 /* ---------------- Dashboard tab ---------------- */
 
 function DashboardTab() {
+  const [alerts, setAlerts] = useState<Awaited<ReturnType<typeof getDashboardAlerts>> | null>(null);
   const [stats, setStats] = useState<{
     totalUsers: number;
     totalReadings: number;
@@ -672,6 +673,12 @@ function DashboardTab() {
       } catch {
         setPendingList([]);
       }
+      try {
+        const a = await getDashboardAlerts({ headers: await authHeaders() });
+        setAlerts(a);
+      } catch {
+        setAlerts(null);
+      }
     })();
   }, []);
 
@@ -687,7 +694,57 @@ function DashboardTab() {
         <StatCard label="Total readings" value={stats.totalReadings} />
         <StatCard label="Active today" value={stats.activeToday} />
         <StatCard label="Active this week" value={stats.activeWeek} />
+        <StatCard
+          label="AI spend (month)"
+          value={alerts ? `$${alerts.aiSpendThisMonth.toFixed(2)}` : "…"}
+        />
       </div>
+
+      {alerts && (
+        <section>
+          <SectionTitle>Alerts</SectionTitle>
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            {alerts.negativeBalance.length === 0 &&
+             alerts.zeroCredit.length === 0 &&
+             alerts.highUsage.length === 0 &&
+             alerts.orphan.count === 0 && (
+              <div style={{ ...serif, padding: 12, border: "1px solid #2da44e", color: "#2da44e", fontStyle: "italic" }}>
+                No alerts — all systems healthy.
+              </div>
+            )}
+            {alerts.negativeBalance.length > 0 && (
+              <div style={{ ...serif, padding: 12, border: "1px solid #c25450", color: "#e6edf3" }}>
+                <div style={{ ...display, fontSize: "var(--text-caption)", letterSpacing: "0.18em", textTransform: "uppercase", color: "#c25450", marginBottom: 6 }}>Negative balance ({alerts.negativeBalance.length})</div>
+                {alerts.negativeBalance.slice(0, 10).map((u) => (
+                  <div key={u.user_id} style={{ fontSize: 12, opacity: 0.8 }}>{u.email} · deficit {u.deficit}</div>
+                ))}
+              </div>
+            )}
+            {alerts.zeroCredit.length > 0 && (
+              <div style={{ ...serif, padding: 12, border: "1px solid #d4a72c", color: "#e6edf3" }}>
+                <div style={{ ...display, fontSize: "var(--text-caption)", letterSpacing: "0.18em", textTransform: "uppercase", color: "#d4a72c", marginBottom: 6 }}>Zero-credit users ({alerts.zeroCredit.length})</div>
+                {alerts.zeroCredit.slice(0, 8).map((u) => (
+                  <div key={u.user_id} style={{ fontSize: 12, opacity: 0.8 }}>{u.email}</div>
+                ))}
+              </div>
+            )}
+            {alerts.highUsage.length > 0 && (
+              <div style={{ ...serif, padding: 12, border: "1px solid #58a6ff", color: "#e6edf3" }}>
+                <div style={{ ...display, fontSize: "var(--text-caption)", letterSpacing: "0.18em", textTransform: "uppercase", color: "#58a6ff", marginBottom: 6 }}>High usage ({alerts.highUsage.length})</div>
+                {alerts.highUsage.slice(0, 8).map((u) => (
+                  <div key={u.user_id} style={{ fontSize: 12, opacity: 0.8 }}>{u.email} · {u.calls} calls · ${u.cost.toFixed(2)}</div>
+                ))}
+              </div>
+            )}
+            {alerts.orphan.count > 0 && (
+              <div style={{ ...serif, padding: 12, border: "1px solid #d4a72c", color: "#e6edf3" }}>
+                <div style={{ ...display, fontSize: "var(--text-caption)", letterSpacing: "0.18em", textTransform: "uppercase", color: "#d4a72c", marginBottom: 6 }}>Orphaned AI calls</div>
+                <div style={{ fontSize: 12, opacity: 0.8 }}>{alerts.orphan.count} calls · ${alerts.orphan.totalCost.toFixed(2)} total</div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <section>
         <SectionTitle>Daily readings · last 30 days</SectionTitle>
