@@ -196,6 +196,40 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
     const { days, capped } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
 
+    // Q76 — Compute available filter options from the time-window only,
+    // BEFORE applying tag/spread/moon/depth filters. This way changing the
+    // time range updates the available filter list, but selecting a tag
+    // doesn't make other tags disappear from the drawer.
+    const timeOnlyFilters = {
+      ...data,
+      tagIds: [],
+      spreadTypes: [],
+      moonPhases: [],
+      deepOnly: false,
+      reversedOnly: false,
+      deckIds: [],
+    };
+    const windowRows =
+      data.tagIds.length === 0 &&
+      data.spreadTypes.length === 0 &&
+      data.moonPhases.length === 0 &&
+      !data.deepOnly &&
+      !data.reversedOnly &&
+      data.deckIds.length === 0
+        ? rows
+        : await fetchFilteredReadings(supabase, userId, timeOnlyFilters, days);
+    const availTags = new Set<string>();
+    const availSpreadsAll = new Set<string>();
+    const availMoonsAll = new Set<string>();
+    for (const r of windowRows) {
+      (r.tags ?? []).forEach((t) => {
+        if (t) availTags.add(t);
+      });
+      if (r.spread_type) availSpreadsAll.add(r.spread_type);
+      const ph = resolveMoonPhase(r.moon_phase, r.created_at);
+      if (ph) availMoonsAll.add(ph);
+    }
+
     const suitCounts = { Wands: 0, Cups: 0, Swords: 0, Pentacles: 0 };
     let majors = 0;
     let minors = 0;
@@ -290,8 +324,9 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
         : null,
       deepReadingsCount: deepCount,
       dataCapped: capped,
-      availableSpreadTypes: Array.from(availSpreads).sort(),
-      availableMoonPhases: Array.from(availMoonPhases).sort(),
+      availableSpreadTypes: Array.from(availSpreadsAll).sort(),
+      availableMoonPhases: Array.from(availMoonsAll).sort(),
+      availableTags: Array.from(availTags).sort(),
     };
   });
 
