@@ -52,7 +52,6 @@ import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
 import { toast } from "sonner";
 import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
-import { usePremium } from "@/lib/premium";
 
 type Pick = {
   id: number;
@@ -96,8 +95,7 @@ export function ReadingScreen({
 }: Props) {
   const meta = SPREAD_META[spread];
   const { isOracle } = useOracleMode();
-  const { user } = useAuth();
-  const { isPremium } = usePremium(user?.id);
+  useAuth();
   const [state, setState] = useState<LoadState>({ kind: "idle" });
   const [retryNonce, setRetryNonce] = useState(0);
   // Dev override: when true, the next interpret call sets allowOverride
@@ -506,9 +504,7 @@ export function ReadingScreen({
               copyText={copyText ?? ""}
             />
           )}
-          {state.kind === "limit" && (
-            <AiQuotaBlock resetAt={null} isPremium={isPremium} />
-          )}
+          {state.kind === "limit" && <AiQuotaBlock resetAt={null} />}
           {state.kind === "error" && (
             <ErrorMessage
               message={state.message}
