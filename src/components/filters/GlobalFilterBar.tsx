@@ -40,6 +40,8 @@ export type GlobalFilterBarProps = {
   userTags?: ReadonlyArray<{ id: string; name: string; usage_count: number }>;
   /** Reference data for the Stories section (Journal only). */
   allStories?: ReadonlyArray<{ id: string; name: string }>;
+  /** Q76 — Restrict Tags section to tag names actually present in window. */
+  availableTags?: ReadonlyArray<string>;
   /** Q75 — Restrict Spread Types section to these keys (dynamic from data). */
   availableSpreadTypes?: ReadonlyArray<string>;
   /** Q75 — Restrict Moon Phases section to these keys (dynamic from data). */
@@ -62,6 +64,7 @@ export function GlobalFilterBar({
   timeRange,
   userTags = [],
   allStories = [],
+  availableTags,
   availableSpreadTypes,
   availableMoonPhases,
   trailingChips,
@@ -190,6 +193,7 @@ export function GlobalFilterBar({
         sections={sections}
         userTags={userTags}
         allStories={allStories}
+        availableTags={availableTags}
         availableSpreadTypes={availableSpreadTypes}
         availableMoonPhases={availableMoonPhases}
       />
@@ -213,6 +217,7 @@ function FilterDrawer({
   sections,
   userTags,
   allStories,
+  availableTags,
   availableSpreadTypes,
   availableMoonPhases,
 }: {
@@ -223,6 +228,7 @@ function FilterDrawer({
   sections: ReadonlyArray<FilterSectionKey>;
   userTags: ReadonlyArray<{ id: string; name: string; usage_count: number }>;
   allStories: ReadonlyArray<{ id: string; name: string }>;
+  availableTags?: ReadonlyArray<string>;
   availableSpreadTypes?: ReadonlyArray<string>;
   availableMoonPhases?: ReadonlyArray<string>;
 }) {
@@ -285,6 +291,7 @@ function FilterDrawer({
                     filters={filters}
                     onChange={onChange}
                     userTags={userTags}
+                    available={availableTags}
                   />
                 );
               case "spreadTypes":
