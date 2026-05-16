@@ -1327,7 +1327,30 @@ export function Tabletop({
                 // would clip the gold pulse. (Was overflow-x-auto.)
                 "overflow-visible",
               )}
-              style={{ paddingTop: 12 }}
+              style={(() => {
+                const fits = slotRailFitsViewport(
+                  viewportW ?? 0,
+                  required,
+                  slotW,
+                );
+                // Q68 — when the rail can't fit even at the 16px floor,
+                // allow horizontal scroll and fade the edges so the
+                // overflow reads as a rail extending beyond the viewport
+                // rather than getting hard-clipped.
+                if (!fits) {
+                  return {
+                    paddingTop: 12,
+                    overflowX: "auto" as const,
+                    overflowY: "visible" as const,
+                    justifyContent: "flex-start" as const,
+                    WebkitMaskImage:
+                      "linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%)",
+                    maskImage:
+                      "linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%)",
+                  };
+                }
+                return { paddingTop: 12 };
+              })()}
               role="list"
               aria-label={`${meta.label} slots`}
             >
