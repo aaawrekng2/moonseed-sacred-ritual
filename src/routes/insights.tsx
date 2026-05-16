@@ -477,20 +477,6 @@ function OverviewTab({
         <HeroCard result={stalkers} onTap={onTapHero} />
       )}
 
-      {overview.dataCapped && (
-        <div
-          className="rounded-lg p-2 text-center"
-          style={{
-            background: "var(--surface-card)",
-            fontStyle: "italic",
-            fontSize: "var(--text-caption, 0.75rem)",
-            opacity: 0.75,
-          }}
-        >
-          Showing the last 90 days. Upgrade for all-time data.
-        </div>
-      )}
-
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
         <SuitBalanceChart data={overview.suitBalance} onTap={() => log("suit")} />
         <MajorMinorChart data={overview.majorMinor} onTap={() => log("major-minor")} />

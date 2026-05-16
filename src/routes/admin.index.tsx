@@ -1842,9 +1842,6 @@ function UsersTab({
   const [statusFilter, setStatusFilter] = useState<
     "all" | "active" | "stale" | "dormant"
   >("all");
-  const [premiumFilter, setPremiumFilter] = useState<
-    "all" | "premium" | "free"
-  >("all");
   // CP — master/detail. selectedUserId === null shows the list; otherwise
   // the detail page replaces the list within the same tab. Search and
   // filters above are preserved across the transition because they're
@@ -1885,21 +1882,18 @@ function UsersTab({
         if (!emailMatch && !nameMatch) return false;
       }
       if (roleFilter !== "all" && u.role !== roleFilter) return false;
-      if (premiumFilter === "premium" && !u.is_premium) return false;
-      if (premiumFilter === "free" && u.is_premium) return false;
       if (statusFilter !== "all" && userStatus(u) !== statusFilter)
         return false;
       return true;
     });
-  }, [users, search, roleFilter, premiumFilter, statusFilter]);
+  }, [users, search, roleFilter, statusFilter]);
 
   const summary = useMemo(() => {
-    const premium = users.filter((u) => u.is_premium).length;
     const supers = users.filter((u) => u.role === "super_admin").length;
     const admins = users.filter((u) => u.role === "admin").length;
     const sLbl = supers === 1 ? "super admin" : "super admins";
     const aLbl = admins === 1 ? "admin" : "admins";
-    return `${users.length} users · ${premium} premium · ${supers} ${sLbl} · ${admins} ${aLbl}`;
+    return `${users.length} users · ${supers} ${sLbl} · ${admins} ${aLbl}`;
   }, [users]);
 
   const selectedUser = useMemo(
@@ -1956,16 +1950,6 @@ function UsersTab({
             ["dormant", "Dormant"],
           ]}
         />
-        <FilterSelect
-          label="Premium"
-          value={premiumFilter}
-          onChange={(v) => setPremiumFilter(v as typeof premiumFilter)}
-          options={[
-            ["all", "All"],
-            ["premium", "Premium"],
-            ["free", "Free"],
-          ]}
-        />
       </div>
 
       <div
@@ -2013,7 +1997,6 @@ function UsersTab({
                 <Th>Role</Th>
                 <Th>Activity</Th>
                 <Th>Joined</Th>
-                <Th>Premium</Th>
               </tr>
             </thead>
             <tbody>
@@ -2108,7 +2091,6 @@ function UserListRow({
       </Td>
       <Td>{formatActivity(user.reading_count, user.last_reading)}</Td>
       <Td>{formatDateLong(user.created_at)}</Td>
-      <Td>{formatPremiumCell(user)}</Td>
     </tr>
   );
 }
@@ -2162,19 +2144,6 @@ function formatRelative(iso: string | null): string {
   if (mo < 12) return `${mo}mo ago`;
   const yr = Math.floor(d / 365);
   return `${yr}y ago`;
-}
-
-function formatPremiumCell(user: AdminUser): React.ReactNode {
-  if (!user.is_premium) return <span style={{ opacity: 0.4 }}>—</span>;
-  const exp = user.premium_expires_at
-    ? new Date(user.premium_expires_at)
-    : null;
-  if (!exp) return <Badge>Yes</Badge>;
-  const daysLeft = Math.max(
-    0,
-    Math.ceil((exp.getTime() - Date.now()) / 86_400_000),
-  );
-  return <Badge>Yes · {daysLeft}d</Badge>;
 }
 
 /**
@@ -2790,11 +2759,6 @@ function UserDetailPage({
   );
 }
 
-function subscriptionStatusLabel(u: AdminUser): string {
-  if (u.role === "super_admin") return "Super Admin";
-  if (u.is_premium) return "Premium";
-  return "Free";
-}
 
 function DetailPanel({
   title,
@@ -2911,35 +2875,6 @@ function ActionBtn({
   );
 }
 
-function GrantPremiumModal({
-  mode,
-  targetLabel,
-  currentExpires,
-  onClose,
-  onConfirm,
-}: {
-  mode: "grant" | "extend";
-  targetLabel: string;
-  currentExpires: string | null;
-  onClose: () => void;
-  onConfirm: (months: number) => void | Promise<void>;
-}) {
-  // Day chips per spec: 30 / 60 / 90 / 180 / 365.
-  const chips: Array<{ days: number; label: string }> = [
-    { days: 30, label: "30 days" },
-    { days: 60, label: "60 days" },
-    { days: 90, label: "90 days" },
-    { days: 180, label: "180 days" },
-    { days: 365, label: "1 year" },
-  ];
-  const [days, setDays] = useState(30);
-  const [customStr, setCustomStr] = useState("");
-
-  const effectiveDays = (() => {
-    const c = parseInt(customStr, 10);
-    if (Number.isFinite(c) && c > 0) return c;
-    return days;
-  })();
 
   // For grant: expiry = now + days. For extend: extend from existing
   // expiry if still in the future, otherwise from now. Mirrors server.
@@ -3746,71 +3681,6 @@ function HistoryModal({
   );
 }
 
-function PremiumPanel({
-  user,
-  onClose,
-  onConfirm,
-}: {
-  user: AdminUser;
-  onClose: () => void;
-  onConfirm: (months: number) => void | Promise<void>;
-}) {
-  const [months, setMonths] = useState(1);
-  return (
-    <ModalShell
-      title={user.is_premium ? "Extend premium" : "Gift premium"}
-      onClose={onClose}
-    >
-      <p style={{ ...serif, fontSize: "var(--text-body-sm)", opacity: 0.7 }}>
-        Choose a duration for {user.email ?? user.user_id.slice(0, 8)}.
-      </p>
-      <div className="mt-4 flex flex-wrap gap-3">
-        {[1, 3, 6, 12].map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMonths(m)}
-            style={{
-              ...display,
-              fontSize: "var(--text-caption)",
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              padding: "8px 14px",
-              background: "none",
-              border:
-                months === m
-                  ? "1px solid var(--accent, var(--gold))"
-                  : "1px solid var(--border-subtle)",
-              color:
-                months === m
-                  ? "var(--accent, var(--gold))"
-                  : "color-mix(in oklab, var(--color-foreground) 60%, transparent)",
-              cursor: "pointer",
-            }}
-          >
-            {m === 12 ? "1 year" : `${m} mo`}
-          </button>
-        ))}
-      </div>
-      <div className="mt-6 flex justify-end gap-4">
-        <button
-          type="button"
-          onClick={onClose}
-          style={textBtnStyle("muted")}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => void onConfirm(months)}
-          style={textBtnStyle("gold")}
-        >
-          Confirm
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
 
 function NoteModal({
   user,

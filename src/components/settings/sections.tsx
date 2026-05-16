@@ -1154,56 +1154,6 @@ export { LIFE_AREAS };
 
 /* ------------------------- Memory ------------------------- */
 
-function PremiumPromptsSection({
-  user,
-  prefs,
-  setPrefs,
-}: {
-  user: { id: string };
-  prefs: Prefs;
-  setPrefs: (p: Prefs) => void;
-}) {
-  const [saving, setSaving] = useState(false);
-  const toggle = async (next: boolean) => {
-    setSaving(true);
-    const previous = prefs.reduce_premium_prompts;
-    setPrefs({ ...prefs, reduce_premium_prompts: next });
-    const { error } = await updateUserPreferences(user.id, {
-      reduce_premium_prompts: next,
-    } as never);
-    setSaving(false);
-    if (error) {
-      setPrefs({ ...prefs, reduce_premium_prompts: previous });
-      toast.error("Couldn't save your preference.");
-      return;
-    }
-    toast.success(next ? "Reduced premium prompts" : "Standard premium prompts", {
-      icon: "✓",
-    });
-  };
-  return (
-    <SettingsSection title="Premium Prompts">
-      <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
-        <div className="space-y-0.5">
-          <Label htmlFor="reduce-premium-prompts" className="text-sm">
-            Reduce premium prompts
-          </Label>
-          <p className="text-xs text-muted-foreground">
-            Show premium features as a single line, without blurred previews or
-            upgrade prompts.
-          </p>
-        </div>
-        <Switch
-          id="reduce-premium-prompts"
-          checked={prefs.reduce_premium_prompts}
-          disabled={saving}
-          onCheckedChange={toggle}
-        />
-      </div>
-    </SettingsSection>
-  );
-}
-
 function MemorySection({
   user,
   prefs,

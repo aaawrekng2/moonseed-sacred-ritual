@@ -15,7 +15,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useActiveGuide } from "@/lib/use-active-guide";
-import { usePremium } from "@/lib/premium";
 import { useUIDensity } from "@/lib/use-ui-density";
 import {
   BUILT_IN_GUIDES,
@@ -31,8 +30,6 @@ import {
 import { cn } from "@/lib/utils";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { Modal } from "@/components/ui/modal";
-
-const FREE_CUSTOM_SLOTS = 1;
 
 export function GuideSelector({
   onContinue,
@@ -55,7 +52,6 @@ export function GuideSelector({
 }) {
   const { user } = useAuth();
   const { isOracle } = useOracleMode();
-  const premium = usePremium(user?.id);
   // The Clarity (Seen/Glimpse/Veiled) dims non-essential surface chrome
   // on this screen so the global tap-to-peek affordance has something
   // visible to flash back to full opacity. We bind opacity to the
@@ -158,9 +154,7 @@ export function GuideSelector({
     };
   }, [user]);
 
-  const slotsRemaining = premium.isPremium
-    ? Number.POSITIVE_INFINITY
-    : Math.max(0, FREE_CUSTOM_SLOTS - customGuides.length);
+  const slotsRemaining = Number.POSITIVE_INFINITY;
 
   const allGuideCards = useMemo(
     () => [

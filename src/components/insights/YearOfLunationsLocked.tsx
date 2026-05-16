@@ -1,6 +1,6 @@
 /**
- * EN-5 — Locked premium teaser at the bottom of the Recap tab.
- * Tap dispatches `tarotseed:open-premium` with featureName "Year of Lunations".
+ * Year of Lunations link card at the bottom of the Recap tab.
+ * Premium gating removed (Q72) — tap opens the full 12-slide story.
  */
 import { Link } from "@tanstack/react-router";
 

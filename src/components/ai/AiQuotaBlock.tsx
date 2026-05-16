@@ -12,12 +12,8 @@ export function AiQuotaBlock({
   reason,
 }: {
   resetAt: string | null;
-  /** Legacy prop kept for caller compatibility; ignored. */
-  isPremium?: boolean;
   /** Override the body line — used when AI is admin-blocked. */
   reason?: string | null;
-  /** Legacy prop kept for caller compatibility; ignored. */
-  onUpgrade?: () => void;
 }) {
   const nav = useNavigate();
   const reset = resetAt ? formatDateLong(resetAt) : null;
