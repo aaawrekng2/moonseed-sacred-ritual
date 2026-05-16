@@ -189,7 +189,15 @@ export async function getAvailableCredits(userId: string): Promise<number> {
     (s, u) => s + (u.credits_consumed ?? 0),
     0,
   );
-  return Math.max(0, totalGranted - totalUsed);
+  const diff = totalGranted - totalUsed;
+  if (diff < 0) {
+    // Q71 — safety net: race conditions in checkQuota could let consumption
+    // exceed grants. Log a warning so we have a paper trail.
+    console.warn(
+      `[ai-credits] negative balance for user ${userId}: granted=${totalGranted} used=${totalUsed} deficit=${-diff}`,
+    );
+  }
+  return Math.max(0, diff);
 }
 
 type QuotaCheck =

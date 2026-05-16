@@ -65,6 +65,7 @@ import {
   updateFeedbackStatus,
   type AdminFeedbackItem,
 } from "@/lib/admin-feedback.functions";
+import { grantBonusCredits, getDashboardAlerts } from "@/lib/admin-usage.functions";
 import { setDevMode } from "@/components/dev/DevOverlay";
 import { useConfirm } from "@/hooks/use-confirm";
 import { toast } from "sonner";
@@ -494,6 +495,7 @@ function MobileTabBar({
 /* ---------------- Dashboard tab ---------------- */
 
 function DashboardTab() {
+  const [alerts, setAlerts] = useState<Awaited<ReturnType<typeof getDashboardAlerts>> | null>(null);
   const [stats, setStats] = useState<{
     totalUsers: number;
     totalReadings: number;
@@ -671,6 +673,12 @@ function DashboardTab() {
       } catch {
         setPendingList([]);
       }
+      try {
+        const a = await getDashboardAlerts({ headers: await authHeaders() });
+        setAlerts(a);
+      } catch {
+        setAlerts(null);
+      }
     })();
   }, []);
 
@@ -686,7 +694,57 @@ function DashboardTab() {
         <StatCard label="Total readings" value={stats.totalReadings} />
         <StatCard label="Active today" value={stats.activeToday} />
         <StatCard label="Active this week" value={stats.activeWeek} />
+        <StatCard
+          label="AI spend (month)"
+          value={alerts ? `$${alerts.aiSpendThisMonth.toFixed(2)}` : "…"}
+        />
       </div>
+
+      {alerts && (
+        <section>
+          <SectionTitle>Alerts</SectionTitle>
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            {alerts.negativeBalance.length === 0 &&
+             alerts.zeroCredit.length === 0 &&
+             alerts.highUsage.length === 0 &&
+             alerts.orphan.count === 0 && (
+              <div style={{ ...serif, padding: 12, border: "1px solid #2da44e", color: "#2da44e", fontStyle: "italic" }}>
+                No alerts — all systems healthy.
+              </div>
+            )}
+            {alerts.negativeBalance.length > 0 && (
+              <div style={{ ...serif, padding: 12, border: "1px solid #c25450", color: "#e6edf3" }}>
+                <div style={{ ...display, fontSize: "var(--text-caption)", letterSpacing: "0.18em", textTransform: "uppercase", color: "#c25450", marginBottom: 6 }}>Negative balance ({alerts.negativeBalance.length})</div>
+                {alerts.negativeBalance.slice(0, 10).map((u) => (
+                  <div key={u.user_id} style={{ fontSize: 12, opacity: 0.8 }}>{u.email} · deficit {u.deficit}</div>
+                ))}
+              </div>
+            )}
+            {alerts.zeroCredit.length > 0 && (
+              <div style={{ ...serif, padding: 12, border: "1px solid #d4a72c", color: "#e6edf3" }}>
+                <div style={{ ...display, fontSize: "var(--text-caption)", letterSpacing: "0.18em", textTransform: "uppercase", color: "#d4a72c", marginBottom: 6 }}>Zero-credit users ({alerts.zeroCredit.length})</div>
+                {alerts.zeroCredit.slice(0, 8).map((u) => (
+                  <div key={u.user_id} style={{ fontSize: 12, opacity: 0.8 }}>{u.email}</div>
+                ))}
+              </div>
+            )}
+            {alerts.highUsage.length > 0 && (
+              <div style={{ ...serif, padding: 12, border: "1px solid #58a6ff", color: "#e6edf3" }}>
+                <div style={{ ...display, fontSize: "var(--text-caption)", letterSpacing: "0.18em", textTransform: "uppercase", color: "#58a6ff", marginBottom: 6 }}>High usage ({alerts.highUsage.length})</div>
+                {alerts.highUsage.slice(0, 8).map((u) => (
+                  <div key={u.user_id} style={{ fontSize: 12, opacity: 0.8 }}>{u.email} · {u.calls} calls · ${u.cost.toFixed(2)}</div>
+                ))}
+              </div>
+            )}
+            {alerts.orphan.count > 0 && (
+              <div style={{ ...serif, padding: 12, border: "1px solid #d4a72c", color: "#e6edf3" }}>
+                <div style={{ ...display, fontSize: "var(--text-caption)", letterSpacing: "0.18em", textTransform: "uppercase", color: "#d4a72c", marginBottom: 6 }}>Orphaned AI calls</div>
+                <div style={{ fontSize: 12, opacity: 0.8 }}>{alerts.orphan.count} calls · ${alerts.orphan.totalCost.toFixed(2)} total</div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <section>
         <SectionTitle>Daily readings · last 30 days</SectionTitle>
@@ -1620,7 +1678,7 @@ function DetectWeavesAlertsPanel() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value }: { label: string; value: number | string }) {
   return (
     <div
       style={{
@@ -2148,8 +2206,8 @@ function UserDetailPage({
   const [noteText, setNoteText] = useState(user.admin_note ?? "");
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteSavedAt, setNoteSavedAt] = useState<number | null>(null);
-  const [grantOpen, setGrantOpen] = useState<null | "grant" | "extend">(null);
   const [setPwOpen, setSetPwOpen] = useState(false);
+  const [grantingCredits, setGrantingCredits] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const confirm = useConfirm();
 
@@ -2182,20 +2240,20 @@ function UserDetailPage({
     }
   };
 
-  const onRevokePremium = async () => {
-    const ok = await confirm({
-      title: `Revoke Premium from ${targetLabel}?`,
-      description:
-        "This immediately removes Premium access. The user will revert to free features.",
-      confirmLabel: "Revoke Premium",
-      destructive: true,
-    });
-    if (!ok) return;
-    await runAction(
-      "revoke",
-      { type: "revoke_premium", targetUserId: user.user_id },
-      `Premium revoked from ${targetLabel}`,
-    );
+  const onQuickGrantCredits = async (credits: number) => {
+    setGrantingCredits(true);
+    try {
+      await grantBonusCredits({
+        data: { userId: user.user_id, credits, note: "admin quick grant" },
+        headers: await authHeaders(),
+      });
+      toast.success(`Granted ${credits} credits to ${targetLabel}`);
+      onNoteSaved();
+    } catch (e) {
+      toast.error((e as Error).message ?? "Failed to grant credits");
+    } finally {
+      setGrantingCredits(false);
+    }
   };
 
   const onPasswordReset = async () => {
@@ -2436,63 +2494,24 @@ function UserDetailPage({
 
       {/* Panels */}
       <div className="mt-8 grid gap-6">
-        <DetailPanel title="Subscription">
-          <DetailRow
-            label="Status"
-            value={subscriptionStatusLabel(user)}
-          />
-          {user.is_premium && user.premium_expires_at && (
-            <DetailRow
-              label="Expires"
-              value={(() => {
-                const exp = new Date(user.premium_expires_at);
-                const days = Math.ceil(
-                  (exp.getTime() - Date.now()) / 86_400_000,
-                );
-                if (days < 0)
-                  return `Expired on ${formatDateLong(exp.toISOString())}`;
-                return `${formatDateLong(exp.toISOString())} · ${days} day${days === 1 ? "" : "s"} left`;
-              })()}
-            />
-          )}
-          <DetailRow
-            label="Months used"
-            value={String(user.premium_months_used ?? 0)}
-          />
+        <DetailPanel title="Grant Credits">
+          <div
+            style={{
+              ...serif,
+              fontSize: "var(--text-caption)",
+              opacity: 0.6,
+              marginBottom: 12,
+            }}
+          >
+            Quick grant AI credits to {targetLabel}.
+          </div>
           <ActionRow>
-            {!user.is_premium && (
-              <ActionBtn
-                tone="primary"
-                disabled={busyAction !== null}
-                onClick={() => setGrantOpen("grant")}
-              >
-                Grant Premium
-              </ActionBtn>
-            )}
-            {user.is_premium && (
-              <>
-                <ActionBtn
-                  tone="secondary"
-                  disabled={busyAction !== null}
-                  onClick={() => setGrantOpen("extend")}
-                >
-                  Extend Premium
-                </ActionBtn>
-                <ActionBtn
-                  tone="destructive"
-                  disabled={busyAction !== null}
-                  onClick={() => void onRevokePremium()}
-                >
-                  Revoke Premium
-                </ActionBtn>
-              </>
-            )}
+            <ActionBtn tone="primary" disabled={grantingCredits} onClick={() => void onQuickGrantCredits(50)}>+50 credits</ActionBtn>
+            <ActionBtn tone="primary" disabled={grantingCredits} onClick={() => void onQuickGrantCredits(200)}>+200 credits</ActionBtn>
+            <ActionBtn tone="primary" disabled={grantingCredits} onClick={() => void onQuickGrantCredits(500)}>+500 credits</ActionBtn>
           </ActionRow>
-        </DetailPanel>
-
-        <DetailPanel title="AI Credits">
           <DetailRow
-            label="Manage"
+            label="More"
             value={
               <Link
                 to="/admin/usage/users/$userId"
@@ -2507,21 +2526,10 @@ function UserDetailPage({
                   textUnderlineOffset: 3,
                 }}
               >
-                Open credit grants & usage →
+                Open full credit panel →
               </Link>
             }
           />
-          <div
-            style={{
-              ...serif,
-              fontSize: "var(--text-caption)",
-              opacity: 0.55,
-              marginTop: 4,
-            }}
-          >
-            Grant bonus credits, reset the monthly quota, or block AI for this
-            user.
-          </div>
         </DetailPanel>
 
         <DetailPanel title="Account">
@@ -2745,24 +2753,6 @@ function UserDetailPage({
           </div>
         </DetailPanel>
       </div>
-      {grantOpen !== null && (
-        <GrantPremiumModal
-          mode={grantOpen}
-          targetLabel={targetLabel}
-          currentExpires={user.premium_expires_at}
-          onClose={() => setGrantOpen(null)}
-          onConfirm={async (months) => {
-            const type = grantOpen === "extend" ? "extend_premium" : "grant_premium";
-            const verb = grantOpen === "extend" ? "extended" : "granted";
-            setGrantOpen(null);
-            await runAction(
-              "premium",
-              { type, targetUserId: user.user_id, months },
-              `Premium ${verb} for ${targetLabel}`,
-            );
-          }}
-        />
-      )}
       {setPwOpen && (
         <SetPasswordModal
           targetEmail={user.email ?? targetLabel}
