@@ -813,6 +813,19 @@ export function ShareBuilder({
                 disabled={busy !== null}
               />
             </div>
+            {/* Q73 — Export to AI utility action. Lives next to the
+                share/save actions but is not a share level. Copies a
+                plain-text reading summary to the clipboard so the seeker
+                can paste it into ChatGPT / Gemini / etc. */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                paddingTop: "var(--space-1)",
+              }}
+            >
+              <ExportToAIButton context={context} />
+            </div>
             <div
               style={{
                 textAlign: "center",
