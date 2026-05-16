@@ -373,6 +373,7 @@ function CardTraceRoute() {
             />
           )}
         </div>
+        </div>
       </main>
 
       {openReadingId && (
