@@ -87,6 +87,10 @@ export type InsightsOverview = {
   topLens: { lensId: string; name: string; count: number } | null;
   deepReadingsCount: number;
   dataCapped: boolean;
+  /** Q75 — unique spread_type values present in the filtered readings. */
+  availableSpreadTypes: string[];
+  /** Q75 — unique moon_phase values present in the filtered readings. */
+  availableMoonPhases: string[];
 };
 
 export type StalkerCard = {
