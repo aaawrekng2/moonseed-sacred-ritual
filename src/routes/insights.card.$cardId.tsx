@@ -15,7 +15,7 @@ import {
   X,
   ChevronDown,
   Sparkles,
-  Filter,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   AreaChart,
@@ -30,10 +30,12 @@ import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.funct
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage } from "@/lib/active-deck";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
-import { DEFAULT_FILTERS } from "@/lib/insights.types";
+import { DEFAULT_FILTERS, type TimeRange } from "@/lib/insights.types";
+import { Dropdown } from "@/components/filters/Dropdown";
 import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 import { CardImage } from "@/components/card/CardImage";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort } from "@/lib/dates";
 import { DrawCalendar } from "@/components/insights/DrawCalendar";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
@@ -73,8 +75,6 @@ type Detail = {
   coOccurrences: Array<{ cardId: number; count: number }>;
 };
 
-type TrendWindow = "30d" | "90d" | "180d" | "all";
-
 function CardTraceRoute() {
   const { cardId } = Route.useParams();
   const cid = Number(cardId);
@@ -82,26 +82,36 @@ function CardTraceRoute() {
   const fn = useServerFn(getStalkerCardDetail);
   const [data, setData] = useState<Detail | null>(null);
   const resolveImage = useActiveDeckImage();
-  useAuth();
+  const { user } = useAuth();
   const [openReadingId, setOpenReadingId] = useState<string | null>(null);
 
-  // Q73 Fix 1+3 — page-level time filter, defaults to "all" so the
-  // appearance count matches the grid view. The trend chart now reads
-  // from this shared window instead of its own pills.
-  const [trendWin, setTrendWin] = useState<TrendWindow>("all");
+  // Q74 — page-level time filter drives the server fetch. Defaults to
+  // "all" so the appearance count matches the Insights Cards grid.
+  const [trendWin, setTrendWin] = useState<TimeRange>("all");
 
-  const filteredAppearances = useMemo<Appearance[]>(() => {
-    if (!data) return [];
-    if (trendWin === "all") return data.appearances;
-    const days = trendWin === "30d" ? 30 : trendWin === "90d" ? 90 : 180;
-    const cutoff = Date.now() - days * 86400000;
-    return data.appearances.filter((a) => new Date(a.date).getTime() >= cutoff);
-  }, [data, trendWin]);
-  const filteredCount = filteredAppearances.length;
-  const filteredReversed = useMemo(
-    () => filteredAppearances.filter((a) => a.isReversed).length,
-    [filteredAppearances],
-  );
+  // Q74 — reversal stat visibility (track_reversals OR allow_reversed_cards).
+  const [showReversalStat, setShowReversalStat] = useState(false);
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    void (async () => {
+      const { data: prefs } = await supabase
+        .from("user_preferences")
+        .select("track_reversals, allow_reversed_cards")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const row = prefs as
+        | { track_reversals?: boolean | null; allow_reversed_cards?: boolean | null }
+        | null;
+      setShowReversalStat(
+        Boolean(row?.track_reversals) || Boolean(row?.allow_reversed_cards),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const heroRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -112,19 +122,25 @@ function CardTraceRoute() {
     void (async () => {
       try {
         const headers = await getAuthHeaders();
-        const r = await fn({ data: { ...DEFAULT_FILTERS, cardId: cid }, headers });
+        const r = await fn({
+          data: { ...DEFAULT_FILTERS, timeRange: trendWin, cardId: cid },
+          headers,
+        });
         setData(r as Detail);
       } catch (e) {
         // eslint-disable-next-line no-console
         console.warn("[card-trace] failed", e);
       }
     })();
-  }, [cid, fn]);
+  }, [cid, fn, trendWin]);
 
   const close = () => navigate({ to: "/insights" });
   const url = resolveImage(cid, "display") ?? getCardImagePath(cid);
   const cardName = data?.cardName ?? getCardName(cid);
   const meaning = getCardMeaning(cid);
+  const appearances = data?.appearances ?? [];
+  const count = data?.totalCount ?? 0;
+  const reversedCount = data?.reversedCount ?? 0;
 
   return (
     <div
@@ -167,39 +183,29 @@ function CardTraceRoute() {
         </button>
       </header>
 
-      {/* Q73 Fix 1 — page-level time filter bar at the top, matching the
-          main Insights pattern. Defaults to "all" (Fix 3) so the count
-          matches the grid view. */}
+      {/* Q74 — page-level time filter bar, styled to match the main
+          Insights GlobalFilterBar (sliders icon + shared Dropdown). */}
       <div
-        className="flex items-center justify-center gap-3 px-4 py-2"
+        className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1"
         style={{ borderBottom: "1px solid var(--border-subtle)" }}
       >
-        <Filter
-          className="h-4 w-4"
-          style={{ color: "var(--foreground-muted)", opacity: 0.8 }}
+        <span
+          className="shrink-0 inline-flex items-center justify-center p-1"
+          style={{ color: "var(--color-foreground)", opacity: 0.7 }}
           aria-hidden
-        />
-        <select
-          value={trendWin}
-          onChange={(e) => setTrendWin(e.target.value as TrendWindow)}
-          aria-label="Time range"
-          style={{
-            background: "transparent",
-            border: "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
-            borderRadius: 999,
-            padding: "4px 12px",
-            color: "var(--color-foreground)",
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "var(--text-caption)",
-            cursor: "pointer",
-          }}
         >
-          <option value="all">All time</option>
-          <option value="180d">Last 180 days</option>
-          <option value="90d">Last 90 days</option>
-          <option value="30d">Last 30 days</option>
-        </select>
+          <SlidersHorizontal className="h-4 w-4" />
+        </span>
+        <Dropdown
+          value={trendWin}
+          options={[
+            { value: "30d", label: "Last 30 days" },
+            { value: "90d", label: "Last 90 days" },
+            { value: "365d", label: "Last 365 days" },
+            { value: "all", label: "All time" },
+          ]}
+          onChange={(v) => setTrendWin(v as TimeRange)}
+        />
       </div>
 
       <main className="flex-1 overflow-y-auto px-5 pb-12 pt-4">
@@ -230,21 +236,26 @@ function CardTraceRoute() {
           {meaning && <MeaningSection meaning={meaning} />}
 
           {/* 3c — Stats strip */}
-          {data && (
+          {data && count > 0 && (
             <StatsStrip
-              data={data}
-              count={filteredCount}
-              reversedCount={filteredReversed}
+              count={count}
+              reversedCount={reversedCount}
+              showReversalStat={showReversalStat}
             />
           )}
 
           {/* 3d — Trend line */}
-          {data && filteredCount > 0 && (
-            <CardTrendChart appearances={filteredAppearances} win={trendWin} />
+          {data && count > 0 && (
+            <CardTrendChart appearances={appearances} win={trendWin} />
           )}
 
-          {/* 3e — Co-occurrence */}
-          {data && data.totalCount >= 3 && data.coOccurrences.length > 0 && (
+          {/* 3f — Metadata row */}
+          {meaning && <MetadataRow meaning={meaning} />}
+        </div>
+
+        {/* 3e — Co-occurrence — Q74: span the wider content area. */}
+        {data && data.totalCount >= 3 && data.coOccurrences.length > 0 && (
+          <div className="mx-auto my-6" style={{ maxWidth: 960 }}>
             <CoOccurrenceStrip
               entries={data.coOccurrences}
               onPick={(targetId) =>
@@ -254,16 +265,13 @@ function CardTraceRoute() {
                 })
               }
             />
-          )}
-
-          {/* 3f — Metadata row */}
-          {meaning && <MetadataRow meaning={meaning} />}
-        </div>
+          </div>
+        )}
 
         {/* 3g — Calendar — wider container */}
-        {data && filteredCount > 0 && (
+        {data && count > 0 && (
           <div className="mx-auto my-6" style={{ maxWidth: 960 }}>
-            <ExpandableCalendar appearances={filteredAppearances} />
+            <ExpandableCalendar appearances={appearances} />
           </div>
         )}
 
@@ -273,9 +281,9 @@ function CardTraceRoute() {
             <EmptyNote text="This card hasn't appeared in your readings yet." />
           )}
 
-          {data && filteredCount > 0 && (
+          {data && count > 0 && (
             <ReadingsList
-              appearances={filteredAppearances}
+              appearances={appearances}
               onOpen={setOpenReadingId}
             />
           )}
