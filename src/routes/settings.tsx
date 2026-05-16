@@ -14,7 +14,6 @@ import {
   Star,
   User as UserIcon,
   Wand2,
-  Moon,
   Layers,
   BarChart2,
 } from "lucide-react";
@@ -58,7 +57,6 @@ type TabKey =
   | "preferences"
   | "themes"
   | "guides"
-  | "moon"
   | "decks"
   | "usage"
   | "feedback"
@@ -73,7 +71,6 @@ type TabDef = {
     | "/settings/preferences"
     | "/settings/themes"
     | "/settings/guides"
-    | "/settings/moon"
     | "/settings/decks"
     | "/settings/usage"
     | "/settings/feedback"
@@ -89,7 +86,6 @@ const TABS: TabDef[] = [
   { key: "themes", label: "Themes", to: "/settings/themes", icon: Palette },
   { key: "guides", label: "Guides", to: "/settings/guides", icon: Wand2 },
   { key: "decks", label: "My Decks", to: "/settings/decks", icon: Layers },
-  { key: "moon", label: "Subscriptions", to: "/settings/moon", icon: Moon },
   { key: "usage", label: "Usage", to: "/settings/usage", icon: BarChart2 },
   { key: "data", label: "Data", to: "/settings/data", icon: Database },
 ];
@@ -101,7 +97,6 @@ function tabFromPath(pathname: string): TabKey | null {
   if (pathname.startsWith("/settings/preferences")) return "preferences";
   if (pathname.startsWith("/settings/themes")) return "themes";
   if (pathname.startsWith("/settings/guides")) return "guides";
-  if (pathname.startsWith("/settings/moon")) return "moon";
   if (pathname.startsWith("/settings/decks")) return "decks";
   if (pathname.startsWith("/settings/usage")) return "usage";
   if (pathname.startsWith("/settings/data")) return "data";
