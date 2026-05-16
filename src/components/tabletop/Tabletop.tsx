@@ -17,6 +17,7 @@ import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { t } from "@/lib/oracle-language";
+import { useLockOrientation } from "@/lib/use-lock-orientation";
 import {
   useRegisterCloseHandler,
   useRegisterHelpHandler,
@@ -45,6 +46,7 @@ import {
   readTabletopSession,
   writeTabletopSession,
   clearTabletopSession,
+  scatterPadding,
 } from "./config";
 import type { TabletopProps, CardState, TabletopSession, DragAction } from "./types";
 
