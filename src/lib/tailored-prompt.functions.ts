@@ -25,16 +25,7 @@ export const generateTailoredPrompt = createServerFn({ method: "POST" })
       userId: string;
     };
 
-    // Premium gate
-    const { data: prefs } = await supabase
-      .from("user_preferences")
-      .select("is_premium")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (!(prefs as { is_premium?: boolean } | null)?.is_premium) {
-      return { ok: false as const, error: "premium_required" };
-    }
-
+    // Q72 — premium removed; credit system gates cost.
     const { data: reading } = await supabase
       .from("readings")
       .select("id, user_id, card_ids, card_orientations, spread_type, question, tailored_prompt")

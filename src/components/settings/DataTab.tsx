@@ -49,7 +49,6 @@ import {
 } from "@/lib/backup-restore";
 import type JSZip from "jszip";
 import { ImportFlow, type ImportResult } from "@/components/import/ImportFlow";
-import { usePremium } from "@/lib/premium";
 import { formatDateTime } from "@/lib/dates";
 import { PhotoArchive } from "./PhotoArchive";
 
@@ -62,7 +61,6 @@ const CATEGORY_LABEL: Record<string, string> = {
   custom_decks: "Custom decks",
   reading_photos: "Reading photos",
 };
-const PREMIUM_CATEGORY_IDS = new Set(["custom_decks", "reading_photos"]);
 
 type RestorePhase = "pick" | "preview" | "running" | "done";
 type LoadedPart = {
@@ -76,33 +74,10 @@ export function DataTab() {
   const [signingOut, setSigningOut] = useState(false);
   const confirm = useConfirm();
 
-  // CU — read real premium state. While loading, suppress lock UI so
-  // premium users don't see categories briefly flash locked.
-  const { isPremium, loading: premiumLoading } = usePremium(user?.id);
-  // While loading we treat the user as premium so premium categories
-  // don't briefly flash locked for premium users.
-  const effectivePremium = premiumLoading || isPremium;
-
-  // CU — when premium state resolves to false, drop premium categories
-  // from the seeded selection so a free user doesn't have them queued.
-  useEffect(() => {
-    if (premiumLoading) return;
-    if (isPremium) return;
-    setSelected((prev) => {
-      const next = new Set(prev);
-      for (const id of PREMIUM_CATEGORY_IDS) {
-        next.delete(id as BackupCategoryId);
-      }
-      return next;
-    });
-  }, [premiumLoading, isPremium]);
-
   const [selected, setSelected] = useState<Set<BackupCategoryId>>(
     () =>
       new Set(
-        BACKUP_CATEGORIES.filter((c) => effectivePremium || !c.premium).map(
-          (c) => c.id,
-        ),
+        BACKUP_CATEGORIES.map((c) => c.id),
       ),
   );
   const [estimates, setEstimates] = useState<
@@ -167,7 +142,6 @@ export function DataTab() {
       if (part1) {
         const next = new Set<string>();
         for (const c of part1.manifest.categories) {
-          if (PREMIUM_CATEGORY_IDS.has(c) && !effectivePremium) continue;
           next.add(c);
         }
         setRestoreSelected(next);
@@ -185,7 +159,6 @@ export function DataTab() {
   const haveAllParts = totalParts > 0 && parts.length === totalParts;
 
   const toggleRestoreCategory = (id: string) => {
-    if (PREMIUM_CATEGORY_IDS.has(id) && !effectivePremium) return;
     setRestoreSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -235,7 +208,6 @@ export function DataTab() {
         zips: orderedZips,
         selectedCategories: Array.from(restoreSelected),
         userId: user.id,
-        isPremium: effectivePremium,
         onProgress: (msg) => setRestoreMessage(msg),
       });
       setRestoreResult(r);
@@ -274,16 +246,12 @@ export function DataTab() {
 
   const totalBytes = Array.from(selected).reduce(
     (sum, id) => {
-      const cat = BACKUP_CATEGORIES.find((c) => c.id === id);
-      if (cat?.premium && !effectivePremium) return sum;
       return sum + (estimates[id]?.bytes ?? 0);
     },
     0,
   );
 
   const toggle = (id: BackupCategoryId) => {
-    const cat = BACKUP_CATEGORIES.find((c) => c.id === id);
-    if (cat?.premium && !effectivePremium) return;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -303,7 +271,6 @@ export function DataTab() {
       const blob = await createBackup({
         userId: user.id,
         categories: Array.from(selected),
-        isPremium: effectivePremium,
         onProgress: (p) => setBackupProgress(p),
       });
       const url = URL.createObjectURL(blob);
@@ -352,7 +319,7 @@ export function DataTab() {
         <div className="space-y-3">
           {BACKUP_CATEGORIES.map((c) => {
             const est = estimates[c.id];
-            const locked = c.premium && !effectivePremium;
+            const locked = false;
             return (
               <label
                 key={c.id}
@@ -461,7 +428,6 @@ export function DataTab() {
           totalParts={totalParts}
           haveAllParts={haveAllParts}
           selected={restoreSelected}
-          effectivePremium={effectivePremium}
           message={restoreMessage}
           result={restoreResult}
           fileInputRef={fileInputRef}
@@ -557,7 +523,6 @@ type RestorePanelProps = {
   totalParts: number;
   haveAllParts: boolean;
   selected: Set<string>;
-  effectivePremium: boolean;
   message: string;
   result: RestoreResult | null;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
@@ -574,7 +539,6 @@ function RestorePanel({
   totalParts,
   haveAllParts,
   selected,
-  effectivePremium,
   message,
   result,
   fileInputRef,
@@ -673,7 +637,7 @@ function RestorePanel({
           {categories.map((id) => {
             const label = CATEGORY_LABEL[id] ?? id;
             const info = part1?.manifest.contents[id];
-            const locked = PREMIUM_CATEGORY_IDS.has(id) && !effectivePremium;
+            const locked = false;
             return (
               <label
                 key={id}

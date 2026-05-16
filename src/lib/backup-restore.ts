@@ -241,10 +241,9 @@ export async function executeRestore(params: {
   zips: JSZip[];
   selectedCategories: string[];
   userId: string;
-  isPremium: boolean;
   onProgress?: (msg: string, pct: number) => void;
 }): Promise<RestoreResult> {
-  const { zips, selectedCategories, userId, isPremium, onProgress } = params;
+  const { zips, selectedCategories, userId, onProgress } = params;
   const result: RestoreResult = { perCategory: {} };
 
   onProgress?.("Validating backup…", 0);
@@ -400,27 +399,21 @@ export async function executeRestore(params: {
           new RegExp(`^custom_decks/${folder}/back\\.[a-z0-9]+$`).test(p),
         );
         if (backEntry) {
-          if (!isPremium) {
-            deckResult.filesSkippedPremium += 1;
-            backUrl = null;
-            backThumb = null;
-          } else {
-            const [path, zip] = backEntry;
-            const blob = await zip
-              .file(path)!
-              .async("blob")
-              .then((b) => new Blob([b], { type: contentTypeFor(extOf(path)) }));
-            const ext = extOf(path);
-            const storagePath = `${userId}/${deckId}/back-${Date.now()}.${ext}`;
-            const ok = await uploadIfMissing(DECK_BUCKET, storagePath, blob);
-            if (ok) {
-              const { data: signed } = await supabase.storage
-                .from(DECK_BUCKET)
-                .createSignedUrl(storagePath, 60 * 60 * 24 * 365);
-              backUrl = signed?.signedUrl ?? backUrl;
-              backThumb = signed?.signedUrl ?? backThumb;
-              deckResult.filesUploaded += 1;
-            }
+          const [path, zip] = backEntry;
+          const blob = await zip
+            .file(path)!
+            .async("blob")
+            .then((b) => new Blob([b], { type: contentTypeFor(extOf(path)) }));
+          const ext = extOf(path);
+          const storagePath = `${userId}/${deckId}/back-${Date.now()}.${ext}`;
+          const ok = await uploadIfMissing(DECK_BUCKET, storagePath, blob);
+          if (ok) {
+            const { data: signed } = await supabase.storage
+              .from(DECK_BUCKET)
+              .createSignedUrl(storagePath, 60 * 60 * 24 * 365);
+            backUrl = signed?.signedUrl ?? backUrl;
+            backThumb = signed?.signedUrl ?? backThumb;
+            deckResult.filesUploaded += 1;
           }
         }
       }
@@ -468,31 +461,23 @@ export async function executeRestore(params: {
             new RegExp(`^custom_decks/${folder}/images/card_${cardId}\\.[a-z0-9]+$`).test(p),
           );
           if (imgEntry) {
-            if (!isPremium) {
-              deckResult.filesSkippedPremium += 1;
-              displayPath = "";
-              displayUrl = "";
-              thumbnailPath = "";
-              thumbnailUrl = "";
-            } else {
-              const [path, zip] = imgEntry;
-              const ext = extOf(path);
-              const blob = await zip
-                .file(path)!
-                .async("blob")
-                .then((b) => new Blob([b], { type: contentTypeFor(ext) }));
-              const newPath = `${userId}/${deckId}/card-${cardId}-${Date.now()}.${ext}`;
-              const ok = await uploadIfMissing(DECK_BUCKET, newPath, blob);
-              if (ok) {
-                const { data: signed } = await supabase.storage
-                  .from(DECK_BUCKET)
-                  .createSignedUrl(newPath, 60 * 60 * 24 * 365);
-                displayPath = newPath;
-                displayUrl = signed?.signedUrl ?? "";
-                thumbnailPath = newPath;
-                thumbnailUrl = signed?.signedUrl ?? "";
-                deckResult.filesUploaded += 1;
-              }
+            const [path, zip] = imgEntry;
+            const ext = extOf(path);
+            const blob = await zip
+              .file(path)!
+              .async("blob")
+              .then((b) => new Blob([b], { type: contentTypeFor(ext) }));
+            const newPath = `${userId}/${deckId}/card-${cardId}-${Date.now()}.${ext}`;
+            const ok = await uploadIfMissing(DECK_BUCKET, newPath, blob);
+            if (ok) {
+              const { data: signed } = await supabase.storage
+                .from(DECK_BUCKET)
+                .createSignedUrl(newPath, 60 * 60 * 24 * 365);
+              displayPath = newPath;
+              displayUrl = signed?.signedUrl ?? "";
+              thumbnailPath = newPath;
+              thumbnailUrl = signed?.signedUrl ?? "";
+              deckResult.filesUploaded += 1;
             }
           }
         }
@@ -555,22 +540,17 @@ export async function executeRestore(params: {
         new RegExp(`^reading_photos/images/${photoId}\\.[a-z0-9]+$`).test(p),
       );
       if (imgEntry) {
-        if (!isPremium) {
-          photoResult.filesSkippedPremium += 1;
-          storagePath = "";
-        } else {
-          const [path, zip] = imgEntry;
-          const ext = extOf(path);
-          const blob = await zip
-            .file(path)!
-            .async("blob")
-            .then((b) => new Blob([b], { type: contentTypeFor(ext) }));
-          const newPath = `${userId}/${photoId}.${ext}`;
-          const ok = await uploadIfMissing(PHOTO_BUCKET, newPath, blob);
-          if (ok) {
-            storagePath = newPath;
-            photoResult.filesUploaded += 1;
-          }
+        const [path, zip] = imgEntry;
+        const ext = extOf(path);
+        const blob = await zip
+          .file(path)!
+          .async("blob")
+          .then((b) => new Blob([b], { type: contentTypeFor(ext) }));
+        const newPath = `${userId}/${photoId}.${ext}`;
+        const ok = await uploadIfMissing(PHOTO_BUCKET, newPath, blob);
+        if (ok) {
+          storagePath = newPath;
+          photoResult.filesUploaded += 1;
         }
       }
 

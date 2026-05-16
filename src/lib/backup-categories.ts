@@ -23,8 +23,6 @@ export type BackupCategory = {
   id: BackupCategoryId;
   label: string;
   description: string;
-  /** Premium-tier feature: large binary assets. */
-  premium?: boolean;
   /** Returns { count, bytes } estimate for this category. */
   estimate: (userId: string) => Promise<{ count: number; bytes: number }>;
 };
@@ -64,7 +62,6 @@ export const BACKUP_CATEGORIES: BackupCategory[] = [
     id: "custom_decks",
     label: "Custom decks (data + images)",
     description: "Your photographed decks including all card images.",
-    premium: true,
     estimate: async (uid) => {
       const { data: decks } = await supabase
         .from("custom_decks")
@@ -84,7 +81,6 @@ export const BACKUP_CATEGORIES: BackupCategory[] = [
     id: "reading_photos",
     label: "Reading photos",
     description: "Photos you attached to readings.",
-    premium: true,
     estimate: async (uid) => {
       const c = await countRows("reading_photos", uid);
       // Rough: 400 KB per photo.

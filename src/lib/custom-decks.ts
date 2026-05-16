@@ -557,21 +557,10 @@ export async function setActiveDeck(userId: string, deckId: string | null): Prom
 }
 
 /**
- * EO-9 — Read user's premium status from user_preferences.
- * Replaces the AW-era stub that always returned false.
+ * Q72 — premium tier removed. Always returns true. Deck limits are
+ * enforced via admin_settings.max_custom_decks now.
  */
-export async function isPremiumUser(userId: string): Promise<boolean> {
-  if (!userId) return false;
-  const { data, error } = await supabase
-    .from("user_preferences")
-    .select("is_premium, premium_expires_at")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error || !data?.is_premium) return false;
-  if (data.premium_expires_at) {
-    const exp = new Date(data.premium_expires_at).getTime();
-    if (Number.isFinite(exp) && exp <= Date.now()) return false;
-  }
+export async function isPremiumUser(_userId: string): Promise<boolean> {
   return true;
 }
 

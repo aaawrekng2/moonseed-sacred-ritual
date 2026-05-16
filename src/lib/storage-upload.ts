@@ -23,7 +23,6 @@ export type UploadEventType =
 
 export type UploadWithQuotaArgs = {
   userId: string;
-  isPremium?: boolean;
   bucket: string;
   path: string;
   file: Blob | File;
@@ -71,14 +70,12 @@ async function readQuotaBytes(key: string): Promise<number> {
 export async function uploadWithQuota(
   args: UploadWithQuotaArgs,
 ): Promise<UploadResult> {
-  // Photo bytes quota (free vs premium). Deck quotas are enforced at
-  // deck-creation time, not per upload, so we just log those.
+  // Q72 — single photo quota from admin_settings.storage_photo_quota_bytes
+  // (default 500MB). Deck quotas are enforced at deck-creation time.
   if (args.eventType === "photo") {
     try {
-      const quotaKey = args.isPremium
-        ? "storage_quota_premium_photos_bytes"
-        : "storage_quota_free_photos_bytes";
-      const quotaBytes = await readQuotaBytes(quotaKey);
+      const configured = await readQuotaBytes("storage_photo_quota_bytes");
+      const quotaBytes = configured > 0 ? configured : 500 * 1024 * 1024;
       if (quotaBytes > 0) {
         const used = await photoBytesUsed(args.userId);
         if (used + args.file.size > quotaBytes) {

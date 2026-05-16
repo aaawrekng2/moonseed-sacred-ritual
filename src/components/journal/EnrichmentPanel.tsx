@@ -107,16 +107,12 @@ type Props = {
   cardIds?: number[];
   /** Optional per-card prompts for oracle decks, keyed by card_id. */
   customCardPromptsByCardId?: Record<number, string[] | null | undefined>;
-  /** Premium status — when true, an extra "tailored prompt" cycler position appears. */
-  isPremium?: boolean;
   /** Cached tailored prompt for this reading (string) or null. */
   tailoredPrompt?: string | null;
   /** Seeker's question for this reading — required to enable tailored prompt. */
   question?: string | null;
   /** Called after the tailored prompt is generated so the parent can refresh. */
   onTailoredPromptUpdate?: (prompt: string) => void;
-  /** Opens the premium upsell when a free seeker taps the tailored slot. */
-  onPremiumUpsell?: () => void;
   /** Q14 Fix 5 — whether this reading already had a prompt inserted. */
   journalPromptUsed?: boolean;
   /** Called once the seeker inserts a prompt for the first time. */
@@ -217,11 +213,9 @@ export function EnrichmentPanel({
   defaultNoteOpen,
   cardIds,
   customCardPromptsByCardId,
-  isPremium,
   tailoredPrompt: tailoredPromptProp,
   question,
   onTailoredPromptUpdate,
-  onPremiumUpsell,
   journalPromptUsed,
   onJournalPromptUsed,
 }: Props) {
@@ -534,7 +528,6 @@ export function EnrichmentPanel({
     const path = `${reading.user_id}/${reading.id}/${crypto.randomUUID()}.${extension}`;
     const upRes = await uploadWithQuota({
       userId: reading.user_id,
-      isPremium: !!isPremium,
       bucket: "reading-photos",
       path,
       file: blob,
@@ -774,7 +767,6 @@ export function EnrichmentPanel({
           <JournalPromptsSlot
             cardIds={cardIds}
             customCardPromptsByCardId={customCardPromptsByCardId}
-            isPremium={!!isPremium}
             tailoredPrompt={tailoredPromptProp ?? null}
             question={question ?? null}
             readingId={reading.id}
@@ -782,7 +774,6 @@ export function EnrichmentPanel({
             onChange={(next) => handleNoteChange(next)}
             textareaRef={noteTextareaRef}
             onTailoredPromptUpdate={onTailoredPromptUpdate}
-            onPremiumUpsell={onPremiumUpsell}
             defaultHidden={!!journalPromptUsed}
             onPromptUsed={onJournalPromptUsed}
           />
@@ -1988,7 +1979,6 @@ const TAILORED_PLACEHOLDER = "Get a tailored prompt for this reading";
 function JournalPromptsSlot({
   cardIds,
   customCardPromptsByCardId,
-  isPremium,
   tailoredPrompt,
   question,
   readingId,
@@ -1996,13 +1986,11 @@ function JournalPromptsSlot({
   onChange,
   textareaRef,
   onTailoredPromptUpdate,
-  onPremiumUpsell,
   defaultHidden,
   onPromptUsed,
 }: {
   cardIds: number[] | undefined;
   customCardPromptsByCardId: Record<number, string[] | null | undefined> | undefined;
-  isPremium: boolean;
   tailoredPrompt: string | null;
   question: string | null;
   readingId: string;
@@ -2010,7 +1998,6 @@ function JournalPromptsSlot({
   onChange: (next: string) => void;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   onTailoredPromptUpdate?: (prompt: string) => void;
-  onPremiumUpsell?: () => void;
   defaultHidden?: boolean;
   onPromptUsed?: () => void;
 }) {
@@ -2031,21 +2018,14 @@ function JournalPromptsSlot({
 
   const prompts = useMemo(() => {
     const list = [...(staticPrompts ?? [])];
-    if (isPremium) {
-      list.push(localTailored ? localTailored : TAILORED_PLACEHOLDER);
-    }
+    list.push(localTailored ? localTailored : TAILORED_PLACEHOLDER);
     return list.length > 0 ? list : null;
-  }, [staticPrompts, isPremium, localTailored]);
+  }, [staticPrompts, localTailored]);
 
   const handleBeforeInsert = useCallback(
     async (active: string): Promise<string | null> => {
       // Static prompt — pass through.
       if (active !== TAILORED_PLACEHOLDER) return active;
-      // Free user trying the slot → upsell.
-      if (!isPremium) {
-        onPremiumUpsell?.();
-        return null;
-      }
       if (!question || !question.trim()) {
         toast("Add your question to enable tailored prompts.");
         return null;
@@ -2061,9 +2041,6 @@ function JournalPromptsSlot({
           // seeker gets an actionable message (and we focus the
           // question field when one is needed).
           switch (res.error) {
-            case "premium_required":
-              onPremiumUpsell?.();
-              break;
             case "question_required": {
               toast(
                 "Add a question to this reading first — tailored prompts use it for context.",
@@ -2108,7 +2085,7 @@ function JournalPromptsSlot({
         setLoading(false);
       }
     },
-    [isPremium, question, generate, readingId, onTailoredPromptUpdate, onPremiumUpsell],
+    [question, generate, readingId, onTailoredPromptUpdate],
   );
 
   if (!prompts) return null;

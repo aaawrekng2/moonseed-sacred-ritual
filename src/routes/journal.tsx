@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Camera, Ghost, Heart, Image as ImageIcon, MessageCircle, Network, Star, StickyNote, Tag as TagIcon, Wand2, X as XIcon } from "lucide-react";
-import { usePremium } from "@/lib/premium";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -1998,8 +1997,6 @@ function ReadingDetail({
 }) {
   const guide = getGuideById(reading.guide_id);
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { isPremium } = usePremium(user?.id);
   const positions = isValidSpreadMode(reading.spread_type)
     ? SPREAD_META[reading.spread_type as SpreadMode].positions
     : undefined;
@@ -2624,7 +2621,6 @@ function ReadingDetail({
           cardIds={reading.card_ids}
           question={reading.question ?? null}
           tailoredPrompt={reading.tailored_prompt ?? null}
-          isPremium={isPremium}
           onTailoredPromptUpdate={(next) =>
             onReadingChange({
               id: reading.id,
@@ -2636,7 +2632,6 @@ function ReadingDetail({
               // and is re-fetched on next open.
             } as { id: string; note: string | null; is_favorite: boolean; tags: string[] | null })
           }
-          onPremiumUpsell={() => navigate({ to: "/settings/moon" })}
           defaultNoteOpen
           journalPromptUsed={!!reading.journal_prompt_used}
           onJournalPromptUsed={() => {

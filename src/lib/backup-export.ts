@@ -33,7 +33,6 @@ export type BackupProgress = {
 type Opts = {
   userId: string;
   categories: BackupCategoryId[];
-  isPremium: boolean;
   onProgress?: (p: BackupProgress) => void;
 };
 
@@ -71,7 +70,6 @@ function deriveDeckStoragePath(url: string): string | null {
 export async function createBackup({
   userId,
   categories,
-  isPremium,
   onProgress,
 }: Opts): Promise<Blob> {
   const zip = new JSZip();
@@ -119,7 +117,7 @@ export async function createBackup({
     tick("Preferences");
   }
 
-  if (categories.includes("custom_decks") && isPremium) {
+  if (categories.includes("custom_decks")) {
     const folder = zip.folder("custom_decks")!;
     const { data: decks } = await supabase
       .from("custom_decks")
@@ -199,7 +197,7 @@ export async function createBackup({
     tick("Custom decks");
   }
 
-  if (categories.includes("reading_photos") && isPremium) {
+  if (categories.includes("reading_photos")) {
     const folder = zip.folder("reading_photos")!;
     const { data: photos } = await supabase
       .from("reading_photos")
