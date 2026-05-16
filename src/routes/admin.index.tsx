@@ -1842,9 +1842,6 @@ function UsersTab({
   const [statusFilter, setStatusFilter] = useState<
     "all" | "active" | "stale" | "dormant"
   >("all");
-  const [premiumFilter, setPremiumFilter] = useState<
-    "all" | "premium" | "free"
-  >("all");
   // CP — master/detail. selectedUserId === null shows the list; otherwise
   // the detail page replaces the list within the same tab. Search and
   // filters above are preserved across the transition because they're
@@ -1885,21 +1882,18 @@ function UsersTab({
         if (!emailMatch && !nameMatch) return false;
       }
       if (roleFilter !== "all" && u.role !== roleFilter) return false;
-      if (premiumFilter === "premium" && !u.is_premium) return false;
-      if (premiumFilter === "free" && u.is_premium) return false;
       if (statusFilter !== "all" && userStatus(u) !== statusFilter)
         return false;
       return true;
     });
-  }, [users, search, roleFilter, premiumFilter, statusFilter]);
+  }, [users, search, roleFilter, statusFilter]);
 
   const summary = useMemo(() => {
-    const premium = users.filter((u) => u.is_premium).length;
     const supers = users.filter((u) => u.role === "super_admin").length;
     const admins = users.filter((u) => u.role === "admin").length;
     const sLbl = supers === 1 ? "super admin" : "super admins";
     const aLbl = admins === 1 ? "admin" : "admins";
-    return `${users.length} users · ${premium} premium · ${supers} ${sLbl} · ${admins} ${aLbl}`;
+    return `${users.length} users · ${supers} ${sLbl} · ${admins} ${aLbl}`;
   }, [users]);
 
   const selectedUser = useMemo(
@@ -1956,16 +1950,6 @@ function UsersTab({
             ["dormant", "Dormant"],
           ]}
         />
-        <FilterSelect
-          label="Premium"
-          value={premiumFilter}
-          onChange={(v) => setPremiumFilter(v as typeof premiumFilter)}
-          options={[
-            ["all", "All"],
-            ["premium", "Premium"],
-            ["free", "Free"],
-          ]}
-        />
       </div>
 
       <div
@@ -2013,7 +1997,6 @@ function UsersTab({
                 <Th>Role</Th>
                 <Th>Activity</Th>
                 <Th>Joined</Th>
-                <Th>Premium</Th>
               </tr>
             </thead>
             <tbody>
@@ -2108,7 +2091,6 @@ function UserListRow({
       </Td>
       <Td>{formatActivity(user.reading_count, user.last_reading)}</Td>
       <Td>{formatDateLong(user.created_at)}</Td>
-      <Td>{formatPremiumCell(user)}</Td>
     </tr>
   );
 }
@@ -2162,19 +2144,6 @@ function formatRelative(iso: string | null): string {
   if (mo < 12) return `${mo}mo ago`;
   const yr = Math.floor(d / 365);
   return `${yr}y ago`;
-}
-
-function formatPremiumCell(user: AdminUser): React.ReactNode {
-  if (!user.is_premium) return <span style={{ opacity: 0.4 }}>—</span>;
-  const exp = user.premium_expires_at
-    ? new Date(user.premium_expires_at)
-    : null;
-  if (!exp) return <Badge>Yes</Badge>;
-  const daysLeft = Math.max(
-    0,
-    Math.ceil((exp.getTime() - Date.now()) / 86_400_000),
-  );
-  return <Badge>Yes · {daysLeft}d</Badge>;
 }
 
 /**
