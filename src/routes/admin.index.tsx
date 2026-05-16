@@ -2759,11 +2759,6 @@ function UserDetailPage({
   );
 }
 
-function subscriptionStatusLabel(u: AdminUser): string {
-  if (u.role === "super_admin") return "Super Admin";
-  if (u.is_premium) return "Premium";
-  return "Free";
-}
 
 function DetailPanel({
   title,
@@ -2880,35 +2875,6 @@ function ActionBtn({
   );
 }
 
-function GrantPremiumModal({
-  mode,
-  targetLabel,
-  currentExpires,
-  onClose,
-  onConfirm,
-}: {
-  mode: "grant" | "extend";
-  targetLabel: string;
-  currentExpires: string | null;
-  onClose: () => void;
-  onConfirm: (months: number) => void | Promise<void>;
-}) {
-  // Day chips per spec: 30 / 60 / 90 / 180 / 365.
-  const chips: Array<{ days: number; label: string }> = [
-    { days: 30, label: "30 days" },
-    { days: 60, label: "60 days" },
-    { days: 90, label: "90 days" },
-    { days: 180, label: "180 days" },
-    { days: 365, label: "1 year" },
-  ];
-  const [days, setDays] = useState(30);
-  const [customStr, setCustomStr] = useState("");
-
-  const effectiveDays = (() => {
-    const c = parseInt(customStr, 10);
-    if (Number.isFinite(c) && c > 0) return c;
-    return days;
-  })();
 
   // For grant: expiry = now + days. For extend: extend from existing
   // expiry if still in the future, otherwise from now. Mirrors server.
@@ -3715,71 +3681,6 @@ function HistoryModal({
   );
 }
 
-function PremiumPanel({
-  user,
-  onClose,
-  onConfirm,
-}: {
-  user: AdminUser;
-  onClose: () => void;
-  onConfirm: (months: number) => void | Promise<void>;
-}) {
-  const [months, setMonths] = useState(1);
-  return (
-    <ModalShell
-      title={user.is_premium ? "Extend premium" : "Gift premium"}
-      onClose={onClose}
-    >
-      <p style={{ ...serif, fontSize: "var(--text-body-sm)", opacity: 0.7 }}>
-        Choose a duration for {user.email ?? user.user_id.slice(0, 8)}.
-      </p>
-      <div className="mt-4 flex flex-wrap gap-3">
-        {[1, 3, 6, 12].map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMonths(m)}
-            style={{
-              ...display,
-              fontSize: "var(--text-caption)",
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              padding: "8px 14px",
-              background: "none",
-              border:
-                months === m
-                  ? "1px solid var(--accent, var(--gold))"
-                  : "1px solid var(--border-subtle)",
-              color:
-                months === m
-                  ? "var(--accent, var(--gold))"
-                  : "color-mix(in oklab, var(--color-foreground) 60%, transparent)",
-              cursor: "pointer",
-            }}
-          >
-            {m === 12 ? "1 year" : `${m} mo`}
-          </button>
-        ))}
-      </div>
-      <div className="mt-6 flex justify-end gap-4">
-        <button
-          type="button"
-          onClick={onClose}
-          style={textBtnStyle("muted")}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => void onConfirm(months)}
-          style={textBtnStyle("gold")}
-        >
-          Confirm
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
 
 function NoteModal({
   user,
