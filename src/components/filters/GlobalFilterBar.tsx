@@ -393,12 +393,17 @@ function TagsSection({
   filters,
   onChange,
   userTags,
+  available,
 }: {
   filters: GlobalFilters;
   onChange: (next: GlobalFilters) => void;
   userTags: ReadonlyArray<{ id: string; name: string; usage_count: number }>;
+  available?: ReadonlyArray<string>;
 }) {
-  if (userTags.length === 0) return null;
+  const tags = available
+    ? userTags.filter((t) => available.includes(t.name))
+    : userTags;
+  if (tags.length === 0) return null;
   const toggle = (name: string) => {
     const next = filters.tags.includes(name)
       ? filters.tags.filter((x) => x !== name)
@@ -436,7 +441,7 @@ function TagsSection({
         </div>
       )}
       <div className="flex flex-wrap gap-x-3 gap-y-2">
-        {userTags.map((t) => (
+        {tags.map((t) => (
           <ToggleRow
             key={t.id}
             active={filters.tags.includes(t.name)}
