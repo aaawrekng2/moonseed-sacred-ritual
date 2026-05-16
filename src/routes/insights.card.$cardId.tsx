@@ -85,6 +85,24 @@ function CardTraceRoute() {
   useAuth();
   const [openReadingId, setOpenReadingId] = useState<string | null>(null);
 
+  // Q73 Fix 1+3 — page-level time filter, defaults to "all" so the
+  // appearance count matches the grid view. The trend chart now reads
+  // from this shared window instead of its own pills.
+  const [trendWin, setTrendWin] = useState<TrendWindow>("all");
+
+  const filteredAppearances = useMemo<Appearance[]>(() => {
+    if (!data) return [];
+    if (trendWin === "all") return data.appearances;
+    const days = trendWin === "30d" ? 30 : trendWin === "90d" ? 90 : 180;
+    const cutoff = Date.now() - days * 86400000;
+    return data.appearances.filter((a) => new Date(a.date).getTime() >= cutoff);
+  }, [data, trendWin]);
+  const filteredCount = filteredAppearances.length;
+  const filteredReversed = useMemo(
+    () => filteredAppearances.filter((a) => a.isReversed).length,
+    [filteredAppearances],
+  );
+
   const heroRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     heroRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
