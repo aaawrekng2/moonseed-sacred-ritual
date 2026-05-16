@@ -74,6 +74,7 @@ export function DrawCalendar({
   const dayButton = (props: any) => {
     const k = props.day.date.toDateString();
     const c = counts[k] ?? 0;
+    const isToday = !!props.modifiers?.today;
     // Q62 Fix 3 — heatmap intensity scaled by daily count (inline so
     // we don't depend on data-attr forwarding through CalendarDayButton).
     let bg: string | undefined;
@@ -107,6 +108,21 @@ export function DrawCalendar({
             }}
           >
             ×{c}
+          </span>
+        )}
+        {isToday && c <= 1 && (
+          <span
+            className="leading-none"
+            style={{
+              fontSize: "var(--text-caption)",
+              color: "var(--color-foreground-muted, var(--foreground-muted))",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              marginTop: 2,
+              opacity: 0.75,
+            }}
+          >
+            today
           </span>
         )}
       </CalendarDayButton>
