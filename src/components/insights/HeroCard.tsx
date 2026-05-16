@@ -30,11 +30,6 @@ export function HeroCard({
       : "Most-drawn card";
   const cardName = getCardName(featuredId);
 
-  // Twice-this-week banner: count appearances in last 7 days.
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const recentCount =
-    stalker?.appearances.filter((a) => new Date(a.date).getTime() >= sevenDaysAgo).length ?? 0;
-
   return (
     <button
       type="button"
@@ -94,19 +89,6 @@ export function HeroCard({
         >
           appearance{count === 1 ? "" : "s"} of {cardName}
         </div>
-        {recentCount >= 2 && (
-          <div
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-body-sm)",
-              color: "var(--gold)",
-              marginTop: 4,
-            }}
-          >
-            Twice this week.
-          </div>
-        )}
       </div>
     </button>
   );
