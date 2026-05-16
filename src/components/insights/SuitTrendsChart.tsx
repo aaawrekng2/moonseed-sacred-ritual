@@ -16,7 +16,6 @@ import {
   type SuitGranularity,
 } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
-import { Dropdown } from "@/components/filters/Dropdown";
 import type { InsightsFilters } from "@/lib/insights.types";
 
 // Reuse Tarot Seed-toned suit colors (mirrors SuitBalanceChart).
@@ -147,15 +146,34 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
             Distribution of suits over time
           </p>
         </div>
-        <Dropdown
-          prefix="Mode"
-          value={mode}
-          options={[
-            { value: "pct", label: "%" },
-            { value: "count", label: "Count" },
-          ]}
-          onChange={(v) => setMode(v as Mode)}
-        />
+        <div
+          className="flex gap-1 rounded-full p-0.5"
+          style={{ background: "var(--surface-card)" }}
+        >
+          {([
+            { id: "pct", label: "%" },
+            { id: "count", label: "Count" },
+          ] as const).map((it) => (
+            <button
+              key={it.id}
+              type="button"
+              onClick={() => setMode(it.id)}
+              className="rounded-full px-2 py-1 text-xs"
+              style={{
+                background:
+                  mode === it.id
+                    ? "color-mix(in oklch, var(--gold) 24%, transparent)"
+                    : "transparent",
+                color:
+                  mode === it.id ? "var(--gold)" : "var(--color-foreground)",
+                fontStyle: "italic",
+                opacity: mode === it.id ? 1 : 0.7,
+              }}
+            >
+              {it.label}
+            </button>
+          ))}
+        </div>
       </div>
       <div style={{ width: "100%", height: 280 }}>
         <ResponsiveContainer width="100%" height="100%">

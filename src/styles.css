@@ -1606,14 +1606,12 @@ button:focus-visible .moon-rung-glow {
   font-weight: 500;
 }
 
-/* Q64 — Canonical card count badge.
-   Diameter scales with parent card via clamp(min, 22%, max).
-   Font is sized to 55% of the badge via container queries-free
-   approach: the badge is square so we set font-size off cqi if
-   the container supports it, and fall back to a fixed em ratio. */
+/* Q65 — Canonical card count badge.
+   Both diameter and font are sized off the positioned parent via
+   clamp(): a container query won't work here because the badge is
+   also the queried element. The 11% font ratio yields a number that
+   fills roughly half the badge diameter at every clamp tier. */
 .tarotseed-card-badge {
-  container-type: size;
-  container-name: tsbadge;
   position: absolute;
   bottom: 6%;
   right: 6%;
@@ -1626,11 +1624,10 @@ button:focus-visible .moon-rung-glow {
   font-family: var(--font-serif);
   font-style: italic;
   font-weight: 500;
-  /* Font ~55% of the badge diameter via container query unit. */
-  font-size: 55cqw;
+  font-size: clamp(12px, 11%, 24px);
   letter-spacing: -0.03em;
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
   line-height: 1;
   white-space: nowrap;
