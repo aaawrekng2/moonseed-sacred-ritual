@@ -8,14 +8,12 @@
  * visible without re-firing the model.
  */
 import type { ReactNode } from "react";
-import { Crown } from "lucide-react";
 import { SectionHeader } from "@/components/insights/StalkerCardsSection";
 import { formatTimeAgo } from "@/lib/dates";
 
 export type AIGatedSectionProps = {
   title: string;
   caption: string;
-  isPremium: boolean;
   reducePrompts: boolean;
   dataReady: boolean;
   dataReadyMessage: string;
@@ -27,19 +25,10 @@ export type AIGatedSectionProps = {
   children?: ReactNode;
 };
 
-function openPremium(featureName: string) {
-  window.dispatchEvent(
-    new CustomEvent("tarotseed:open-premium", {
-      detail: { feature: featureName, featureName },
-    }),
-  );
-}
-
 export function AIGatedSection(props: AIGatedSectionProps) {
   const {
     title,
     caption,
-    isPremium,
     reducePrompts,
     dataReady,
     dataReadyMessage,
@@ -51,8 +40,10 @@ export function AIGatedSection(props: AIGatedSectionProps) {
     children,
   } = props;
 
-  // Reduced-prompt mode: single muted line, nothing else.
-  if (!isPremium && reducePrompts) {
+  // Reduced-prompt mode: render a single muted line in place of the
+  // generate button so the seeker can hide AI affordances entirely
+  // without losing the section header.
+  if (reducePrompts && !hasCachedResult) {
     return (
       <section className="space-y-2">
         <p
@@ -64,47 +55,14 @@ export function AIGatedSection(props: AIGatedSectionProps) {
             opacity: 0.5,
           }}
         >
-          {title} — premium feature
+          {title}
         </p>
       </section>
     );
   }
 
-  // Locked premium teaser.
-  if (!isPremium) {
-    return (
-      <section className="space-y-3">
-        <SectionHeader title={title} caption={caption} />
-        <button
-          type="button"
-          onClick={() => openPremium(title)}
-          className="flex w-full flex-col items-center justify-center gap-2 px-6 py-6 text-center"
-          style={{
-            background: "color-mix(in oklch, var(--cosmos, #0a0a14) 40%, transparent)",
-            borderRadius: 14,
-          }}
-        >
-          <Crown className="h-5 w-5" style={{ color: "var(--gold)" }} />
-          <span
-            style={{
-              fontStyle: "italic",
-              color: "var(--gold)",
-              fontFamily: "var(--font-serif)",
-              fontSize: "var(--text-body-sm)",
-            }}
-          >
-            Unlock with premium
-          </span>
-        </button>
-      </section>
-    );
-  }
-
   const TitleRow = (
-    <div className="flex items-center gap-2">
-      <SectionHeader title={title} caption={caption} />
-      <Crown size={14} style={{ color: "var(--gold)", opacity: 0.7, marginLeft: -6 }} />
-    </div>
+    <SectionHeader title={title} caption={caption} />
   );
 
   if (isGenerating) {
