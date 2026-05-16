@@ -78,6 +78,8 @@ type Detail = {
   lastSeen: string | null;
   appearances: Appearance[];
   coOccurrences: Array<{ cardId: number; count: number }>;
+  availableSpreadTypes?: string[];
+  availableMoonPhases?: string[];
 };
 
 function CardTraceRoute() {
@@ -90,9 +92,41 @@ function CardTraceRoute() {
   const { user } = useAuth();
   const [openReadingId, setOpenReadingId] = useState<string | null>(null);
 
-  // Q74 — page-level time filter drives the server fetch. Defaults to
-  // "all" so the appearance count matches the Insights Cards grid.
-  const [trendWin, setTrendWin] = useState<TimeRange>("all");
+  // Q75 — full GlobalFilters state (time range + drawer sections).
+  const [gFilters, setGFilters] = useState<GlobalFilters>({
+    ...EMPTY_GLOBAL_FILTERS,
+    timeRange: "all",
+  });
+  const trendWin = gFilters.timeRange as TimeRange;
+
+  // Q75 — user tags for the filter drawer.
+  const [userTags, setUserTags] = useState<
+    Array<{ id: string; name: string; usage_count: number }>
+  >([]);
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    void (async () => {
+      const { data: tags } = await supabase
+        .from("user_tags")
+        .select("id, name, usage_count")
+        .eq("user_id", user.id)
+        .order("usage_count", { ascending: false })
+        .limit(50);
+      if (!cancelled) {
+        setUserTags(
+          (tags ?? []) as Array<{
+            id: string;
+            name: string;
+            usage_count: number;
+          }>,
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   // Q74 — reversal stat visibility (track_reversals OR allow_reversed_cards).
   const [showReversalStat, setShowReversalStat] = useState(false);
@@ -128,7 +162,16 @@ function CardTraceRoute() {
       try {
         const headers = await getAuthHeaders();
         const r = await fn({
-          data: { ...DEFAULT_FILTERS, timeRange: trendWin, cardId: cid },
+          data: {
+            ...DEFAULT_FILTERS,
+            timeRange: trendWin,
+            tagIds: gFilters.tags,
+            spreadTypes: gFilters.spreadTypes,
+            moonPhases: gFilters.moonPhases as MoonPhaseName[],
+            deepOnly: gFilters.deepOnly,
+            reversedOnly: gFilters.reversedOnly,
+            cardId: cid,
+          },
           headers,
         });
         setData(r as Detail);
@@ -137,7 +180,16 @@ function CardTraceRoute() {
         console.warn("[card-trace] failed", e);
       }
     })();
-  }, [cid, fn, trendWin]);
+  }, [
+    cid,
+    fn,
+    trendWin,
+    gFilters.tags,
+    gFilters.spreadTypes,
+    gFilters.moonPhases,
+    gFilters.deepOnly,
+    gFilters.reversedOnly,
+  ]);
 
   const close = () => navigate({ to: "/insights" });
   const url = resolveImage(cid, "display") ?? getCardImagePath(cid);
@@ -147,19 +199,68 @@ function CardTraceRoute() {
   const count = data?.totalCount ?? 0;
   const reversedCount = data?.reversedCount ?? 0;
 
+  // Q75 — sticky compact title collapse on scroll.
+  const scrollRef = useRef<HTMLElement | null>(null);
+  const collapseProgress = useScrollCollapse(scrollRef, 80);
+
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col"
       style={{ background: "var(--background)" }}
     >
-      <header
-        className="flex items-center justify-between px-4 py-3"
-        style={{ borderBottom: "1px solid var(--border-subtle)" }}
+      {/* Q75 — sticky glass header with compact-on-scroll card name. */}
+      <div
+        className="page-header-glass sticky top-0"
+        style={{ zIndex: "var(--z-sticky-header)" }}
       >
-        <button type="button" onClick={close} aria-label="Back">
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div style={{ textAlign: "center", lineHeight: 1.1 }}>
+        <header className="flex items-center justify-between px-4 py-2">
+          <button type="button" onClick={close} aria-label="Back">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1
+            className="font-serif italic"
+            style={{
+              fontSize: "var(--text-heading-sm)",
+              color: "var(--color-foreground)",
+              opacity: 0.9 * collapseProgress,
+              transition: "opacity 150ms ease-out",
+              margin: 0,
+              lineHeight: 1,
+              pointerEvents: collapseProgress > 0.5 ? "auto" : "none",
+            }}
+          >
+            {cardName}
+          </h1>
+          <button type="button" onClick={close} aria-label="Close">
+            <X className="h-5 w-5" />
+          </button>
+        </header>
+        <GlobalFilterBar
+          filters={gFilters}
+          onChange={setGFilters}
+          sections={["tags", "spreadTypes", "moonPhases", "depth", "reversed"]}
+          timeRange={{
+            value: gFilters.timeRange,
+            options: [
+              { value: "30d", label: "Last 30 days" },
+              { value: "90d", label: "Last 90 days" },
+              { value: "365d", label: "Last 365 days" },
+              { value: "all", label: "All time" },
+            ],
+            onChange: (v) => setGFilters({ ...gFilters, timeRange: v }),
+          }}
+          userTags={userTags}
+          availableSpreadTypes={data?.availableSpreadTypes}
+          availableMoonPhases={data?.availableMoonPhases}
+        />
+      </div>
+
+      <main ref={scrollRef} className="flex-1 overflow-y-auto px-5 pb-12 pt-4">
+        {/* Q75 — large non-sticky title that scrolls away. */}
+        <div
+          className="mx-auto mb-4 text-center"
+          style={{ maxWidth: 1280, lineHeight: 1.15 }}
+        >
           <div
             style={{
               fontSize: "var(--text-caption)",
@@ -183,37 +284,8 @@ function CardTraceRoute() {
             {cardName}
           </h1>
         </div>
-        <button type="button" onClick={close} aria-label="Close">
-          <X className="h-5 w-5" />
-        </button>
-      </header>
-
-      {/* Q74 — page-level time filter bar, styled to match the main
-          Insights GlobalFilterBar (sliders icon + shared Dropdown). */}
-      <div
-        className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1"
-        style={{ borderBottom: "1px solid var(--border-subtle)" }}
-      >
-        <span
-          className="shrink-0 inline-flex items-center justify-center p-1"
-          style={{ color: "var(--color-foreground)", opacity: 0.7 }}
-          aria-hidden
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-        </span>
-        <Dropdown
-          value={trendWin}
-          options={[
-            { value: "30d", label: "Last 30 days" },
-            { value: "90d", label: "Last 90 days" },
-            { value: "365d", label: "Last 365 days" },
-            { value: "all", label: "All time" },
-          ]}
-          onChange={(v) => setTrendWin(v as TimeRange)}
-        />
-      </div>
-
-      <main className="flex-1 overflow-y-auto px-5 pb-12 pt-4">
+        {/* Q75 — wide constrained content area. */}
+        <div className="mx-auto" style={{ maxWidth: 1280 }}>
         <div className="mx-auto flex max-w-md flex-col items-center gap-5">
           {/* 3a — Hero */}
           <div
