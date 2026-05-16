@@ -6,7 +6,7 @@
  * Actions section was folded into the credit snapshot card.
  */
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { ArrowLeft } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -17,8 +17,7 @@ import {
   getUserCreditSummary,
   getUserTrendSeries,
 } from "@/lib/admin-usage.functions";
-import { formatDateTime } from "@/lib/dates";
-import { formatDateLong } from "@/lib/dates";
+import { formatDateLong, formatDateTime } from "@/lib/dates";
 import {
   CartesianGrid,
   Line,
