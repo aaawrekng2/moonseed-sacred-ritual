@@ -15,10 +15,11 @@ import {
   X,
   ChevronDown,
   Sparkles,
+  Filter,
 } from "lucide-react";
 import {
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
