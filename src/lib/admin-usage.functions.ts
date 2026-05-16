@@ -396,21 +396,19 @@ export const resetMonthlyQuota = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId: callerId } = context;
     await assertAdmin(supabase, callerId);
-    const { data: prefs } = await supabaseAdmin
-      .from("user_preferences" as never)
-      .select("is_premium")
-      .eq("user_id", data.userId)
-      .maybeSingle();
-    const isPremium = !!(prefs as { is_premium?: boolean } | null)?.is_premium;
+    // Q69 — single monthly credit pool for all users.
     const { data: q } = await supabaseAdmin
       .from("admin_settings" as never)
       .select("value")
-      .eq("key", isPremium ? "ai_quota_premium_monthly" : "ai_quota_free_monthly")
+      .eq("key", "ai_monthly_credits")
       .maybeSingle();
-    const credits = parseInt(String((q as { value?: unknown } | null)?.value ?? (isPremium ? 1000 : 50)), 10);
+    const credits = parseInt(
+      String((q as { value?: unknown } | null)?.value ?? 50),
+      10,
+    );
     await supabaseAdmin.from("ai_credit_grants" as never).insert({
       user_id: data.userId,
-      source: isPremium ? "monthly_premium" : "monthly_free",
+      source: "monthly",
       credits_amount: credits,
       expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       metadata: { reason: "admin_reset", granted_by: callerId },
@@ -499,6 +497,7 @@ export const getMyUsage = createServerFn({ method: "GET" })
       .from("admin_settings")
       .select("key,value")
       .in("key", [
+        "ai_monthly_credits",
         "ai_quota_free_monthly",
         "ai_quota_premium_monthly",
         "storage_quota_free_photos_bytes",
@@ -515,7 +514,7 @@ export const getMyUsage = createServerFn({ method: "GET" })
       const n = parseFloat(String(v));
       return Number.isFinite(n) ? n : fb;
     };
-    const aiQuota = isPremium ? num("ai_quota_premium_monthly", 1000) : num("ai_quota_free_monthly", 50);
+    const aiQuota = num("ai_monthly_credits", num("ai_quota_free_monthly", 50));
     const photoQuota = isPremium
       ? num("storage_quota_premium_photos_bytes", 5 * 1024 ** 3)
       : num("storage_quota_free_photos_bytes", 100 * 1024 ** 2);
@@ -529,7 +528,7 @@ export const getMyUsage = createServerFn({ method: "GET" })
       .from("ai_credit_grants")
       .select("created_at,expires_at")
       .eq("user_id", userId)
-      .in("source", ["monthly_free", "monthly_premium"])
+      .in("source", ["monthly", "monthly_free", "monthly_premium"])
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();

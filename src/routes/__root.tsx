@@ -14,7 +14,6 @@ import { FloatingMenuProvider } from "@/lib/floating-menu-context";
 import { useThemeFontSync } from "@/lib/use-theme-font-sync";
 import { Toaster } from "@/components/ui/sonner";
 import { useFloatingMenu } from "@/lib/floating-menu-context";
-import { PremiumModal } from "@/components/premium/PremiumModal";
 import { DevOverlay } from "@/components/dev/DevOverlay";
 import { TimezoneMismatchDialog } from "@/components/settings/TimezoneMismatchDialog";
 import { ActiveDeckProvider } from "@/lib/active-deck";
@@ -25,6 +24,8 @@ import { ConfirmProvider } from "@/hooks/use-confirm";
 import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
 import { supabase } from "@/integrations/supabase/client";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
+import { claimStarterCredits } from "@/lib/starter-credits.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 /**
  * Read the persisted resting opacity from localStorage and apply it to
@@ -206,6 +207,12 @@ function RootComponent() {
   useEffect(() => {
     if (user?.id) void runQ4StorageCleanup(user.id);
   }, [user?.id]);
+  // Q69 — Grant starter credits to brand-new users (idempotent).
+  const claimStarter = useServerFn(claimStarterCredits);
+  useEffect(() => {
+    if (!user?.id || !user.email) return;
+    void claimStarter({}).catch(() => {});
+  }, [user?.id, user?.email, claimStarter]);
   // Q10 — one-time TarotPulse CSV import (gated to a specific email).
   useEffect(() => {
     if (user?.id) void maybeRunTarotpulseImport(user.id, user.email ?? null);
@@ -234,22 +241,7 @@ function RootComponent() {
   useEffect(() => {
     void cleanupStaleSessions();
   }, []);
-  // Global listener for the "tarotseed:open-premium" event dispatched
-  // from anywhere in the app (e.g. the Deep Reading limit overlay's
-  // "Or continue without waiting" button). Opens the PremiumModal in
-  // place without requiring a route change.
-  const [premiumOpen, setPremiumOpen] = useState(false);
-  const [premiumFeature, setPremiumFeature] = useState<string>("Deep Readings");
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const feature =
-        (e as CustomEvent).detail?.feature ?? "Deep Readings";
-      setPremiumFeature(feature);
-      setPremiumOpen(true);
-    };
-    window.addEventListener("tarotseed:open-premium", handler);
-    return () => window.removeEventListener("tarotseed:open-premium", handler);
-  }, []);
+  // Q69 — premium tier removed; tarotseed:open-premium listener gone.
   // Q35b — Welcome modal: show once per signed-in (non-anonymous) seeker.
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   useEffect(() => {
@@ -305,11 +297,6 @@ function RootComponent() {
           <DevOverlay />
           {mounted && <Toaster />}
           <TimezoneMismatchDialog />
-          <PremiumModal
-            open={premiumOpen}
-            onOpenChange={setPremiumOpen}
-            featureName={premiumFeature}
-          />
           <WelcomeModal open={welcomeOpen} onClose={handleWelcomeClose} />
         </div>
         </ConfirmProvider>

@@ -81,7 +81,6 @@ export function NumerologyReadingTab({ filters }: { filters: InsightsFilters }) 
       <AIGatedSection
         title="Numerology Synthesis"
         caption="Your chart, woven into prose."
-        isPremium={isPremium}
         reducePrompts={reducePrompts}
         dataReady={hasBirthDate !== false}
         dataReadyMessage="Add your birth date in Settings → Blueprint to generate a reading."

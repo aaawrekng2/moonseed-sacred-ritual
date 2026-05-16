@@ -1060,6 +1060,9 @@ function DeckEditor({
     const handleContinue = async () => {
       setSaving(true);
       try {
+        const { checkCustomDeckLimit } = await import("@/lib/custom-decks");
+        const limitMsg = await checkCustomDeckLimit(userId);
+        if (limitMsg) { toast.error(limitMsg); setSaving(false); return; }
         const { data, error } = await supabase
           .from("custom_decks")
           .insert({

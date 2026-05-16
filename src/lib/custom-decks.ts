@@ -35,6 +35,35 @@ export type CustomDeck = {
   source_zip_path?: string | null;
 };
 
+/**
+ * Q69 — Per-user custom deck cap. Reads `max_custom_decks` from
+ * admin_settings (default 10). Returns null when the user is below
+ * the cap, or a friendly error string when they have reached it.
+ */
+export async function checkCustomDeckLimit(userId: string): Promise<string | null> {
+  const [{ count }, { data: setting }] = await Promise.all([
+    supabase
+      .from("custom_decks")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+    supabase
+      .from("admin_settings")
+      .select("value")
+      .eq("key", "max_custom_decks")
+      .maybeSingle(),
+  ]);
+  const raw = (setting as { value?: unknown } | null)?.value;
+  const max = (() => {
+    if (typeof raw === "number") return raw;
+    const n = parseInt(String(raw ?? 10), 10);
+    return Number.isFinite(n) ? n : 10;
+  })();
+  if ((count ?? 0) >= max) {
+    return `You've reached the maximum of ${max} custom decks. Delete an existing deck to create a new one.`;
+  }
+  return null;
+}
+
 export type CustomDeckCard = {
   id: string;
   deck_id: string;

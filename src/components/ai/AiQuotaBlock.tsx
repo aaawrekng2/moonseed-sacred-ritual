@@ -9,21 +9,20 @@ import { useNavigate } from "@tanstack/react-router";
 
 export function AiQuotaBlock({
   resetAt,
-  isPremium,
   reason,
-  onUpgrade,
 }: {
   resetAt: string | null;
-  isPremium: boolean;
+  /** Legacy prop kept for caller compatibility; ignored. */
+  isPremium?: boolean;
   /** Override the body line — used when AI is admin-blocked. */
   reason?: string | null;
+  /** Legacy prop kept for caller compatibility; ignored. */
   onUpgrade?: () => void;
 }) {
   const nav = useNavigate();
   const reset = resetAt ? formatDateLong(resetAt) : null;
-  const handleUpgrade = () => {
-    if (onUpgrade) onUpgrade();
-    else nav({ to: "/settings/profile" }).catch(() => {});
+  const handleGetMore = () => {
+    nav({ to: "/settings/usage" }).catch(() => {});
   };
   return (
     <div
@@ -47,7 +46,7 @@ export function AiQuotaBlock({
       >
         {reason
           ? reason
-          : "You have used your AI generations for this month."}
+          : "You've used all your credits for this month."}
       </p>
       {reset && (
         <p
@@ -64,23 +63,21 @@ export function AiQuotaBlock({
           resets {reset.toUpperCase()}
         </p>
       )}
-      {!isPremium && (
-        <button
-          onClick={handleUpgrade}
-          style={{
-            marginTop: "var(--space-3, 12px)",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "var(--text-body-sm, 14px)",
-            color: "var(--accent, var(--gold, #d4af37))",
-          }}
-        >
-          upgrade to premium
-        </button>
-      )}
+      <button
+        onClick={handleGetMore}
+        style={{
+          marginTop: "var(--space-3, 12px)",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-body-sm, 14px)",
+          color: "var(--accent, var(--gold, #d4af37))",
+        }}
+      >
+        Get more credits
+      </button>
       <div style={{ marginTop: "var(--space-2, 8px)" }}>
         <a
           href="/settings/usage"
