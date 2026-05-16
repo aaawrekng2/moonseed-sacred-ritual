@@ -405,16 +405,14 @@ export function CardSlot({
     // here is enough — and crucially avoids any React reconciliation
     // that could momentarily detach the inline styles.
     const el = btnRef.current;
-    // Convert viewport coords → container coords using a FRESH measurement.
-    // The cached prop can be stale on mobile during a drag (toolbar
-    // collapse mid-gesture) so we re-measure every move.
-    const freshRect = containerElRef.current?.getBoundingClientRect();
-    const cLeft = freshRect?.left ?? containerRect?.left ?? 0;
-    // Border edge — absolute children are NOT offset by padding-top.
-    const cTop = freshRect?.top ?? containerRect?.top ?? 0;
+    // Q67 — the dragged card uses `position: fixed`, so direct DOM
+    // writes here must be VIEWPORT coords (no cLeft/cTop subtraction).
+    // The previous code subtracted container offsets and worked only on
+    // mobile where the container starts at viewport (0,0); on centered
+    // desktop the card teleported left by the centering offset on grab.
     if (el) {
-      el.style.left = `${e.clientX - s.pointerOffsetX - cLeft}px`;
-      el.style.top = `${e.clientY - s.pointerOffsetY - cTop}px`;
+      el.style.left = `${e.clientX - s.pointerOffsetX}px`;
+      el.style.top = `${e.clientY - s.pointerOffsetY}px`;
     }
     onDragMove(
       e.clientX,
