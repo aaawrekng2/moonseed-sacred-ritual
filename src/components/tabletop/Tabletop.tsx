@@ -1346,6 +1346,8 @@ export function Tabletop({
                 if (!fits) {
                   return {
                     paddingTop: 12,
+                    paddingLeft: 8,
+                    paddingRight: 8,
                     gap: gapPx,
                     overflowX: "auto" as const,
                     overflowY: "visible" as const,
@@ -1362,6 +1364,8 @@ export function Tabletop({
                 // box, so the gold pulse still renders correctly.
                 return {
                   paddingTop: 12,
+                  paddingLeft: 8,
+                  paddingRight: 8,
                   gap: gapPx,
                   overflowX: "hidden" as const,
                   overflowY: "visible" as const,
