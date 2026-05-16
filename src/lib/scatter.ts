@@ -105,10 +105,11 @@ export function buildScatter(p: ScatterParams): ScatterCard[] {
   const cellW = usableW / cols;
   const cellH = usableH / rows;
 
-  // ±30% of cell size → range = 0.6 * cell. Slightly tighter than ±40%
-  // so the field reads as fuller and more even.
-  const jitterX = cellW * 0.6;
-  const jitterY = cellH * 0.6;
+  // Q68 — tightened jitter from ±30% to ±22.5% so the scatter reads
+  // organic but calmer (less collision, fewer near-overlaps that the
+  // visibility-pass has to fix up).
+  const jitterX = cellW * 0.45;
+  const jitterY = cellH * 0.45;
 
   // Shuffle cell indices and take the first `pick`.
   const cellOrder = Array.from({ length: totalCells }, (_, i) => i);
