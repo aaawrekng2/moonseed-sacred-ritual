@@ -15,7 +15,7 @@ import {
   X,
   ChevronDown,
   Sparkles,
-  Filter,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   AreaChart,
@@ -30,10 +30,12 @@ import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.funct
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage } from "@/lib/active-deck";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
-import { DEFAULT_FILTERS } from "@/lib/insights.types";
+import { DEFAULT_FILTERS, type TimeRange } from "@/lib/insights.types";
+import { Dropdown } from "@/components/filters/Dropdown";
 import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 import { CardImage } from "@/components/card/CardImage";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort } from "@/lib/dates";
 import { DrawCalendar } from "@/components/insights/DrawCalendar";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
@@ -73,8 +75,6 @@ type Detail = {
   coOccurrences: Array<{ cardId: number; count: number }>;
 };
 
-type TrendWindow = "30d" | "90d" | "180d" | "all";
-
 function CardTraceRoute() {
   const { cardId } = Route.useParams();
   const cid = Number(cardId);
@@ -82,26 +82,36 @@ function CardTraceRoute() {
   const fn = useServerFn(getStalkerCardDetail);
   const [data, setData] = useState<Detail | null>(null);
   const resolveImage = useActiveDeckImage();
-  useAuth();
+  const { user } = useAuth();
   const [openReadingId, setOpenReadingId] = useState<string | null>(null);
 
-  // Q73 Fix 1+3 — page-level time filter, defaults to "all" so the
-  // appearance count matches the grid view. The trend chart now reads
-  // from this shared window instead of its own pills.
-  const [trendWin, setTrendWin] = useState<TrendWindow>("all");
+  // Q74 — page-level time filter drives the server fetch. Defaults to
+  // "all" so the appearance count matches the Insights Cards grid.
+  const [trendWin, setTrendWin] = useState<TimeRange>("all");
 
-  const filteredAppearances = useMemo<Appearance[]>(() => {
-    if (!data) return [];
-    if (trendWin === "all") return data.appearances;
-    const days = trendWin === "30d" ? 30 : trendWin === "90d" ? 90 : 180;
-    const cutoff = Date.now() - days * 86400000;
-    return data.appearances.filter((a) => new Date(a.date).getTime() >= cutoff);
-  }, [data, trendWin]);
-  const filteredCount = filteredAppearances.length;
-  const filteredReversed = useMemo(
-    () => filteredAppearances.filter((a) => a.isReversed).length,
-    [filteredAppearances],
-  );
+  // Q74 — reversal stat visibility (track_reversals OR allow_reversed_cards).
+  const [showReversalStat, setShowReversalStat] = useState(false);
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    void (async () => {
+      const { data: prefs } = await supabase
+        .from("user_preferences")
+        .select("track_reversals, allow_reversed_cards")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const row = prefs as
+        | { track_reversals?: boolean | null; allow_reversed_cards?: boolean | null }
+        | null;
+      setShowReversalStat(
+        Boolean(row?.track_reversals) || Boolean(row?.allow_reversed_cards),
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const heroRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -112,19 +122,25 @@ function CardTraceRoute() {
     void (async () => {
       try {
         const headers = await getAuthHeaders();
-        const r = await fn({ data: { ...DEFAULT_FILTERS, cardId: cid }, headers });
+        const r = await fn({
+          data: { ...DEFAULT_FILTERS, timeRange: trendWin, cardId: cid },
+          headers,
+        });
         setData(r as Detail);
       } catch (e) {
         // eslint-disable-next-line no-console
         console.warn("[card-trace] failed", e);
       }
     })();
-  }, [cid, fn]);
+  }, [cid, fn, trendWin]);
 
   const close = () => navigate({ to: "/insights" });
   const url = resolveImage(cid, "display") ?? getCardImagePath(cid);
   const cardName = data?.cardName ?? getCardName(cid);
   const meaning = getCardMeaning(cid);
+  const appearances = data?.appearances ?? [];
+  const count = data?.totalCount ?? 0;
+  const reversedCount = data?.reversedCount ?? 0;
 
   return (
     <div
@@ -167,39 +183,29 @@ function CardTraceRoute() {
         </button>
       </header>
 
-      {/* Q73 Fix 1 — page-level time filter bar at the top, matching the
-          main Insights pattern. Defaults to "all" (Fix 3) so the count
-          matches the grid view. */}
+      {/* Q74 — page-level time filter bar, styled to match the main
+          Insights GlobalFilterBar (sliders icon + shared Dropdown). */}
       <div
-        className="flex items-center justify-center gap-3 px-4 py-2"
+        className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1"
         style={{ borderBottom: "1px solid var(--border-subtle)" }}
       >
-        <Filter
-          className="h-4 w-4"
-          style={{ color: "var(--foreground-muted)", opacity: 0.8 }}
+        <span
+          className="shrink-0 inline-flex items-center justify-center p-1"
+          style={{ color: "var(--color-foreground)", opacity: 0.7 }}
           aria-hidden
-        />
-        <select
-          value={trendWin}
-          onChange={(e) => setTrendWin(e.target.value as TrendWindow)}
-          aria-label="Time range"
-          style={{
-            background: "transparent",
-            border: "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
-            borderRadius: 999,
-            padding: "4px 12px",
-            color: "var(--color-foreground)",
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "var(--text-caption)",
-            cursor: "pointer",
-          }}
         >
-          <option value="all">All time</option>
-          <option value="180d">Last 180 days</option>
-          <option value="90d">Last 90 days</option>
-          <option value="30d">Last 30 days</option>
-        </select>
+          <SlidersHorizontal className="h-4 w-4" />
+        </span>
+        <Dropdown
+          value={trendWin}
+          options={[
+            { value: "30d", label: "Last 30 days" },
+            { value: "90d", label: "Last 90 days" },
+            { value: "365d", label: "Last 365 days" },
+            { value: "all", label: "All time" },
+          ]}
+          onChange={(v) => setTrendWin(v as TimeRange)}
+        />
       </div>
 
       <main className="flex-1 overflow-y-auto px-5 pb-12 pt-4">
@@ -230,21 +236,26 @@ function CardTraceRoute() {
           {meaning && <MeaningSection meaning={meaning} />}
 
           {/* 3c — Stats strip */}
-          {data && (
+          {data && count > 0 && (
             <StatsStrip
-              data={data}
-              count={filteredCount}
-              reversedCount={filteredReversed}
+              count={count}
+              reversedCount={reversedCount}
+              showReversalStat={showReversalStat}
             />
           )}
 
           {/* 3d — Trend line */}
-          {data && filteredCount > 0 && (
-            <CardTrendChart appearances={filteredAppearances} win={trendWin} />
+          {data && count > 0 && (
+            <CardTrendChart appearances={appearances} win={trendWin} />
           )}
 
-          {/* 3e — Co-occurrence */}
-          {data && data.totalCount >= 3 && data.coOccurrences.length > 0 && (
+          {/* 3f — Metadata row */}
+          {meaning && <MetadataRow meaning={meaning} />}
+        </div>
+
+        {/* 3e — Co-occurrence — Q74: span the wider content area. */}
+        {data && data.totalCount >= 3 && data.coOccurrences.length > 0 && (
+          <div className="mx-auto my-6" style={{ maxWidth: 960 }}>
             <CoOccurrenceStrip
               entries={data.coOccurrences}
               onPick={(targetId) =>
@@ -254,16 +265,13 @@ function CardTraceRoute() {
                 })
               }
             />
-          )}
-
-          {/* 3f — Metadata row */}
-          {meaning && <MetadataRow meaning={meaning} />}
-        </div>
+          </div>
+        )}
 
         {/* 3g — Calendar — wider container */}
-        {data && filteredCount > 0 && (
+        {data && count > 0 && (
           <div className="mx-auto my-6" style={{ maxWidth: 960 }}>
-            <ExpandableCalendar appearances={filteredAppearances} />
+            <ExpandableCalendar appearances={appearances} />
           </div>
         )}
 
@@ -273,9 +281,9 @@ function CardTraceRoute() {
             <EmptyNote text="This card hasn't appeared in your readings yet." />
           )}
 
-          {data && filteredCount > 0 && (
+          {data && count > 0 && (
             <ReadingsList
-              appearances={filteredAppearances}
+              appearances={appearances}
               onOpen={setOpenReadingId}
             />
           )}
@@ -319,19 +327,6 @@ function MeaningSection({
   const [expanded, setExpanded] = useState(false);
   return (
     <div className="flex w-full flex-col items-center gap-3">
-      {/* Q73 Fix 2 — orientation labels above each chip row. */}
-      <KeywordRowLabel>Upright</KeywordRowLabel>
-      <div className="flex w-full flex-wrap justify-center gap-2">
-        {meaning.uprightKeywords.map((k) => (
-          <KeywordChip key={`u-${k}`} text={k} variant="upright" />
-        ))}
-      </div>
-      <KeywordRowLabel>Reversed</KeywordRowLabel>
-      <div className="flex w-full flex-wrap justify-center gap-2">
-        {meaning.reversedKeywords.map((k) => (
-          <KeywordChip key={`r-${k}`} text={k} variant="reversed" />
-        ))}
-      </div>
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -370,7 +365,11 @@ function MeaningSection({
             borderRadius: 12,
           }}
         >
-          <p style={meaningPara}>{meaning.uprightMeaning}</p>
+          <div>
+            <MeaningHeading>Upright</MeaningHeading>
+            <p style={meaningPara}>{meaning.uprightKeywords.join(", ")}.</p>
+            <p style={{ ...meaningPara, marginTop: 8 }}>{meaning.uprightMeaning}</p>
+          </div>
           <div
             style={{
               borderTop:
@@ -378,21 +377,32 @@ function MeaningSection({
             }}
           />
           <div>
-            <div
-              style={{
-                fontSize: "var(--text-caption)",
-                opacity: 0.6,
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                marginBottom: 4,
-              }}
-            >
-              Reversed
-            </div>
-            <p style={meaningPara}>{meaning.reversedMeaning}</p>
+            <MeaningHeading>Reversed</MeaningHeading>
+            <p style={meaningPara}>{meaning.reversedKeywords.join(", ")}.</p>
+            <p style={{ ...meaningPara, marginTop: 8 }}>{meaning.reversedMeaning}</p>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function MeaningHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+        fontSize: "var(--text-caption)",
+        textTransform: "uppercase",
+        letterSpacing: "0.15em",
+        color: "var(--gold)",
+        opacity: 0.8,
+        marginBottom: 6,
+        textAlign: "center",
+      }}
+    >
+      {children}
     </div>
   );
 }
@@ -406,109 +416,62 @@ const meaningPara: React.CSSProperties = {
   textAlign: "center",
 };
 
-function KeywordChip({
-  text,
-  variant,
-}: {
-  text: string;
-  variant: "upright" | "reversed";
-}) {
-  const isUpright = variant === "upright";
-  return (
-    <span
-      style={{
-        fontFamily: "var(--font-serif)",
-        fontStyle: "italic",
-        fontSize: "var(--text-caption)",
-        padding: "4px 10px",
-        borderRadius: 999,
-        background: isUpright
-          ? "color-mix(in oklch, var(--gold) 18%, transparent)"
-          : "color-mix(in oklch, var(--color-foreground) 8%, transparent)",
-        color: isUpright ? "var(--gold)" : "var(--foreground-muted)",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {text}
-    </span>
-  );
-}
-
-function KeywordRowLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        fontSize: "var(--text-caption)",
-        color: "var(--foreground-muted)",
-        fontFamily: "var(--font-serif)",
-        fontStyle: "italic",
-        opacity: 0.85,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 /* ============================================================
  * 3c — Stats strip
  * ============================================================ */
 function StatsStrip({
-  data,
   count,
   reversedCount,
+  showReversalStat,
 }: {
-  data: Detail;
   count: number;
   reversedCount: number;
+  showReversalStat: boolean;
 }) {
   const reversalRate =
     count === 0 ? 0 : Math.round((reversedCount / count) * 100);
   if (count === 0) return null;
+  const showReversal = showReversalStat && reversalRate > 0;
   return (
     <div
-      className="grid w-full"
-      style={{
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: 12,
-        padding: "16px 8px",
-      }}
+      className="w-full flex flex-col items-center"
+      style={{ padding: "16px 8px", gap: 4 }}
     >
-      <Stat value={String(count)} label="appearances" />
-      <Stat
-        value={data.firstSeen ? formatDateShort(data.firstSeen) : "—"}
-        label="first drawn"
-      />
-      <Stat value={`${reversalRate}%`} label="reversed" />
-    </div>
-  );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div style={{ textAlign: "center" }}>
       <div
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: "1.6rem",
+          fontSize: "3rem",
           color: "var(--gold)",
-          lineHeight: 1.1,
+          lineHeight: 1,
         }}
       >
-        {value}
+        {count}
       </div>
       <div
         style={{
           fontSize: "var(--text-caption)",
           opacity: 0.7,
-          marginTop: 4,
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
         }}
       >
-        {label}
+        appearances
       </div>
+      {showReversal && (
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: "var(--text-caption)",
+            opacity: 0.6,
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            color: "var(--foreground-muted)",
+          }}
+        >
+          {reversalRate}% reversed
+        </div>
+      )}
     </div>
   );
 }
@@ -521,7 +484,7 @@ function CardTrendChart({
   win,
 }: {
   appearances: Appearance[];
-  win: TrendWindow;
+  win: TimeRange;
 }) {
   const data = useMemo(() => weeklyBuckets(appearances, win), [appearances, win]);
   return (
@@ -580,44 +543,14 @@ function CardTrendChart({
   );
 }
 
-function PillButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        padding: "4px 12px",
-        borderRadius: 999,
-        border: "1px solid",
-        borderColor: active
-          ? "var(--gold)"
-          : "color-mix(in oklab, var(--color-foreground) 14%, transparent)",
-        background: active
-          ? "color-mix(in oklch, var(--gold) 18%, transparent)"
-          : "transparent",
-        color: active ? "var(--gold)" : "var(--color-foreground)",
-        fontFamily: "var(--font-serif)",
-        fontStyle: "italic",
-        fontSize: "var(--text-caption)",
-        cursor: "pointer",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function weeklyBuckets(appearances: Appearance[], win: TrendWindow) {
+function weeklyBuckets(appearances: Appearance[], win: TimeRange) {
   const now = Date.now();
-  const days = win === "30d" ? 30 : win === "90d" ? 90 : win === "180d" ? 180 : null;
+  const days =
+    win === "7d" ? 7
+    : win === "30d" ? 30
+    : win === "90d" ? 90
+    : win === "365d" ? 365
+    : null;
   const start =
     days !== null
       ? now - days * 86400000
@@ -692,13 +625,13 @@ function CoOccurrenceStrip({
             }}
             aria-label={`${getCardName(e.cardId)} — ${e.count} co-occurrences`}
           >
-            {/* Q73 Fix 5 — bigger thumbnails (≈80px mobile / 100px desktop
-                from a ~0.62 aspect, giving 100/120px tall). */}
+            {/* Q74 — taller thumbnails (~110px mobile / 140px desktop tall
+                from ~0.62 aspect → widths of 68px and 87px). */}
             <div className="md:hidden">
-              <CardImage cardId={e.cardId} size="custom" widthPx={62} />
+              <CardImage cardId={e.cardId} size="custom" widthPx={68} />
             </div>
             <div className="hidden md:block">
-              <CardImage cardId={e.cardId} size="custom" widthPx={75} />
+              <CardImage cardId={e.cardId} size="custom" widthPx={87} />
             </div>
             <div
               style={{
@@ -791,11 +724,8 @@ function ExpandableCalendar({ appearances }: { appearances: Appearance[] }) {
 }
 
 /* ============================================================
- * 3h — Readings list with filters
+ * 3h — Readings list (Q74: top filter bar is the only filter)
  * ============================================================ */
-type SpreadFilter = "all" | "single" | "three" | "celtic" | "yesno" | "custom";
-type OrientationFilter = "all" | "upright" | "reversed";
-
 function ReadingsList({
   appearances,
   onOpen,
@@ -803,20 +733,6 @@ function ReadingsList({
   appearances: Appearance[];
   onOpen: (readingId: string) => void;
 }) {
-  const [spread, setSpread] = useState<SpreadFilter>("all");
-  const [orient, setOrient] = useState<OrientationFilter>("all");
-
-  const filtered = useMemo(
-    () =>
-      appearances.filter((a) => {
-        if (orient === "upright" && a.isReversed) return false;
-        if (orient === "reversed" && !a.isReversed) return false;
-        if (spread === "all") return true;
-        return matchesSpread(a.spreadType, spread);
-      }),
-    [appearances, spread, orient],
-  );
-
   return (
     <div className="flex w-full flex-col gap-3">
       <h2
@@ -829,41 +745,11 @@ function ReadingsList({
       >
         Your readings with this card
       </h2>
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            ["all", "All"],
-            ["single", "Single"],
-            ["three", "3-Card"],
-            ["celtic", "Celtic"],
-            ["yesno", "Yes/No"],
-            ["custom", "Custom"],
-          ] as Array<[SpreadFilter, string]>
-        ).map(([k, label]) => (
-          <PillButton key={k} active={spread === k} onClick={() => setSpread(k)}>
-            {label}
-          </PillButton>
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            ["all", "Both"],
-            ["upright", "Upright"],
-            ["reversed", "Reversed"],
-          ] as Array<[OrientationFilter, string]>
-        ).map(([k, label]) => (
-          <PillButton key={k} active={orient === k} onClick={() => setOrient(k)}>
-            {label}
-          </PillButton>
-        ))}
-      </div>
-
-      {filtered.length === 0 ? (
-        <EmptyNote text="No readings match these filters." />
+      {appearances.length === 0 ? (
+        <EmptyNote text="No readings in this time window." />
       ) : (
         <div className="flex flex-col">
-          {filtered.map((a) => (
+          {appearances.map((a) => (
             <ReadingRow
               key={`${a.readingId}-${a.date}`}
               readingId={a.readingId}
@@ -882,27 +768,6 @@ function ReadingsList({
       )}
     </div>
   );
-}
-
-function matchesSpread(
-  spreadType: string | null,
-  filter: SpreadFilter,
-): boolean {
-  const s = (spreadType ?? "").toLowerCase();
-  switch (filter) {
-    case "single":
-      return s.includes("single") || s === "1" || s.includes("daily");
-    case "three":
-      return s.includes("three") || s.includes("3");
-    case "celtic":
-      return s.includes("celtic");
-    case "yesno":
-      return s.includes("yes") || s.includes("no");
-    case "custom":
-      return s.includes("custom") || s === "" || s === null;
-    default:
-      return true;
-  }
 }
 
 /* ============================================================
