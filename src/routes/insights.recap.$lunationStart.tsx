@@ -356,45 +356,6 @@ function SlideContent({
     );
   }
 
-  // Free users: locked closer at slide 4.
-  if (!isPremium) {
-    return (
-    <SlideShell>
-      <Lock size={28} style={{ color: "var(--gold)", opacity: 0.85 }} />
-      <div
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "clamp(1.6rem, 6vw, 2.4rem)",
-          color: "var(--gold)",
-          marginTop: 8,
-          lineHeight: 1.2,
-        }}
-      >
-        There&rsquo;s more to this lunation.
-      </div>
-      <Caption>
-        Major / minor balance, reversal patterns, moon phases, card pairs, themes,
-        and a written reflection — all wait inside Premium.
-      </Caption>
-      <button
-        type="button"
-        onClick={onPremium}
-        className="pointer-events-auto mt-4 rounded-full px-6 py-2"
-        style={{
-          background: "var(--gold)",
-          color: "var(--cosmos, #0a0a14)",
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-body)",
-        }}
-      >
-        Unlock the full recap
-      </button>
-    </SlideShell>
-    );
-  }
-
   // Premium slides 4–9 / 10 (or 4–8 / 9 when topTags is empty).
   // Build the active premium-slide order so we can branch by index.
   const premiumOrder: Array<
