@@ -111,8 +111,6 @@ export function AuthScreen({
     };
   }, []);
 
-  const { isPremium } = usePremium(sessionUserIdRef.current ?? undefined);
-
   // Tick the elapsed-time readout while the download is running.
   useEffect(() => {
     if (downloadStage !== "downloading" || !downloadStartedAt) return;
@@ -135,7 +133,6 @@ export function AuthScreen({
       const blob = await createBackup({
         userId: uid,
         categories: BACKUP_CATEGORIES.map((c) => c.id),
-        isPremium,
         onProgress: (p) => setDownloadProgress(p),
       });
       const url = URL.createObjectURL(blob);
