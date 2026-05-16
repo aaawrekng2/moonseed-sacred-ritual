@@ -2149,8 +2149,8 @@ function UserDetailPage({
   const [noteText, setNoteText] = useState(user.admin_note ?? "");
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteSavedAt, setNoteSavedAt] = useState<number | null>(null);
-  const [grantOpen, setGrantOpen] = useState<null | "grant" | "extend">(null);
   const [setPwOpen, setSetPwOpen] = useState(false);
+  const [grantingCredits, setGrantingCredits] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const confirm = useConfirm();
 
@@ -2183,20 +2183,20 @@ function UserDetailPage({
     }
   };
 
-  const onRevokePremium = async () => {
-    const ok = await confirm({
-      title: `Revoke Premium from ${targetLabel}?`,
-      description:
-        "This immediately removes Premium access. The user will revert to free features.",
-      confirmLabel: "Revoke Premium",
-      destructive: true,
-    });
-    if (!ok) return;
-    await runAction(
-      "revoke",
-      { type: "revoke_premium", targetUserId: user.user_id },
-      `Premium revoked from ${targetLabel}`,
-    );
+  const onQuickGrantCredits = async (credits: number) => {
+    setGrantingCredits(true);
+    try {
+      await grantBonusCredits({
+        data: { userId: user.user_id, credits, note: "admin quick grant" },
+        headers: await authHeaders(),
+      });
+      toast.success(`Granted ${credits} credits to ${targetLabel}`);
+      onNoteSaved();
+    } catch (e) {
+      toast.error((e as Error).message ?? "Failed to grant credits");
+    } finally {
+      setGrantingCredits(false);
+    }
   };
 
   const onPasswordReset = async () => {
