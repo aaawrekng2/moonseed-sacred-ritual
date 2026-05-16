@@ -167,6 +167,41 @@ function CardTraceRoute() {
         </button>
       </header>
 
+      {/* Q73 Fix 1 — page-level time filter bar at the top, matching the
+          main Insights pattern. Defaults to "all" (Fix 3) so the count
+          matches the grid view. */}
+      <div
+        className="flex items-center justify-center gap-3 px-4 py-2"
+        style={{ borderBottom: "1px solid var(--border-subtle)" }}
+      >
+        <Filter
+          className="h-4 w-4"
+          style={{ color: "var(--foreground-muted)", opacity: 0.8 }}
+          aria-hidden
+        />
+        <select
+          value={trendWin}
+          onChange={(e) => setTrendWin(e.target.value as TrendWindow)}
+          aria-label="Time range"
+          style={{
+            background: "transparent",
+            border: "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+            borderRadius: 999,
+            padding: "4px 12px",
+            color: "var(--color-foreground)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-caption)",
+            cursor: "pointer",
+          }}
+        >
+          <option value="all">All time</option>
+          <option value="180d">Last 180 days</option>
+          <option value="90d">Last 90 days</option>
+          <option value="30d">Last 30 days</option>
+        </select>
+      </div>
+
       <main className="flex-1 overflow-y-auto px-5 pb-12 pt-4">
         <div className="mx-auto flex max-w-md flex-col items-center gap-5">
           {/* 3a — Hero */}
@@ -195,11 +230,17 @@ function CardTraceRoute() {
           {meaning && <MeaningSection meaning={meaning} />}
 
           {/* 3c — Stats strip */}
-          {data && <StatsStrip data={data} />}
+          {data && (
+            <StatsStrip
+              data={data}
+              count={filteredCount}
+              reversedCount={filteredReversed}
+            />
+          )}
 
           {/* 3d — Trend line */}
-          {data && data.totalCount > 0 && (
-            <CardTrendChart appearances={data.appearances} />
+          {data && filteredCount > 0 && (
+            <CardTrendChart appearances={filteredAppearances} win={trendWin} />
           )}
 
           {/* 3e — Co-occurrence */}
@@ -220,9 +261,9 @@ function CardTraceRoute() {
         </div>
 
         {/* 3g — Calendar — wider container */}
-        {data && data.totalCount > 0 && (
+        {data && filteredCount > 0 && (
           <div className="mx-auto my-6" style={{ maxWidth: 960 }}>
-            <ExpandableCalendar appearances={data.appearances} />
+            <ExpandableCalendar appearances={filteredAppearances} />
           </div>
         )}
 
@@ -232,9 +273,9 @@ function CardTraceRoute() {
             <EmptyNote text="This card hasn't appeared in your readings yet." />
           )}
 
-          {data && data.totalCount > 0 && (
+          {data && filteredCount > 0 && (
             <ReadingsList
-              appearances={data.appearances}
+              appearances={filteredAppearances}
               onOpen={setOpenReadingId}
             />
           )}
