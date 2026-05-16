@@ -2475,40 +2475,6 @@ function UserDetailPage({
           />
         </DetailPanel>
 
-        <DetailPanel title="AI Credits">
-          <DetailRow
-            label="Manage"
-            value={
-              <Link
-                to="/admin/usage/users/$userId"
-                params={{ userId: user.user_id }}
-                style={{
-                  ...display,
-                  fontSize: "var(--text-caption)",
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  color: "var(--accent, var(--gold))",
-                  textDecoration: "underline",
-                  textUnderlineOffset: 3,
-                }}
-              >
-                Open credit grants & usage →
-              </Link>
-            }
-          />
-          <div
-            style={{
-              ...serif,
-              fontSize: "var(--text-caption)",
-              opacity: 0.55,
-              marginTop: 4,
-            }}
-          >
-            Grant bonus credits, reset the monthly quota, or block AI for this
-            user.
-          </div>
-        </DetailPanel>
-
         <DetailPanel title="Account">
           <DetailRow
             label="User ID"
