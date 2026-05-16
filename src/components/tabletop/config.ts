@@ -88,7 +88,10 @@ export function responsiveSlotWidth(viewportW: number, count: number): number {
   // legible without dwarfing the rest of the table.
   if (count <= 0 || viewportW <= 0) return 48;
   const isMobile = viewportW < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
-  const railPad = isMobile ? 32 : 40; // Q39b Fix 2 - controls row outer+inner padding
+  // Q73 Fix 8 — bumped by 8px each side so the rail inner flex has
+  // padding room for the breathing beacon glow to render without
+  // clipping the leftmost / rightmost slot.
+  const railPad = isMobile ? 40 : 48;
   const gap = slotGap(count, isMobile);
   const usable = Math.max(0, viewportW - railPad * 2 - gap * (count - 1));
   const naive = Math.floor(usable / count);
@@ -122,7 +125,7 @@ export function slotRailFitsViewport(
 ): boolean {
   if (count <= 0 || viewportW <= 0) return true;
   const isMobile = viewportW < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
-  const railPad = isMobile ? 32 : 40;
+  const railPad = isMobile ? 40 : 48;
   const gap = slotGap(count, isMobile);
   const total = slotW * count + gap * (count - 1) + railPad * 2;
   return total <= viewportW;
