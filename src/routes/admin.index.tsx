@@ -65,6 +65,7 @@ import {
   updateFeedbackStatus,
   type AdminFeedbackItem,
 } from "@/lib/admin-feedback.functions";
+import { grantBonusCredits, getDashboardAlerts } from "@/lib/admin-usage.functions";
 import { setDevMode } from "@/components/dev/DevOverlay";
 import { useConfirm } from "@/hooks/use-confirm";
 import { toast } from "sonner";
