@@ -1443,6 +1443,16 @@ export function Tabletop({
                         opacity: showLabels ? (isNext ? undefined : restingAlpha) : 0,
                         letterSpacing: "0.05em",
                         whiteSpace: "nowrap",
+                        // Q68 — clip labels to the slot's calculated
+                        // width. Without this, long labels (e.g.
+                        // "Slot 8") push the flex-column item wider
+                        // than slotW and overflow the rail. The slot
+                        // number is always legible from the rectangle's
+                        // position; the full position name is shown in
+                        // the whisper above the rail.
+                        maxWidth: slotW,
+                        overflow: "hidden",
+                        textOverflow: "clip",
                         pointerEvents: showLabels ? undefined : "none",
                         transition: "opacity 200ms ease-out",
                       }}
