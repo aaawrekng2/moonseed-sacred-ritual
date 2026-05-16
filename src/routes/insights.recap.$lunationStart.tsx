@@ -32,8 +32,7 @@ export const Route = createFileRoute("/insights/recap/$lunationStart")({
   component: LunationRecapRoute,
 });
 
-const TOTAL_SLIDES_FREE = 5;
-// EQ — Premium gets the full story: 0–3 shared, 4–9 premium content,
+// EQ — Full story: 0–3 shared, 4–9 premium content,
 // 10 Save/Share/Done. Top tags (slide 8) is dropped dynamically when
 // the user has no tags this lunation.
 const TOTAL_SLIDES_PREMIUM_FULL = 11;
