@@ -97,7 +97,7 @@ function CardTraceRoute() {
     ...EMPTY_GLOBAL_FILTERS,
     timeRange: "all",
   });
-  const trendWin = gFilters.timeRange as TimeRange;
+  const trendWin = (gFilters.timeRange ?? "all") as TimeRange;
 
   // Q75 — user tags for the filter drawer.
   const [userTags, setUserTags] = useState<
@@ -240,7 +240,7 @@ function CardTraceRoute() {
           onChange={setGFilters}
           sections={["tags", "spreadTypes", "moonPhases", "depth", "reversed"]}
           timeRange={{
-            value: gFilters.timeRange,
+            value: gFilters.timeRange ?? "all",
             options: [
               { value: "30d", label: "Last 30 days" },
               { value: "90d", label: "Last 90 days" },
