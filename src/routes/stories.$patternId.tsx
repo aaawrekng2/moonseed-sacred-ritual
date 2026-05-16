@@ -795,6 +795,16 @@ function PatternChamber() {
           onClose={() => setOpenReadingId(null)}
         />
       )}
+      <StoryShareModal
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        patternName={pattern.story_name?.trim() || pattern.name}
+        description={(pattern.story_description ?? pattern.description ?? "").trim()}
+        cardIds={Array.from(
+          new Set((chamberReadings ?? []).flatMap((r) => r.card_ids ?? [])),
+        )}
+        readingCount={pattern.reading_ids?.length ?? 0}
+      />
       </div>
     </div>
   );
