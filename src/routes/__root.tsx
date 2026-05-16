@@ -24,6 +24,8 @@ import { ConfirmProvider } from "@/hooks/use-confirm";
 import { WelcomeModal } from "@/components/onboarding/WelcomeModal";
 import { supabase } from "@/integrations/supabase/client";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
+import { claimStarterCredits } from "@/lib/starter-credits.functions";
+import { useServerFn } from "@tanstack/react-start";
 
 /**
  * Read the persisted resting opacity from localStorage and apply it to
@@ -205,6 +207,12 @@ function RootComponent() {
   useEffect(() => {
     if (user?.id) void runQ4StorageCleanup(user.id);
   }, [user?.id]);
+  // Q69 — Grant starter credits to brand-new users (idempotent).
+  const claimStarter = useServerFn(claimStarterCredits);
+  useEffect(() => {
+    if (!user?.id || !user.email) return;
+    void claimStarter({}).catch(() => {});
+  }, [user?.id, user?.email, claimStarter]);
   // Q10 — one-time TarotPulse CSV import (gated to a specific email).
   useEffect(() => {
     if (user?.id) void maybeRunTarotpulseImport(user.id, user.email ?? null);
