@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Camera, Ghost, Heart, Image as ImageIcon, MessageCircle, Network, Star, StickyNote, Tag as TagIcon, Wand2, X as XIcon } from "lucide-react";
-import { usePremium } from "@/lib/premium";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
@@ -1999,7 +1998,6 @@ function ReadingDetail({
   const guide = getGuideById(reading.guide_id);
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isPremium } = usePremium(user?.id);
   const positions = isValidSpreadMode(reading.spread_type)
     ? SPREAD_META[reading.spread_type as SpreadMode].positions
     : undefined;

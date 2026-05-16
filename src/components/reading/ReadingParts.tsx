@@ -19,7 +19,6 @@ import { supabase } from "@/lib/supabase";
 import { useActiveGuide } from "@/lib/use-active-guide";
 import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useAuth } from "@/lib/auth";
-import { usePremium } from "@/lib/premium";
 import { getCurrentMoonPhase } from "@/lib/moon";
 import { FACETS } from "@/lib/guides";
 import {
@@ -88,7 +87,6 @@ export function InlineReading({
   const meta = SPREAD_META[spread];
   const { isOracle } = useOracleMode();
   const { user } = useAuth();
-  const { isPremium } = usePremium(user?.id);
   const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ kind: "idle" });
   const [retryNonce, setRetryNonce] = useState(0);
@@ -381,7 +379,7 @@ export function InlineReading({
           </>
         )}
         {state.kind === "limit" && (
-          <AiQuotaBlock resetAt={null} isPremium={isPremium} />
+          <AiQuotaBlock resetAt={null} />
         )}
         {state.kind === "error" && (
           <ErrorMessage
