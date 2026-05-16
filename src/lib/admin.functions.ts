@@ -232,6 +232,54 @@ export const getPendingSignupCount = createServerFn({ method: "GET" })
     return { count } as const;
   });
 
+/* ---------- listPendingSignups (Q68) ---------- */
+
+/**
+ * Q68 — Returns users who started signup (have an email) but never
+ * confirmed it. Surfaced in the Admin dashboard so we can spot stuck
+ * onboarding flows (e.g. typo'd address, deliverability issues).
+ */
+export const listPendingSignups = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    const out: Array<{
+      id: string;
+      email: string;
+      created_at: string;
+      last_sign_in_at: string | null;
+    }> = [];
+    let page = 1;
+    const perPage = 1000;
+    while (true) {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({
+        page,
+        perPage,
+      });
+      if (error) throw new Error(error.message);
+      for (const u of data.users) {
+        if (u.email && !(u as any).email_confirmed_at) {
+          out.push({
+            id: u.id,
+            email: u.email,
+            created_at: u.created_at,
+            last_sign_in_at: (u as any).last_sign_in_at ?? null,
+          });
+        }
+      }
+      if (data.users.length < perPage) break;
+      page += 1;
+      if (page > 100) break;
+    }
+    out.sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+    return out;
+  });
+
 
 const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("grant_premium"), targetUserId: z.string().uuid(), months: z.number().int().positive() }),
