@@ -12,13 +12,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { X, Lock } from "lucide-react";
+import { X } from "lucide-react";
 import { formatDateLong, formatTimeAgo } from "@/lib/dates";
 import { getLunationRecap, getLunationReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { CardImage } from "@/components/card/CardImage";
 import { formatLunationRange } from "@/lib/lunation";
-import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
 import { useReducePremiumPrompts } from "@/lib/use-reduce-premium-prompts";
 import { exportRecapPdf, shareRecapImage } from "@/lib/recap-export";
@@ -33,8 +32,7 @@ export const Route = createFileRoute("/insights/recap/$lunationStart")({
   component: LunationRecapRoute,
 });
 
-const TOTAL_SLIDES_FREE = 5;
-// EQ — Premium gets the full story: 0–3 shared, 4–9 premium content,
+// EQ — Full story: 0–3 shared, 4–9 premium content,
 // 10 Save/Share/Done. Top tags (slide 8) is dropped dynamically when
 // the user has no tags this lunation.
 const TOTAL_SLIDES_PREMIUM_FULL = 11;
@@ -88,8 +86,7 @@ function LunationRecapRoute() {
   const [loading, setLoading] = useState(true);
   const [slide, setSlide] = useState(0);
   const [reflection, setReflection] = useState<string | null>(null);
-  const { user } = useAuth();
-  const { isPremium } = usePremium(user?.id);
+  useAuth();
   // ER-8 — drop the reversal slide from the premium order when off.
   const { trackReversals } = useTrackReversals();
 
@@ -121,11 +118,10 @@ function LunationRecapRoute() {
     () => Boolean(data?.topTags && data.topTags.length > 0),
     [data],
   );
-  const total = isPremium
-    ? TOTAL_SLIDES_PREMIUM_FULL -
-      (hasTags ? 0 : 1) -
-      (trackReversals ? 0 : 1)
-    : TOTAL_SLIDES_FREE;
+  const total =
+    TOTAL_SLIDES_PREMIUM_FULL -
+    (hasTags ? 0 : 1) -
+    (trackReversals ? 0 : 1);
 
   const next = () => setSlide((s) => Math.min(s + 1, total - 1));
   const prev = () => setSlide((s) => Math.max(s - 1, 0));
@@ -219,20 +215,12 @@ function LunationRecapRoute() {
           <SlideContent
             data={data}
             slide={slide}
-            isPremium={isPremium}
             hasTags={hasTags}
             trackReversals={trackReversals}
             lunationStart={lunationStart}
             reflection={reflection}
             onReflection={setReflection}
             onClose={close}
-            onPremium={() => {
-              window.dispatchEvent(
-                new CustomEvent("tarotseed:open-premium", {
-                  detail: { feature: "Full Lunation Recap", featureName: "Full Lunation Recap" },
-                }),
-              );
-            }}
           />
         )}
       </div>
@@ -243,25 +231,21 @@ function LunationRecapRoute() {
 function SlideContent({
   data,
   slide,
-  isPremium,
   hasTags,
   trackReversals,
   lunationStart,
   reflection,
   onReflection,
   onClose,
-  onPremium,
 }: {
   data: RecapData;
   slide: number;
-  isPremium: boolean;
   hasTags: boolean;
   trackReversals: boolean;
   lunationStart: string;
   reflection: string | null;
   onReflection: (r: string | null) => void;
   onClose: () => void;
-  onPremium: () => void;
 }) {
   const range = formatLunationRange({
     start: new Date(data.lunationStart),
@@ -367,45 +351,6 @@ function SlideContent({
           <Caption>No guide chosen this cycle.</Caption>
         )}
       </SlideShell>
-    );
-  }
-
-  // Free users: locked closer at slide 4.
-  if (!isPremium) {
-    return (
-    <SlideShell>
-      <Lock size={28} style={{ color: "var(--gold)", opacity: 0.85 }} />
-      <div
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "clamp(1.6rem, 6vw, 2.4rem)",
-          color: "var(--gold)",
-          marginTop: 8,
-          lineHeight: 1.2,
-        }}
-      >
-        There&rsquo;s more to this lunation.
-      </div>
-      <Caption>
-        Major / minor balance, reversal patterns, moon phases, card pairs, themes,
-        and a written reflection — all wait inside Premium.
-      </Caption>
-      <button
-        type="button"
-        onClick={onPremium}
-        className="pointer-events-auto mt-4 rounded-full px-6 py-2"
-        style={{
-          background: "var(--gold)",
-          color: "var(--cosmos, #0a0a14)",
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-body)",
-        }}
-      >
-        Unlock the full recap
-      </button>
-    </SlideShell>
     );
   }
 

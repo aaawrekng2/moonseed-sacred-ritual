@@ -3,7 +3,6 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
 import { useReducePremiumPrompts } from "@/lib/use-reduce-premium-prompts";
 import { getNumerologyReading } from "@/lib/insights.functions";
@@ -13,7 +12,6 @@ import type { InsightsFilters } from "@/lib/insights.types";
 
 export function NumerologyReadingTab({ filters }: { filters: InsightsFilters }) {
   const { user } = useAuth();
-  const { isPremium } = usePremium(user?.id);
   const reducePrompts = useReducePremiumPrompts(user?.id);
   const fn = useServerFn(getNumerologyReading);
 
@@ -23,7 +21,6 @@ export function NumerologyReadingTab({ filters }: { filters: InsightsFilters }) 
   const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
-    if (!isPremium) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -54,7 +51,7 @@ export function NumerologyReadingTab({ filters }: { filters: InsightsFilters }) 
     return () => {
       cancelled = true;
     };
-  }, [isPremium, filters, fn]);
+  }, [filters, fn]);
 
   const onGenerate = useCallback(async () => {
     setIsGenerating(true);

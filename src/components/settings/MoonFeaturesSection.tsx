@@ -1,10 +1,7 @@
 import { useState } from "react";
-import { Lock } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
-import { usePremium } from "@/lib/premium";
-import { PremiumModal } from "@/components/premium/PremiumModal";
 import { useSettings, type Prefs } from "./SettingsContext";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -13,15 +10,10 @@ import { emitMoonPrefsChanged } from "@/lib/use-moon-prefs";
 /**
  * Moon & Lunar Features section in Settings → Preferences.
  *
- * In Tarot Seed every feature is unlocked (`usePremium` returns
- * `isPremium: true`) so the locked-state branches are present for
- * source-bundle parity but never render in practice.
+ * Q72 — premium tier removed; every feature is unlocked.
  */
 export function MoonFeaturesSection() {
   const { user, prefs, setPrefs } = useSettings();
-  const { isPremium } = usePremium(user.id);
-  const [premiumOpen, setPremiumOpen] = useState(false);
-  const [premiumFeature, setPremiumFeature] = useState("Moon Features");
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
   const update = async (patch: Partial<Prefs>) => {
@@ -36,8 +28,6 @@ export function MoonFeaturesSection() {
       setPrefs(prefs);
       return;
     }
-    // CV — broadcast home-page-relevant moon prefs so the home page
-    // updates without a refresh.
     if (
       "moon_features_enabled" in patch ||
       "moon_show_carousel" in patch ||
@@ -57,13 +47,6 @@ export function MoonFeaturesSection() {
           : {}),
       });
     }
-  };
-
-  const tryPremium = (feature: string): boolean => {
-    if (isPremium) return true;
-    setPremiumFeature(feature);
-    setPremiumOpen(true);
-    return false;
   };
 
   const masterOn = prefs.moon_features_enabled;
@@ -135,56 +118,35 @@ export function MoonFeaturesSection() {
               </p>
             </div>
 
-            <PremiumToggleRow
+            <ToggleRow
               id="moon-ai-phase"
               label="AI considers moon phase in readings"
               sublabel="The moon phase at the time of your reading influences the AI interpretation"
-              isPremium={isPremium}
-              checked={isPremium ? prefs.moon_ai_phase : false}
+              checked={prefs.moon_ai_phase}
               disabled={savingKey === "moon_ai_phase"}
-              onChange={(v) => {
-                if (!tryPremium("Lunar AI Context")) return;
-                void update({ moon_ai_phase: v });
-              }}
-              onLockedClick={() => tryPremium("Lunar AI Context")}
+              onChange={(v) => update({ moon_ai_phase: v })}
             />
 
-            <PremiumToggleRow
+            <ToggleRow
               id="moon-ai-sign"
               label="AI considers moon sign in readings"
               sublabel="The current moon sign adds astrological depth to your readings"
-              isPremium={isPremium}
-              checked={isPremium ? prefs.moon_ai_sign : false}
+              checked={prefs.moon_ai_sign}
               disabled={savingKey === "moon_ai_sign"}
-              onChange={(v) => {
-                if (!tryPremium("Lunar AI Context")) return;
-                void update({ moon_ai_sign: v });
-              }}
-              onLockedClick={() => tryPremium("Lunar AI Context")}
+              onChange={(v) => update({ moon_ai_sign: v })}
             />
 
-            <PremiumToggleRow
+            <ToggleRow
               id="moon-void-warning"
               label="Show void of course warning"
               sublabel="Get notified when the moon is void of course — a time for reflection not action"
-              isPremium={isPremium}
-              checked={isPremium ? prefs.moon_void_warning : false}
+              checked={prefs.moon_void_warning}
               disabled={savingKey === "moon_void_warning"}
-              onChange={(v) => {
-                if (!tryPremium("Void of Course Warning")) return;
-                void update({ moon_void_warning: v });
-              }}
-              onLockedClick={() => tryPremium("Void of Course Warning")}
+              onChange={(v) => update({ moon_void_warning: v })}
             />
           </div>
         </div>
       )}
-
-      <PremiumModal
-        open={premiumOpen}
-        onOpenChange={setPremiumOpen}
-        featureName={premiumFeature}
-      />
     </section>
   );
 }
@@ -204,65 +166,6 @@ function ToggleRow({
   disabled?: boolean;
   onChange: (v: boolean) => void;
 }) {
-  return (
-    <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
-      <div className="space-y-0.5">
-        <Label htmlFor={id} className="text-sm">
-          {label}
-        </Label>
-        <p className="text-xs text-muted-foreground">{sublabel}</p>
-      </div>
-      <Switch
-        id={id}
-        checked={checked}
-        disabled={disabled}
-        onCheckedChange={onChange}
-      />
-    </div>
-  );
-}
-
-function PremiumToggleRow({
-  id,
-  label,
-  sublabel,
-  isPremium,
-  checked,
-  disabled,
-  onChange,
-  onLockedClick,
-}: {
-  id: string;
-  label: string;
-  sublabel: string;
-  isPremium: boolean;
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (v: boolean) => void;
-  onLockedClick: () => void;
-}) {
-  if (!isPremium) {
-    return (
-      <button
-        type="button"
-        onClick={onLockedClick}
-        className={cn(
-          "flex w-full items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4 text-left",
-          "transition-colors hover:bg-gold/[0.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        )}
-        aria-label={`${label} — locked, unlock with Premium`}
-      >
-        <div className="space-y-0.5 opacity-80">
-          <span className="block text-sm">{label}</span>
-          <span className="block text-xs text-muted-foreground">{sublabel}</span>
-        </div>
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold/15 text-gold">
-          <Lock className="h-3 w-3" />
-        </span>
-      </button>
-    );
-  }
-
   return (
     <div className="flex items-start justify-between gap-4 rounded-lg border border-border/60 bg-card/40 p-4">
       <div className="space-y-0.5">

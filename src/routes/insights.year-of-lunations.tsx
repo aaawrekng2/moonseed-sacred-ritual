@@ -14,7 +14,6 @@ import {
 } from "@/lib/insights.functions";
 import { exportYearOfLunationsPdf, shareRecapImage } from "@/lib/recap-export";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
-import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
 import { useMoonPrefs } from "@/lib/use-moon-prefs";
 import { LunationHint } from "@/components/insights/LunationHint";
@@ -37,7 +36,6 @@ function YearOfLunationsRoute() {
   const navigate = useNavigate();
   const fn = useServerFn(getYearOfLunationsRecap);
   const { user } = useAuth();
-  const { isPremium } = usePremium(user?.id);
   // Q61 Fix 2 — moon_features_enabled gate.
   const moonPrefs = useMoonPrefs();
   useEffect(() => {
@@ -55,15 +53,6 @@ function YearOfLunationsRoute() {
 
   useEffect(() => {
     if (!user) return;
-    if (!isPremium) {
-      window.dispatchEvent(
-        new CustomEvent("tarotseed:open-premium", {
-          detail: { feature: "Year of Lunations", featureName: "Year of Lunations" },
-        }),
-      );
-      void navigate({ to: "/insights" });
-      return;
-    }
     let cancelled = false;
     setLoading(true);
     void (async () => {
@@ -84,7 +73,7 @@ function YearOfLunationsRoute() {
     return () => {
       cancelled = true;
     };
-  }, [fn, user, isPremium, navigate]);
+  }, [fn, user, navigate]);
 
   const close = () => navigate({ to: "/insights" });
   const next = () => setSlide((s) => Math.min(s + 1, TOTAL - 1));

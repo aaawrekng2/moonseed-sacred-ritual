@@ -31,7 +31,6 @@ import { getGuideById } from "@/lib/guides";
 import { HelpIcon } from "@/components/help/HelpIcon";
 import { publishMistLevel } from "@/components/dev/DevOverlay";
 import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
-import { usePremium } from "@/lib/premium";
 
 type Props = {
   readingId: string;
@@ -66,7 +65,6 @@ export function DeepReadingPanel({
   initialMirrorSaved,
 }: Props) {
   const { user } = useAuth();
-  const { isPremium } = usePremium(user?.id);
   const [mist, setMist] = useState<MistState>({
     level: 0,
     whisper: "The cards are listening.",
@@ -294,11 +292,7 @@ export function DeepReadingPanel({
           onTap={() => {}}
           disabled
         />
-        <AiQuotaBlock
-          resetAt={flow.nextDawn}
-          isPremium={isPremium}
-          onUpgrade={() => window.dispatchEvent(new CustomEvent("tarotseed:open-premium"))}
-        />
+        <AiQuotaBlock resetAt={flow.nextDawn} />
       </>
     );
   }
