@@ -915,7 +915,6 @@ export function PreferencesTab() {
       <ReadingPreferencesSection user={user} prefs={prefs} setPrefs={setPrefs} />
       <MoonFeaturesSection />
       <AIToneSection />
-      <PremiumPromptsSection user={user} prefs={prefs} setPrefs={setPrefs} />
       <MemorySection user={user} prefs={prefs} setPrefs={setPrefs} />
     </div>
   );

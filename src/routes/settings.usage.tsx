@@ -44,7 +44,7 @@ function UsagePage() {
   const used = usage.ai.used;
   const total = Math.max(1, usage.ai.quota);
   const pct = Math.min(1, Math.max(0, used / total));
-  const planLabel = usage.isPremium ? "PREMIUM" : "FREE";
+  const planLabel = "AI CREDITS";
 
   return (
     <section
