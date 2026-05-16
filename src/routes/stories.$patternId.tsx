@@ -8,7 +8,6 @@ import {
 import { generateCardEvidenceProse } from "@/lib/card-evidence.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
-import { usePremium } from "@/lib/premium";
 import { ChevronLeft, Pencil, Archive, Share2, StickyNote, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -115,7 +114,6 @@ export const Route = createFileRoute("/stories/$patternId")({
 function PatternChamber() {
   const { patternId } = Route.useParams();
   const { user } = useAuth();
-  const { isPremium: chamberIsPremium } = usePremium(user?.id);
   const navigate = useNavigate();
   const confirm = useConfirm();
   const [pattern, setPattern] = useState<Pattern | null>(null);
@@ -513,7 +511,7 @@ function PatternChamber() {
       />
       {storyQuotaBlocked && (
         <div style={{ margin: "var(--space-4, 16px) 0" }}>
-          <AiQuotaBlock resetAt={null} isPremium={chamberIsPremium} />
+          <AiQuotaBlock resetAt={null} />
         </div>
       )}
       <StatsRibbon
@@ -1063,8 +1061,7 @@ function ChamberCardEvidence({
   // deterministic placeholder. Cached on `symbolic_threads.evidence_prose`
   // and regenerated only when recurrence_count grows or the prose
   // version bumps.
-  const navigate = useNavigate();
-  const { isPremium } = usePremium(userId);
+  void userId;
   const generateProse = useServerFn(generateCardEvidenceProse);
 
   type ThreadRow = {
@@ -1260,7 +1257,7 @@ function ChamberCardEvidence({
             ) : generating.has(t.id) ? (
               <LoadingSkeleton heights={[60, 40, 60]} />
             ) : null}
-            {isPremium && proseByThread[t.id] && (
+            {proseByThread[t.id] && (
               <button
                 type="button"
                 onClick={() => void generateForThread(t.id, true)}
@@ -1284,9 +1281,6 @@ function ChamberCardEvidence({
           </li>
         ))}
       </ul>
-      {!isPremium && Object.keys(proseByThread).length > 0 && (
-        <PremiumUpsellCard onOpen={() => navigate({ to: "/settings/moon" })} />
-      )}
     </section>
   );
 }
