@@ -145,7 +145,7 @@ async function getCurrentCycleStart(userId: string): Promise<string> {
     .from("ai_credit_grants" as never)
     .select("created_at")
     .eq("user_id", userId)
-    .in("source", ["monthly_free", "monthly_premium"])
+    .in("source", ["monthly", "monthly_free", "monthly_premium"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -158,7 +158,7 @@ async function getNextResetDate(userId: string): Promise<string> {
     .from("ai_credit_grants" as never)
     .select("created_at, expires_at")
     .eq("user_id", userId)
-    .in("source", ["monthly_free", "monthly_premium"])
+    .in("source", ["monthly", "monthly_free", "monthly_premium"])
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
