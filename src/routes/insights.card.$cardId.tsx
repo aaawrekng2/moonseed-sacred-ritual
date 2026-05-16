@@ -434,12 +434,18 @@ function KeywordChip({
 /* ============================================================
  * 3c — Stats strip
  * ============================================================ */
-function StatsStrip({ data }: { data: Detail }) {
+function StatsStrip({
+  data,
+  count,
+  reversedCount,
+}: {
+  data: Detail;
+  count: number;
+  reversedCount: number;
+}) {
   const reversalRate =
-    data.totalCount === 0
-      ? 0
-      : Math.round((data.reversedCount / data.totalCount) * 100);
-  if (data.totalCount === 0) return null;
+    count === 0 ? 0 : Math.round((reversedCount / count) * 100);
+  if (count === 0) return null;
   return (
     <div
       className="grid w-full"
@@ -449,7 +455,7 @@ function StatsStrip({ data }: { data: Detail }) {
         padding: "16px 8px",
       }}
     >
-      <Stat value={String(data.totalCount)} label="appearances" />
+      <Stat value={String(count)} label="appearances" />
       <Stat
         value={data.firstSeen ? formatDateShort(data.firstSeen) : "—"}
         label="first drawn"
