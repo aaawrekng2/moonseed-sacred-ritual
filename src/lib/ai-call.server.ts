@@ -486,25 +486,11 @@ export async function callAIText(params: CallAIParams): Promise<string | null> {
 }
 
 /**
- * Helper: looks up is_premium from user_preferences. Returns false on failure.
+ * Q72 — premium tier removed. Always returns true; only used now for
+ * plan-logging in callAI, which is harmless once the distinction is moot.
  */
-export async function isUserPremium(userId: string | null | undefined): Promise<boolean> {
-  if (!userId) return false;
-  try {
-    const { data } = await supabaseAdmin
-      .from("user_preferences")
-      .select("is_premium, premium_expires_at")
-      .eq("user_id", userId)
-      .maybeSingle();
-    const row = data as { is_premium?: boolean | null; premium_expires_at?: string | null } | null;
-    if (!row?.is_premium) return false;
-    if (row.premium_expires_at && new Date(row.premium_expires_at).getTime() < Date.now()) {
-      return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
+export async function isUserPremium(_userId: string | null | undefined): Promise<boolean> {
+  return true;
 }
 
 /**

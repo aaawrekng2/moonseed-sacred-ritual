@@ -117,29 +117,12 @@ function effectiveWindow(
 }
 
 /**
- * EO-1 — Read user's premium status server-side. Cached per request would
- * require a context store; for now we hit user_preferences once per
- * server-fn invocation. Returns false on any error to avoid accidentally
- * unlocking unauthenticated callers.
+ * Q72 — premium tier removed. Always returns true so legacy callers
+ * (and their gating branches) become pass-throughs. AI features are
+ * gated by credits only; data cap is gone.
  */
-async function getIsPremium(supabase: any, userId: string): Promise<boolean> {
-  if (!userId) return false;
-  try {
-    const { data, error } = await supabase
-      .from("user_preferences")
-      .select("is_premium, premium_expires_at")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (error || !data) return false;
-    if (!data.is_premium) return false;
-    if (data.premium_expires_at) {
-      const exp = new Date(data.premium_expires_at).getTime();
-      if (Number.isFinite(exp) && exp <= Date.now()) return false;
-    }
-    return true;
-  } catch {
-    return false;
-  }
+async function getIsPremium(_supabase: any, _userId: string): Promise<boolean> {
+  return true;
 }
 
 type ReadingRow = {
