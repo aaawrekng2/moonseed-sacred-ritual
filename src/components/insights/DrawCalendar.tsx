@@ -80,14 +80,15 @@ export function DrawCalendar({
     // Q64 — wider opacity range so heavy-draw cards stand out.
     // Q73 Fix 6 — only highlight days with appearances. Without this
     // `else if (c < 8)` was catching c === 0 and lighting every day.
+    // Q74 — wider gap at the low end so single- vs double-draw days are
+    // clearly distinct on a dark background.
     if (c === 0) bg = undefined;
-    else if (c === 1) bg = "color-mix(in oklab, var(--gold) 15%, transparent)";
-    else if (c === 2) bg = "color-mix(in oklab, var(--gold) 25%, transparent)";
-    else if (c === 3) bg = "color-mix(in oklab, var(--gold) 35%, transparent)";
-    else if (c === 4) bg = "color-mix(in oklab, var(--gold) 45%, transparent)";
-    else if (c < 8) bg = "color-mix(in oklab, var(--gold) 55%, transparent)";
-    else if (c < 12) bg = "color-mix(in oklab, var(--gold) 70%, transparent)";
-    else bg = "color-mix(in oklab, var(--gold) 85%, transparent)";
+    else if (c === 1) bg = "color-mix(in oklab, var(--gold) 20%, transparent)";
+    else if (c === 2) bg = "color-mix(in oklab, var(--gold) 38%, transparent)";
+    else if (c === 3) bg = "color-mix(in oklab, var(--gold) 52%, transparent)";
+    else if (c === 4) bg = "color-mix(in oklab, var(--gold) 64%, transparent)";
+    else if (c < 8) bg = "color-mix(in oklab, var(--gold) 78%, transparent)";
+    else bg = "color-mix(in oklab, var(--gold) 90%, transparent)";
     return (
       <CalendarDayButton
         {...props}
