@@ -12,13 +12,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { X, Lock } from "lucide-react";
+import { X } from "lucide-react";
 import { formatDateLong, formatTimeAgo } from "@/lib/dates";
 import { getLunationRecap, getLunationReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { CardImage } from "@/components/card/CardImage";
 import { formatLunationRange } from "@/lib/lunation";
-import { usePremium } from "@/lib/premium";
 import { useAuth } from "@/lib/auth";
 import { useReducePremiumPrompts } from "@/lib/use-reduce-premium-prompts";
 import { exportRecapPdf, shareRecapImage } from "@/lib/recap-export";
