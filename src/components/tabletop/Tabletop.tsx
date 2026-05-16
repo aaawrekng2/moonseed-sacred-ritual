@@ -47,6 +47,7 @@ import {
   writeTabletopSession,
   clearTabletopSession,
   scatterPadding,
+  slotRailFitsViewport,
 } from "./config";
 import type { TabletopProps, CardState, TabletopSession, DragAction } from "./types";
 
