@@ -241,7 +241,9 @@ export function Tabletop({
   }, []);
 
   const isMobile = viewportW === null || viewportW < TABLETOP_CONFIG.MOBILE_BREAKPOINT;
-  const cardW = isMobile ? responsiveCardWidth(size?.w ?? 0) : 47;
+  // Q66 — desktop now uses the density-based responsiveCardWidth too,
+  // so cards aren't stuck at a tiny 47px on large monitors.
+  const cardW = responsiveCardWidth(size?.w ?? 0);
   const cardH = Math.round(cardW * TABLETOP_CONFIG.CARD_ASPECT_RATIO);
   // Slot rail uses its own width (smaller on mobile / for many-slot
   // spreads) so all slots fit in one row without scrolling.
@@ -1225,8 +1227,13 @@ export function Tabletop({
       {/* Tabletop scatter area */}
       <div
         ref={containerRef}
-        className="tabletop-stage relative flex-1 overflow-visible select-none"
+        className="tabletop-stage relative flex-1 overflow-visible select-none w-full mx-auto"
         style={{
+          // Q66 — desktop scatter is constrained to 1024px centered on
+          // screen so cards never spread to the edges of wide monitors.
+          // The measured width drives the scatter geometry, so cards
+          // stay inside the constrained box.
+          maxWidth: 1024,
           // Reserve a vertical strip for the upper-right icon cluster
           // (44px tap targets + safe-area) so cards never spawn or get
           // dragged behind it. Same reserve on mobile and desktop —
