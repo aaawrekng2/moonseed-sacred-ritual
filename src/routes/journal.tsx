@@ -2624,7 +2624,6 @@ function ReadingDetail({
           cardIds={reading.card_ids}
           question={reading.question ?? null}
           tailoredPrompt={reading.tailored_prompt ?? null}
-          isPremium={isPremium}
           onTailoredPromptUpdate={(next) =>
             onReadingChange({
               id: reading.id,
@@ -2636,7 +2635,6 @@ function ReadingDetail({
               // and is re-fetched on next open.
             } as { id: string; note: string | null; is_favorite: boolean; tags: string[] | null })
           }
-          onPremiumUpsell={() => navigate({ to: "/settings/moon" })}
           defaultNoteOpen
           journalPromptUsed={!!reading.journal_prompt_used}
           onJournalPromptUsed={() => {

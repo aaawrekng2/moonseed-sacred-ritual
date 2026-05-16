@@ -416,11 +416,9 @@ export function InlineReading({
               cardIds={picks.map((p) => p.cardIndex)}
               question={question || null}
               tailoredPrompt={savedReading.tailored_prompt ?? null}
-              isPremium={isPremium}
               onTailoredPromptUpdate={(next) =>
                 setSavedReading((prev) => (prev ? { ...prev, tailored_prompt: next } : prev))
               }
-              onPremiumUpsell={() => navigate({ to: "/settings/moon" })}
               journalPromptUsed={!!savedReading.journal_prompt_used}
               onJournalPromptUsed={() => {
                 setSavedReading((prev) =>
