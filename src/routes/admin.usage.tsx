@@ -17,6 +17,7 @@ import {
   listAdminSettings,
   updateAdminSetting,
 } from "@/lib/admin-usage.functions";
+import { listAdminUsers } from "@/lib/admin.functions";
 import { formatDateLong } from "@/lib/dates";
 
 export const Route = createFileRoute("/admin/usage")({
@@ -230,12 +231,75 @@ function SeekersTab() {
   useEffect(() => {
     (async () => {
       const headers = await authHeaders();
-      const r = await getSeekerUsageList({
-        data: { sortBy, sortDir, filter, limit, offset, search: search || undefined },
-        headers,
+      // Q68 — fetch a large page of usage rows AND the full admin
+      // users list, then merge. Users with zero activity exist in
+      // `listAdminUsers` (reads auth.users) but not in
+      // `seeker_usage_monthly`. Without this merge, brand-new signups
+      // are invisible in the Users tab and admins cannot gift them
+      // premium.
+      const [r, admins] = await Promise.all([
+        getSeekerUsageList({
+          data: { sortBy, sortDir, filter, limit: 200, offset: 0, search: search || undefined },
+          headers,
+        }),
+        listAdminUsers({ headers }),
+      ]);
+      const byId = new Map<string, any>();
+      for (const row of r.rows) byId.set(row.user_id, row);
+      for (const u of admins) {
+        if (!u.email) continue;
+        if (byId.has(u.user_id)) {
+          const ex = byId.get(u.user_id);
+          ex.email_confirmed = (u as any).email_confirmed ?? !!u.email_confirmed_at;
+          continue;
+        }
+        byId.set(u.user_id, {
+          user_id: u.user_id,
+          email: u.email,
+          plan: u.is_premium ? "premium" : "free",
+          ai_cost_usd_this_month: 0,
+          storage_bytes_current: 0,
+          total_cost_usd_this_month: 0,
+          revenue_this_month: 0,
+          margin_this_month: 0,
+          loss_ratio: 0,
+          ai_credits_used_this_month: 0,
+          last_call_at: null,
+          member_since: u.created_at,
+          email_confirmed: (u as any).email_confirmed ?? !!u.email_confirmed_at,
+        });
+      }
+      let merged = Array.from(byId.values());
+      // Apply search client-side so zero-activity users are searchable.
+      if (search) {
+        const q = search.toLowerCase();
+        merged = merged.filter((m) => (m.email ?? "").toLowerCase().includes(q));
+      }
+      // Apply filter chips that the server may have ignored for the
+      // zero-rows we added.
+      if (filter === "free") merged = merged.filter((m) => m.plan === "free");
+      else if (filter === "premium") merged = merged.filter((m) => m.plan === "premium" || m.plan === "premium_gifted");
+      else if (filter === "loss_makers") merged = merged.filter((m) => (m.margin_this_month ?? 0) < 0);
+      // Sort client-side across the merged list.
+      const sortKey: Record<string, string> = {
+        total_cost: "total_cost_usd_this_month",
+        ai_cost: "ai_cost_usd_this_month",
+        storage_bytes: "storage_bytes_current",
+        revenue: "revenue_this_month",
+        loss_ratio: "loss_ratio",
+        last_activity: "last_call_at",
+        member_since: "member_since",
+      };
+      const k = sortKey[sortBy] ?? "total_cost_usd_this_month";
+      merged.sort((a, b) => {
+        const av = a[k] ?? 0;
+        const bv = b[k] ?? 0;
+        if (av === bv) return 0;
+        const cmp = av > bv ? 1 : -1;
+        return sortDir === "asc" ? cmp : -cmp;
       });
-      setRows(r.rows);
-      setTotal(r.total);
+      setTotal(merged.length);
+      setRows(merged.slice(offset, offset + limit));
     })().catch((e) => console.error(e));
   }, [filter, sortBy, sortDir, offset, search]);
 
@@ -317,6 +381,9 @@ function SeekersTab() {
             }}
           >
             <span style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}>{r.email}</span>
+            {r.email_confirmed === false && (
+              <span style={{ opacity: 0.5, fontSize: 11, fontStyle: "italic", marginLeft: -4 }}>unconfirmed</span>
+            )}
             <span style={{ opacity: 0.7 }}>{r.plan}</span>
             <span>{fmtUsd(r.ai_cost_usd_this_month)}</span>
             <span>{fmtBytes(r.storage_bytes_current)}</span>
