@@ -551,6 +551,11 @@ function DashboardTab() {
 
       // Counts.
       const totalReadings = users.reduce((acc, u) => acc + u.reading_count, 0);
+      // Q68 — only count readings whose user_id is present in the
+      // listed admin users. Anonymous session IDs in the readings
+      // table are not "users" and inflated the Active count above the
+      // Total Users number.
+      const knownUserIds = new Set(users.map((u) => u.user_id));
       const activeIds = new Set<string>();
       const weekIds = new Set<string>();
       const monthIds = new Set<string>();
@@ -566,6 +571,19 @@ function DashboardTab() {
       }
       for (const r of reads) {
         const t = new Date(r.created_at).getTime();
+        if (!knownUserIds.has(r.user_id)) {
+          // Still let the byDay chart count anonymous-session reads
+          // toward the daily totals below, but do not include them in
+          // the user-id sets used for Active/Week/Month counts.
+          const key = new Date(r.created_at).toISOString().slice(0, 10);
+          if (byDay[key]) {
+            if (r.is_deep_reading) byDay[key].deep += 1;
+            else byDay[key].standard += 1;
+          }
+          spreadCounts[r.spread_type] =
+            (spreadCounts[r.spread_type] ?? 0) + 1;
+          continue;
+        }
         if (t >= todayStart.getTime()) {
           today += 1;
           activeIds.add(r.user_id);
