@@ -206,6 +206,8 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
     const lensCounts: Record<string, number> = {};
     const dayCounts: Record<string, number> = {};
     let deepCount = 0;
+    const availSpreads = new Set<string>();
+    const availMoonPhases = new Set<string>();
 
     for (const r of rows) {
       const cards = r.card_ids ?? [];
@@ -227,7 +229,11 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
         if (suit !== "Major") suitCounts[suit] += 1;
       });
       const phase0 = resolveMoonPhase(r.moon_phase, r.created_at);
-      if (phase0) moonPhases[phase0] = (moonPhases[phase0] ?? 0) + 1;
+      if (phase0) {
+        moonPhases[phase0] = (moonPhases[phase0] ?? 0) + 1;
+        availMoonPhases.add(phase0);
+      }
+      if (r.spread_type) availSpreads.add(r.spread_type);
       if (r.guide_id) guideCounts[r.guide_id] = (guideCounts[r.guide_id] ?? 0) + 1;
       if (r.lens_id) lensCounts[r.lens_id] = (lensCounts[r.lens_id] ?? 0) + 1;
       if (r.is_deep_reading) deepCount += 1;
@@ -284,6 +290,8 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
         : null,
       deepReadingsCount: deepCount,
       dataCapped: capped,
+      availableSpreadTypes: Array.from(availSpreads).sort(),
+      availableMoonPhases: Array.from(availMoonPhases).sort(),
     };
   });
 
