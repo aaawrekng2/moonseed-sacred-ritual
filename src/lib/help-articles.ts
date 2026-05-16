@@ -13,7 +13,7 @@ export type HelpCategoryId =
   | "stories-and-memory"
   | "sharing"
   | "customization"
-  | "account-and-premium";
+  | "account-and-credits";
 
 export type HelpCategory = {
   id: HelpCategoryId;
@@ -48,9 +48,9 @@ export const HELP_CATEGORIES: HelpCategory[] = [
     blurb: "Themes, decks, and atmosphere.",
   },
   {
-    id: "account-and-premium",
-    name: "Account & Premium",
-    blurb: "Sign in, backup, premium features.",
+    id: "account-and-credits",
+    name: "Account & Credits",
+    blurb: "Sign in, backup, and credit usage.",
   },
 ];
 
