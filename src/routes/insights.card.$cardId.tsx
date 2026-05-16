@@ -15,7 +15,6 @@ import {
   X,
   ChevronDown,
   Sparkles,
-  SlidersHorizontal,
 } from "lucide-react";
 import {
   AreaChart,
@@ -31,7 +30,13 @@ import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage } from "@/lib/active-deck";
 import { getCardImagePath, getCardName } from "@/lib/tarot";
 import { DEFAULT_FILTERS, type TimeRange } from "@/lib/insights.types";
-import { Dropdown } from "@/components/filters/Dropdown";
+import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
+import {
+  EMPTY_GLOBAL_FILTERS,
+  type GlobalFilters,
+} from "@/lib/filters.types";
+import { useScrollCollapse } from "@/lib/use-scroll-collapse";
+import type { MoonPhaseName } from "@/lib/moon";
 import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 import { CardImage } from "@/components/card/CardImage";
 import { useAuth } from "@/lib/auth";
