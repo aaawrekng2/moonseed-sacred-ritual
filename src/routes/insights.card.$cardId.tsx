@@ -450,21 +450,25 @@ function Stat({ value, label }: { value: string; label: string }) {
 /* ============================================================
  * 3d — Trend chart with time-window pills
  * ============================================================ */
-function CardTrendChart({ appearances }: { appearances: Appearance[] }) {
-  const [win, setWin] = useState<TrendWindow>("90d");
+function CardTrendChart({
+  appearances,
+  win,
+}: {
+  appearances: Appearance[];
+  win: TrendWindow;
+}) {
   const data = useMemo(() => weeklyBuckets(appearances, win), [appearances, win]);
   return (
     <div className="w-full">
-      <div className="mb-2 flex justify-center gap-2">
-        {(["30d", "90d", "180d", "all"] as TrendWindow[]).map((w) => (
-          <PillButton key={w} active={win === w} onClick={() => setWin(w)}>
-            {w === "all" ? "All" : w}
-          </PillButton>
-        ))}
-      </div>
       <div style={{ width: "100%", height: 140 }}>
         <ResponsiveContainer>
-          <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+            <defs>
+              <linearGradient id="cardTrendGold" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--gold)" stopOpacity={0.18} />
+                <stop offset="100%" stopColor="var(--gold)" stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
             <CartesianGrid
               strokeDasharray="2 4"
               stroke="color-mix(in oklab, var(--color-foreground) 12%, transparent)"
@@ -493,15 +497,17 @@ function CardTrendChart({ appearances }: { appearances: Appearance[] }) {
               }}
               labelStyle={{ color: "var(--foreground-muted)" }}
             />
-            <Line
+            <Area
               type="monotone"
               dataKey="count"
               stroke="var(--gold)"
               strokeWidth={2}
+              strokeOpacity={0.9}
+              fill="url(#cardTrendGold)"
               dot={false}
               isAnimationActive={false}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>
