@@ -249,6 +249,8 @@ function InsightsRoute() {
                 setFilters({ ...filters, timeRange: v as TimeRange }),
             }}
             userTags={userTags}
+            availableSpreadTypes={overview?.availableSpreadTypes}
+            availableMoonPhases={overview?.availableMoonPhases}
             trailingDropdowns={
               tab === "cards" ? (
                 <>
