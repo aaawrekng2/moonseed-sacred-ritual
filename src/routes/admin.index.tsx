@@ -818,6 +818,51 @@ function DashboardTab() {
           Users who started signup but haven&rsquo;t confirmed their email.
           Excluded from the Users tab.
         </p>
+        {pendingList.length > 0 && (
+          <div className="mt-4 overflow-x-auto">
+            <table
+              className="w-full"
+              style={{ ...serif, fontSize: "var(--text-body-sm)" }}
+            >
+              <thead>
+                <tr style={thRow()}>
+                  <Th>Email</Th>
+                  <Th>Started</Th>
+                  <Th>Last attempt</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingList.slice(0, 25).map((u) => (
+                  <tr
+                    key={u.id}
+                    style={{ borderBottom: "1px solid var(--border-subtle)" }}
+                  >
+                    <Td>{u.email}</Td>
+                    <Td>{formatDateLong(u.created_at)}</Td>
+                    <Td>
+                      {u.last_sign_in_at
+                        ? formatDateLong(u.last_sign_in_at)
+                        : "—"}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {pendingList.length > 25 && (
+              <p
+                className="mt-2"
+                style={{
+                  ...serif,
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption)",
+                  opacity: 0.55,
+                }}
+              >
+                Showing first 25 of {pendingList.length}.
+              </p>
+            )}
+          </div>
+        )}
       </section>
 
       <section>
