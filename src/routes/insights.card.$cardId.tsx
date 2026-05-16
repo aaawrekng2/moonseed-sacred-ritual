@@ -741,8 +741,14 @@ function MetadataRow({
   items.push(`${meaning.element}`);
   if (meaning.zodiac) items.push(meaning.zodiac);
   if (meaning.planet) items.push(meaning.planet);
-  items.push(`Yes/No: ${meaning.yesNo}`);
   if (meaning.numerology !== null) items.push(`№ ${meaning.numerology}`);
+  const leansLabel =
+    meaning.yesNo === "yes"
+      ? "Leans Yes"
+      : meaning.yesNo === "no"
+        ? "Leans No"
+        : "Leans Neutral";
+  items.push(leansLabel);
   return (
     <div
       style={{
