@@ -434,6 +434,22 @@ function KeywordChip({
   );
 }
 
+function KeywordRowLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        fontSize: "var(--text-caption)",
+        color: "var(--foreground-muted)",
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+        opacity: 0.85,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 /* ============================================================
  * 3c — Stats strip
  * ============================================================ */
