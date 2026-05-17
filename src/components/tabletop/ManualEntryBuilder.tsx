@@ -25,7 +25,10 @@ import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { useAuth } from "@/lib/auth";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
-import { X } from "lucide-react";
+import { X, CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 const CELTIC_POSITION_LABELS = [
   "Significator",
@@ -54,7 +57,7 @@ type Props = {
   spread: SpreadMode;
   onCancel: () => void;
   /** Fires once every slot has a card and the seeker hits Done. */
-  onComplete: (picks: ManualPick[]) => void;
+  onComplete: (picks: ManualPick[], meta?: { createdAt?: string }) => void;
   /** 9-6-O — Custom spread cardinality (1-10). */
   customCount?: number;
   /** 26-05-08-N — Fix 4: inline question input above the Done button. */
