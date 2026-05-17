@@ -212,7 +212,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
   // marker would be misleading.
   const showMarker = useMemo<boolean>(() => {
     if (peakTzHour == null) return false;
-    return peakTzHour >= 21 || peakTzHour < 6;
+    return peakTzHour >= 18 || peakTzHour < 6;
   }, [peakTzHour]);
 
   const goldYmds = useMemo<string[]>(() => {
@@ -235,7 +235,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
   }, [newMoonPeakYmd, newMoonPeakTzHour]);
   const showNewMoonMarker = useMemo<boolean>(() => {
     if (newMoonPeakTzHour == null) return false;
-    return newMoonPeakTzHour >= 21 || newMoonPeakTzHour < 6;
+    return newMoonPeakTzHour >= 18 || newMoonPeakTzHour < 6;
   }, [newMoonPeakTzHour]);
   const newMoonGoldYmds = useMemo<string[]>(() => {
     if (!newMoonPeakYmd) return [];
@@ -642,10 +642,20 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
             const isNewMoonDay = newMoonGoldYmds.includes(d.ymd);
             const isPeakDay = d.ymd === peakYmd;
             const isNewMoonPeakDay = d.ymd === newMoonPeakYmd;
-            const peakTimeText = isPeakDay && fullMoonPeak
+            const rawPeakTimeText = isPeakDay && fullMoonPeak
               ? formatTimeInTz(fullMoonPeak, effectiveTz)
               : isNewMoonPeakDay && newMoonPeak
                 ? formatTimeInTz(newMoonPeak, effectiveTz)
+                : null;
+            // Q88 — hide the in-card peak time when the seam marker (which
+            // already shows the same time) is rendered. Otherwise the time
+            // appears twice.
+            const markerCoversPeak =
+              (isPeakDay && showMarker) ||
+              (isNewMoonPeakDay && showNewMoonMarker);
+            const peakTimeText =
+              rawPeakTimeText && !markerCoversPeak && isCenter
+                ? rawPeakTimeText
                 : null;
             return (
               <div
@@ -663,9 +673,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                 style={{
                   alignSelf: "flex-start",
                   marginTop: `${topOffset}px`,
-                  // Q86 — needs to be relative so the peak-time caption
-                  // can absolutely-position above the moon glyph.
-                  position: dateOverlay || peakTimeText ? "relative" : undefined,
+                  position: dateOverlay ? "relative" : undefined,
                   // Shrink ±2 cards slightly on mobile so they fit beside the
                   // mobile ladders without clipping at the screen edges.
                   transform: absRel === 2 ? "scale(0.85)" : undefined,
@@ -675,7 +683,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                   background: isGoldDay
                     ? "color-mix(in oklab, var(--gold) 12%, transparent)"
                     : isNewMoonDay
-                      ? "color-mix(in oklab, oklch(0.5 0.2 290) 12%, transparent)"
+                      ? "color-mix(in oklab, oklch(0.65 0.25 290) 20%, transparent)"
                       : undefined,
                   borderRadius:
                     isGoldDay || isNewMoonDay ? 12 : undefined,
@@ -736,26 +744,6 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                     </span>
                   </div>
                 )}
-                {peakTimeText && (
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      position: "absolute",
-                      top: -16,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      fontFamily: "var(--font-serif)",
-                      fontSize: "var(--text-caption)",
-                      color: "var(--color-foreground)",
-                      opacity: 0.7,
-                      whiteSpace: "nowrap",
-                      letterSpacing: "0.05em",
-                      pointerEvents: "none",
-                    }}
-                  >
-                    {peakTimeText}
-                  </span>
-                )}
                 {isCenter ? (
                   <CenterCard
                     info={d.info}
@@ -774,6 +762,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                     iconSize={centerMoonSize}
                     maxWidth={centerMaxWidth}
                     carouselHeight={carouselHeight}
+                    peakTimeText={peakTimeText}
                   />
                 ) : (
                   <AdjacentCard
@@ -909,6 +898,7 @@ function CenterCard({
   iconSize,
   maxWidth,
   carouselHeight,
+  peakTimeText,
 }: {
   info: MoonInfo;
   moonSign: string;
@@ -920,6 +910,7 @@ function CenterCard({
   iconSize: number;
   maxWidth: number;
   carouselHeight: number;
+  peakTimeText?: string | null;
 }) {
   // CV — Mobile center-card icon scales 20% smaller alongside the
   // overall carousel height reduction so proportions stay balanced.
@@ -973,6 +964,22 @@ function CenterCard({
           className="flex flex-col items-center text-center"
           style={{ gap: Math.max(2, Math.round(baseFontPx * 0.25)), lineHeight: 1.15 }}
         >
+          {peakTimeText && (
+            <span
+              aria-hidden="true"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-caption)",
+                color: "var(--color-foreground)",
+                opacity: 0.7,
+                whiteSpace: "nowrap",
+                letterSpacing: "0.05em",
+                lineHeight: 1.15,
+              }}
+            >
+              {peakTimeText}
+            </span>
+          )}
           <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
           {/* Q87 — primary tier: date + phase at full foreground. */}
           <p
@@ -1008,7 +1015,7 @@ function CenterCard({
               opacity: 0.6,
             }}
           >
-            {info.illumination}% · in {moonSign}
+            {info.illumination}% illuminated · in {moonSign}
           </p>
         </div>
       </div>
@@ -1154,7 +1161,9 @@ function FullMoonMarker({
         // Kept low so the "Return" affordance below the cards row is never
         // visually covered by the marker. Marker is decorative + pointer-
         // events:none, but a high z-index could still paint over text.
-        zIndex: 5,
+        // Q88 — raised above day-card text (cards top out at z-10) so the
+        // peak orb is never occluded by adjacent card labels.
+        zIndex: 30,
       }}
     >
       {/* Q87 — peak orb reduced ~40% (32→20) and dimmed to opacity 0.7
@@ -1237,7 +1246,8 @@ function NewMoonMarker({
         flexDirection: "column-reverse",
         alignItems: "center",
         gap: 4,
-        zIndex: 5,
+        // Q88 — see FullMoonMarker note above.
+        zIndex: 30,
       }}
     >
       {/* Q87 — peak orb reduced ~40% (32→20) and dimmed to opacity 0.7. */}
@@ -1423,10 +1433,10 @@ type LadderRung = {
   inset: number; // edge inset px (margin-left for "left", margin-right for "right")
 };
 
-// Q85 — simplified to just two rungs: New Moon + Full Moon.
+// Q88 — Full Moon on top, New Moon below.
 const LADDER_RUNGS: LadderRung[] = [
-  { label: "New Moon", phase: "New Moon", size: 18, inset: 8 },
   { label: "Full Moon", phase: "Full Moon", size: 26, inset: 0 },
+  { label: "New Moon", phase: "New Moon", size: 18, inset: 8 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1446,9 +1456,9 @@ function MobilePhaseLadder({
   const isLeft = side === "left";
   // Smaller, edge-pinned cascade — sized down from the desktop ladder so it
   // sits comfortably on the very edge of mobile viewports.
-  // Q85 — two-rung mobile ladder: New Moon + Full Moon.
-  const RUNG_SIZES = [14, 22];
-  const MOBILE_RUNG_INSETS = [6, 0];
+  // Q88 — Full Moon (larger) on top, New Moon (smaller) below.
+  const RUNG_SIZES = [22, 14];
+  const MOBILE_RUNG_INSETS = [0, 6];
   return (
     <div
       className="fixed sm:hidden flex flex-col gap-[10px] z-10"
