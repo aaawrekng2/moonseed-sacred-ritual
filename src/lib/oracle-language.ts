@@ -65,6 +65,6 @@ export const LANG = {
 
 export type LangKey = keyof typeof LANG;
 
-export function t(key: LangKey, isOracle: boolean): string {
-  return isOracle ? LANG[key].oracle : LANG[key].plain;
+export function t(key: LangKey): string {
+  return LANG[key].plain;
 }
