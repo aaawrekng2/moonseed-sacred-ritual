@@ -115,6 +115,8 @@ function InsightsRoute() {
   const [overview, setOverview] = useState<InsightsOverview | null>(null);
   const [stalkers, setStalkers] = useState<StalkerCardsResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
+  const [fetchNonce, setFetchNonce] = useState(0);
   const overviewFn = useServerFn(getInsightsOverview);
   const stalkerFn = useServerFn(getStalkerCards);
 
@@ -150,28 +152,42 @@ function InsightsRoute() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    void (async () => {
+    setFetchError(false);
+    const runFetch = async (attempt: number): Promise<void> => {
       try {
         const headers = await getAuthHeaders();
         const [ov, st] = await Promise.all([
           overviewFn({ data: filters, headers }),
           stalkerFn({ data: filters, headers }),
         ]);
-        if (!cancelled) {
-          setOverview(ov);
-          setStalkers(st);
-          setLoading(false);
-        }
+        if (cancelled) return;
+        setOverview(ov);
+        setStalkers(st);
+        setLoading(false);
       } catch (e) {
+        if (cancelled) return;
+        if (attempt < 1) {
+          // Q77 — retry once after 1s (mobile auth race).
+          setTimeout(() => {
+            if (!cancelled) void runFetch(attempt + 1);
+          }, 1000);
+          return;
+        }
         // eslint-disable-next-line no-console
         console.warn("[insights] fetch failed", e);
-        if (!cancelled) setLoading(false);
+        setFetchError(true);
+        setLoading(false);
       }
-    })();
+    };
+    // Q77 — small delay on initial mount so the auth session is ready.
+    const t = window.setTimeout(() => {
+      if (!cancelled) void runFetch(0);
+    }, 500);
     return () => {
       cancelled = true;
+      window.clearTimeout(t);
     };
-  }, [filters, overviewFn, stalkerFn]);
+  }, [filters, overviewFn, stalkerFn, fetchNonce]);
 
   // FU — adapt InsightsFilters ↔ GlobalFilters for the shared bar.
   const globalFilters: GlobalFilters = {
@@ -225,6 +241,36 @@ function InsightsRoute() {
             {pageTitle}
           </h1>
         </div>
+        {/* Tab strip */}
+        <HorizontalScroll className="py-2" contentClassName="items-center gap-6 px-4">
+          {visibleTabs.map((t) => {
+            const active = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className="whitespace-nowrap pb-1"
+                style={{
+                  fontFamily: "var(--tab-font-family)",
+                  fontStyle: "var(--tab-font-style)",
+                  fontSize: "var(--tab-font-size)",
+                  letterSpacing: "var(--tab-letter-spacing)",
+                  textTransform: "var(--tab-text-transform)",
+                  color: active ? "var(--tab-active-color)" : "var(--color-foreground)",
+                  opacity: active ? "var(--tab-active-opacity)" : "var(--tab-inactive-opacity)",
+                  borderBottom: active
+                    ? "1px solid var(--tab-underline-color)"
+                    : "1px solid transparent",
+                } as CSSProperties}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </HorizontalScroll>
+        {/* Q77 — filter bar moved below the tab strip so tabs are the
+            primary nav and filters read as contextual controls. */}
         {tab !== "recap" && (
           <GlobalFilterBar
             filters={globalFilters}
@@ -282,34 +328,6 @@ function InsightsRoute() {
             }
           />
         )}
-        {/* Tab strip */}
-        <HorizontalScroll className="py-2" contentClassName="items-center gap-6 px-4">
-          {visibleTabs.map((t) => {
-            const active = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id)}
-                className="whitespace-nowrap pb-1"
-                style={{
-                  fontFamily: "var(--tab-font-family)",
-                  fontStyle: "var(--tab-font-style)",
-                  fontSize: "var(--tab-font-size)",
-                  letterSpacing: "var(--tab-letter-spacing)",
-                  textTransform: "var(--tab-text-transform)",
-                  color: active ? "var(--tab-active-color)" : "var(--color-foreground)",
-                  opacity: active ? "var(--tab-active-opacity)" : "var(--tab-inactive-opacity)",
-                  borderBottom: active
-                    ? "1px solid var(--tab-underline-color)"
-                    : "1px solid transparent",
-                } as CSSProperties}
-              >
-                {t.label}
-              </button>
-            );
-          })}
-        </HorizontalScroll>
       </div>
 
       <main
@@ -352,6 +370,9 @@ function InsightsRoute() {
                 onTapHero={() => setTab("cards")}
                 onEmptyCta={() => navigate({ to: "/" })}
                 moonEnabled={moonEnabled}
+                userId={userId}
+                fetchError={fetchError}
+                onRetry={() => setFetchNonce((n) => n + 1)}
               />
               <div className="flex flex-col gap-12 pt-8 pb-12">
                 <SuitTrendsChart filters={filters} />
@@ -411,6 +432,9 @@ function OverviewTab({
   onTapHero,
   onEmptyCta,
   moonEnabled,
+  userId,
+  fetchError,
+  onRetry,
 }: {
   loading: boolean;
   overview: InsightsOverview | null;
@@ -420,6 +444,9 @@ function OverviewTab({
   onTapHero: () => void;
   onEmptyCta: () => void;
   moonEnabled: boolean;
+  userId: string | null;
+  fetchError: boolean;
+  onRetry: () => void;
 }) {
   if (loading && !overview) {
     return <LoadingSkeleton heights={[220, 160, 160, 160]} />;
@@ -435,6 +462,21 @@ function OverviewTab({
           cta={{
             label: "CLEAR FILTERS",
             onClick: onClearFilters,
+            variant: "text",
+          }}
+        />
+      );
+    }
+    // Q77 — if the seeker is authenticated and the fetch failed, show
+    // a Retry rather than implying they have no readings.
+    if (userId && (fetchError || !overview)) {
+      return (
+        <EmptyHero
+          title="Couldn't load your insights."
+          subtitle="A network hiccup may have interrupted the fetch."
+          cta={{
+            label: "RETRY",
+            onClick: onRetry,
             variant: "text",
           }}
         />

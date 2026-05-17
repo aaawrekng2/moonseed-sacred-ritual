@@ -58,9 +58,8 @@ export function responsiveCardWidth(viewportW: number): number {
   const viewportH =
     typeof window !== "undefined" ? window.innerHeight : 720;
   const scatterH = viewportH * 0.6;
-  // Q67 — was 0.7. Reduced to 0.5 for larger cards + more breathing
-  // room on desktop/iPad. Mobile is unchanged (early return above).
-  const density = 0.5;
+  // Q77 — was 0.5. Reduced to 0.4 so desktop/tablet cards read larger.
+  const density = 0.4;
   const aspectRatio = TABLETOP_CONFIG.CARD_ASPECT_RATIO;
   const deckSize = TABLETOP_CONFIG.DECK_SIZE;
   const computed = Math.sqrt(
@@ -68,7 +67,8 @@ export function responsiveCardWidth(viewportW: number): number {
   );
   // Floor and ceiling so unusual viewports don't produce tiny or
   // gigantic cards.
-  return Math.max(50, Math.min(110, Math.round(computed)));
+  // Q77 — floor raised from 50 → 60 so cards never feel tiny on desktop.
+  return Math.max(60, Math.min(110, Math.round(computed)));
 }
 
 /**
