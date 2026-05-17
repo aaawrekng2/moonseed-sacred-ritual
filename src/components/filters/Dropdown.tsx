@@ -64,7 +64,7 @@ export function Dropdown({
         }}
       >
         {hasPrefix && (
-          <span style={{ opacity: 0.65 }}>{prefix}:&nbsp;</span>
+          <span style={{ opacity: 0.8 }}>{prefix}:&nbsp;</span>
         )}
         <span>{current?.label ?? value}</span>
         <ChevronDown
@@ -79,7 +79,7 @@ export function Dropdown({
             style={{
               left: coords.left,
               top: coords.top,
-              background: "var(--surface-overlay)",
+              background: "var(--surface-elevated)",
               borderColor: "var(--border-subtle)",
               zIndex: "var(--z-drawer)",
             }}
@@ -97,7 +97,7 @@ export function Dropdown({
                   className="block w-full px-3 py-1 text-left text-xs"
                   style={{
                     color: active ? "var(--gold)" : "var(--color-foreground)",
-                    opacity: active ? 1 : 0.85,
+                    opacity: 1,
                     fontStyle: "italic",
                     borderBottom: active
                       ? "1px solid var(--gold)"

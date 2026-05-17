@@ -53,12 +53,10 @@ export function applyCommunityTheme(theme: CommunityTheme) {
   root.style.setProperty("--foreground-muted", theme.foregroundMuted);
   root.style.setProperty("--muted-foreground", theme.foregroundMuted);
   // Accent (used for primary action, focus ring, selection — NOT body text)
-  root.style.setProperty("--gold", theme.accent);
   root.style.setProperty("--accent-color", theme.accent);
   root.style.setProperty("--primary", theme.accent);
   root.style.setProperty("--accent", theme.accent);
   root.style.setProperty("--accent-foreground", theme.accentForeground);
-  root.style.setProperty("--gold-foreground", theme.accentForeground);
   root.style.setProperty("--ring", `${theme.accent}99`);
   // FT-1 — popover surfaces (dropdowns, popovers, floating panels)
   root.style.setProperty("--popover", theme.popover);
