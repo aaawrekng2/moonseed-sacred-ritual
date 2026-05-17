@@ -767,6 +767,15 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
               ymd={peakYmd}
             />
           )}
+          {newMoonMarkerLeft !== null && newMoonPeak && showNewMoonMarker && (
+            <NewMoonMarker
+              left={newMoonMarkerLeft}
+              peak={newMoonPeak}
+              timeZone={effectiveTz}
+              side={newMoonPeakMarkerSide}
+              ymd={newMoonPeakYmd}
+            />
+          )}
         </div>
 
       </div>
