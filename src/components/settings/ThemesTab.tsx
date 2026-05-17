@@ -14,7 +14,7 @@
  * slider, individual heading-font picker, heading size slider, oracle
  * toggle. Defaults: card back forced to ocean, resting opacity to 1.0.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { HexColorPicker } from "react-colorful";
 import { Check, ChevronDown, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
