@@ -1240,16 +1240,18 @@ function NewMoonMarker({
         zIndex: 5,
       }}
     >
+      {/* Q87 — peak orb reduced ~40% (32→20) and dimmed to opacity 0.7. */}
       <div
         style={{
-          width: 32,
-          height: 32,
+          width: 20,
+          height: 20,
           borderRadius: "50%",
+          opacity: 0.7,
           background:
             "radial-gradient(circle at 50% 45%, rgba(40,40,60,0.85) 0%, rgba(80,90,120,0.55) 55%, rgba(180,195,225,0.25) 100%)",
           border: "1px solid rgba(200,210,235,0.55)",
           boxShadow:
-            "0 0 10px rgba(180,200,235,0.25), 0 0 4px rgba(255,255,255,0.15) inset",
+            "0 0 7px rgba(180,200,235,0.22), 0 0 3px rgba(255,255,255,0.15) inset",
         }}
       />
       <span
