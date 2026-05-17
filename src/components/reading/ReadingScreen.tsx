@@ -21,7 +21,6 @@ import {
 import { buildMemorySnapshot, detectThreads } from "@/lib/memory.functions";
 import { supabase } from "@/lib/supabase";
 import { useActiveGuide } from "@/lib/use-active-guide";
-import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useUIDensity } from "@/lib/use-ui-density";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
@@ -101,7 +100,6 @@ export function ReadingScreen({
   createdAt,
 }: Props) {
   const meta = SPREAD_META[spread];
-  const { isOracle } = useOracleMode();
   useAuth();
   const [state, setState] = useState<LoadState>({ kind: "idle" });
   const [retryNonce, setRetryNonce] = useState(0);
@@ -202,9 +200,7 @@ export function ReadingScreen({
         console.error("ReadingScreen interpret error:", e);
         setState({
           kind: "error",
-          message: isOracle
-            ? "The cards could not be heard. Please try again."
-            : "The reading could not be completed. Please try again.",
+          message: "The reading could not be completed. Please try again.",
         });
       }
     })();
@@ -471,7 +467,6 @@ export function ReadingScreen({
             </p>
             <SeekerQuestion
               text={question}
-              isOracle={isOracle}
               sticky
               stickyTop="calc(var(--topbar-pad) + 8px)"
             />
@@ -483,7 +478,6 @@ export function ReadingScreen({
         {(state.kind === "idle" || state.kind === "loading") && (
           <div className="reading-actions-fade-in flex w-full justify-center">
             <ReadingActions
-              isOracle={isOracle}
               isLoading={state.kind === "loading"}
               onSpeak={beginReading}
               spread={spread}
@@ -510,7 +504,6 @@ export function ReadingScreen({
               interpretation={state.interpretation}
               picks={picks}
               positionLabels={positionLabels}
-              isOracle={isOracle}
               copyText={copyText ?? ""}
             />
           )}
@@ -534,7 +527,6 @@ export function ReadingScreen({
               <EnrichmentPanel
                 reading={savedReading}
                 tagLibrary={tagLibrary}
-                isOracle={isOracle}
                 onReadingChange={handleEnrichReadingChange}
                 onTagLibraryChange={handleEnrichTagLibraryChange}
                 onPhotoCountChange={handleEnrichPhotoCountChange}
@@ -593,7 +585,6 @@ export function ReadingScreen({
             positionLabels,
             interpretation: state.interpretation,
             guideName: getGuideById(guideId).name,
-            isOracle,
             deckId: deckId ?? null,
           }}
           defaultLevel="reading"
@@ -954,7 +945,6 @@ function CardStrip({
 /* ---------------------------------------------------------------------- */
 
 function ReadingActions({
-  isOracle,
   isLoading,
   onSpeak,
   spread,
@@ -968,7 +958,6 @@ function ReadingActions({
   onExit,
   createdAt,
 }: {
-  isOracle: boolean;
   isLoading: boolean;
   onSpeak: () => void;
   spread: SpreadMode;
@@ -1038,8 +1027,8 @@ function ReadingActions({
   const activeName = activeCustom ? activeCustom.name : activeBuiltIn.name;
   const activeEmoji = activeCustom ? "✦" : activeBuiltIn.accentEmoji;
 
-  const speakLabel = isOracle ? "Let Them Speak" : "Get Reading";
-  const loadingLabel = isOracle ? "The cards are speaking…" : "Reading the cards…";
+  const speakLabel = "Get Reading";
+  const loadingLabel = "Reading the cards…";
 
   const onSaveAndClose = async () => {
     if (savingClose || isLoading) return;
@@ -1072,7 +1061,7 @@ function ReadingActions({
         setSavingClose(false);
         return;
       }
-      toast.success(isOracle ? "Tucked away" : "Reading saved");
+      toast.success("Reading saved");
       onExit();
       void navigate({ to: "/" });
     } catch {
@@ -1188,7 +1177,6 @@ function ReadingActions({
         guideName={activeName}
         lensId={lensId}
         facetIds={facetIds}
-        isOracle={isOracle}
         question={question}
       />
       <button
@@ -1226,8 +1214,8 @@ function ReadingActions({
           }}
         >
           {savingClose
-            ? isOracle ? "Tucking away…" : "Saving…"
-            : isOracle ? "Tuck It Away" : "Save and close"}
+            ? "Saving…"
+            : "Save and close"}
         </button>
       )}
     </div>
@@ -1245,7 +1233,6 @@ function WhatGuideWillSee({
   guideName,
   lensId,
   facetIds,
-  isOracle,
   question,
 }: {
   spread: SpreadMode;
@@ -1254,21 +1241,18 @@ function WhatGuideWillSee({
   guideName: string;
   lensId: string;
   facetIds: string[];
-  isOracle: boolean;
   question?: string;
 }) {
   const [open, setOpen] = useState(false);
   const meta = SPREAD_META[spread];
   const lensName =
-    LENSES.find((l) => l.id === lensId)?.[isOracle ? "oracleName" : "name"] ??
+    LENSES.find((l) => l.id === lensId)?.["name"] ??
     lensId;
   const facetNames = FACETS.filter((f) => facetIds.includes(f.id)).map(
     (f) => f.name,
   );
   const moonPhase = getCurrentMoonPhase().phase;
-  const label = isOracle
-    ? "What will be whispered to the guide"
-    : "What the guide will see";
+  const label = "What the guide will see";
 
   return (
     <div className="w-full max-w-md">
@@ -1344,13 +1328,11 @@ function ReadingBody({
   interpretation,
   picks,
   positionLabels,
-  isOracle,
   copyText,
 }: {
   interpretation: InterpretationPayload;
   picks: Pick[];
   positionLabels: string[];
-  isOracle: boolean;
   copyText: string;
 }) {
   const { size, setSize } = useReadingFontSize();
@@ -1713,10 +1695,8 @@ function CopyIconButton({ text }: { text: string }) {
  */
 function CopyTextLink({
   text,
-  isOracle,
 }: {
   text: string;
-  isOracle: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<number | null>(null);
@@ -1733,8 +1713,8 @@ function CopyTextLink({
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setCopied(false), 1500);
   };
-  const idleLabel = isOracle ? "Carry These Words" : "Copy Reading";
-  const doneLabel = isOracle ? "Held in your hand" : "Copied";
+  const idleLabel = "Copy Reading";
+  const doneLabel = "Copied";
   return (
     <div className="flex justify-center pt-2">
       <button
@@ -1776,10 +1756,8 @@ function CopyTextLink({
 
 function ShareReadingButton({
   text,
-  isOracle,
 }: {
   text: string;
-  isOracle: boolean;
 }) {
   const [done, setDone] = useState<null | "shared" | "copied" | "error">(null);
 
@@ -1791,7 +1769,7 @@ function ShareReadingButton({
         typeof navigator.share === "function"
       ) {
         await navigator.share({
-          title: isOracle ? "A reading from Tarot Seed" : "My tarot reading",
+          title: "My tarot reading",
           text,
         });
         setDone("shared");
@@ -1814,9 +1792,7 @@ function ShareReadingButton({
   };
 
   const label = !done
-    ? isOracle
-      ? "Share this telling"
-      : "Share reading"
+    ? "Share reading"
     : done === "shared"
       ? "Shared"
       : done === "copied"

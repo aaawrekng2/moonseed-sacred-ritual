@@ -13,7 +13,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useActiveGuide } from "@/lib/use-active-guide";
 import { useUIDensity } from "@/lib/use-ui-density";
 import {
@@ -51,7 +50,6 @@ export function GuideSelector({
   isEmbedded?: boolean;
 }) {
   const { user } = useAuth();
-  const { isOracle } = useOracleMode();
   // The Clarity (Seen/Glimpse/Veiled) dims non-essential surface chrome
   // on this screen so the global tap-to-peek affordance has something
   // visible to flash back to full opacity. We bind opacity to the
@@ -206,12 +204,10 @@ export function GuideSelector({
             className="text-xl italic text-gold"
             style={{ fontFamily: "var(--font-serif)" }}
           >
-            {isOracle ? "Who reads with you today?" : "Choose Your Guide"}
+            {"Choose Your Guide"}
           </h1>
           <p className="mt-1 text-xs text-muted-foreground">
-            {isOracle
-              ? "A voice, a lens, and the emphases that shape the reading."
-              : "Select a reader, a depth, and any emphases."}
+            {"Select a reader, a depth, and any emphases."}
           </p>
         </div>
         <button
@@ -355,7 +351,7 @@ export function GuideSelector({
           style={{ opacity: peekOpacity, transition: "opacity 400ms ease" }}
         >
           <h2 className="mb-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-            {isOracle ? "Lens" : "Depth"}
+            {"Depth"}
           </h2>
           <div className="grid grid-cols-3 gap-2">
             {LENSES.map((lens) => {
@@ -375,7 +371,7 @@ export function GuideSelector({
                     className="italic breathing-text-label"
                     style={{ fontFamily: "var(--font-serif)" }}
                   >
-                    {isOracle ? lens.oracleName : lens.name}
+                    {lens.name}
                   </span>
                 </button>
               );
@@ -575,7 +571,7 @@ export function GuideSelector({
           onClick={onContinue}
           className="w-full bg-gold text-cosmos hover:bg-gold/90"
         >
-          {ctaLabel ?? (isOracle ? "Begin the Reading" : "Begin Reading")}
+          {ctaLabel ?? ("Begin Reading")}
         </Button>
       </footer>
 
@@ -610,7 +606,6 @@ export function GuideSelector({
       {deleteTarget && (
         <DeleteGuideConfirm
           guide={deleteTarget}
-          isOracle={isOracle}
           onCancel={() => setDeleteTarget(null)}
           onConfirmed={(id) => {
             setCustomGuides((prev) => prev.filter((cg) => cg.id !== id));
@@ -808,7 +803,6 @@ function EditCustomGuideDialog({
   onDeleteRequest: (g: CustomGuide) => void;
 }) {
   const { user } = useAuth();
-  const { isOracle } = useOracleMode();
   const [name, setName] = useState(guide.name);
   const [baseId, setBaseId] = useState<string>(guide.base_guide_id);
   const [voiceNotes, setVoiceNotes] = useState<string>(
@@ -835,9 +829,7 @@ function EditCustomGuideDialog({
     setDefaultFacets([]);
     setConfirmRealign(false);
     toast.success(
-      isOracle
-        ? "Guide returned to its original alignment."
-        : "Guide reset to base defaults.",
+      "Guide reset to base defaults.",
     );
   };
 
@@ -890,7 +882,7 @@ function EditCustomGuideDialog({
     <Modal
       open
       onClose={onClose}
-      title={isOracle ? "Refine this Guide" : "Edit Guide"}
+      title={"Edit Guide"}
       size="md"
     >
       <div className="space-y-4 p-5">
@@ -971,9 +963,7 @@ function EditCustomGuideDialog({
           {/* Realign */}
           <div className="rounded-xl border border-border/40 p-3">
             <p className="text-[11px] text-muted-foreground">
-              {isOracle
-                ? "Return this Guide to its original alignment."
-                : "Reset all fields to the base guide's defaults."}
+              {"Reset all fields to the base guide's defaults."}
             </p>
             {!confirmRealign ? (
               <Button
@@ -1040,12 +1030,10 @@ function EditCustomGuideDialog({
 
 function DeleteGuideConfirm({
   guide,
-  isOracle,
   onCancel,
   onConfirmed,
 }: {
   guide: CustomGuide;
-  isOracle: boolean;
   onCancel: () => void;
   onConfirmed: (id: string) => void;
 }) {
@@ -1076,7 +1064,7 @@ function DeleteGuideConfirm({
     <Modal
       open
       onClose={onCancel}
-      title={isOracle ? "Release this Guide?" : "Delete this Guide?"}
+      title={"Delete this Guide?"}
       size="sm"
       nested
     >

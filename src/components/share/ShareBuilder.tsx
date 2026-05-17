@@ -198,10 +198,7 @@ export function ShareBuilder({
   // Stable, low-cardinality identifier for the screen the share was
   // launched from. `spread` already encodes single/three/celtic/etc;
   // we tag oracle separately so dashboards can split that mode out.
-  const contextKind = useMemo(
-    () => (context.isOracle ? `oracle:${context.spread}` : context.spread),
-    [context.isOracle, context.spread],
-  );
+  const contextKind = useMemo(() => context.spread, [context.spread]);
 
   // Fire `share_open` once per dialog open transition.
   useEffect(() => {

@@ -64,7 +64,6 @@ type SaveState = "idle" | "saving" | "saved" | "error";
 type Props = {
   reading: EnrichmentReading;
   tagLibrary: EnrichmentTag[];
-  isOracle: boolean;
   /**
    * Called whenever the local view of the reading changes. The parent uses this
    * to keep the Journal list in sync without re-fetching.
@@ -204,7 +203,6 @@ function useDebouncedSave(delay: number = SAVE_DELAY_MS) {
 export function EnrichmentPanel({
   reading,
   tagLibrary,
-  isOracle,
   onReadingChange,
   onTagLibraryChange,
   onPhotoCountChange,
@@ -784,9 +782,7 @@ export function EnrichmentPanel({
             placeholder={
               defaultNoteOpen
                 ? "What does this reading mean to you?"
-                : isOracle
-                  ? "What stirs within you…"
-                  : "Add a note…"
+                : "Add a note…"
             }
             className="w-full resize-none rounded-md font-display text-[15px] italic text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
             style={{
@@ -906,9 +902,7 @@ export function EnrichmentPanel({
               type="text"
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
-              placeholder={
-                isOracle ? "Tag name…" : "Tag name…"
-              }
+              placeholder="Tag name…"
               className="w-full bg-transparent py-1 font-display text-[13px] italic text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
               style={{
                 borderBottom:

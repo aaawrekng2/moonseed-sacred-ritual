@@ -17,7 +17,6 @@ import {
 import { buildMemorySnapshot, detectThreads } from "@/lib/memory.functions";
 import { supabase } from "@/lib/supabase";
 import { useActiveGuide } from "@/lib/use-active-guide";
-import { useOracleMode } from "@/lib/use-oracle-mode";
 import { useAuth } from "@/lib/auth";
 import { getCurrentMoonPhase } from "@/lib/moon";
 import { FACETS } from "@/lib/guides";
@@ -85,7 +84,6 @@ export function InlineReading({
   deckId?: string | null;
 }) {
   const meta = SPREAD_META[spread];
-  const { isOracle } = useOracleMode();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [state, setState] = useState<LoadState>({ kind: "idle" });
@@ -181,9 +179,7 @@ export function InlineReading({
         console.error("InlineReading interpret error:", e);
         setState({
           kind: "error",
-          message: isOracle
-            ? "The cards could not be heard. Please try again."
-            : "The reading could not be completed. Please try again.",
+          message: "The reading could not be completed. Please try again.",
         });
       }
     })();
@@ -338,10 +334,9 @@ export function InlineReading({
       {(state.kind === "idle" || state.kind === "loading") && (
         <div className="reading-actions-fade-in flex w-full flex-col items-center gap-3">
           {question && question.trim() && (
-            <SeekerQuestion text={question} isOracle={isOracle} />
+            <SeekerQuestion text={question} />
           )}
           <ReadingActions
-            isOracle={isOracle}
             isLoading={state.kind === "loading"}
             onSpeak={beginReading}
             spread={spread}
@@ -366,14 +361,13 @@ export function InlineReading({
           <>
             {question && question.trim() && (
               <div className="mb-4 mx-auto w-full max-w-md">
-                <SeekerQuestion text={question} isOracle={isOracle} sticky />
+                <SeekerQuestion text={question} sticky />
               </div>
             )}
             <ReadingBody
             interpretation={state.interpretation}
             picks={picks}
             positionLabels={positionLabels}
-            isOracle={isOracle}
             copyText={copyText ?? ""}
             />
           </>
@@ -400,7 +394,6 @@ export function InlineReading({
             <EnrichmentPanel
               reading={savedReading}
               tagLibrary={tagLibrary}
-              isOracle={isOracle}
               onReadingChange={handleEnrichReadingChange}
               onTagLibraryChange={handleEnrichTagLibraryChange}
               onPhotoCountChange={handleEnrichPhotoCountChange}
@@ -459,7 +452,6 @@ export function InlineReading({
               positionLabels,
               interpretation: state.interpretation,
               guideName: getGuideById(guideId).name,
-              isOracle,
             }}
             defaultLevel={tearDefaultLevel}
             availableLevels={["pull", "reading", "position"]}
@@ -478,13 +470,11 @@ export function InlineReading({
 
 export function SeekerQuestion({
   text,
-  isOracle,
   sticky,
   stickyTop,
   onEdit,
 }: {
   text: string;
-  isOracle: boolean;
   /** When true, the panel pins to the top of the nearest scroll container. */
   sticky?: boolean;
   /** CSS `top` offset used in sticky mode (defaults to the topbar pad). */
@@ -499,8 +489,8 @@ export function SeekerQuestion({
   onEdit?: (next: string) => void;
 }) {
   const navigate = useNavigate();
-  const label = isOracle ? "You whispered" : "Your question";
-  const editLabel = isOracle ? "Re-whisper" : "Edit question";
+  const label = "Your question";
+  const editLabel = "Edit question";
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(text);
   useEffect(() => {
@@ -638,7 +628,6 @@ export function SeekerQuestion({
 }
 
 function ReadingActions({
-  isOracle,
   isLoading,
   onSpeak,
   spread,
@@ -651,7 +640,6 @@ function ReadingActions({
   deckId,
   onExit,
 }: {
-  isOracle: boolean;
   isLoading: boolean;
   onSpeak: () => void;
   spread: SpreadMode;
@@ -718,8 +706,8 @@ function ReadingActions({
   const activeName = activeCustom ? activeCustom.name : activeBuiltIn.name;
   const activeEmoji = activeCustom ? "✦" : activeBuiltIn.accentEmoji;
 
-  const speakLabel = isOracle ? "Let Them Speak" : "Get Reading";
-  const loadingLabel = isOracle ? "The cards are speaking…" : "Reading the cards…";
+  const speakLabel = "Get Reading";
+  const loadingLabel = "Reading the cards…";
 
   // DC-1.1 — Persist the cast spread without an AI interpretation.
   // Lives next to "Get Reading" / "Let Them Speak" so the seeker can
@@ -755,7 +743,7 @@ function ReadingActions({
         setSavingClose(false);
         return;
       }
-      toast.success(isOracle ? "Tucked away" : "Reading saved");
+      toast.success("Reading saved");
       onExit?.();
       void navigate({ to: "/" });
     } catch {
@@ -867,7 +855,6 @@ function ReadingActions({
         guideName={activeName}
         lensId={lensId}
         facetIds={facetIds}
-        isOracle={isOracle}
         question={question}
       />
       <button
@@ -908,8 +895,8 @@ function ReadingActions({
           }}
         >
           {savingClose
-            ? isOracle ? "Tucking away…" : "Saving…"
-            : isOracle ? "Tuck It Away" : "Save and close"}
+            ? "Saving…"
+            : "Save and close"}
         </button>
       )}
     </div>
@@ -923,7 +910,6 @@ function AiPromptPreview({
   guideName,
   lensId,
   facetIds,
-  isOracle,
   question,
 }: {
   spread: SpreadMode;
@@ -932,7 +918,6 @@ function AiPromptPreview({
   guideName: string;
   lensId: string;
   facetIds: string[];
-  isOracle: boolean;
   question?: string;
 }) {
   const meta = SPREAD_META[spread];
@@ -961,9 +946,7 @@ function AiPromptPreview({
       ? `\nFocusing through: ${facetNames.join(", ")}.`
       : "";
 
-  const voiceLine = isOracle
-    ? `${guideName} will whisper the reading,`
-    : `${guideName} will speak the reading,`;
+  const voiceLine = `${guideName} will speak the reading,`;
 
   const text = `${question && question.trim() ? `"${question.trim()}"\n\n` : ""}${voiceLine} ${lensDescription}.${facetLine}
 
@@ -981,7 +964,6 @@ function WhatGuideWillSee({
   guideName,
   lensId,
   facetIds,
-  isOracle,
   question,
 }: {
   spread: SpreadMode;
@@ -990,13 +972,10 @@ function WhatGuideWillSee({
   guideName: string;
   lensId: string;
   facetIds: string[];
-  isOracle: boolean;
   question?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const label = isOracle
-    ? "What will be whispered to the guide"
-    : "What the guide will see";
+  const label = "What the guide will see";
 
   return (
     <div className="w-full max-w-md">
@@ -1033,7 +1012,6 @@ function WhatGuideWillSee({
             guideName={guideName}
             lensId={lensId}
             facetIds={facetIds}
-            isOracle={isOracle}
             question={question}
           />
         </div>
@@ -1050,13 +1028,11 @@ function ReadingBody({
   interpretation,
   picks,
   positionLabels,
-  isOracle,
   copyText,
 }: {
   interpretation: InterpretationPayload;
   picks: Pick[];
   positionLabels: string[];
-  isOracle: boolean;
   copyText: string;
 }) {
   const { size, setSize } = useReadingFontSize();
@@ -1418,10 +1394,8 @@ export function CopyIconButton({ text }: { text: string }) {
 
 function CopyTextLink({
   text,
-  isOracle,
 }: {
   text: string;
-  isOracle: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const timer = useRef<number | null>(null);
@@ -1438,8 +1412,8 @@ function CopyTextLink({
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setCopied(false), 1500);
   };
-  const idleLabel = isOracle ? "Carry These Words" : "Copy Reading";
-  const doneLabel = isOracle ? "Held in your hand" : "Copied";
+  const idleLabel = "Copy Reading";
+  const doneLabel = "Copied";
   return (
     <div className="flex justify-center pt-2">
       <button
