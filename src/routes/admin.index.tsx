@@ -2770,6 +2770,68 @@ function UserDetailPage({
         </DetailPanel>
 
         <DetailPanel title="Notes">
+        </DetailPanel>
+        <DetailPanel title="Email History">
+          {emailLog === null ? (
+            <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>
+              Loading…
+            </p>
+          ) : emailLog.length === 0 ? (
+            <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>
+              No emails sent to this user yet.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {emailLog.map((r) => (
+                <li
+                  key={r.id}
+                  className="flex items-baseline justify-between gap-3"
+                  style={{
+                    borderBottom: "1px solid var(--border-subtle)",
+                    paddingBottom: 6,
+                  }}
+                >
+                  <span
+                    style={{
+                      ...serif,
+                      fontSize: "var(--text-body-sm)",
+                    }}
+                  >
+                    {auditActionLabel(r.email_type)}{" "}
+                    <EmailStatusBadge status={r.status} />
+                    {r.triggered_by_email && (
+                      <span style={{ opacity: 0.5, marginLeft: 6 }}>
+                        by {r.triggered_by_email}
+                      </span>
+                    )}
+                    {r.error_message && (
+                      <div
+                        style={{
+                          fontSize: "var(--text-caption)",
+                          color: "oklch(0.85 0.18 25)",
+                          marginTop: 2,
+                        }}
+                      >
+                        {r.error_message}
+                      </div>
+                    )}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "var(--text-caption)",
+                      color:
+                        "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {formatDateTime(r.created_at)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DetailPanel>
+        <DetailPanel title="Notes">
           <textarea
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
