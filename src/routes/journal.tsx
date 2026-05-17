@@ -2722,7 +2722,6 @@ function ReadingDetail({
             closing: "",
           },
           guideName: guide.name,
-          isOracle,
           deckId: reading.deck_id ?? null,
         }}
 

@@ -129,7 +129,6 @@ export function DeepReadingPanel({
         positionLabels,
         interpretation: { overview: "", positions: [], closing: "" },
         guideName: getGuideById(data.guide_id ?? guideId).name,
-        isOracle: false,
         deckId: (data as { deck_id?: string | null }).deck_id ?? null,
       };
       setShareCtx(ctx);
