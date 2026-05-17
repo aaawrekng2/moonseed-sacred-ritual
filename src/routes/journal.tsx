@@ -2605,7 +2605,6 @@ function ReadingDetail({
             tags: reading.tags,
           }}
           tagLibrary={tagLibrary}
-          isOracle={isOracle}
           onReadingChange={(next) =>
             onReadingChange({
               id: next.id,
