@@ -11,6 +11,7 @@ import { usePWA } from "@/lib/use-pwa";
 import { FloatingMenu } from "@/components/nav/FloatingMenu";
 import { FloatingMenuProvider } from "@/lib/floating-menu-context";
 import { useThemeFontSync } from "@/lib/use-theme-font-sync";
+import { useThemeColorSync } from "@/lib/use-theme-color-sync";
 import { Toaster } from "@/components/ui/sonner";
 import { useFloatingMenu } from "@/lib/floating-menu-context";
 import { DevOverlay } from "@/components/dev/DevOverlay";
@@ -223,6 +224,8 @@ function RootComponent() {
   // Apply the seeker's saved heading font + size globally — both from
   // localStorage on mount and from the server row once auth resolves.
   useThemeFontSync();
+  // Q83 — apply saved community color theme + custom accent on every load.
+  useThemeColorSync();
   // Q24 Fix 1 — useTapToPeek() removed. Clarity feature was dropped;
   // tapping empty space no longer opens the FloatingMenu.
   // Register the PWA service worker so Tarot Seed installs to home screen.
