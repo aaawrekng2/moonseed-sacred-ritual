@@ -50,6 +50,40 @@ async function logAction(
   } as never);
 }
 
+/**
+ * Q82 — Insert a row into `email_log`. Used by every server action that
+ * sends an email so admins get end-to-end visibility.
+ */
+export async function logEmail(params: {
+  user_id?: string | null;
+  email_to: string;
+  email_type:
+    | "confirmation"
+    | "password_reset"
+    | "resend_confirmation"
+    | "manual_confirm"
+    | "welcome";
+  triggered_by: "system" | "admin" | "user";
+  triggered_by_user_id?: string | null;
+  status?: "sent" | "failed" | "bounced";
+  error_message?: string | null;
+}): Promise<void> {
+  try {
+    await supabaseAdmin.from("email_log" as never).insert({
+      user_id: params.user_id ?? null,
+      email_to: params.email_to,
+      email_type: params.email_type,
+      triggered_by: params.triggered_by,
+      triggered_by_user_id: params.triggered_by_user_id ?? null,
+      status: params.status ?? "sent",
+      error_message: params.error_message ?? null,
+    } as never);
+  } catch (e) {
+    // Never let logging fail the parent action.
+    console.error("logEmail failed", e);
+  }
+}
+
 /* ---------- listUsers ---------- */
 
 export const listAdminUsers = createServerFn({ method: "GET" })
@@ -295,6 +329,7 @@ const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("reactivate_user"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("set_note"), targetUserId: z.string().uuid(), note: z.string().nullable() }),
   z.object({ type: z.literal("resend_confirmation"), targetUserId: z.string().uuid() }),
+  z.object({ type: z.literal("manual_confirm"), targetUserId: z.string().uuid() }),
 ]);
 
 export const adminAction = createServerFn({ method: "POST" })
@@ -441,6 +476,13 @@ export const adminAction = createServerFn({ method: "POST" })
           email: targetEmail,
         });
         await logAction(userId, actorEmail, "password_reset", data.targetUserId, targetEmail, {});
+        await logEmail({
+          user_id: data.targetUserId,
+          email_to: targetEmail,
+          email_type: "password_reset",
+          triggered_by: "admin",
+          triggered_by_user_id: userId,
+        });
         break;
       }
       case "set_password": {
@@ -504,6 +546,37 @@ export const adminAction = createServerFn({ method: "POST" })
           targetEmail,
           {},
         );
+        await logEmail({
+          user_id: data.targetUserId,
+          email_to: targetEmail,
+          email_type: "resend_confirmation",
+          triggered_by: "admin",
+          triggered_by_user_id: userId,
+        });
+        break;
+      }
+      case "manual_confirm": {
+        if (!targetEmail) throw new Error("user has no email");
+        const { error: confirmErr } =
+          await supabaseAdmin.auth.admin.updateUserById(data.targetUserId, {
+            email_confirm: true,
+          });
+        if (confirmErr) throw new Error(confirmErr.message);
+        await logAction(
+          userId,
+          actorEmail,
+          "manual_confirm",
+          data.targetUserId,
+          targetEmail,
+          {},
+        );
+        await logEmail({
+          user_id: data.targetUserId,
+          email_to: targetEmail,
+          email_type: "manual_confirm",
+          triggered_by: "admin",
+          triggered_by_user_id: userId,
+        });
         break;
       }
     }
@@ -1094,4 +1167,130 @@ export const resolveDetectWeavesAlert = createServerFn({ method: "POST" })
       { alert_id: data.alertId },
     );
     return { ok: true } as const;
+  });
+
+/* ---------- Q82 — email log ---------- */
+
+export type EmailLogRow = {
+  id: string;
+  created_at: string;
+  user_id: string | null;
+  email_to: string;
+  email_type: string;
+  triggered_by: string;
+  triggered_by_user_id: string | null;
+  triggered_by_email: string | null;
+  status: string;
+  error_message: string | null;
+};
+
+/**
+ * Admin-only: list email_log rows with optional filters. Resolves the
+ * triggering admin's email when present so the UI can render a name
+ * instead of a UUID.
+ */
+export const getEmailLog = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        emailType: z.string().optional(),
+        status: z.string().optional(),
+        search: z.string().optional(),
+        userId: z.string().uuid().optional(),
+        userEmail: z.string().optional(),
+        limit: z.number().int().min(1).max(500).optional().default(100),
+        offset: z.number().int().min(0).optional().default(0),
+      })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    let q = supabaseAdmin
+      .from("email_log" as never)
+      .select(
+        "id, created_at, user_id, email_to, email_type, triggered_by, triggered_by_user_id, status, error_message",
+      )
+      .order("created_at", { ascending: false })
+      .range(data.offset, data.offset + data.limit - 1);
+
+    if (data.emailType) q = q.eq("email_type", data.emailType);
+    if (data.status) q = q.eq("status", data.status);
+    if (data.search) {
+      q = q.ilike("email_to", `%${data.search}%`);
+    }
+    if (data.userId || data.userEmail) {
+      const parts: string[] = [];
+      if (data.userId) parts.push(`user_id.eq.${data.userId}`);
+      if (data.userEmail) parts.push(`email_to.eq.${data.userEmail}`);
+      q = q.or(parts.join(","));
+    }
+
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+
+    const triggerIds = Array.from(
+      new Set(
+        ((rows ?? []) as Array<{ triggered_by_user_id: string | null }>)
+          .map((r) => r.triggered_by_user_id)
+          .filter((id): id is string => !!id),
+      ),
+    );
+    const adminEmails = new Map<string, string | null>();
+    for (const id of triggerIds) {
+      const { data: u } = await supabaseAdmin.auth.admin.getUserById(id);
+      adminEmails.set(id, u?.user?.email ?? null);
+    }
+
+    return ((rows ?? []) as Array<Omit<EmailLogRow, "triggered_by_email">>).map(
+      (r) => ({
+        ...r,
+        triggered_by_email: r.triggered_by_user_id
+          ? adminEmails.get(r.triggered_by_user_id) ?? null
+          : null,
+      }),
+    ) as EmailLogRow[];
+  });
+
+/**
+ * Q82 — Public (unauthenticated) server fn used by the login screen
+ * to record a self-service resend. Rate-limited to 1 row per email per
+ * 60 seconds via an existing-row lookup. The Supabase client-side
+ * `auth.resend()` itself enforces hard rate limits; this is just a
+ * log entry.
+ */
+export const logUserResendConfirmation = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        email: z.string().email().max(320),
+        status: z.enum(["sent", "failed"]).optional().default("sent"),
+        error_message: z.string().max(500).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    // Soft rate limit: drop if same email logged in last 60s.
+    const since = new Date(Date.now() - 60_000).toISOString();
+    const { data: recent } = await supabaseAdmin
+      .from("email_log" as never)
+      .select("id")
+      .eq("email_to", data.email)
+      .eq("email_type", "resend_confirmation")
+      .eq("triggered_by", "user")
+      .gte("created_at", since)
+      .limit(1);
+    if (recent && (recent as unknown as unknown[]).length > 0) {
+      return { ok: true, throttled: true } as const;
+    }
+    await logEmail({
+      email_to: data.email,
+      email_type: "resend_confirmation",
+      triggered_by: "user",
+      status: data.status,
+      error_message: data.error_message ?? null,
+    });
+    return { ok: true, throttled: false } as const;
   });

@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { X, Eye, EyeOff } from "lucide-react";
 import { createBackup, type BackupProgress } from "@/lib/backup-export";
 import { BACKUP_CATEGORIES } from "@/lib/backup-categories";
+import { logUserResendConfirmation } from "@/lib/admin.functions";
 
 type AuthMode =
   | "signin"
@@ -83,6 +84,12 @@ export function AuthScreen({
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Q82 — Login-screen resend confirmation flow.
+  const [showResend, setShowResend] = useState(false);
+  const [resendEmail, setResendEmail] = useState<string>("");
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendError, setResendError] = useState<string | null>(null);
 
   // Download modal state
   const [downloadStage, setDownloadStage] = useState<DownloadStage>("idle");
@@ -116,6 +123,47 @@ export function AuthScreen({
     const id = window.setInterval(() => setNowTick((n) => n + 1), 250);
     return () => window.clearInterval(id);
   }, [downloadStage, downloadStartedAt]);
+
+  // Q82 — Tick down resend cooldown.
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = window.setInterval(() => {
+      setResendCooldown((c) => (c > 0 ? c - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [resendCooldown]);
+
+  const handleResendConfirmation = async () => {
+    if (!resendEmail || resendState === "sending" || resendCooldown > 0) return;
+    setResendState("sending");
+    setResendError(null);
+    try {
+      const { error: resendErr } = await supabase.auth.resend({
+        type: "signup",
+        email: resendEmail,
+      });
+      if (resendErr) throw resendErr;
+      setResendState("sent");
+      setResendCooldown(60);
+      // Fire-and-forget log entry; never block UX on this.
+      void logUserResendConfirmation({ data: { email: resendEmail } }).catch(
+        () => undefined,
+      );
+    } catch (e) {
+      setResendState("error");
+      setResendError(
+        e instanceof Error ? e.message : "Couldn't resend right now",
+      );
+      void logUserResendConfirmation({
+        data: {
+          email: resendEmail,
+          status: "failed",
+          error_message:
+            e instanceof Error ? e.message.slice(0, 500) : undefined,
+        },
+      }).catch(() => undefined);
+    }
+  };
 
   const runDownload = async () => {
     setDownloadError(null);
@@ -213,6 +261,10 @@ export function AuthScreen({
             msg.includes("email not confirmed") ||
             msg.includes("confirm")
           ) {
+            setShowResend(true);
+            setResendEmail(email);
+            setResendState("idle");
+            setResendError(null);
             throw new Error(
               "Please confirm your email before signing in. Check your inbox.",
             );
@@ -454,6 +506,55 @@ export function AuthScreen({
               >
                 {error}
               </p>
+            )}
+
+            {showResend && formMode === "signin" && (
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => void handleResendConfirmation()}
+                  disabled={resendState === "sending" || resendCooldown > 0}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor:
+                      resendState === "sending" || resendCooldown > 0
+                        ? "not-allowed"
+                        : "pointer",
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body-sm)",
+                    color: "var(--accent, var(--gold))",
+                    textDecoration: "underline",
+                    textUnderlineOffset: 3,
+                    opacity:
+                      resendState === "sending" || resendCooldown > 0
+                        ? 0.55
+                        : 1,
+                  }}
+                >
+                  {resendState === "sending"
+                    ? "Sending…"
+                    : resendState === "sent"
+                      ? resendCooldown > 0
+                        ? `Confirmation email sent! (${resendCooldown}s)`
+                        : "Confirmation email sent!"
+                      : "Didn't get the email? Resend confirmation"}
+                </button>
+                {resendState === "error" && resendError && (
+                  <span
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: "var(--text-caption)",
+                      color: "var(--destructive)",
+                    }}
+                  >
+                    {resendError}
+                  </span>
+                )}
+              </div>
             )}
 
             <div className="flex flex-col items-center gap-3 pt-1">
