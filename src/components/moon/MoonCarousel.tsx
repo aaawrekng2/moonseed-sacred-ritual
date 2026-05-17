@@ -1234,13 +1234,10 @@ type LadderRung = {
   inset: number; // edge inset px (margin-left for "left", margin-right for "right")
 };
 
+// Q85 — simplified to just two rungs: New Moon + Full Moon.
 const LADDER_RUNGS: LadderRung[] = [
-  { label: "New Moon", phase: "New Moon", size: 14, inset: 28 },
-  { label: "Waxing Crescent", phase: "Waxing Crescent", size: 18, inset: 14 },
+  { label: "New Moon", phase: "New Moon", size: 18, inset: 8 },
   { label: "Full Moon", phase: "Full Moon", size: 26, inset: 0 },
-  { label: "Waning Gibbous", phase: "Waning Gibbous", size: 18, inset: 14 },
-  // "Dark Moon" rung — calculated as New Moon, displayed as the same dark glyph.
-  { label: "Dark Moon", phase: "New Moon", size: 14, inset: 28 },
 ];
 
 // ---------------------------------------------------------------------------
