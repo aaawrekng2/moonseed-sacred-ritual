@@ -40,6 +40,8 @@ import { Route as InsightsCardCardIdRouteImport } from './routes/insights.card.$
 import { Route as HelpCategoryArticleRouteImport } from './routes/help.$category.$article'
 import { Route as ApiPublicDetectWeavesRouteImport } from './routes/api/public/detect-weaves'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
+import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
+import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as ApiPublicDetectWeavesStatusRouteImport } from './routes/api/public/detect-weaves/status'
 import { Route as AdminUsageUsersUserIdRouteImport } from './routes/admin.usage.users.$userId'
 
@@ -200,6 +202,16 @@ const LovableEmailQueueProcessRoute =
     path: '/lovable/email/queue/process',
     getParentRoute: () => rootRouteImport,
   } as any)
+const LovableEmailAuthWebhookRoute = LovableEmailAuthWebhookRouteImport.update({
+  id: '/lovable/email/auth/webhook',
+  path: '/lovable/email/auth/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
+  id: '/lovable/email/auth/preview',
+  path: '/lovable/email/auth/preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicDetectWeavesStatusRoute =
   ApiPublicDetectWeavesStatusRouteImport.update({
     id: '/status',
@@ -245,6 +257,8 @@ export interface FileRoutesByFullPath {
   '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
   '/admin/usage/users/$userId': typeof AdminUsageUsersUserIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
+  '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
+  '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesByTo {
@@ -279,6 +293,8 @@ export interface FileRoutesByTo {
   '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
   '/admin/usage/users/$userId': typeof AdminUsageUsersUserIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
+  '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
+  '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesById {
@@ -315,6 +331,8 @@ export interface FileRoutesById {
   '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
   '/admin/usage/users/$userId': typeof AdminUsageUsersUserIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
+  '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
+  '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRouteTypes {
@@ -352,6 +370,8 @@ export interface FileRouteTypes {
     | '/insights/recap/$lunationStart'
     | '/admin/usage/users/$userId'
     | '/api/public/detect-weaves/status'
+    | '/lovable/email/auth/preview'
+    | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -386,6 +406,8 @@ export interface FileRouteTypes {
     | '/insights/recap/$lunationStart'
     | '/admin/usage/users/$userId'
     | '/api/public/detect-weaves/status'
+    | '/lovable/email/auth/preview'
+    | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
   id:
     | '__root__'
@@ -421,6 +443,8 @@ export interface FileRouteTypes {
     | '/insights/recap/$lunationStart'
     | '/admin/usage/users/$userId'
     | '/api/public/detect-weaves/status'
+    | '/lovable/email/auth/preview'
+    | '/lovable/email/auth/webhook'
     | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
 }
@@ -438,6 +462,8 @@ export interface RootRouteChildren {
   StoriesRoute: typeof StoriesRouteWithChildren
   ThreadsRoute: typeof ThreadsRouteWithChildren
   ApiPublicDetectWeavesRoute: typeof ApiPublicDetectWeavesRouteWithChildren
+  LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
+  LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
 
@@ -660,6 +686,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lovable/email/auth/webhook': {
+      id: '/lovable/email/auth/webhook'
+      path: '/lovable/email/auth/webhook'
+      fullPath: '/lovable/email/auth/webhook'
+      preLoaderRoute: typeof LovableEmailAuthWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/auth/preview': {
+      id: '/lovable/email/auth/preview'
+      path: '/lovable/email/auth/preview'
+      fullPath: '/lovable/email/auth/preview'
+      preLoaderRoute: typeof LovableEmailAuthPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/detect-weaves/status': {
       id: '/api/public/detect-weaves/status'
       path: '/status'
@@ -804,6 +844,8 @@ const rootRouteChildren: RootRouteChildren = {
   StoriesRoute: StoriesRouteWithChildren,
   ThreadsRoute: ThreadsRouteWithChildren,
   ApiPublicDetectWeavesRoute: ApiPublicDetectWeavesRouteWithChildren,
+  LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
+  LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }
 export const routeTree = rootRouteImport
