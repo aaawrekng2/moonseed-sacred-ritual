@@ -45,8 +45,18 @@ export function applySanctuary(
   }
   if (theme.font) applyHeadingFont(theme.font);
   if (theme.font_size) applyHeadingFontSize(theme.font_size);
-  if (theme.card_back) setStoredCardBack(theme.card_back);
-  if (typeof theme.resting_opacity === "number") setOpacity(theme.resting_opacity);
+  // Q81 — pairing + text_scale restore.
+  if (theme.font_pairing) {
+    // Imported lazily to avoid circulars; pairing module is small.
+    void import("@/lib/font-pairings").then((m) =>
+      m.applyFontPairing(theme.font_pairing!),
+    );
+  }
+  if (typeof theme.text_scale === "number") {
+    void import("@/lib/font-pairings").then((m) =>
+      m.applyTextScale(theme.text_scale!),
+    );
+  }
 }
 
 /**
