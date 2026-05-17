@@ -3850,6 +3850,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   reactivate_user: "Reactivate user",
   set_note: "Set note",
   resend_confirmation: "Resend confirmation",
+  manual_confirm: "Confirm email manually",
   create_backup: "Create backup",
   restore_backup_requested: "Restore requested",
   run_detect_weaves: "Run detect weaves",
