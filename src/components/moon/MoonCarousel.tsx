@@ -948,11 +948,19 @@ function CenterCard({
       className="flex flex-col items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       style={{ minWidth: Math.min(120, maxWidth), maxWidth }}
     >
+      {/* Q87 — gold accent reserved exclusively for the TODAY label.
+          On other days we leave the slot empty so the inner date line
+          becomes the visual primary. */}
       <span
-        className="font-medium uppercase tracking-[0.3em] text-gold"
-        style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 0.7))}px`, lineHeight: 1.15 }}
+        className="font-medium uppercase tracking-[0.3em]"
+        style={{
+          fontSize: `${Math.max(12, Math.round(baseFontPx * 0.7))}px`,
+          lineHeight: 1.15,
+          color: isToday ? "var(--gold)" : "transparent",
+          minHeight: "1em",
+        }}
       >
-        {isToday ? "Today" : formatShortDate(info.date, timeZone)}
+        {isToday ? "Today" : ""}
       </span>
       <div
         className="w-full rounded-2xl px-3 py-4 sm:px-4 transition-all duration-200"
@@ -966,29 +974,41 @@ function CenterCard({
           style={{ gap: Math.max(2, Math.round(baseFontPx * 0.25)), lineHeight: 1.15 }}
         >
           <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
+          {/* Q87 — primary tier: date + phase at full foreground. */}
           <p
-            className="whitespace-nowrap font-medium uppercase tracking-wider text-muted-foreground"
-            style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 1.0))}px`, lineHeight: 1.15, margin: 0 }}
+            className="whitespace-nowrap font-medium uppercase tracking-wider"
+            style={{
+              fontSize: `${Math.max(12, Math.round(baseFontPx * 1.0))}px`,
+              lineHeight: 1.15,
+              margin: 0,
+              color: "var(--color-foreground)",
+            }}
           >
             {formatShortDate(info.date, timeZone)}
           </p>
           <p
-            className="whitespace-nowrap font-display text-gold"
-            style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 1.1))}px`, lineHeight: 1.15, margin: 0 }}
+            className="whitespace-nowrap font-display"
+            style={{
+              fontSize: `${Math.max(12, Math.round(baseFontPx * 1.1))}px`,
+              lineHeight: 1.15,
+              margin: 0,
+              color: "var(--color-foreground)",
+            }}
           >
             {info.phase}
           </p>
+          {/* Q87 — secondary tier: illumination + zodiac, single line. */}
           <p
-            className="whitespace-nowrap text-gold/80"
-            style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 0.9))}px`, lineHeight: 1.15, margin: 0 }}
+            className="whitespace-nowrap"
+            style={{
+              fontSize: `${Math.max(12, Math.round(baseFontPx * 0.9))}px`,
+              lineHeight: 1.15,
+              margin: 0,
+              color: "var(--color-foreground)",
+              opacity: 0.6,
+            }}
           >
-            {info.illumination}% illuminated
-          </p>
-          <p
-            className="whitespace-nowrap uppercase tracking-wider text-muted-foreground"
-            style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 0.85))}px`, lineHeight: 1.15, margin: 0 }}
-          >
-            Moon in {moonSign}
+            {info.illumination}% · in {moonSign}
           </p>
         </div>
       </div>
