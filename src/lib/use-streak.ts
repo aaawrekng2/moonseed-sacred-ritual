@@ -1,14 +1,30 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
+import { useTimezone } from "@/lib/use-timezone";
 
-/** YYYY-MM-DD in the user's local timezone. */
-function todayLocalISO(): string {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+/**
+ * YYYY-MM-DD in the supplied IANA timezone (falls back to device tz).
+ * Q78 — streaks must follow the seeker's saved timezone, not whatever
+ * tz the device happens to be in (travel days were resetting streaks).
+ */
+function todayInTz(tz: string | null | undefined): string {
+  try {
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz || undefined,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    // en-CA renders as YYYY-MM-DD.
+    return fmt.format(new Date());
+  } catch {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
 }
 
 function isYesterday(lastISO: string, todayISO: string): boolean {
@@ -32,6 +48,7 @@ export function useStreak(): {
   recordDraw: () => Promise<void>;
 } {
   const { user, loading: authLoading } = useAuth();
+  const { effectiveTz } = useTimezone();
   const [currentStreak, setCurrentStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
   const [lastDrawDate, setLastDrawDate] = useState<string | null>(null);
@@ -76,7 +93,7 @@ export function useStreak(): {
 
   const recordDraw = useCallback(async () => {
     if (!user) return;
-    const today = todayLocalISO();
+    const today = todayInTz(effectiveTz);
     if (lastDrawDate === today) return;
 
     let nextStreak: number;
@@ -105,7 +122,7 @@ export function useStreak(): {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("arcana:streak-updated"));
     }
-  }, [user, lastDrawDate, currentStreak, longestStreak]);
+  }, [user, lastDrawDate, currentStreak, longestStreak, effectiveTz]);
 
   return { currentStreak, longestStreak, lastDrawDate, loading, recordDraw };
 }
