@@ -24,6 +24,8 @@ export type Prefs = {
   birth_name: string | null;
   sun_sign: string | null;
   rising_sign: string | null;
+  birth_latitude: number | null;
+  birth_longitude: number | null;
   initial_intention: string | null;
   default_spread: string;
   moon_features_enabled: boolean;
@@ -56,6 +58,8 @@ const DEFAULT_PREFS: Prefs = {
   birth_name: null,
   sun_sign: null,
   rising_sign: null,
+  birth_latitude: null,
+  birth_longitude: null,
   initial_intention: null,
   default_spread: "single",
   moon_features_enabled: true,
@@ -106,7 +110,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase
         .from("user_preferences")
         .select(
-          "display_name, birth_date, birth_time, birth_place, birth_name, sun_sign, rising_sign, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_carousel_size, moon_ai_phase, moon_ai_sign, moon_void_warning, memory_ai_permission, show_question_prompt, allow_reversed_cards, track_reversals, reduce_premium_prompts, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
+          "display_name, birth_date, birth_time, birth_place, birth_name, sun_sign, rising_sign, birth_latitude, birth_longitude, initial_intention, default_spread, moon_features_enabled, moon_show_carousel, moon_carousel_size, moon_ai_phase, moon_ai_sign, moon_void_warning, memory_ai_permission, show_question_prompt, allow_reversed_cards, track_reversals, reduce_premium_prompts, accent_color, bg_gradient_from, bg_gradient_to, heading_font, heading_font_size, resting_opacity",
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -134,6 +138,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         birth_name: n("birth_name"),
         sun_sign: n("sun_sign"),
         rising_sign: n("rising_sign"),
+        birth_latitude: num("birth_latitude", null),
+        birth_longitude: num("birth_longitude", null),
         initial_intention: n("initial_intention"),
         default_spread: s("default_spread", "single"),
         moon_features_enabled: b("moon_features_enabled", true),
