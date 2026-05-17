@@ -150,25 +150,30 @@ function InsightsRoute() {
   }, []);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      console.log("[insights] waiting for userId");
+      return;
+    }
+    console.log("[insights] fetching with userId:", userId, "filters:", filters);
     let cancelled = false;
     setLoading(true);
     setFetchError(false);
     void (async () => {
       try {
         const headers = await getAuthHeaders();
+        console.log("[insights] auth headers:", Object.keys(headers));
         const [ov, st] = await Promise.all([
           overviewFn({ data: filters, headers }),
           stalkerFn({ data: filters, headers }),
         ]);
+        console.log("[insights] overview result:", ov?.totalReadings, "readings");
         if (cancelled) return;
         setOverview(ov);
         setStalkers(st);
         setLoading(false);
       } catch (e) {
         if (cancelled) return;
-        // eslint-disable-next-line no-console
-        console.warn("[insights] fetch failed", e);
+        console.error("[insights] fetch FAILED:", e);
         setFetchError(true);
         setLoading(false);
       }
