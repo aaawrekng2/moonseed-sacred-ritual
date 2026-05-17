@@ -14,13 +14,15 @@
  * slider, individual heading-font picker, heading size slider, oracle
  * toggle. Defaults: card back forced to ocean, resting opacity to 1.0.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
-import { Check, ChevronDown, Save, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Pencil, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { useConfirm } from "@/hooks/use-confirm";
+import { setStoredAccentColor } from "@/lib/use-theme-color-sync";
 import {
   COMMUNITY_THEMES,
   getStoredCommunityTheme,
