@@ -7,6 +7,7 @@
  *    used as a fallback when the place can't be geocoded.
  */
 import type { SunSign } from "./sun-sign";
+import { Origin, Horoscope } from "circular-natal-horoscope-js";
 
 export type RisingSign = SunSign;
 
@@ -104,16 +105,7 @@ export function calculateRisingSignPrecise(
     ) {
       return null;
     }
-    // Dynamic require so the heavy lib never lands in the client bundle
-    // unless this codepath is actually hit.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const lib = require("circular-natal-horoscope-js") as {
-      Origin: new (args: Record<string, number>) => unknown;
-      Horoscope: new (args: Record<string, unknown>) => {
-        Ascendant?: { Sign?: { label?: string; key?: string } };
-      };
-    };
-    const origin = new lib.Origin({
+    const origin = new Origin({
       year,
       month,
       date,
@@ -121,13 +113,15 @@ export function calculateRisingSignPrecise(
       minute,
       latitude,
       longitude,
-    });
-    const h = new lib.Horoscope({
+    } as never);
+    const h = new Horoscope({
       origin,
       houseSystem: "whole-sign",
       zodiac: "tropical",
       language: "en",
-    });
+    } as never) as {
+      Ascendant?: { Sign?: { label?: string; key?: string } };
+    };
     const label =
       h.Ascendant?.Sign?.label ??
       (h.Ascendant?.Sign?.key ? capitalize(h.Ascendant.Sign.key) : null);
