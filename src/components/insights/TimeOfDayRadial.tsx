@@ -135,7 +135,7 @@ export function TimeOfDayRadial({ filters }: { filters: InsightsFilters }) {
                   y={ly}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fontSize="10"
+                  fontSize="12"
                   fill="var(--color-foreground)"
                   opacity={0.55}
                 >

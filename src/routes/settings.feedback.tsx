@@ -524,7 +524,7 @@ function CategoryBadge({ category }: { category: "bug" | "feature" }) {
     <span
       style={{
         fontFamily: "var(--font-sans)",
-        fontSize: 9,
+        fontSize: "var(--text-caption)",
         letterSpacing: "0.16em",
         textTransform: "uppercase",
         padding: "2px 6px",
@@ -547,7 +547,7 @@ function StatusBadge({ status }: { status: FeedbackBoardItem["status"] }) {
     <span
       style={{
         fontFamily: "var(--font-sans)",
-        fontSize: 9,
+        fontSize: "var(--text-caption)",
         letterSpacing: "0.16em",
         textTransform: "uppercase",
         padding: "2px 6px",

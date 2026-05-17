@@ -54,7 +54,7 @@ export function Level2FullReading({
           style={{
             textAlign: "center",
             fontFamily: "var(--font-serif)",
-            fontSize: 40,
+            fontSize: "var(--text-display)",
             lineHeight: 1.5,
             maxWidth: 880,
             margin: "0 auto",

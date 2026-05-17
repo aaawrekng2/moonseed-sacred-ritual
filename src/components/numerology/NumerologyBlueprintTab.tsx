@@ -80,7 +80,7 @@ const cardStyle: CSSProperties = {
 
 const goldDigitStyle: CSSProperties = {
   fontFamily: "var(--font-display)",
-  fontSize: 36,
+  fontSize: "var(--text-display)",
   color: "var(--gold)",
   fontStyle: "italic",
   lineHeight: 1,
@@ -434,7 +434,7 @@ function KarmicDebtSection({
                   gap: 14,
                 }}
               >
-                <span style={{ ...goldDigitStyle, fontSize: 32 }}>{d.number}</span>
+                <span style={{ ...goldDigitStyle, fontSize: "var(--text-heading-lg)" }}>{d.number}</span>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   <span style={labelStyle}>{sourceLabel[d.source]}</span>
                   <span
@@ -479,7 +479,7 @@ function KarmicLessonsSection({ birthName }: { birthName: string }) {
             return (
               <ExpandableCard key={digit} fullText={m.full}>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                  <span style={{ ...goldDigitStyle, fontSize: 28 }}>{digit}</span>
+                  <span style={{ ...goldDigitStyle, fontSize: "var(--text-heading-lg)" }}>{digit}</span>
                   <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     <span
                       style={{

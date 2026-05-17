@@ -214,7 +214,7 @@ export function ShareCardFooter({
           // DT-9 — bumped from 26 → 38 and opacity 0.5 → 0.7 so the
           // bottom TarotSeed.com wordmark stays legible at thumbnail
           // sizes without dominating the composition.
-          fontSize: 38,
+          fontSize: "var(--text-display)",
           letterSpacing: "0.18em",
           textTransform: "lowercase",
           color: "var(--foreground-muted, var(--color-foreground))",
@@ -382,7 +382,7 @@ export function ShareCardRow({
             style={{
               fontFamily: "var(--font-serif)",
               // DS — small-caps title treatment, accent at 80%.
-              fontSize: 32,
+              fontSize: "var(--text-heading-lg)",
               lineHeight: 1.2,
               textAlign: "center",
               opacity: 0.8,

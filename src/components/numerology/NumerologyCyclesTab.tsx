@@ -43,7 +43,7 @@ const cardStyle: CSSProperties = {
 
 const goldDigitStyle: CSSProperties = {
   fontFamily: "var(--font-display)",
-  fontSize: 36,
+  fontSize: "var(--text-display)",
   color: "var(--gold)",
   fontStyle: "italic",
   lineHeight: 1,
@@ -203,7 +203,7 @@ export function NumerologyCyclesTab({ birthDate }: { birthDate: string }) {
                 <span
                   style={{
                     fontFamily: "var(--font-display)",
-                    fontSize: 28,
+                    fontSize: "var(--text-heading-lg)",
                     color: "var(--gold)",
                     fontStyle: "italic",
                     lineHeight: 1,
@@ -357,7 +357,7 @@ function ExpandableTimelineRow({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <span style={{ ...goldDigitStyle, fontSize: 32 }}>{digit}</span>
+        <span style={{ ...goldDigitStyle, fontSize: "var(--text-heading-lg)" }}>{digit}</span>
         <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
           <span style={captionStyle}>{label}</span>
           <span

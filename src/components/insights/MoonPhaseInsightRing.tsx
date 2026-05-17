@@ -143,7 +143,7 @@ export function MoonPhaseInsightRing({
                       y={cy + ((r + inner) / 2 + 18) * Math.sin(((start + end) / 2 - 90) * Math.PI / 180)}
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      fontSize="11"
+                      fontSize="12"
                       fill="var(--color-foreground)"
                       opacity={0.7}
                       style={{ pointerEvents: "none" }}

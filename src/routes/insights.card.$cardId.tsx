@@ -585,14 +585,14 @@ function CardTrendChart({
             />
             <XAxis
               dataKey="label"
-              tick={{ fill: "var(--foreground-muted)", fontSize: 10 }}
+              tick={{ fill: "var(--foreground-muted)", fontSize: "var(--text-caption)" }}
               axisLine={false}
               tickLine={false}
               minTickGap={20}
             />
             <YAxis
               allowDecimals={false}
-              tick={{ fill: "var(--foreground-muted)", fontSize: 10 }}
+              tick={{ fill: "var(--foreground-muted)", fontSize: "var(--text-caption)" }}
               axisLine={false}
               tickLine={false}
               width={20}
@@ -602,7 +602,7 @@ function CardTrendChart({
                 background: "var(--surface-elevated)",
                 border: "1px solid var(--border-subtle)",
                 borderRadius: 6,
-                fontSize: 12,
+                fontSize: "var(--text-caption)",
               }}
               labelStyle={{ color: "var(--foreground-muted)" }}
             />

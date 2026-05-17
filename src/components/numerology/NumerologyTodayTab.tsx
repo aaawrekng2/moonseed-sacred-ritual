@@ -93,7 +93,7 @@ export function NumerologyTodayTab({
             gap: 16,
           }}
         >
-          <span style={{ fontSize: 36, lineHeight: 1 }}>{moon.glyph}</span>
+          <span style={{ fontSize: "var(--text-display)", lineHeight: 1 }}>{moon.glyph}</span>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <span
               style={{
@@ -160,7 +160,7 @@ export function NumerologyTodayTab({
               <span
                 style={{
                   fontFamily: "var(--font-display)",
-                  fontSize: 28,
+                  fontSize: "var(--text-heading-lg)",
                   color: i === 0 ? "var(--gold)" : "var(--color-foreground)",
                   fontStyle: "italic",
                   lineHeight: 1,
@@ -205,7 +205,7 @@ function NumberCell({ value, label }: { value: Numerogram; label: string }) {
       <span
         style={{
           fontFamily: "var(--font-display)",
-          fontSize: 36,
+          fontSize: "var(--text-display)",
           color: "var(--gold)",
           fontStyle: "italic",
           lineHeight: 1,

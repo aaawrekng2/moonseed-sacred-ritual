@@ -223,7 +223,7 @@ export function TarotSeedMark({
     >
       <span
         style={{
-          fontSize: 28,
+          fontSize: "var(--text-heading-lg)",
           lineHeight: 1,
           fontFamily: "ui-serif, Georgia, serif",
         }}
@@ -234,7 +234,7 @@ export function TarotSeedMark({
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 22,
+          fontSize: "var(--text-heading-md)",
           letterSpacing: "0.04em",
         }}
       >

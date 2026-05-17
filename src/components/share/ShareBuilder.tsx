@@ -1281,7 +1281,7 @@ function InlineErrorBanner({
           <div
             style={{
               fontFamily: "var(--font-sans)",
-              fontSize: 10,
+              fontSize: "var(--text-caption)",
               letterSpacing: "0.22em",
               textTransform: "uppercase",
               color: "var(--destructive, #b94a4a)",
@@ -1295,7 +1295,7 @@ function InlineErrorBanner({
               aria-label={`Failure type: ${categoryLabel}`}
               style={{
                 fontFamily: "var(--font-sans)",
-                fontSize: 9,
+                fontSize: "var(--text-caption)",
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 color: "var(--color-foreground)",

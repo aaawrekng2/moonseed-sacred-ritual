@@ -97,7 +97,7 @@ export function StoryShareModal({
             textAlign: "center",
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
-            fontSize: 38,
+            fontSize: "var(--text-display)",
             lineHeight: 1.5,
             maxWidth: 880,
             margin: "0 auto",
@@ -113,7 +113,7 @@ export function StoryShareModal({
         style={{
           textAlign: "center",
           fontFamily: "var(--font-serif)",
-          fontSize: 28,
+          fontSize: "var(--text-heading-lg)",
           letterSpacing: "0.18em",
           textTransform: "uppercase",
           opacity: 0.7,

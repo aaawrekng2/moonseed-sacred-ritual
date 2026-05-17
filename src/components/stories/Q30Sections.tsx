@@ -462,7 +462,7 @@ export function StoryConstellation({
                 y="48"
                 textAnchor="middle"
                 fontFamily="var(--font-sans)"
-                fontSize="9"
+                fontSize="12"
                 fill="var(--color-foreground)"
                 opacity="0.4"
                 letterSpacing="0.12em"

@@ -182,7 +182,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
             <XAxis
               dataKey="label"
               tick={{
-                fontSize: 11,
+                fontSize: "var(--text-caption)",
                 fill: "var(--color-foreground)",
                 opacity: 0.7,
                 fontFamily: "var(--font-serif)",
@@ -192,7 +192,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
             />
             <YAxis
               tick={{
-                fontSize: 11,
+                fontSize: "var(--text-caption)",
                 fill: "var(--color-foreground)",
                 opacity: 0.7,
                 fontFamily: "var(--font-serif)",
@@ -208,7 +208,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
                 borderRadius: 8,
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                fontSize: 12,
+                fontSize: "var(--text-caption)",
               }}
               formatter={(value: number, name: string) => [
                 mode === "pct" ? `${value}%` : value,
@@ -224,7 +224,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
               wrapperStyle={{
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                fontSize: 12,
+                fontSize: "var(--text-caption)",
                 paddingTop: 8,
               }}
               formatter={(value) => SUIT_LABEL[value as string] ?? value}

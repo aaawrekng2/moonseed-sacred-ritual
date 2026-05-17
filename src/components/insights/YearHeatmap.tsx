@@ -102,7 +102,7 @@ export function YearHeatmap({ filters }: { filters: InsightsFilters }) {
       {!loading && days.length > 0 && (
         <div className="overflow-x-auto">
           <div style={{ display: "inline-block", minWidth: "100%" }}>
-            <div className="mb-1 flex" style={{ paddingLeft: 18, gap: 2, fontSize: 9, opacity: 0.55 }}>
+            <div className="mb-1 flex" style={{ paddingLeft: 18, gap: 2, fontSize: "var(--text-caption)", opacity: 0.55 }}>
               {weeks.map((_, col) => {
                 const m = monthLabels.find((x) => x.col === col);
                 return (
@@ -113,7 +113,7 @@ export function YearHeatmap({ filters }: { filters: InsightsFilters }) {
               })}
             </div>
             <div className="flex" style={{ gap: 2 }}>
-              <div className="flex flex-col" style={{ gap: 2, fontSize: 9, opacity: 0.55, paddingRight: 4, width: 14 }}>
+              <div className="flex flex-col" style={{ gap: 2, fontSize: "var(--text-caption)", opacity: 0.55, paddingRight: 4, width: 14 }}>
                 {["", "M", "", "W", "", "F", ""].map((l, i) => (
                   <div key={i} style={{ height: 12, lineHeight: "12px" }}>{l}</div>
                 ))}

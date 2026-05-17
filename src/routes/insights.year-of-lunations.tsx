@@ -247,7 +247,7 @@ function YearSlideContent({
               .sort((a, b) => b.v - a.v)[0];
             return (
               <div key={i} className="flex flex-col items-center gap-1" style={{ opacity: total ? 1 : 0.4 }}>
-                <div style={{ fontSize: 11, opacity: 0.6 }}>Q{i + 1}</div>
+                <div style={{ fontSize: "var(--text-caption)", opacity: 0.6 }}>Q{i + 1}</div>
                 <div style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", color: "var(--gold)" }}>
                   {total ? top.s : "—"}
                 </div>
@@ -507,13 +507,13 @@ function SlideYearSaveShareDone({
           fontFamily: "var(--font-serif)",
         }}
       >
-        <div style={{ fontSize: 12, letterSpacing: "0.2em", opacity: 0.6 }}>TAROTSEED</div>
-        <div style={{ fontSize: 32, fontStyle: "italic", color: "var(--gold)" }}>A Year of Lunations</div>
-        <div style={{ fontSize: 14, opacity: 0.75 }}>{data.dateRange}</div>
+        <div style={{ fontSize: "var(--text-caption)", letterSpacing: "0.2em", opacity: 0.6 }}>TAROTSEED</div>
+        <div style={{ fontSize: "var(--text-heading-lg)", fontStyle: "italic", color: "var(--gold)" }}>A Year of Lunations</div>
+        <div style={{ fontSize: "var(--text-body-sm)", opacity: 0.75 }}>{data.dateRange}</div>
         <div style={{ fontSize: 96, fontStyle: "italic", color: "var(--gold)", lineHeight: 1 }}>
           {data.totalReadings}
         </div>
-        <div style={{ fontSize: 14, opacity: 0.75 }}>readings across {data.daysRead} days</div>
+        <div style={{ fontSize: "var(--text-body-sm)", opacity: 0.75 }}>readings across {data.daysRead} days</div>
         {data.topCard && (
           <div style={{ marginTop: 12, fontStyle: "italic", color: "var(--gold)" }}>
             {data.topCard.cardName} ×{data.topCard.count}
