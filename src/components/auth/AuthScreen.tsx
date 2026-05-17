@@ -124,6 +124,47 @@ export function AuthScreen({
     return () => window.clearInterval(id);
   }, [downloadStage, downloadStartedAt]);
 
+  // Q82 — Tick down resend cooldown.
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = window.setInterval(() => {
+      setResendCooldown((c) => (c > 0 ? c - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [resendCooldown]);
+
+  const handleResendConfirmation = async () => {
+    if (!resendEmail || resendState === "sending" || resendCooldown > 0) return;
+    setResendState("sending");
+    setResendError(null);
+    try {
+      const { error: resendErr } = await supabase.auth.resend({
+        type: "signup",
+        email: resendEmail,
+      });
+      if (resendErr) throw resendErr;
+      setResendState("sent");
+      setResendCooldown(60);
+      // Fire-and-forget log entry; never block UX on this.
+      void logUserResendConfirmation({ data: { email: resendEmail } }).catch(
+        () => undefined,
+      );
+    } catch (e) {
+      setResendState("error");
+      setResendError(
+        e instanceof Error ? e.message : "Couldn't resend right now",
+      );
+      void logUserResendConfirmation({
+        data: {
+          email: resendEmail,
+          status: "failed",
+          error_message:
+            e instanceof Error ? e.message.slice(0, 500) : undefined,
+        },
+      }).catch(() => undefined);
+    }
+  };
+
   const runDownload = async () => {
     setDownloadError(null);
     setDownloadProgress(null);
