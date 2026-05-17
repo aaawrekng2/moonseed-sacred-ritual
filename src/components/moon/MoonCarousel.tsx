@@ -642,10 +642,20 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
             const isNewMoonDay = newMoonGoldYmds.includes(d.ymd);
             const isPeakDay = d.ymd === peakYmd;
             const isNewMoonPeakDay = d.ymd === newMoonPeakYmd;
-            const peakTimeText = isPeakDay && fullMoonPeak
+            const rawPeakTimeText = isPeakDay && fullMoonPeak
               ? formatTimeInTz(fullMoonPeak, effectiveTz)
               : isNewMoonPeakDay && newMoonPeak
                 ? formatTimeInTz(newMoonPeak, effectiveTz)
+                : null;
+            // Q88 — hide the in-card peak time when the seam marker (which
+            // already shows the same time) is rendered. Otherwise the time
+            // appears twice.
+            const markerCoversPeak =
+              (isPeakDay && showMarker) ||
+              (isNewMoonPeakDay && showNewMoonMarker);
+            const peakTimeText =
+              rawPeakTimeText && !markerCoversPeak && isCenter
+                ? rawPeakTimeText
                 : null;
             return (
               <div
@@ -663,9 +673,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                 style={{
                   alignSelf: "flex-start",
                   marginTop: `${topOffset}px`,
-                  // Q86 — needs to be relative so the peak-time caption
-                  // can absolutely-position above the moon glyph.
-                  position: dateOverlay || peakTimeText ? "relative" : undefined,
+                  position: dateOverlay ? "relative" : undefined,
                   // Shrink ±2 cards slightly on mobile so they fit beside the
                   // mobile ladders without clipping at the screen edges.
                   transform: absRel === 2 ? "scale(0.85)" : undefined,
@@ -675,7 +683,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                   background: isGoldDay
                     ? "color-mix(in oklab, var(--gold) 12%, transparent)"
                     : isNewMoonDay
-                      ? "color-mix(in oklab, oklch(0.5 0.2 290) 12%, transparent)"
+                      ? "color-mix(in oklab, oklch(0.65 0.25 290) 20%, transparent)"
                       : undefined,
                   borderRadius:
                     isGoldDay || isNewMoonDay ? 12 : undefined,
@@ -736,26 +744,6 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                     </span>
                   </div>
                 )}
-                {peakTimeText && (
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      position: "absolute",
-                      top: -16,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      fontFamily: "var(--font-serif)",
-                      fontSize: "var(--text-caption)",
-                      color: "var(--color-foreground)",
-                      opacity: 0.7,
-                      whiteSpace: "nowrap",
-                      letterSpacing: "0.05em",
-                      pointerEvents: "none",
-                    }}
-                  >
-                    {peakTimeText}
-                  </span>
-                )}
                 {isCenter ? (
                   <CenterCard
                     info={d.info}
@@ -774,6 +762,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                     iconSize={centerMoonSize}
                     maxWidth={centerMaxWidth}
                     carouselHeight={carouselHeight}
+                    peakTimeText={peakTimeText}
                   />
                 ) : (
                   <AdjacentCard
