@@ -1097,6 +1097,86 @@ function FullMoonMarker({
   );
 }
 
+/**
+ * Q85 — silver-tinted twin of FullMoonMarker, pinned to the seam
+ * surrounding the upcoming new moon peak.
+ */
+function NewMoonMarker({
+  left,
+  peak,
+  timeZone,
+  side,
+  ymd,
+}: {
+  left: number;
+  peak: Date;
+  timeZone: string;
+  side: "left" | "right" | null;
+  ymd: string | null;
+}) {
+  const time = formatTimeInTz(peak, timeZone);
+  const tooltip = `New moon peak ${time} (${timeZone})`;
+  return (
+    <div
+      aria-label={tooltip}
+      title={tooltip}
+      style={{
+        position: "absolute",
+        top: "25%",
+        left,
+        transform: "translateX(-50%)",
+        pointerEvents: "none",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4,
+        zIndex: 5,
+      }}
+    >
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle at 50% 45%, rgba(40,40,60,0.85) 0%, rgba(80,90,120,0.55) 55%, rgba(180,195,225,0.25) 100%)",
+          border: "1px solid rgba(200,210,235,0.55)",
+          boxShadow:
+            "0 0 10px rgba(180,200,235,0.25), 0 0 4px rgba(255,255,255,0.15) inset",
+        }}
+      />
+      <span
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontSize: "var(--text-caption)",
+          color: "rgba(200,210,235,0.85)",
+          textAlign: "center",
+          letterSpacing: "0.05em",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {time}
+      </span>
+      {import.meta.env.DEV && side && ymd && (
+        <span
+          style={{
+            fontFamily: "var(--font-mono, monospace)",
+            fontSize: "var(--text-caption)",
+            color: "rgba(180,195,225,0.6)",
+            textAlign: "center",
+            whiteSpace: "nowrap",
+            lineHeight: 1.1,
+          }}
+        >
+          {side === "left" ? "← left edge" : "right edge →"}
+          <br />
+          {ymd}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function MoonSkeleton({ label }: { label?: string } = {}) {
   return (
     <section
