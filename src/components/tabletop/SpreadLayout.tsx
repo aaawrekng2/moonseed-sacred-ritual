@@ -149,6 +149,9 @@ export function SpreadLayout({
         // Always allow vertical scroll so the enrichment panel and any
         // bottom UI clear the bottom nav on every device.
         overflowY: "auto",
+        // Q77 #3 — prevent a few px of horizontal scroll on 10-card
+        // custom spreads (cells + 12px side padding can exceed viewport).
+        overflowX: "hidden",
       }}
     >
       {/* Q50 Fix 3 — close X for cast/flip phase (Tabletop's X is gone,
