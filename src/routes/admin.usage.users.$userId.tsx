@@ -392,6 +392,32 @@ function SeekerPage() {
             </div>
           ))}
       </div>
+
+      <h2 style={{ fontFamily: "var(--font-serif)", fontStyle: "italic", fontSize: 18, margin: "0 0 12px" }}>Email history</h2>
+      <div style={{ marginBottom: 32 }}>
+        {emails === null ? (
+          <div style={{ opacity: 0.4 }}>loading…</div>
+        ) : emails.length === 0 ? (
+          <div style={{ opacity: 0.4 }}>no emails</div>
+        ) : (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1.4fr 1fr 0.8fr", gap: 8, padding: "8px 0", borderBottom: "0.5px solid rgba(255,255,255,0.1)", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", opacity: 0.5 }}>
+              <span>date</span>
+              <span>type</span>
+              <span>triggered by</span>
+              <span>status</span>
+            </div>
+            {emails.map((e) => (
+              <div key={e.id} title={e.error_message ?? undefined} style={{ display: "grid", gridTemplateColumns: "1.4fr 1.4fr 1fr 0.8fr", gap: 8, padding: "8px 0", borderBottom: "0.5px solid rgba(255,255,255,0.05)", fontSize: 13 }}>
+                <span style={{ opacity: 0.6 }}>{formatDateTime(e.created_at)}</span>
+                <span>{e.email_type}</span>
+                <span style={{ opacity: 0.7 }}>{e.triggered_by}</span>
+                <span style={{ color: e.status === "sent" ? "inherit" : "var(--destructive, #c25450)", opacity: 0.85 }}>{e.status}</span>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
     </div>
   );
 }
