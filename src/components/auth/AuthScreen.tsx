@@ -508,6 +508,55 @@ export function AuthScreen({
               </p>
             )}
 
+            {showResend && formMode === "signin" && (
+              <div className="flex flex-col items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => void handleResendConfirmation()}
+                  disabled={resendState === "sending" || resendCooldown > 0}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor:
+                      resendState === "sending" || resendCooldown > 0
+                        ? "not-allowed"
+                        : "pointer",
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body-sm)",
+                    color: "var(--accent, var(--gold))",
+                    textDecoration: "underline",
+                    textUnderlineOffset: 3,
+                    opacity:
+                      resendState === "sending" || resendCooldown > 0
+                        ? 0.55
+                        : 1,
+                  }}
+                >
+                  {resendState === "sending"
+                    ? "Sending…"
+                    : resendState === "sent"
+                      ? resendCooldown > 0
+                        ? `Confirmation email sent! (${resendCooldown}s)`
+                        : "Confirmation email sent!"
+                      : "Didn't get the email? Resend confirmation"}
+                </button>
+                {resendState === "error" && resendError && (
+                  <span
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: "var(--text-caption)",
+                      color: "var(--destructive)",
+                    }}
+                  >
+                    {resendError}
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="flex flex-col items-center gap-3 pt-1">
               <button
                 type="button"
