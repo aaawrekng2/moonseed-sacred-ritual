@@ -880,3 +880,32 @@ export const getMyUsage = createServerFn({ method: "GET" })
       },
     };
   });
+
+export type UserEmailRow = {
+  id: string;
+  created_at: string;
+  email_type: string;
+  email_to: string;
+  triggered_by: string;
+  status: string;
+  error_message: string | null;
+};
+
+export const getUserEmailHistory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { userId: string; limit?: number }) =>
+    z.object({ userId: z.string().uuid(), limit: z.number().int().min(1).max(500).optional() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    const limit = data.limit ?? 100;
+    const { data: rows, error } = await supabaseAdmin
+      .from("email_log")
+      .select("id, created_at, email_type, email_to, triggered_by, status, error_message")
+      .eq("user_id", data.userId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) throw new Error(error.message);
+    return { emails: (rows ?? []) as UserEmailRow[] };
+  });
