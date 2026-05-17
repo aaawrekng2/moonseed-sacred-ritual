@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Moon, BookOpen, SlidersHorizontal, Hash, BarChart3 } from "lucide-react";
+import { Moon, BookOpen, Settings2, Hash, BarChart3 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,7 @@ const TABS: readonly Tab[] = [
   { to: "/numerology", label: "Numerology", Icon: Hash },
   { to: "/", label: "Home", Icon: Moon, primary: true },
   { to: "/insights", label: "Insights", Icon: BarChart3 },
-  { to: "/settings", label: "Settings", Icon: SlidersHorizontal },
+  { to: "/settings", label: "Settings", Icon: Settings2 },
 ] as const;
 
 export function BottomNav() {

@@ -14,13 +14,15 @@
  * slider, individual heading-font picker, heading size slider, oracle
  * toggle. Defaults: card back forced to ocean, resting opacity to 1.0.
  */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { HexColorPicker } from "react-colorful";
-import { Check, ChevronDown, Save, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Pencil, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
+import { useConfirm } from "@/hooks/use-confirm";
+import { setStoredAccentColor } from "@/lib/use-theme-color-sync";
 import {
   COMMUNITY_THEMES,
   getStoredCommunityTheme,
@@ -538,6 +540,8 @@ function SavedThemesSection({
   onSave,
   onLoad,
   onDelete,
+  onOverwrite,
+  onRename,
 }: {
   themes: SavedTheme[];
   activeSlot: number | null;
@@ -546,14 +550,28 @@ function SavedThemesSection({
   onSave: (slot: number) => void;
   onLoad: (theme: SavedTheme) => void;
   onDelete: (slot: number) => void;
+  onOverwrite: (theme: SavedTheme) => void;
+  onRename: (slot: number, name: string) => void;
 }) {
   const slots = Array.from({ length: MAX_SAVED_THEMES }, (_, i) => i + 1);
+  const [editingSlot, setEditingSlot] = useState<number | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (editingSlot != null) inputRef.current?.focus();
+  }, [editingSlot]);
+  const commitRename = () => {
+    if (editingSlot == null) return;
+    onRename(editingSlot, draftName);
+    setEditingSlot(null);
+  };
   return (
     <Section title="Saved Themes" hint="Snapshot your current look to a slot.">
       <div className="space-y-2">
         {slots.map((slot) => {
           const t = themes.find((x) => x.slot === slot);
           const isActive = activeSlot === slot;
+          const isEditing = editingSlot === slot;
           return (
             <div
               key={slot}
@@ -582,14 +600,49 @@ function SavedThemesSection({
                 }}
               />
               <div className="flex-1 min-w-0">
-                <div
-                  style={{
-                    fontSize: "var(--text-body)",
-                    color: "var(--color-foreground)",
-                  }}
-                >
-                  {t ? t.name : `Slot ${slot}`}
-                </div>
+                {t && isEditing ? (
+                  <Input
+                    ref={inputRef}
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    onBlur={commitRename}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        commitRename();
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        setEditingSlot(null);
+                      }
+                    }}
+                    maxLength={20}
+                    className="h-7"
+                    style={{ fontSize: "var(--text-body)" }}
+                  />
+                ) : (
+                  <div
+                    className="flex items-center gap-1.5"
+                    style={{
+                      fontSize: "var(--text-body)",
+                      color: "var(--color-foreground)",
+                    }}
+                  >
+                    <span className="truncate">{t ? t.name : `Slot ${slot}`}</span>
+                    {t && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDraftName(t.name);
+                          setEditingSlot(slot);
+                        }}
+                        aria-label="Rename saved theme"
+                        className="opacity-60 hover:opacity-100 transition-opacity"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
                 {!t && (
                   <div
                     style={{
@@ -609,6 +662,14 @@ function SavedThemesSection({
                     onClick={() => onLoad(t)}
                   >
                     Load
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onOverwrite(t)}
+                    aria-label="Overwrite saved theme"
+                  >
+                    <Save className="w-4 h-4" />
                   </Button>
                   <Button
                     size="sm"
@@ -654,6 +715,7 @@ export function ThemesTab() {
   const { user } = useAuth();
   const { prefs } = useSettings();
   const saved = useSavedThemes();
+  const confirm = useConfirm();
 
   const [communityKey, setCommunityKey] = useState<string | null>(null);
   const [accent, setAccent] = useState<string>("default");
@@ -726,6 +788,13 @@ export function ThemesTab() {
       applyAccentTheme("default");
       setAccent("default");
       setCustomHex(null);
+      setStoredAccentColor(null);
+      if (user) {
+        void updateUserPreferences(user.id, {
+          community_theme: key,
+          accent_color: null,
+        } as never);
+      }
       dispatchActiveThemeChanged({
         source: "community",
         name: t.name,
@@ -735,7 +804,7 @@ export function ThemesTab() {
       });
       window.dispatchEvent(new Event("tarotseed:theme-changed"));
     },
-    [],
+    [user],
   );
 
   const handleAccentPreset = useCallback(
@@ -749,6 +818,7 @@ export function ThemesTab() {
       root.style.removeProperty("--primary");
       root.style.removeProperty("--accent");
       root.style.removeProperty("--ring");
+      setStoredAccentColor(null);
       if (user) {
         void updateUserPreferences(user.id, { accent_color: null });
       }
@@ -764,6 +834,7 @@ export function ThemesTab() {
       applyCustomAccent(hex);
       setAccent("default");
       setCustomHex(hex);
+      setStoredAccentColor(hex);
       if (user) {
         void updateUserPreferences(user.id, { accent_color: hex });
       }
@@ -875,6 +946,46 @@ export function ThemesTab() {
     [saved],
   );
 
+  const handleOverwriteSlot = useCallback(
+    async (existing: SavedTheme) => {
+      const ok = await confirm({
+        title: `Overwrite ${existing.name}?`,
+        description: "This replaces the slot with your current settings.",
+        confirmLabel: "Overwrite",
+      });
+      if (!ok) return;
+      const t = COMMUNITY_THEMES.find((x) => x.key === communityKey);
+      const bgLeft = t?.bgLeft ?? existing.bg_left;
+      const bgRight = t?.bgRight ?? existing.bg_right;
+      const accentColor =
+        customHex ??
+        ACCENT_PRESETS.find((p) => p.value === accent)?.swatch ??
+        existing.accent;
+      const safeAccentHex = HEX_RE.test(accentColor)
+        ? accentColor
+        : existing.accent;
+      await saved.saveSlot(existing.slot, {
+        name: existing.name,
+        bg_left: bgLeft,
+        bg_right: bgRight,
+        accent: safeAccentHex,
+        theme_key: communityKey ?? undefined,
+        font_pairing: pairing,
+        text_scale: textScale,
+      });
+      await saved.setActiveSlot(existing.slot);
+      toast.success(`${existing.name} updated.`);
+    },
+    [confirm, communityKey, accent, customHex, pairing, textScale, saved],
+  );
+
+  const handleRenameSlot = useCallback(
+    async (slot: number, name: string) => {
+      await saved.renameSlot(slot, name);
+    },
+    [saved],
+  );
+
   /* -- render --------------------------------------------------- */
 
   // Suppress unused warning until accent-driven preview wiring lands.
@@ -928,6 +1039,8 @@ export function ThemesTab() {
         onSave={handleSaveSlot}
         onLoad={handleLoadSlot}
         onDelete={handleDeleteSlot}
+        onOverwrite={handleOverwriteSlot}
+        onRename={handleRenameSlot}
       />
     </div>
   );
