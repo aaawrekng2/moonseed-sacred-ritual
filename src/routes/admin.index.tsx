@@ -204,6 +204,7 @@ function Header({ tab, myRole }: { tab: Tab; myRole: Role }) {
     dashboard: "Dashboard",
     users: "Users",
     feedback: "Feedback",
+    emails: "Emails",
     backups: "Backups",
     audit: "Audit Log",
   };
@@ -241,6 +242,7 @@ const TABS: Array<{ key: Tab; label: string }> = [
   { key: "dashboard", label: "Dashboard" },
   { key: "users", label: "Users" },
   { key: "feedback", label: "Feedback" },
+  { key: "emails", label: "Emails" },
   { key: "backups", label: "Backups" },
   { key: "audit", label: "Audit Log" },
 ];
