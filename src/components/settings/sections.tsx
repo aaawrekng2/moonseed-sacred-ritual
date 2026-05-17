@@ -5,7 +5,7 @@ import { updateUserPreferences } from "@/lib/user-preferences-write";
 import { getSunSign, type SunSign } from "@/lib/sun-sign";
 import {
   calculateRisingSign,
-  calculateRisingSignPrecise,
+  calculateRisingSignWithConfidence,
   SIGN_EMOJI,
 } from "@/lib/rising-sign";
 import { geocodeBirthPlace } from "@/lib/geocode-cities";
@@ -642,19 +642,23 @@ function BlueprintSectionInner({
     () => geocodeBirthPlace(birthPlace),
     [birthPlace],
   );
-  const risingSign = useMemo(() => {
+  const risingInfo = useMemo(() => {
     const isoDate = birthDate ? format(birthDate, "yyyy-MM-dd") : prefs.birth_date;
     if (isoDate && birthTime && geocoded) {
-      const precise = calculateRisingSignPrecise(
+      const checked = calculateRisingSignWithConfidence(
         isoDate,
         birthTime,
         geocoded.latitude,
         geocoded.longitude,
       );
-      if (precise) return precise;
+      if (checked) return checked;
     }
-    return calculateRisingSign(sunSign, birthTime || null, birthPlace || null);
+    const approx = calculateRisingSign(sunSign, birthTime || null, birthPlace || null);
+    return approx ? { sign: approx, confident: false } : null;
   }, [birthDate, prefs.birth_date, birthTime, geocoded, sunSign, birthPlace]);
+  const risingSign = risingInfo?.sign ?? null;
+  const risingConfident = risingInfo?.confident ?? false;
+  const risingMissingInputs = !birthTime || !geocoded;
 
   const save = async () => {
     setSaving(true);
@@ -767,7 +771,7 @@ function BlueprintSectionInner({
           </p>
         </div>
 
-        {(sunSign || risingSign) && (
+        {(sunSign || risingSign || risingMissingInputs) && (
           <div className="flex flex-wrap gap-2">
             {sunSign && (
               <Badge variant="outline" className="border-gold/40 text-gold">
@@ -777,7 +781,15 @@ function BlueprintSectionInner({
             {risingSign && (
               <Badge variant="outline" className="border-mystic/60 text-foreground">
                 ⬆️ {risingSign} Rising {SIGN_EMOJI[risingSign]}
+                {!risingConfident && (
+                  <span className="ml-1 text-muted-foreground">(approx)</span>
+                )}
               </Badge>
+            )}
+            {!risingSign && risingMissingInputs && (
+              <p className="text-xs text-muted-foreground">
+                Enter birth time and place to calculate rising sign.
+              </p>
             )}
           </div>
         )}
