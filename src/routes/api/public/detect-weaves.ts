@@ -17,7 +17,7 @@
  */
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { detectWeavesForUser } from "@/lib/weaves.functions";
+import { detectWeavesForUser } from "@/lib/weaves.server";
 import { evaluateDetectWeavesAlerts } from "@/lib/detect-weaves-alerts.server";
 import {
   DEFAULT_MAX_USERS_PER_RUN,

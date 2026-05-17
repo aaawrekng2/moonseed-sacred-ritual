@@ -20,7 +20,7 @@ import {
   detectWeavesForUser,
   previewWeavesForUser,
   type WeavePreview,
-} from "@/lib/weaves.functions";
+} from "@/lib/weaves.server";
 import { evaluateDetectWeavesAlerts } from "@/lib/detect-weaves-alerts.server";
 
 async function assertAdmin(supabase: any, userId: string): Promise<void> {
