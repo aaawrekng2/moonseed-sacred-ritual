@@ -732,6 +732,7 @@ export function ThemesTab() {
         name: t.name,
         accent: t.accent,
         sanctuarySlot: null,
+        communityKey: t.key,
       });
       window.dispatchEvent(new Event("tarotseed:theme-changed"));
     },
@@ -867,6 +868,7 @@ export function ThemesTab() {
         name: theme.name,
         accent: theme.accent,
         sanctuarySlot: theme.slot,
+        communityKey: theme.theme_key ?? null,
       });
       window.dispatchEvent(new Event("tarotseed:theme-changed"));
       toast.success(`Loaded ${theme.name}.`);
