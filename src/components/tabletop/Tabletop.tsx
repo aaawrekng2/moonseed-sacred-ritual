@@ -15,7 +15,6 @@ import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { SPREAD_META, spreadUsesSlots, type SpreadMode } from "@/lib/spreads";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
-import { useOracleMode } from "@/lib/use-oracle-mode";
 import { t } from "@/lib/oracle-language";
 import { useLockOrientation } from "@/lib/use-lock-orientation";
 import {
@@ -139,7 +138,6 @@ export function Tabletop({
   // slot. Defaults to ON (annotated). Mirrored on the SpreadLayout
   // screen so the choice carries through the entire draw flow.
   const { showLabels, setShowLabels } = useShowLabels();
-  const { isOracle } = useOracleMode();
 
   // Three-level UI density for the draw screen, controlled by the eye
   // icon in the top-bar.
@@ -1636,15 +1634,15 @@ export function Tabletop({
       <AlertDialog open={exitConfirmOpen} onOpenChange={setExitConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("leaveReadingTitle", isOracle)}</AlertDialogTitle>
+            <AlertDialogTitle>{t("leaveReadingTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("leaveReadingBody", isOracle)}
+              {t("leaveReadingBody")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("cancel", isOracle)}</AlertDialogCancel>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction onClick={performExit}>
-              {t("leaveReadingConfirm", isOracle)}
+              {t("leaveReadingConfirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
