@@ -54,6 +54,7 @@ import {
   resolveDetectWeavesAlert,
   restoreAdminBackup,
   runDetectWeavesAdmin,
+  getEmailLog,
   type DetectWeavesAlert,
 } from "@/lib/admin.functions";
 import {
@@ -95,7 +96,13 @@ type Role = "user" | "admin" | "super_admin";
 
 type AdminUser = Awaited<ReturnType<typeof listAdminUsers>>[number];
 
-type Tab = "dashboard" | "users" | "feedback" | "backups" | "audit";
+type Tab =
+  | "dashboard"
+  | "users"
+  | "feedback"
+  | "emails"
+  | "backups"
+  | "audit";
 
 const serif = { fontFamily: "var(--font-serif)" } as const;
 const display = { fontFamily: "var(--font-display)" } as const;
@@ -181,6 +188,7 @@ function AdminPage() {
               <UsersTab myRole={myRole} myUserId={user!.id} />
             )}
             {tab === "feedback" && <FeedbackTab />}
+            {tab === "emails" && <EmailsTab />}
             {tab === "backups" && <BackupsTab />}
             {tab === "audit" && <AuditTab />}
           </div>
@@ -196,6 +204,7 @@ function Header({ tab, myRole }: { tab: Tab; myRole: Role }) {
     dashboard: "Dashboard",
     users: "Users",
     feedback: "Feedback",
+    emails: "Emails",
     backups: "Backups",
     audit: "Audit Log",
   };
@@ -233,6 +242,7 @@ const TABS: Array<{ key: Tab; label: string }> = [
   { key: "dashboard", label: "Dashboard" },
   { key: "users", label: "Users" },
   { key: "feedback", label: "Feedback" },
+  { key: "emails", label: "Emails" },
   { key: "backups", label: "Backups" },
   { key: "audit", label: "Audit Log" },
 ];
@@ -1842,6 +1852,10 @@ function UsersTab({
   const [statusFilter, setStatusFilter] = useState<
     "all" | "active" | "stale" | "dormant"
   >("all");
+  // Q82 Chunk 2 — Account-state filter is orthogonal to activity status.
+  const [accountFilter, setAccountFilter] = useState<
+    "all" | "confirmed" | "unconfirmed" | "deactivated"
+  >("all");
   // CP — master/detail. selectedUserId === null shows the list; otherwise
   // the detail page replaces the list within the same tab. Search and
   // filters above are preserved across the transition because they're
@@ -1884,9 +1898,22 @@ function UsersTab({
       if (roleFilter !== "all" && u.role !== roleFilter) return false;
       if (statusFilter !== "all" && userStatus(u) !== statusFilter)
         return false;
+      if (accountFilter !== "all") {
+        const isDeact =
+          !!u.banned_until &&
+          new Date(u.banned_until).getTime() > Date.now();
+        if (accountFilter === "deactivated" && !isDeact) return false;
+        if (accountFilter === "confirmed" && (!u.email || !u.email_confirmed_at))
+          return false;
+        if (
+          accountFilter === "unconfirmed" &&
+          (!u.email || !!u.email_confirmed_at)
+        )
+          return false;
+      }
       return true;
     });
-  }, [users, search, roleFilter, statusFilter]);
+  }, [users, search, roleFilter, statusFilter, accountFilter]);
 
   const summary = useMemo(() => {
     const supers = users.filter((u) => u.role === "super_admin").length;
@@ -1948,6 +1975,17 @@ function UsersTab({
             ["active", "Active"],
             ["stale", "Stale"],
             ["dormant", "Dormant"],
+          ]}
+        />
+        <FilterSelect
+          label="Account"
+          value={accountFilter}
+          onChange={(v) => setAccountFilter(v as typeof accountFilter)}
+          options={[
+            ["all", "Any account"],
+            ["confirmed", "Confirmed"],
+            ["unconfirmed", "Unconfirmed"],
+            ["deactivated", "Deactivated"],
           ]}
         />
       </div>
@@ -2178,6 +2216,9 @@ function UserDetailPage({
   const [setPwOpen, setSetPwOpen] = useState(false);
   const [grantingCredits, setGrantingCredits] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [emailLog, setEmailLog] = useState<
+    Awaited<ReturnType<typeof getEmailLog>> | null
+  >(null);
   const confirm = useConfirm();
 
   const isSelf = user.user_id === myUserId;
@@ -2343,6 +2384,25 @@ function UserDetailPage({
       }
     })();
   }, [user.user_id]);
+
+  // Q82 Chunk 2 — Load this user's email history (most recent 20).
+  useEffect(() => {
+    void (async () => {
+      try {
+        const rows = await getEmailLog({
+          data: {
+            userId: user.user_id,
+            userEmail: user.email ?? undefined,
+            limit: 20,
+          },
+          headers: await authHeaders(),
+        });
+        setEmailLog(rows);
+      } catch {
+        setEmailLog([]);
+      }
+    })();
+  }, [user.user_id, user.email, busyAction]);
 
   const saveNote = async () => {
     const trimmed = noteText.trim();
@@ -2569,6 +2629,28 @@ function UserDetailPage({
                 Resend confirmation
               </ActionBtn>
             )}
+            {user.email && !user.email_confirmed_at && (
+              <ActionBtn
+                tone="primary"
+                disabled={busyAction !== null}
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: `Confirm ${targetLabel} manually?`,
+                    description:
+                      "This bypasses the confirmation email and marks the account as verified immediately.",
+                    confirmLabel: "Confirm",
+                  });
+                  if (!ok) return;
+                  await runAction(
+                    "manual_confirm",
+                    { type: "manual_confirm", targetUserId: user.user_id },
+                    `${targetLabel} marked as confirmed`,
+                  );
+                }}
+              >
+                Confirm manually
+              </ActionBtn>
+            )}
             {!isSelf && (
               <ActionBtn
                 tone="secondary"
@@ -2687,6 +2769,66 @@ function UserDetailPage({
           </div>
         </DetailPanel>
 
+        <DetailPanel title="Email History">
+          {emailLog === null ? (
+            <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>
+              Loading…
+            </p>
+          ) : emailLog.length === 0 ? (
+            <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>
+              No emails sent to this user yet.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {emailLog.map((r) => (
+                <li
+                  key={r.id}
+                  className="flex items-baseline justify-between gap-3"
+                  style={{
+                    borderBottom: "1px solid var(--border-subtle)",
+                    paddingBottom: 6,
+                  }}
+                >
+                  <span
+                    style={{
+                      ...serif,
+                      fontSize: "var(--text-body-sm)",
+                    }}
+                  >
+                    {auditActionLabel(r.email_type)}{" "}
+                    <EmailStatusBadge status={r.status} />
+                    {r.triggered_by_email && (
+                      <span style={{ opacity: 0.5, marginLeft: 6 }}>
+                        by {r.triggered_by_email}
+                      </span>
+                    )}
+                    {r.error_message && (
+                      <div
+                        style={{
+                          fontSize: "var(--text-caption)",
+                          color: "oklch(0.85 0.18 25)",
+                          marginTop: 2,
+                        }}
+                      >
+                        {r.error_message}
+                      </div>
+                    )}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "var(--text-caption)",
+                      color:
+                        "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {formatDateTime(r.created_at)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </DetailPanel>
         <DetailPanel title="Notes">
           <textarea
             value={noteText}
@@ -3840,6 +3982,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   reactivate_user: "Reactivate user",
   set_note: "Set note",
   resend_confirmation: "Resend confirmation",
+  manual_confirm: "Confirm email manually",
   create_backup: "Create backup",
   restore_backup_requested: "Restore requested",
   run_detect_weaves: "Run detect weaves",
@@ -4143,6 +4286,213 @@ function FeedbackPendingList() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ---------------- Q82 Chunk 2 — Emails tab ---------------- */
+
+type EmailLogRow = Awaited<ReturnType<typeof getEmailLog>>[number];
+
+function EmailStatusBadge({ status }: { status: string }) {
+  const color =
+    status === "sent"
+      ? "var(--accent, var(--gold))"
+      : status === "failed" || status === "bounced"
+        ? "oklch(0.85 0.18 25)"
+        : "color-mix(in oklab, var(--color-foreground) 55%, transparent)";
+  return (
+    <span
+      style={{
+        ...display,
+        fontSize: 10,
+        letterSpacing: "0.18em",
+        textTransform: "uppercase",
+        color,
+        marginLeft: 6,
+      }}
+    >
+      {status}
+    </span>
+  );
+}
+
+function EmailsTab() {
+  const [rows, setRows] = useState<EmailLogRow[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await getEmailLog({
+        data: {
+          emailType: typeFilter === "all" ? undefined : typeFilter,
+          status: statusFilter === "all" ? undefined : statusFilter,
+          search: search.trim() || undefined,
+          limit: 200,
+        },
+        headers: await authHeaders(),
+      });
+      setRows(data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typeFilter, statusFilter]);
+
+  const total = rows?.length ?? 0;
+  const sent = rows?.filter((r) => r.status === "sent").length ?? 0;
+  const failed =
+    rows?.filter((r) => r.status === "failed" || r.status === "bounced")
+      .length ?? 0;
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex-1" style={{ minWidth: 240 }}>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search recipient email…"
+          />
+        </div>
+        <FilterSelect
+          label="Type"
+          value={typeFilter}
+          onChange={setTypeFilter}
+          options={[
+            ["all", "All types"],
+            ["confirmation", "Confirmation"],
+            ["password_reset", "Password reset"],
+            ["resend_confirmation", "Resend confirmation"],
+            ["manual_confirm", "Manual confirm"],
+            ["welcome", "Welcome"],
+          ]}
+        />
+        <FilterSelect
+          label="Status"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            ["all", "Any status"],
+            ["sent", "Sent"],
+            ["failed", "Failed"],
+            ["bounced", "Bounced"],
+          ]}
+        />
+        <button
+          type="button"
+          onClick={() => void load()}
+          style={{
+            ...display,
+            fontSize: "var(--text-caption)",
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            color: "var(--accent, var(--gold))",
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+          }}
+        >
+          Refresh
+        </button>
+      </div>
+
+      <div
+        className="mt-3"
+        style={{
+          ...display,
+          fontSize: "var(--text-caption)",
+          letterSpacing: "0.16em",
+          textTransform: "uppercase",
+          color:
+            "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+        }}
+      >
+        {total} emails · {sent} sent · {failed} failed
+      </div>
+
+      {loading ? (
+        <p
+          className="mt-8"
+          style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}
+        >
+          Loading email log…
+        </p>
+      ) : rows && rows.length > 0 ? (
+        <div className="mt-6 overflow-x-auto">
+          <table
+            className="w-full"
+            style={{ ...serif, fontSize: "var(--text-body-sm)" }}
+          >
+            <thead>
+              <tr style={thRow()}>
+                <Th>When</Th>
+                <Th>Type</Th>
+                <Th>Recipient</Th>
+                <Th>Status</Th>
+                <Th>Triggered by</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows
+                .filter((r) =>
+                  search.trim()
+                    ? r.email_to
+                        .toLowerCase()
+                        .includes(search.trim().toLowerCase())
+                    : true,
+                )
+                .map((r) => (
+                  <tr
+                    key={r.id}
+                    style={{
+                      borderBottom: "1px solid var(--border-subtle)",
+                    }}
+                  >
+                    <Td>{formatDateTime(r.created_at)}</Td>
+                    <Td>{auditActionLabel(r.email_type)}</Td>
+                    <Td>{r.email_to}</Td>
+                    <Td>
+                      <EmailStatusBadge status={r.status} />
+                      {r.error_message && (
+                        <div
+                          style={{
+                            fontSize: "var(--text-caption)",
+                            color: "oklch(0.85 0.18 25)",
+                            marginTop: 2,
+                          }}
+                        >
+                          {r.error_message}
+                        </div>
+                      )}
+                    </Td>
+                    <Td>
+                      {r.triggered_by === "admin"
+                        ? r.triggered_by_email ?? "admin"
+                        : r.triggered_by}
+                    </Td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p
+          className="mt-8"
+          style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}
+        >
+          No emails match these filters yet.
+        </p>
+      )}
     </div>
   );
 }
