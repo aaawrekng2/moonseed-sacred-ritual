@@ -174,7 +174,7 @@ export function SmartCardInput({
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: "var(--text-caption, 0.72rem)",
+          fontSize: "var(--text-caption, 0.75rem)",
           opacity: 0.55,
         }}
       >

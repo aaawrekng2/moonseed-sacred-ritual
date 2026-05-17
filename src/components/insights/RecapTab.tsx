@@ -166,7 +166,7 @@ export function RecapTab() {
                     style={{
                       fontFamily: "var(--font-serif)",
                       fontStyle: "italic",
-                      fontSize: "var(--text-caption, 0.7rem)",
+                      fontSize: "var(--text-caption, 0.75rem)",
                       color: "var(--gold)",
                       letterSpacing: "0.1em",
                       textTransform: "uppercase",

@@ -75,7 +75,7 @@ export function StreakHistory() {
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: "var(--text-caption, 0.7rem)",
+          fontSize: "var(--text-caption, 0.75rem)",
           letterSpacing: "0.18em",
           opacity: 0.55,
         }}
@@ -119,7 +119,7 @@ export function StreakHistory() {
                   }}
                   title={`${s.length} days · ${elementForLength(s.length)}`}
                 />
-                <div style={{ fontSize: "0.7rem", opacity: 0.6, fontStyle: "italic" }}>
+                <div style={{ fontSize: "var(--text-caption, 0.75rem)", opacity: 0.6, fontStyle: "italic" }}>
                   {s.length} days, {fmtRange(s.startDate, s.endDate)}
                   {s.isActive && " · active"}
                 </div>

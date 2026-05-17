@@ -118,7 +118,7 @@ export function LensDistribution({ filters }: { filters: InsightsFilters }) {
                   </div>
                   <div
                     style={{
-                      fontSize: "var(--text-caption, 0.7rem)",
+                      fontSize: "var(--text-caption, 0.75rem)",
                       opacity: 0.55,
                       fontStyle: "italic",
                     }}

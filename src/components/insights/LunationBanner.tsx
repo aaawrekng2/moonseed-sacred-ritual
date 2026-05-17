@@ -95,7 +95,7 @@ export function LunationBanner() {
             style={{
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: "var(--text-caption, 0.7rem)",
+              fontSize: "var(--text-caption, 0.75rem)",
               opacity: 0.6,
               marginTop: 2,
             }}

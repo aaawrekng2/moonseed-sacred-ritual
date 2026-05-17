@@ -177,7 +177,7 @@ export function CornerRadiusSlider({
         <div
           className="uppercase"
           style={{
-            fontSize: "var(--text-caption, 0.7rem)",
+            fontSize: "var(--text-caption, 0.75rem)",
             letterSpacing: "0.18em",
             color: "var(--color-foreground)",
             opacity: 0.6,
@@ -213,7 +213,7 @@ export function CornerRadiusSlider({
         <div
           className="mt-1 flex justify-between uppercase"
           style={{
-            fontSize: "var(--text-caption, 0.7rem)",
+            fontSize: "var(--text-caption, 0.75rem)",
             letterSpacing: "0.18em",
             color: "var(--color-foreground)",
             opacity: 0.6,
