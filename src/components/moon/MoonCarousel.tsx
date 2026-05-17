@@ -1182,8 +1182,8 @@ function SkeletonLadder({ side }: { side: "left" | "right" }) {
         className={cn("flex flex-col gap-[2px] py-0", isLeft ? "items-start" : "items-end")}
         style={{ maxHeight: 100 }}
       >
-        {[14, 18, 26, 18, 14].map((size, i) => {
-          const inset = i === 2 ? 0 : i === 1 || i === 3 ? 14 : 28;
+        {[18, 26].map((size, i) => {
+          const inset = i === 1 ? 0 : 8;
           return (
             <div
               key={i}
