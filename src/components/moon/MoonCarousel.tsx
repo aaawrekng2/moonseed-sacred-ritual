@@ -633,7 +633,9 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
             const absRel = Math.abs(rel); // window position, NOT distance from today
             // Compensate for the CenterCard's "Today/date" header so the moon
             // GRAPHIC tops cascade correctly — not just the cell tops.
-            const topOffset = absRel === 0 ? 0 : absRel === 1 ? 52 : 68;
+            // Q87 — raise the center card ~14px above its previous position so
+            // its bottom text clears the top of the adjacent moon glyphs.
+            const topOffset = absRel === 0 ? -14 : absRel === 1 ? 52 : 68;
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
             const isGoldDay = goldYmds.includes(d.ymd);
