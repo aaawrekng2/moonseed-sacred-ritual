@@ -852,15 +852,15 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
           seekers don't need a persistent instructional tagline.
           Elevated z-index so it's never covered by the full-moon
           peak marker or other absolutely-positioned card overlays. */}
-      <div className="relative z-30 mt-2 flex h-6 w-full items-center justify-center">
+      <div className="relative z-30 mt-2 flex min-h-[44px] w-full items-center justify-center">
         {offset !== 0 && (
           <button
             type="button"
             onClick={goToToday}
             aria-label="Return to today's date"
             className={cn(
-              "inline-flex items-center gap-1 cursor-pointer border-0 m-0",
-              "px-3 py-1 rounded-full bg-transparent text-[10px] uppercase tracking-[0.2em]",
+              "inline-flex items-center gap-1.5 cursor-pointer border-0 m-0",
+              "min-h-[44px] px-5 py-3 rounded-full bg-transparent text-[11px] uppercase tracking-[0.2em]",
               "transition-opacity duration-150 animate-in fade-in",
               "hover:opacity-100 focus-visible:opacity-100",
               "outline-none focus-visible:outline-none",
