@@ -84,7 +84,7 @@ export function BottomNav() {
                 <span
                   className={cn(
                     "clarity-label font-display tracking-wide",
-                    primary ? "text-[13px] font-semibold" : "text-[11px]",
+                    primary ? "text-[14px] font-semibold" : "text-[12px]",
                     "hidden sm:inline-block",
                   )}
                 >
