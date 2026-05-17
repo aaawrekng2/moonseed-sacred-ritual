@@ -60,6 +60,12 @@ const InterpretInput = z.object({
    * QuestionBox. Optional — readings may be done without one.
    */
   question: z.string().max(500).optional(),
+  /**
+   * Q79 — Optional ISO timestamp for backdated manual entries. When
+   * provided, the readings row is inserted with this `created_at`
+   * so retroactive journal entries land on the correct day.
+   */
+  createdAt: z.string().datetime().optional(),
 });
 
 export type InterpretedPosition = {
@@ -311,6 +317,7 @@ export const interpretReading = createServerFn({ method: "POST" })
             card_orientations: data.picks.map((p) => p.isReversed ?? false),
             interpretation: JSON.stringify(interpretation),
             question: data.question ?? null,
+            ...(data.createdAt ? { created_at: data.createdAt } : {}),
           })
           .select("id")
           .single();
