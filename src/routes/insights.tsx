@@ -150,10 +150,11 @@ function InsightsRoute() {
   }, []);
 
   useEffect(() => {
+    if (!userId) return;
     let cancelled = false;
     setLoading(true);
     setFetchError(false);
-    const runFetch = async (attempt: number): Promise<void> => {
+    void (async () => {
       try {
         const headers = await getAuthHeaders();
         const [ov, st] = await Promise.all([
@@ -166,28 +167,16 @@ function InsightsRoute() {
         setLoading(false);
       } catch (e) {
         if (cancelled) return;
-        if (attempt < 1) {
-          // Q77 — retry once after 1s (mobile auth race).
-          setTimeout(() => {
-            if (!cancelled) void runFetch(attempt + 1);
-          }, 1000);
-          return;
-        }
         // eslint-disable-next-line no-console
         console.warn("[insights] fetch failed", e);
         setFetchError(true);
         setLoading(false);
       }
-    };
-    // Q77 — small delay on initial mount so the auth session is ready.
-    const t = window.setTimeout(() => {
-      if (!cancelled) void runFetch(0);
-    }, 500);
+    })();
     return () => {
       cancelled = true;
-      window.clearTimeout(t);
     };
-  }, [filters, overviewFn, stalkerFn, fetchNonce]);
+  }, [userId, filters, overviewFn, stalkerFn, fetchNonce]);
 
   // FU — adapt InsightsFilters ↔ GlobalFilters for the shared bar.
   const globalFilters: GlobalFilters = {

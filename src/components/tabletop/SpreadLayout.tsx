@@ -146,9 +146,12 @@ export function SpreadLayout({
         // zoom but kills pinch on some browsers; the explicit list is
         // the safest combination across iOS Safari + Chrome Android.
         touchAction: "pan-x pan-y pinch-zoom",
-        // Always allow vertical scroll so the enrichment panel and any
-        // bottom UI clear the bottom nav on every device.
-        overflowY: "auto",
+        // Q79b — always reserve the scrollbar so the viewport width is
+        // constant whether or not the page actually overflows. Without
+        // this, the scrollbar appears mid-reveal (when interpretation UI
+        // mounts after the last flip) and shrinks the 10-card grid by
+        // ~15px of viewport width.
+        overflowY: "scroll",
         // Q77 #3 — prevent a few px of horizontal scroll on 10-card
         // custom spreads (cells + 12px side padding can exceed viewport).
         overflowX: "hidden",
