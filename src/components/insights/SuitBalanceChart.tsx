@@ -104,7 +104,7 @@ export function SuitBalanceChart({
       <div
         className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1"
         style={{
-          fontSize: "var(--text-caption, 0.7rem)",
+          fontSize: "var(--text-caption, 0.75rem)",
           color: "var(--color-foreground)",
           opacity: 0.6,
         }}

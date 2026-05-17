@@ -36,7 +36,7 @@ export function MajorMinorChart({
       <div
         className="mt-2 flex justify-between"
         style={{
-          fontSize: "var(--text-caption, 0.65rem)",
+          fontSize: "var(--text-caption, 0.75rem)",
           color: "var(--color-foreground)",
           opacity: 0.65,
           letterSpacing: "0.1em",

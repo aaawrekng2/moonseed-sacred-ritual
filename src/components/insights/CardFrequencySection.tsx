@@ -165,7 +165,7 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
         <p
           style={{
             fontStyle: "italic",
-            fontSize: "var(--text-caption, 0.7rem)",
+            fontSize: "var(--text-caption, 0.75rem)",
             opacity: 0.7,
           }}
         >

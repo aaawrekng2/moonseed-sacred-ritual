@@ -117,7 +117,7 @@ function ReadingStatsLine({ userId }: { userId: string }) {
     <p
       className="font-serif italic"
       style={{
-        fontSize: "var(--text-caption, 0.72rem)",
+        fontSize: "var(--text-caption, 0.75rem)",
         color: "var(--color-foreground)",
         opacity: 0.55,
         margin: 0,

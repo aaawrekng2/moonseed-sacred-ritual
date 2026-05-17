@@ -38,7 +38,7 @@ export const EntryModeToggle = forwardRef<HTMLButtonElement, Props>(
           border: "none",
           fontFamily: "var(--font-display, var(--font-serif))",
           fontStyle: "italic",
-          fontSize: "var(--text-body, 0.95rem)",
+          fontSize: "var(--text-body, 1rem)",
           color: "var(--accent, var(--gold))",
           opacity: 0.7,
           cursor: "pointer",

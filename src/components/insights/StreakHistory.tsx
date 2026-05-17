@@ -75,7 +75,7 @@ export function StreakHistory() {
         style={{
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: "var(--text-caption, 0.7rem)",
+          fontSize: "var(--text-caption, 0.75rem)",
           letterSpacing: "0.18em",
           opacity: 0.55,
         }}

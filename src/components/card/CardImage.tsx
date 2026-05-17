@@ -585,7 +585,7 @@ export function CardImage({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "var(--text-caption, 0.7rem)",
+                fontSize: "var(--text-caption, 0.75rem)",
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
                 color: "var(--color-foreground)",

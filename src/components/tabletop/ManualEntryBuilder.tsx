@@ -334,7 +334,7 @@ export function ManualEntryBuilder({
               style={{
                 fontFamily: "var(--font-serif)",
                 fontStyle: "italic",
-                fontSize: "var(--text-caption, 0.7rem)",
+                fontSize: "var(--text-caption, 0.75rem)",
                 letterSpacing: "0.18em",
                 textTransform: "uppercase",
                 opacity: 0.55,
@@ -427,7 +427,7 @@ export function ManualEntryBuilder({
                       style={{
                         fontFamily: "var(--font-serif)",
                         fontStyle: "italic",
-                        fontSize: "var(--text-body-sm, 0.9rem)",
+                        fontSize: "var(--text-body-sm, 0.875rem)",
                       }}
                     >
                       {label}
