@@ -2769,8 +2769,6 @@ function UserDetailPage({
           </div>
         </DetailPanel>
 
-        <DetailPanel title="Notes">
-        </DetailPanel>
         <DetailPanel title="Email History">
           {emailLog === null ? (
             <p style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}>
