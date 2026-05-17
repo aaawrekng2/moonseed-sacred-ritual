@@ -168,6 +168,20 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
     }
   }, [retryNonce, viewedDate, effectiveTz]);
 
+  // Q85 — Mirror of fullMoonPeak for the upcoming new moon, used to
+  // render a 3-day silvered window + a seam marker for the new moon.
+  const newMoonPeak = useMemo<Date | null>(() => {
+    try {
+      const anchor = getDayInTz(viewedDate, -2, effectiveTz);
+      const list = getPhaseOccurrences("New Moon", anchor, 13);
+      const cutoff = viewedDate.getTime() - 36 * 60 * 60 * 1000;
+      const upcoming = list.find((d) => d.getTime() >= cutoff);
+      return upcoming ?? null;
+    } catch {
+      return null;
+    }
+  }, [retryNonce, viewedDate, effectiveTz]);
+
   const peakYmd = useMemo<string | null>(() => {
     if (!fullMoonPeak) return null;
     // String calendar key for the exact peak day in the seeker's timezone.
@@ -206,12 +220,39 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
     return [addDaysToYmd(peakYmd, -1), peakYmd, addDaysToYmd(peakYmd, 1)];
   }, [peakYmd]);
 
+  // Q85 — new-moon equivalents of peakYmd / peakTzHour / peakMarkerSide.
+  const newMoonPeakYmd = useMemo<string | null>(() => {
+    if (!newMoonPeak) return null;
+    return getYmdInTz(newMoonPeak, effectiveTz);
+  }, [newMoonPeak, effectiveTz]);
+  const newMoonPeakTzHour = useMemo<number | null>(() => {
+    if (!newMoonPeak) return null;
+    return getDatePartsInTz(newMoonPeak, effectiveTz).hour;
+  }, [newMoonPeak, effectiveTz]);
+  const newMoonPeakMarkerSide = useMemo<"left" | "right" | null>(() => {
+    if (!newMoonPeakYmd || newMoonPeakTzHour == null) return null;
+    return newMoonPeakTzHour < 12 ? "left" : "right";
+  }, [newMoonPeakYmd, newMoonPeakTzHour]);
+  const showNewMoonMarker = useMemo<boolean>(() => {
+    if (newMoonPeakTzHour == null) return false;
+    return newMoonPeakTzHour >= 21 || newMoonPeakTzHour < 6;
+  }, [newMoonPeakTzHour]);
+  const newMoonGoldYmds = useMemo<string[]>(() => {
+    if (!newMoonPeakYmd) return [];
+    return [
+      addDaysToYmd(newMoonPeakYmd, -1),
+      newMoonPeakYmd,
+      addDaysToYmd(newMoonPeakYmd, 1),
+    ];
+  }, [newMoonPeakYmd]);
+
   // Refs to each rendered day cell so the seam marker can be positioned
   // exactly on the boundary between two adjacent cards regardless of
   // viewport / card width.
   const cellRefs = useRef<Array<HTMLDivElement | null>>([]);
   const cardsRowRef = useRef<HTMLDivElement | null>(null);
   const [markerLeft, setMarkerLeft] = useState<number | null>(null);
+  const [newMoonMarkerLeft, setNewMoonMarkerLeft] = useState<number | null>(null);
 
   // Pre-compute the phase ladder once at mount (and again if the user
   // taps the recompute/retry button). Stored in refs so taps on the
@@ -303,6 +344,45 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
       window.removeEventListener("resize", measure);
     };
   }, [peakYmd, peakMarkerSide, days, offset, transitioning, isMobile, effectiveTz]);
+
+  // Q85 — measure seam for the new moon peak, mirroring the full moon logic.
+  useEffect(() => {
+    if (!newMoonPeakYmd || !newMoonPeakMarkerSide) {
+      setNewMoonMarkerLeft(null);
+      return;
+    }
+    const measure = () => {
+      const row = cardsRowRef.current;
+      if (!row) return;
+      const rowRect = row.getBoundingClientRect();
+      const peakIdx = days.findIndex((d) => d.ymd === newMoonPeakYmd);
+      const neighborIdx =
+        newMoonPeakMarkerSide === "left" ? peakIdx - 1 : peakIdx + 1;
+      if (peakIdx < 0 || neighborIdx < 0 || neighborIdx >= days.length) {
+        setNewMoonMarkerLeft(null);
+        return;
+      }
+      const peakEl = cellRefs.current[peakIdx];
+      const neighborEl = cellRefs.current[neighborIdx];
+      if (!peakEl || !neighborEl) {
+        setNewMoonMarkerLeft(null);
+        return;
+      }
+      const pr = peakEl.getBoundingClientRect();
+      const nr = neighborEl.getBoundingClientRect();
+      const center =
+        newMoonPeakMarkerSide === "left"
+          ? (nr.right + pr.left) / 2 - rowRect.left
+          : (pr.right + nr.left) / 2 - rowRect.left;
+      setNewMoonMarkerLeft(center);
+    };
+    const id = requestAnimationFrame(() => requestAnimationFrame(measure));
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener("resize", measure);
+    };
+  }, [newMoonPeakYmd, newMoonPeakMarkerSide, days, offset, transitioning, isMobile, effectiveTz]);
 
   const [recomputing, setRecomputing] = useState(false);
   const recomputeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -532,6 +612,15 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
           </span>
         )}
 
+        <PhaseLadder
+          side="left"
+          restingAlpha={restingAlpha}
+          activePhase={viewedPhase}
+          offset={offset}
+          onJump={(phase) => jumpToPhase(phase, "previous")}
+          onStep={() => shift(-1)}
+        />
+
         <div
           className="relative flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl overflow-visible"
           ref={cardsRowRef}
@@ -548,6 +637,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
             const isGoldDay = goldYmds.includes(d.ymd);
+            const isNewMoonDay = newMoonGoldYmds.includes(d.ymd);
             return (
               <div
                 // Stable key by window slot index — prevents React from
@@ -574,7 +664,9 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                   // body without affecting surrounding text.
                   filter: isGoldDay
                     ? "sepia(1) saturate(4) hue-rotate(-12deg) brightness(1.15)"
-                    : undefined,
+                    : isNewMoonDay
+                      ? "saturate(0.6) hue-rotate(180deg) brightness(1.05)"
+                      : undefined,
                 }}
                 className={cn(
                   "flex flex-col items-center",
@@ -684,9 +776,38 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
               ymd={peakYmd}
             />
           )}
+          {newMoonMarkerLeft !== null && newMoonPeak && showNewMoonMarker && (
+            <NewMoonMarker
+              left={newMoonMarkerLeft}
+              peak={newMoonPeak}
+              timeZone={effectiveTz}
+              side={newMoonPeakMarkerSide}
+              ymd={newMoonPeakYmd}
+            />
+          )}
         </div>
 
+        <PhaseLadder
+          side="right"
+          restingAlpha={restingAlpha}
+          activePhase={viewedPhase}
+          offset={offset}
+          onJump={(phase) => jumpToPhase(phase, "next")}
+          onStep={() => shift(1)}
+        />
+
       </div>
+
+      <MobilePhaseLadder
+        side="left"
+        restingAlpha={restingAlpha}
+        onJump={(phase) => jumpToPhase(phase, "previous")}
+      />
+      <MobilePhaseLadder
+        side="right"
+        restingAlpha={restingAlpha}
+        onJump={(phase) => jumpToPhase(phase, "next")}
+      />
 
       {/* Return-to-today affordance. The previous "Swipe to browse"
           hint that appeared at offset === 0 has been removed —
@@ -1005,6 +1126,86 @@ function FullMoonMarker({
   );
 }
 
+/**
+ * Q85 — silver-tinted twin of FullMoonMarker, pinned to the seam
+ * surrounding the upcoming new moon peak.
+ */
+function NewMoonMarker({
+  left,
+  peak,
+  timeZone,
+  side,
+  ymd,
+}: {
+  left: number;
+  peak: Date;
+  timeZone: string;
+  side: "left" | "right" | null;
+  ymd: string | null;
+}) {
+  const time = formatTimeInTz(peak, timeZone);
+  const tooltip = `New moon peak ${time} (${timeZone})`;
+  return (
+    <div
+      aria-label={tooltip}
+      title={tooltip}
+      style={{
+        position: "absolute",
+        top: "25%",
+        left,
+        transform: "translateX(-50%)",
+        pointerEvents: "none",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 4,
+        zIndex: 5,
+      }}
+    >
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          borderRadius: "50%",
+          background:
+            "radial-gradient(circle at 50% 45%, rgba(40,40,60,0.85) 0%, rgba(80,90,120,0.55) 55%, rgba(180,195,225,0.25) 100%)",
+          border: "1px solid rgba(200,210,235,0.55)",
+          boxShadow:
+            "0 0 10px rgba(180,200,235,0.25), 0 0 4px rgba(255,255,255,0.15) inset",
+        }}
+      />
+      <span
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontSize: "var(--text-caption)",
+          color: "rgba(200,210,235,0.85)",
+          textAlign: "center",
+          letterSpacing: "0.05em",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {time}
+      </span>
+      {import.meta.env.DEV && side && ymd && (
+        <span
+          style={{
+            fontFamily: "var(--font-mono, monospace)",
+            fontSize: "var(--text-caption)",
+            color: "rgba(180,195,225,0.6)",
+            textAlign: "center",
+            whiteSpace: "nowrap",
+            lineHeight: 1.1,
+          }}
+        >
+          {side === "left" ? "← left edge" : "right edge →"}
+          <br />
+          {ymd}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function MoonSkeleton({ label }: { label?: string } = {}) {
   return (
     <section
@@ -1090,8 +1291,8 @@ function SkeletonLadder({ side }: { side: "left" | "right" }) {
         className={cn("flex flex-col gap-[2px] py-0", isLeft ? "items-start" : "items-end")}
         style={{ maxHeight: 100 }}
       >
-        {[14, 18, 26, 18, 14].map((size, i) => {
-          const inset = i === 2 ? 0 : i === 1 || i === 3 ? 14 : 28;
+        {[18, 26].map((size, i) => {
+          const inset = i === 1 ? 0 : 8;
           return (
             <div
               key={i}
@@ -1142,13 +1343,10 @@ type LadderRung = {
   inset: number; // edge inset px (margin-left for "left", margin-right for "right")
 };
 
+// Q85 — simplified to just two rungs: New Moon + Full Moon.
 const LADDER_RUNGS: LadderRung[] = [
-  { label: "New Moon", phase: "New Moon", size: 14, inset: 28 },
-  { label: "Waxing Crescent", phase: "Waxing Crescent", size: 18, inset: 14 },
+  { label: "New Moon", phase: "New Moon", size: 18, inset: 8 },
   { label: "Full Moon", phase: "Full Moon", size: 26, inset: 0 },
-  { label: "Waning Gibbous", phase: "Waning Gibbous", size: 18, inset: 14 },
-  // "Dark Moon" rung — calculated as New Moon, displayed as the same dark glyph.
-  { label: "Dark Moon", phase: "New Moon", size: 14, inset: 28 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1168,11 +1366,9 @@ function MobilePhaseLadder({
   const isLeft = side === "left";
   // Smaller, edge-pinned cascade — sized down from the desktop ladder so it
   // sits comfortably on the very edge of mobile viewports.
-  const RUNG_SIZES = [12, 15, 22, 15, 12];
-  // Match desktop cascade direction — Full Moon sits flush to the edge,
-  // New/Dark Moon are furthest in. Applied via marginLeft (left ladder) or
-  // marginRight (right). Magnitudes scaled down for mobile.
-  const MOBILE_RUNG_INSETS = [12, 6, 0, 6, 12];
+  // Q85 — two-rung mobile ladder: New Moon + Full Moon.
+  const RUNG_SIZES = [14, 22];
+  const MOBILE_RUNG_INSETS = [6, 0];
   return (
     <div
       className="fixed sm:hidden flex flex-col gap-[10px] z-10"
