@@ -1112,7 +1112,9 @@ function FullMoonMarker({
         transform: "translateX(-50%)",
         pointerEvents: "none",
         display: "flex",
-        flexDirection: "column",
+        // Q86 — time label sits ABOVE the orb so it doesn't collide
+        // with the date labels under the carousel cards.
+        flexDirection: "column-reverse",
         alignItems: "center",
         gap: 4,
         // Kept low so the "Return" affordance below the cards row is never
@@ -1194,7 +1196,8 @@ function NewMoonMarker({
         transform: "translateX(-50%)",
         pointerEvents: "none",
         display: "flex",
-        flexDirection: "column",
+        // Q86 — mirror of full-moon marker: time label above the orb.
+        flexDirection: "column-reverse",
         alignItems: "center",
         gap: 4,
         zIndex: 5,
