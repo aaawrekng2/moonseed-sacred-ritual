@@ -134,34 +134,16 @@ export const listAdminUsers = createServerFn({ method: "GET" })
         if (chunk) prefs.push(...(chunk as Array<Record<string, unknown>>));
       }
     }
-    const { data: readings } = await supabaseAdmin
-      .from("readings")
-      .select("user_id, created_at");
-
-    const counts: Record<string, { n: number; last: string | null }> = {};
-    for (const r of (readings ?? []) as Array<{
-      user_id: string;
-      created_at: string;
-    }>) {
-      const c = counts[r.user_id] ?? { n: 0, last: null };
-      c.n += 1;
-      if (!c.last || r.created_at > c.last) c.last = r.created_at;
-      counts[r.user_id] = c;
-    }
+    // Q84 — readings count moved to a separate, non-blocking server fn
+    // (`getAdminUserReadingCounts`). listAdminUsers must never be blocked
+    // by a slow/failing readings query.
     const prefMap = new Map<string, any>();
     for (const p of prefs) prefMap.set((p as any).user_id, p);
 
-    // Q68 — include unconfirmed signups so admins can act on them in
-    // the Users tab (gift premium, view detail, etc.). The Users tab
-    // shows an "Unconfirmed" badge next to these so the difference is
-    // visible. Orphaned auth rows with no email are still excluded.
+    // Q84 — include only users with an email. Anonymous auth sessions
+    // (no email) never appear in the admin user list, regardless of role.
     return allUsers
-      .filter((u) => {
-        if (u.email) return true;
-        const p = prefMap.get(u.id);
-        if (p?.role === "admin" || p?.role === "super_admin") return true;
-        return false;
-      })
+      .filter((u) => !!u.email)
       .map((u) => {
       const p = prefMap.get(u.id) ?? {};
       return {
@@ -181,10 +163,43 @@ export const listAdminUsers = createServerFn({ method: "GET" })
         premium_expires_at: p.premium_expires_at ?? null,
         premium_months_used: p.premium_months_used ?? 0,
         admin_note: p.admin_note ?? null,
-        reading_count: counts[u.id]?.n ?? 0,
-        last_reading: counts[u.id]?.last ?? null,
+        reading_count: 0,
+        last_reading: null as string | null,
       };
     });
+  });
+
+/* ---------- getAdminUserReadingCounts (Q84) ---------- */
+
+/**
+ * Q84 — Separate, non-blocking fetch of per-user reading counts.
+ * Split out of `listAdminUsers` so a slow/failing readings query
+ * never blocks the Users tab from rendering. The UsersTab calls this
+ * in parallel and merges counts client-side; on failure the user list
+ * still renders with `—` for counts.
+ */
+export const getAdminUserReadingCounts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    const { data: readings, error } = await supabaseAdmin
+      .from("readings")
+      .select("user_id, created_at");
+    if (error) throw new Error(error.message);
+
+    const out: Record<string, { count: number; lastReading: string | null }> = {};
+    for (const r of (readings ?? []) as Array<{
+      user_id: string;
+      created_at: string;
+    }>) {
+      const c = out[r.user_id] ?? { count: 0, lastReading: null };
+      c.count += 1;
+      if (!c.lastReading || r.created_at > c.lastReading) c.lastReading = r.created_at;
+      out[r.user_id] = c;
+    }
+    return out;
   });
 
 /* ---------- adminAction (single mutation entrypoint) ---------- */
@@ -454,6 +469,11 @@ export const adminAction = createServerFn({ method: "POST" })
         break;
       }
       case "assign_admin": {
+        if (!targetEmail) {
+          throw new Error(
+            "Cannot assign admin role to a user without an email address.",
+          );
+        }
         await supabaseAdmin
           .from("user_preferences")
           .update({ role: data.role })

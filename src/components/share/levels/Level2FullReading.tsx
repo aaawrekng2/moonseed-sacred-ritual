@@ -24,8 +24,10 @@ export function Level2FullReading({
   includeInterpretation: boolean;
 }) {
   const showQuestion = includeQuestion && !!ctx.question?.trim();
+  // Q84 — bump snippet length so the reading text isn't truncated when
+  // the share canvas has room to display it.
   const snippet = includeInterpretation
-    ? snippetFromOverview(ctx.interpretation.overview ?? "")
+    ? snippetFromOverview(ctx.interpretation.overview ?? "", 600)
     : "";
   return (
     <ShareCardFrame

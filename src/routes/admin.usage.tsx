@@ -26,8 +26,16 @@ export const Route = createFileRoute("/admin/usage")({
 });
 
 async function authHeaders(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
-  const t = data.session?.access_token;
+  // Q84 — refresh near-expired sessions so admin calls don't fail with a stale token.
+  let { data } = await supabase.auth.getSession();
+  let t = data.session?.access_token;
+  const expiresAt = data.session?.expires_at ?? 0;
+  if (!t || expiresAt - Math.floor(Date.now() / 1000) < 60) {
+    try {
+      const r = await supabase.auth.refreshSession();
+      t = r.data.session?.access_token ?? t;
+    } catch {}
+  }
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
