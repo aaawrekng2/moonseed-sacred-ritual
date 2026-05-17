@@ -490,7 +490,7 @@ function ResetHintsRow({ userId }: { userId: string }) {
         disabled={busy}
         style={{
           fontFamily: "var(--font-display, inherit)",
-          fontSize: 11,
+          fontSize: "var(--text-caption)",
           letterSpacing: "0.18em",
           textTransform: "uppercase",
           color: "var(--gold)",
@@ -847,7 +847,7 @@ function WelcomeReplayRow() {
         onClick={open}
         style={{
           fontFamily: "var(--font-display, inherit)",
-          fontSize: 11,
+          fontSize: "var(--text-caption)",
           letterSpacing: "0.18em",
           textTransform: "uppercase",
           color: "var(--gold)",

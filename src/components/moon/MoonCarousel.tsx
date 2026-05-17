@@ -608,7 +608,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                         top: 2,
                         left: 2,
                         fontFamily: "var(--font-mono, monospace)",
-                        fontSize: 9,
+                        fontSize: "var(--text-caption)",
                         lineHeight: 1.1,
                         color: "#f1ba4b",
                         background: "rgba(0,0,0,0.55)",
@@ -777,7 +777,7 @@ function CenterCard({
   }, []);
   // DH-3 — Center-cell text scales with carousel height so Small
   // doesn't overflow the cell. Floor at 9px for legibility.
-  const baseFontPx = Math.max(9, Math.round(carouselHeight * 0.085));
+  const baseFontPx = Math.max(12, Math.round(carouselHeight * 0.085));
   return (
     <button
       type="button"
@@ -789,7 +789,7 @@ function CenterCard({
     >
       <span
         className="font-medium uppercase tracking-[0.3em] text-gold"
-        style={{ fontSize: `${Math.round(baseFontPx * 0.7)}px`, lineHeight: 1.15 }}
+        style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 0.7))}px`, lineHeight: 1.15 }}
       >
         {isToday ? "Today" : formatShortDate(info.date, timeZone)}
       </span>
@@ -807,25 +807,25 @@ function CenterCard({
           <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
           <p
             className="whitespace-nowrap font-medium uppercase tracking-wider text-muted-foreground"
-            style={{ fontSize: `${Math.round(baseFontPx * 1.0)}px`, lineHeight: 1.15, margin: 0 }}
+            style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 1.0))}px`, lineHeight: 1.15, margin: 0 }}
           >
             {formatShortDate(info.date, timeZone)}
           </p>
           <p
             className="whitespace-nowrap font-display text-gold"
-            style={{ fontSize: `${Math.round(baseFontPx * 1.1)}px`, lineHeight: 1.15, margin: 0 }}
+            style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 1.1))}px`, lineHeight: 1.15, margin: 0 }}
           >
             {info.phase}
           </p>
           <p
             className="whitespace-nowrap text-gold/80"
-            style={{ fontSize: `${Math.round(baseFontPx * 0.9)}px`, lineHeight: 1.15, margin: 0 }}
+            style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 0.9))}px`, lineHeight: 1.15, margin: 0 }}
           >
             {info.illumination}% illuminated
           </p>
           <p
             className="whitespace-nowrap uppercase tracking-wider text-muted-foreground"
-            style={{ fontSize: `${Math.round(baseFontPx * 0.85)}px`, lineHeight: 1.15, margin: 0 }}
+            style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 0.85))}px`, lineHeight: 1.15, margin: 0 }}
           >
             Moon in {moonSign}
           </p>
@@ -976,7 +976,7 @@ function FullMoonMarker({
       <span
         style={{
           fontFamily: "var(--font-serif)",
-          fontSize: 10,
+          fontSize: "var(--text-caption)",
           color: "var(--gold)",
           textAlign: "center",
           letterSpacing: "0.05em",
@@ -989,7 +989,7 @@ function FullMoonMarker({
         <span
           style={{
             fontFamily: "var(--font-mono, monospace)",
-            fontSize: 9,
+            fontSize: "var(--text-caption)",
             color: "rgba(212,168,67,0.7)",
             textAlign: "center",
             whiteSpace: "nowrap",

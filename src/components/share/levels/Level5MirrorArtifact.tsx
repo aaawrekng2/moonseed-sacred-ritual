@@ -73,7 +73,7 @@ export function Level5MirrorArtifact({
         style={{
           textAlign: "center",
           fontFamily: "var(--font-sans)",
-          fontSize: 22,
+          fontSize: "var(--text-heading-md)",
           letterSpacing: "0.32em",
           textTransform: "uppercase",
           opacity: 0.55,

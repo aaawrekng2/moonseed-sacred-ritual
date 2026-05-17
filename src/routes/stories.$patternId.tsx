@@ -89,7 +89,7 @@ export const Route = createFileRoute("/stories/$patternId")({
     <div style={{ padding: 24, fontStyle: "italic", opacity: 0.6, textAlign: "center" }}>
       <div>Something stirred and settled.</div>
       {error?.message && (
-        <div style={{ fontSize: 12, opacity: 0.4, marginTop: 8 }}>{error.message}</div>
+        <div style={{ fontSize: "var(--text-caption)", opacity: 0.4, marginTop: 8 }}>{error.message}</div>
       )}
       <button
         type="button"
@@ -2218,7 +2218,7 @@ function ChamberWeaveGraph({
       color: "var(--color-foreground)",
       fontFamily: "var(--font-serif)",
       fontStyle: "italic",
-      fontSize: 14,
+      fontSize: "var(--text-body-sm)",
       borderRadius: 999,
       padding: "10px 14px",
       textAlign: "center",
@@ -2253,7 +2253,7 @@ function ChamberWeaveGraph({
         color: "var(--color-foreground)",
         fontFamily: "var(--font-serif)",
         fontStyle: "italic",
-        fontSize: 12,
+        fontSize: "var(--text-caption)",
         borderRadius: 999,
         padding: "8px 12px",
         textAlign: "center",
@@ -2308,7 +2308,7 @@ function ChamberWeaveGraph({
             : lifeEdgeStrong,
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
-          fontSize: 10,
+          fontSize: "var(--text-caption)",
           opacity: dimEdge ? 0.25 : 1,
         },
         labelBgStyle: { fill: "rgba(10,8,22,0.85)" },
@@ -2342,7 +2342,7 @@ function ChamberWeaveGraph({
         border: "none",
         borderRadius: "50%",
         padding: 0,
-        fontSize: 0, // hide label visually but keep for a11y
+        fontSize: "var(--text-caption)", // hide label visually but keep for a11y
         color: "transparent",
         boxShadow: "0 0 8px rgba(212,175,90,0.5)",
         opacity: dimReading ? 0.25 : 1,
@@ -2541,7 +2541,7 @@ function ChamberWeaveGraph({
               <div
                 style={{
                   marginTop: 2,
-                  fontSize: 10,
+                  fontSize: "var(--text-caption)",
                   opacity: 0.7,
                   letterSpacing: "0.04em",
                 }}

@@ -127,7 +127,7 @@ function StalkerEntry({
           style={{
             fontFamily: "var(--font-display)",
             fontStyle: "italic",
-            fontSize: 36,
+            fontSize: "var(--text-display)",
             color: "var(--gold)",
             lineHeight: 1,
             minWidth: 48,

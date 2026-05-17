@@ -249,7 +249,7 @@ function NumberFrequencySection({
                 style={{
                   fontFamily: "var(--font-display)",
                   fontStyle: "italic",
-                  fontSize: 24,
+                  fontSize: "var(--text-heading-md)",
                   color: "var(--gold)",
                   minWidth: 32,
                 }}
@@ -471,7 +471,7 @@ function SynchronicitiesSection({
                 style={{
                   fontFamily: "var(--font-display)",
                   fontStyle: "italic",
-                  fontSize: 28,
+                  fontSize: "var(--text-heading-lg)",
                   color: "var(--gold)",
                   minWidth: 40,
                   lineHeight: 1,

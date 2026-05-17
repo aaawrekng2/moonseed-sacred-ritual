@@ -233,7 +233,7 @@ function StackedAreaChart({
       <text
         x={padding.left}
         y={H - 4}
-        fontSize="9"
+        fontSize="12"
         fill="var(--color-foreground)"
         opacity={0.5}
       >
@@ -242,7 +242,7 @@ function StackedAreaChart({
       <text
         x={W - padding.right}
         y={H - 4}
-        fontSize="9"
+        fontSize="12"
         textAnchor="end"
         fill="var(--color-foreground)"
         opacity={0.5}

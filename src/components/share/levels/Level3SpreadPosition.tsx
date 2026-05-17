@@ -58,7 +58,7 @@ export function Level3SpreadPosition({
           style={{
             textAlign: "center",
             fontFamily: "var(--font-serif)",
-            fontSize: 40,
+            fontSize: "var(--text-display)",
             lineHeight: 1.5,
             maxWidth: 860,
             margin: "0 auto",

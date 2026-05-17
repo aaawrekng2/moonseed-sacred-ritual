@@ -800,11 +800,11 @@ function SlideSaveShareDone({
         }}
       >
         <div style={{ textAlign: "center" }}>
-          <div style={{ letterSpacing: "0.25em", fontSize: 12, opacity: 0.6, textTransform: "uppercase" }}>
+          <div style={{ letterSpacing: "0.25em", fontSize: "var(--text-caption)", opacity: 0.6, textTransform: "uppercase" }}>
             Tarot Seed
           </div>
-          <div style={{ color: "#cea85c", fontSize: 36, marginTop: 18 }}>Your Lunation</div>
-          <div style={{ opacity: 0.7, fontSize: 14, marginTop: 6 }}>
+          <div style={{ color: "#cea85c", fontSize: "var(--text-display)", marginTop: 18 }}>Your Lunation</div>
+          <div style={{ opacity: 0.7, fontSize: "var(--text-body-sm)", marginTop: 6 }}>
             {formatDateLong(data.lunationStart)}{" "}–{" "}{formatDateLong(data.lunationEnd)}
           </div>
         </div>
@@ -822,7 +822,7 @@ function SlideSaveShareDone({
             <div style={{ marginTop: 6, opacity: 0.7 }}>under the {data.topMoonPhase.phase}</div>
           )}
         </div>
-        <div style={{ textAlign: "center", opacity: 0.55, fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase" }}>
+        <div style={{ textAlign: "center", opacity: 0.55, fontSize: "var(--text-caption)", letterSpacing: "0.2em", textTransform: "uppercase" }}>
           tarotseed
         </div>
       </div>
