@@ -2053,6 +2053,33 @@ function UsersTab({
         Anonymous sessions visible on Dashboard.
       </div>
 
+      {fetchError && (
+        <div
+          className="mt-4 flex items-center justify-between gap-3 rounded-md p-3"
+          style={{
+            background: "color-mix(in oklab, var(--destructive) 14%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--destructive) 45%, transparent)",
+            color: "var(--destructive)",
+            ...serif,
+            fontSize: "var(--text-body-sm)",
+          }}
+        >
+          <span>Failed to load users: {fetchError}</span>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="rounded px-3 py-1"
+            style={{
+              background: "var(--destructive)",
+              color: "var(--destructive-foreground, white)",
+              fontWeight: 600,
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <p
           className="mt-8"
