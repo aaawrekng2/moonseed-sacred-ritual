@@ -35,7 +35,7 @@ export function Level2FullReading({
       guideName={ctx.guideName}
       accent={color.accent}
     >
-      <ShareCardRow picks={ctx.picks} deckId={ctx.deckId ?? null} maxWidth={n1MaxWidth(ctx.picks.length)} />
+      <ShareCardRow picks={ctx.picks} deckId={ctx.deckId ?? null} />
       {showQuestion && (
         <div
           style={{
