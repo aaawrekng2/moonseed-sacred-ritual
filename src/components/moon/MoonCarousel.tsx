@@ -168,6 +168,20 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
     }
   }, [retryNonce, viewedDate, effectiveTz]);
 
+  // Q85 — Mirror of fullMoonPeak for the upcoming new moon, used to
+  // render a 3-day silvered window + a seam marker for the new moon.
+  const newMoonPeak = useMemo<Date | null>(() => {
+    try {
+      const anchor = getDayInTz(viewedDate, -2, effectiveTz);
+      const list = getPhaseOccurrences("New Moon", anchor, 13);
+      const cutoff = viewedDate.getTime() - 36 * 60 * 60 * 1000;
+      const upcoming = list.find((d) => d.getTime() >= cutoff);
+      return upcoming ?? null;
+    } catch {
+      return null;
+    }
+  }, [retryNonce, viewedDate, effectiveTz]);
+
   const peakYmd = useMemo<string | null>(() => {
     if (!fullMoonPeak) return null;
     // String calendar key for the exact peak day in the seeker's timezone.
@@ -205,6 +219,32 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
     if (!peakYmd) return [];
     return [addDaysToYmd(peakYmd, -1), peakYmd, addDaysToYmd(peakYmd, 1)];
   }, [peakYmd]);
+
+  // Q85 — new-moon equivalents of peakYmd / peakTzHour / peakMarkerSide.
+  const newMoonPeakYmd = useMemo<string | null>(() => {
+    if (!newMoonPeak) return null;
+    return getYmdInTz(newMoonPeak, effectiveTz);
+  }, [newMoonPeak, effectiveTz]);
+  const newMoonPeakTzHour = useMemo<number | null>(() => {
+    if (!newMoonPeak) return null;
+    return getDatePartsInTz(newMoonPeak, effectiveTz).hour;
+  }, [newMoonPeak, effectiveTz]);
+  const newMoonPeakMarkerSide = useMemo<"left" | "right" | null>(() => {
+    if (!newMoonPeakYmd || newMoonPeakTzHour == null) return null;
+    return newMoonPeakTzHour < 12 ? "left" : "right";
+  }, [newMoonPeakYmd, newMoonPeakTzHour]);
+  const showNewMoonMarker = useMemo<boolean>(() => {
+    if (newMoonPeakTzHour == null) return false;
+    return newMoonPeakTzHour >= 21 || newMoonPeakTzHour < 6;
+  }, [newMoonPeakTzHour]);
+  const newMoonGoldYmds = useMemo<string[]>(() => {
+    if (!newMoonPeakYmd) return [];
+    return [
+      addDaysToYmd(newMoonPeakYmd, -1),
+      newMoonPeakYmd,
+      addDaysToYmd(newMoonPeakYmd, 1),
+    ];
+  }, [newMoonPeakYmd]);
 
   // Refs to each rendered day cell so the seam marker can be positioned
   // exactly on the boundary between two adjacent cards regardless of
