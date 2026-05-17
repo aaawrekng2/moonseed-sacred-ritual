@@ -42,7 +42,7 @@ import {
   type CardResolveResult,
 } from "@/lib/import/card-resolver";
 import { inferSpread } from "@/lib/import/spread-inference";
-import { executeImport, undoImport } from "@/lib/import/import-batch";
+import { executeImport, undoImport } from "@/lib/import/import-batch.functions";
 
 type Props = {
   onClose: () => void;
