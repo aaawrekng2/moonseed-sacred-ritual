@@ -787,7 +787,27 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
           )}
         </div>
 
+        <PhaseLadder
+          side="right"
+          restingAlpha={restingAlpha}
+          activePhase={viewedPhase}
+          offset={offset}
+          onJump={(phase) => jumpToPhase(phase, "next")}
+          onStep={() => shift(1)}
+        />
+
       </div>
+
+      <MobilePhaseLadder
+        side="left"
+        restingAlpha={restingAlpha}
+        onJump={(phase) => jumpToPhase(phase, "previous")}
+      />
+      <MobilePhaseLadder
+        side="right"
+        restingAlpha={restingAlpha}
+        onJump={(phase) => jumpToPhase(phase, "next")}
+      />
 
       {/* Return-to-today affordance. The previous "Swipe to browse"
           hint that appeared at offset === 0 has been removed —
