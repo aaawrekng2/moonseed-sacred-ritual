@@ -1852,6 +1852,10 @@ function UsersTab({
   const [statusFilter, setStatusFilter] = useState<
     "all" | "active" | "stale" | "dormant"
   >("all");
+  // Q82 Chunk 2 — Account-state filter is orthogonal to activity status.
+  const [accountFilter, setAccountFilter] = useState<
+    "all" | "confirmed" | "unconfirmed" | "deactivated"
+  >("all");
   // CP — master/detail. selectedUserId === null shows the list; otherwise
   // the detail page replaces the list within the same tab. Search and
   // filters above are preserved across the transition because they're
@@ -1894,9 +1898,22 @@ function UsersTab({
       if (roleFilter !== "all" && u.role !== roleFilter) return false;
       if (statusFilter !== "all" && userStatus(u) !== statusFilter)
         return false;
+      if (accountFilter !== "all") {
+        const isDeact =
+          !!u.banned_until &&
+          new Date(u.banned_until).getTime() > Date.now();
+        if (accountFilter === "deactivated" && !isDeact) return false;
+        if (accountFilter === "confirmed" && (!u.email || !u.email_confirmed_at))
+          return false;
+        if (
+          accountFilter === "unconfirmed" &&
+          (!u.email || !!u.email_confirmed_at)
+        )
+          return false;
+      }
       return true;
     });
-  }, [users, search, roleFilter, statusFilter]);
+  }, [users, search, roleFilter, statusFilter, accountFilter]);
 
   const summary = useMemo(() => {
     const supers = users.filter((u) => u.role === "super_admin").length;
@@ -1958,6 +1975,17 @@ function UsersTab({
             ["active", "Active"],
             ["stale", "Stale"],
             ["dormant", "Dormant"],
+          ]}
+        />
+        <FilterSelect
+          label="Account"
+          value={accountFilter}
+          onChange={(v) => setAccountFilter(v as typeof accountFilter)}
+          options={[
+            ["all", "Any account"],
+            ["confirmed", "Confirmed"],
+            ["unconfirmed", "Unconfirmed"],
+            ["deactivated", "Deactivated"],
           ]}
         />
       </div>
