@@ -10,6 +10,7 @@ import type { SunSign } from "./sun-sign";
 // Deep import: the package's "module" field points to a non-existent src/ path,
 // so Vite fails to resolve the bare specifier. dist/index.js is the real entry.
 import { Origin, Horoscope } from "circular-natal-horoscope-js/dist/index.js";
+import { SiderealTime } from "astronomy-engine";
 
 export type RisingSign = SunSign;
 
@@ -138,4 +139,84 @@ export function calculateRisingSignPrecise(
     }
     return null;
   }
+}
+
+/**
+ * Method 2 — independent computation via astronomy-engine + the
+ * classical ascendant formula. Used as a sanity-check on method 1.
+ * Timezone is approximated from longitude (offset = round(lon/15)),
+ * which is good to within an hour — sufficient for sign-level
+ * agreement except very near cusps.
+ */
+export function calculateRisingSignAstroEngine(
+  birthDateStr: string | null,
+  birthTimeStr: string | null,
+  latitude: number | null,
+  longitude: number | null,
+): RisingSign | null {
+  if (!birthDateStr || !birthTimeStr) return null;
+  if (
+    typeof latitude !== "number" ||
+    typeof longitude !== "number" ||
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude)
+  ) {
+    return null;
+  }
+  try {
+    const [yStr, monStr, dStr] = birthDateStr.split("-");
+    const [hStr, miStr] = birthTimeStr.split(":");
+    const year = Number(yStr);
+    const month = Number(monStr);
+    const day = Number(dStr);
+    const hour = Number(hStr);
+    const minute = Number(miStr);
+    if (
+      ![year, month, day, hour, minute].every((n) => Number.isFinite(n))
+    ) {
+      return null;
+    }
+    // Approximate local-time → UTC via longitude.
+    const tzOffsetHours = Math.round(longitude / 15);
+    const utc = new Date(
+      Date.UTC(year, month - 1, day, hour - tzOffsetHours, minute, 0),
+    );
+    // SiderealTime returns Greenwich apparent sidereal time in hours.
+    const gstHours = SiderealTime(utc);
+    const lstHours = (gstHours + longitude / 15) % 24;
+    const ramcDeg = ((lstHours * 15) % 360 + 360) % 360;
+    const ramc = (ramcDeg * Math.PI) / 180;
+    const eps = (23.4393 * Math.PI) / 180;
+    const phi = (latitude * Math.PI) / 180;
+    let asc = Math.atan2(
+      -Math.cos(ramc),
+      Math.sin(ramc) * Math.cos(eps) + Math.tan(phi) * Math.sin(eps),
+    );
+    let ascDeg = (asc * 180) / Math.PI;
+    if (Math.cos(ramc) > 0) ascDeg += 180;
+    ascDeg = ((ascDeg % 360) + 360) % 360;
+    const idx = Math.floor(ascDeg / 30);
+    return ORDER[idx] ?? null;
+  } catch (e) {
+    if (typeof console !== "undefined") {
+      console.warn("[rising-sign] astro-engine calc failed", e);
+    }
+    return null;
+  }
+}
+
+/**
+ * Q79b — Cross-check method 1 against method 2 and report
+ * confidence. Returns null if method 1 can't be computed.
+ */
+export function calculateRisingSignWithConfidence(
+  birthDate: string | null,
+  birthTime: string | null,
+  latitude: number | null,
+  longitude: number | null,
+): { sign: RisingSign; confident: boolean } | null {
+  const m1 = calculateRisingSignPrecise(birthDate, birthTime, latitude, longitude);
+  if (!m1) return null;
+  const m2 = calculateRisingSignAstroEngine(birthDate, birthTime, latitude, longitude);
+  return { sign: m1, confident: m2 != null && m2 === m1 };
 }
