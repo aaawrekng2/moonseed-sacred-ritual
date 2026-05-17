@@ -329,6 +329,7 @@ const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("reactivate_user"), targetUserId: z.string().uuid() }),
   z.object({ type: z.literal("set_note"), targetUserId: z.string().uuid(), note: z.string().nullable() }),
   z.object({ type: z.literal("resend_confirmation"), targetUserId: z.string().uuid() }),
+  z.object({ type: z.literal("manual_confirm"), targetUserId: z.string().uuid() }),
 ]);
 
 export const adminAction = createServerFn({ method: "POST" })
