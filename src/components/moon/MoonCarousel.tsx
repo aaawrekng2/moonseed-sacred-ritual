@@ -1157,15 +1157,18 @@ function FullMoonMarker({
         zIndex: 5,
       }}
     >
+      {/* Q87 — peak orb reduced ~40% (32→20) and dimmed to opacity 0.7
+          so it reads as a subtle cue rather than a dominant element. */}
       <div
         style={{
-          width: 32,
-          height: 32,
+          width: 20,
+          height: 20,
           borderRadius: "50%",
+          opacity: 0.7,
           background:
             "radial-gradient(circle at 50% 45%, rgba(255,250,235,0.95) 0%, rgba(255,225,150,0.65) 55%, rgba(212,175,55,0.35) 100%)",
           boxShadow:
-            "0 0 12px rgba(255,215,0,0.35), 0 0 4px rgba(255,235,180,0.6) inset",
+            "0 0 8px rgba(255,215,0,0.3), 0 0 3px rgba(255,235,180,0.5) inset",
         }}
       />
       <span
