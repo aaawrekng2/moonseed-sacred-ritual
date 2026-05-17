@@ -746,7 +746,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                       transform: "translateX(-50%)",
                       fontFamily: "var(--font-serif)",
                       fontSize: "var(--text-caption)",
-                      color: "var(--color-foreground-muted, var(--muted-foreground))",
+                      color: "var(--color-foreground)",
                       opacity: 0.7,
                       whiteSpace: "nowrap",
                       letterSpacing: "0.05em",
