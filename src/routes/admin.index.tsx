@@ -4290,6 +4290,213 @@ function FeedbackPendingList() {
   );
 }
 
+/* ---------------- Q82 Chunk 2 — Emails tab ---------------- */
+
+type EmailLogRow = Awaited<ReturnType<typeof getEmailLog>>[number];
+
+function EmailStatusBadge({ status }: { status: string }) {
+  const color =
+    status === "sent"
+      ? "var(--accent, var(--gold))"
+      : status === "failed" || status === "bounced"
+        ? "oklch(0.85 0.18 25)"
+        : "color-mix(in oklab, var(--color-foreground) 55%, transparent)";
+  return (
+    <span
+      style={{
+        ...display,
+        fontSize: 10,
+        letterSpacing: "0.18em",
+        textTransform: "uppercase",
+        color,
+        marginLeft: 6,
+      }}
+    >
+      {status}
+    </span>
+  );
+}
+
+function EmailsTab() {
+  const [rows, setRows] = useState<EmailLogRow[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [search, setSearch] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const data = await getEmailLog({
+        data: {
+          emailType: typeFilter === "all" ? undefined : typeFilter,
+          status: statusFilter === "all" ? undefined : statusFilter,
+          search: search.trim() || undefined,
+          limit: 200,
+        },
+        headers: await authHeaders(),
+      });
+      setRows(data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typeFilter, statusFilter]);
+
+  const total = rows?.length ?? 0;
+  const sent = rows?.filter((r) => r.status === "sent").length ?? 0;
+  const failed =
+    rows?.filter((r) => r.status === "failed" || r.status === "bounced")
+      .length ?? 0;
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex-1" style={{ minWidth: 240 }}>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Search recipient email…"
+          />
+        </div>
+        <FilterSelect
+          label="Type"
+          value={typeFilter}
+          onChange={setTypeFilter}
+          options={[
+            ["all", "All types"],
+            ["confirmation", "Confirmation"],
+            ["password_reset", "Password reset"],
+            ["resend_confirmation", "Resend confirmation"],
+            ["manual_confirm", "Manual confirm"],
+            ["welcome", "Welcome"],
+          ]}
+        />
+        <FilterSelect
+          label="Status"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            ["all", "Any status"],
+            ["sent", "Sent"],
+            ["failed", "Failed"],
+            ["bounced", "Bounced"],
+          ]}
+        />
+        <button
+          type="button"
+          onClick={() => void load()}
+          style={{
+            ...display,
+            fontSize: "var(--text-caption)",
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            color: "var(--accent, var(--gold))",
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+          }}
+        >
+          Refresh
+        </button>
+      </div>
+
+      <div
+        className="mt-3"
+        style={{
+          ...display,
+          fontSize: "var(--text-caption)",
+          letterSpacing: "0.16em",
+          textTransform: "uppercase",
+          color:
+            "color-mix(in oklab, var(--color-foreground) 55%, transparent)",
+        }}
+      >
+        {total} emails · {sent} sent · {failed} failed
+      </div>
+
+      {loading ? (
+        <p
+          className="mt-8"
+          style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}
+        >
+          Loading email log…
+        </p>
+      ) : rows && rows.length > 0 ? (
+        <div className="mt-6 overflow-x-auto">
+          <table
+            className="w-full"
+            style={{ ...serif, fontSize: "var(--text-body-sm)" }}
+          >
+            <thead>
+              <tr style={thRow()}>
+                <Th>When</Th>
+                <Th>Type</Th>
+                <Th>Recipient</Th>
+                <Th>Status</Th>
+                <Th>Triggered by</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows
+                .filter((r) =>
+                  search.trim()
+                    ? r.email_to
+                        .toLowerCase()
+                        .includes(search.trim().toLowerCase())
+                    : true,
+                )
+                .map((r) => (
+                  <tr
+                    key={r.id}
+                    style={{
+                      borderBottom: "1px solid var(--border-subtle)",
+                    }}
+                  >
+                    <Td>{formatDateTime(r.created_at)}</Td>
+                    <Td>{auditActionLabel(r.email_type)}</Td>
+                    <Td>{r.email_to}</Td>
+                    <Td>
+                      <EmailStatusBadge status={r.status} />
+                      {r.error_message && (
+                        <div
+                          style={{
+                            fontSize: "var(--text-caption)",
+                            color: "oklch(0.85 0.18 25)",
+                            marginTop: 2,
+                          }}
+                        >
+                          {r.error_message}
+                        </div>
+                      )}
+                    </Td>
+                    <Td>
+                      {r.triggered_by === "admin"
+                        ? r.triggered_by_email ?? "admin"
+                        : r.triggered_by}
+                    </Td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p
+          className="mt-8"
+          style={{ ...serif, fontStyle: "italic", opacity: 0.5 }}
+        >
+          No emails match these filters yet.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function FeedbackLiveList() {
   const [items, setItems] = useState<AdminFeedbackItem[] | null>(null);
 
