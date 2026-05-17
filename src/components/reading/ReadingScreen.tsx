@@ -288,6 +288,7 @@ export function ReadingScreen({
                 entry_mode: entryMode ?? "digital",
                 moon_phase: getCurrentMoonPhase(new Date()).phase,
                 deck_id: deckId ?? null,
+                ...(createdAt ? { created_at: createdAt } : {}),
               });
         const { data, error } = await query
           .select("id,user_id,note,is_favorite,tags,tailored_prompt,journal_prompt_used")
