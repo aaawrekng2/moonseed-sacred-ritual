@@ -328,7 +328,10 @@ export function Tabletop({
       padding: TABLETOP_CONFIG.SCATTER_PADDING,
       seed,
       exclusionZones,
-      minVisibleRatio: 0.3,
+      // Q77 #5b — target 90% visibility per card. enforceMinVisibility
+      // degrades gracefully when the threshold is geometrically
+      // unreachable for 78 cards in a small viewport.
+      minVisibleRatio: 0.9,
       topOffset: TABLETOP_CONFIG.TOP_RESERVE,
     });
   }, [size, seed, cardW, cardH, maxRotation, exclusionZones]);
