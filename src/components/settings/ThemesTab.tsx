@@ -715,6 +715,7 @@ export function ThemesTab() {
   const { user } = useAuth();
   const { prefs } = useSettings();
   const saved = useSavedThemes();
+  const confirm = useConfirm();
 
   const [communityKey, setCommunityKey] = useState<string | null>(null);
   const [accent, setAccent] = useState<string>("default");
@@ -787,6 +788,13 @@ export function ThemesTab() {
       applyAccentTheme("default");
       setAccent("default");
       setCustomHex(null);
+      setStoredAccentColor(null);
+      if (user) {
+        void updateUserPreferences(user.id, {
+          community_theme: key,
+          accent_color: null,
+        } as never);
+      }
       dispatchActiveThemeChanged({
         source: "community",
         name: t.name,
@@ -796,7 +804,7 @@ export function ThemesTab() {
       });
       window.dispatchEvent(new Event("tarotseed:theme-changed"));
     },
-    [],
+    [user],
   );
 
   const handleAccentPreset = useCallback(
@@ -810,6 +818,7 @@ export function ThemesTab() {
       root.style.removeProperty("--primary");
       root.style.removeProperty("--accent");
       root.style.removeProperty("--ring");
+      setStoredAccentColor(null);
       if (user) {
         void updateUserPreferences(user.id, { accent_color: null });
       }
@@ -825,6 +834,7 @@ export function ThemesTab() {
       applyCustomAccent(hex);
       setAccent("default");
       setCustomHex(hex);
+      setStoredAccentColor(hex);
       if (user) {
         void updateUserPreferences(user.id, { accent_color: hex });
       }
@@ -936,6 +946,46 @@ export function ThemesTab() {
     [saved],
   );
 
+  const handleOverwriteSlot = useCallback(
+    async (existing: SavedTheme) => {
+      const ok = await confirm({
+        title: `Overwrite ${existing.name}?`,
+        description: "This replaces the slot with your current settings.",
+        confirmLabel: "Overwrite",
+      });
+      if (!ok) return;
+      const t = COMMUNITY_THEMES.find((x) => x.key === communityKey);
+      const bgLeft = t?.bgLeft ?? existing.bg_left;
+      const bgRight = t?.bgRight ?? existing.bg_right;
+      const accentColor =
+        customHex ??
+        ACCENT_PRESETS.find((p) => p.value === accent)?.swatch ??
+        existing.accent;
+      const safeAccentHex = HEX_RE.test(accentColor)
+        ? accentColor
+        : existing.accent;
+      await saved.saveSlot(existing.slot, {
+        name: existing.name,
+        bg_left: bgLeft,
+        bg_right: bgRight,
+        accent: safeAccentHex,
+        theme_key: communityKey ?? undefined,
+        font_pairing: pairing,
+        text_scale: textScale,
+      });
+      await saved.setActiveSlot(existing.slot);
+      toast.success(`${existing.name} updated.`);
+    },
+    [confirm, communityKey, accent, customHex, pairing, textScale, saved],
+  );
+
+  const handleRenameSlot = useCallback(
+    async (slot: number, name: string) => {
+      await saved.renameSlot(slot, name);
+    },
+    [saved],
+  );
+
   /* -- render --------------------------------------------------- */
 
   // Suppress unused warning until accent-driven preview wiring lands.
@@ -989,6 +1039,8 @@ export function ThemesTab() {
         onSave={handleSaveSlot}
         onLoad={handleLoadSlot}
         onDelete={handleDeleteSlot}
+        onOverwrite={handleOverwriteSlot}
+        onRename={handleRenameSlot}
       />
     </div>
   );
