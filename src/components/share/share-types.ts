@@ -70,7 +70,6 @@ export type ShareContext = {
   interpretation: InterpretationPayload;
   /** Active guide name shown small/italic at the bottom of every share. */
   guideName: string;
-  isOracle: boolean;
   /**
    * DN-7 — Reading's saved deck_id (or null when default Rider-Waite).
    * Drives the share preview to use the same custom deck artwork the
