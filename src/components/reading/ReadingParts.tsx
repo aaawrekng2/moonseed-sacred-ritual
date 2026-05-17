@@ -946,9 +946,7 @@ function AiPromptPreview({
       ? `\nFocusing through: ${facetNames.join(", ")}.`
       : "";
 
-  const voiceLine = isOracle
-    ? `${guideName} will whisper the reading,`
-    : `${guideName} will speak the reading,`;
+  const voiceLine = `${guideName} will speak the reading,`;
 
   const text = `${question && question.trim() ? `"${question.trim()}"\n\n` : ""}${voiceLine} ${lensDescription}.${facetLine}
 
