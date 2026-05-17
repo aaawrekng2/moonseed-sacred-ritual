@@ -630,8 +630,8 @@ function BlueprintSectionInner({
   const [saving, setSaving] = useState(false);
 
   const sunSign = useMemo<SunSign | null>(
-    () => (birthDate ? getSunSign(birthDate) : null),
-    [birthDate],
+    () => (prefs.birth_date ? getSunSign(prefs.birth_date) : birthDate ? getSunSign(format(birthDate, "yyyy-MM-dd")) : null),
+    [prefs.birth_date, birthDate],
   );
   const risingSign = useMemo(
     () => calculateRisingSign(sunSign, birthTime || null, birthPlace || null),
