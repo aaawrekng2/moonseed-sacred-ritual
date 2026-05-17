@@ -54,7 +54,7 @@ async function logAction(
  * Q82 — Insert a row into `email_log`. Used by every server action that
  * sends an email so admins get end-to-end visibility.
  */
-export async function logEmail(params: {
+async function logEmail(params: {
   user_id?: string | null;
   email_to: string;
   email_type:
