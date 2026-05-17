@@ -15,7 +15,6 @@ import { buildScatter, shuffleDeck, type ScatterCard } from "@/lib/scatter";
 import { SPREAD_META, spreadUsesSlots, type SpreadMode } from "@/lib/spreads";
 import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useShowLabels } from "@/lib/use-show-labels";
-import { t } from "@/lib/oracle-language";
 import { useLockOrientation } from "@/lib/use-lock-orientation";
 import {
   useRegisterCloseHandler,
@@ -1634,15 +1633,15 @@ export function Tabletop({
       <AlertDialog open={exitConfirmOpen} onOpenChange={setExitConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("leaveReadingTitle")}</AlertDialogTitle>
+            <AlertDialogTitle>Leave this reading?</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("leaveReadingBody")}
+              Your selections will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={performExit}>
-              {t("leaveReadingConfirm")}
+              Leave
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
