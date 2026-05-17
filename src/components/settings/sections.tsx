@@ -3,7 +3,12 @@ import { format } from "date-fns";
 import { CalendarIcon, Check, Loader2 } from "lucide-react";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 import { getSunSign, type SunSign } from "@/lib/sun-sign";
-import { calculateRisingSign, SIGN_EMOJI } from "@/lib/rising-sign";
+import {
+  calculateRisingSign,
+  calculateRisingSignPrecise,
+  SIGN_EMOJI,
+} from "@/lib/rising-sign";
+import { geocodeBirthPlace } from "@/lib/geocode-cities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -633,10 +638,23 @@ function BlueprintSectionInner({
     () => (prefs.birth_date ? getSunSign(prefs.birth_date) : birthDate ? getSunSign(format(birthDate, "yyyy-MM-dd")) : null),
     [prefs.birth_date, birthDate],
   );
-  const risingSign = useMemo(
-    () => calculateRisingSign(sunSign, birthTime || null, birthPlace || null),
-    [sunSign, birthTime, birthPlace],
+  const geocoded = useMemo(
+    () => geocodeBirthPlace(birthPlace),
+    [birthPlace],
   );
+  const risingSign = useMemo(() => {
+    const isoDate = birthDate ? format(birthDate, "yyyy-MM-dd") : prefs.birth_date;
+    if (isoDate && birthTime && geocoded) {
+      const precise = calculateRisingSignPrecise(
+        isoDate,
+        birthTime,
+        geocoded.latitude,
+        geocoded.longitude,
+      );
+      if (precise) return precise;
+    }
+    return calculateRisingSign(sunSign, birthTime || null, birthPlace || null);
+  }, [birthDate, prefs.birth_date, birthTime, geocoded, sunSign, birthPlace]);
 
   const save = async () => {
     setSaving(true);
@@ -647,6 +665,8 @@ function BlueprintSectionInner({
       birth_name: birthName.trim() || null,
       sun_sign: sunSign,
       rising_sign: risingSign,
+      birth_latitude: geocoded?.latitude ?? null,
+      birth_longitude: geocoded?.longitude ?? null,
     });
     setSaving(false);
     if (error) {
@@ -661,6 +681,8 @@ function BlueprintSectionInner({
       birth_name: birthName.trim() || null,
       sun_sign: sunSign,
       rising_sign: risingSign,
+      birth_latitude: geocoded?.latitude ?? null,
+      birth_longitude: geocoded?.longitude ?? null,
     });
     toast.success("Changes saved", { icon: "✓" });
   };
