@@ -15,7 +15,11 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 import { subscribeActiveThemeChanged } from "@/lib/theme-events";
-import type { CardBackId } from "@/lib/card-backs";
+import {
+  isFontPairingKey,
+  clampTextScale,
+  type FontPairingKey,
+} from "@/lib/font-pairings";
 
 export const MAX_SAVED_THEMES = 5;
 
@@ -43,8 +47,10 @@ export type SavedTheme = {
   accent: string;
   font?: ThemeFont;
   font_size?: number;
-  card_back?: CardBackId;
-  resting_opacity?: number;
+  /** Q81 — font pairing preset snapshot. */
+  font_pairing?: FontPairingKey;
+  /** Q81 — unified text scale snapshot. */
+  text_scale?: number;
   /**
    * BS — references the COMMUNITY_THEMES entry the saved theme was
    * derived from. Used by applySanctuary to restore the full token set
@@ -60,10 +66,6 @@ function isHex(v: unknown): v is string {
 }
 export function isThemeFont(v: unknown): v is ThemeFont {
   return typeof v === "string" && (THEME_FONTS as readonly string[]).includes(v);
-}
-function clampOpacity(v: unknown): number | undefined {
-  if (typeof v !== "number" || !Number.isFinite(v)) return undefined;
-  return Math.max(25, Math.min(100, Math.round(v)));
 }
 export function clampFontSize(v: unknown): number | undefined {
   if (typeof v !== "number" || !Number.isFinite(v)) return undefined;
@@ -94,11 +96,13 @@ function parseSavedThemes(raw: unknown): SavedTheme[] {
       accent: r.accent,
       font: isThemeFont(r.font) ? r.font : undefined,
       font_size: clampFontSize(r.font_size),
-      card_back:
-        typeof r.card_back === "string"
-          ? (r.card_back as CardBackId)
+      font_pairing: isFontPairingKey(r.font_pairing)
+        ? r.font_pairing
+        : undefined,
+      text_scale:
+        typeof r.text_scale === "number"
+          ? clampTextScale(r.text_scale)
           : undefined,
-      resting_opacity: clampOpacity(r.resting_opacity),
       theme_key: typeof r.theme_key === "string" ? r.theme_key : undefined,
     });
   }

@@ -8,8 +8,6 @@ import {
   useSavedThemes,
   type SavedTheme,
 } from "@/lib/use-saved-themes";
-import { setStoredCardBack } from "@/lib/card-backs";
-import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { dispatchActiveThemeChanged } from "@/lib/theme-events";
 import {
   COMMUNITY_THEMES,
@@ -23,10 +21,7 @@ import { triggerPeek } from "@/lib/use-tap-to-peek";
  * single tap on the wand restores the full atmosphere — gradient,
  * accent, font, size, card back, resting opacity.
  */
-export function applySanctuary(
-  theme: SavedTheme,
-  setOpacity: (n: number) => void,
-) {
+export function applySanctuary(theme: SavedTheme) {
   if (typeof document === "undefined") return;
   // BS — resolve the saved theme's community key and apply the full token
   // set (surfaces, borders, foreground, accent). Falls back to Mystic for
@@ -45,8 +40,18 @@ export function applySanctuary(
   }
   if (theme.font) applyHeadingFont(theme.font);
   if (theme.font_size) applyHeadingFontSize(theme.font_size);
-  if (theme.card_back) setStoredCardBack(theme.card_back);
-  if (typeof theme.resting_opacity === "number") setOpacity(theme.resting_opacity);
+  // Q81 — pairing + text_scale restore.
+  if (theme.font_pairing) {
+    // Imported lazily to avoid circulars; pairing module is small.
+    void import("@/lib/font-pairings").then((m) =>
+      m.applyFontPairing(theme.font_pairing!),
+    );
+  }
+  if (typeof theme.text_scale === "number") {
+    void import("@/lib/font-pairings").then((m) =>
+      m.applyTextScale(theme.text_scale!),
+    );
+  }
 }
 
 /**
@@ -178,7 +183,6 @@ export function TopRightControls({
   const navigate = useNavigate();
   const { user } = useAuth();
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
-  const { setOpacity } = useRestingOpacity();
   // After cycling the wand we briefly show the just-loaded sanctuary
   // name inside the wand pill so the user knows which atmosphere is now
   // active. Tracked here (rather than inside ExpandingIconButton) so the
@@ -207,7 +211,7 @@ export function TopRightControls({
       currentIdx === -1 ? 0 : (currentIdx + 1) % occupied.length;
     const next = occupied[nextIdx];
     if (!next) return;
-    applySanctuary(next, setOpacity);
+    applySanctuary(next);
     void setActiveSlot(next.slot);
     // Loading a sanctuary supersedes any community palette selection.
     setStoredCommunityTheme(null);

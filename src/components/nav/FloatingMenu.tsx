@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { useNavigate } from "@tanstack/react-router";
 import { useSavedThemes } from "@/lib/use-saved-themes";
-import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { useFloatingMenu } from "@/lib/floating-menu-context";
 import { applySanctuary } from "@/components/nav/TopRightControls";
 import { setStoredCommunityTheme } from "@/lib/community-themes";
@@ -37,7 +36,6 @@ import { updateUserPreferences } from "@/lib/user-preferences-write";
  */
 export function FloatingMenu() {
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
-  const { setOpacity } = useRestingOpacity();
   const { closeHandler, copyText, showRefresh, shareBuilderClose, hidden } =
     useFloatingMenu();
   const { helpHandler } = useFloatingMenu();
@@ -259,7 +257,7 @@ export function FloatingMenu() {
       currentIdx === -1 ? 0 : (currentIdx + 1) % occupied.length;
     const next = occupied[nextIdx];
     if (!next) return;
-    applySanctuary(next, setOpacity);
+    applySanctuary(next);
     void setActiveSlot(next.slot);
     setStoredCommunityTheme(null);
     dispatchActiveThemeChanged({
