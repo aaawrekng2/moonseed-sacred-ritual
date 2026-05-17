@@ -165,6 +165,11 @@ export function ManualEntryBuilder({
     });
   }, [required]);
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
+  // Q79 — optional backdate. Default null = "today / now". When set,
+  // we emit it via onComplete so the reading row is inserted with the
+  // chosen created_at (preserves journal chronology for retro entries).
+  const [backdate, setBackdate] = useState<Date | null>(null);
+  const [dateOpen, setDateOpen] = useState(false);
   // 9-6-G — per-slot deck override; null = active deck.
   const [slotDeckIds, setSlotDeckIds] = useState<(string | null)[]>(
     Array.from({ length: required }, () => null),
@@ -534,7 +539,10 @@ export function ManualEntryBuilder({
           disabled={!allFilled}
           onClick={() => {
             if (!allFilled) return;
-            onComplete(picks.filter((p): p is ManualPick => !!p));
+            const meta = backdate
+              ? { createdAt: backdate.toISOString() }
+              : undefined;
+            onComplete(picks.filter((p): p is ManualPick => !!p), meta);
           }}
           className="px-6 py-2 transition disabled:cursor-not-allowed text-center"
           style={{
