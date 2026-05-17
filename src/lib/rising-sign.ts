@@ -7,7 +7,9 @@
  *    used as a fallback when the place can't be geocoded.
  */
 import type { SunSign } from "./sun-sign";
-import { Origin, Horoscope } from "circular-natal-horoscope-js";
+// Deep import: the package's "module" field points to a non-existent src/ path,
+// so Vite fails to resolve the bare specifier. dist/index.js is the real entry.
+import { Origin, Horoscope } from "circular-natal-horoscope-js/dist/index.js";
 
 export type RisingSign = SunSign;
 
