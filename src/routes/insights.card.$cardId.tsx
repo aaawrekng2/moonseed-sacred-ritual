@@ -16,15 +16,6 @@ import {
   ChevronDown,
   Sparkles,
 } from "lucide-react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import { getStalkerCardDetail, getStalkerReflection } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useActiveDeckImage } from "@/lib/active-deck";
@@ -321,11 +312,6 @@ function CardTraceRoute() {
               reversedCount={reversedCount}
               showReversalStat={showReversalStat}
             />
-          )}
-
-          {/* 3d — Trend line */}
-          {data && count > 0 && (
-            <CardTrendChart appearances={appearances} win={trendWin} />
           )}
 
           {/* 3f — Metadata row */}
