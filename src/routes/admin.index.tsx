@@ -54,6 +54,7 @@ import {
   resolveDetectWeavesAlert,
   restoreAdminBackup,
   runDetectWeavesAdmin,
+  getEmailLog,
   type DetectWeavesAlert,
 } from "@/lib/admin.functions";
 import {
@@ -95,7 +96,13 @@ type Role = "user" | "admin" | "super_admin";
 
 type AdminUser = Awaited<ReturnType<typeof listAdminUsers>>[number];
 
-type Tab = "dashboard" | "users" | "feedback" | "backups" | "audit";
+type Tab =
+  | "dashboard"
+  | "users"
+  | "feedback"
+  | "emails"
+  | "backups"
+  | "audit";
 
 const serif = { fontFamily: "var(--font-serif)" } as const;
 const display = { fontFamily: "var(--font-display)" } as const;
@@ -181,6 +188,7 @@ function AdminPage() {
               <UsersTab myRole={myRole} myUserId={user!.id} />
             )}
             {tab === "feedback" && <FeedbackTab />}
+            {tab === "emails" && <EmailsTab />}
             {tab === "backups" && <BackupsTab />}
             {tab === "audit" && <AuditTab />}
           </div>
