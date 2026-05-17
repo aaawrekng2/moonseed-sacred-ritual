@@ -183,7 +183,6 @@ export function TopRightControls({
   const navigate = useNavigate();
   const { user } = useAuth();
   const { occupied, activeSlot, setActiveSlot } = useSavedThemes();
-  const { setOpacity } = useRestingOpacity();
   // After cycling the wand we briefly show the just-loaded sanctuary
   // name inside the wand pill so the user knows which atmosphere is now
   // active. Tracked here (rather than inside ExpandingIconButton) so the
@@ -212,7 +211,7 @@ export function TopRightControls({
       currentIdx === -1 ? 0 : (currentIdx + 1) % occupied.length;
     const next = occupied[nextIdx];
     if (!next) return;
-    applySanctuary(next, setOpacity);
+    applySanctuary(next);
     void setActiveSlot(next.slot);
     // Loading a sanctuary supersedes any community palette selection.
     setStoredCommunityTheme(null);
