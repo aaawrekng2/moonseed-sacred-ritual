@@ -2216,6 +2216,9 @@ function UserDetailPage({
   const [setPwOpen, setSetPwOpen] = useState(false);
   const [grantingCredits, setGrantingCredits] = useState(false);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [emailLog, setEmailLog] = useState<
+    Awaited<ReturnType<typeof getEmailLog>> | null
+  >(null);
   const confirm = useConfirm();
 
   const isSelf = user.user_id === myUserId;
@@ -2381,6 +2384,25 @@ function UserDetailPage({
       }
     })();
   }, [user.user_id]);
+
+  // Q82 Chunk 2 — Load this user's email history (most recent 20).
+  useEffect(() => {
+    void (async () => {
+      try {
+        const rows = await getEmailLog({
+          data: {
+            userId: user.user_id,
+            userEmail: user.email ?? undefined,
+            limit: 20,
+          },
+          headers: await authHeaders(),
+        });
+        setEmailLog(rows);
+      } catch {
+        setEmailLog([]);
+      }
+    })();
+  }, [user.user_id, user.email, busyAction]);
 
   const saveNote = async () => {
     const trimmed = noteText.trim();
