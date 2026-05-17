@@ -252,6 +252,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
   const cellRefs = useRef<Array<HTMLDivElement | null>>([]);
   const cardsRowRef = useRef<HTMLDivElement | null>(null);
   const [markerLeft, setMarkerLeft] = useState<number | null>(null);
+  const [newMoonMarkerLeft, setNewMoonMarkerLeft] = useState<number | null>(null);
 
   // Pre-compute the phase ladder once at mount (and again if the user
   // taps the recompute/retry button). Stored in refs so taps on the
