@@ -8,8 +8,6 @@ import {
   useSavedThemes,
   type SavedTheme,
 } from "@/lib/use-saved-themes";
-import { setStoredCardBack } from "@/lib/card-backs";
-import { useRestingOpacity } from "@/lib/use-resting-opacity";
 import { dispatchActiveThemeChanged } from "@/lib/theme-events";
 import {
   COMMUNITY_THEMES,
@@ -23,10 +21,7 @@ import { triggerPeek } from "@/lib/use-tap-to-peek";
  * single tap on the wand restores the full atmosphere — gradient,
  * accent, font, size, card back, resting opacity.
  */
-export function applySanctuary(
-  theme: SavedTheme,
-  setOpacity: (n: number) => void,
-) {
+export function applySanctuary(theme: SavedTheme) {
   if (typeof document === "undefined") return;
   // BS — resolve the saved theme's community key and apply the full token
   // set (surfaces, borders, foreground, accent). Falls back to Mystic for
