@@ -432,6 +432,9 @@ function OverviewTab({
   onTapHero,
   onEmptyCta,
   moonEnabled,
+  userId,
+  fetchError,
+  onRetry,
 }: {
   loading: boolean;
   overview: InsightsOverview | null;
@@ -441,6 +444,9 @@ function OverviewTab({
   onTapHero: () => void;
   onEmptyCta: () => void;
   moonEnabled: boolean;
+  userId: string | null;
+  fetchError: boolean;
+  onRetry: () => void;
 }) {
   if (loading && !overview) {
     return <LoadingSkeleton heights={[220, 160, 160, 160]} />;
@@ -456,6 +462,21 @@ function OverviewTab({
           cta={{
             label: "CLEAR FILTERS",
             onClick: onClearFilters,
+            variant: "text",
+          }}
+        />
+      );
+    }
+    // Q77 — if the seeker is authenticated and the fetch failed, show
+    // a Retry rather than implying they have no readings.
+    if (userId && (fetchError || !overview)) {
+      return (
+        <EmptyHero
+          title="Couldn't load your insights."
+          subtitle="A network hiccup may have interrupted the fetch."
+          cta={{
+            label: "RETRY",
+            onClick: onRetry,
             variant: "text",
           }}
         />
