@@ -977,6 +977,7 @@ function ReadingActions({
   entryMode?: "digital" | "manual";
   deckId?: string | null;
   onExit: () => void;
+  createdAt?: string;
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
