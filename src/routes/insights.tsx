@@ -200,7 +200,7 @@ function InsightsRoute() {
   };
 
   return (
-    <div className="relative flex h-dvh flex-col" style={{ background: "var(--background)" }}>
+    <div className="relative flex h-dvh flex-col bg-cosmos">
       {/* EK-0 — h-dvh + flex-col so the inner <main> can own the scroll. */}
       {/* FU-7 — Unified sticky header: title row + filter bar + tab strip. */}
       <div
