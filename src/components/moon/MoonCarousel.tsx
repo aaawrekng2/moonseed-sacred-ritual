@@ -212,7 +212,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
   // marker would be misleading.
   const showMarker = useMemo<boolean>(() => {
     if (peakTzHour == null) return false;
-    return peakTzHour >= 21 || peakTzHour < 6;
+    return peakTzHour >= 18 || peakTzHour < 6;
   }, [peakTzHour]);
 
   const goldYmds = useMemo<string[]>(() => {
@@ -235,7 +235,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
   }, [newMoonPeakYmd, newMoonPeakTzHour]);
   const showNewMoonMarker = useMemo<boolean>(() => {
     if (newMoonPeakTzHour == null) return false;
-    return newMoonPeakTzHour >= 21 || newMoonPeakTzHour < 6;
+    return newMoonPeakTzHour >= 18 || newMoonPeakTzHour < 6;
   }, [newMoonPeakTzHour]);
   const newMoonGoldYmds = useMemo<string[]>(() => {
     if (!newMoonPeakYmd) return [];
