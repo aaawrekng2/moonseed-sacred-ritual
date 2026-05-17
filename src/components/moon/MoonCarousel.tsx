@@ -345,6 +345,45 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
     };
   }, [peakYmd, peakMarkerSide, days, offset, transitioning, isMobile, effectiveTz]);
 
+  // Q85 — measure seam for the new moon peak, mirroring the full moon logic.
+  useEffect(() => {
+    if (!newMoonPeakYmd || !newMoonPeakMarkerSide) {
+      setNewMoonMarkerLeft(null);
+      return;
+    }
+    const measure = () => {
+      const row = cardsRowRef.current;
+      if (!row) return;
+      const rowRect = row.getBoundingClientRect();
+      const peakIdx = days.findIndex((d) => d.ymd === newMoonPeakYmd);
+      const neighborIdx =
+        newMoonPeakMarkerSide === "left" ? peakIdx - 1 : peakIdx + 1;
+      if (peakIdx < 0 || neighborIdx < 0 || neighborIdx >= days.length) {
+        setNewMoonMarkerLeft(null);
+        return;
+      }
+      const peakEl = cellRefs.current[peakIdx];
+      const neighborEl = cellRefs.current[neighborIdx];
+      if (!peakEl || !neighborEl) {
+        setNewMoonMarkerLeft(null);
+        return;
+      }
+      const pr = peakEl.getBoundingClientRect();
+      const nr = neighborEl.getBoundingClientRect();
+      const center =
+        newMoonPeakMarkerSide === "left"
+          ? (nr.right + pr.left) / 2 - rowRect.left
+          : (pr.right + nr.left) / 2 - rowRect.left;
+      setNewMoonMarkerLeft(center);
+    };
+    const id = requestAnimationFrame(() => requestAnimationFrame(measure));
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener("resize", measure);
+    };
+  }, [newMoonPeakYmd, newMoonPeakMarkerSide, days, offset, transitioning, isMobile, effectiveTz]);
+
   const [recomputing, setRecomputing] = useState(false);
   const recomputeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
