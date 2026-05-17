@@ -50,6 +50,40 @@ async function logAction(
   } as never);
 }
 
+/**
+ * Q82 — Insert a row into `email_log`. Used by every server action that
+ * sends an email so admins get end-to-end visibility.
+ */
+export async function logEmail(params: {
+  user_id?: string | null;
+  email_to: string;
+  email_type:
+    | "confirmation"
+    | "password_reset"
+    | "resend_confirmation"
+    | "manual_confirm"
+    | "welcome";
+  triggered_by: "system" | "admin" | "user";
+  triggered_by_user_id?: string | null;
+  status?: "sent" | "failed" | "bounced";
+  error_message?: string | null;
+}): Promise<void> {
+  try {
+    await supabaseAdmin.from("email_log" as never).insert({
+      user_id: params.user_id ?? null,
+      email_to: params.email_to,
+      email_type: params.email_type,
+      triggered_by: params.triggered_by,
+      triggered_by_user_id: params.triggered_by_user_id ?? null,
+      status: params.status ?? "sent",
+      error_message: params.error_message ?? null,
+    } as never);
+  } catch (e) {
+    // Never let logging fail the parent action.
+    console.error("logEmail failed", e);
+  }
+}
+
 /* ---------- listUsers ---------- */
 
 export const listAdminUsers = createServerFn({ method: "GET" })
