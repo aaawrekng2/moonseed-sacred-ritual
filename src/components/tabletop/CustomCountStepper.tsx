@@ -44,7 +44,7 @@ export const CustomCountStepper = forwardRef<HTMLDivElement, Props>(
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        gap: isMobile ? 2 : 8,
+        gap: isMobile ? 0 : 2,
         fontFamily: "var(--font-display, var(--font-serif))",
         fontStyle: "italic",
         fontSize: "var(--text-body-lg, 1.05rem)",
