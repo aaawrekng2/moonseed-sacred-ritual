@@ -1161,7 +1161,9 @@ function FullMoonMarker({
         // Kept low so the "Return" affordance below the cards row is never
         // visually covered by the marker. Marker is decorative + pointer-
         // events:none, but a high z-index could still paint over text.
-        zIndex: 5,
+        // Q88 — raised above day-card text (cards top out at z-10) so the
+        // peak orb is never occluded by adjacent card labels.
+        zIndex: 30,
       }}
     >
       {/* Q87 — peak orb reduced ~40% (32→20) and dimmed to opacity 0.7
@@ -1244,7 +1246,8 @@ function NewMoonMarker({
         flexDirection: "column-reverse",
         alignItems: "center",
         gap: 4,
-        zIndex: 5,
+        // Q88 — see FullMoonMarker note above.
+        zIndex: 30,
       }}
     >
       {/* Q87 — peak orb reduced ~40% (32→20) and dimmed to opacity 0.7. */}
