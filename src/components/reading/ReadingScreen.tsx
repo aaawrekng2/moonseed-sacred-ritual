@@ -494,6 +494,7 @@ export function ReadingScreen({
               entryMode={entryMode}
               deckId={deckId}
               onExit={onExit}
+              createdAt={createdAt}
             />
           </div>
         )}
