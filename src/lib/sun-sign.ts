@@ -32,9 +32,18 @@ const RANGES: Array<[SunSign, number, number]> = [
   ["Aquarius", 1, 20],
 ];
 
-export function getSunSign(date: Date): SunSign {
-  const m = date.getMonth() + 1;
-  const d = date.getDate();
+/**
+ * Q78 — Accepts a "YYYY-MM-DD" string to avoid timezone parse bugs.
+ * Parsing via `new Date("YYYY-MM-DD")` creates the date at UTC midnight,
+ * and `getMonth()/getDate()` then return local-time values — wrong sign
+ * for sign-boundary days in western timezones. Parsing the string
+ * directly sidesteps `Date` entirely.
+ */
+export function getSunSign(dateStr: string): SunSign {
+  const parts = dateStr.split("-");
+  const m = Number(parts[1]);
+  const d = Number(parts[2]);
+  if (!Number.isFinite(m) || !Number.isFinite(d)) return "Capricorn";
   for (const [sign, sm, sd] of RANGES) {
     if (m > sm || (m === sm && d >= sd)) return sign;
   }
