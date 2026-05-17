@@ -540,6 +540,8 @@ function SavedThemesSection({
   onSave,
   onLoad,
   onDelete,
+  onOverwrite,
+  onRename,
 }: {
   themes: SavedTheme[];
   activeSlot: number | null;
@@ -548,14 +550,28 @@ function SavedThemesSection({
   onSave: (slot: number) => void;
   onLoad: (theme: SavedTheme) => void;
   onDelete: (slot: number) => void;
+  onOverwrite: (theme: SavedTheme) => void;
+  onRename: (slot: number, name: string) => void;
 }) {
   const slots = Array.from({ length: MAX_SAVED_THEMES }, (_, i) => i + 1);
+  const [editingSlot, setEditingSlot] = useState<number | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (editingSlot != null) inputRef.current?.focus();
+  }, [editingSlot]);
+  const commitRename = () => {
+    if (editingSlot == null) return;
+    onRename(editingSlot, draftName);
+    setEditingSlot(null);
+  };
   return (
     <Section title="Saved Themes" hint="Snapshot your current look to a slot.">
       <div className="space-y-2">
         {slots.map((slot) => {
           const t = themes.find((x) => x.slot === slot);
           const isActive = activeSlot === slot;
+          const isEditing = editingSlot === slot;
           return (
             <div
               key={slot}
@@ -584,14 +600,49 @@ function SavedThemesSection({
                 }}
               />
               <div className="flex-1 min-w-0">
-                <div
-                  style={{
-                    fontSize: "var(--text-body)",
-                    color: "var(--color-foreground)",
-                  }}
-                >
-                  {t ? t.name : `Slot ${slot}`}
-                </div>
+                {t && isEditing ? (
+                  <Input
+                    ref={inputRef}
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    onBlur={commitRename}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        commitRename();
+                      } else if (e.key === "Escape") {
+                        e.preventDefault();
+                        setEditingSlot(null);
+                      }
+                    }}
+                    maxLength={20}
+                    className="h-7"
+                    style={{ fontSize: "var(--text-body)" }}
+                  />
+                ) : (
+                  <div
+                    className="flex items-center gap-1.5"
+                    style={{
+                      fontSize: "var(--text-body)",
+                      color: "var(--color-foreground)",
+                    }}
+                  >
+                    <span className="truncate">{t ? t.name : `Slot ${slot}`}</span>
+                    {t && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDraftName(t.name);
+                          setEditingSlot(slot);
+                        }}
+                        aria-label="Rename saved theme"
+                        className="opacity-60 hover:opacity-100 transition-opacity"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
                 {!t && (
                   <div
                     style={{
@@ -611,6 +662,14 @@ function SavedThemesSection({
                     onClick={() => onLoad(t)}
                   >
                     Load
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onOverwrite(t)}
+                    aria-label="Overwrite saved theme"
+                  >
+                    <Save className="w-4 h-4" />
                   </Button>
                   <Button
                     size="sm"
