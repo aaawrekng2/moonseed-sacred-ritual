@@ -476,6 +476,13 @@ export const adminAction = createServerFn({ method: "POST" })
           email: targetEmail,
         });
         await logAction(userId, actorEmail, "password_reset", data.targetUserId, targetEmail, {});
+        await logEmail({
+          user_id: data.targetUserId,
+          email_to: targetEmail,
+          email_type: "password_reset",
+          triggered_by: "admin",
+          triggered_by_user_id: userId,
+        });
         break;
       }
       case "set_password": {
@@ -539,6 +546,37 @@ export const adminAction = createServerFn({ method: "POST" })
           targetEmail,
           {},
         );
+        await logEmail({
+          user_id: data.targetUserId,
+          email_to: targetEmail,
+          email_type: "resend_confirmation",
+          triggered_by: "admin",
+          triggered_by_user_id: userId,
+        });
+        break;
+      }
+      case "manual_confirm": {
+        if (!targetEmail) throw new Error("user has no email");
+        const { error: confirmErr } =
+          await supabaseAdmin.auth.admin.updateUserById(data.targetUserId, {
+            email_confirm: true,
+          });
+        if (confirmErr) throw new Error(confirmErr.message);
+        await logAction(
+          userId,
+          actorEmail,
+          "manual_confirm",
+          data.targetUserId,
+          targetEmail,
+          {},
+        );
+        await logEmail({
+          user_id: data.targetUserId,
+          email_to: targetEmail,
+          email_type: "manual_confirm",
+          triggered_by: "admin",
+          triggered_by_user_id: userId,
+        });
         break;
       }
     }
