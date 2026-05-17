@@ -244,7 +244,14 @@ export function ShareCardRow({
 }) {
   const n = Math.max(1, picks.length);
   const gap = n > 1 ? 24 : 0;
-  const cardWidth = Math.min(360, Math.floor((maxWidth - gap * (n - 1)) / n));
+  // Q84 — single-card shares get a much larger card (~60% of the 1080
+  // share canvas). Multi-card rows keep the original 360 cap so spreads
+  // still lay out cleanly.
+  const perCardCap = n === 1 ? 648 : 360;
+  const cardWidth = Math.min(
+    perCardCap,
+    Math.floor((maxWidth - gap * (n - 1)) / n),
+  );
   const cardHeight = Math.round(cardWidth * cardAspect);
   // 9-6-AC — When the reading carries no saved deck_id (legacy
   // readings or default deck), fall back to the seeker's currently

@@ -24,8 +24,10 @@ export function Level2FullReading({
   includeInterpretation: boolean;
 }) {
   const showQuestion = includeQuestion && !!ctx.question?.trim();
+  // Q84 — bump snippet length so the reading text isn't truncated when
+  // the share canvas has room to display it.
   const snippet = includeInterpretation
-    ? snippetFromOverview(ctx.interpretation.overview ?? "")
+    ? snippetFromOverview(ctx.interpretation.overview ?? "", 600)
     : "";
   return (
     <ShareCardFrame
@@ -33,7 +35,7 @@ export function Level2FullReading({
       guideName={ctx.guideName}
       accent={color.accent}
     >
-      <ShareCardRow picks={ctx.picks} deckId={ctx.deckId ?? null} />
+      <ShareCardRow picks={ctx.picks} deckId={ctx.deckId ?? null} maxWidth={n1MaxWidth(ctx.picks.length)} />
       {showQuestion && (
         <div
           style={{
