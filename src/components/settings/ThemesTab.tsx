@@ -818,12 +818,8 @@ export function ThemesTab() {
         bg_right: bgRight,
         accent: safeAccentHex,
         theme_key: communityKey ?? undefined,
-        // Q81 — pairing + text scale ride along
-        // (extra fields ignored by older parsers)
-        ...({
-          font_pairing: pairing,
-          text_scale: textScale,
-        } as unknown as Record<string, never>),
+        font_pairing: pairing,
+        text_scale: textScale,
       });
       await saved.setActiveSlot(slot);
       toast.success(`Saved to slot ${slot}.`);
@@ -848,18 +844,14 @@ export function ThemesTab() {
         setCustomHex(theme.accent);
         setAccent("default");
       }
-      // Pairing + text_scale if present (extra fields)
-      const raw = theme as unknown as {
-        font_pairing?: string;
-        text_scale?: number;
-      };
-      if (isFontPairingKey(raw.font_pairing)) {
-        setPairing(raw.font_pairing);
-        applyFontPairing(raw.font_pairing);
+      // Pairing + text_scale restore.
+      if (theme.font_pairing && isFontPairingKey(theme.font_pairing)) {
+        setPairing(theme.font_pairing);
+        applyFontPairing(theme.font_pairing);
       }
-      if (typeof raw.text_scale === "number") {
-        setTextScaleState(raw.text_scale);
-        applyTextScale(raw.text_scale);
+      if (typeof theme.text_scale === "number") {
+        setTextScaleState(theme.text_scale);
+        applyTextScale(theme.text_scale);
       }
       await saved.setActiveSlot(theme.slot);
       dispatchActiveThemeChanged({
