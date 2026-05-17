@@ -252,23 +252,11 @@ export function geocodeBirthPlace(
   const tokens = needle.split(" ").filter(Boolean);
   for (const c of CITIES) {
     const candidates = [c.name, ...(c.aliases ?? [])].map(norm);
-    for (const cand in candidates) {
-      const candStr = candidates[cand];
-      if (!candStr) continue;
-      if (needle === candStr) {
-        return { latitude: c.lat, longitude: c.lon };
-      }
-    }
-  }
-  // Prefix match: the typed value starts with the city name.
-  for (const c of CITIES) {
-    const candidates = [c.name, ...(c.aliases ?? [])].map(norm);
     for (const candStr of candidates) {
       if (!candStr) continue;
       if (
         needle.startsWith(candStr + " ") ||
         needle === candStr ||
-        // Token-set match: every word of the candidate appears in the input.
         candStr.split(" ").every((w) => tokens.includes(w))
       ) {
         return { latitude: c.lat, longitude: c.lon };
