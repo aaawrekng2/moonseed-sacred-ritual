@@ -898,6 +898,7 @@ function CenterCard({
   iconSize,
   maxWidth,
   carouselHeight,
+  peakTimeText,
 }: {
   info: MoonInfo;
   moonSign: string;
@@ -909,6 +910,7 @@ function CenterCard({
   iconSize: number;
   maxWidth: number;
   carouselHeight: number;
+  peakTimeText?: string | null;
 }) {
   // CV — Mobile center-card icon scales 20% smaller alongside the
   // overall carousel height reduction so proportions stay balanced.
@@ -962,6 +964,22 @@ function CenterCard({
           className="flex flex-col items-center text-center"
           style={{ gap: Math.max(2, Math.round(baseFontPx * 0.25)), lineHeight: 1.15 }}
         >
+          {peakTimeText && (
+            <span
+              aria-hidden="true"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "var(--text-caption)",
+                color: "var(--color-foreground)",
+                opacity: 0.7,
+                whiteSpace: "nowrap",
+                letterSpacing: "0.05em",
+                lineHeight: 1.15,
+              }}
+            >
+              {peakTimeText}
+            </span>
+          )}
           <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
           {/* Q87 — primary tier: date + phase at full foreground. */}
           <p
@@ -997,7 +1015,7 @@ function CenterCard({
               opacity: 0.6,
             }}
           >
-            {info.illumination}% · in {moonSign}
+            {info.illumination}% illuminated · in {moonSign}
           </p>
         </div>
       </div>
@@ -1412,10 +1430,10 @@ type LadderRung = {
   inset: number; // edge inset px (margin-left for "left", margin-right for "right")
 };
 
-// Q85 — simplified to just two rungs: New Moon + Full Moon.
+// Q88 — Full Moon on top, New Moon below.
 const LADDER_RUNGS: LadderRung[] = [
-  { label: "New Moon", phase: "New Moon", size: 18, inset: 8 },
   { label: "Full Moon", phase: "Full Moon", size: 26, inset: 0 },
+  { label: "New Moon", phase: "New Moon", size: 18, inset: 8 },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1435,9 +1453,9 @@ function MobilePhaseLadder({
   const isLeft = side === "left";
   // Smaller, edge-pinned cascade — sized down from the desktop ladder so it
   // sits comfortably on the very edge of mobile viewports.
-  // Q85 — two-rung mobile ladder: New Moon + Full Moon.
-  const RUNG_SIZES = [14, 22];
-  const MOBILE_RUNG_INSETS = [6, 0];
+  // Q88 — Full Moon (larger) on top, New Moon (smaller) below.
+  const RUNG_SIZES = [22, 14];
+  const MOBILE_RUNG_INSETS = [0, 6];
   return (
     <div
       className="fixed sm:hidden flex flex-col gap-[10px] z-10"
