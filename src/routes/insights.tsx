@@ -338,9 +338,9 @@ function InsightsRoute() {
           <p
             className="font-serif italic mb-4"
             style={{
-              fontSize: "var(--text-caption, 0.72rem)",
+              fontSize: "var(--text-body-sm)",
               color: "var(--color-foreground)",
-              opacity: 0.55,
+              opacity: 0.7,
               margin: "-8px 0 16px 0",
             }}
           >

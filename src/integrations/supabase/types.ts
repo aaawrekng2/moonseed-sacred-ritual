@@ -1075,6 +1075,7 @@ export type Database = {
           default_spread: string
           dismissed_hints: Json
           display_name: string | null
+          font_pairing: string | null
           gifted_by: string | null
           guide_facets: string[] | null
           guide_lens: string | null
@@ -1113,6 +1114,7 @@ export type Database = {
           subscription_type: string
           sun_sign: string | null
           tarotpulse_import_done: boolean
+          text_scale: number | null
           timezone: string | null
           track_reversals: boolean
           tz_mode: string
@@ -1148,6 +1150,7 @@ export type Database = {
           default_spread?: string
           dismissed_hints?: Json
           display_name?: string | null
+          font_pairing?: string | null
           gifted_by?: string | null
           guide_facets?: string[] | null
           guide_lens?: string | null
@@ -1186,6 +1189,7 @@ export type Database = {
           subscription_type?: string
           sun_sign?: string | null
           tarotpulse_import_done?: boolean
+          text_scale?: number | null
           timezone?: string | null
           track_reversals?: boolean
           tz_mode?: string
@@ -1221,6 +1225,7 @@ export type Database = {
           default_spread?: string
           dismissed_hints?: Json
           display_name?: string | null
+          font_pairing?: string | null
           gifted_by?: string | null
           guide_facets?: string[] | null
           guide_lens?: string | null
@@ -1259,6 +1264,7 @@ export type Database = {
           subscription_type?: string
           sun_sign?: string | null
           tarotpulse_import_done?: boolean
+          text_scale?: number | null
           timezone?: string | null
           track_reversals?: boolean
           tz_mode?: string
