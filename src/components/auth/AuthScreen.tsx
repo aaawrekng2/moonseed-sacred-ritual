@@ -330,6 +330,12 @@ export function AuthScreen({
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && email && password && !(formMode === "signup-form" && password !== confirmPassword)) {
+                    e.preventDefault();
+                    void handleSubmit();
+                  }
+                }}
                 className="w-full rounded-lg px-4 py-2.5 focus:outline-none"
                 style={{
                   background:
@@ -347,6 +353,12 @@ export function AuthScreen({
                   placeholder="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && email && password && !(formMode === "signup-form" && password !== confirmPassword)) {
+                      e.preventDefault();
+                      void handleSubmit();
+                    }
+                  }}
                   className="w-full rounded-lg px-4 py-2.5 pr-10 focus:outline-none"
                   style={{
                     background:
@@ -379,6 +391,12 @@ export function AuthScreen({
                     placeholder="Confirm password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && email && password && password === confirmPassword) {
+                        e.preventDefault();
+                        void handleSubmit();
+                      }
+                    }}
                     className="w-full rounded-lg px-4 py-2.5 pr-10 focus:outline-none"
                     style={{
                       background:
