@@ -1059,17 +1059,29 @@ function AdjacentCard({
       )}
     >
       {/* Stable wrapper — content updates in place on swipe, no remount. */}
+      {/* Q87 — side cards reduced to 2 lines (date + phase) at secondary
+          opacity so the center card is the clear visual focus. */}
       <div className="flex flex-col items-center gap-1">
         <MoonPhaseIcon phase={info.phase} size={resolvedIconSize} illumination={info.illumination} />
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        <p
+          className="text-[10px] uppercase tracking-wider"
+          style={{ color: "var(--color-foreground)", opacity: 0.6 }}
+        >
           {formatShortDate(info.date, timeZone)}
         </p>
-        <p className="text-[11px] text-muted-foreground">{info.phase}</p>
-        <p className="text-[10px] text-gold/80">{info.illumination}% illuminated</p>
+        <p
+          className="text-[11px]"
+          style={{ color: "var(--color-foreground)", opacity: 0.6 }}
+        >
+          {info.phase}
+        </p>
         {expanded && (
           <div className="mt-1 flex flex-col items-center gap-0.5 animate-in fade-in slide-in-from-top-1 duration-200 sm:hidden">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Moon in {sign}
+            <p
+              className="text-[10px] uppercase tracking-wider"
+              style={{ color: "var(--color-foreground)", opacity: 0.6 }}
+            >
+              in {sign}
             </p>
           </div>
         )}
