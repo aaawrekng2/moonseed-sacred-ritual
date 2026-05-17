@@ -39,6 +39,7 @@ import { Route as InsightsRecapLunationStartRouteImport } from './routes/insight
 import { Route as InsightsCardCardIdRouteImport } from './routes/insights.card.$cardId'
 import { Route as HelpCategoryArticleRouteImport } from './routes/help.$category.$article'
 import { Route as ApiPublicDetectWeavesRouteImport } from './routes/api/public/detect-weaves'
+import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as ApiPublicDetectWeavesStatusRouteImport } from './routes/api/public/detect-weaves/status'
 import { Route as AdminUsageUsersUserIdRouteImport } from './routes/admin.usage.users.$userId'
 
@@ -193,6 +194,12 @@ const ApiPublicDetectWeavesRoute = ApiPublicDetectWeavesRouteImport.update({
   path: '/api/public/detect-weaves',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LovableEmailQueueProcessRoute =
+  LovableEmailQueueProcessRouteImport.update({
+    id: '/lovable/email/queue/process',
+    path: '/lovable/email/queue/process',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicDetectWeavesStatusRoute =
   ApiPublicDetectWeavesStatusRouteImport.update({
     id: '/status',
@@ -238,6 +245,7 @@ export interface FileRoutesByFullPath {
   '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
   '/admin/usage/users/$userId': typeof AdminUsageUsersUserIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -271,6 +279,7 @@ export interface FileRoutesByTo {
   '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
   '/admin/usage/users/$userId': typeof AdminUsageUsersUserIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -306,6 +315,7 @@ export interface FileRoutesById {
   '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
   '/admin/usage/users/$userId': typeof AdminUsageUsersUserIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
+  '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -342,6 +352,7 @@ export interface FileRouteTypes {
     | '/insights/recap/$lunationStart'
     | '/admin/usage/users/$userId'
     | '/api/public/detect-weaves/status'
+    | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -375,6 +386,7 @@ export interface FileRouteTypes {
     | '/insights/recap/$lunationStart'
     | '/admin/usage/users/$userId'
     | '/api/public/detect-weaves/status'
+    | '/lovable/email/queue/process'
   id:
     | '__root__'
     | '/'
@@ -409,6 +421,7 @@ export interface FileRouteTypes {
     | '/insights/recap/$lunationStart'
     | '/admin/usage/users/$userId'
     | '/api/public/detect-weaves/status'
+    | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -425,6 +438,7 @@ export interface RootRouteChildren {
   StoriesRoute: typeof StoriesRouteWithChildren
   ThreadsRoute: typeof ThreadsRouteWithChildren
   ApiPublicDetectWeavesRoute: typeof ApiPublicDetectWeavesRouteWithChildren
+  LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -639,6 +653,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicDetectWeavesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lovable/email/queue/process': {
+      id: '/lovable/email/queue/process'
+      path: '/lovable/email/queue/process'
+      fullPath: '/lovable/email/queue/process'
+      preLoaderRoute: typeof LovableEmailQueueProcessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/detect-weaves/status': {
       id: '/api/public/detect-weaves/status'
       path: '/status'
@@ -783,6 +804,7 @@ const rootRouteChildren: RootRouteChildren = {
   StoriesRoute: StoriesRouteWithChildren,
   ThreadsRoute: ThreadsRouteWithChildren,
   ApiPublicDetectWeavesRoute: ApiPublicDetectWeavesRouteWithChildren,
+  LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
