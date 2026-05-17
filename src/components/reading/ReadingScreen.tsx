@@ -69,6 +69,12 @@ type Props = {
   /** Phase 9.5b — see {@link SpreadLayout} for semantics. */
   entryMode?: "digital" | "manual";
   deckId?: string | null;
+  /**
+   * Q79 — Optional backdate from ManualEntryBuilder. When provided, the
+   * readings row is inserted with this `created_at` so retroactive
+   * journal entries land on the correct day.
+   */
+  createdAt?: string;
 };
 
 type LoadState =
@@ -92,6 +98,7 @@ export function ReadingScreen({
   question,
   entryMode,
   deckId,
+  createdAt,
 }: Props) {
   const meta = SPREAD_META[spread];
   const { isOracle } = useOracleMode();
@@ -170,6 +177,7 @@ export function ReadingScreen({
             facetIds,
             allowOverride: overrideRef.current,
             question,
+            ...(createdAt ? { createdAt } : {}),
           },
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -281,6 +289,7 @@ export function ReadingScreen({
                 entry_mode: entryMode ?? "digital",
                 moon_phase: getCurrentMoonPhase(new Date()).phase,
                 deck_id: deckId ?? null,
+                ...(createdAt ? { created_at: createdAt } : {}),
               });
         const { data, error } = await query
           .select("id,user_id,note,is_favorite,tags,tailored_prompt,journal_prompt_used")
@@ -486,6 +495,7 @@ export function ReadingScreen({
               entryMode={entryMode}
               deckId={deckId}
               onExit={onExit}
+              createdAt={createdAt}
             />
           </div>
         )}
@@ -956,6 +966,7 @@ function ReadingActions({
   entryMode,
   deckId,
   onExit,
+  createdAt,
 }: {
   isOracle: boolean;
   isLoading: boolean;
@@ -969,6 +980,7 @@ function ReadingActions({
   entryMode?: "digital" | "manual";
   deckId?: string | null;
   onExit: () => void;
+  createdAt?: string;
 }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -1053,6 +1065,7 @@ function ReadingActions({
         question: question || null,
         entry_mode: entryMode ?? "digital",
         deck_id: deckId ?? null,
+        ...(createdAt ? { created_at: createdAt } : {}),
       });
       if (error) {
         toast.error("Couldn't save your reading. Try again?");

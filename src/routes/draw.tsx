@@ -93,6 +93,10 @@ function DrawPage() {
   // Phase 9.5b — track how the picks were produced so we can persist
   // `entry_mode` ('digital' | 'manual') alongside the saved reading.
   const [entryMode, setEntryMode] = useState<"digital" | "manual">("digital");
+  // Q79 — optional backdate set via ManualEntryBuilder; threaded into
+  // ReadingScreen so the inserted readings row + interpret call carry
+  // the chosen created_at.
+  const [backdatedAt, setBackdatedAt] = useState<string | undefined>(undefined);
   // "reveal" = cards already flipped on the tabletop, jump straight to
   // the placeholder reading. "cast" = render the classic spread layout
   // with cards face-down, let the user reveal them there.
@@ -236,6 +240,7 @@ function DrawPage() {
         question={question || undefined}
         entryMode={entryMode}
         deckId={activeDeckId}
+        createdAt={backdatedAt}
       />
     );
   }
@@ -307,7 +312,7 @@ function DrawPage() {
             spread === "custom" ? handleCustomCountChange : undefined
           }
           onCancel={exit}
-          onComplete={(manualPicks) => {
+          onComplete={(manualPicks, meta) => {
             clearTabletopSession(spread);
             setManualPicksCache(undefined);
             const mapped = manualPicks.map((p) => ({
@@ -318,6 +323,7 @@ function DrawPage() {
             }));
             setPicks(mapped);
             setEntryMode("manual");
+            setBackdatedAt(meta?.createdAt);
             setPhase("reading");
             void recordDraw();
           }}

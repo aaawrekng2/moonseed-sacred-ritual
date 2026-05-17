@@ -25,7 +25,10 @@ import { CustomCountStepper } from "@/components/tabletop/CustomCountStepper";
 import { Hint, isHintHardDismissed } from "@/components/hints/Hint";
 import { useAuth } from "@/lib/auth";
 import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
-import { X } from "lucide-react";
+import { X, CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 const CELTIC_POSITION_LABELS = [
   "Significator",
@@ -54,7 +57,7 @@ type Props = {
   spread: SpreadMode;
   onCancel: () => void;
   /** Fires once every slot has a card and the seeker hits Done. */
-  onComplete: (picks: ManualPick[]) => void;
+  onComplete: (picks: ManualPick[], meta?: { createdAt?: string }) => void;
   /** 9-6-O — Custom spread cardinality (1-10). */
   customCount?: number;
   /** 26-05-08-N — Fix 4: inline question input above the Done button. */
@@ -162,6 +165,11 @@ export function ManualEntryBuilder({
     });
   }, [required]);
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
+  // Q79 — optional backdate. Default null = "today / now". When set,
+  // we emit it via onComplete so the reading row is inserted with the
+  // chosen created_at (preserves journal chronology for retro entries).
+  const [backdate, setBackdate] = useState<Date | null>(null);
+  const [dateOpen, setDateOpen] = useState(false);
   // 9-6-G — per-slot deck override; null = active deck.
   const [slotDeckIds, setSlotDeckIds] = useState<(string | null)[]>(
     Array.from({ length: required }, () => null),
@@ -489,6 +497,76 @@ export function ManualEntryBuilder({
 
         {/* 26-05-08-N — Fix 4: inline question input above Done. */}
         <div className="w-full max-w-md mx-auto">
+          {/* Q79 — Backdate picker for retroactive manual entries. */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: 12,
+            }}
+          >
+            <Popover open={dateOpen} onOpenChange={setDateOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 transition hover:bg-foreground/[0.04]"
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-caption, 0.75rem)",
+                    color: "var(--color-foreground)",
+                    opacity: backdate ? 0.9 : 0.55,
+                    border: "1px solid var(--border-subtle)",
+                    background: "transparent",
+                    cursor: "pointer",
+                  }}
+                >
+                  <CalendarIcon size={13} strokeWidth={1.5} />
+                  {backdate
+                    ? format(backdate, "PPP")
+                    : "Today · tap to backdate"}
+                  {backdate && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Clear backdate"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setBackdate(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setBackdate(null);
+                        }
+                      }}
+                      style={{ marginLeft: 4, opacity: 0.6 }}
+                    >
+                      <X size={12} strokeWidth={1.5} />
+                    </span>
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-auto p-0"
+                align="center"
+                style={{ zIndex: "var(--z-modal-nested)" as unknown as number }}
+              >
+                <Calendar
+                  mode="single"
+                  selected={backdate ?? undefined}
+                  onSelect={(d) => {
+                    if (d) setBackdate(d);
+                    setDateOpen(false);
+                  }}
+                  disabled={(d) => d > new Date()}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
           <span
             style={{
               fontFamily: "var(--font-display, var(--font-serif))",
@@ -531,7 +609,10 @@ export function ManualEntryBuilder({
           disabled={!allFilled}
           onClick={() => {
             if (!allFilled) return;
-            onComplete(picks.filter((p): p is ManualPick => !!p));
+            const meta = backdate
+              ? { createdAt: backdate.toISOString() }
+              : undefined;
+            onComplete(picks.filter((p): p is ManualPick => !!p), meta);
           }}
           className="px-6 py-2 transition disabled:cursor-not-allowed text-center"
           style={{
