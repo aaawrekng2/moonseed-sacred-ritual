@@ -1257,11 +1257,9 @@ function MobilePhaseLadder({
   const isLeft = side === "left";
   // Smaller, edge-pinned cascade — sized down from the desktop ladder so it
   // sits comfortably on the very edge of mobile viewports.
-  const RUNG_SIZES = [12, 15, 22, 15, 12];
-  // Match desktop cascade direction — Full Moon sits flush to the edge,
-  // New/Dark Moon are furthest in. Applied via marginLeft (left ladder) or
-  // marginRight (right). Magnitudes scaled down for mobile.
-  const MOBILE_RUNG_INSETS = [12, 6, 0, 6, 12];
+  // Q85 — two-rung mobile ladder: New Moon + Full Moon.
+  const RUNG_SIZES = [14, 22];
+  const MOBILE_RUNG_INSETS = [6, 0];
   return (
     <div
       className="fixed sm:hidden flex flex-col gap-[10px] z-10"
