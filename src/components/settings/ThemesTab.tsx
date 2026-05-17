@@ -367,7 +367,6 @@ function AccentSection({
                 background: p.swatch,
                 // @ts-expect-error CSS custom prop
                 "--tw-ring-color": "var(--accent-color)",
-                // @ts-expect-error CSS custom prop
                 "--tw-ring-offset-color": "var(--background)",
               }}
             >
