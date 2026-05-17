@@ -177,6 +177,7 @@ export function ReadingScreen({
             facetIds,
             allowOverride: overrideRef.current,
             question,
+            ...(createdAt ? { createdAt } : {}),
           },
           headers: { Authorization: `Bearer ${token}` },
         });
