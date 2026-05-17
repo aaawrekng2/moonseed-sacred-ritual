@@ -220,6 +220,10 @@ export function AuthScreen({
             msg.includes("email not confirmed") ||
             msg.includes("confirm")
           ) {
+            setShowResend(true);
+            setResendEmail(email);
+            setResendState("idle");
+            setResendError(null);
             throw new Error(
               "Please confirm your email before signing in. Check your inbox.",
             );
