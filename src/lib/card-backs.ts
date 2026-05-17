@@ -8,7 +8,7 @@ export const CARD_BACKS = [
   { id: "verdant", label: "Verdant", description: "Botanical form on forest dark" },
 ] as const;
 
-export const DEFAULT_CARD_BACK: CardBackId = "celestial";
+export const DEFAULT_CARD_BACK: CardBackId = "ocean";
 const STORAGE_KEY = "tarotseed:card-back";
 
 export function getStoredCardBack(): CardBackId {
