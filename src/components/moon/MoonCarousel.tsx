@@ -633,7 +633,9 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
             const absRel = Math.abs(rel); // window position, NOT distance from today
             // Compensate for the CenterCard's "Today/date" header so the moon
             // GRAPHIC tops cascade correctly — not just the cell tops.
-            const topOffset = absRel === 0 ? 0 : absRel === 1 ? 52 : 68;
+            // Q87 — raise the center card ~14px above its previous position so
+            // its bottom text clears the top of the adjacent moon glyphs.
+            const topOffset = absRel === 0 ? -14 : absRel === 1 ? 52 : 68;
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
             const isGoldDay = goldYmds.includes(d.ymd);
@@ -744,7 +746,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                       transform: "translateX(-50%)",
                       fontFamily: "var(--font-serif)",
                       fontSize: "var(--text-caption)",
-                      color: "var(--color-foreground-muted, var(--muted-foreground))",
+                      color: "var(--color-foreground)",
                       opacity: 0.7,
                       whiteSpace: "nowrap",
                       letterSpacing: "0.05em",
@@ -946,11 +948,19 @@ function CenterCard({
       className="flex flex-col items-center gap-1.5 cursor-pointer bg-transparent border-0 p-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-gold/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       style={{ minWidth: Math.min(120, maxWidth), maxWidth }}
     >
+      {/* Q87 — gold accent reserved exclusively for the TODAY label.
+          On other days we leave the slot empty so the inner date line
+          becomes the visual primary. */}
       <span
-        className="font-medium uppercase tracking-[0.3em] text-gold"
-        style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 0.7))}px`, lineHeight: 1.15 }}
+        className="font-medium uppercase tracking-[0.3em]"
+        style={{
+          fontSize: `${Math.max(12, Math.round(baseFontPx * 0.7))}px`,
+          lineHeight: 1.15,
+          color: isToday ? "var(--gold)" : "transparent",
+          minHeight: "1em",
+        }}
       >
-        {isToday ? "Today" : formatShortDate(info.date, timeZone)}
+        {isToday ? "Today" : ""}
       </span>
       <div
         className="w-full rounded-2xl px-3 py-4 sm:px-4 transition-all duration-200"
@@ -964,29 +974,41 @@ function CenterCard({
           style={{ gap: Math.max(2, Math.round(baseFontPx * 0.25)), lineHeight: 1.15 }}
         >
           <MoonPhaseIcon phase={info.phase} size={iconSize} illumination={info.illumination} />
+          {/* Q87 — primary tier: date + phase at full foreground. */}
           <p
-            className="whitespace-nowrap font-medium uppercase tracking-wider text-muted-foreground"
-            style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 1.0))}px`, lineHeight: 1.15, margin: 0 }}
+            className="whitespace-nowrap font-medium uppercase tracking-wider"
+            style={{
+              fontSize: `${Math.max(12, Math.round(baseFontPx * 1.0))}px`,
+              lineHeight: 1.15,
+              margin: 0,
+              color: "var(--color-foreground)",
+            }}
           >
             {formatShortDate(info.date, timeZone)}
           </p>
           <p
-            className="whitespace-nowrap font-display text-gold"
-            style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 1.1))}px`, lineHeight: 1.15, margin: 0 }}
+            className="whitespace-nowrap font-display"
+            style={{
+              fontSize: `${Math.max(12, Math.round(baseFontPx * 1.1))}px`,
+              lineHeight: 1.15,
+              margin: 0,
+              color: "var(--color-foreground)",
+            }}
           >
             {info.phase}
           </p>
+          {/* Q87 — secondary tier: illumination + zodiac, single line. */}
           <p
-            className="whitespace-nowrap text-gold/80"
-            style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 0.9))}px`, lineHeight: 1.15, margin: 0 }}
+            className="whitespace-nowrap"
+            style={{
+              fontSize: `${Math.max(12, Math.round(baseFontPx * 0.9))}px`,
+              lineHeight: 1.15,
+              margin: 0,
+              color: "var(--color-foreground)",
+              opacity: 0.6,
+            }}
           >
-            {info.illumination}% illuminated
-          </p>
-          <p
-            className="whitespace-nowrap uppercase tracking-wider text-muted-foreground"
-            style={{ fontSize: `${Math.max(12, Math.round(baseFontPx * 0.85))}px`, lineHeight: 1.15, margin: 0 }}
-          >
-            Moon in {moonSign}
+            {info.illumination}% · in {moonSign}
           </p>
         </div>
       </div>
@@ -1037,17 +1059,29 @@ function AdjacentCard({
       )}
     >
       {/* Stable wrapper — content updates in place on swipe, no remount. */}
+      {/* Q87 — side cards reduced to 2 lines (date + phase) at secondary
+          opacity so the center card is the clear visual focus. */}
       <div className="flex flex-col items-center gap-1">
         <MoonPhaseIcon phase={info.phase} size={resolvedIconSize} illumination={info.illumination} />
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        <p
+          className="text-[10px] uppercase tracking-wider"
+          style={{ color: "var(--color-foreground)", opacity: 0.6 }}
+        >
           {formatShortDate(info.date, timeZone)}
         </p>
-        <p className="text-[11px] text-muted-foreground">{info.phase}</p>
-        <p className="text-[10px] text-gold/80">{info.illumination}% illuminated</p>
+        <p
+          className="text-[11px]"
+          style={{ color: "var(--color-foreground)", opacity: 0.6 }}
+        >
+          {info.phase}
+        </p>
         {expanded && (
           <div className="mt-1 flex flex-col items-center gap-0.5 animate-in fade-in slide-in-from-top-1 duration-200 sm:hidden">
-            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Moon in {sign}
+            <p
+              className="text-[10px] uppercase tracking-wider"
+              style={{ color: "var(--color-foreground)", opacity: 0.6 }}
+            >
+              in {sign}
             </p>
           </div>
         )}
@@ -1123,15 +1157,18 @@ function FullMoonMarker({
         zIndex: 5,
       }}
     >
+      {/* Q87 — peak orb reduced ~40% (32→20) and dimmed to opacity 0.7
+          so it reads as a subtle cue rather than a dominant element. */}
       <div
         style={{
-          width: 32,
-          height: 32,
+          width: 20,
+          height: 20,
           borderRadius: "50%",
+          opacity: 0.7,
           background:
             "radial-gradient(circle at 50% 45%, rgba(255,250,235,0.95) 0%, rgba(255,225,150,0.65) 55%, rgba(212,175,55,0.35) 100%)",
           boxShadow:
-            "0 0 12px rgba(255,215,0,0.35), 0 0 4px rgba(255,235,180,0.6) inset",
+            "0 0 8px rgba(255,215,0,0.3), 0 0 3px rgba(255,235,180,0.5) inset",
         }}
       />
       <span
@@ -1203,16 +1240,18 @@ function NewMoonMarker({
         zIndex: 5,
       }}
     >
+      {/* Q87 — peak orb reduced ~40% (32→20) and dimmed to opacity 0.7. */}
       <div
         style={{
-          width: 32,
-          height: 32,
+          width: 20,
+          height: 20,
           borderRadius: "50%",
+          opacity: 0.7,
           background:
             "radial-gradient(circle at 50% 45%, rgba(40,40,60,0.85) 0%, rgba(80,90,120,0.55) 55%, rgba(180,195,225,0.25) 100%)",
           border: "1px solid rgba(200,210,235,0.55)",
           boxShadow:
-            "0 0 10px rgba(180,200,235,0.25), 0 0 4px rgba(255,255,255,0.15) inset",
+            "0 0 7px rgba(180,200,235,0.22), 0 0 3px rgba(255,255,255,0.15) inset",
         }}
       />
       <span
