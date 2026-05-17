@@ -638,6 +638,13 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
             const isSelected = selectedRel === d.relative;
             const isGoldDay = goldYmds.includes(d.ymd);
             const isNewMoonDay = newMoonGoldYmds.includes(d.ymd);
+            const isPeakDay = d.ymd === peakYmd;
+            const isNewMoonPeakDay = d.ymd === newMoonPeakYmd;
+            const peakTimeText = isPeakDay && fullMoonPeak
+              ? formatTimeInTz(fullMoonPeak, effectiveTz)
+              : isNewMoonPeakDay && newMoonPeak
+                ? formatTimeInTz(newMoonPeak, effectiveTz)
+                : null;
             return (
               <div
                 // Stable key by window slot index — prevents React from
@@ -654,11 +661,22 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                 style={{
                   alignSelf: "flex-start",
                   marginTop: `${topOffset}px`,
-                  position: dateOverlay ? "relative" : undefined,
+                  // Q86 — needs to be relative so the peak-time caption
+                  // can absolutely-position above the moon glyph.
+                  position: dateOverlay || peakTimeText ? "relative" : undefined,
                   // Shrink ±2 cards slightly on mobile so they fit beside the
                   // mobile ladders without clipping at the screen edges.
                   transform: absRel === 2 ? "scale(0.85)" : undefined,
                   transformOrigin: "top center",
+                  // Q86 — 3-day window background tint. Gold for full moon,
+                  // purple for new moon. Gold takes priority if both match.
+                  background: isGoldDay
+                    ? "color-mix(in oklab, var(--gold) 12%, transparent)"
+                    : isNewMoonDay
+                      ? "color-mix(in oklab, oklch(0.5 0.2 290) 12%, transparent)"
+                      : undefined,
+                  borderRadius:
+                    isGoldDay || isNewMoonDay ? 12 : undefined,
                   // The 3-day full-moon window receives a gentle gold tint
                   // applied via SVG-friendly CSS filters. Recolors the moon
                   // body without affecting surrounding text.
@@ -715,6 +733,26 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                       {isSelected ? " ·sel" : ""}
                     </span>
                   </div>
+                )}
+                {peakTimeText && (
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      position: "absolute",
+                      top: -16,
+                      left: "50%",
+                      transform: "translateX(-50%)",
+                      fontFamily: "var(--font-serif)",
+                      fontSize: "var(--text-caption)",
+                      color: "var(--color-foreground-muted, var(--muted-foreground))",
+                      opacity: 0.7,
+                      whiteSpace: "nowrap",
+                      letterSpacing: "0.05em",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {peakTimeText}
+                  </span>
                 )}
                 {isCenter ? (
                   <CenterCard
