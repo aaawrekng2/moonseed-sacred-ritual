@@ -612,6 +612,15 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
           </span>
         )}
 
+        <PhaseLadder
+          side="left"
+          restingAlpha={restingAlpha}
+          activePhase={viewedPhase}
+          offset={offset}
+          onJump={(phase) => jumpToPhase(phase, "previous")}
+          onStep={() => shift(-1)}
+        />
+
         <div
           className="relative flex flex-1 items-start justify-center gap-1.5 sm:gap-3 max-w-2xl overflow-visible"
           ref={cardsRowRef}
