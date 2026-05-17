@@ -48,6 +48,7 @@ import {
   getBackupDownloadUrl,
   getPendingSignupCount,
   listAdminUsers,
+  getAdminUserReadingCounts,
   listPendingSignups,
   listDetectWeavesAlerts,
   previewDetectWeavesAdmin,
@@ -82,8 +83,22 @@ import { SearchInput } from "@/components/ui/search-input";
  * helper every admin call would be rejected with 401.
  */
 async function authHeaders(): Promise<Record<string, string>> {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
+  // Q84 — refresh the session if the access token is missing or
+  // expiring within the next minute, so admin server calls never fail
+  // intermittently with a stale token.
+  let { data } = await supabase.auth.getSession();
+  let token = data.session?.access_token;
+  const expiresAt = data.session?.expires_at ?? 0;
+  const nowSec = Math.floor(Date.now() / 1000);
+  if (!token || expiresAt - nowSec < 60) {
+    try {
+      const refreshed = await supabase.auth.refreshSession();
+      token = refreshed.data.session?.access_token ?? token;
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("[admin] refreshSession failed:", e);
+    }
+  }
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -1847,6 +1862,7 @@ function UsersTab({
 }) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | Role>("all");
   const [statusFilter, setStatusFilter] = useState<
@@ -1864,9 +1880,30 @@ function UsersTab({
 
   const load = async () => {
     setLoading(true);
+    setFetchError(null);
     try {
-      const data = await listAdminUsers({ headers: await authHeaders() });
-      setUsers(data);
+      const headers = await authHeaders();
+      // Q84 — fetch user list and reading counts in parallel so a slow
+      // or failing readings query never blocks the user list.
+      const [data, countsResult] = await Promise.all([
+        listAdminUsers({ headers }),
+        getAdminUserReadingCounts({ headers }).catch((e) => {
+          console.warn("[admin] getAdminUserReadingCounts failed:", e);
+          return null as Record<string, { count: number; lastReading: string | null }> | null;
+        }),
+      ]);
+      const merged: AdminUser[] = countsResult
+        ? data.map((u) => {
+            const c = countsResult[u.user_id];
+            return c
+              ? { ...u, reading_count: c.count, last_reading: c.lastReading }
+              : u;
+          })
+        : data;
+      setUsers(merged);
+    } catch (e) {
+      console.error("[admin] listAdminUsers failed:", e);
+      setFetchError(e instanceof Error ? e.message : "Failed to load users");
     } finally {
       setLoading(false);
     }
