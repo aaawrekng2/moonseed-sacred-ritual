@@ -160,9 +160,9 @@
   /* ----------------------------------------------------------------- */
   /*  LAYER 1 — Base tokens (fixed; never reference from components)   */
   /* ----------------------------------------------------------------- */
-  --fs-xs:   11px;
-  --fs-sm:   13px;
-  --fs-base: 15px;
+  --fs-xs:   12px;
+  --fs-sm:   14px;
+  --fs-base: 16px;
   --fs-md:   17px;
   --fs-lg:   20px;
   --fs-xl:   24px;
@@ -1237,7 +1237,7 @@ button:focus-visible .moon-rung-glow {
 :root {
   --tab-font-family: var(--font-display, var(--font-serif));
   --tab-font-style: italic;
-  --tab-font-size: 13px;
+  --tab-font-size: 14px;
   --tab-text-transform: none;
   --tab-letter-spacing: normal;
   --tab-active-color: var(--accent, var(--gold));
