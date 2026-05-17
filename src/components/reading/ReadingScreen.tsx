@@ -964,6 +964,7 @@ function ReadingActions({
   entryMode,
   deckId,
   onExit,
+  createdAt,
 }: {
   isOracle: boolean;
   isLoading: boolean;
