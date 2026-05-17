@@ -16,6 +16,8 @@ import {
   setAiBlocked,
   getUserCreditSummary,
   getUserTrendSeries,
+  getUserEmailHistory,
+  type UserEmailRow,
 } from "@/lib/admin-usage.functions";
 import { formatDateLong, formatDateTime } from "@/lib/dates";
 import {
@@ -98,15 +100,18 @@ function SeekerPage() {
   const [dataset, setDataset] = useState<Dataset>("credits_consumed");
   const [series, setSeries] = useState<Array<{ d: string; value: number }>>([]);
   const [seriesLoading, setSeriesLoading] = useState(false);
+  const [emails, setEmails] = useState<UserEmailRow[] | null>(null);
 
   const reload = async () => {
     const headers = await authHeaders();
-    const [detail, sum] = await Promise.all([
+    const [detail, sum, em] = await Promise.all([
       getSeekerDetail({ data: { userId }, headers }),
       getUserCreditSummary({ data: { userId }, headers }).catch(() => null),
+      getUserEmailHistory({ data: { userId }, headers }).catch(() => ({ emails: [] })),
     ]);
     setData(detail);
     if (sum) setSummary(sum);
+    setEmails(em.emails);
   };
   useEffect(() => { reload().catch(console.error); }, [userId]);
 
