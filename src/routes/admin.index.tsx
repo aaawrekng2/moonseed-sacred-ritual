@@ -2579,6 +2579,28 @@ function UserDetailPage({
                 Resend confirmation
               </ActionBtn>
             )}
+            {user.email && !user.email_confirmed_at && (
+              <ActionBtn
+                tone="primary"
+                disabled={busyAction !== null}
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: `Confirm ${targetLabel} manually?`,
+                    description:
+                      "This bypasses the confirmation email and marks the account as verified immediately.",
+                    confirmLabel: "Confirm",
+                  });
+                  if (!ok) return;
+                  await runAction(
+                    "manual_confirm",
+                    { type: "manual_confirm", targetUserId: user.user_id },
+                    `${targetLabel} marked as confirmed`,
+                  );
+                }}
+              >
+                Confirm manually
+              </ActionBtn>
+            )}
             {!isSelf && (
               <ActionBtn
                 tone="secondary"
