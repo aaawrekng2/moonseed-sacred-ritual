@@ -209,10 +209,7 @@ function NumerologyPage() {
   };
 
   return (
-    <div
-      className="relative flex h-dvh flex-col"
-      style={{ background: "var(--background)" }}
-    >
+    <div className="relative flex h-dvh flex-col bg-cosmos">
       <div
         className="page-header-glass sticky top-0"
         style={{ zIndex: "var(--z-sticky-header)" }}
