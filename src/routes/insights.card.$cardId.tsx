@@ -158,6 +158,7 @@ function CardTraceRoute() {
   }, [cid]);
 
   useEffect(() => {
+    if (!user?.id) return;
     void (async () => {
       try {
         const headers = await getAuthHeaders();
@@ -181,6 +182,7 @@ function CardTraceRoute() {
       }
     })();
   }, [
+    user?.id,
     cid,
     fn,
     trendWin,
