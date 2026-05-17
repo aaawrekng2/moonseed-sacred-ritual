@@ -5,7 +5,6 @@ import appCss from "../styles.css?url";
 import { BottomNav } from "@/components/nav/BottomNav";
 import { useAuth } from "@/lib/auth";
 import { usePreferencesSync } from "@/lib/use-preferences-sync";
-import { OracleModeProvider } from "@/lib/use-oracle-mode";
 // Q24 Fix 1 — useTapToPeek is dormant; Clarity feature was dropped, and
 // "tap empty space → menu opens" is no longer desired UX.
 import { usePWA } from "@/lib/use-pwa";
@@ -275,8 +274,7 @@ function RootComponent() {
       } as never);
   };
   return (
-    <OracleModeProvider>
-      <FloatingMenuProvider>
+    <FloatingMenuProvider>
         <ActiveDeckProvider>
         <ConfirmProvider>
         {/*
@@ -301,8 +299,7 @@ function RootComponent() {
         </div>
         </ConfirmProvider>
         </ActiveDeckProvider>
-      </FloatingMenuProvider>
-    </OracleModeProvider>
+    </FloatingMenuProvider>
   );
 }
 
