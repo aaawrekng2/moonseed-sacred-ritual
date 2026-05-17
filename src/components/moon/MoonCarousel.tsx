@@ -628,6 +628,7 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
             const isCenter = rel === 0;
             const isSelected = selectedRel === d.relative;
             const isGoldDay = goldYmds.includes(d.ymd);
+            const isNewMoonDay = newMoonGoldYmds.includes(d.ymd);
             return (
               <div
                 // Stable key by window slot index — prevents React from
@@ -654,7 +655,9 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
                   // body without affecting surrounding text.
                   filter: isGoldDay
                     ? "sepia(1) saturate(4) hue-rotate(-12deg) brightness(1.15)"
-                    : undefined,
+                    : isNewMoonDay
+                      ? "saturate(0.6) hue-rotate(180deg) brightness(1.05)"
+                      : undefined,
                 }}
                 className={cn(
                   "flex flex-col items-center",
