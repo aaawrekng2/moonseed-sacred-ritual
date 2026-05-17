@@ -1061,6 +1061,7 @@ function ReadingActions({
         question: question || null,
         entry_mode: entryMode ?? "digital",
         deck_id: deckId ?? null,
+        ...(createdAt ? { created_at: createdAt } : {}),
       });
       if (error) {
         toast.error("Couldn't save your reading. Try again?");
