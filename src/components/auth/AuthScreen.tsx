@@ -19,6 +19,7 @@ import { supabase } from "@/lib/supabase";
 import { X, Eye, EyeOff } from "lucide-react";
 import { createBackup, type BackupProgress } from "@/lib/backup-export";
 import { BACKUP_CATEGORIES } from "@/lib/backup-categories";
+import { logUserResendConfirmation } from "@/lib/admin.functions";
 
 type AuthMode =
   | "signin"
@@ -83,6 +84,12 @@ export function AuthScreen({
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Q82 — Login-screen resend confirmation flow.
+  const [showResend, setShowResend] = useState(false);
+  const [resendEmail, setResendEmail] = useState<string>("");
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendError, setResendError] = useState<string | null>(null);
 
   // Download modal state
   const [downloadStage, setDownloadStage] = useState<DownloadStage>("idle");
