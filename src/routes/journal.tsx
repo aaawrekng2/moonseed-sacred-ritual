@@ -4,7 +4,6 @@ import { Archive as ArchiveIcon, BookOpen, Bookmark, CalendarDays, Camera, Ghost
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { usePortraitOnly } from "@/lib/use-portrait-only";
-import { useOracleMode } from "@/lib/use-oracle-mode";
 import { SPREAD_META, isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
 import { getGuideById } from "@/lib/guides";
 import { cn, firstCardName } from "@/lib/utils";
@@ -233,7 +232,6 @@ function JournalPage() {
   // BX — journal stays portrait-only.
   usePortraitOnly();
   const { user, loading: authLoading } = useAuth();
-  const { isOracle } = useOracleMode();
   const { batch: batchParam } = Route.useSearch();
   const navigate = useNavigate();
   // FU-8 — iOS large-to-compact title collapse driven by main scroll.
@@ -673,7 +671,7 @@ function JournalPage() {
       <SearchInput
         value={search}
         onChange={setSearch}
-        placeholder={isOracle ? "Search your practice…" : "Search readings…"}
+        placeholder={"Search readings…"}
         className="mt-2"
       />
 
@@ -805,7 +803,6 @@ function JournalPage() {
         ) : view === "readings" ? (
           <ReadingsList
             items={filtered}
-            isOracle={isOracle}
             photoCounts={photoCounts}
             patternsById={patternsById}
             onOpen={setOpenId}
@@ -823,17 +820,15 @@ function JournalPage() {
           <GalleryView
             items={galleryItems}
             covers={photoCovers}
-            isOracle={isOracle}
             onOpen={setOpenId}
           />
         ) : view === "notes" ? (
-          <NotesView items={noteItems} isOracle={isOracle} onOpen={setOpenId} />
+          <NotesView items={noteItems} onOpen={setOpenId} />
         ) : view === "favorites" ? (
           <ReadingsList
             items={favItems}
             emptyOracle="Nothing yet held close to the heart…"
             emptyPlain="Favorite a reading to see it here."
-            isOracle={isOracle}
             photoCounts={photoCounts}
             patternsById={patternsById}
             onOpen={setOpenId}
@@ -891,7 +886,6 @@ function JournalPage() {
         <ReadingDetail
           reading={openReading}
           onClose={() => setOpenId(null)}
-          isOracle={isOracle}
           tagLibrary={tags}
           onReadingChange={handleReadingChange}
           onTagLibraryChange={handleTagLibraryChange}
@@ -931,7 +925,6 @@ function JournalPage() {
 
 function ReadingsList({
   items,
-  isOracle,
   photoCounts,
   patternsById,
   onOpen,
@@ -942,7 +935,6 @@ function ReadingsList({
   mapsLoading,
 }: {
   items: ReadingRow[];
-  isOracle: boolean;
   photoCounts: Record<string, number>;
   patternsById: Record<string, PatternRow>;
   onOpen: (id: string) => void;
@@ -957,7 +949,6 @@ function ReadingsList({
       <Empty
         oracle={emptyOracle ?? "Your practice awaits its first telling…"}
         plain={emptyPlain ?? "No readings yet. Complete a reading to begin."}
-        isOracle={isOracle}
         cta={emptyCta}
       />
     );
@@ -1325,12 +1316,10 @@ function ReadingCard({
 function GalleryView({
   items,
   covers,
-  isOracle,
   onOpen,
 }: {
   items: ReadingRow[];
   covers: Record<string, string>;
-  isOracle: boolean;
   onOpen: (id: string) => void;
 }) {
   if (items.length === 0) {
@@ -1338,7 +1327,6 @@ function GalleryView({
       <Empty
         oracle="No images have been woven into your practice yet…"
         plain="Add photos to your readings to see them here."
-        isOracle={isOracle}
       />
     );
   }
@@ -1419,11 +1407,9 @@ function GalleryTile({
 
 function NotesView({
   items,
-  isOracle,
   onOpen,
 }: {
   items: ReadingRow[];
-  isOracle: boolean;
   onOpen: (id: string) => void;
 }) {
   if (items.length === 0) {
@@ -1431,7 +1417,6 @@ function NotesView({
       <Empty
         oracle="Your inner voice has not yet spoken here…"
         plain="Add notes to your readings to see them here."
-        isOracle={isOracle}
       />
     );
   }
@@ -1476,15 +1461,13 @@ function NotesView({
 function Empty({
   oracle,
   plain,
-  isOracle,
   cta,
 }: {
   oracle: string;
   plain: string;
-  isOracle: boolean;
   cta?: { label: string; onClick: () => void };
 }) {
-  return <EmptyHero title={isOracle ? oracle : plain} cta={cta} />;
+  return <EmptyHero title={plain} cta={cta} />;
 }
 
 /* ---------- Threads view (Phase 7) ---------- */
@@ -1969,7 +1952,6 @@ function CalendarView({
 function ReadingDetail({
   reading,
   onClose,
-  isOracle,
   tagLibrary,
   onReadingChange,
   onTagLibraryChange,
@@ -1980,7 +1962,6 @@ function ReadingDetail({
 }: {
   reading: ReadingRow;
   onClose: () => void;
-  isOracle: boolean;
   tagLibrary: EnrichmentTag[];
   onReadingChange: (next: {
     id: string;
