@@ -35,7 +35,10 @@ export function CardCellWithBadge({
         width: "100%",
       }}
     >
-      <div ref={ref} style={{ position: "relative", width: "100%" }}>
+      <div
+        ref={ref}
+        style={{ position: "relative", width: "100%", containerType: "inline-size" }}
+      >
         {width > 0 && (
           <CardImage cardId={cardId} size="custom" widthPx={Math.round(width)} />
         )}
