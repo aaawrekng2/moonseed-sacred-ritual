@@ -1452,13 +1452,20 @@ export function ManualSpreadSlots({
       <div
         style={{
           width: "100%",
-          maxWidth: 640,
+          // Q94 #5 — 2-card spreads were stretching to 310px per slot;
+          // cap at 400 so two cards stay a reasonable size with a
+          // natural gap.
+          maxWidth: picks.length <= 2 ? 400 : 640,
           margin: "0 auto",
+          // Q94 #3 — clip horizontal but allow vertical so the top edge
+          // of the dashed slot outline is not cropped.
           overflowX: "hidden",
+          overflowY: "visible",
           // Q73 Fix 9 — give the leftmost/rightmost cells room for their
           // border + glow before the wrapper clips overflow.
           paddingLeft: 12,
           paddingRight: 12,
+          paddingTop: 12,
         }}
       >
         <div
@@ -1468,7 +1475,9 @@ export function ManualSpreadSlots({
             gap: `${gap}px`,
             alignItems: "end",
             width: "100%",
-            marginBottom: 4,
+            // Q94 #4 — give the labels room to breathe so they don't
+            // overlap the bottom edge of the slot outline.
+            marginBottom: 12,
           }}
         >
           {picks.map((pick, i) => (
@@ -1550,11 +1559,13 @@ export function ManualSpreadSlots({
       <div
         style={{
           width: "100%",
-          maxWidth: 640,
+          maxWidth: picks.length <= 2 ? 400 : 640,
           margin: "0 auto",
           overflowX: "hidden",
+          overflowY: "visible",
           paddingLeft: 12,
           paddingRight: 12,
+          paddingTop: 12,
         }}
       >
         {rows.map((rowPicks, rowIdx) => {
@@ -1568,7 +1579,7 @@ export function ManualSpreadSlots({
                   gap: `${gap}px`,
                   alignItems: "end",
                   width: "100%",
-                  marginBottom: 4,
+                  marginBottom: 12,
                 }}
               >
                 {rowPicks.map((pick, idx) => {
