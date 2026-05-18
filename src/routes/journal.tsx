@@ -2230,12 +2230,8 @@ function ReadingDetail({
         <header>
           <div className="flex items-start justify-between gap-3">
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              <span style={{ opacity: "var(--ro-plus-30)" }}>
-                {spreadLabel(reading.spread_type)}
-              </span>
-              <span className="mx-2" aria-hidden>
-                ·
-              </span>
+              {/* Q90 #5 — draw type removed; position labels under each
+                  card already convey the spread. Only date/time shows. */}
               <span style={{ opacity: "var(--ro-plus-20)" }}>
                 {formatDateTime(reading.created_at)}
               </span>
@@ -2280,41 +2276,17 @@ function ReadingDetail({
               )}
             </div>
           </div>
-          {/* Q89-10 — guide line now shows an initial-letter avatar
-              circle next to the name so the oracle guide always has a
-              visible mark even when no image asset exists. */}
-          <div
-            className="mt-2 flex items-center gap-2 font-display text-sm italic text-gold"
-            style={{ opacity: "var(--ro-plus-20)" }}
-          >
-            {reading.moon_phase && (
-              <span>
-                {`${PHASE_GLYPHS[reading.moon_phase] ?? "🌙"} ${reading.moon_phase} ·`}
-              </span>
-            )}
-            <span
-              aria-hidden
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 22,
-                height: 22,
-                borderRadius: 999,
-                background:
-                  "color-mix(in oklab, var(--gold) 18%, transparent)",
-                border:
-                  "1px solid color-mix(in oklab, var(--gold) 32%, transparent)",
-                color: "var(--gold)",
-                fontSize: 11,
-                fontStyle: "normal",
-                lineHeight: 1,
-              }}
+          {/* Q90 #6 — guide name + avatar removed from the header. If a
+              moon phase is associated, keep that line so the lunar
+              context isn't lost; otherwise nothing renders here. */}
+          {reading.moon_phase && (
+            <div
+              className="mt-2 font-display text-sm italic text-gold"
+              style={{ opacity: "var(--ro-plus-20)" }}
             >
-              {(guide.name?.[0] ?? "?").toUpperCase()}
-            </span>
-            <span>{guide.name}</span>
-          </div>
+              {`${PHASE_GLYPHS[reading.moon_phase] ?? "🌙"} ${reading.moon_phase}`}
+            </div>
+          )}
         </header>
 
         {/* Cards — align to top so any reversed-label line break does
