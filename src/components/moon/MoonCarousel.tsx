@@ -842,8 +842,23 @@ export function MoonCarousel({ size = "medium" }: { size?: CarouselSize }) {
           hint that appeared at offset === 0 has been removed —
           seekers don't need a persistent instructional tagline.
           Elevated z-index so it's never covered by the full-moon
-          peak marker or other absolutely-positioned card overlays. */}
-      <div className="relative z-30 mt-2 flex min-h-[44px] w-full items-center justify-center">
+          peak marker or other absolutely-positioned card overlays.
+          Q90 #2 — when the center card sits in a full/new-moon 3-day
+          window, the tinted box extends below the cards row and the
+          Return button would otherwise overlap phase text. Push the
+          button further down in that case so it sits clearly below
+          the tinted area. */}
+      <div
+        className="relative z-30 flex min-h-[44px] w-full items-center justify-center"
+        style={{
+          marginTop:
+            centerDay &&
+            (goldYmds.includes(centerDay.ymd) ||
+              newMoonGoldYmds.includes(centerDay.ymd))
+              ? 32
+              : 8,
+        }}
+      >
         {offset !== 0 && (
           <button
             type="button"

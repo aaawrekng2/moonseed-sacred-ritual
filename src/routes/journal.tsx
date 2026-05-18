@@ -2061,6 +2061,16 @@ function ReadingDetail({
   // dominate the entire screen. Mobile keeps responsive sizing.
   const ezMaxCardWidth = !isMobile && ezCardCount === 1 ? 380 : 9999;
   let ezCardWidthPx = Math.min(ezCardWidthRaw, ezMaxCardWidth);
+  // Q90 #3 — guarantee the rendered row never exceeds the measured
+  // container width on mobile. Without this cap, a 3-card spread on a
+  // 375px viewport overflows the left edge because ezBaseDivisor's 0.7
+  // multiplier scales cards larger than 1/n of the row.
+  if (!swipeMobile) {
+    const cap = Math.floor(
+      (measuredRowWidth - ezGapPx * (cardsPerRow - 1)) / cardsPerRow,
+    );
+    if (cap > 0) ezCardWidthPx = Math.min(ezCardWidthPx, cap);
+  }
   // Q89-7 — when the row is horizontally swipeable on mobile (4+ cards),
   // stop squeezing each card to fit; use a fixed readable width and let
   // the user scroll. Without this, a 10-card celtic-cross row collapses
@@ -2181,7 +2191,7 @@ function ReadingDetail({
     <FullScreenSheet open onClose={onClose} entry="fade" showCloseButton>
       {/* Q89-9 — trimmed top padding (was +56px) so the header isn't
           buried under a large empty band on mobile. */}
-      <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+20px)]">
+      <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+12px)] overflow-x-hidden">
         {isArchived && (
           <div
             role="status"
@@ -2220,12 +2230,8 @@ function ReadingDetail({
         <header>
           <div className="flex items-start justify-between gap-3">
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              <span style={{ opacity: "var(--ro-plus-30)" }}>
-                {spreadLabel(reading.spread_type)}
-              </span>
-              <span className="mx-2" aria-hidden>
-                ·
-              </span>
+              {/* Q90 #5 — draw type removed; position labels under each
+                  card already convey the spread. Only date/time shows. */}
               <span style={{ opacity: "var(--ro-plus-20)" }}>
                 {formatDateTime(reading.created_at)}
               </span>
@@ -2270,41 +2276,17 @@ function ReadingDetail({
               )}
             </div>
           </div>
-          {/* Q89-10 — guide line now shows an initial-letter avatar
-              circle next to the name so the oracle guide always has a
-              visible mark even when no image asset exists. */}
-          <div
-            className="mt-2 flex items-center gap-2 font-display text-sm italic text-gold"
-            style={{ opacity: "var(--ro-plus-20)" }}
-          >
-            {reading.moon_phase && (
-              <span>
-                {`${PHASE_GLYPHS[reading.moon_phase] ?? "🌙"} ${reading.moon_phase} ·`}
-              </span>
-            )}
-            <span
-              aria-hidden
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 22,
-                height: 22,
-                borderRadius: 999,
-                background:
-                  "color-mix(in oklab, var(--gold) 18%, transparent)",
-                border:
-                  "1px solid color-mix(in oklab, var(--gold) 32%, transparent)",
-                color: "var(--gold)",
-                fontSize: 11,
-                fontStyle: "normal",
-                lineHeight: 1,
-              }}
+          {/* Q90 #6 — guide name + avatar removed from the header. If a
+              moon phase is associated, keep that line so the lunar
+              context isn't lost; otherwise nothing renders here. */}
+          {reading.moon_phase && (
+            <div
+              className="mt-2 font-display text-sm italic text-gold"
+              style={{ opacity: "var(--ro-plus-20)" }}
             >
-              {(guide.name?.[0] ?? "?").toUpperCase()}
-            </span>
-            <span>{guide.name}</span>
-          </div>
+              {`${PHASE_GLYPHS[reading.moon_phase] ?? "🌙"} ${reading.moon_phase}`}
+            </div>
+          )}
         </header>
 
         {/* Cards — align to top so any reversed-label line break does
@@ -2315,7 +2297,7 @@ function ReadingDetail({
         <div
           ref={cardRowRef}
           className={cn(
-            "mt-6 flex items-start gap-2",
+            "mt-3 flex items-start gap-2",
             swipeMobile
               ? "overflow-x-auto snap-x snap-mandatory -mx-4 px-4 pb-2 justify-start"
               : "justify-center",
