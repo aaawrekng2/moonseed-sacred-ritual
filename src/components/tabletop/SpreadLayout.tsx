@@ -524,6 +524,7 @@ function SpreadContent({
       sizing={sizing}
       isRevealPhase={isRevealPhase}
       onZoom={onZoom}
+      spread={spread}
     />
   );
 }
