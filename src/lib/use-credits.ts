@@ -37,8 +37,8 @@ export function useCredits(): CreditsState {
       setLoading(false);
       return;
     }
-    const { data } = await supabase
-      .from("user_preferences")
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase.from("user_preferences") as any)
       .select("credits_balance, credits_next_refill_at, credits_subscription_type")
       .eq("user_id", user.id)
       .maybeSingle();
