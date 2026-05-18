@@ -35,6 +35,7 @@ import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
 import { Route as InsightsYearOfLunationsRouteImport } from './routes/insights.year-of-lunations'
 import { Route as AdminUsageRouteImport } from './routes/admin.usage'
+import { Route as LovableEmailFeedbackDigestRouteImport } from './routes/lovable/email/feedback-digest'
 import { Route as InsightsRecapLunationStartRouteImport } from './routes/insights.recap.$lunationStart'
 import { Route as InsightsCardCardIdRouteImport } from './routes/insights.card.$cardId'
 import { Route as HelpCategoryArticleRouteImport } from './routes/help.$category.$article'
@@ -175,6 +176,12 @@ const AdminUsageRoute = AdminUsageRouteImport.update({
   path: '/usage',
   getParentRoute: () => AdminRoute,
 } as any)
+const LovableEmailFeedbackDigestRoute =
+  LovableEmailFeedbackDigestRouteImport.update({
+    id: '/lovable/email/feedback-digest',
+    path: '/lovable/email/feedback-digest',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const InsightsRecapLunationStartRoute =
   InsightsRecapLunationStartRouteImport.update({
     id: '/recap/$lunationStart',
@@ -255,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
   '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
+  '/lovable/email/feedback-digest': typeof LovableEmailFeedbackDigestRoute
   '/admin/usage/users/$userId': typeof AdminUsageUsersUserIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -291,6 +299,7 @@ export interface FileRoutesByTo {
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
   '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
+  '/lovable/email/feedback-digest': typeof LovableEmailFeedbackDigestRoute
   '/admin/usage/users/$userId': typeof AdminUsageUsersUserIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -329,6 +338,7 @@ export interface FileRoutesById {
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
   '/insights/recap/$lunationStart': typeof InsightsRecapLunationStartRoute
+  '/lovable/email/feedback-digest': typeof LovableEmailFeedbackDigestRoute
   '/admin/usage/users/$userId': typeof AdminUsageUsersUserIdRoute
   '/api/public/detect-weaves/status': typeof ApiPublicDetectWeavesStatusRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -368,6 +378,7 @@ export interface FileRouteTypes {
     | '/help/$category/$article'
     | '/insights/card/$cardId'
     | '/insights/recap/$lunationStart'
+    | '/lovable/email/feedback-digest'
     | '/admin/usage/users/$userId'
     | '/api/public/detect-weaves/status'
     | '/lovable/email/auth/preview'
@@ -404,6 +415,7 @@ export interface FileRouteTypes {
     | '/help/$category/$article'
     | '/insights/card/$cardId'
     | '/insights/recap/$lunationStart'
+    | '/lovable/email/feedback-digest'
     | '/admin/usage/users/$userId'
     | '/api/public/detect-weaves/status'
     | '/lovable/email/auth/preview'
@@ -441,6 +453,7 @@ export interface FileRouteTypes {
     | '/help/$category/$article'
     | '/insights/card/$cardId'
     | '/insights/recap/$lunationStart'
+    | '/lovable/email/feedback-digest'
     | '/admin/usage/users/$userId'
     | '/api/public/detect-weaves/status'
     | '/lovable/email/auth/preview'
@@ -462,6 +475,7 @@ export interface RootRouteChildren {
   StoriesRoute: typeof StoriesRouteWithChildren
   ThreadsRoute: typeof ThreadsRouteWithChildren
   ApiPublicDetectWeavesRoute: typeof ApiPublicDetectWeavesRouteWithChildren
+  LovableEmailFeedbackDigestRoute: typeof LovableEmailFeedbackDigestRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
@@ -650,6 +664,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/usage'
       preLoaderRoute: typeof AdminUsageRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/lovable/email/feedback-digest': {
+      id: '/lovable/email/feedback-digest'
+      path: '/lovable/email/feedback-digest'
+      fullPath: '/lovable/email/feedback-digest'
+      preLoaderRoute: typeof LovableEmailFeedbackDigestRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/insights/recap/$lunationStart': {
       id: '/insights/recap/$lunationStart'
@@ -844,6 +865,7 @@ const rootRouteChildren: RootRouteChildren = {
   StoriesRoute: StoriesRouteWithChildren,
   ThreadsRoute: ThreadsRouteWithChildren,
   ApiPublicDetectWeavesRoute: ApiPublicDetectWeavesRouteWithChildren,
+  LovableEmailFeedbackDigestRoute: LovableEmailFeedbackDigestRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
