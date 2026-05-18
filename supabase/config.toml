@@ -5,3 +5,8 @@ project_id = "zsbejabwxiarclgqeiqv"
 # internally and does not trust callers.
 [functions.process-variant-queue]
 verify_jwt = false
+
+# Q103 — Stripe webhook. Stripe does not send a Supabase JWT;
+# security comes from STRIPE_WEBHOOK_SECRET signature verification.
+[functions.stripe-webhook]
+verify_jwt = false
