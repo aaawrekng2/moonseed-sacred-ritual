@@ -391,6 +391,7 @@ export const getCardFrequency = createServerFn({ method: "GET" })
       for (let i = 0; i < ids.length; i++) {
         const cid = ids[i];
         if (cid < 0 || cid >= 78) continue;
+        if (data.reversedOnly && !orients[i]) continue;
         counts[cid] += 1;
         totalDraws += 1;
         if (orients[i]) reversedCounts[cid] += 1;
