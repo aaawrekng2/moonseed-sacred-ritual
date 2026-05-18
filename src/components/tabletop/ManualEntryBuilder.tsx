@@ -567,22 +567,24 @@ export function ManualEntryBuilder({
               </PopoverContent>
             </Popover>
           </div>
-          <span
-            style={{
-              fontFamily: "var(--font-display, var(--font-serif))",
-              fontStyle: "italic",
-              fontSize: "var(--text-caption)",
-              letterSpacing: "0.2em",
-              textTransform: "uppercase",
-              color: "var(--gold)",
-              opacity: 0.7,
-              display: "block",
-              textAlign: "center",
-              marginBottom: 8,
-            }}
-          >
-            Your question for the cards
-          </span>
+          {question.trim().length > 0 && (
+            <span
+              style={{
+                fontFamily: "var(--font-display, var(--font-serif))",
+                fontStyle: "italic",
+                fontSize: "var(--text-caption)",
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                color: "var(--gold)",
+                opacity: 0.7,
+                display: "block",
+                textAlign: "center",
+                marginBottom: 8,
+              }}
+            >
+              Your question for the cards
+            </span>
+          )}
           {/* Q17 Fix 4 — taller textarea (3 rows default), drag-resize. */}
           <textarea
             value={question}
