@@ -82,10 +82,20 @@ function writeIdx(key: string, next: number) {
 /**
  * Returns the next saying for a given card and advances the appropriate
  * counter. `maybe` is bucketed with `yes` per spec voice.
+ *
+ * Q95 — reversal logic: a reversed card flips the verdict.
+ *   - tendency "yes"   reversed → NEGATIVE
+ *   - tendency "no"    reversed → AFFIRMATIVE
+ *   - tendency "maybe" reversed → NEGATIVE (neutral shifts toward no)
  */
-export function nextYesNoSaying(cardId: number): string {
+export function nextYesNoSaying(cardId: number, isReversed = false): string {
   const tendency = TAROT_MEANINGS[cardId]?.yesNo ?? "maybe";
-  if (tendency === "no") {
+  // Resolve the effective verdict after reversal.
+  let verdict: "yes" | "no";
+  if (tendency === "yes") verdict = isReversed ? "no" : "yes";
+  else if (tendency === "no") verdict = isReversed ? "yes" : "no";
+  else verdict = isReversed ? "no" : "yes"; // maybe → yes upright, no reversed
+  if (verdict === "no") {
     const idx = readIdx(NEG_KEY, NEGATIVE_SAYINGS.length);
     const saying = NEGATIVE_SAYINGS[idx];
     writeIdx(NEG_KEY, (idx + 1) % NEGATIVE_SAYINGS.length);
