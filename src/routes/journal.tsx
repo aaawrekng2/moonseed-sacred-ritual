@@ -2060,7 +2060,14 @@ function ReadingDetail({
   // Q44 Fix 4 — cap desktop single-card width so it does not
   // dominate the entire screen. Mobile keeps responsive sizing.
   const ezMaxCardWidth = !isMobile && ezCardCount === 1 ? 380 : 9999;
-  const ezCardWidthPx = Math.min(ezCardWidthRaw, ezMaxCardWidth);
+  let ezCardWidthPx = Math.min(ezCardWidthRaw, ezMaxCardWidth);
+  // Q89-7 — when the row is horizontally swipeable on mobile (4+ cards),
+  // stop squeezing each card to fit; use a fixed readable width and let
+  // the user scroll. Without this, a 10-card celtic-cross row collapses
+  // to ~40px thumbnails.
+  if (swipeMobile) {
+    ezCardWidthPx = ezCardCount >= 6 ? 96 : 110;
+  }
   // DB-3.2 — deck override picker.
   const [decks, setDecks] = useState<CustomDeck[]>([]);
   const [deckMenuOpen, setDeckMenuOpen] = useState(false);
