@@ -7,7 +7,6 @@ import {
   getCardName,
   cardSuit,
   cardType,
-  cardNumerologyReduced,
 } from "@/lib/tarot";
 import { CardImage } from "@/components/card/CardImage";
 import { CardCellWithBadge } from "./CardCellWithBadge";
@@ -67,8 +66,19 @@ function groupKey(cardId: number, groupBy: CardGroupBy): string {
     case "suit":
       return cardSuit(cardId);
     case "number": {
-      const n = cardNumerologyReduced(cardId);
-      return n === null ? "Courts" : String(n);
+      // Q94 #7 — group by raw rank, NOT numerology reduction. Tens
+      // belong with Tens, not with Aces.
+      if (cardId <= 21) return "Majors";
+      const posInSuit = (cardId - 22) % 14;
+      if (posInSuit <= 9) {
+        const rankNames = [
+          "Aces", "Twos", "Threes", "Fours", "Fives",
+          "Sixes", "Sevens", "Eights", "Nines", "Tens",
+        ];
+        return rankNames[posInSuit];
+      }
+      const courtNames = ["Pages", "Knights", "Queens", "Kings"];
+      return courtNames[posInSuit - 10];
     }
     case "type":
       return cardType(cardId);
@@ -80,6 +90,12 @@ function groupKey(cardId: number, groupBy: CardGroupBy): string {
 
 const SUIT_ORDER = ["Majors", "Wands", "Cups", "Swords", "Pentacles"];
 const TYPE_ORDER = ["Major", "Court", "Pip"];
+const RANK_ORDER = [
+  "Majors",
+  "Aces", "Twos", "Threes", "Fours", "Fives",
+  "Sixes", "Sevens", "Eights", "Nines", "Tens",
+  "Pages", "Knights", "Queens", "Kings",
+];
 
 function compareGroupKeys(groupBy: CardGroupBy, a: string, b: string): number {
   if (groupBy === "suit") {
@@ -89,9 +105,7 @@ function compareGroupKeys(groupBy: CardGroupBy, a: string, b: string): number {
     return TYPE_ORDER.indexOf(a) - TYPE_ORDER.indexOf(b);
   }
   if (groupBy === "number") {
-    if (a === "Courts") return 1;
-    if (b === "Courts") return -1;
-    return Number(a) - Number(b);
+    return RANK_ORDER.indexOf(a) - RANK_ORDER.indexOf(b);
   }
   return 0;
 }
@@ -323,11 +337,12 @@ function GridView({ entries }: { entries: Array<{ cardId: number; count: number 
     // below the card grid; the card images + count badges carry their
     // own identity and the duplicate list felt noisy.
     <div style={{ ...gridStyle, alignItems: "end" }}>
-      {visible.map((e) => (
+      {visible.map((e, index) => (
         <CardCellWithBadge
           key={e.cardId}
           cardId={e.cardId}
           count={e.count}
+          eager={index < 10}
           onClick={() =>
             navigate({ to: "/insights/card/$cardId", params: { cardId: String(e.cardId) } })
           }
@@ -352,14 +367,14 @@ function DeckGrid({ entries }: { entries: Array<{ cardId: number; count: number 
         gap: 4,
       }}
     >
-      {entries.map((e) => (
-        <DeckCell key={e.cardId} cardId={e.cardId} count={e.count} />
+      {entries.map((e, index) => (
+        <DeckCell key={e.cardId} cardId={e.cardId} count={e.count} eager={index < 10} />
       ))}
     </div>
   );
 }
 
-function DeckCell({ cardId, count }: { cardId: number; count: number }) {
+function DeckCell({ cardId, count, eager }: { cardId: number; count: number; eager?: boolean }) {
   const navigate = useNavigate();
   const { ref, width } = useElementWidth<HTMLButtonElement>();
   return (
@@ -387,6 +402,7 @@ function DeckCell({ cardId, count }: { cardId: number; count: number }) {
           size="custom"
           widthPx={Math.round(width)}
           ariaLabel={getCardName(cardId)}
+          eager={eager}
           style={{ width: "100%", display: "block" }}
         />
       )}

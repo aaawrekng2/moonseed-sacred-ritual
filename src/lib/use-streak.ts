@@ -79,6 +79,11 @@ export function useStreak(): {
   useEffect(() => {
     if (authLoading) return;
     void loadStreak();
+    // Q94 #1 — also recompute from readings on mount so the streak
+    // never displays a stale cached value (e.g. from before a backdated
+    // entry or a missed midnight roll-over).
+    void recomputeStreak();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading, loadStreak]);
 
   // 9-6-N — listen for cross-instance updates so the home page's
