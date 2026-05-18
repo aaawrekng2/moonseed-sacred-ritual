@@ -87,7 +87,7 @@ export function ReadingRow({
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
             fontSize: "var(--text-body)",
-            color: "var(--color-foreground)",
+            color: "var(--gold)",
             opacity: 1,
             display: "block",
             overflow: "hidden",
