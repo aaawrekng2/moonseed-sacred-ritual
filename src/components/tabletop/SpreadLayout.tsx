@@ -1447,22 +1447,17 @@ export function ManualSpreadSlots({
     // use cellW * 2 so any reasonable card aspect fits without top-crop.
     const cellWRaw = Math.floor((availW - gap * (cols - 1)) / cols);
     const cellW = Math.min(cellWRaw, 120);
-    const cardAreaH = Math.round(cellW * 2);
+    // Q95 #1 — was cellW * 2 (too tall); 1.6 matches tarot 5:8 ratio
+    // and removes empty space above/below the slot.
+    const cardAreaH = Math.round(cellW * 1.6);
     return (
       <div
         style={{
           width: "100%",
-          // Q94 #5 — 2-card spreads were stretching to 310px per slot;
-          // cap at 400 so two cards stay a reasonable size with a
-          // natural gap.
           maxWidth: picks.length <= 2 ? 400 : 640,
           margin: "0 auto",
-          // Q94 #3 — clip horizontal but allow vertical so the top edge
-          // of the dashed slot outline is not cropped.
           overflowX: "hidden",
           overflowY: "visible",
-          // Q73 Fix 9 — give the leftmost/rightmost cells room for their
-          // border + glow before the wrapper clips overflow.
           paddingLeft: 12,
           paddingRight: 12,
           paddingTop: 12,
@@ -1475,8 +1470,6 @@ export function ManualSpreadSlots({
             gap: `${gap}px`,
             alignItems: "end",
             width: "100%",
-            // Q94 #4 — give the labels room to breathe so they don't
-            // overlap the bottom edge of the slot outline.
             marginBottom: 12,
           }}
         >
@@ -1547,7 +1540,8 @@ export function ManualSpreadSlots({
         : 320;
     const cellWRaw = Math.floor((availW - gap * (cols - 1)) / cols);
     const cellW = Math.min(cellWRaw, 120);
-    const cardAreaH = Math.round(cellW * 2);
+    // Q95 #1 — was cellW * 2 (too tall); 1.6 matches tarot card aspect.
+    const cardAreaH = Math.round(cellW * 1.6);
     const rows: ManualSlotPick[][] = [];
     if (picks.length <= 5) {
       rows.push(picks);
@@ -1579,7 +1573,9 @@ export function ManualSpreadSlots({
                   gap: `${gap}px`,
                   alignItems: "end",
                   width: "100%",
-                  marginBottom: 12,
+                  // Q95 #1 — was 12; tighter so multi-row custom spreads
+                  // don't show a canyon between row 1 and row 2.
+                  marginBottom: 4,
                 }}
               >
                 {rowPicks.map((pick, idx) => {
