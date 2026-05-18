@@ -1004,7 +1004,7 @@ function CenterCard({
           >
             {info.phase}
           </p>
-          {/* Q87 — secondary tier: illumination + zodiac, single line. */}
+          {/* Q89 — split illumination and zodiac onto separate lines. */}
           <p
             className="whitespace-nowrap"
             style={{
@@ -1015,7 +1015,19 @@ function CenterCard({
               opacity: 0.6,
             }}
           >
-            {info.illumination}% illuminated · in {moonSign}
+            {info.illumination}% illuminated
+          </p>
+          <p
+            className="whitespace-nowrap"
+            style={{
+              fontSize: `${Math.max(12, Math.round(baseFontPx * 0.9))}px`,
+              lineHeight: 1.15,
+              margin: 0,
+              color: "var(--color-foreground)",
+              opacity: 0.6,
+            }}
+          >
+            in {moonSign}
           </p>
         </div>
       </div>
