@@ -1076,9 +1076,9 @@ export function Tabletop({
             color: "var(--color-foreground)",
             opacity: 0.55,
             WebkitMaskImage:
-              "linear-gradient(to right, transparent 0%, black 30%)",
+              "linear-gradient(to right, black 70%, transparent 100%)",
             maskImage:
-              "linear-gradient(to right, transparent 0%, black 30%)",
+              "linear-gradient(to right, black 70%, transparent 100%)",
           }}
         >
           {question.trim()}
