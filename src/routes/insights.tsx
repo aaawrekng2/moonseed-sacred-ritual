@@ -89,12 +89,17 @@ function InsightsRoute() {
     ? (search.tab as Tab)
     : "overview";
   const [tab, setTab] = useState<Tab>(initialTab);
-  // Q60 Fix 9 — Hide Recap tab entirely when moon features disabled.
-  const visibleTabs = moonEnabled ? TABS : TABS.filter((t) => t.id !== "recap");
-  // If user landed on /insights?tab=recap with moon features off, fall back.
+  // Q99 #5 — hide Recap when moon disabled, and hide Stories when no patterns.
+  const [patternCount, setPatternCount] = useState<number>(0);
+  const visibleTabs = TABS.filter((t) => {
+    if (t.id === "recap" && !moonEnabled) return false;
+    if (t.id === "stories" && patternCount === 0) return false;
+    return true;
+  });
   useEffect(() => {
     if (!moonEnabled && tab === "recap") setTab("overview");
-  }, [moonEnabled, tab]);
+    if (tab === "stories" && patternCount === 0) setTab("overview");
+  }, [moonEnabled, tab, patternCount]);
   const activeTabLabel = visibleTabs.find((t) => t.id === tab)?.label ?? "";
   const pageTitle = activeTabLabel ? `Insights: ${activeTabLabel}` : "Insights";
   const [userId, setUserId] = useState<string | null>(null);
