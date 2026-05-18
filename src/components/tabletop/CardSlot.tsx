@@ -714,7 +714,8 @@ export function CardSlot({
         {/* FA-4 — CardImage owns the face/back rendering and the flip
             animation. CardSlot keeps the surrounding state machines
             (drag, flight, consecration) untouched. */}
-        <div className="absolute inset-0">
+        {/* Q95 #8 — breathing glow on face-down cards waiting to be flipped. */}
+        <div className={card.revealed ? "absolute inset-0" : "absolute inset-0 animate-breathe-glow"}>
           <CardImage
             cardId={faceIndex}
             variant="face"

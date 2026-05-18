@@ -1055,6 +1055,35 @@ export function Tabletop({
       >
         <X size={18} strokeWidth={1.5} />
       </button>
+      {/* Q95 #7 — single-line question preview directly below the X button,
+          right-aligned, with a right-edge fade mask. */}
+      {question && question.trim().length > 0 && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: "calc(env(safe-area-inset-top, 0px) + 40px)",
+            right: "calc(env(safe-area-inset-right, 0px) + 12px)",
+            zIndex: 60,
+            maxWidth: 200,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textAlign: "right",
+            pointerEvents: "none",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-caption)",
+            color: "var(--color-foreground)",
+            opacity: 0.55,
+            WebkitMaskImage:
+              "linear-gradient(to right, transparent 0%, black 30%)",
+            maskImage:
+              "linear-gradient(to right, transparent 0%, black 30%)",
+          }}
+        >
+          {question.trim()}
+        </div>
+      )}
       {/* Q20 Fix 4 — Unified header strip: toggle (left) + stepper
           (centered) on the same row. */}
       <div
