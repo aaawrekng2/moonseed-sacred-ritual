@@ -199,7 +199,9 @@ function NumberCell({ value, label }: { value: Numerogram; label: string }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        justifyContent: "space-between",
         gap: 6,
+        height: "100%",
       }}
     >
       <span
@@ -231,6 +233,7 @@ function NumberCell({ value, label }: { value: Numerogram; label: string }) {
           fontStyle: "italic",
           fontSize: "var(--text-body-sm)",
           textAlign: "center",
+          marginTop: "auto",
         }}
       >
         {meaning.keyword}
@@ -243,6 +246,7 @@ function NumberCell({ value, label }: { value: Numerogram; label: string }) {
             maxWidth: 220,
             display: "flex",
             justifyContent: "center",
+            marginTop: "auto",
           }}
         >
           {thumbW > 0 && (
