@@ -725,14 +725,10 @@ function ReadingsList({
             <ReadingRow
               key={`${a.readingId}-${a.date}`}
               readingId={a.readingId}
-              question={
-                a.question ??
-                (a.spreadType
-                  ? `${a.spreadType} · ${formatDateShort(a.date)}`
-                  : formatDateShort(a.date))
-              }
+              question={a.question ?? null}
               cardIds={a.cardIds}
               createdAt={a.date}
+              spreadType={a.spreadType ?? null}
               onOpen={onOpen}
             />
           ))}
