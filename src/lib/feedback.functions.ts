@@ -36,8 +36,103 @@ export const submitFeedback = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    return { id: (row as { id: string }).id };
+    const postId = (row as { id: string }).id;
+
+    // Q96 #1 — Best-effort: notify instant-frequency admins by email.
+    // Mirrors maybeNotifyAdminsByEmail in detect-weaves-alerts.server.ts.
+    try {
+      await notifyInstantAdmins({
+        title: data.title.trim(),
+        description: data.description?.trim() || null,
+        category: data.category,
+      });
+    } catch (e) {
+      console.warn(
+        "[feedback] instant admin notify skipped:",
+        e instanceof Error ? e.message : String(e),
+      );
+    }
+
+    return { id: postId };
   });
+
+async function notifyInstantAdmins(post: {
+  title: string;
+  description: string | null;
+  category: "bug" | "feature";
+}): Promise<void> {
+  const { data: admins } = await supabaseAdmin
+    .from("user_preferences")
+    .select(
+      "user_id, feedback_notification_email, feedback_notification_frequency",
+    )
+    .in("role", ["admin", "super_admin"])
+    .eq("feedback_notifications_enabled", true)
+    .eq("feedback_notification_frequency", "instant");
+  const rows =
+    (admins ?? []) as Array<{
+      user_id: string;
+      feedback_notification_email: string | null;
+      feedback_notification_frequency: string;
+    }>;
+  if (rows.length === 0) return;
+
+  const recipients: string[] = [];
+  for (const r of rows) {
+    if (r.feedback_notification_email) {
+      recipients.push(r.feedback_notification_email);
+      continue;
+    }
+    try {
+      const { data } = await supabaseAdmin.auth.admin.getUserById(r.user_id);
+      const e = data?.user?.email;
+      if (e) recipients.push(e);
+    } catch {
+      // ignore
+    }
+  }
+  if (recipients.length === 0) return;
+
+  const subject = `🎉 New Tarot Seed feedback: ${post.title}`;
+  const descBlock = post.description
+    ? `<p>${escapeHtml(post.description)}</p>`
+    : "";
+  const html = `<p><strong>[${post.category.toUpperCase()}]</strong></p><h2>${escapeHtml(
+    post.title,
+  )}</h2>${descBlock}<p><a href="/admin">View in admin dashboard</a></p>`;
+  const text = `[${post.category.toUpperCase()}] ${post.title}${
+    post.description ? `\n\n${post.description}` : ""
+  }\n\nView in admin dashboard: /admin`;
+
+  for (const to of recipients) {
+    const { error } = await supabaseAdmin.rpc("enqueue_email" as never, {
+      p_queue: "transactional_emails",
+      p_payload: {
+        to,
+        subject,
+        html,
+        text,
+        template_name: "feedback_notification",
+      },
+    } as never);
+    if (error) {
+      console.warn(
+        "[feedback] enqueue_email skipped:",
+        error.message,
+      );
+      return;
+    }
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 /* ---------- getFeedbackBoard ---------- */
 

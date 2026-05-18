@@ -1175,7 +1175,7 @@ function FullMoonMarker({
         // Sit on the top quarter of the cards rather than the very top
         // edge so the marker reads as attached to the seam, not floating
         // above the carousel.
-        top: "25%",
+        top: "8%",
         left,
         transform: "translateX(-50%)",
         pointerEvents: "none",
@@ -1264,7 +1264,7 @@ function NewMoonMarker({
       title={tooltip}
       style={{
         position: "absolute",
-        top: "25%",
+        top: "8%",
         left,
         transform: "translateX(-50%)",
         pointerEvents: "none",
