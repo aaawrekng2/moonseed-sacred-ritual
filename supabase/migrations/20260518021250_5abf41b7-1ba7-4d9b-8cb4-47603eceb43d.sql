@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.purge_stale_anonymous_users() FROM PUBLIC, anon, authenticated;

@@ -1574,6 +1574,7 @@ export type Database = {
         Returns: number
       }
       purge_archived_readings: { Args: never; Returns: number }
+      purge_stale_anonymous_users: { Args: never; Returns: number }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
