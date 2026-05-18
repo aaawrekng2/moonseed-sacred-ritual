@@ -170,6 +170,12 @@ export function SpreadLayout({
         // Q77 #3 — prevent a few px of horizontal scroll on 10-card
         // custom spreads (cells + 12px side padding can exceed viewport).
         overflowX: "hidden",
+        // Q94 #2 — clamp the cast/reveal layout to 1280px on wide
+        // monitors so cards don't stretch across a 1920px viewport.
+        maxWidth: 1280,
+        margin: "0 auto",
+        left: 0,
+        right: 0,
       }}
     >
       {/* Q50 Fix 3 — close X for cast/flip phase (Tabletop's X is gone,
