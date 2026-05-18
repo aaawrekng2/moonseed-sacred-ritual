@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import type { SpreadMode } from "@/lib/spreads";
 
@@ -103,11 +103,33 @@ export function SpreadIconsRow({
 }: {
   onSelect?: (spread: SpreadMode) => void;
 }) {
+  // Q93 #6 — Yes/No disclaimer modal.
+  // "Got it" dismisses for the session (state only).
+  // "Don't show for 2 weeks" stores an expiry timestamp in localStorage.
+  const [showYesNoModal, setShowYesNoModal] = useState(false);
+  const [sessionDismissed, setSessionDismissed] = useState(false);
+  const handleSelect = (id: SpreadMode) => {
+    if (id === "yes_no" && !sessionDismissed) {
+      try {
+        const raw = window.localStorage.getItem("tarotseed:yesno-disclaimer-until");
+        const until = raw ? Number(raw) : 0;
+        if (!Number.isFinite(until) || Date.now() >= until) {
+          setShowYesNoModal(true);
+          return;
+        }
+      } catch {
+        setShowYesNoModal(true);
+        return;
+      }
+    }
+    onSelect?.(id);
+  };
   // EG-3 — hover tooltips removed. The first-time onboarding hint
   // ("Tap a draw type to begin.") is mounted from Home via the shared
   // <Hint /> component, anchored to this row. Per-spread sr-only hints
   // remain for screen readers.
   return (
+    <>
     <div
       className="flex justify-between px-4 pb-4"
       style={{
@@ -121,7 +143,7 @@ export function SpreadIconsRow({
         <button
           key={id}
           type="button"
-          onClick={() => onSelect?.(id)}
+          onClick={() => handleSelect(id)}
           aria-describedby={`spread-hint-${id}`}
           className={cn(
             "flex flex-col items-center justify-center gap-1.5 py-2 transition-colors",
@@ -146,5 +168,125 @@ export function SpreadIconsRow({
         </button>
       ))}
     </div>
+    {showYesNoModal && (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="yesno-disclaimer-title"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 100,
+          background: "rgba(0,0,0,0.7)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 20,
+        }}
+        onClick={() => setShowYesNoModal(false)}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: "var(--surface-card)",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: 16,
+            maxWidth: 380,
+            width: "100%",
+            padding: 24,
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+          }}
+        >
+          <h2
+            id="yesno-disclaimer-title"
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-body-lg)",
+              color: "var(--gold)",
+              margin: 0,
+            }}
+          >
+            A note about Yes/No readings
+          </h2>
+          <p
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: "var(--text-body)",
+              lineHeight: 1.6,
+              color: "var(--foreground)",
+              opacity: 0.9,
+              margin: 0,
+            }}
+          >
+            Yes/No readings are for reflection and entertainment only. They
+            offer a moment of pause, not a definitive answer. Never use a
+            tarot reading to make important life, health, financial, or
+            legal decisions. The cards are a mirror, not an oracle.
+          </p>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              marginTop: 4,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setSessionDismissed(true);
+                setShowYesNoModal(false);
+                onSelect?.("yes_no");
+              }}
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body)",
+                color: "var(--gold)",
+                background: "none",
+                border: "none",
+                padding: "8px 0",
+                cursor: "pointer",
+              }}
+            >
+              Got it
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  const expiry = Date.now() + 14 * 24 * 60 * 60 * 1000;
+                  window.localStorage.setItem(
+                    "tarotseed:yesno-disclaimer-until",
+                    String(expiry),
+                  );
+                } catch {
+                  // ignore
+                }
+                setSessionDismissed(true);
+                setShowYesNoModal(false);
+                onSelect?.("yes_no");
+              }}
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body-sm)",
+                color: "var(--muted-foreground)",
+                background: "none",
+                border: "none",
+                padding: "4px 0",
+                cursor: "pointer",
+                opacity: 0.7,
+              }}
+            >
+              Don't show for 2 weeks
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
