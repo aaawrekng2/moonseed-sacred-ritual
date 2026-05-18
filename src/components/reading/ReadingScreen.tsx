@@ -450,7 +450,16 @@ export function ReadingScreen({
         {/* Q14 Fix 2 — question moved BELOW the card strip so the
             cards lead the eye, then the seeker re-reads what they asked. */}
         {question && question.trim() && (
-          <div className="mx-auto w-full max-w-md">
+          <div
+            className="mx-auto w-full max-w-md"
+            style={
+              // Q95 — Yes/No: collapse all top space above "Your question"
+              // after the single card flips. No top padding, no top margin.
+              spread === "yes_no"
+                ? { marginTop: "calc(-1 * 0.75rem)", paddingTop: 0 }
+                : undefined
+            }
+          >
             <p
               className="text-center"
               style={{
@@ -462,6 +471,8 @@ export function ReadingScreen({
                 color: "var(--gold)",
                 opacity: "var(--ro-plus-10)",
                 marginBottom: 8,
+                marginTop: 0,
+                paddingTop: 0,
               }}
             >
               ✦ The cards have heard you ✦
