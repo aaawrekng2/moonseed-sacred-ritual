@@ -31,7 +31,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "tarot-seed"
+const SITE_NAME = "TarotSeed.com"
 const SENDER_DOMAIN = "notify.tarotseed.com"
 const ROOT_DOMAIN = "tarotseed.com"
 const FROM_DOMAIN = "tarotseed.com"
