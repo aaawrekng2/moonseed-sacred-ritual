@@ -1068,7 +1068,7 @@ export function Tabletop({
             maxWidth: 200,
             whiteSpace: "nowrap",
             overflow: "hidden",
-            textAlign: "right",
+            textAlign: "left",
             pointerEvents: "none",
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
