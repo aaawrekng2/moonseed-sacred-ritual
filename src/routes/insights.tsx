@@ -430,7 +430,6 @@ function InsightsRoute() {
 function OverviewTab({
   loading,
   overview,
-  stalkers,
   filtersActive,
   onClearFilters,
   onEmptyCta,
@@ -441,7 +440,6 @@ function OverviewTab({
 }: {
   loading: boolean;
   overview: InsightsOverview | null;
-  stalkers: StalkerCardsResult | null;
   filtersActive: boolean;
   onClearFilters: () => void;
   onEmptyCta: () => void;
