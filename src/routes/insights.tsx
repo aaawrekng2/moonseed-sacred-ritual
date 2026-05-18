@@ -10,7 +10,6 @@ import {
   hasAnyActive,
   type GlobalFilters,
 } from "@/lib/filters.types";
-import { SuitBalanceChart } from "@/components/insights/SuitBalanceChart";
 import { MajorMinorChart } from "@/components/insights/MajorMinorChart";
 import { MoonPhaseRing } from "@/components/insights/MoonPhaseRing";
 import { ReversalStat } from "@/components/insights/ReversalStat";
@@ -385,6 +384,7 @@ function InsightsRoute() {
                 onClearFilters={() => setFilters(DEFAULT_FILTERS)}
                 onEmptyCta={() => navigate({ to: "/" })}
                 onTapHero={() => setTab("stalkers")}
+                onTapCalendar={() => setTab("calendar")}
                 moonEnabled={moonEnabled}
                 userId={userId}
                 fetchError={fetchError}
@@ -447,6 +447,7 @@ function OverviewTab({
   onClearFilters,
   onEmptyCta,
   onTapHero,
+  onTapCalendar,
   moonEnabled,
   userId,
   fetchError,
@@ -459,6 +460,7 @@ function OverviewTab({
   onClearFilters: () => void;
   onEmptyCta: () => void;
   onTapHero: () => void;
+  onTapCalendar: () => void;
   moonEnabled: boolean;
   userId: string | null;
   fetchError: boolean;
@@ -550,10 +552,9 @@ function OverviewTab({
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-        <SuitBalanceChart data={overview.suitBalance} onTap={() => log("suit")} />
         <MajorMinorChart data={overview.majorMinor} onTap={() => log("major-minor")} />
         {Object.keys(overview.moonPhaseDistribution).length > 0 && (
-          <MoonPhaseRing distribution={overview.moonPhaseDistribution} onTap={() => log("moon")} />
+          <MoonPhaseRing distribution={overview.moonPhaseDistribution} onTap={onTapCalendar} />
         )}
         <ReversalStat rate={overview.reversalRate} onTap={() => log("reversal")} />
         <RhythmHeatmap days={overview.readingsByDay} onTap={() => log("rhythm")} />
