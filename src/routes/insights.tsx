@@ -372,7 +372,6 @@ function InsightsRoute() {
                 stalkers={stalkers}
                 filtersActive={hasAnyActive(globalFilters)}
                 onClearFilters={() => setFilters(DEFAULT_FILTERS)}
-                onTapHero={() => setTab("cards")}
                 onEmptyCta={() => navigate({ to: "/" })}
                 moonEnabled={moonEnabled}
                 userId={userId}
@@ -434,7 +433,6 @@ function OverviewTab({
   stalkers,
   filtersActive,
   onClearFilters,
-  onTapHero,
   onEmptyCta,
   moonEnabled,
   userId,
@@ -446,7 +444,6 @@ function OverviewTab({
   stalkers: StalkerCardsResult | null;
   filtersActive: boolean;
   onClearFilters: () => void;
-  onTapHero: () => void;
   onEmptyCta: () => void;
   moonEnabled: boolean;
   userId: string | null;
@@ -532,10 +529,6 @@ function OverviewTab({
         >
           Insights become richer as you read more. Currently showing data from {overview.totalReadings} reading{overview.totalReadings === 1 ? "" : "s"}.
         </div>
-      )}
-
-      {stalkers && (stalkers.topCard || stalkers.stalkerCards.length > 0) && (
-        <HeroCard result={stalkers} onTap={onTapHero} />
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
