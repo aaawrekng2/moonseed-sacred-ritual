@@ -453,11 +453,22 @@ function SpreadContent({
         </div>
       );
     }
+    // Q92 #5 — Two stacked grids: cards bottom-aligned to a shared
+    // baseline, labels top-aligned in the row below.
     return (
-      <div className="flex flex-wrap items-start justify-center gap-4">
-        {picks.map((pick, i) => (
-          <div key={pick.id} className="flex flex-col items-center gap-2">
+      <div className="flex flex-col items-center gap-2 w-full max-w-full">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${picks.length}, 1fr)`,
+            gap: 16,
+            alignItems: "end",
+            justifyItems: "center",
+          }}
+        >
+          {picks.map((pick, i) => (
             <CardFace
+              key={`card-${pick.id}`}
               pick={pick}
               cardBack={cardBack}
               revealed={!!revealedFlags[i]}
@@ -469,18 +480,35 @@ function SpreadContent({
               isRevealPhase={isRevealPhase}
               onZoom={onZoom}
             />
-            {showLabels && (
-              <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
-            )}
-            {showLabels && revealedFlags[i] && (
-              <CardNameLabel
-                cardIndex={pick.cardIndex}
-                isReversed={!!pick.isReversed}
-                cardWidth={sizing.w}
-              />
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${picks.length}, 1fr)`,
+            gap: 16,
+            alignItems: "start",
+            justifyItems: "center",
+          }}
+        >
+          {picks.map((pick, i) => (
+            <div
+              key={`label-${pick.id}`}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}
+            >
+              {showLabels && (
+                <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
+              )}
+              {showLabels && revealedFlags[i] && (
+                <CardNameLabel
+                  cardIndex={pick.cardIndex}
+                  isReversed={!!pick.isReversed}
+                  cardWidth={sizing.w}
+                />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
