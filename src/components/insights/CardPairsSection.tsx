@@ -30,7 +30,7 @@ export function CardPairsSection({ filters }: { filters: InsightsFilters }) {
   const [selectedPair, setSelectedPair] = useState<Pair | null>(null);
   // Q99 #2 — card size slider for pairs, persisted to user_preferences.
   const { user } = useAuth();
-  const [pairScale, setCardScale] = useState<number>(100);
+  const [pairScale, setPairScale] = useState<number>(100);
   const [sliderOpen, setSliderOpen] = useState(false);
   const sliderRef = useRef<HTMLDivElement | null>(null);
   const loadedRef = useRef(false);
@@ -56,7 +56,7 @@ export function CardPairsSection({ filters }: { filters: InsightsFilters }) {
         .maybeSingle();
       if (cancelled) return;
       const row = (data ?? {}) as { card_scale_pairs?: number };
-      if (typeof row.card_scale_pairs === "number") setCardScale(row.card_scale_pairs);
+      if (typeof row.card_scale_pairs === "number") setPairScale(row.card_scale_pairs);
       loadedRef.current = true;
     })();
     return () => {
@@ -147,7 +147,7 @@ export function CardPairsSection({ filters }: { filters: InsightsFilters }) {
             max={250}
             step={5}
             value={pairScale}
-            onChange={(e) => setCardScale(Number(e.target.value))}
+            onChange={(e) => setPairScale(Number(e.target.value))}
             style={{ width: "100%", accentColor: "var(--accent, var(--gold))" }}
           />
         </div>
