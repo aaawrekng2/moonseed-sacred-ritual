@@ -3,6 +3,9 @@ import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { getCardFrequency } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { updateUserPreferences } from "@/lib/user-preferences-write";
 import {
   getCardName,
   cardSuit,
@@ -121,10 +124,61 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
   // Q60 Fix 5 — Grid is the default mode.
   const [mode, setMode] = useState<Mode>("grid");
   const [showAll, setShowAll] = useState(false);
-  // Q98 #2 — card size slider (50–150%) for Grid / Deck / Bar views.
-  const [cardScale, setCardScale] = useState<number>(100);
+  // Q99 #1 — independent per-view scales (50–250%), persisted to
+  // user_preferences. Slider controls the active mode's scale.
+  const { user } = useAuth();
+  const [gridScale, setGridScale] = useState<number>(100);
+  const [barScale, setBarScale] = useState<number>(100);
+  const [deckScale, setDeckScale] = useState<number>(100);
+  const loadedRef = useRef(false);
   const [sliderOpen, setSliderOpen] = useState(false);
   const sliderRef = useRef<HTMLDivElement | null>(null);
+
+  // Load persisted scales once on mount.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("card_scale_grid, card_scale_bar, card_scale_deck")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const row = (data ?? {}) as {
+        card_scale_grid?: number;
+        card_scale_bar?: number;
+        card_scale_deck?: number;
+      };
+      if (typeof row.card_scale_grid === "number") setGridScale(row.card_scale_grid);
+      if (typeof row.card_scale_bar === "number") setBarScale(row.card_scale_bar);
+      if (typeof row.card_scale_deck === "number") setDeckScale(row.card_scale_deck);
+      loadedRef.current = true;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  // Debounced save on change.
+  useEffect(() => {
+    if (!user || !loadedRef.current) return;
+    const t = setTimeout(() => {
+      void updateUserPreferences(user.id, {
+        card_scale_grid: gridScale,
+        card_scale_bar: barScale,
+        card_scale_deck: deckScale,
+      } as never);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [user, gridScale, barScale, deckScale]);
+
+  const activeScale = mode === "grid" ? gridScale : mode === "bar" ? barScale : deckScale;
+  const setActiveScale = (n: number) => {
+    if (mode === "grid") setGridScale(n);
+    else if (mode === "bar") setBarScale(n);
+    else setDeckScale(n);
+  };
 
   useEffect(() => {
     if (!sliderOpen) return;
@@ -214,6 +268,9 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
             borderRadius: 8,
             background: "var(--surface-card)",
             border: "1px solid color-mix(in oklch, var(--gold) 18%, transparent)",
+            marginLeft: "auto",
+            marginRight: 16,
+            maxWidth: "calc(100% - 16px)",
           }}
         >
           <span
@@ -226,15 +283,15 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
               whiteSpace: "nowrap",
             }}
           >
-            Card size · {cardScale}%
+            Card size · {activeScale}%
           </span>
           <input
             type="range"
             min={50}
-            max={150}
+            max={250}
             step={5}
-            value={cardScale}
-            onChange={(e) => setCardScale(Number(e.target.value))}
+            value={activeScale}
+            onChange={(e) => setActiveScale(Number(e.target.value))}
             style={{ width: "100%", accentColor: "var(--accent, var(--gold))" }}
           />
         </div>
@@ -271,9 +328,9 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
                     {key} · {entries.length} card
                     {entries.length === 1 ? "" : "s"}
                   </div>
-                  {mode === "bar" && <BarView entries={entries} max={max} cardScale={cardScale} />}
-                  {mode === "grid" && <GridView entries={entries} cardScale={cardScale} />}
-                  {mode === "deck" && <DeckGrid entries={entries} cardScale={cardScale} />}
+                  {mode === "bar" && <BarView entries={entries} max={max} cardScale={barScale} />}
+                  {mode === "grid" && <GridView entries={entries} cardScale={gridScale} />}
+                  {mode === "deck" && <DeckGrid entries={entries} cardScale={deckScale} />}
                 </div>
               ))}
             </div>
@@ -283,11 +340,11 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
             <BarView
               entries={(showAll ? sorted : sorted.slice(0, 30)).filter((e) => e.count > 0 || showAll)}
               max={max}
-              cardScale={cardScale}
+              cardScale={barScale}
             />
           )}
-          {mode === "grid" && <GridView entries={sorted} cardScale={cardScale} />}
-          {mode === "deck" && <DeckGrid entries={sorted} cardScale={cardScale} />}
+          {mode === "grid" && <GridView entries={sorted} cardScale={gridScale} />}
+          {mode === "deck" && <DeckGrid entries={sorted} cardScale={deckScale} />}
           {mode === "bar" && !showAll && (
             <button
               type="button"
