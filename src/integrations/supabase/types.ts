@@ -1222,6 +1222,9 @@ export type Database = {
           default_spread: string
           dismissed_hints: Json
           display_name: string | null
+          feedback_notification_email: string | null
+          feedback_notification_frequency: string
+          feedback_notifications_enabled: boolean
           font_pairing: string | null
           gifted_by: string | null
           guide_facets: string[] | null
@@ -1297,6 +1300,9 @@ export type Database = {
           default_spread?: string
           dismissed_hints?: Json
           display_name?: string | null
+          feedback_notification_email?: string | null
+          feedback_notification_frequency?: string
+          feedback_notifications_enabled?: boolean
           font_pairing?: string | null
           gifted_by?: string | null
           guide_facets?: string[] | null
@@ -1372,6 +1378,9 @@ export type Database = {
           default_spread?: string
           dismissed_hints?: Json
           display_name?: string | null
+          feedback_notification_email?: string | null
+          feedback_notification_frequency?: string
+          feedback_notifications_enabled?: boolean
           font_pairing?: string | null
           gifted_by?: string | null
           guide_facets?: string[] | null
