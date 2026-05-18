@@ -679,7 +679,7 @@ function JournalPage() {
       <GlobalFilterBar
         filters={journalFilters}
         onChange={setJournalFilters}
-        sections={["tags", "spreadTypes", "depth", "stories"]}
+        sections={["tags", "spreadTypes", "depth"]}
         userTags={topTags}
         allStories={allStories}
         trailingChips={

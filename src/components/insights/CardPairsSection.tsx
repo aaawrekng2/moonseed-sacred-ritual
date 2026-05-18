@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getCardPairs, getReadingsWithCardPair } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
@@ -9,7 +9,10 @@ import { EmptyNote } from "@/components/ui/empty-note";
 import { ReadingRow } from "@/components/ui/reading-row";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { LoadingText } from "@/components/ui/loading-text";
-import { X } from "lucide-react";
+import { Scaling, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { updateUserPreferences } from "@/lib/user-preferences-write";
 
 type Pair = {
   cardA: number;
@@ -25,6 +28,49 @@ export function CardPairsSection({ filters }: { filters: InsightsFilters }) {
   const [data, setData] = useState<{ pairs: Pair[]; totalMultiCardReadings: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPair, setSelectedPair] = useState<Pair | null>(null);
+  // Q99 #2 — card size slider for pairs, persisted to user_preferences.
+  const { user } = useAuth();
+  const [pairScale, setCardScale] = useState<number>(100);
+  const [sliderOpen, setSliderOpen] = useState(false);
+  const sliderRef = useRef<HTMLDivElement | null>(null);
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    if (!sliderOpen) return;
+    function onDown(e: PointerEvent) {
+      if (!sliderRef.current) return;
+      if (!sliderRef.current.contains(e.target as Node)) setSliderOpen(false);
+    }
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [sliderOpen]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("card_scale_pairs")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const row = (data ?? {}) as { card_scale_pairs?: number };
+      if (typeof row.card_scale_pairs === "number") setCardScale(row.card_scale_pairs);
+      loadedRef.current = true;
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !loadedRef.current) return;
+    const t = setTimeout(() => {
+      void updateUserPreferences(user.id, { card_scale_pairs: pairScale } as never);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [user, pairScale]);
 
   useEffect(() => {
     let cancelled = false;
@@ -48,7 +94,64 @@ export function CardPairsSection({ filters }: { filters: InsightsFilters }) {
 
   return (
     <section className="space-y-3">
-      <SectionHeader title="Card Pairs" caption="Cards that show up together more than chance." />
+      <div className="flex items-end justify-between gap-3">
+        <SectionHeader title="Card Pairs" caption="Cards that show up together more than chance." />
+        <button
+          type="button"
+          onClick={() => setSliderOpen((v) => !v)}
+          aria-label="Adjust card size"
+          style={{
+            background: "none",
+            border: "none",
+            padding: 4,
+            cursor: "pointer",
+            color: sliderOpen ? "var(--accent, var(--gold))" : "var(--color-foreground)",
+            opacity: sliderOpen ? 1 : 0.6,
+            transition: "opacity 200ms ease-out",
+          }}
+        >
+          <Scaling size={15} strokeWidth={1.5} />
+        </button>
+      </div>
+      {sliderOpen && (
+        <div
+          ref={sliderRef}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "6px 10px",
+            borderRadius: 8,
+            background: "var(--surface-card)",
+            border: "1px solid color-mix(in oklch, var(--gold) 18%, transparent)",
+            marginLeft: "auto",
+            marginRight: 16,
+            maxWidth: "calc(100% - 16px)",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption)",
+              color: "var(--color-foreground)",
+              opacity: 0.7,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Card size · {pairScale}%
+          </span>
+          <input
+            type="range"
+            min={50}
+            max={250}
+            step={5}
+            value={pairScale}
+            onChange={(e) => setCardScale(Number(e.target.value))}
+            style={{ width: "100%", accentColor: "var(--accent, var(--gold))" }}
+          />
+        </div>
+      )}
       {loading && <SkeletonRow />}
       {!loading && data && data.pairs.length === 0 && (
         <EmptyNote text="No recurring pairs yet. Multi-card spreads will surface patterns here." />
@@ -59,6 +162,7 @@ export function CardPairsSection({ filters }: { filters: InsightsFilters }) {
             <PairRow
               key={`${p.cardA}-${p.cardB}`}
               pair={p}
+              scale={pairScale}
               onTap={() => setSelectedPair(p)}
             />
           ))}
@@ -68,6 +172,7 @@ export function CardPairsSection({ filters }: { filters: InsightsFilters }) {
         <PairDetailModal
           pair={selectedPair}
           filters={filters}
+          scale={pairScale}
           onClose={() => setSelectedPair(null)}
         />
       )}
@@ -75,7 +180,8 @@ export function CardPairsSection({ filters }: { filters: InsightsFilters }) {
   );
 }
 
-function PairRow({ pair, onTap }: { pair: Pair; onTap: () => void }) {
+function PairRow({ pair, scale, onTap }: { pair: Pair; scale: number; onTap: () => void }) {
+  const w = Math.round(38 * scale / 100);
   return (
     <button
       type="button"
@@ -85,8 +191,8 @@ function PairRow({ pair, onTap }: { pair: Pair; onTap: () => void }) {
     >
       <div className="flex gap-1">
         {/* EY-7 — unified card render. */}
-        <CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={38} ariaLabel={pair.cardAName} />
-        <CardImage cardId={pair.cardB} variant="face" size="custom" widthPx={38} ariaLabel={pair.cardBName} />
+        <CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={w} ariaLabel={pair.cardAName} />
+        <CardImage cardId={pair.cardB} variant="face" size="custom" widthPx={w} ariaLabel={pair.cardBName} />
       </div>
       <div
         style={{
@@ -107,12 +213,15 @@ function PairRow({ pair, onTap }: { pair: Pair; onTap: () => void }) {
 function PairDetailModal({
   pair,
   filters,
+  scale,
   onClose,
 }: {
   pair: Pair;
   filters: InsightsFilters;
+  scale: number;
   onClose: () => void;
 }) {
+  const heroW = Math.round(160 * scale / 100);
   const fetchReadings = useServerFn(getReadingsWithCardPair);
   const [readings, setReadings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -189,12 +298,8 @@ function PairDetailModal({
           <X size={18} />
         </button>
         <div className="flex justify-center gap-3 mt-2 mb-4">
-          <div style={{ maxWidth: 140, flex: 1 }}>
-            <CardImage cardId={pair.cardA} variant="face" size="hero" ariaLabel={pair.cardAName} style={{ width: "100%", minHeight: 0 }} />
-          </div>
-          <div style={{ maxWidth: 140, flex: 1 }}>
-            <CardImage cardId={pair.cardB} variant="face" size="hero" ariaLabel={pair.cardBName} style={{ width: "100%", minHeight: 0 }} />
-          </div>
+          <CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={heroW} ariaLabel={pair.cardAName} />
+          <CardImage cardId={pair.cardB} variant="face" size="custom" widthPx={heroW} ariaLabel={pair.cardBName} />
         </div>
         <h3
           style={{

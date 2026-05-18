@@ -90,6 +90,7 @@ export function DrawCalendar({
     else if (c === 4) bg = "color-mix(in oklab, var(--gold) 64%, transparent)";
     else if (c < 8) bg = "color-mix(in oklab, var(--gold) 78%, transparent)";
     else bg = "color-mix(in oklab, var(--gold) 90%, transparent)";
+    if (isToday) bg = undefined;
     return (
       <CalendarDayButton
         {...props}
