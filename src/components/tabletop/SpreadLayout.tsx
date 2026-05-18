@@ -118,6 +118,19 @@ export function SpreadLayout({
   const nextIndex = revealedFlags.findIndex((r) => !r);
   const allRevealed = nextIndex === -1;
 
+  // Q93 #5 — When the last card flips and InlineReading mounts below,
+  // the cards can be scrolled off the top. Snap the scroll container
+  // back to top so the seeker still sees their spread.
+  const mainRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!allRevealed) return;
+    const el = mainRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }, [allRevealed]);
+
   const handleTap = useCallback(
     (i: number) => {
       if (revealedFlags[i]) return;
@@ -139,6 +152,7 @@ export function SpreadLayout({
 
   return (
     <main
+      ref={mainRef}
       className="cast-screen-enter fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]"
       aria-label={`${meta.label} spread layout`}
       style={{
