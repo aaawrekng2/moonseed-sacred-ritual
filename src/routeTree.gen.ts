@@ -35,8 +35,8 @@ import { Route as SettingsDecksRouteImport } from './routes/settings.decks'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
 import { Route as InsightsYearOfLunationsRouteImport } from './routes/insights.year-of-lunations'
-import { Route as CreditsSuccessRouteImport } from './routes/credits.success'
-import { Route as CreditsCancelRouteImport } from './routes/credits.cancel'
+import { Route as CreditsSuccessRouteImport } from './routes/credits_.success'
+import { Route as CreditsCancelRouteImport } from './routes/credits_.cancel'
 import { Route as AdminUsageRouteImport } from './routes/admin.usage'
 import { Route as LovableEmailFeedbackDigestRouteImport } from './routes/lovable/email/feedback-digest'
 import { Route as InsightsRecapLunationStartRouteImport } from './routes/insights.recap.$lunationStart'
@@ -180,14 +180,14 @@ const InsightsYearOfLunationsRoute = InsightsYearOfLunationsRouteImport.update({
   getParentRoute: () => InsightsRoute,
 } as any)
 const CreditsSuccessRoute = CreditsSuccessRouteImport.update({
-  id: '/success',
-  path: '/success',
-  getParentRoute: () => CreditsRoute,
+  id: '/credits_/success',
+  path: '/credits/success',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CreditsCancelRoute = CreditsCancelRouteImport.update({
-  id: '/cancel',
-  path: '/cancel',
-  getParentRoute: () => CreditsRoute,
+  id: '/credits_/cancel',
+  path: '/credits/cancel',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsageRoute = AdminUsageRouteImport.update({
   id: '/usage',
@@ -252,7 +252,7 @@ const AdminUsageUsersUserIdRoute = AdminUsageUsersUserIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/credits': typeof CreditsRouteWithChildren
+  '/credits': typeof CreditsRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -292,7 +292,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/credits': typeof CreditsRouteWithChildren
+  '/credits': typeof CreditsRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -334,7 +334,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/credits': typeof CreditsRouteWithChildren
+  '/credits': typeof CreditsRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -346,8 +346,8 @@ export interface FileRoutesById {
   '/stories': typeof StoriesRouteWithChildren
   '/threads': typeof ThreadsRouteWithChildren
   '/admin/usage': typeof AdminUsageRouteWithChildren
-  '/credits/cancel': typeof CreditsCancelRoute
-  '/credits/success': typeof CreditsSuccessRoute
+  '/credits_/cancel': typeof CreditsCancelRoute
+  '/credits_/success': typeof CreditsSuccessRoute
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -470,8 +470,8 @@ export interface FileRouteTypes {
     | '/stories'
     | '/threads'
     | '/admin/usage'
-    | '/credits/cancel'
-    | '/credits/success'
+    | '/credits_/cancel'
+    | '/credits_/success'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -500,7 +500,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
-  CreditsRoute: typeof CreditsRouteWithChildren
+  CreditsRoute: typeof CreditsRoute
   DrawRoute: typeof DrawRoute
   GuidesRoute: typeof GuidesRoute
   HelpRoute: typeof HelpRouteWithChildren
@@ -511,6 +511,8 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRouteWithChildren
   StoriesRoute: typeof StoriesRouteWithChildren
   ThreadsRoute: typeof ThreadsRouteWithChildren
+  CreditsCancelRoute: typeof CreditsCancelRoute
+  CreditsSuccessRoute: typeof CreditsSuccessRoute
   ApiPublicDetectWeavesRoute: typeof ApiPublicDetectWeavesRouteWithChildren
   LovableEmailFeedbackDigestRoute: typeof LovableEmailFeedbackDigestRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -702,19 +704,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InsightsYearOfLunationsRouteImport
       parentRoute: typeof InsightsRoute
     }
-    '/credits/success': {
-      id: '/credits/success'
-      path: '/success'
+    '/credits_/success': {
+      id: '/credits_/success'
+      path: '/credits/success'
       fullPath: '/credits/success'
       preLoaderRoute: typeof CreditsSuccessRouteImport
-      parentRoute: typeof CreditsRoute
+      parentRoute: typeof rootRouteImport
     }
-    '/credits/cancel': {
-      id: '/credits/cancel'
-      path: '/cancel'
+    '/credits_/cancel': {
+      id: '/credits_/cancel'
+      path: '/credits/cancel'
       fullPath: '/credits/cancel'
       preLoaderRoute: typeof CreditsCancelRouteImport
-      parentRoute: typeof CreditsRoute
+      parentRoute: typeof rootRouteImport
     }
     '/admin/usage': {
       id: '/admin/usage'
@@ -820,19 +822,6 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
-interface CreditsRouteChildren {
-  CreditsCancelRoute: typeof CreditsCancelRoute
-  CreditsSuccessRoute: typeof CreditsSuccessRoute
-}
-
-const CreditsRouteChildren: CreditsRouteChildren = {
-  CreditsCancelRoute: CreditsCancelRoute,
-  CreditsSuccessRoute: CreditsSuccessRoute,
-}
-
-const CreditsRouteWithChildren =
-  CreditsRoute._addFileChildren(CreditsRouteChildren)
-
 interface HelpRouteChildren {
   HelpCategoryArticleRoute: typeof HelpCategoryArticleRoute
 }
@@ -925,7 +914,7 @@ const ApiPublicDetectWeavesRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
-  CreditsRoute: CreditsRouteWithChildren,
+  CreditsRoute: CreditsRoute,
   DrawRoute: DrawRoute,
   GuidesRoute: GuidesRoute,
   HelpRoute: HelpRouteWithChildren,
@@ -936,6 +925,8 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRouteWithChildren,
   StoriesRoute: StoriesRouteWithChildren,
   ThreadsRoute: ThreadsRouteWithChildren,
+  CreditsCancelRoute: CreditsCancelRoute,
+  CreditsSuccessRoute: CreditsSuccessRoute,
   ApiPublicDetectWeavesRoute: ApiPublicDetectWeavesRouteWithChildren,
   LovableEmailFeedbackDigestRoute: LovableEmailFeedbackDigestRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
@@ -945,3 +936,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
