@@ -341,7 +341,11 @@ export const getStalkerCards = createServerFn({ method: "GET" })
 
     const counts = new Map<number, { count: number; appearances: Array<{ readingId: string; date: string }> }>();
     for (const r of rows) {
-      for (const cid of r.card_ids ?? []) {
+      const ids = r.card_ids ?? [];
+      const orients = r.card_orientations ?? [];
+      for (let i = 0; i < ids.length; i++) {
+        const cid = ids[i];
+        if (data.reversedOnly && !orients[i]) continue;
         const entry = counts.get(cid) ?? { count: 0, appearances: [] };
         entry.count += 1;
         entry.appearances.push({ readingId: r.id, date: r.created_at });
