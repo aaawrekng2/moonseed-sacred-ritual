@@ -41,7 +41,7 @@ function DrawPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const spread: SpreadMode = isValidSpreadMode(search.spread) ? search.spread : "daily";
-  const { recordDraw } = useStreak();
+  const { recordDraw, recomputeStreak } = useStreak();
   const { user } = useAuth();
 
   // Q19 — per-spread entry-mode + custom-count memory. Hydrates from
@@ -325,7 +325,13 @@ function DrawPage() {
             setEntryMode("manual");
             setBackdatedAt(meta?.createdAt);
             setPhase("reading");
-            void recordDraw();
+            // Q93 #7 — Backdated entries can't be modelled by recordDraw
+            // (which assumes today); replay full timeline instead.
+            if (meta?.createdAt) {
+              void recomputeStreak();
+            } else {
+              void recordDraw();
+            }
           }}
         />
       ) : (
