@@ -1241,6 +1241,10 @@ button:focus-visible .moon-rung-glow {
   --z-modal: 100;
   --z-modal-nested: 200;
   --z-toast: 300;
+  /* Q98 #1 — map shadcn popover tokens to Tarot Seed surfaces so
+     Select/Popover/Combobox render opaque against any theme. */
+  --popover: var(--surface-elevated);
+  --popover-foreground: var(--color-foreground);
 }
 
 /* FU-12 — canonical tab strip tokens. Consumed by Insights,
@@ -1625,14 +1629,14 @@ button:focus-visible .moon-rung-glow {
   position: absolute;
   bottom: 5%;
   right: 5%;
-  width: clamp(32px, 28cqi, 52px);
+  width: 26px; /* Q98 #2 — was clamp(32px, 28cqi, 52px); fixed so badge stays readable at any card scale */
   aspect-ratio: 1;
   border-radius: 999px;
   background: oklch(0.82 0.14 82);
   color: #1a1205;
   font-family: var(--font-serif);
   font-weight: 600;
-  font-size: clamp(15px, 15cqi, 24px);
+  font-size: 13px; /* Q98 #2 — was clamp(15px, 15cqi, 24px) */
   letter-spacing: -0.03em;
   display: inline-flex;
   align-items: center;

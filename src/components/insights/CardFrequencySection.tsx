@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { getCardFrequency } from "@/lib/insights.functions";
@@ -11,7 +11,7 @@ import {
 import { CardImage } from "@/components/card/CardImage";
 import { CardCellWithBadge } from "./CardCellWithBadge";
 import { CardCountBadge } from "@/components/ui/CardCountBadge";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Scaling } from "lucide-react";
 import { useElementWidth } from "@/lib/use-element-width";
 import type {
   InsightsFilters,
@@ -121,6 +121,20 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
   // Q60 Fix 5 — Grid is the default mode.
   const [mode, setMode] = useState<Mode>("grid");
   const [showAll, setShowAll] = useState(false);
+  // Q98 #2 — card size slider (50–150%) for Grid / Deck / Bar views.
+  const [cardScale, setCardScale] = useState<number>(100);
+  const [sliderOpen, setSliderOpen] = useState(false);
+  const sliderRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!sliderOpen) return;
+    function onDown(e: PointerEvent) {
+      if (!sliderRef.current) return;
+      if (!sliderRef.current.contains(e.target as Node)) setSliderOpen(false);
+    }
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [sliderOpen]);
 
   const sortBy: CardSortBy = filters.cardSortBy ?? "frequency";
   const groupBy: CardGroupBy = filters.cardGroupBy ?? "none";
@@ -169,8 +183,62 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
     <section className="space-y-3">
       <div className="flex items-end justify-between gap-3">
         <SectionHeader title="Card Frequency" caption="How often each card has shown up." />
-        <ModeToggle mode={mode} onChange={setMode} />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSliderOpen((v) => !v)}
+            aria-label="Adjust card size"
+            style={{
+              background: "none",
+              border: "none",
+              padding: 4,
+              cursor: "pointer",
+              color: sliderOpen ? "var(--accent, var(--gold))" : "var(--color-foreground)",
+              opacity: sliderOpen ? 1 : 0.6,
+              transition: "opacity 200ms ease-out",
+            }}
+          >
+            <Scaling size={15} strokeWidth={1.5} />
+          </button>
+          <ModeToggle mode={mode} onChange={setMode} />
+        </div>
       </div>
+      {sliderOpen && (
+        <div
+          ref={sliderRef}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "6px 10px",
+            borderRadius: 8,
+            background: "var(--surface-card)",
+            border: "1px solid color-mix(in oklch, var(--gold) 18%, transparent)",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-caption)",
+              color: "var(--color-foreground)",
+              opacity: 0.7,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Card size · {cardScale}%
+          </span>
+          <input
+            type="range"
+            min={50}
+            max={150}
+            step={5}
+            value={cardScale}
+            onChange={(e) => setCardScale(Number(e.target.value))}
+            style={{ width: "100%", accentColor: "var(--accent, var(--gold))" }}
+          />
+        </div>
+      )}
       {loading && <SkeletonRow />}
       {!loading && data?.totalReadings === 0 && (
         <EmptyNote text="No cards yet in this time window." />
@@ -203,9 +271,9 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
                     {key} · {entries.length} card
                     {entries.length === 1 ? "" : "s"}
                   </div>
-                  {mode === "bar" && <BarView entries={entries} max={max} />}
-                  {mode === "grid" && <GridView entries={entries} />}
-                  {mode === "deck" && <DeckGrid entries={entries} />}
+                  {mode === "bar" && <BarView entries={entries} max={max} cardScale={cardScale} />}
+                  {mode === "grid" && <GridView entries={entries} cardScale={cardScale} />}
+                  {mode === "deck" && <DeckGrid entries={entries} cardScale={cardScale} />}
                 </div>
               ))}
             </div>
@@ -215,10 +283,11 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
             <BarView
               entries={(showAll ? sorted : sorted.slice(0, 30)).filter((e) => e.count > 0 || showAll)}
               max={max}
+              cardScale={cardScale}
             />
           )}
-          {mode === "grid" && <GridView entries={sorted} />}
-          {mode === "deck" && <DeckGrid entries={sorted} />}
+          {mode === "grid" && <GridView entries={sorted} cardScale={cardScale} />}
+          {mode === "deck" && <DeckGrid entries={sorted} cardScale={cardScale} />}
           {mode === "bar" && !showAll && (
             <button
               type="button"
@@ -313,7 +382,9 @@ function BarRow({ cardId, count, max }: { cardId: number; count: number; max: nu
   );
 }
 
-function BarView({ entries, max }: { entries: Array<{ cardId: number; count: number }>; max: number }) {
+function BarView({ entries, max }: { entries: Array<{ cardId: number; count: number }>; max: number; cardScale?: number }) {
+  // BarView renders bars (no card images), so cardScale has no visual
+  // effect. Prop is accepted to keep the call signature uniform.
   return (
     <div className="rounded-lg p-2" style={{ background: "var(--surface-card)" }}>
       {entries.map((e) => (
@@ -323,14 +394,24 @@ function BarView({ entries, max }: { entries: Array<{ cardId: number; count: num
   );
 }
 
-function GridView({ entries }: { entries: Array<{ cardId: number; count: number }> }) {
+function GridView({ entries, cardScale = 100 }: { entries: Array<{ cardId: number; count: number }>; cardScale?: number }) {
   const navigate = useNavigate();
   const visible = entries.filter((e) => e.count > 0);
+  const wide = typeof window !== "undefined" && window.innerWidth >= 640;
+  const minPx = wide
+    ? Math.round(120 * cardScale / 100)
+    : Math.round(60 * cardScale / 100);
   return (
-    // Q95 #2 — Responsive grid: half-size cells on mobile (60px min),
-    // full-size on >=640px (120px min). Driven by a CSS class so we
-    // can media-query inside it.
-    <div className="insights-card-grid" style={{ alignItems: "end" }}>
+    // Q98 #2 — card size slider drives minmax base directly so the
+    // user can tighten/loosen the grid live.
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(auto-fill, minmax(${minPx}px, 1fr))`,
+        gap: 8,
+        alignItems: "end",
+      }}
+    >
       {visible.map((e, index) => (
         <CardCellWithBadge
           key={e.cardId}
@@ -352,12 +433,13 @@ function GridView({ entries }: { entries: Array<{ cardId: number; count: number 
  * filter dropdown via the parent's grouping logic; this component just
  * lays out whatever entries it receives. Sort order is preserved.
  */
-function DeckGrid({ entries }: { entries: Array<{ cardId: number; count: number }> }) {
+function DeckGrid({ entries, cardScale = 100 }: { entries: Array<{ cardId: number; count: number }>; cardScale?: number }) {
+  const minPx = Math.round(56 * cardScale / 100);
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(56px, 1fr))",
+        gridTemplateColumns: `repeat(auto-fill, minmax(${minPx}px, 1fr))`,
         gap: 4,
       }}
     >
