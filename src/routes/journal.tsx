@@ -2358,12 +2358,14 @@ function ReadingDetail({
                     }
                   />
                   <span
-                    className="mt-1 max-w-[120px] text-center font-display italic"
+                    className="mt-1 text-center font-display italic break-words"
                     style={{
                       color: "var(--gold)",
                       opacity: "var(--ro-plus-30)",
                       fontSize: "var(--text-body-sm, 13px)",
                       lineHeight: 1.2,
+                      maxWidth: ezCardWidthPx,
+                      wordBreak: "break-word",
                     }}
                   >
                     {resolveCardName(id, idx)}
@@ -2440,12 +2442,14 @@ function ReadingDetail({
                   className="flex flex-col items-center"
                 >
                   <span
-                    className="mt-1 max-w-[120px] text-center font-display italic"
+                    className="mt-1 text-center font-display italic break-words"
                     style={{
                       color: "var(--gold)",
                       opacity: "var(--ro-plus-30)",
                       fontSize: "var(--text-body-sm, 13px)",
                       lineHeight: 1.2,
+                      maxWidth: ezCardWidthPx,
+                      wordBreak: "break-word",
                     }}
                   >
                     {resolveCardName(id, idx)}
