@@ -829,7 +829,7 @@ function SingleCard({
   const [saying, setSaying] = useState<string | null>(null);
   useEffect(() => {
     if (spread === "yes_no" && revealed && pick) {
-      setSaying(nextYesNoSaying(pick.cardIndex));
+      setSaying(nextYesNoSaying(pick.cardIndex, !!pick.isReversed));
     } else if (!revealed) {
       setSaying(null);
     }
