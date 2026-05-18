@@ -3,7 +3,7 @@
  * We deliberately keep the cache small and use network-first for navigations
  * so deploys propagate without needing a manual "update" prompt.
  */
-const CACHE = "tarotseed-shell-v4";
+const CACHE = "tarotseed-shell-v5";
 // Only cache truly static assets — never HTML or JS bundles. Caching JS
 // (cache-first) caused hydration mismatches because the SW would serve a
 // stale client bundle against a fresh SSR HTML response.
