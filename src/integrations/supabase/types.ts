@@ -189,7 +189,9 @@ export type Database = {
           expires_at: string | null
           id: string
           metadata: Json
+          pack_sku: string | null
           source: string
+          stripe_session_id: string | null
           user_id: string
         }
         Insert: {
@@ -198,7 +200,9 @@ export type Database = {
           expires_at?: string | null
           id?: string
           metadata?: Json
+          pack_sku?: string | null
           source: string
+          stripe_session_id?: string | null
           user_id: string
         }
         Update: {
@@ -207,7 +211,9 @@ export type Database = {
           expires_at?: string | null
           id?: string
           metadata?: Json
+          pack_sku?: string | null
           source?: string
+          stripe_session_id?: string | null
           user_id?: string
         }
         Relationships: []
@@ -394,6 +400,42 @@ export type Database = {
           updated_at?: string
           user_id?: string
           voice_overrides?: Json | null
+        }
+        Relationships: []
+      }
+      daily_reconciliation: {
+        Row: {
+          created_at: string
+          id: string
+          notes: Json
+          run_date: string
+          stripe_paid_cents: number
+          total_consumed: number
+          total_granted: number
+          total_outstanding: number
+          total_users: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: Json
+          run_date: string
+          stripe_paid_cents?: number
+          total_consumed?: number
+          total_granted?: number
+          total_outstanding?: number
+          total_users?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: Json
+          run_date?: string
+          stripe_paid_cents?: number
+          total_consumed?: number
+          total_granted?: number
+          total_outstanding?: number
+          total_users?: number
         }
         Relationships: []
       }
@@ -1071,6 +1113,36 @@ export type Database = {
           },
         ]
       }
+      stripe_events: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_id: string
+          event_type: string
+          id: string
+          payload: Json
+          processed_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_id: string
+          event_type: string
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_id?: string
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed_at?: string | null
+        }
+        Relationships: []
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -1220,9 +1292,6 @@ export type Database = {
           card_scale_grid: number
           card_scale_pairs: number
           community_theme: string | null
-          credits_balance: number
-          credits_next_refill_at: string | null
-          credits_subscription_type: string | null
           custom_draw_count: number | null
           default_life_area: string
           default_share_color: string
@@ -1268,6 +1337,7 @@ export type Database = {
           show_question_prompt: boolean
           show_reversals: boolean
           spread_entry_modes: Json
+          stripe_customer_id: string | null
           subscription_type: string
           sun_sign: string | null
           tarotpulse_import_done: boolean
@@ -1305,9 +1375,6 @@ export type Database = {
           card_scale_grid?: number
           card_scale_pairs?: number
           community_theme?: string | null
-          credits_balance?: number
-          credits_next_refill_at?: string | null
-          credits_subscription_type?: string | null
           custom_draw_count?: number | null
           default_life_area?: string
           default_share_color?: string
@@ -1353,6 +1420,7 @@ export type Database = {
           show_question_prompt?: boolean
           show_reversals?: boolean
           spread_entry_modes?: Json
+          stripe_customer_id?: string | null
           subscription_type?: string
           sun_sign?: string | null
           tarotpulse_import_done?: boolean
@@ -1390,9 +1458,6 @@ export type Database = {
           card_scale_grid?: number
           card_scale_pairs?: number
           community_theme?: string | null
-          credits_balance?: number
-          credits_next_refill_at?: string | null
-          credits_subscription_type?: string | null
           custom_draw_count?: number | null
           default_life_area?: string
           default_share_color?: string
@@ -1438,6 +1503,7 @@ export type Database = {
           show_question_prompt?: boolean
           show_reversals?: boolean
           spread_entry_modes?: Json
+          stripe_customer_id?: string | null
           subscription_type?: string
           sun_sign?: string | null
           tarotpulse_import_done?: boolean

@@ -1,19 +1,16 @@
 /**
- * Q101 #8 — useCredits hook.
+ * Q102 — useCredits hook (ledger truth).
  *
- * Reads/writes credits state from public.user_preferences. Spend
- * decrements the balance and returns the new value. The seeker must
- * have run this SQL in Supabase before this hook works:
+ * Reads the credits snapshot from getCreditsSnapshot server function,
+ * which derives balance from ai_credit_grants − ai_call_log. The
+ * previous user_preferences cache columns were dropped in Q102.
  *
- *   ALTER TABLE user_preferences
- *     ADD COLUMN IF NOT EXISTS credits_balance integer NOT NULL DEFAULT 100,
- *     ADD COLUMN IF NOT EXISTS credits_next_refill_at timestamptz,
- *     ADD COLUMN IF NOT EXISTS credits_subscription_type text;
- *
- * Module is intentionally drop-in: not yet wired to any spending action.
+ * Spending is intentionally server-only (inside callAI()), so this
+ * hook does NOT expose a spend() method.
  */
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { getCreditsSnapshot } from "@/lib/credits.functions";
 import { useAuth } from "@/lib/auth";
 
 export type CreditsState = {
@@ -21,12 +18,12 @@ export type CreditsState = {
   nextRefillAt: Date | null;
   subscriptionType: string | null;
   loading: boolean;
-  spend: (amount: number, label?: string) => Promise<number>;
   refresh: () => Promise<void>;
 };
 
 export function useCredits(): CreditsState {
   const { user } = useAuth();
+  const fetchSnapshot = useServerFn(getCreditsSnapshot);
   const [balance, setBalance] = useState<number>(0);
   const [nextRefillAt, setNextRefillAt] = useState<Date | null>(null);
   const [subscriptionType, setSubscriptionType] = useState<string | null>(null);
@@ -37,48 +34,23 @@ export function useCredits(): CreditsState {
       setLoading(false);
       return;
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data } = await (supabase.from("user_preferences") as any)
-      .select("credits_balance, credits_next_refill_at, credits_subscription_type")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    const row = (data ?? {}) as {
-      credits_balance?: number;
-      credits_next_refill_at?: string | null;
-      credits_subscription_type?: string | null;
-    };
-    setBalance(typeof row.credits_balance === "number" ? row.credits_balance : 0);
-    setNextRefillAt(row.credits_next_refill_at ? new Date(row.credits_next_refill_at) : null);
-    setSubscriptionType(row.credits_subscription_type ?? null);
-    setLoading(false);
-  }, [user]);
+    try {
+      const snap = await fetchSnapshot();
+      setBalance(typeof snap.balance === "number" ? snap.balance : 0);
+      setNextRefillAt(snap.nextRefillAt ? new Date(snap.nextRefillAt) : null);
+      setSubscriptionType(snap.subscriptionType ?? null);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("[credits] snapshot fetch failed", e);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, fetchSnapshot]);
 
   useEffect(() => {
     setLoading(true);
     void refresh();
   }, [refresh]);
 
-  const spend = useCallback(
-    async (amount: number, label?: string): Promise<number> => {
-      if (!user) return balance;
-      const next = Math.max(0, balance - Math.max(0, amount));
-      const { error } = await supabase
-        .from("user_preferences")
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .update({ credits_balance: next } as any)
-        .eq("user_id", user.id);
-      if (error) {
-        // eslint-disable-next-line no-console
-        console.warn("[credits] spend failed", { label, amount, error });
-        return balance;
-      }
-      setBalance(next);
-      // eslint-disable-next-line no-console
-      console.log("[credits] spent", { amount, label, newBalance: next });
-      return next;
-    },
-    [user, balance],
-  );
-
-  return { balance, nextRefillAt, subscriptionType, loading, spend, refresh };
+  return { balance, nextRefillAt, subscriptionType, loading, refresh };
 }

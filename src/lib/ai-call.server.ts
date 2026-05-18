@@ -153,7 +153,7 @@ async function getCurrentCycleStart(userId: string): Promise<string> {
   return created ?? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 }
 
-async function getNextResetDate(userId: string): Promise<string> {
+export async function getNextResetDate(userId: string): Promise<string> {
   const { data } = await supabaseAdmin
     .from("ai_credit_grants" as never)
     .select("created_at, expires_at")
