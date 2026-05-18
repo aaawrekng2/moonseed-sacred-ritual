@@ -1220,6 +1220,9 @@ export type Database = {
           card_scale_grid: number
           card_scale_pairs: number
           community_theme: string | null
+          credits_balance: number
+          credits_next_refill_at: string | null
+          credits_subscription_type: string | null
           custom_draw_count: number | null
           default_life_area: string
           default_share_color: string
@@ -1302,6 +1305,9 @@ export type Database = {
           card_scale_grid?: number
           card_scale_pairs?: number
           community_theme?: string | null
+          credits_balance?: number
+          credits_next_refill_at?: string | null
+          credits_subscription_type?: string | null
           custom_draw_count?: number | null
           default_life_area?: string
           default_share_color?: string
@@ -1384,6 +1390,9 @@ export type Database = {
           card_scale_grid?: number
           card_scale_pairs?: number
           community_theme?: string | null
+          credits_balance?: number
+          credits_next_refill_at?: string | null
+          credits_subscription_type?: string | null
           custom_draw_count?: number | null
           default_life_area?: string
           default_share_color?: string
