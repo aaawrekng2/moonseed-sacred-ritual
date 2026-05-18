@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getCreditsSnapshot } from "@/lib/credits.functions";
 import { useAuth } from "@/lib/auth";
+import { getAuthHeaders } from "@/lib/server-fn-auth";
 
 export type CreditsState = {
   balance: number;
@@ -35,7 +36,8 @@ export function useCredits(): CreditsState {
       return;
     }
     try {
-      const snap = await fetchSnapshot();
+      const headers = await getAuthHeaders();
+      const snap = await fetchSnapshot({ headers });
       setBalance(typeof snap.balance === "number" ? snap.balance : 0);
       setNextRefillAt(snap.nextRefillAt ? new Date(snap.nextRefillAt) : null);
       setSubscriptionType(snap.subscriptionType ?? null);
