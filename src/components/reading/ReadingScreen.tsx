@@ -49,6 +49,7 @@ import { SeekerQuestion } from "@/components/reading/ReadingParts";
 import { stripMarkdown } from "@/lib/strip-markdown";
 import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
+import { GuideContextPreview } from "@/components/guides/GuideContextPreview";
 import { toast } from "sonner";
 import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
 
