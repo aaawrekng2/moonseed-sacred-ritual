@@ -42,6 +42,7 @@ import {
   type RememberScope,
 } from "@/lib/use-auto-remember-question";
 import { AuthScreen } from "@/components/auth/AuthScreen";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { setDevMode } from "@/components/dev/DevOverlay";
 import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
