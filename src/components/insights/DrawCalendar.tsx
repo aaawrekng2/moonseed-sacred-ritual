@@ -93,7 +93,13 @@ export function DrawCalendar({
     return (
       <CalendarDayButton
         {...props}
-        style={bg ? { background: bg, borderRadius: 4 } : undefined}
+        style={{
+          ...(bg ? { background: bg } : null),
+          borderRadius: 4,
+          ...(isToday
+            ? { outline: "2px solid var(--accent, var(--gold))", outlineOffset: -2 }
+            : null),
+        }}
       >
         <span className="leading-none">{props.day.date.getDate()}</span>
         {c > 1 && (
@@ -110,7 +116,7 @@ export function DrawCalendar({
             ×{c}
           </span>
         )}
-        {isToday && c <= 1 && (
+        {isToday && (
           <span
             className="leading-none"
             style={{
