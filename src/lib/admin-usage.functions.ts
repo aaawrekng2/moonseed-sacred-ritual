@@ -643,6 +643,21 @@ export const getDashboardAlerts = createServerFn({ method: "GET" })
       : 0;
     const highUsageIds = userIds.filter((id) => (perUser.get(id)?.calls ?? 0) > 3 * avgCalls && avgCalls > 0);
 
+    // High-cost alert: users whose this-month USD spend exceeds threshold
+    // (admin_settings.ai_cost_alert_threshold_usd, default $1.00).
+    const { data: thresholdRow } = await supabaseAdmin
+      .from("admin_settings" as never)
+      .select("value")
+      .eq("key", "ai_cost_alert_threshold_usd")
+      .maybeSingle();
+    const rawThreshold = (thresholdRow as { value?: unknown } | null)?.value;
+    const costThreshold = (() => {
+      if (typeof rawThreshold === "number") return rawThreshold;
+      const n = parseFloat(String(rawThreshold ?? 1));
+      return Number.isFinite(n) ? n : 1;
+    })();
+    const highCostIds = userIds.filter((id) => (perUser.get(id)?.cost ?? 0) > costThreshold);
+
     // Email lookup
     const allRelevantIds = new Set<string>(highUsageIds);
     // Pull all known users from view for email + zero/negative credit logic
@@ -699,10 +714,6 @@ export const getDashboardAlerts = createServerFn({ method: "GET" })
       }),
     );
 
-    const zeroCredit = balances.filter((b) => b.available === 0).map((b) => ({
-      user_id: b.user_id,
-      email: emailMap.get(b.user_id) ?? b.user_id,
-    }));
     const negativeBalance = balances.filter((b) => b.deficit > 0).map((b) => ({
       user_id: b.user_id,
       email: emailMap.get(b.user_id) ?? b.user_id,
@@ -721,7 +732,15 @@ export const getDashboardAlerts = createServerFn({ method: "GET" })
         calls: perUser.get(id)?.calls ?? 0,
         cost: perUser.get(id)?.cost ?? 0,
       })),
-      zeroCredit,
+      highCost: highCostIds
+        .map((id) => ({
+          user_id: id,
+          email: emailMap.get(id) ?? id,
+          calls: perUser.get(id)?.calls ?? 0,
+          cost: perUser.get(id)?.cost ?? 0,
+        }))
+        .sort((a, b) => b.cost - a.cost),
+      costThreshold,
       negativeBalance,
       orphan: { count: orphanCalls.length, totalCost: orphanCost },
       avgCalls,
