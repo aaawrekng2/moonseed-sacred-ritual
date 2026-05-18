@@ -7,6 +7,7 @@
  */
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Sparkles } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useCredits } from "@/lib/use-credits";
 
 const INTRO_KEY = "credits_intro_seen";
@@ -136,8 +137,9 @@ export function CreditBadge() {
               {subscriptionType}
             </div>
           )}
-          <a
-            href="#"
+          <Link
+            to="/credits"
+            onClick={() => setPopoverOpen(false)}
             style={{
               display: "inline-block",
               marginTop: 10,
@@ -148,7 +150,7 @@ export function CreditBadge() {
             }}
           >
             Get more →
-          </a>
+          </Link>
         </div>
       )}
 

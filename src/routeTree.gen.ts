@@ -19,6 +19,7 @@ import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as DrawRouteImport } from './routes/draw'
+import { Route as CreditsRouteImport } from './routes/credits'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
@@ -34,6 +35,8 @@ import { Route as SettingsDecksRouteImport } from './routes/settings.decks'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
 import { Route as InsightsYearOfLunationsRouteImport } from './routes/insights.year-of-lunations'
+import { Route as CreditsSuccessRouteImport } from './routes/credits.success'
+import { Route as CreditsCancelRouteImport } from './routes/credits.cancel'
 import { Route as AdminUsageRouteImport } from './routes/admin.usage'
 import { Route as LovableEmailFeedbackDigestRouteImport } from './routes/lovable/email/feedback-digest'
 import { Route as InsightsRecapLunationStartRouteImport } from './routes/insights.recap.$lunationStart'
@@ -94,6 +97,11 @@ const GuidesRoute = GuidesRouteImport.update({
 const DrawRoute = DrawRouteImport.update({
   id: '/draw',
   path: '/draw',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CreditsRoute = CreditsRouteImport.update({
+  id: '/credits',
+  path: '/credits',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -171,6 +179,16 @@ const InsightsYearOfLunationsRoute = InsightsYearOfLunationsRouteImport.update({
   path: '/year-of-lunations',
   getParentRoute: () => InsightsRoute,
 } as any)
+const CreditsSuccessRoute = CreditsSuccessRouteImport.update({
+  id: '/success',
+  path: '/success',
+  getParentRoute: () => CreditsRoute,
+} as any)
+const CreditsCancelRoute = CreditsCancelRouteImport.update({
+  id: '/cancel',
+  path: '/cancel',
+  getParentRoute: () => CreditsRoute,
+} as any)
 const AdminUsageRoute = AdminUsageRouteImport.update({
   id: '/usage',
   path: '/usage',
@@ -234,6 +252,7 @@ const AdminUsageUsersUserIdRoute = AdminUsageUsersUserIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/credits': typeof CreditsRouteWithChildren
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -245,6 +264,8 @@ export interface FileRoutesByFullPath {
   '/stories': typeof StoriesRouteWithChildren
   '/threads': typeof ThreadsRouteWithChildren
   '/admin/usage': typeof AdminUsageRouteWithChildren
+  '/credits/cancel': typeof CreditsCancelRoute
+  '/credits/success': typeof CreditsSuccessRoute
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -271,6 +292,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/credits': typeof CreditsRouteWithChildren
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -282,6 +304,8 @@ export interface FileRoutesByTo {
   '/stories': typeof StoriesRouteWithChildren
   '/threads': typeof ThreadsRouteWithChildren
   '/admin/usage': typeof AdminUsageRouteWithChildren
+  '/credits/cancel': typeof CreditsCancelRoute
+  '/credits/success': typeof CreditsSuccessRoute
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -310,6 +334,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/credits': typeof CreditsRouteWithChildren
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -321,6 +346,8 @@ export interface FileRoutesById {
   '/stories': typeof StoriesRouteWithChildren
   '/threads': typeof ThreadsRouteWithChildren
   '/admin/usage': typeof AdminUsageRouteWithChildren
+  '/credits/cancel': typeof CreditsCancelRoute
+  '/credits/success': typeof CreditsSuccessRoute
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -350,6 +377,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/credits'
     | '/draw'
     | '/guides'
     | '/help'
@@ -361,6 +389,8 @@ export interface FileRouteTypes {
     | '/stories'
     | '/threads'
     | '/admin/usage'
+    | '/credits/cancel'
+    | '/credits/success'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -387,6 +417,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/credits'
     | '/draw'
     | '/guides'
     | '/help'
@@ -398,6 +429,8 @@ export interface FileRouteTypes {
     | '/stories'
     | '/threads'
     | '/admin/usage'
+    | '/credits/cancel'
+    | '/credits/success'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -425,6 +458,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/credits'
     | '/draw'
     | '/guides'
     | '/help'
@@ -436,6 +470,8 @@ export interface FileRouteTypes {
     | '/stories'
     | '/threads'
     | '/admin/usage'
+    | '/credits/cancel'
+    | '/credits/success'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -464,6 +500,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  CreditsRoute: typeof CreditsRouteWithChildren
   DrawRoute: typeof DrawRoute
   GuidesRoute: typeof GuidesRoute
   HelpRoute: typeof HelpRouteWithChildren
@@ -551,6 +588,13 @@ declare module '@tanstack/react-router' {
       path: '/draw'
       fullPath: '/draw'
       preLoaderRoute: typeof DrawRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/credits': {
+      id: '/credits'
+      path: '/credits'
+      fullPath: '/credits'
+      preLoaderRoute: typeof CreditsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -658,6 +702,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InsightsYearOfLunationsRouteImport
       parentRoute: typeof InsightsRoute
     }
+    '/credits/success': {
+      id: '/credits/success'
+      path: '/success'
+      fullPath: '/credits/success'
+      preLoaderRoute: typeof CreditsSuccessRouteImport
+      parentRoute: typeof CreditsRoute
+    }
+    '/credits/cancel': {
+      id: '/credits/cancel'
+      path: '/cancel'
+      fullPath: '/credits/cancel'
+      preLoaderRoute: typeof CreditsCancelRouteImport
+      parentRoute: typeof CreditsRoute
+    }
     '/admin/usage': {
       id: '/admin/usage'
       path: '/usage'
@@ -762,6 +820,19 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface CreditsRouteChildren {
+  CreditsCancelRoute: typeof CreditsCancelRoute
+  CreditsSuccessRoute: typeof CreditsSuccessRoute
+}
+
+const CreditsRouteChildren: CreditsRouteChildren = {
+  CreditsCancelRoute: CreditsCancelRoute,
+  CreditsSuccessRoute: CreditsSuccessRoute,
+}
+
+const CreditsRouteWithChildren =
+  CreditsRoute._addFileChildren(CreditsRouteChildren)
+
 interface HelpRouteChildren {
   HelpCategoryArticleRoute: typeof HelpCategoryArticleRoute
 }
@@ -854,6 +925,7 @@ const ApiPublicDetectWeavesRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  CreditsRoute: CreditsRouteWithChildren,
   DrawRoute: DrawRoute,
   GuidesRoute: GuidesRoute,
   HelpRoute: HelpRouteWithChildren,
