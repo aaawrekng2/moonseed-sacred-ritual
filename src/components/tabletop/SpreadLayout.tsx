@@ -21,6 +21,7 @@ import {
   useRegisterCloseHandler,
   useRegisterCopyText,
 } from "@/lib/floating-menu-context";
+import { nextYesNoSaying } from "@/lib/yes-no-sayings";
 
 type Pick = { id: number; cardIndex: number; isReversed?: boolean; deckId?: string | null };
 
