@@ -36,6 +36,7 @@ import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
 import { Route as InsightsYearOfLunationsRouteImport } from './routes/insights.year-of-lunations'
 import { Route as CreditsSuccessRouteImport } from './routes/credits.success'
+import { Route as CreditsCancelRouteImport } from './routes/credits.cancel'
 import { Route as AdminUsageRouteImport } from './routes/admin.usage'
 import { Route as LovableEmailFeedbackDigestRouteImport } from './routes/lovable/email/feedback-digest'
 import { Route as InsightsRecapLunationStartRouteImport } from './routes/insights.recap.$lunationStart'
@@ -183,6 +184,11 @@ const CreditsSuccessRoute = CreditsSuccessRouteImport.update({
   path: '/success',
   getParentRoute: () => CreditsRoute,
 } as any)
+const CreditsCancelRoute = CreditsCancelRouteImport.update({
+  id: '/cancel',
+  path: '/cancel',
+  getParentRoute: () => CreditsRoute,
+} as any)
 const AdminUsageRoute = AdminUsageRouteImport.update({
   id: '/usage',
   path: '/usage',
@@ -258,6 +264,7 @@ export interface FileRoutesByFullPath {
   '/stories': typeof StoriesRouteWithChildren
   '/threads': typeof ThreadsRouteWithChildren
   '/admin/usage': typeof AdminUsageRouteWithChildren
+  '/credits/cancel': typeof CreditsCancelRoute
   '/credits/success': typeof CreditsSuccessRoute
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
@@ -297,6 +304,7 @@ export interface FileRoutesByTo {
   '/stories': typeof StoriesRouteWithChildren
   '/threads': typeof ThreadsRouteWithChildren
   '/admin/usage': typeof AdminUsageRouteWithChildren
+  '/credits/cancel': typeof CreditsCancelRoute
   '/credits/success': typeof CreditsSuccessRoute
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
@@ -338,6 +346,7 @@ export interface FileRoutesById {
   '/stories': typeof StoriesRouteWithChildren
   '/threads': typeof ThreadsRouteWithChildren
   '/admin/usage': typeof AdminUsageRouteWithChildren
+  '/credits/cancel': typeof CreditsCancelRoute
   '/credits/success': typeof CreditsSuccessRoute
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
@@ -380,6 +389,7 @@ export interface FileRouteTypes {
     | '/stories'
     | '/threads'
     | '/admin/usage'
+    | '/credits/cancel'
     | '/credits/success'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
@@ -419,6 +429,7 @@ export interface FileRouteTypes {
     | '/stories'
     | '/threads'
     | '/admin/usage'
+    | '/credits/cancel'
     | '/credits/success'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
@@ -459,6 +470,7 @@ export interface FileRouteTypes {
     | '/stories'
     | '/threads'
     | '/admin/usage'
+    | '/credits/cancel'
     | '/credits/success'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
@@ -697,6 +709,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CreditsSuccessRouteImport
       parentRoute: typeof CreditsRoute
     }
+    '/credits/cancel': {
+      id: '/credits/cancel'
+      path: '/cancel'
+      fullPath: '/credits/cancel'
+      preLoaderRoute: typeof CreditsCancelRouteImport
+      parentRoute: typeof CreditsRoute
+    }
     '/admin/usage': {
       id: '/admin/usage'
       path: '/usage'
@@ -802,10 +821,12 @@ const AdminRouteChildren: AdminRouteChildren = {
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface CreditsRouteChildren {
+  CreditsCancelRoute: typeof CreditsCancelRoute
   CreditsSuccessRoute: typeof CreditsSuccessRoute
 }
 
 const CreditsRouteChildren: CreditsRouteChildren = {
+  CreditsCancelRoute: CreditsCancelRoute,
   CreditsSuccessRoute: CreditsSuccessRoute,
 }
 
