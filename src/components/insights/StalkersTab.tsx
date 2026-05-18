@@ -350,11 +350,11 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
             twinsList.map((t) => {
               const key = `${t.cardA}-${t.cardB}`;
               return (
-                <div key={key} className="flex flex-col items-center gap-1">
+                <div key={key} className="flex flex-col items-center gap-3">
                   <button
                     type="button"
                     onClick={() => setSelectedKey(key)}
-                    className={"aspect-[2/3] w-full relative transition-opacity duration-200 " + selClass(selectedKey, key)}
+                    className={"aspect-[2/3] w-full relative transition-opacity duration-200 mb-2 " + selClass(selectedKey, key)}
                   >
                     <div className="absolute inset-0 -translate-x-1 -translate-y-1">
                       <CardImage cardId={t.cardA} size="medium" style={{ width: "100%", minHeight: 0 }} />
@@ -375,11 +375,11 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
             tripletsList.map((t) => {
               const key = t.cardIds.join("-");
               return (
-                <div key={key} className="flex flex-col items-center gap-1">
+                <div key={key} className="flex flex-col items-center gap-3">
                   <button
                     type="button"
                     onClick={() => setSelectedKey(key)}
-                    className={"aspect-[2/3] w-full relative transition-opacity duration-200 " + selClass(selectedKey, key)}
+                    className={"aspect-[2/3] w-full relative transition-opacity duration-200 mb-3 " + selClass(selectedKey, key)}
                   >
                     <div className="absolute inset-0 -translate-x-1.5 -translate-y-1.5">
                       <CardImage cardId={t.cardIds[0]} size="medium" style={{ width: "100%", minHeight: 0 }} />

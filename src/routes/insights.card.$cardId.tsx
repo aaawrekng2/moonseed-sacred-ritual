@@ -32,7 +32,6 @@ import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 import { CardImage } from "@/components/card/CardImage";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDateShort } from "@/lib/dates";
 import { DrawCalendar } from "@/components/insights/DrawCalendar";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { ReadingRow } from "@/components/ui/reading-row";
@@ -725,14 +724,10 @@ function ReadingsList({
             <ReadingRow
               key={`${a.readingId}-${a.date}`}
               readingId={a.readingId}
-              question={
-                a.question ??
-                (a.spreadType
-                  ? `${a.spreadType} · ${formatDateShort(a.date)}`
-                  : formatDateShort(a.date))
-              }
+              question={a.question ?? null}
               cardIds={a.cardIds}
               createdAt={a.date}
+              spreadType={a.spreadType ?? null}
               onOpen={onOpen}
             />
           ))}

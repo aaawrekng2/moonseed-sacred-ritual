@@ -602,6 +602,7 @@ export function CardImage({
             src={faceSrc}
             alt={ariaLabel ?? resolvedName}
             loading={eager ? "eager" : "lazy"}
+            fetchPriority={eager ? "high" : "auto"}
             onLoad={handleImgLoad}
             onError={handleImgError}
             style={{

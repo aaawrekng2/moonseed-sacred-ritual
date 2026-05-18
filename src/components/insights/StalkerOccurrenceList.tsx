@@ -72,6 +72,7 @@ export function StalkerOccurrenceList({
               question={r.question ?? null}
               cardIds={r.card_ids ?? []}
               createdAt={r.created_at}
+              spreadType={r.spread_type ?? null}
               onOpen={onOpenReading}
             />
           </li>
