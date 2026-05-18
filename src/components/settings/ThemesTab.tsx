@@ -267,7 +267,8 @@ function ColorThemeSection({
 }) {
   return (
     <Section title="Color Theme" hint="Tap a theme to apply it instantly.">
-      <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4">
+      {/* Q89 — vertical padding so the active ring isn't clipped by overflow-x. */}
+      <div className="flex gap-3 overflow-x-auto py-2 -mx-4 px-4">
         {COMMUNITY_THEMES.map((t) => {
           const isActive = t.key === activeKey;
           return (

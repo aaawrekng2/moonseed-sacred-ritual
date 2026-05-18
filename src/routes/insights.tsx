@@ -479,10 +479,21 @@ function OverviewTab({
     return (
       <EmptyHero
         title="Your insights will bloom here once you've logged a few readings."
-        cta={{
-          label: "Draw your first card",
-          onClick: onEmptyCta,
-        }}
+        cta={
+          userId
+            ? {
+                // Q89-6 — authenticated user with zero readings: most likely
+                // a stale fetch; offer a Refresh recovery path instead of
+                // implying they have no readings.
+                label: "REFRESH",
+                onClick: onRetry,
+                variant: "text",
+              }
+            : {
+                label: "Draw your first card",
+                onClick: onEmptyCta,
+              }
+        }
       />
     );
   }

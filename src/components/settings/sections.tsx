@@ -42,6 +42,7 @@ import {
   type RememberScope,
 } from "@/lib/use-auto-remember-question";
 import { AuthScreen } from "@/components/auth/AuthScreen";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { setDevMode } from "@/components/dev/DevOverlay";
 import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
@@ -156,6 +157,7 @@ function ProfileSectionInner({
   const [savedFlash, setSavedFlash] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const isAnonymous = !user.email;
+  const navigate = useNavigate();
 
   const save = async () => {
     if (!name.trim()) {
@@ -344,7 +346,12 @@ function ProfileSectionInner({
     {authOpen && (
       <AuthScreen
         onClose={() => setAuthOpen(false)}
-        onSuccess={() => setAuthOpen(false)}
+        onSuccess={() => {
+          // Q89-1 — new accounts land on Home instead of staying on the
+          // (formerly blank) Profile page they signed up from.
+          setAuthOpen(false);
+          void navigate({ to: "/" });
+        }}
       />
     )}
     </>
