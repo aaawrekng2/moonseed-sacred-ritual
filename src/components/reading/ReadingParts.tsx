@@ -39,6 +39,7 @@ import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
 import type { ShareLevel } from "@/components/share/share-types";
 import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
+import { GuideContextPreview } from "@/components/guides/GuideContextPreview";
 
 type Pick = {
   id: number;
@@ -848,11 +849,12 @@ function ReadingActions({
         )}
       </div>
 
-      <WhatGuideWillSee
+      <GuideContextPreview
         spread={spread}
         picks={picks}
         positionLabels={positionLabels}
         guideName={activeName}
+        guideId={guideId}
         lensId={lensId}
         facetIds={facetIds}
         question={question}
