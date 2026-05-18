@@ -10,7 +10,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { Sparkles, CheckCircle2 } from "lucide-react";
 import { useCredits } from "@/lib/use-credits";
 
-export const Route = createFileRoute("/credits_/success")({
+export const Route = createFileRoute("/credits/success")({
   head: () => ({ meta: [{ title: "Thank you — Tarot Seed" }] }),
   validateSearch: (s: Record<string, unknown>) => ({
     session_id: typeof s.session_id === "string" ? s.session_id : undefined,
