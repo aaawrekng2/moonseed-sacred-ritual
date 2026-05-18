@@ -1998,6 +1998,45 @@ export const getReadingsByIds = createServerFn({ method: "GET" })
     return { readings: rows ?? [] };
   });
 
+// Q93 #9 — Card-pair detail. Returns the readings where BOTH cards
+// appeared together, respecting the global Insights filters
+// (time range / spread type / etc).
+const ReadingsWithCardPairInputSchema = z.object({
+  cardIdA: z.number().int().min(0).max(77),
+  cardIdB: z.number().int().min(0).max(77),
+  filters: InsightsFiltersSchema,
+});
+
+export const getReadingsWithCardPair = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((raw: unknown) => ReadingsWithCardPairInputSchema.parse(raw))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context as { supabase: any; userId: string };
+    const isPremium = await getIsPremium(supabase, userId);
+    const { days } = effectiveWindow(data.filters.timeRange, isPremium);
+    const rows = await fetchFilteredReadings(supabase, userId, data.filters, days);
+    const a = data.cardIdA;
+    const b = data.cardIdB;
+    const matching = rows
+      .filter((r) => {
+        const ids = r.card_ids ?? [];
+        return ids.includes(a) && ids.includes(b);
+      })
+      .map((r) => r.id);
+    if (matching.length === 0) return { readings: [] as any[] };
+    const { data: full, error } = await supabase
+      .from("readings")
+      .select(
+        "id, created_at, spread_type, card_ids, card_orientations, question, deck_id, card_deck_ids, note, is_favorite, tags, guide_id, lens_id, moon_phase, is_deep_reading, deep_reading_lenses",
+      )
+      .eq("user_id", userId)
+      .in("id", matching.slice(0, 200))
+      .is("archived_at", null)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return { readings: full ?? [] };
+  });
+
 // ===== Q52d — Numerology Patterns =====
 
 function reduceCardToNumerology(cid: number): number | null {

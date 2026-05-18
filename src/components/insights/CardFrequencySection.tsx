@@ -319,35 +319,20 @@ function GridView({ entries }: { entries: Array<{ cardId: number; count: number 
     justifyItems: "center",
   } as const;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ ...gridStyle, alignItems: "end" }}>
-        {visible.map((e) => (
-          <CardCellWithBadge
-            key={e.cardId}
-            cardId={e.cardId}
-            count={e.count}
-            onClick={() =>
-              navigate({ to: "/insights/card/$cardId", params: { cardId: String(e.cardId) } })
-            }
-          />
-        ))}
-      </div>
-      <div style={{ ...gridStyle, alignItems: "start", marginTop: 8 }}>
-        {visible.map((e) => (
-          <span
-            key={e.cardId}
-            style={{
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              fontSize: "var(--text-caption)",
-              textAlign: "center",
-              opacity: 0.85,
-            }}
-          >
-            {getCardName(e.cardId)}
-          </span>
-        ))}
-      </div>
+    // Q93 #8 — Removed the redundant text label row that used to sit
+    // below the card grid; the card images + count badges carry their
+    // own identity and the duplicate list felt noisy.
+    <div style={{ ...gridStyle, alignItems: "end" }}>
+      {visible.map((e) => (
+        <CardCellWithBadge
+          key={e.cardId}
+          cardId={e.cardId}
+          count={e.count}
+          onClick={() =>
+            navigate({ to: "/insights/card/$cardId", params: { cardId: String(e.cardId) } })
+          }
+        />
+      ))}
     </div>
   );
 }

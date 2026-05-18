@@ -118,6 +118,19 @@ export function SpreadLayout({
   const nextIndex = revealedFlags.findIndex((r) => !r);
   const allRevealed = nextIndex === -1;
 
+  // Q93 #5 — When the last card flips and InlineReading mounts below,
+  // the cards can be scrolled off the top. Snap the scroll container
+  // back to top so the seeker still sees their spread.
+  const mainRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!allRevealed) return;
+    const el = mainRef.current;
+    if (!el) return;
+    requestAnimationFrame(() => {
+      el.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }, [allRevealed]);
+
   const handleTap = useCallback(
     (i: number) => {
       if (revealedFlags[i]) return;
@@ -139,6 +152,7 @@ export function SpreadLayout({
 
   return (
     <main
+      ref={mainRef}
       className="cast-screen-enter fixed inset-0 z-40 flex h-[100dvh] w-full flex-col overflow-y-auto bg-[radial-gradient(ellipse_at_50%_30%,rgba(60,40,90,0.35),transparent_70%)]"
       aria-label={`${meta.label} spread layout`}
       style={{
@@ -1421,7 +1435,7 @@ export function ManualSpreadSlots({
     const sidePad = 48;
     const availW =
       typeof window !== "undefined"
-        ? Math.max(280, window.innerWidth - sidePad)
+        ? Math.min(Math.max(280, window.innerWidth - sidePad), 640)
         : 320;
     // Q49 Fix 2 — cap cellW so desktop does not render giant cards;
     // use cellW * 2 so any reasonable card aspect fits without top-crop.
@@ -1432,6 +1446,8 @@ export function ManualSpreadSlots({
       <div
         style={{
           width: "100%",
+          maxWidth: 640,
+          margin: "0 auto",
           overflowX: "hidden",
           // Q73 Fix 9 — give the leftmost/rightmost cells room for their
           // border + glow before the wrapper clips overflow.
@@ -1512,7 +1528,7 @@ export function ManualSpreadSlots({
     const sidePad = 48; // 16px each side + 8px safety margin each side
     const availW =
       typeof window !== "undefined"
-        ? Math.max(280, window.innerWidth - sidePad)
+        ? Math.min(Math.max(280, window.innerWidth - sidePad), 640)
         : 320;
     const cellWRaw = Math.floor((availW - gap * (cols - 1)) / cols);
     const cellW = Math.min(cellWRaw, 120);
@@ -1528,6 +1544,8 @@ export function ManualSpreadSlots({
       <div
         style={{
           width: "100%",
+          maxWidth: 640,
+          margin: "0 auto",
           overflowX: "hidden",
           paddingLeft: 12,
           paddingRight: 12,
