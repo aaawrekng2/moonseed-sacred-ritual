@@ -1215,6 +1215,10 @@ export type Database = {
           birth_place: string | null
           birth_time: string | null
           card_back: string
+          card_scale_bar: number
+          card_scale_deck: number
+          card_scale_grid: number
+          card_scale_pairs: number
           community_theme: string | null
           custom_draw_count: number | null
           default_life_area: string
@@ -1293,6 +1297,10 @@ export type Database = {
           birth_place?: string | null
           birth_time?: string | null
           card_back?: string
+          card_scale_bar?: number
+          card_scale_deck?: number
+          card_scale_grid?: number
+          card_scale_pairs?: number
           community_theme?: string | null
           custom_draw_count?: number | null
           default_life_area?: string
@@ -1371,6 +1379,10 @@ export type Database = {
           birth_place?: string | null
           birth_time?: string | null
           card_back?: string
+          card_scale_bar?: number
+          card_scale_deck?: number
+          card_scale_grid?: number
+          card_scale_pairs?: number
           community_theme?: string | null
           custom_draw_count?: number | null
           default_life_area?: string
