@@ -191,7 +191,7 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
                   </div>
                   {mode === "bar" && <BarView entries={entries} max={max} />}
                   {mode === "grid" && <GridView entries={entries} />}
-                  {mode === "deck" && <GridView entries={entries} />}
+                  {mode === "deck" && <DeckGrid entries={entries} />}
                 </div>
               ))}
             </div>
@@ -204,7 +204,7 @@ export function CardFrequencySection({ filters }: { filters: InsightsFilters }) 
             />
           )}
           {mode === "grid" && <GridView entries={sorted} />}
-          {mode === "deck" && <DeckView entries={sorted} />}
+          {mode === "deck" && <DeckGrid entries={sorted} />}
           {mode === "bar" && !showAll && (
             <button
               type="button"
@@ -352,39 +352,23 @@ function GridView({ entries }: { entries: Array<{ cardId: number; count: number 
   );
 }
 
-function DeckView({ entries }: { entries: Array<{ cardId: number; count: number }> }) {
-  // Preserve incoming sort order from parent (frequency, reversed %, etc.).
-  const majors = entries.filter((e) => e.cardId <= 21);
-  const suits = [
-    { name: "Wands", min: 22, max: 35 },
-    { name: "Cups", min: 36, max: 49 },
-    { name: "Swords", min: 50, max: 63 },
-    { name: "Pentacles", min: 64, max: 77 },
-  ].map((s) => ({
-    ...s,
-    cards: entries.filter((e) => e.cardId >= s.min && e.cardId <= s.max),
-  }));
+/**
+ * Q92 #2 — Deck mode now renders a single flat compact grid per group.
+ * Grouping (none / suit / type / number) is controlled by the Group
+ * filter dropdown via the parent's grouping logic; this component just
+ * lays out whatever entries it receives. Sort order is preserved.
+ */
+function DeckGrid({ entries }: { entries: Array<{ cardId: number; count: number }> }) {
   return (
-    // Q60 Fix 6 — unified horizontal blocks. Majors = 2 rows of 11.
-    // Each suit = 2 rows of 7. Same visual rhythm app-wide.
-    <div className="space-y-4">
-      <section>
-        <div className="mb-1 text-[10px] uppercase tracking-widest opacity-60">Majors</div>
-        <div className="grid grid-cols-11 gap-1">
-          {majors.map((e) => (
-            <DeckCell key={e.cardId} cardId={e.cardId} count={e.count} />
-          ))}
-        </div>
-      </section>
-      {suits.map((s) => (
-        <section key={s.name}>
-          <div className="mb-1 text-[10px] uppercase tracking-widest opacity-60">{s.name}</div>
-          <div className="grid grid-cols-7 gap-1">
-            {s.cards.map((e) => (
-              <DeckCell key={e.cardId} cardId={e.cardId} count={e.count} />
-            ))}
-          </div>
-        </section>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(56px, 1fr))",
+        gap: 4,
+      }}
+    >
+      {entries.map((e) => (
+        <DeckCell key={e.cardId} cardId={e.cardId} count={e.count} />
       ))}
     </div>
   );

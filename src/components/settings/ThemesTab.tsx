@@ -267,7 +267,8 @@ function ColorThemeSection({
 }) {
   return (
     <Section title="Color Theme" hint="Tap a theme to apply it instantly.">
-      {/* Q89 — vertical padding so the active ring isn't clipped by overflow-x. */}
+      {/* Q92 — outline (not ring/box-shadow) so the active indicator
+          is never clipped by the horizontal scroll container. */}
       <div className="flex gap-3 overflow-x-auto py-2 -mx-4 px-4">
         {COMMUNITY_THEMES.map((t) => {
           const isActive = t.key === activeKey;
@@ -278,7 +279,7 @@ function ColorThemeSection({
               onClick={() => onPick(t.key)}
               className={cn(
                 "flex-shrink-0 rounded-xl overflow-hidden text-left transition-transform active:scale-[0.97]",
-                isActive ? "ring-2" : "ring-1",
+                !isActive && "ring-1",
               )}
               style={{
                 width: 132,
@@ -286,9 +287,9 @@ function ColorThemeSection({
                   "linear-gradient(135deg, var(--surface-elevated), var(--surface-card))",
                 borderColor: "var(--border-subtle)",
                 // @ts-expect-error CSS custom prop
-                "--tw-ring-color": isActive
-                  ? "var(--accent-color)"
-                  : "var(--border-subtle)",
+                "--tw-ring-color": "var(--border-subtle)",
+                outline: isActive ? "2px solid var(--accent-color)" : undefined,
+                outlineOffset: isActive ? "2px" : undefined,
               }}
             >
               <div

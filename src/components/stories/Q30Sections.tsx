@@ -422,7 +422,7 @@ export function StoryConstellation({
         cards drawn together — line weight = times paired
       </p>
       <div style={{ display: "flex", justifyContent: "center" }}>
-        <svg viewBox="0 0 400 360" style={{ width: "100%", maxWidth: 480 }} role="img" aria-label="card constellation">
+        <svg viewBox="0 0 400 400" style={{ width: "100%", maxWidth: 480, overflow: "visible" }} role="img" aria-label="card constellation">
           {positions.flatMap((a, i) =>
             positions.slice(i + 1).map((b) => {
               const key = [a.cardId, b.cardId].sort((x, y) => x - y).join("-");

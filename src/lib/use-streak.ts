@@ -91,6 +91,22 @@ export function useStreak(): {
       window.removeEventListener("arcana:streak-updated", onUpdate);
   }, [loadStreak]);
 
+  // Q92 #6 — Recompute on app open / resume from background. PWA tabs
+  // can sit suspended overnight; on visibility change we refetch so the
+  // streak reflects today's reality, not the snapshot from last session.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadStreak();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [loadStreak]);
+
   const recordDraw = useCallback(async () => {
     if (!user) return;
     const today = todayInTz(effectiveTz);

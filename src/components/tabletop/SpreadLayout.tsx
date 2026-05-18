@@ -21,6 +21,7 @@ import {
   useRegisterCloseHandler,
   useRegisterCopyText,
 } from "@/lib/floating-menu-context";
+import { nextYesNoSaying } from "@/lib/yes-no-sayings";
 
 type Pick = { id: number; cardIndex: number; isReversed?: boolean; deckId?: string | null };
 
@@ -453,11 +454,22 @@ function SpreadContent({
         </div>
       );
     }
+    // Q92 #5 — Two stacked grids: cards bottom-aligned to a shared
+    // baseline, labels top-aligned in the row below.
     return (
-      <div className="flex flex-wrap items-start justify-center gap-4">
-        {picks.map((pick, i) => (
-          <div key={pick.id} className="flex flex-col items-center gap-2">
+      <div className="flex flex-col items-center gap-2 w-full max-w-full">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${picks.length}, 1fr)`,
+            gap: 16,
+            alignItems: "end",
+            justifyItems: "center",
+          }}
+        >
+          {picks.map((pick, i) => (
             <CardFace
+              key={`card-${pick.id}`}
               pick={pick}
               cardBack={cardBack}
               revealed={!!revealedFlags[i]}
@@ -469,18 +481,35 @@ function SpreadContent({
               isRevealPhase={isRevealPhase}
               onZoom={onZoom}
             />
-            {showLabels && (
-              <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
-            )}
-            {showLabels && revealedFlags[i] && (
-              <CardNameLabel
-                cardIndex={pick.cardIndex}
-                isReversed={!!pick.isReversed}
-                cardWidth={sizing.w}
-              />
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: `repeat(${picks.length}, 1fr)`,
+            gap: 16,
+            alignItems: "start",
+            justifyItems: "center",
+          }}
+        >
+          {picks.map((pick, i) => (
+            <div
+              key={`label-${pick.id}`}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}
+            >
+              {showLabels && (
+                <PositionLabel cardWidth={sizing.w}>{`Card ${i + 1}`}</PositionLabel>
+              )}
+              {showLabels && revealedFlags[i] && (
+                <CardNameLabel
+                  cardIndex={pick.cardIndex}
+                  isReversed={!!pick.isReversed}
+                  cardWidth={sizing.w}
+                />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -496,6 +525,7 @@ function SpreadContent({
       sizing={sizing}
       isRevealPhase={isRevealPhase}
       onZoom={onZoom}
+      spread={spread}
     />
   );
 }
@@ -754,6 +784,7 @@ function SingleCard({
   sizing,
   isRevealPhase,
   onZoom,
+  spread,
 }: {
   pick: Pick;
   cardBack: CardBackId;
@@ -764,6 +795,7 @@ function SingleCard({
   sizing: Sizing;
   isRevealPhase?: boolean;
   onZoom?: (cardIndex: number, reversed: boolean, pickDeckId: string | null) => void;
+  spread?: SpreadMode;
 }) {
   // DD-1 — under-card name labels also hide on mobile (matches the
   // position-label suppression at the parent level). The bottom-bar
@@ -771,8 +803,27 @@ function SingleCard({
   const { showLabels: rawShowLabels } = useShowLabels();
   const isMobile = useIsMobile();
   const showLabels = rawShowLabels && !isMobile;
+  // Q92 #7 — Yes/No: after the card flips, drop a tarot-voice saying
+  // beneath it that matches the card's yes/no tendency. Computed once
+  // per (cardId, reveal) so re-renders don't keep advancing the index.
+  const [saying, setSaying] = useState<string | null>(null);
+  useEffect(() => {
+    if (spread === "yes_no" && revealed && pick) {
+      setSaying(nextYesNoSaying(pick.cardIndex));
+    } else if (!revealed) {
+      setSaying(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealed, pick?.cardIndex, spread]);
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div
+      className="flex flex-col items-center gap-3"
+      style={
+        spread === "yes_no" && revealed
+          ? { transform: "translateY(-60px)", transition: "transform 600ms ease" }
+          : undefined
+      }
+    >
       <CardFace
         pick={pick}
         cardBack={cardBack}
@@ -792,6 +843,30 @@ function SingleCard({
           cardWidth={sizing.w}
         />
       )}
+      {spread === "yes_no" && revealed && saying && (
+        <p
+          key={saying}
+          className="text-center"
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body-lg)",
+            color: "var(--gold)",
+            maxWidth: 360,
+            margin: "8px auto 0",
+            opacity: 0,
+            animation: "yesno-saying-in 600ms ease 400ms forwards",
+          }}
+        >
+          {saying}
+        </p>
+      )}
+      <style>{`
+        @keyframes yesno-saying-in {
+          from { opacity: 0; transform: translateY(4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
