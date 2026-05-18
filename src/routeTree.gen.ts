@@ -19,9 +19,9 @@ import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as DrawRouteImport } from './routes/draw'
-import { Route as CreditsRouteImport } from './routes/credits'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CreditsIndexRouteImport } from './routes/credits.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ThreadsPatternIdRouteImport } from './routes/threads.$patternId'
 import { Route as StoriesPatternIdRouteImport } from './routes/stories.$patternId'
@@ -35,8 +35,8 @@ import { Route as SettingsDecksRouteImport } from './routes/settings.decks'
 import { Route as SettingsDataRouteImport } from './routes/settings.data'
 import { Route as SettingsBlueprintRouteImport } from './routes/settings.blueprint'
 import { Route as InsightsYearOfLunationsRouteImport } from './routes/insights.year-of-lunations'
-import { Route as CreditsSuccessRouteImport } from './routes/credits_.success'
-import { Route as CreditsCancelRouteImport } from './routes/credits_.cancel'
+import { Route as CreditsSuccessRouteImport } from './routes/credits.success'
+import { Route as CreditsCancelRouteImport } from './routes/credits.cancel'
 import { Route as AdminUsageRouteImport } from './routes/admin.usage'
 import { Route as LovableEmailFeedbackDigestRouteImport } from './routes/lovable/email/feedback-digest'
 import { Route as InsightsRecapLunationStartRouteImport } from './routes/insights.recap.$lunationStart'
@@ -99,11 +99,6 @@ const DrawRoute = DrawRouteImport.update({
   path: '/draw',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CreditsRoute = CreditsRouteImport.update({
-  id: '/credits',
-  path: '/credits',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -112,6 +107,11 @@ const AdminRoute = AdminRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CreditsIndexRoute = CreditsIndexRouteImport.update({
+  id: '/credits/',
+  path: '/credits/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -180,12 +180,12 @@ const InsightsYearOfLunationsRoute = InsightsYearOfLunationsRouteImport.update({
   getParentRoute: () => InsightsRoute,
 } as any)
 const CreditsSuccessRoute = CreditsSuccessRouteImport.update({
-  id: '/credits_/success',
+  id: '/credits/success',
   path: '/credits/success',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CreditsCancelRoute = CreditsCancelRouteImport.update({
-  id: '/credits_/cancel',
+  id: '/credits/cancel',
   path: '/credits/cancel',
   getParentRoute: () => rootRouteImport,
 } as any)
@@ -252,7 +252,6 @@ const AdminUsageUsersUserIdRoute = AdminUsageUsersUserIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/credits': typeof CreditsRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -279,6 +278,7 @@ export interface FileRoutesByFullPath {
   '/stories/$patternId': typeof StoriesPatternIdRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/credits/': typeof CreditsIndexRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -292,7 +292,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/credits': typeof CreditsRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -319,6 +318,7 @@ export interface FileRoutesByTo {
   '/stories/$patternId': typeof StoriesPatternIdRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
   '/admin': typeof AdminIndexRoute
+  '/credits': typeof CreditsIndexRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -334,7 +334,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/credits': typeof CreditsRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -346,8 +345,8 @@ export interface FileRoutesById {
   '/stories': typeof StoriesRouteWithChildren
   '/threads': typeof ThreadsRouteWithChildren
   '/admin/usage': typeof AdminUsageRouteWithChildren
-  '/credits_/cancel': typeof CreditsCancelRoute
-  '/credits_/success': typeof CreditsSuccessRoute
+  '/credits/cancel': typeof CreditsCancelRoute
+  '/credits/success': typeof CreditsSuccessRoute
   '/insights/year-of-lunations': typeof InsightsYearOfLunationsRoute
   '/settings/blueprint': typeof SettingsBlueprintRoute
   '/settings/data': typeof SettingsDataRoute
@@ -361,6 +360,7 @@ export interface FileRoutesById {
   '/stories/$patternId': typeof StoriesPatternIdRoute
   '/threads/$patternId': typeof ThreadsPatternIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/credits/': typeof CreditsIndexRoute
   '/api/public/detect-weaves': typeof ApiPublicDetectWeavesRouteWithChildren
   '/help/$category/$article': typeof HelpCategoryArticleRoute
   '/insights/card/$cardId': typeof InsightsCardCardIdRoute
@@ -377,7 +377,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
-    | '/credits'
     | '/draw'
     | '/guides'
     | '/help'
@@ -404,6 +403,7 @@ export interface FileRouteTypes {
     | '/stories/$patternId'
     | '/threads/$patternId'
     | '/admin/'
+    | '/credits/'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -417,7 +417,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/credits'
     | '/draw'
     | '/guides'
     | '/help'
@@ -444,6 +443,7 @@ export interface FileRouteTypes {
     | '/stories/$patternId'
     | '/threads/$patternId'
     | '/admin'
+    | '/credits'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -458,7 +458,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
-    | '/credits'
     | '/draw'
     | '/guides'
     | '/help'
@@ -470,8 +469,8 @@ export interface FileRouteTypes {
     | '/stories'
     | '/threads'
     | '/admin/usage'
-    | '/credits_/cancel'
-    | '/credits_/success'
+    | '/credits/cancel'
+    | '/credits/success'
     | '/insights/year-of-lunations'
     | '/settings/blueprint'
     | '/settings/data'
@@ -485,6 +484,7 @@ export interface FileRouteTypes {
     | '/stories/$patternId'
     | '/threads/$patternId'
     | '/admin/'
+    | '/credits/'
     | '/api/public/detect-weaves'
     | '/help/$category/$article'
     | '/insights/card/$cardId'
@@ -500,7 +500,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
-  CreditsRoute: typeof CreditsRoute
   DrawRoute: typeof DrawRoute
   GuidesRoute: typeof GuidesRoute
   HelpRoute: typeof HelpRouteWithChildren
@@ -513,6 +512,7 @@ export interface RootRouteChildren {
   ThreadsRoute: typeof ThreadsRouteWithChildren
   CreditsCancelRoute: typeof CreditsCancelRoute
   CreditsSuccessRoute: typeof CreditsSuccessRoute
+  CreditsIndexRoute: typeof CreditsIndexRoute
   ApiPublicDetectWeavesRoute: typeof ApiPublicDetectWeavesRouteWithChildren
   LovableEmailFeedbackDigestRoute: typeof LovableEmailFeedbackDigestRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -592,13 +592,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DrawRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/credits': {
-      id: '/credits'
-      path: '/credits'
-      fullPath: '/credits'
-      preLoaderRoute: typeof CreditsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -611,6 +604,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/credits/': {
+      id: '/credits/'
+      path: '/credits'
+      fullPath: '/credits/'
+      preLoaderRoute: typeof CreditsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -704,15 +704,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InsightsYearOfLunationsRouteImport
       parentRoute: typeof InsightsRoute
     }
-    '/credits_/success': {
-      id: '/credits_/success'
+    '/credits/success': {
+      id: '/credits/success'
       path: '/credits/success'
       fullPath: '/credits/success'
       preLoaderRoute: typeof CreditsSuccessRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/credits_/cancel': {
-      id: '/credits_/cancel'
+    '/credits/cancel': {
+      id: '/credits/cancel'
       path: '/credits/cancel'
       fullPath: '/credits/cancel'
       preLoaderRoute: typeof CreditsCancelRouteImport
@@ -914,7 +914,6 @@ const ApiPublicDetectWeavesRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
-  CreditsRoute: CreditsRoute,
   DrawRoute: DrawRoute,
   GuidesRoute: GuidesRoute,
   HelpRoute: HelpRouteWithChildren,
@@ -927,6 +926,7 @@ const rootRouteChildren: RootRouteChildren = {
   ThreadsRoute: ThreadsRouteWithChildren,
   CreditsCancelRoute: CreditsCancelRoute,
   CreditsSuccessRoute: CreditsSuccessRoute,
+  CreditsIndexRoute: CreditsIndexRoute,
   ApiPublicDetectWeavesRoute: ApiPublicDetectWeavesRouteWithChildren,
   LovableEmailFeedbackDigestRoute: LovableEmailFeedbackDigestRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,

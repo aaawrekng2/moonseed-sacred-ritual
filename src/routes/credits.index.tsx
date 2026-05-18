@@ -10,7 +10,7 @@ import { Sparkles, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 
-export const Route = createFileRoute("/credits")({
+export const Route = createFileRoute("/credits/")({
   head: () => ({ meta: [{ title: "Credits — Tarot Seed" }] }),
   component: CreditsPage,
 });

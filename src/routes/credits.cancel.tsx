@@ -4,7 +4,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { CSSProperties } from "react";
 
-export const Route = createFileRoute("/credits_/cancel")({
+export const Route = createFileRoute("/credits/cancel")({
   head: () => ({ meta: [{ title: "Cancelled — Tarot Seed" }] }),
   component: CancelPage,
 });
