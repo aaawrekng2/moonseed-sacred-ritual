@@ -1095,10 +1095,7 @@ function ReadingCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-3 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
             <span style={{ opacity: "var(--ro-plus-30)" }}>
-              {spreadLabel(reading.spread_type)}
-            </span>
-            <span style={{ opacity: "var(--ro-plus-20)" }}>
-              {formatTimeAgo(reading.created_at)}
+              {formatDateShort(reading.created_at)} · {formatTimeAgo(reading.created_at)} · {spreadLabel(reading.spread_type)}
             </span>
           </div>
         </div>
