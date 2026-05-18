@@ -2297,7 +2297,7 @@ function ReadingDetail({
         <div
           ref={cardRowRef}
           className={cn(
-            "mt-6 flex items-start gap-2",
+            "mt-3 flex items-start gap-2",
             swipeMobile
               ? "overflow-x-auto snap-x snap-mandatory -mx-4 px-4 pb-2 justify-start"
               : "justify-center",
