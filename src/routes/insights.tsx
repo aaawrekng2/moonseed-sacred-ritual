@@ -168,6 +168,18 @@ function InsightsRoute() {
         ]);
         console.log("[insights] overview result:", ov?.totalReadings, "readings");
         if (cancelled) return;
+        // Q90 #8 — distinguish "fetch succeeded but returned zero" from
+        // "fetch failed silently". A zero result for an authenticated
+        // user with known readings on other devices is the signal we
+        // want to surface during the persistent-blank investigation.
+        if (ov && ov.totalReadings === 0) {
+          console.warn(
+            "[insights] overview returned 0 readings for userId:",
+            userId,
+            "filters:",
+            filters,
+          );
+        }
         setOverview(ov);
         setStalkers(st);
         setLoading(false);
