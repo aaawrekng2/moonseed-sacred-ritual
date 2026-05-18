@@ -11,11 +11,14 @@ export function CardCellWithBadge({
   count,
   name,
   onClick,
+  eager,
 }: {
   cardId: number;
   count?: number;
   name?: string;
   onClick?: () => void;
+  /** Q94 #6 — opt the inner CardImage out of lazy loading. */
+  eager?: boolean;
 }) {
   const { ref, width } = useElementWidth<HTMLDivElement>();
   return (
@@ -40,7 +43,7 @@ export function CardCellWithBadge({
         style={{ position: "relative", width: "100%", containerType: "inline-size" }}
       >
         {width > 0 && (
-          <CardImage cardId={cardId} size="custom" widthPx={Math.round(width)} />
+          <CardImage cardId={cardId} size="custom" widthPx={Math.round(width)} eager={eager} />
         )}
         {count !== undefined && <CardCountBadge count={count} />}
       </div>
