@@ -10,7 +10,6 @@ import {
   hasAnyActive,
   type GlobalFilters,
 } from "@/lib/filters.types";
-import { HeroCard } from "@/components/insights/HeroCard";
 import { SuitBalanceChart } from "@/components/insights/SuitBalanceChart";
 import { MajorMinorChart } from "@/components/insights/MajorMinorChart";
 import { MoonPhaseRing } from "@/components/insights/MoonPhaseRing";

@@ -355,6 +355,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
                     type="button"
                     onClick={() => setSelectedKey(key)}
                     className={"aspect-[2/3] w-full relative transition-opacity duration-200 mb-2 " + selClass(selectedKey, key)}
+                    style={{ containerType: "inline-size" }}
                   >
                     <div className="absolute inset-0 -translate-x-1 -translate-y-1">
                       <CardImage cardId={t.cardA} size="medium" style={{ width: "100%", minHeight: 0 }} />
@@ -380,6 +381,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
                     type="button"
                     onClick={() => setSelectedKey(key)}
                     className={"aspect-[2/3] w-full relative transition-opacity duration-200 mb-3 " + selClass(selectedKey, key)}
+                    style={{ containerType: "inline-size" }}
                   >
                     <div className="absolute inset-0 -translate-x-1.5 -translate-y-1.5">
                       <CardImage cardId={t.cardIds[0]} size="medium" style={{ width: "100%", minHeight: 0 }} />
