@@ -6,6 +6,7 @@
  */
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
 import { getReadingsByIds } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { CardImage } from "@/components/card/CardImage";
@@ -26,6 +27,7 @@ export function ReadingDetailModal({
   const fetchReadings = useServerFn(getReadingsByIds);
   const [reading, setReading] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let cancelled = false;
@@ -87,13 +89,23 @@ export function ReadingDetailModal({
                     const label = positions[idx];
                     return (
                       <div key={`${cid}-${idx}`} style={{ width: 96 }} className="flex flex-col items-center">
-                        <CardImage
-                          cardId={cid}
-                          reversed={reversed}
-                          size="custom"
-                          widthPx={96}
-                          deckId={(reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null}
-                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onClose();
+                            void navigate({ to: "/insights/card/$cardId", params: { cardId: String(cid) } });
+                          }}
+                          style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "block", width: "100%" }}
+                          aria-label="View card trace"
+                        >
+                          <CardImage
+                            cardId={cid}
+                            reversed={reversed}
+                            size="custom"
+                            widthPx={96}
+                            deckId={(reading.card_deck_ids?.[idx] ?? reading.deck_id) ?? null}
+                          />
+                        </button>
                         {label && (
                           <span className="mt-1 text-center text-[10px] uppercase tracking-wider text-muted-foreground">
                             {label}

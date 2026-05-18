@@ -42,7 +42,7 @@ function FeedbackPage() {
 
 /* ---------------- Admin notifications (Q95 #5) ---------------- */
 
-type Frequency = "instant" | "daily" | "weekly";
+type Frequency = "instant" | "daily";
 
 function AdminNotificationsSection() {
   const { user, loading: authLoading } = useAuth();
@@ -190,7 +190,7 @@ function AdminNotificationsSection() {
         <div>
           <div style={labelStyle}>Frequency</div>
           <div style={{ display: "flex", gap: 16, marginTop: 6 }}>
-            {(["instant", "daily", "weekly"] as const).map((f) => {
+            {(["instant", "daily"] as const).map((f) => {
               const active = f === frequency;
               return (
                 <button
@@ -215,7 +215,7 @@ function AdminNotificationsSection() {
                       : "1px solid transparent",
                   }}
                 >
-                  {f === "instant" ? "Instant" : f === "daily" ? "Daily digest" : "Weekly digest"}
+                  {f === "instant" ? "Instant" : "Daily digest"}
                 </button>
               );
             })}

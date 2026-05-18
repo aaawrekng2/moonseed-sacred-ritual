@@ -393,7 +393,7 @@ function ModeToggle({ mode, onChange }: { mode: Mode; onChange: (m: Mode) => voi
   );
 }
 
-function BarRow({ cardId, count, max }: { cardId: number; count: number; max: number }) {
+function BarRow({ cardId, count, max, cardScale = 100 }: { cardId: number; count: number; max: number; cardScale?: number }) {
   const navigate = useNavigate();
   const w = max === 0 ? 0 : (count / max) * 100;
   return (
@@ -409,7 +409,7 @@ function BarRow({ cardId, count, max }: { cardId: number; count: number; max: nu
         cardId={cardId}
         variant="face"
         size="custom"
-        widthPx={28}
+        widthPx={Math.round(28 * cardScale / 100)}
         ariaLabel={getCardName(cardId)}
         style={{ opacity: count === 0 ? 0.4 : 1 }}
       />
@@ -439,13 +439,11 @@ function BarRow({ cardId, count, max }: { cardId: number; count: number; max: nu
   );
 }
 
-function BarView({ entries, max }: { entries: Array<{ cardId: number; count: number }>; max: number; cardScale?: number }) {
-  // BarView renders bars (no card images), so cardScale has no visual
-  // effect. Prop is accepted to keep the call signature uniform.
+function BarView({ entries, max, cardScale = 100 }: { entries: Array<{ cardId: number; count: number }>; max: number; cardScale?: number }) {
   return (
     <div className="rounded-lg p-2" style={{ background: "var(--surface-card)" }}>
       {entries.map((e) => (
-        <BarRow key={e.cardId} cardId={e.cardId} count={e.count} max={max} />
+        <BarRow key={e.cardId} cardId={e.cardId} count={e.count} max={max} cardScale={cardScale} />
       ))}
     </div>
   );

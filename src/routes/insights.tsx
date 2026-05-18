@@ -15,6 +15,7 @@ import { MoonPhaseRing } from "@/components/insights/MoonPhaseRing";
 import { ReversalStat } from "@/components/insights/ReversalStat";
 import { RhythmHeatmap } from "@/components/insights/RhythmHeatmap";
 import { HeroCard } from "@/components/insights/HeroCard";
+import { DrawCalendar } from "@/components/insights/DrawCalendar";
 import { getInsightsOverview, getStalkerCards } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
@@ -525,7 +526,7 @@ function OverviewTab({
   const lowData = overview.totalReadings < 5;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 md:space-y-4">
       {moonEnabled && (
         <>
           <LunationHint />
@@ -550,6 +551,23 @@ function OverviewTab({
       {stalkers && (stalkers.topCard || stalkers.stalkerCards.length > 0) && (
         <HeroCard result={stalkers} onTap={onTapHero} />
       )}
+
+      {/* Q101 #6 — Horizontal 3-month calendar of stalker appearances, desktop only. */}
+      {stalkers &&
+        stalkers.stalkerCards[0]?.appearances &&
+        stalkers.stalkerCards[0].appearances.length > 0 && (
+          <div className="hidden md:block">
+            <DrawCalendar
+              appearances={stalkers.stalkerCards[0].appearances}
+              monthsBack={Math.min(
+                3,
+                new Set(
+                  stalkers.stalkerCards[0].appearances.map((a) => a.date.slice(0, 7)),
+                ).size,
+              )}
+            />
+          </div>
+        )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
         <MajorMinorChart data={overview.majorMinor} onTap={() => log("major-minor")} />
