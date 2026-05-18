@@ -187,6 +187,12 @@ function InsightsRoute() {
         setOverview(ov);
         setStalkers(st);
         setLoading(false);
+        // Q99 #5 — count patterns to decide Stories tab visibility.
+        const { count } = await supabase
+          .from("patterns")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId);
+        if (!cancelled) setPatternCount(count ?? 0);
       } catch (e) {
         if (cancelled) return;
         console.error("[insights] fetch FAILED:", e);
