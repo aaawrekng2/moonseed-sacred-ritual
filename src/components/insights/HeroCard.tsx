@@ -1,7 +1,6 @@
 import { getCardName } from "@/lib/tarot";
 import type { StalkerCardsResult } from "@/lib/insights.types";
 import { CardImage } from "@/components/card/CardImage";
-import { DrawCalendar } from "./DrawCalendar";
 
 /**
  * EJ-6 — Hero card for the Overview tab.
@@ -22,11 +21,6 @@ export function HeroCard({
   const stalker = stalkerCards[0];
   const featuredId = stalker?.cardId ?? topCard?.cardId ?? 0;
   const count = stalker?.count ?? topCard?.count ?? 0;
-  const appearances = stalker?.appearances ?? [];
-  const monthCount =
-    appearances.length > 0
-      ? Math.min(3, new Set(appearances.map((a) => a.date.slice(0, 7))).size)
-      : 0;
   const isStalker = !!stalker;
   const isLowData = totalReadings > 0 && totalReadings < 5;
   const overline = isLowData
@@ -98,11 +92,6 @@ export function HeroCard({
         >
           appearance{count === 1 ? "" : "s"} of {cardName}
         </div>
-        {monthCount > 0 && (
-          <div className="hidden md:block mt-2">
-            <DrawCalendar appearances={appearances} monthsBack={monthCount} />
-          </div>
-        )}
       </div>
     </button>
   );
