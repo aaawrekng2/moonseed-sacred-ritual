@@ -1421,7 +1421,7 @@ export function ManualSpreadSlots({
     const sidePad = 48;
     const availW =
       typeof window !== "undefined"
-        ? Math.max(280, window.innerWidth - sidePad)
+        ? Math.min(Math.max(280, window.innerWidth - sidePad), 640)
         : 320;
     // Q49 Fix 2 — cap cellW so desktop does not render giant cards;
     // use cellW * 2 so any reasonable card aspect fits without top-crop.
@@ -1432,6 +1432,8 @@ export function ManualSpreadSlots({
       <div
         style={{
           width: "100%",
+          maxWidth: 640,
+          margin: "0 auto",
           overflowX: "hidden",
           // Q73 Fix 9 — give the leftmost/rightmost cells room for their
           // border + glow before the wrapper clips overflow.
@@ -1512,7 +1514,7 @@ export function ManualSpreadSlots({
     const sidePad = 48; // 16px each side + 8px safety margin each side
     const availW =
       typeof window !== "undefined"
-        ? Math.max(280, window.innerWidth - sidePad)
+        ? Math.min(Math.max(280, window.innerWidth - sidePad), 640)
         : 320;
     const cellWRaw = Math.floor((availW - gap * (cols - 1)) / cols);
     const cellW = Math.min(cellWRaw, 120);
@@ -1528,6 +1530,8 @@ export function ManualSpreadSlots({
       <div
         style={{
           width: "100%",
+          maxWidth: 640,
+          margin: "0 auto",
           overflowX: "hidden",
           paddingLeft: 12,
           paddingRight: 12,
