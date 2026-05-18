@@ -2179,7 +2179,9 @@ function ReadingDetail({
 
   return (
     <FullScreenSheet open onClose={onClose} entry="fade" showCloseButton>
-      <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+56px)]">
+      {/* Q89-9 — trimmed top padding (was +56px) so the header isn't
+          buried under a large empty band on mobile. */}
+      <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+20px)]">
         {isArchived && (
           <div
             role="status"
@@ -2268,13 +2270,40 @@ function ReadingDetail({
               )}
             </div>
           </div>
+          {/* Q89-10 — guide line now shows an initial-letter avatar
+              circle next to the name so the oracle guide always has a
+              visible mark even when no image asset exists. */}
           <div
-            className="mt-2 font-display text-sm italic text-gold"
+            className="mt-2 flex items-center gap-2 font-display text-sm italic text-gold"
             style={{ opacity: "var(--ro-plus-20)" }}
           >
-            {reading.moon_phase &&
-              `${PHASE_GLYPHS[reading.moon_phase] ?? "🌙"} ${reading.moon_phase} · `}
-            {guide.name}
+            {reading.moon_phase && (
+              <span>
+                {`${PHASE_GLYPHS[reading.moon_phase] ?? "🌙"} ${reading.moon_phase} ·`}
+              </span>
+            )}
+            <span
+              aria-hidden
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 22,
+                height: 22,
+                borderRadius: 999,
+                background:
+                  "color-mix(in oklab, var(--gold) 18%, transparent)",
+                border:
+                  "1px solid color-mix(in oklab, var(--gold) 32%, transparent)",
+                color: "var(--gold)",
+                fontSize: 11,
+                fontStyle: "normal",
+                lineHeight: 1,
+              }}
+            >
+              {(guide.name?.[0] ?? "?").toUpperCase()}
+            </span>
+            <span>{guide.name}</span>
           </div>
         </header>
 
