@@ -369,9 +369,11 @@ function InsightsRoute() {
               <OverviewTab
                 loading={loading}
                 overview={overview}
+                stalkers={stalkers}
                 filtersActive={hasAnyActive(globalFilters)}
                 onClearFilters={() => setFilters(DEFAULT_FILTERS)}
                 onEmptyCta={() => navigate({ to: "/" })}
+                onTapHero={() => setTab("stalkers")}
                 moonEnabled={moonEnabled}
                 userId={userId}
                 fetchError={fetchError}
