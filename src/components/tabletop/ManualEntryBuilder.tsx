@@ -680,6 +680,7 @@ export function ManualEntryBuilder({
         </SheetContent>
       </Sheet>
     </div>
+    </div>
     </FullScreenSheet>
   );
 }
