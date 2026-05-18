@@ -32,7 +32,6 @@ import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 import { CardImage } from "@/components/card/CardImage";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
-import { formatDateShort } from "@/lib/dates";
 import { DrawCalendar } from "@/components/insights/DrawCalendar";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { ReadingRow } from "@/components/ui/reading-row";
