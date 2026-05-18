@@ -337,11 +337,12 @@ function GridView({ entries }: { entries: Array<{ cardId: number; count: number 
     // below the card grid; the card images + count badges carry their
     // own identity and the duplicate list felt noisy.
     <div style={{ ...gridStyle, alignItems: "end" }}>
-      {visible.map((e) => (
+      {visible.map((e, index) => (
         <CardCellWithBadge
           key={e.cardId}
           cardId={e.cardId}
           count={e.count}
+          eager={index < 10}
           onClick={() =>
             navigate({ to: "/insights/card/$cardId", params: { cardId: String(e.cardId) } })
           }
@@ -366,14 +367,14 @@ function DeckGrid({ entries }: { entries: Array<{ cardId: number; count: number 
         gap: 4,
       }}
     >
-      {entries.map((e) => (
-        <DeckCell key={e.cardId} cardId={e.cardId} count={e.count} />
+      {entries.map((e, index) => (
+        <DeckCell key={e.cardId} cardId={e.cardId} count={e.count} eager={index < 10} />
       ))}
     </div>
   );
 }
 
-function DeckCell({ cardId, count }: { cardId: number; count: number }) {
+function DeckCell({ cardId, count, eager }: { cardId: number; count: number; eager?: boolean }) {
   const navigate = useNavigate();
   const { ref, width } = useElementWidth<HTMLButtonElement>();
   return (
@@ -401,6 +402,7 @@ function DeckCell({ cardId, count }: { cardId: number; count: number }) {
           size="custom"
           widthPx={Math.round(width)}
           ariaLabel={getCardName(cardId)}
+          eager={eager}
           style={{ width: "100%", display: "block" }}
         />
       )}
