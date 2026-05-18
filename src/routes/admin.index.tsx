@@ -730,7 +730,7 @@ function DashboardTab() {
           <SectionTitle>Alerts</SectionTitle>
           <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
             {alerts.negativeBalance.length === 0 &&
-             alerts.zeroCredit.length === 0 &&
+             alerts.highCost.length === 0 &&
              alerts.highUsage.length === 0 &&
              alerts.orphan.count === 0 && (
               <div style={{ ...serif, padding: 12, border: "1px solid #2da44e", color: "#2da44e", fontStyle: "italic" }}>
@@ -745,11 +745,11 @@ function DashboardTab() {
                 ))}
               </div>
             )}
-            {alerts.zeroCredit.length > 0 && (
+            {alerts.highCost.length > 0 && (
               <div style={{ ...serif, padding: 12, border: "1px solid #d4a72c", color: "#e6edf3" }}>
-                <div style={{ ...display, fontSize: "var(--text-caption)", letterSpacing: "0.18em", textTransform: "uppercase", color: "#d4a72c", marginBottom: 6 }}>Zero-credit users ({alerts.zeroCredit.length})</div>
-                {alerts.zeroCredit.slice(0, 8).map((u) => (
-                  <div key={u.user_id} style={{ fontSize: 12, opacity: 0.8 }}>{u.email}</div>
+                <div style={{ ...display, fontSize: "var(--text-caption)", letterSpacing: "0.18em", textTransform: "uppercase", color: "#d4a72c", marginBottom: 6 }}>High cost (&gt; ${alerts.costThreshold.toFixed(2)}/mo · {alerts.highCost.length})</div>
+                {alerts.highCost.slice(0, 10).map((u) => (
+                  <div key={u.user_id} style={{ fontSize: 12, opacity: 0.8 }}>{u.email} · ${u.cost.toFixed(2)} · {u.calls} calls</div>
                 ))}
               </div>
             )}
