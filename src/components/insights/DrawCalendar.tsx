@@ -97,7 +97,7 @@ export function DrawCalendar({
           ...(bg ? { background: bg } : null),
           borderRadius: 4,
           ...(isToday
-            ? { outline: "2px solid var(--accent, var(--gold))", outlineOffset: -2 }
+            ? { outline: "2px solid var(--accent, var(--gold))", outlineOffset: 1 }
             : null),
         }}
       >
@@ -121,14 +121,14 @@ export function DrawCalendar({
             className="leading-none"
             style={{
               fontSize: "var(--text-caption)",
-              color: "var(--color-foreground-muted, var(--foreground-muted))",
+              color: "var(--accent, var(--gold))",
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
               marginTop: 2,
               opacity: 0.75,
             }}
           >
-            today
+            Today
           </span>
         )}
       </CalendarDayButton>
