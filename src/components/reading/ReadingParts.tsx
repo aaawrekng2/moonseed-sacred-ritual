@@ -39,6 +39,7 @@ import { DeepReadingPanel } from "@/components/reading/DeepReadingPanel";
 import { ShareBuilder } from "@/components/share/ShareBuilder";
 import type { ShareLevel } from "@/components/share/share-types";
 import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
+import { GuideContextPreview } from "@/components/guides/GuideContextPreview";
 
 type Pick = {
   id: number;
@@ -848,11 +849,12 @@ function ReadingActions({
         )}
       </div>
 
-      <WhatGuideWillSee
+      <GuideContextPreview
         spread={spread}
         picks={picks}
         positionLabels={positionLabels}
         guideName={activeName}
+        guideId={guideId}
         lensId={lensId}
         facetIds={facetIds}
         question={question}
@@ -898,123 +900,6 @@ function ReadingActions({
             ? "Saving…"
             : "Save and close"}
         </button>
-      )}
-    </div>
-  );
-}
-
-function AiPromptPreview({
-  spread,
-  picks,
-  positionLabels,
-  guideName,
-  lensId,
-  facetIds,
-  question,
-}: {
-  spread: SpreadMode;
-  picks: Pick[];
-  positionLabels: string[];
-  guideName: string;
-  lensId: string;
-  facetIds: string[];
-  question?: string;
-}) {
-  const meta = SPREAD_META[spread];
-  const moonPhase = getCurrentMoonPhase().phase;
-
-  const cardLines = picks
-    .map((p, i) => {
-      const name = getCardName(p.cardIndex);
-      const pos = positionLabels[i] ?? `Card ${i + 1}`;
-      return `${pos}: ${name}`;
-    })
-    .join("\n");
-
-  const lensDescription =
-    lensId === "recent-echoes"
-      ? "drawing only from the recent echoes of your practice"
-      : lensId === "full-archive"
-        ? "drawing from the full archive of your practice"
-        : "drawing from the deeper threads of your practice";
-
-  const facetNames = FACETS.filter((f) => facetIds.includes(f.id)).map(
-    (f) => f.name,
-  );
-  const facetLine =
-    facetNames.length > 0
-      ? `\nFocusing through: ${facetNames.join(", ")}.`
-      : "";
-
-  const voiceLine = `${guideName} will speak the reading,`;
-
-  const text = `${question && question.trim() ? `"${question.trim()}"\n\n` : ""}${voiceLine} ${lensDescription}.${facetLine}
-
-${meta.label} spread — moon in ${moonPhase}.
-
-${cardLines}`;
-
-  return <>{text}</>;
-}
-
-function WhatGuideWillSee({
-  spread,
-  picks,
-  positionLabels,
-  guideName,
-  lensId,
-  facetIds,
-  question,
-}: {
-  spread: SpreadMode;
-  picks: Pick[];
-  positionLabels: string[];
-  guideName: string;
-  lensId: string;
-  facetIds: string[];
-  question?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const label = "What the guide will see";
-
-  return (
-    <div className="w-full max-w-md">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="mx-auto flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.2em] text-gold transition-colors hover:bg-gold/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/60"
-        style={{ opacity: "var(--ro-plus-10)" }}
-      >
-        <ChevronRight
-          className="h-3 w-3 transition-transform"
-          strokeWidth={1.5}
-          style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)" }}
-        />
-        <span>{label}</span>
-      </button>
-      {open && (
-        <div
-          className="mx-auto mt-2 rounded-lg border border-gold/30 bg-gold/[0.04] px-4 py-3"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "var(--text-body-sm)",
-            lineHeight: 1.8,
-            color: "color-mix(in oklab, var(--foreground) 78%, transparent)",
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          <AiPromptPreview
-            spread={spread}
-            picks={picks}
-            positionLabels={positionLabels}
-            guideName={guideName}
-            lensId={lensId}
-            facetIds={facetIds}
-            question={question}
-          />
-        </div>
       )}
     </div>
   );

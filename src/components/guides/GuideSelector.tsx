@@ -29,6 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { Modal } from "@/components/ui/modal";
+import { GuideContextPreview } from "@/components/guides/GuideContextPreview";
 
 export function GuideSelector({
   onContinue,
@@ -567,6 +568,13 @@ export function GuideSelector({
       )}
 
       <footer className="border-t border-border/30 px-6 pt-4">
+        <div className="mx-auto mb-3 flex justify-center">
+          <GuideContextPreview
+            guideId={guideId}
+            lensId={lensId}
+            facetIds={facetIds}
+          />
+        </div>
         <Button
           onClick={onContinue}
           className="w-full bg-gold text-cosmos hover:bg-gold/90"
