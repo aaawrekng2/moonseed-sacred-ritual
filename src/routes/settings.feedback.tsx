@@ -7,6 +7,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type CSSProperties } from "react";
 import { ChevronUp } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth";
 import {
   submitFeedback,
   getFeedbackBoard,
@@ -32,8 +33,199 @@ const DESC_MAX = 500;
 function FeedbackPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6, 32px)" }}>
+      <AdminNotificationsSection />
       <SubmissionSection />
       <BoardSection />
+    </div>
+  );
+}
+
+/* ---------------- Admin notifications (Q95 #5) ---------------- */
+
+type Frequency = "instant" | "daily" | "weekly";
+
+function AdminNotificationsSection() {
+  const { user, loading: authLoading } = useAuth();
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [enabled, setEnabled] = useState(false);
+  const [email, setEmail] = useState("");
+  const [frequency, setFrequency] = useState<Frequency>("instant");
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (authLoading || !user) {
+      setIsAdmin(false);
+      return;
+    }
+    void (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select(
+          "role, feedback_notifications_enabled, feedback_notification_email, feedback_notification_frequency",
+        )
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const row = data as
+        | {
+            role?: string;
+            feedback_notifications_enabled?: boolean;
+            feedback_notification_email?: string | null;
+            feedback_notification_frequency?: Frequency;
+          }
+        | null;
+      const admin = row?.role === "admin" || row?.role === "super_admin";
+      setIsAdmin(admin);
+      if (admin) {
+        setEnabled(!!row?.feedback_notifications_enabled);
+        setEmail(row?.feedback_notification_email ?? "");
+        setFrequency((row?.feedback_notification_frequency ?? "instant") as Frequency);
+      }
+    })();
+  }, [user, authLoading]);
+
+  async function persist(next: {
+    enabled?: boolean;
+    email?: string;
+    frequency?: Frequency;
+  }) {
+    if (!user) return;
+    setSaving(true);
+    try {
+      await supabase
+        .from("user_preferences")
+        .update({
+          feedback_notifications_enabled: next.enabled ?? enabled,
+          feedback_notification_email:
+            (next.email ?? email).trim() === "" ? null : (next.email ?? email).trim(),
+          feedback_notification_frequency: next.frequency ?? frequency,
+        })
+        .eq("user_id", user.id);
+      setSavedAt(Date.now());
+    } catch (e) {
+      console.error("[feedback] save admin notifications", e);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!isAdmin) return null;
+
+  const cardStyle: CSSProperties = {
+    padding: "var(--space-4, 16px)",
+    borderRadius: "var(--radius-md, 12px)",
+    background: "var(--surface-card)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 12,
+  };
+  const labelStyle: CSSProperties = {
+    fontFamily: "var(--font-serif)",
+    fontStyle: "italic",
+    fontSize: "var(--text-body-sm)",
+    opacity: 0.7,
+  };
+
+  return (
+    <div style={cardStyle}>
+      <h2
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-heading-sm)",
+          color: "var(--gold)",
+          margin: 0,
+        }}
+      >
+        Admin notifications
+      </h2>
+      <p style={{ ...labelStyle, margin: 0 }}>
+        Get an email when new feedback is submitted.
+      </p>
+
+      <label style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => {
+            setEnabled(e.target.checked);
+            void persist({ enabled: e.target.checked });
+          }}
+        />
+        <span
+          style={{
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body)",
+          }}
+        >
+          Notify me about new feedback
+        </span>
+      </label>
+
+      <div style={{ display: enabled ? "flex" : "none", flexDirection: "column", gap: 12 }}>
+        <div>
+          <div style={labelStyle}>Send to (leave blank to use account email)</div>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => void persist({ email })}
+            placeholder={user?.email ?? "you@example.com"}
+            style={{
+              width: "100%",
+              background: "transparent",
+              border: "none",
+              borderBottom: "1px solid var(--border-default, var(--border-subtle))",
+              padding: "8px 0",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: "var(--text-body)",
+              color: "var(--color-foreground)",
+              outline: "none",
+            }}
+          />
+        </div>
+
+        <div>
+          <div style={labelStyle}>Frequency</div>
+          <div style={{ display: "flex", gap: 16, marginTop: 6 }}>
+            {(["instant", "daily", "weekly"] as const).map((f) => {
+              const active = f === frequency;
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => {
+                    setFrequency(f);
+                    void persist({ frequency: f });
+                  }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: "4px 0",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body)",
+                    color: active ? "var(--accent, var(--gold))" : "var(--color-foreground)",
+                    opacity: active ? 1 : 0.5,
+                    borderBottom: active
+                      ? "1px solid var(--accent, var(--gold))"
+                      : "1px solid transparent",
+                  }}
+                >
+                  {f === "instant" ? "Instant" : f === "daily" ? "Daily digest" : "Weekly digest"}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ ...labelStyle, minHeight: 16 }}>
+        {saving ? "Saving…" : savedAt ? "Saved." : ""}
+      </div>
     </div>
   );
 }
