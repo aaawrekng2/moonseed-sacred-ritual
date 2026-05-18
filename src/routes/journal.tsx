@@ -2061,6 +2061,16 @@ function ReadingDetail({
   // dominate the entire screen. Mobile keeps responsive sizing.
   const ezMaxCardWidth = !isMobile && ezCardCount === 1 ? 380 : 9999;
   let ezCardWidthPx = Math.min(ezCardWidthRaw, ezMaxCardWidth);
+  // Q90 #3 — guarantee the rendered row never exceeds the measured
+  // container width on mobile. Without this cap, a 3-card spread on a
+  // 375px viewport overflows the left edge because ezBaseDivisor's 0.7
+  // multiplier scales cards larger than 1/n of the row.
+  if (!swipeMobile) {
+    const cap = Math.floor(
+      (measuredRowWidth - ezGapPx * (cardsPerRow - 1)) / cardsPerRow,
+    );
+    if (cap > 0) ezCardWidthPx = Math.min(ezCardWidthPx, cap);
+  }
   // Q89-7 — when the row is horizontally swipeable on mobile (4+ cards),
   // stop squeezing each card to fit; use a fixed readable width and let
   // the user scroll. Without this, a 10-card celtic-cross row collapses
@@ -2181,7 +2191,7 @@ function ReadingDetail({
     <FullScreenSheet open onClose={onClose} entry="fade" showCloseButton>
       {/* Q89-9 — trimmed top padding (was +56px) so the header isn't
           buried under a large empty band on mobile. */}
-      <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+20px)]">
+      <div className="mx-auto max-w-2xl px-5 pb-24 pt-[calc(env(safe-area-inset-top,0px)+12px)] overflow-x-hidden">
         {isArchived && (
           <div
             role="status"
