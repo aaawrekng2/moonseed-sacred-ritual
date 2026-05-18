@@ -1,28 +1,23 @@
 /**
- * Q95 #9 — "What the guide will see" — shared, controllable preview.
+ * Q97 #2 — "What the guide will see" — past-readings filter preview.
  *
- * Replaces the older read-only `WhatGuideWillSee` disclosures that
- * lived (duplicated) in ReadingScreen.tsx and ReadingParts.tsx. Also
- * mounts inside GuideSelector so the seeker can dial in context
- * before drawing.
+ * Controls which past readings are bundled with the current draw when
+ * sent to the AI:
+ *   - Row 1: History bar — days window + tag flyout trigger.
+ *   - Row 2: Current question radio (only if a question is set).
+ *   - Row 3: Include past readings radio.
+ *   - Row 4: Include past questions radio (depends on Row 3).
+ *   - Tag flyout drawer (AND filter on selected tags).
+ *   - Live preview + token estimate.
  *
- * Controls:
- *   - History window dropdown: 7 / 30 / 90 / 365 days.
- *   - Memory-layer radio (cumulative, highest layer included):
- *       Tags only · + Card frequencies · + Threads · + Patterns.
- *   - Right-side tag-filter flyout drawer (subset of user_tags).
- *
- * The preview text is built locally from the in-memory selections,
- * so changes are instant. Reading + tag fetches reuse the same
- * RLS-protected supabase pattern as the Journal route — no new
- * server fn, no duplication of auth/filter logic. The token
- * estimator is char/4 (Anthropic's published rule-of-thumb).
+ * No new server fn — reuses the same RLS-protected supabase pattern
+ * as the Journal route. Token estimate is char/4 (Anthropic's
+ * rule-of-thumb), then rounded to nearest 10 for stability.
  */
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Filter, X } from "lucide-react";
+import { ChevronDown, ChevronRight, SlidersHorizontal, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { FACETS, LENSES, getGuideById } from "@/lib/guides";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { getCardName } from "@/lib/tarot";
 import { getCurrentMoonPhase } from "@/lib/moon";
@@ -35,9 +30,6 @@ export type Pick = {
 };
 
 export type GuideContextPreviewProps = {
-  /** Optional — when omitted (e.g. inside GuideSelector before a draw)
-   *  the spread/card/moon rows are skipped and the preview focuses on
-   *  voice + memory layers only. */
   spread?: SpreadMode;
   picks?: Pick[];
   positionLabels?: string[];
@@ -48,46 +40,53 @@ export type GuideContextPreviewProps = {
   question?: string;
 };
 
-type WindowDays = 7 | 30 | 90 | 365;
+type WindowDays = 7 | 14 | 30 | 90 | 0; // 0 = All time
 const WINDOWS: { value: WindowDays; label: string }[] = [
-  { value: 7, label: "Last 7 days" },
-  { value: 30, label: "Last 30 days" },
-  { value: 90, label: "Last 90 days" },
-  { value: 365, label: "Last 365 days" },
-];
-
-/** Cumulative memory layers — each row includes everything above it. */
-type LayerId = "tags" | "cards" | "threads" | "patterns";
-const LAYERS: { id: LayerId; label: string; desc: string }[] = [
-  { id: "tags", label: "Tags only", desc: "Just the words you've attached." },
-  { id: "cards", label: "+ Card frequencies", desc: "Which cards recur in the window." },
-  { id: "threads", label: "+ Threads", desc: "Detected symbolic threads." },
-  { id: "patterns", label: "+ Patterns", desc: "Long-arc story patterns." },
+  { value: 7, label: "7 days" },
+  { value: 14, label: "14 days" },
+  { value: 30, label: "30 days" },
+  { value: 90, label: "90 days" },
+  { value: 0, label: "All time" },
 ];
 
 type TagRow = { id: string; name: string; usage_count: number };
 type ReadingLite = {
   id: string;
   created_at: string;
+  question: string | null;
   tags: string[] | null;
   card_ids: number[] | null;
-  pattern_id: string | null;
+  spread_type: string | null;
 };
+
+function fmtDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 export function GuideContextPreview(props: GuideContextPreviewProps) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [windowDays, setWindowDays] = useState<WindowDays>(30);
-  const [layer, setLayer] = useState<LayerId>("threads");
+  const [windowMenuOpen, setWindowMenuOpen] = useState(false);
   const [tagFilter, setTagFilter] = useState<Set<string>>(new Set());
   const [flyoutOpen, setFlyoutOpen] = useState(false);
-  const [windowMenuOpen, setWindowMenuOpen] = useState(false);
+
+  const [includeQuestion, setIncludeQuestion] = useState(true);
+  const [includePastReadings, setIncludePastReadings] = useState(true);
+  const [includePastQuestions, setIncludePastQuestions] = useState(false);
 
   const [tags, setTags] = useState<TagRow[]>([]);
   const [readings, setReadings] = useState<ReadingLite[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Tags load once per user (small list).
+  const hasQuestion = !!props.question?.trim();
+
+  // Tags load once when panel opens.
   useEffect(() => {
     if (!user || !open) return;
     let cancelled = false;
@@ -105,26 +104,28 @@ export function GuideContextPreview(props: GuideContextPreviewProps) {
     };
   }, [user, open]);
 
-  // Readings re-fetch when window or tag filter changes — same pattern
-  // as the Journal route uses, scoped to the chosen window.
+  // Past readings re-fetch when window or tag filter changes.
   useEffect(() => {
     if (!user || !open) return;
     let cancelled = false;
     setLoading(true);
     void (async () => {
-      const since = new Date(
-        Date.now() - windowDays * 24 * 60 * 60 * 1000,
-      ).toISOString();
       let query = supabase
         .from("readings")
-        .select("id,created_at,tags,card_ids,pattern_id")
+        .select("id,created_at,question,tags,card_ids,spread_type")
         .eq("user_id", user.id)
         .is("archived_at", null)
-        .gte("created_at", since)
         .order("created_at", { ascending: false })
-        .limit(500);
+        .limit(200);
+      if (windowDays > 0) {
+        const since = new Date(
+          Date.now() - windowDays * 24 * 60 * 60 * 1000,
+        ).toISOString();
+        query = query.gte("created_at", since);
+      }
       if (tagFilter.size > 0) {
-        query = query.overlaps("tags", Array.from(tagFilter));
+        // AND filter — reading must contain ALL selected tags.
+        query = query.contains("tags", Array.from(tagFilter));
       }
       const { data } = await query;
       if (!cancelled) {
@@ -137,101 +138,51 @@ export function GuideContextPreview(props: GuideContextPreviewProps) {
     };
   }, [user, open, windowDays, tagFilter]);
 
-  const guide = getGuideById(props.guideId);
-  const guideDisplayName = props.guideName ?? guide.name;
-  const lensName =
-    LENSES.find((l) => l.id === props.lensId)?.name ?? "Deeper Threads";
-  const facetNames = FACETS.filter((f) =>
-    (props.facetIds ?? []).includes(f.id),
-  ).map((f) => f.name);
-
-  // Derived memory summary.
-  const summary = useMemo(() => {
-    const out: string[] = [];
-    if (readings.length === 0) {
-      return { lines: [], totalChars: 0 };
+  // Build live preview text.
+  const previewText = useMemo(() => {
+    const lines: string[] = [];
+    if (includeQuestion && hasQuestion) {
+      lines.push(`Question: ${props.question!.trim()}`);
     }
-    const layerIdx = LAYERS.findIndex((l) => l.id === layer);
-    // Tags (always included).
-    const tagCounts = new Map<string, number>();
-    for (const r of readings)
-      for (const t of r.tags ?? []) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
-    const topTags = [...tagCounts.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 12);
-    if (topTags.length)
-      out.push(
-        `Recent tags: ${topTags.map(([t, n]) => `${t}×${n}`).join(", ")}.`,
-      );
-    // + Card frequencies
-    if (layerIdx >= 1) {
-      const cardCounts = new Map<number, number>();
-      for (const r of readings)
-        for (const c of r.card_ids ?? [])
-          cardCounts.set(c, (cardCounts.get(c) ?? 0) + 1);
-      const topCards = [...cardCounts.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 8);
-      if (topCards.length)
-        out.push(
-          `Card frequencies: ${topCards
-            .map(([c, n]) => `${getCardName(c)}×${n}`)
-            .join(", ")}.`,
-        );
-    }
-    // + Threads (count + briefest signal)
-    if (layerIdx >= 2) {
-      out.push(
-        `Active symbolic threads detected across ${readings.length} readings.`,
-      );
-    }
-    // + Patterns
-    if (layerIdx >= 3) {
-      const patternCount = new Set(
-        readings.map((r) => r.pattern_id).filter(Boolean),
-      ).size;
-      out.push(
-        patternCount > 0
-          ? `${patternCount} long-arc patterns referenced.`
-          : "No long-arc patterns active in this window.",
-      );
-    }
-    const totalChars = out.reduce((s, l) => s + l.length, 0);
-    return { lines: out, totalChars };
-  }, [readings, layer]);
-
-  // Preamble — voice + lens + facets + (optional) cards/spread/moon.
-  const preambleLines = useMemo(() => {
-    const out: string[] = [];
-    out.push(`Voice: ${guideDisplayName} · Lens: ${lensName}`);
-    if (facetNames.length) out.push(`Facets: ${facetNames.join(", ")}`);
-    if (props.question?.trim()) out.push(`Question: "${props.question.trim()}"`);
     if (props.spread && props.picks && props.picks.length) {
       const meta = SPREAD_META[props.spread];
-      out.push(`Spread: ${meta.label}`);
-      const cardLines = props.picks
+      const cardStr = props.picks
         .map((p, i) => {
           const pos = props.positionLabels?.[i] ?? `Card ${i + 1}`;
           return `${pos}: ${getCardName(p.cardIndex)}${p.isReversed ? " (reversed)" : ""}`;
         })
-        .join("; ");
-      out.push(`Cards: ${cardLines}`);
-      out.push(`Moon: ${getCurrentMoonPhase().phase}`);
+        .join(", ");
+      lines.push(`Spread: ${meta.label} — Cards: ${cardStr}`);
+      lines.push(`Moon: ${getCurrentMoonPhase().phase}`);
     }
-    return out;
+    if (includePastReadings && readings.length > 0) {
+      lines.push(`--- Past readings (${readings.length}) ---`);
+      for (const r of readings) {
+        const cards = (r.card_ids ?? [])
+          .map((c) => getCardName(c))
+          .join(", ");
+        let line = `Date: ${fmtDate(r.created_at)} · Cards: ${cards}`;
+        if (includePastQuestions && r.question?.trim()) {
+          line += ` · Question: ${r.question.trim()}`;
+        }
+        lines.push(line);
+      }
+    }
+    return lines.join("\n");
   }, [
-    guideDisplayName,
-    lensName,
-    facetNames,
+    includeQuestion,
+    includePastReadings,
+    includePastQuestions,
+    hasQuestion,
     props.question,
     props.spread,
     props.picks,
     props.positionLabels,
+    readings,
   ]);
 
-  const totalChars =
-    preambleLines.reduce((s, l) => s + l.length, 0) + summary.totalChars;
-  const tokenEstimate = Math.max(1, Math.round(totalChars / 4));
+  const tokenEstimate = Math.round(previewText.length / 4 / 10) * 10;
+  const matchedCount = readings.length;
 
   return (
     <div className="w-full max-w-md">
@@ -249,19 +200,38 @@ export function GuideContextPreview(props: GuideContextPreviewProps) {
         />
         <span>What the guide will see</span>
       </button>
+
       {open && (
         <div
           className="mx-auto mt-2 rounded-lg border border-gold/30 bg-gold/[0.04] px-3 py-3"
           style={{ position: "relative" }}
         >
-          {/* Controls row */}
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            {/* Window dropdown */}
+          {/* Row 1 — History bar */}
+          <div className="mb-3 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setFlyoutOpen(true)}
+              aria-label="Filter past readings by tag"
+              className="rounded p-1 hover:bg-gold/10"
+              style={{ color: "var(--accent, var(--gold))" }}
+            >
+              <SlidersHorizontal size={14} strokeWidth={1.5} />
+            </button>
+            <span
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-caption)",
+                color: "var(--color-foreground)",
+              }}
+            >
+              History:
+            </span>
             <div style={{ position: "relative" }}>
               <button
                 type="button"
                 onClick={() => setWindowMenuOpen((v) => !v)}
-                className="inline-flex items-center gap-1 rounded-full border border-gold/30 px-2.5 py-1 text-[11px] text-gold hover:bg-gold/10"
+                className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] text-gold hover:bg-gold/10"
               >
                 {WINDOWS.find((w) => w.value === windowDays)?.label}
                 <ChevronDown className="h-3 w-3" strokeWidth={1.5} />
@@ -269,7 +239,7 @@ export function GuideContextPreview(props: GuideContextPreviewProps) {
               {windowMenuOpen && (
                 <div
                   role="listbox"
-                  className="absolute left-0 top-full z-50 mt-1 w-[160px] rounded-lg border border-gold/30 bg-cosmos p-1 shadow-2xl"
+                  className="absolute left-0 top-full z-50 mt-1 w-[140px] rounded-lg border border-gold/30 bg-cosmos p-1 shadow-2xl"
                 >
                   {WINDOWS.map((w) => (
                     <button
@@ -292,63 +262,91 @@ export function GuideContextPreview(props: GuideContextPreviewProps) {
                 </div>
               )}
             </div>
-            {/* Tag filter trigger */}
-            <button
-              type="button"
-              onClick={() => setFlyoutOpen(true)}
-              className="inline-flex items-center gap-1 rounded-full border border-gold/30 px-2.5 py-1 text-[11px] text-gold hover:bg-gold/10"
-            >
-              <Filter className="h-3 w-3" strokeWidth={1.5} />
-              {tagFilter.size > 0 ? `${tagFilter.size} tag filter` : "Filter tags"}
-            </button>
-            <span className="ml-auto text-[10px] text-muted-foreground">
-              ~{tokenEstimate} tokens
-            </span>
+            {tagFilter.size > 0 && (
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                {tagFilter.size} tag filter
+              </span>
+            )}
           </div>
 
-          {/* Layer radios */}
-          <div className="mb-3 flex flex-col gap-1">
-            {LAYERS.map((l) => (
-              <label
-                key={l.id}
-                className="flex cursor-pointer items-start gap-2 rounded px-1.5 py-1 text-[12px] hover:bg-gold/5"
+          {/* Row 2 — Current question radio */}
+          {hasQuestion && (
+            <RadioRow
+              checked={includeQuestion}
+              onChange={() => setIncludeQuestion((v) => !v)}
+            >
+              <div
+                style={{
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  WebkitMaskImage:
+                    "linear-gradient(to right, black 75%, transparent 100%)",
+                  maskImage:
+                    "linear-gradient(to right, black 75%, transparent 100%)",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-body-sm)",
+                }}
               >
-                <input
-                  type="radio"
-                  name="memory-layer"
-                  checked={layer === l.id}
-                  onChange={() => setLayer(l.id)}
-                  className="mt-1 accent-[var(--gold)]"
-                />
-                <span className="flex-1">
-                  <span
-                    className="block text-foreground/90"
-                    style={{ fontFamily: "var(--font-serif)", fontStyle: "italic" }}
-                  >
-                    {l.label}
-                  </span>
-                  <span className="block text-[10px] text-muted-foreground">
-                    {l.desc}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </div>
+                {props.question!.trim()}
+              </div>
+            </RadioRow>
+          )}
+
+          {/* Row 3 — Past readings radio */}
+          <RadioRow
+            checked={includePastReadings}
+            onChange={() => setIncludePastReadings((v) => !v)}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span>Include past readings</span>
+              <span className="text-[10px] text-muted-foreground">
+                {loading
+                  ? "loading…"
+                  : `${matchedCount} reading${matchedCount === 1 ? "" : "s"} matched`}
+              </span>
+            </div>
+          </RadioRow>
+
+          {/* Row 4 — Past questions radio */}
+          <RadioRow
+            checked={includePastQuestions && includePastReadings}
+            disabled={!includePastReadings}
+            onChange={() => setIncludePastQuestions((v) => !v)}
+          >
+            <span>Include past questions</span>
+          </RadioRow>
 
           {/* Live preview */}
           <div
-            className="rounded border border-gold/20 bg-cosmos/40 p-2"
+            className="mt-2 rounded"
             style={{
+              maxHeight: 200,
+              overflowY: "auto",
+              border: "1px solid var(--border-subtle, color-mix(in oklab, var(--gold) 20%, transparent))",
+              background: "var(--surface-card, color-mix(in oklab, var(--cosmos) 80%, transparent))",
+              padding: 8,
               fontFamily: "var(--font-serif)",
               fontStyle: "italic",
-              fontSize: "var(--text-body-sm)",
-              lineHeight: 1.6,
+              fontSize: "var(--text-caption)",
+              lineHeight: 1.55,
               color: "color-mix(in oklab, var(--foreground) 80%, transparent)",
               whiteSpace: "pre-wrap",
             }}
           >
-            {[...preambleLines, "", ...summary.lines].join("\n").trim() ||
-              (loading ? "Loading context…" : "No memory in this window.")}
+            {previewText || (loading ? "Loading context…" : "Nothing selected.")}
+          </div>
+
+          {/* Token estimate */}
+          <div
+            style={{
+              textAlign: "right",
+              fontSize: "var(--text-caption)",
+              opacity: 0.45,
+              marginTop: 4,
+            }}
+          >
+            ~{tokenEstimate} tokens
           </div>
 
           {/* Tag flyout drawer */}
@@ -358,7 +356,8 @@ export function GuideContextPreview(props: GuideContextPreviewProps) {
                 position: "fixed",
                 inset: 0,
                 zIndex: 60,
-                background: "color-mix(in oklab, var(--cosmos) 60%, transparent)",
+                background:
+                  "color-mix(in oklab, var(--cosmos) 60%, transparent)",
               }}
               onClick={() => setFlyoutOpen(false)}
             >
@@ -371,7 +370,8 @@ export function GuideContextPreview(props: GuideContextPreviewProps) {
                   bottom: 0,
                   width: "min(320px, 88vw)",
                   background: "var(--cosmos)",
-                  borderLeft: "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
+                  borderLeft:
+                    "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
                   padding: 16,
                   overflowY: "auto",
                   boxShadow: "-8px 0 32px rgba(0,0,0,0.4)",
@@ -442,5 +442,53 @@ export function GuideContextPreview(props: GuideContextPreviewProps) {
         </div>
       )}
     </div>
+  );
+}
+
+function RadioRow({
+  checked,
+  disabled,
+  onChange,
+  children,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={disabled ? undefined : onChange}
+      disabled={disabled}
+      className="flex w-full items-center gap-2 rounded px-1 py-1.5 text-left text-[12px] hover:bg-gold/5 disabled:cursor-not-allowed"
+      style={{
+        opacity: disabled
+          ? 0.4
+          : checked
+            ? 1
+            : 0.55,
+      }}
+    >
+      <span
+        aria-hidden
+        style={{
+          display: "inline-block",
+          width: 14,
+          height: 14,
+          borderRadius: "50%",
+          border: `1.5px solid ${
+            checked
+              ? "var(--accent, var(--gold))"
+              : "color-mix(in oklab, var(--foreground) 35%, transparent)"
+          }`,
+          background: checked
+            ? "radial-gradient(circle, var(--accent, var(--gold)) 0 45%, transparent 50%)"
+            : "transparent",
+          flexShrink: 0,
+        }}
+      />
+      <span className="flex-1 min-w-0">{children}</span>
+    </button>
   );
 }

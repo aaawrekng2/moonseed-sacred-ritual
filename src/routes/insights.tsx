@@ -15,7 +15,7 @@ import { MajorMinorChart } from "@/components/insights/MajorMinorChart";
 import { MoonPhaseRing } from "@/components/insights/MoonPhaseRing";
 import { ReversalStat } from "@/components/insights/ReversalStat";
 import { RhythmHeatmap } from "@/components/insights/RhythmHeatmap";
-import { TopGuideStat } from "@/components/insights/TopGuideStat";
+import { HeroCard } from "@/components/insights/HeroCard";
 import { getInsightsOverview, getStalkerCards } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
@@ -369,9 +369,11 @@ function InsightsRoute() {
               <OverviewTab
                 loading={loading}
                 overview={overview}
+                stalkers={stalkers}
                 filtersActive={hasAnyActive(globalFilters)}
                 onClearFilters={() => setFilters(DEFAULT_FILTERS)}
                 onEmptyCta={() => navigate({ to: "/" })}
+                onTapHero={() => setTab("stalkers")}
                 moonEnabled={moonEnabled}
                 userId={userId}
                 fetchError={fetchError}
@@ -429,9 +431,11 @@ function InsightsRoute() {
 function OverviewTab({
   loading,
   overview,
+  stalkers,
   filtersActive,
   onClearFilters,
   onEmptyCta,
+  onTapHero,
   moonEnabled,
   userId,
   fetchError,
@@ -439,9 +443,11 @@ function OverviewTab({
 }: {
   loading: boolean;
   overview: InsightsOverview | null;
+  stalkers: StalkerCardsResult | null;
   filtersActive: boolean;
   onClearFilters: () => void;
   onEmptyCta: () => void;
+  onTapHero: () => void;
   moonEnabled: boolean;
   userId: string | null;
   fetchError: boolean;
@@ -528,6 +534,10 @@ function OverviewTab({
         </div>
       )}
 
+      {stalkers && (stalkers.topCard || stalkers.stalkerCards.length > 0) && (
+        <HeroCard result={stalkers} onTap={onTapHero} />
+      )}
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
         <SuitBalanceChart data={overview.suitBalance} onTap={() => log("suit")} />
         <MajorMinorChart data={overview.majorMinor} onTap={() => log("major-minor")} />
@@ -536,11 +546,6 @@ function OverviewTab({
         )}
         <ReversalStat rate={overview.reversalRate} onTap={() => log("reversal")} />
         <RhythmHeatmap days={overview.readingsByDay} onTap={() => log("rhythm")} />
-        <TopGuideStat
-          data={overview.topGuide}
-          onlyOne={overview.topGuide ? overview.topGuide.count === overview.totalReadings : false}
-          onTap={() => log("guide")}
-        />
       </div>
 
       <div className="pt-2 text-center">
