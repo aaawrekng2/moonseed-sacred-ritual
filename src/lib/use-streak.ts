@@ -46,6 +46,7 @@ export function useStreak(): {
   lastDrawDate: string | null;
   loading: boolean;
   recordDraw: () => Promise<void>;
+  recomputeStreak: () => Promise<void>;
 } {
   const { user, loading: authLoading } = useAuth();
   const { effectiveTz } = useTimezone();
@@ -140,5 +141,69 @@ export function useStreak(): {
     }
   }, [user, lastDrawDate, currentStreak, longestStreak, effectiveTz]);
 
-  return { currentStreak, longestStreak, lastDrawDate, loading, recordDraw };
+  // Q93 #7 — Full recompute from readings history. Required after
+  // backdated manual entries: a draw "for yesterday" can't be modelled
+  // by recordDraw (which assumes today), so we replay the timeline.
+  const recomputeStreak = useCallback(async () => {
+    if (!user) return;
+    const today = todayInTz(effectiveTz);
+    const { data, error } = await supabase
+      .from("readings")
+      .select("created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    if (error) return;
+    const dayFmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: effectiveTz || undefined,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    const days = new Set<string>();
+    for (const row of data ?? []) {
+      try {
+        days.add(dayFmt.format(new Date((row as { created_at: string }).created_at)));
+      } catch {
+        // ignore
+      }
+    }
+    // Walk back from today (or yesterday if today empty) to count
+    // consecutive days with at least one reading.
+    let streak = 0;
+    let cursor = new Date(`${today}T12:00:00`);
+    // If no draw today, allow yesterday to anchor the streak.
+    if (!days.has(dayFmt.format(cursor))) {
+      cursor.setDate(cursor.getDate() - 1);
+      if (!days.has(dayFmt.format(cursor))) {
+        streak = 0;
+        cursor = new Date(`${today}T12:00:00`); // reset
+      }
+    }
+    while (days.has(dayFmt.format(cursor))) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    const sortedDays = Array.from(days).sort();
+    const lastDay = sortedDays.length ? sortedDays[sortedDays.length - 1] : null;
+    const nextLongest = Math.max(longestStreak, streak);
+    setCurrentStreak(streak);
+    setLongestStreak(nextLongest);
+    setLastDrawDate(lastDay);
+    await supabase.from("user_streaks").upsert(
+      {
+        user_id: user.id,
+        current_streak: streak,
+        longest_streak: nextLongest,
+        last_draw_date: lastDay,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" },
+    );
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("arcana:streak-updated"));
+    }
+  }, [user, effectiveTz, longestStreak]);
+
+  return { currentStreak, longestStreak, lastDrawDate, loading, recordDraw, recomputeStreak };
 }
