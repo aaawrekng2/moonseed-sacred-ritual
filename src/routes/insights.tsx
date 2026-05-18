@@ -15,7 +15,7 @@ import { MajorMinorChart } from "@/components/insights/MajorMinorChart";
 import { MoonPhaseRing } from "@/components/insights/MoonPhaseRing";
 import { ReversalStat } from "@/components/insights/ReversalStat";
 import { RhythmHeatmap } from "@/components/insights/RhythmHeatmap";
-import { TopGuideStat } from "@/components/insights/TopGuideStat";
+import { HeroCard } from "@/components/insights/HeroCard";
 import { getInsightsOverview, getStalkerCards } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import {
