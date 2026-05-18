@@ -1170,11 +1170,12 @@ function ReadingActions({
       {/* "Let Them Speak" — flowing-text invocation. No pill, no fill.
           The mist breathes behind the words so the call still feels
           alive without becoming a UI button. */}
-      <WhatGuideWillSee
+      <GuideContextPreview
         spread={spread}
         picks={picks}
         positionLabels={positionLabels}
         guideName={activeName}
+        guideId={guideId}
         lensId={lensId}
         facetIds={facetIds}
         question={question}
