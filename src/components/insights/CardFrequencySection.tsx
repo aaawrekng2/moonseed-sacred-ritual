@@ -326,17 +326,11 @@ function BarView({ entries, max }: { entries: Array<{ cardId: number; count: num
 function GridView({ entries }: { entries: Array<{ cardId: number; count: number }> }) {
   const navigate = useNavigate();
   const visible = entries.filter((e) => e.count > 0);
-  const gridStyle = {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
-    gap: 16,
-    justifyItems: "center",
-  } as const;
   return (
-    // Q93 #8 — Removed the redundant text label row that used to sit
-    // below the card grid; the card images + count badges carry their
-    // own identity and the duplicate list felt noisy.
-    <div style={{ ...gridStyle, alignItems: "end" }}>
+    // Q95 #2 — Responsive grid: half-size cells on mobile (60px min),
+    // full-size on >=640px (120px min). Driven by a CSS class so we
+    // can media-query inside it.
+    <div className="insights-card-grid" style={{ alignItems: "end" }}>
       {visible.map((e, index) => (
         <CardCellWithBadge
           key={e.cardId}

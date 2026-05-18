@@ -19,8 +19,8 @@ export const EntryModeToggle = forwardRef<HTMLButtonElement, Props>(
   function EntryModeToggle({ current, onToggle }, ref) {
     const goingTo: EntryMode = current === "table" ? "manual" : "table";
     const Icon = goingTo === "manual" ? Keyboard : LayoutGrid;
-    // Q93 #2 — "Log a Draw" reads better than "Table" for the scatter view.
-    const label = goingTo === "manual" ? "Type" : "Log a Draw";
+    // Q95 #6 — shorter labels: "Log" (going to manual) / "Draw" (going to table).
+    const label = goingTo === "manual" ? "Log" : "Draw";
     return (
       <button
         ref={ref}

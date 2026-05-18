@@ -10,7 +10,6 @@ import {
   hasAnyActive,
   type GlobalFilters,
 } from "@/lib/filters.types";
-import { HeroCard } from "@/components/insights/HeroCard";
 import { SuitBalanceChart } from "@/components/insights/SuitBalanceChart";
 import { MajorMinorChart } from "@/components/insights/MajorMinorChart";
 import { MoonPhaseRing } from "@/components/insights/MoonPhaseRing";
@@ -370,10 +369,8 @@ function InsightsRoute() {
               <OverviewTab
                 loading={loading}
                 overview={overview}
-                stalkers={stalkers}
                 filtersActive={hasAnyActive(globalFilters)}
                 onClearFilters={() => setFilters(DEFAULT_FILTERS)}
-                onTapHero={() => setTab("cards")}
                 onEmptyCta={() => navigate({ to: "/" })}
                 moonEnabled={moonEnabled}
                 userId={userId}
@@ -432,10 +429,8 @@ function InsightsRoute() {
 function OverviewTab({
   loading,
   overview,
-  stalkers,
   filtersActive,
   onClearFilters,
-  onTapHero,
   onEmptyCta,
   moonEnabled,
   userId,
@@ -444,10 +439,8 @@ function OverviewTab({
 }: {
   loading: boolean;
   overview: InsightsOverview | null;
-  stalkers: StalkerCardsResult | null;
   filtersActive: boolean;
   onClearFilters: () => void;
-  onTapHero: () => void;
   onEmptyCta: () => void;
   moonEnabled: boolean;
   userId: string | null;
@@ -533,10 +526,6 @@ function OverviewTab({
         >
           Insights become richer as you read more. Currently showing data from {overview.totalReadings} reading{overview.totalReadings === 1 ? "" : "s"}.
         </div>
-      )}
-
-      {stalkers && (stalkers.topCard || stalkers.stalkerCards.length > 0) && (
-        <HeroCard result={stalkers} onTap={onTapHero} />
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
