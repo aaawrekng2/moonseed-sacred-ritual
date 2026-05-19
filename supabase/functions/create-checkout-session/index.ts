@@ -70,6 +70,20 @@ serve(async (req) => {
     const priceId = PRICE_ID_BY_SKU[sku];
     if (!priceId) return jsonErr("price_not_configured", 500);
 
+    async function createFreshCustomer(): Promise<string> {
+      const customer = await stripe.customers.create({
+        email: user.email ?? undefined,
+        metadata: { tarot_seed_user_id: user.id },
+      });
+      await supabase
+        .from("user_preferences")
+        .upsert(
+          { user_id: user.id, stripe_customer_id: customer.id },
+          { onConflict: "user_id" },
+        );
+      return customer.id;
+    }
+
     const { data: prefRow } = await supabase
       .from("user_preferences")
       .select("stripe_customer_id")
@@ -80,22 +94,12 @@ serve(async (req) => {
       (prefRow as { stripe_customer_id?: string | null } | null)?.stripe_customer_id ?? null;
 
     if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
-        email: user.email ?? undefined,
-        metadata: { tarot_seed_user_id: user.id },
-      });
-      stripeCustomerId = customer.id;
-      await supabase
-        .from("user_preferences")
-        .upsert(
-          { user_id: user.id, stripe_customer_id: stripeCustomerId },
-          { onConflict: "user_id" },
-        );
+      stripeCustomerId = await createFreshCustomer();
     }
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      customer: stripeCustomerId,
+    const buildSessionParams = (customerId: string) => ({
+      mode: "payment" as const,
+      customer: customerId,
       client_reference_id: user.id,
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${APP_URL}/credits/success?session_id={CHECKOUT_SESSION_ID}`,
@@ -113,6 +117,21 @@ serve(async (req) => {
         },
       },
     });
+
+    // CG — Defensive checkout creation. If the saved customer ID belongs
+    // to a different Stripe mode (e.g. test-mode ID after a live switch),
+    // Stripe throws "resource_missing". Catch that one error code, null
+    // the stale ID, mint a fresh customer, retry once.
+    let session;
+    try {
+      session = await stripe.checkout.sessions.create(buildSessionParams(stripeCustomerId));
+    } catch (err: unknown) {
+      const code = (err as { code?: string } | null)?.code;
+      if (code !== "resource_missing") throw err;
+      console.warn(`Stale stripe_customer_id for user ${user.id}; creating fresh.`);
+      stripeCustomerId = await createFreshCustomer();
+      session = await stripe.checkout.sessions.create(buildSessionParams(stripeCustomerId));
+    }
 
     return new Response(JSON.stringify({ url: session.url, id: session.id }), {
       status: 200,
