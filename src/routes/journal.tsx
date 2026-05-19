@@ -1904,17 +1904,36 @@ function CalendarView({
                 selected
                   ? "bg-gold/15 text-gold"
                   : isToday
-                    ? "bg-gold/10 text-gold"
+                    ? "text-gold"
                     : "text-foreground",
               )}
               style={{
                 border: selected
                   ? "1px solid color-mix(in oklab, var(--gold) 50%, transparent)"
-                  : "1px solid transparent",
+                  : isToday
+                    ? "1px solid color-mix(in oklab, var(--gold) 60%, transparent)"
+                    : "1px solid transparent",
                 opacity: count > 0 ? "var(--ro-plus-30)" : "var(--ro-plus-0)",
               }}
             >
-              <span style={{ fontFamily: "var(--font-serif)" }}>{c.day}</span>
+              <span className="flex flex-col items-center" style={{ gap: 0 }}>
+                <span style={{ fontFamily: "var(--font-serif)", lineHeight: 1 }}>{c.day}</span>
+                {isToday && (
+                  <span
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: "8px",
+                      color: "var(--gold)",
+                      lineHeight: 1,
+                      marginTop: 1,
+                      opacity: 0.75,
+                    }}
+                  >
+                    Today
+                  </span>
+                )}
+              </span>
               {count > 0 && (
                 <span
                   className="journal-calendar-badge absolute -bottom-1 -right-1 rounded-full px-1 leading-none"
