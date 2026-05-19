@@ -43,6 +43,14 @@ const CELTIC_POSITION_LABELS = [
   "Outcome",
 ];
 
+// CC — Single shared max width for Manual Entry inner content.
+// Sized so 5 cards at the 120px cell cap fit across one row with 8px
+// gaps (5*120 + 4*8 = 632) and a small breathing margin (~8px).
+// SmartCardInput, ManualSpreadSlots (three/custom/celtic), the celtic
+// vertical list, and the question/Done block all consume this so
+// the dropdown can never render wider than the row beneath it.
+export const MANUAL_ENTRY_CONTENT_MAX = 640;
+
 export type ManualPick = {
   id: number;
   cardIndex: number;
@@ -283,9 +291,6 @@ export function ManualEntryBuilder({
       style={{
         position: "relative",
         width: "100%",
-        maxWidth: 720,
-        marginLeft: "auto",
-        marginRight: "auto",
         height: "100%",
       }}
     >
@@ -377,7 +382,7 @@ export function ManualEntryBuilder({
       )}
 
       <div
-        className={cn("flex flex-col items-center gap-4 p-4")}
+        className={cn("flex flex-col items-center gap-6 p-4")}
       >
         {/* Q17 Fix 1 — Smart bulk-input combobox. Hidden for oracle
             decks; standard tarot only. */}
@@ -397,7 +402,10 @@ export function ManualEntryBuilder({
             manual entry so all 10 slots are reachable; the post-Done
             tabletop still renders the full cross/staff layout. */}
         {isCelticManualEntry ? (
-          <div className="flex w-full max-w-md mx-auto flex-col gap-2">
+          <div
+            className="flex w-full mx-auto flex-col gap-2"
+            style={{ maxWidth: MANUAL_ENTRY_CONTENT_MAX }}
+          >
             {Array.from({ length: required }).map((_, i) => {
               const p = picks[i];
               const label = CELTIC_POSITION_LABELS[i] ?? labels[i] ?? `Card ${i + 1}`;
@@ -506,7 +514,10 @@ export function ManualEntryBuilder({
         )}
 
         {/* 26-05-08-N — Fix 4: inline question input above Done. */}
-        <div className="w-full max-w-md mx-auto">
+        <div
+          className="w-full mx-auto"
+          style={{ maxWidth: MANUAL_ENTRY_CONTENT_MAX }}
+        >
           {/* Q79 — Backdate picker for retroactive manual entries. */}
           <div
             style={{

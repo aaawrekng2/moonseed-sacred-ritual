@@ -22,6 +22,7 @@ import {
   useRegisterCopyText,
 } from "@/lib/floating-menu-context";
 import { nextYesNoSaying } from "@/lib/yes-no-sayings";
+import { MANUAL_ENTRY_CONTENT_MAX } from "@/components/tabletop/ManualEntryBuilder";
 
 type Pick = { id: number; cardIndex: number; isReversed?: boolean; deckId?: string | null };
 
@@ -1441,7 +1442,7 @@ export function ManualSpreadSlots({
     const sidePad = 48;
     const availW =
       typeof window !== "undefined"
-        ? Math.min(Math.max(280, window.innerWidth - sidePad), 640)
+        ? Math.min(Math.max(280, window.innerWidth - sidePad), MANUAL_ENTRY_CONTENT_MAX)
         : 320;
     // Q49 Fix 2 — cap cellW so desktop does not render giant cards;
     // use cellW * 2 so any reasonable card aspect fits without top-crop.
@@ -1454,7 +1455,7 @@ export function ManualSpreadSlots({
       <div
         style={{
           width: "100%",
-          maxWidth: picks.length <= 2 ? 400 : 640,
+          maxWidth: picks.length <= 2 ? 400 : MANUAL_ENTRY_CONTENT_MAX,
           margin: "0 auto",
           overflow: "visible",
           paddingLeft: 12,
@@ -1535,7 +1536,7 @@ export function ManualSpreadSlots({
     const sidePad = 48; // 16px each side + 8px safety margin each side
     const availW =
       typeof window !== "undefined"
-        ? Math.min(Math.max(280, window.innerWidth - sidePad), 640)
+        ? Math.min(Math.max(280, window.innerWidth - sidePad), MANUAL_ENTRY_CONTENT_MAX)
         : 320;
     const cellWRaw = Math.floor((availW - gap * (cols - 1)) / cols);
     const cellW = Math.min(cellWRaw, 120);
@@ -1552,7 +1553,7 @@ export function ManualSpreadSlots({
       <div
         style={{
           width: "100%",
-          maxWidth: picks.length <= 2 ? 400 : 640,
+          maxWidth: picks.length <= 2 ? 400 : MANUAL_ENTRY_CONTENT_MAX,
           margin: "0 auto",
           overflow: "visible",
           paddingLeft: 12,
