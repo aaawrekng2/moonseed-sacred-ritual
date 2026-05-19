@@ -173,17 +173,6 @@ export function SmartCardInput({
       className="w-full mx-auto relative"
       style={{ maxWidth: MANUAL_ENTRY_CONTENT_MAX }}
     >
-      <p
-        className="mb-2 text-center"
-        style={{
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          fontSize: "var(--text-caption, 0.75rem)",
-          opacity: 0.55,
-        }}
-      >
-        Cards fill in spread order: {positionLabels.join(", ") || "as drawn"}
-      </p>
       <input
         ref={inputRef}
         type="text"
