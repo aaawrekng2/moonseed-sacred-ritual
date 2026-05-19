@@ -20,11 +20,32 @@ export const Route = createFileRoute("/credits/success")({
 
 function SuccessPage() {
   const { balance, refresh, loading } = useCredits();
-  const [initialBalance] = useState<number>(balance);
+  // CG — initialBalance is captured only AFTER the first fetch completes.
+  // Mount-time capture broke on returning visits because useCredits
+  // already had a cached value, so the stop condition was false from
+  // the start and polling exited early.
+  const [initialBalance, setInitialBalance] = useState<number | null>(null);
   const [tries, setTries] = useState(0);
 
+  // CG — Force a refresh on mount so returning visits do not read stale
+  // cached state. We rely on the webhook to credit, then poll for the
+  // new balance.
   useEffect(() => {
-    if (tries >= 7) return;
+    void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Capture the baseline once the first fetch finishes.
+  useEffect(() => {
+    if (initialBalance === null && !loading) {
+      setInitialBalance(balance);
+    }
+  }, [initialBalance, loading, balance]);
+
+  // CG — polling ceiling raised from 7 to 10 (~15s window).
+  useEffect(() => {
+    if (initialBalance === null) return;
+    if (tries >= 10) return;
     if (!loading && balance > initialBalance) return;
     const t = setTimeout(() => {
       void refresh();
@@ -33,7 +54,8 @@ function SuccessPage() {
     return () => clearTimeout(t);
   }, [tries, balance, initialBalance, loading, refresh]);
 
-  const credited = !loading && balance > initialBalance;
+  const credited = initialBalance !== null && !loading && balance > initialBalance;
+  const showEllipsis = loading || initialBalance === null;
 
   return (
     <div style={pageStyle}>
@@ -42,14 +64,14 @@ function SuccessPage() {
       <p style={subtitleStyle}>
         {credited
           ? "Your credits have arrived."
-          : tries < 7
+          : tries < 10
             ? "Processing your purchase…"
             : "Your purchase is recorded — credits should appear in a moment."}
       </p>
       <div style={balanceRowStyle}>
         <span style={balanceLabelStyle}>Current balance</span>
         <div style={balanceValStyle}>
-          {balance}{" "}
+          {showEllipsis ? "…" : balance}{" "}
           <Sparkles size={22} strokeWidth={1.5} style={{ color: "var(--accent, var(--gold))" }} />
         </div>
       </div>
