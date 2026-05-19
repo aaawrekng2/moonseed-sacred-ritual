@@ -391,7 +391,8 @@ export function ManualEntryBuilder({
       )}
 
       <div
-        className={cn("flex flex-1 flex-col items-center justify-center gap-3 p-4")}
+        className={cn("flex flex-1 flex-col items-center justify-start gap-3 px-4 pt-4 pb-4")}
+        style={{ paddingTop: 16 }}
       >
         {/* CF — Top row: date pill (left) + SmartCardInput (right),
             sharing the 640 content block. Date pill is fixed-width;
