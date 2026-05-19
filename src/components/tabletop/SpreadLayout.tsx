@@ -1505,11 +1505,12 @@ export function ManualSpreadSlots({
                 flexDirection: "column",
                 alignItems: "center",
                 gap: 2,
+                minHeight: 48,
               }}
             >
-              {showLabels && (
+              {showLabels && labels[i] && (
                 <PositionLabel cardWidth={cellW}>
-                  {labels[i] ?? `Card ${i + 1}`}
+                  {labels[i]}
                 </PositionLabel>
               )}
               {showLabels && pick && (
@@ -1618,13 +1619,10 @@ export function ManualSpreadSlots({
                         flexDirection: "column",
                         alignItems: "center",
                         gap: 2,
+                        minHeight: 48,
                       }}
                     >
-                      {showLabels && (
-                        <PositionLabel cardWidth={cellW}>
-                          {`Card ${absIdx + 1}`}
-                        </PositionLabel>
-                      )}
+                      {/* CF — numeric "Card N" position labels removed. */}
                       {showLabels && pick && (
                         <CardNameLabel
                           cardIndex={pick.cardIndex}
@@ -1648,15 +1646,27 @@ export function ManualSpreadSlots({
   return (
     <div className="flex flex-col items-center gap-3">
       <Slot pick={picks[0] ?? null} slotIndex={0} />
-      {showLabels && labels[0] && <PositionLabel cardWidth={sizing.w}>{labels[0]}</PositionLabel>}
-      {showLabels && picks[0] && (
-        <CardNameLabel
-          cardIndex={picks[0]!.cardIndex}
-          isReversed={!!picks[0]!.isReversed}
-          cardWidth={sizing.w}
-          nameOverride={picks[0]!.cardName}
-        />
-      )}
+      <div
+        style={{
+          minHeight: 48,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        {showLabels && labels[0] && (
+          <PositionLabel cardWidth={sizing.w}>{labels[0]}</PositionLabel>
+        )}
+        {showLabels && picks[0] && (
+          <CardNameLabel
+            cardIndex={picks[0]!.cardIndex}
+            isReversed={!!picks[0]!.isReversed}
+            cardWidth={sizing.w}
+            nameOverride={picks[0]!.cardName}
+          />
+        )}
+      </div>
     </div>
   );
 }
