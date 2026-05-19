@@ -1218,32 +1218,69 @@ const StalkerReflectionInput = z.object({
   count: z.number().int(),
   latestDate: z.string(),
   sampleQuestions: z.array(z.string()).max(10).default([]),
+  reversedCount: z.number().int().min(0).default(0),
+  coOccurringCards: z
+    .array(z.object({ cardName: z.string(), count: z.number().int() }))
+    .max(10)
+    .default([]),
+  spreadTypes: z
+    .array(z.object({ label: z.string(), count: z.number().int() }))
+    .max(10)
+    .default([]),
+  forceRegenerate: z.boolean().optional().default(false),
 });
 
 function buildStalkerSystemPrompt(tone: AITone): string {
   return [
-    "You are reflecting on a recurring tarot card pattern in the seeker's practice.",
-    "Your job is to write ONE short reflective prompt (1-2 sentences, max 60 words)",
-    "that helps the seeker notice what this recurring card might be inviting them to see.",
-    "Do not predict outcomes. Do not give advice. Invite reflection.",
+    "You are the Tarot Seed oracle reflecting on a recurring tarot card pattern in the seeker's practice.",
+    "Write a 3-paragraph reflection (200-300 words total) in flowing serif prose. No bullet points, no headings.",
+    "Paragraph 1: name what is recurring and what the card itself carries.",
+    "Paragraph 2: weave in the specific co-occurring cards and/or the questions the seeker has been asking, by name when provided.",
+    "Paragraph 3: an open reflective invitation — what this pattern might be asking them to notice. No predictions, no advice imperatives.",
+    "Address the seeker as \"you\". Speak with humility — a pattern emerging, not certainty about outcomes.",
+    "Never invent details. If the seeker asked nothing, do not pretend they did; if no co-occurring cards were given, describe the solo pattern.",
     TONE_FRAGMENTS[tone],
   ].join(" ");
 }
 
 function buildStalkerUserPrompt(
   cardName: string,
-  data: { count: number; latestDate: string; sampleQuestions: string[] },
+  data: {
+    count: number;
+    latestDate: string;
+    sampleQuestions: string[];
+    reversedCount: number;
+    coOccurringCards: Array<{ cardName: string; count: number }>;
+    spreadTypes: Array<{ label: string; count: number }>;
+  },
 ): string {
   const lines: string[] = [
-    `${cardName} has appeared ${data.count} times in this seeker's recent readings.`,
+    `Card: ${cardName}`,
+    `Appearances in this seeker's recent practice: ${data.count}` +
+      (data.reversedCount > 0
+        ? ` (${data.reversedCount} reversed, ${data.count - data.reversedCount} upright)`
+        : ""),
+    `Most recent appearance: ${data.latestDate}`,
   ];
-  if (data.sampleQuestions.length > 0) {
+  if (data.coOccurringCards.length > 0) {
     lines.push(
-      "Sample questions when this card appeared:\n" +
-        data.sampleQuestions.map((q) => `- "${q}"`).join("\n"),
+      "Most frequent companions in these readings:\n" +
+        data.coOccurringCards.slice(0, 5).map((c) => `- ${c.cardName} (×${c.count})`).join("\n"),
     );
   }
-  lines.push("Write the reflective prompt now.");
+  if (data.spreadTypes.length > 0) {
+    lines.push(
+      "Spread contexts:\n" +
+        data.spreadTypes.slice(0, 3).map((s) => `- ${s.label} (×${s.count})`).join("\n"),
+    );
+  }
+  if (data.sampleQuestions.length > 0) {
+    lines.push(
+      "Questions the seeker has asked when this card appeared:\n" +
+        data.sampleQuestions.slice(0, 8).map((q) => `- "${q}"`).join("\n"),
+    );
+  }
+  lines.push("Write the 3-paragraph reflection now.");
   return lines.join("\n\n");
 }
 
@@ -1254,14 +1291,24 @@ export const getStalkerReflection = createServerFn({ method: "POST" })
     const { supabase, userId } = context as { supabase: any; userId: string };
     const isPremium = await getIsPremium(supabase, userId);
     if (!isPremium) return { ok: false as const, error: "premium_required" };
-    const cacheKey = `stalker:${data.cardId}:${data.count}:${data.latestDate}`;
-    const cached = await readCachedReflection(supabase, userId, cacheKey);
-    if (cached) return { ok: true as const, reflection: cached.reflection };
+    // CG — cache key now incorporates a hash of the rich payload so
+    // the cache regenerates when the seeker's context changes.
+    const payloadKey = hashString(JSON.stringify({
+      sq: data.sampleQuestions.slice().sort(),
+      co: data.coOccurringCards.map((c) => `${c.cardName}:${c.count}`).sort(),
+      sp: data.spreadTypes.map((s) => `${s.label}:${s.count}`).sort(),
+      rv: data.reversedCount,
+    }));
+    const cacheKey = `stalker:${data.cardId}:${data.count}:${data.latestDate}:${payloadKey}`;
+    if (!data.forceRegenerate) {
+      const cached = await readCachedReflection(supabase, userId, cacheKey);
+      if (cached) return { ok: true as const, reflection: cached.reflection };
+    }
     const tone = await getAIToneServerSide(supabase, userId);
     const cardName = getCardName(data.cardId);
     const systemPrompt = buildStalkerSystemPrompt(tone);
     const userPrompt = buildStalkerUserPrompt(cardName, data);
-    const reflection = await callAnthropicShort(systemPrompt, userPrompt, 200, userId);
+    const reflection = await callAnthropicShort(systemPrompt, userPrompt, 600, userId);
     if (!reflection) return { ok: false as const, error: "ai_unavailable" };
     await writeCachedReflection(supabase, userId, cacheKey, reflection);
     return { ok: true as const, reflection };
@@ -2318,6 +2365,18 @@ function buildNumerologyUserPrompt(
     .slice(0, 3)
     .map(([n, c]) => `${n} (${c}×)`);
 
+  // CG — extract up to 8 unique recent questions for the AI.
+  const seenQ = new Set<string>();
+  const recentQuestions: string[] = [];
+  for (const r of readings) {
+    const q = (r.question ?? "").trim();
+    if (q.length > 3 && !seenQ.has(q)) {
+      seenQ.add(q);
+      recentQuestions.push(q);
+    }
+    if (recentQuestions.length >= 8) break;
+  }
+
   const lines: string[] = [
     `Birth date: ${num.birthDate}`,
     `Life Path: ${num.lifePath}`,
@@ -2335,6 +2394,12 @@ function buildNumerologyUserPrompt(
     lines.push("Recent readings: none in window.");
   }
   lines.push(`Reading count in window: ${readings.length}`);
+  if (recentQuestions.length > 0) {
+    lines.push(
+      "Recent questions the seeker has been asking:\n" +
+        recentQuestions.map((q) => `- "${q}"`).join("\n"),
+    );
+  }
   return lines.join("\n");
 }
 
@@ -2391,7 +2456,7 @@ export const getNumerologyReading = createServerFn({ method: "POST" })
       "You are the Tarot Seed oracle, a voice that weaves numerology and tarot together.",
       "Write a personal numerology reading in flowing serif prose – evocative, brief, never bullet points.",
       'Address the seeker as "you". 250–350 words. 3–4 short paragraphs.',
-      "Open with the seeker's Personal Year theme; weave in Life Path; touch their Birth Card archetype; close with the cards that have been recurring in their recent readings.",
+      "Open with the seeker's Personal Year theme; weave in Life Path; touch their Birth Card archetype; close with the cards AND the recent questions they've been carrying (if provided).",
       "Be specific to their actual numbers and recent cards. No generic horoscope filler. No advice imperatives.",
     ].join("\n");
 

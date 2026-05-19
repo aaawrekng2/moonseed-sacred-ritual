@@ -526,7 +526,7 @@ function OverviewTab({
   const lowData = overview.totalReadings < 5;
 
   return (
-    <div className="space-y-6 md:space-y-4">
+    <div className="space-y-10 md:space-y-4">
       {moonEnabled && (
         <>
           <LunationHint />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { getCalendarHeatmap } from "@/lib/insights.functions";
@@ -21,6 +21,7 @@ export function YearHeatmap({ filters }: { filters: InsightsFilters }) {
   const navigate = useNavigate();
   const [data, setData] = useState<{ days: Day[]; maxCount: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +45,17 @@ export function YearHeatmap({ filters }: { filters: InsightsFilters }) {
 
   // Group days into weeks (columns). Pad start so first column begins on Sunday.
   const days = data?.days ?? [];
+
+  useEffect(() => {
+    if (loading || days.length === 0) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    // CG — auto-scroll to today on first paint after data loads.
+    requestAnimationFrame(() => {
+      el.scrollLeft = el.scrollWidth;
+    });
+  }, [loading, days.length]);
+
   const firstDate = days[0] ? new Date(days[0].date) : new Date();
   const padStart = firstDate.getDay(); // 0..6 (Sun..Sat)
   const cells: Array<Day | null> = [
@@ -100,7 +112,7 @@ export function YearHeatmap({ filters }: { filters: InsightsFilters }) {
         <div className="animate-pulse" style={{ height: 120, background: "var(--surface-elevated)", borderRadius: 8, opacity: 0.4 }} />
       )}
       {!loading && days.length > 0 && (
-        <div className="overflow-x-auto">
+        <div ref={scrollRef} className="overflow-x-auto">
           <div style={{ display: "inline-block", minWidth: "100%" }}>
             <div className="mb-1 flex" style={{ paddingLeft: 18, gap: 2, fontSize: "var(--text-caption)", opacity: 0.55 }}>
               {weeks.map((_, col) => {

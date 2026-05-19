@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useNavigate } from "@tanstack/react-router";
 import { getCardPairs, getReadingsWithCardPair } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { CardImage } from "@/components/card/CardImage";
@@ -182,6 +183,7 @@ export function CardPairsSection({ filters }: { filters: InsightsFilters }) {
 
 function PairRow({ pair, scale, onTap }: { pair: Pair; scale: number; onTap: () => void }) {
   const w = Math.round(38 * scale / 100);
+  const navigate = useNavigate();
   return (
     <button
       type="button"
@@ -190,9 +192,44 @@ function PairRow({ pair, scale, onTap }: { pair: Pair; scale: number; onTap: () 
       style={{ background: "var(--surface-card)", borderRadius: 14, border: "none", cursor: "pointer" }}
     >
       <div className="flex gap-1">
-        {/* EY-7 — unified card render. */}
-        <CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={w} ariaLabel={pair.cardAName} />
-        <CardImage cardId={pair.cardB} variant="face" size="custom" widthPx={w} ariaLabel={pair.cardBName} />
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            void navigate({ to: "/insights/card/$cardId", params: { cardId: String(pair.cardA) } });
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              void navigate({ to: "/insights/card/$cardId", params: { cardId: String(pair.cardA) } });
+            }
+          }}
+          style={{ cursor: "pointer", display: "inline-block" }}
+          aria-label={`View Card Trace for ${pair.cardAName}`}
+        >
+          <CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={w} ariaLabel={pair.cardAName} />
+        </span>
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            void navigate({ to: "/insights/card/$cardId", params: { cardId: String(pair.cardB) } });
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              void navigate({ to: "/insights/card/$cardId", params: { cardId: String(pair.cardB) } });
+            }
+          }}
+          style={{ cursor: "pointer", display: "inline-block" }}
+          aria-label={`View Card Trace for ${pair.cardBName}`}
+        >
+          <CardImage cardId={pair.cardB} variant="face" size="custom" widthPx={w} ariaLabel={pair.cardBName} />
+        </span>
       </div>
       <div
         style={{
@@ -222,6 +259,7 @@ function PairDetailModal({
   onClose: () => void;
 }) {
   const heroW = Math.round(160 * scale / 100);
+  const navigate = useNavigate();
   const fetchReadings = useServerFn(getReadingsWithCardPair);
   const [readings, setReadings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -298,8 +336,28 @@ function PairDetailModal({
           <X size={18} />
         </button>
         <div className="flex justify-center gap-3 mt-2 mb-4">
-          <CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={heroW} ariaLabel={pair.cardAName} />
-          <CardImage cardId={pair.cardB} variant="face" size="custom" widthPx={heroW} ariaLabel={pair.cardBName} />
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              void navigate({ to: "/insights/card/$cardId", params: { cardId: String(pair.cardA) } });
+            }}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+            aria-label={`View Card Trace for ${pair.cardAName}`}
+          >
+            <CardImage cardId={pair.cardA} variant="face" size="custom" widthPx={heroW} ariaLabel={pair.cardAName} />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              void navigate({ to: "/insights/card/$cardId", params: { cardId: String(pair.cardB) } });
+            }}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+            aria-label={`View Card Trace for ${pair.cardBName}`}
+          >
+            <CardImage cardId={pair.cardB} variant="face" size="custom" widthPx={heroW} ariaLabel={pair.cardBName} />
+          </button>
         </div>
         <h3
           style={{

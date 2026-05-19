@@ -1629,14 +1629,19 @@ button:focus-visible .moon-rung-glow {
   position: absolute;
   bottom: 5%;
   right: 5%;
-  width: 26px; /* Q98 #2 — was clamp(32px, 28cqi, 52px); fixed so badge stays readable at any card scale */
+  /* CG — Scale with the card via container queries. Parents wrap
+     card images in containerType: inline-size, so 18cqi = 18%
+     of container inline-size. Floor at 22px so very small cards
+     keep a tappable badge; ceiling at 48px so large cards do
+     not get an oversized chip. */
+  width: clamp(22px, 18cqi, 48px);
   aspect-ratio: 1;
   border-radius: 999px;
   background: oklch(0.82 0.14 82);
   color: #1a1205;
   font-family: var(--font-serif);
   font-weight: 600;
-  font-size: 13px; /* Q98 #2 — was clamp(15px, 15cqi, 24px) */
+  font-size: clamp(11px, 11cqi, 22px);
   letter-spacing: -0.03em;
   display: inline-flex;
   align-items: center;
