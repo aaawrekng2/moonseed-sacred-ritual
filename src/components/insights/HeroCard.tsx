@@ -31,68 +31,63 @@ export function HeroCard({
   const cardName = getCardName(featuredId);
 
   return (
-    <button
-      type="button"
-      onClick={onTap}
-      className="flex items-stretch gap-4 p-4 text-left transition-opacity hover:opacity-95"
-      style={{
-        maxWidth: 640,
-        margin: "0 auto",
-        width: "100%",
-        background: "var(--surface-card)",
-        borderRadius: 20,
-        boxShadow: isStalker
-          ? "0 0 0 1px var(--emphasis-fg-passive), 0 4px 30px var(--emphasis-bg-passive)"
-          : "0 1px 3px color-mix(in oklch, var(--cosmos, #0a0a14) 25%, transparent)",
-      }}
-    >
-      {/* EY-7 — unified card render. */}
-      <CardImage
-        cardId={featuredId}
-        variant="face"
-        size="custom"
-        widthPx={120}
-        ariaLabel={cardName}
-        eager
-        style={{ flexShrink: 0 }}
-      />
-      <div className="flex flex-1 flex-col justify-center gap-1">
-        <div
-          className="uppercase"
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "var(--text-caption, 0.75rem)",
-            letterSpacing: "0.18em",
-            color: "var(--gold)",
-            opacity: 0.85,
-          }}
-        >
-          {overline}
-        </div>
-        <div
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "3rem",
-            lineHeight: 1,
-            color: "var(--color-foreground)",
-          }}
-        >
-          {count}
-        </div>
-        <div
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "var(--text-body-sm)",
-            opacity: 0.75,
-            lineHeight: 1.3,
-          }}
-        >
-          appearance{count === 1 ? "" : "s"} of {cardName}
-        </div>
+    <div style={{ maxWidth: 640, margin: "0 auto", width: "100%" }}>
+      <div
+        className="uppercase text-center mb-1"
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-caption, 0.75rem)",
+          letterSpacing: "0.18em",
+          color: "var(--gold)",
+          opacity: 0.85,
+        }}
+      >
+        {overline}
       </div>
-    </button>
+      <div
+        className="text-center mb-3"
+        style={{
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "var(--text-body-lg)",
+          color: "var(--color-foreground)",
+        }}
+      >
+        {cardName}
+      </div>
+      <button
+        type="button"
+        onClick={onTap}
+        className="flex items-center justify-center p-4 transition-opacity hover:opacity-95"
+        style={{
+          width: "100%",
+          background: "var(--surface-card)",
+          borderRadius: 20,
+          boxShadow: isStalker
+            ? "0 0 0 1px var(--emphasis-fg-passive), 0 4px 30px var(--emphasis-bg-passive)"
+            : "0 1px 3px color-mix(in oklch, var(--cosmos, #0a0a14) 25%, transparent)",
+        }}
+      >
+        <div style={{ position: "relative", width: 180, containerType: "inline-size" }}>
+          <CardImage
+            cardId={featuredId}
+            variant="face"
+            size="custom"
+            widthPx={180}
+            ariaLabel={cardName}
+            eager
+            style={{ width: "100%" }}
+          />
+          <span
+            className="tarotseed-card-badge"
+            aria-label={`${count} appearances`}
+          >
+            {count}
+            <span style={{ fontSize: "0.7em", marginLeft: "0.05em" }}>×</span>
+          </span>
+        </div>
+      </button>
+    </div>
   );
 }
