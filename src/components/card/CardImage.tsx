@@ -370,8 +370,17 @@ export function CardImage({
         : width <= 200
           ? "md"
           : "full";
+  // CG — Tier lock is MONOTONIC: tracks the HIGHEST tier ever needed.
+  // Width fluctuations cannot downgrade it (preventing oscillation),
+  // but a genuine width increase upgrades both the rendered tier
+  // AND the lock.
+  const TIER_RANK = { sm: 0, md: 1, full: 2 } as const;
+  const lockedRank = lockedTierRef.current
+    ? TIER_RANK[lockedTierRef.current]
+    : -1;
+  const naturalRank = TIER_RANK[naturalTier];
   const variantTier: "sm" | "md" | "full" =
-    lockedTierRef.current ?? naturalTier;
+    naturalRank > lockedRank ? naturalTier : (lockedTierRef.current ?? naturalTier);
   const specificSrc =
     typeof cardId === "number" && useSpecific
       ? specificResolve(cardId, variantTier)
@@ -434,8 +443,12 @@ export function CardImage({
     }
   };
   const handleImgLoad = () => {
-    // Q29 Fix 4 — lock the tier once we've successfully loaded once.
-    if (lockedTierRef.current === null) {
+    // CG — Monotonic lock: upgrade to higher tier on success, never downgrade.
+    const currentLocked = lockedTierRef.current;
+    if (
+      currentLocked === null ||
+      TIER_RANK[variantTier] > TIER_RANK[currentLocked]
+    ) {
       lockedTierRef.current = variantTier;
     }
     dispatch({ type: "LOAD_SUCCEEDED", tier: variantTier });
