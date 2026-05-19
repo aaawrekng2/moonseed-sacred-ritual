@@ -1454,8 +1454,8 @@ export function ManualSpreadSlots({
     return (
       <div
         style={{
-          width: "100%",
-          maxWidth: picks.length <= 2 ? 400 : MANUAL_ENTRY_CONTENT_MAX,
+          width: "max-content",
+          maxWidth: "100%",
           margin: "0 auto",
           overflow: "visible",
           paddingLeft: 12,
@@ -1466,10 +1466,10 @@ export function ManualSpreadSlots({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: `repeat(${cols}, 1fr)`,
+            gridTemplateColumns: `repeat(${cols}, ${cellW}px)`,
             gap: `${gap}px`,
             alignItems: "end",
-            width: "100%",
+            width: "max-content",
             marginBottom: 12,
           }}
         >
@@ -1483,17 +1483,17 @@ export function ManualSpreadSlots({
                 justifyContent: "center",
               }}
             >
-              <Slot pick={pick} slotIndex={i} responsiveWidth />
+              <Slot pick={pick} slotIndex={i} cellWidth={cellW} />
             </div>
           ))}
         </div>
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: `repeat(${cols}, 1fr)`,
+            gridTemplateColumns: `repeat(${cols}, ${cellW}px)`,
             gap: `${gap}px`,
             alignItems: "start",
-            width: "100%",
+            width: "max-content",
             marginBottom: 8,
           }}
         >
@@ -1552,8 +1552,8 @@ export function ManualSpreadSlots({
     return (
       <div
         style={{
-          width: "100%",
-          maxWidth: picks.length <= 2 ? 400 : MANUAL_ENTRY_CONTENT_MAX,
+          width: "max-content",
+          maxWidth: "100%",
           margin: "0 auto",
           overflow: "visible",
           paddingLeft: 12,
@@ -1568,10 +1568,10 @@ export function ManualSpreadSlots({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                  gridTemplateColumns: `repeat(${cols}, ${cellW}px)`,
                   gap: `${gap}px`,
                   alignItems: "end",
-                  width: "100%",
+                  width: "max-content",
                   // Q95 #1 — was 12; tighter so multi-row custom spreads
                   // don't show a canyon between row 1 and row 2.
                   marginBottom: 4,
@@ -1592,7 +1592,7 @@ export function ManualSpreadSlots({
                       <Slot
                         pick={pick}
                         slotIndex={absIdx}
-                        responsiveWidth
+                        cellWidth={cellW}
                       />
                     </div>
                   );
@@ -1601,10 +1601,10 @@ export function ManualSpreadSlots({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                  gridTemplateColumns: `repeat(${cols}, ${cellW}px)`,
                   gap: `${gap}px`,
                   alignItems: "start",
-                  width: "100%",
+                  width: "max-content",
                   marginBottom: 8,
                 }}
               >
