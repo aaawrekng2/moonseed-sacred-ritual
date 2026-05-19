@@ -19,6 +19,7 @@ import {
 } from "@/lib/card-search";
 import { useActiveDeckImage } from "@/lib/active-deck";
 import { getCardImagePath } from "@/lib/tarot";
+import { MANUAL_ENTRY_CONTENT_MAX } from "@/components/tabletop/ManualEntryBuilder";
 
 export type SmartPick = {
   cardIndex: number;
@@ -168,7 +169,10 @@ export function SmartCardInput({
   };
 
   return (
-    <div className="w-full max-w-md mx-auto relative">
+    <div
+      className="w-full mx-auto relative"
+      style={{ maxWidth: MANUAL_ENTRY_CONTENT_MAX }}
+    >
       <p
         className="mb-2 text-center"
         style={{
@@ -224,7 +228,7 @@ export function SmartCardInput({
       )}
       {showDropdown && (
         <div
-          className="absolute z-50 mt-1 max-h-80 w-full overflow-y-auto rounded-lg border border-gold/30 bg-cosmos shadow-xl"
+          className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gold/30 bg-cosmos shadow-xl"
           onMouseDown={(e) => e.preventDefault()}
         >
           {result.groups.map((g) => (
