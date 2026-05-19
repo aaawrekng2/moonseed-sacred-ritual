@@ -292,6 +292,15 @@ export function ManualEntryBuilder({
         position: "relative",
         width: "100%",
         height: "100%",
+        // CD — mirror Q94 #2 on the cast screen: clamp to 1280 and
+        // center inside the FullScreenSheet portal so the header strip,
+        // content column, and close button never span the full viewport
+        // on wide monitors. FullScreenSheet portals to document.body
+        // and escapes the root 1280 frame, so each consumer must impose
+        // its own clamp.
+        maxWidth: 1280,
+        marginLeft: "auto",
+        marginRight: "auto",
       }}
     >
     <button
@@ -382,7 +391,7 @@ export function ManualEntryBuilder({
       )}
 
       <div
-        className={cn("flex flex-col items-center gap-6 p-4")}
+        className={cn("flex flex-1 flex-col items-center justify-center gap-6 p-4")}
       >
         {/* Q17 Fix 1 — Smart bulk-input combobox. Hidden for oracle
             decks; standard tarot only. */}
