@@ -357,6 +357,7 @@ function CardTraceRoute() {
               cardId={cid}
               count={data.totalCount}
               latestDate={data.lastSeen ?? new Date().toISOString()}
+              appearances={appearances}
             />
           )}
         </div>
@@ -744,10 +745,12 @@ function PremiumDetailReflection({
   cardId,
   count,
   latestDate,
+  appearances,
 }: {
   cardId: number;
   count: number;
   latestDate: string;
+  appearances: Appearance[];
 }) {
   const fn = useServerFn(getStalkerReflection);
   const [text, setText] = useState<string | null>(null);
@@ -755,15 +758,22 @@ function PremiumDetailReflection({
   const [err, setErr] = useState(false);
   const { guard, notice } = useTokenNotice();
 
-  const generate = () => {
-    if (loading || text) return;
+  const generate = (forceRegenerate = false) => {
+    if (loading || (text && !forceRegenerate)) return;
     setLoading(true);
     setErr(false);
     void (async () => {
       try {
         const headers = await getAuthHeaders();
+        const payload = buildReflectionPayload(cardId, appearances);
         const r = await fn({
-          data: { cardId, count, latestDate, sampleQuestions: [] },
+          data: {
+            cardId,
+            count,
+            latestDate,
+            ...payload,
+            forceRegenerate,
+          },
           headers,
         });
         if (r.ok) setText(r.reflection);
@@ -778,20 +788,41 @@ function PremiumDetailReflection({
 
   if (text) {
     return (
-      <div
-        className="w-full p-4"
-        style={{
-          background: "color-mix(in oklch, var(--gold) 10%, transparent)",
-          borderRadius: 14,
-          color: "var(--gold)",
-          fontFamily: "var(--font-serif)",
-          fontStyle: "italic",
-          lineHeight: 1.5,
-          opacity: 0.95,
-          whiteSpace: "pre-line",
-        }}
-      >
-        {text}
+      <div className="flex flex-col gap-2">
+        <div
+          className="w-full p-4"
+          style={{
+            background: "color-mix(in oklch, var(--gold) 10%, transparent)",
+            borderRadius: 14,
+            color: "var(--gold)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            lineHeight: 1.5,
+            opacity: 0.95,
+            whiteSpace: "pre-line",
+          }}
+        >
+          {text}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setText(null);
+            guard(() => generate(true));
+          }}
+          disabled={loading}
+          className="self-end text-xs italic"
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "var(--gold)",
+            opacity: loading ? 0.5 : 0.7,
+            cursor: loading ? "wait" : "pointer",
+            fontFamily: "var(--font-serif)",
+          }}
+        >
+          Regenerate
+        </button>
       </div>
     );
   }
@@ -801,7 +832,7 @@ function PremiumDetailReflection({
       <button
         type="button"
         disabled={loading}
-        onClick={() => guard(generate)}
+        onClick={() => guard(() => generate(false))}
         className="flex w-full items-center justify-center gap-2 p-4"
         style={{
           background: "color-mix(in oklch, var(--gold) 12%, transparent)",
@@ -823,4 +854,43 @@ function PremiumDetailReflection({
       {notice}
     </>
   );
+}
+
+function buildReflectionPayload(cardId: number, appearances: Appearance[]) {
+  const seen = new Set<string>();
+  const sampleQuestions: string[] = [];
+  for (const a of appearances) {
+    const q = (a.question ?? "").trim();
+    if (q.length > 3 && !seen.has(q)) {
+      seen.add(q);
+      sampleQuestions.push(q);
+    }
+    if (sampleQuestions.length >= 10) break;
+  }
+
+  const coOccCounts = new Map<number, number>();
+  for (const a of appearances) {
+    for (const cid of a.cardIds ?? []) {
+      if (cid === cardId) continue;
+      coOccCounts.set(cid, (coOccCounts.get(cid) ?? 0) + 1);
+    }
+  }
+  const coOccurringCards = [...coOccCounts.entries()]
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 8)
+    .map(([cid, c]) => ({ cardName: getCardName(cid), count: c }));
+
+  const spreadCounts = new Map<string, number>();
+  for (const a of appearances) {
+    const s = a.spreadType ?? "single";
+    spreadCounts.set(s, (spreadCounts.get(s) ?? 0) + 1);
+  }
+  const spreadTypes = [...spreadCounts.entries()]
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([label, c]) => ({ label, count: c }));
+
+  const reversedCount = appearances.filter((a) => a.isReversed).length;
+
+  return { sampleQuestions, coOccurringCards, spreadTypes, reversedCount };
 }
