@@ -17,6 +17,8 @@ import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useAuth } from "@/lib/auth";
 import { useMoonPrefs } from "@/lib/use-moon-prefs";
 import { LunationHint } from "@/components/insights/LunationHint";
+import { useTimezone } from "@/lib/use-timezone";
+import { addDaysInTz, currentTzOrFallback, isoDayInTz } from "@/lib/time";
 
 export const Route = createFileRoute("/insights/year-of-lunations")({
   head: () => ({
