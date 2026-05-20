@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- numerology operates on calendar year & calendar months (Gregorian), not seeker's tz; Date primitives are intentional */
 /**
  * Q52c — Numerology / Cycles sub-tab.
  * Personal Year hero + 12-month strip, Pinnacles, Challenges,
