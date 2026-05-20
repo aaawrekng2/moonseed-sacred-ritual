@@ -930,3 +930,85 @@ export const getUserEmailHistory = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return { emails: (rows ?? []) as UserEmailRow[] };
   });
+
+/* ---------- Phase 13: AI cost circuit breaker ---------- */
+
+export type CircuitBreakerTripRow = {
+  id: string;
+  created_at: string;
+  threshold_type: "hourly" | "12h";
+  threshold_usd: number;
+  actual_cost_usd: number;
+  window_start: string;
+  window_end: string;
+  call_count_in_window: number;
+  top_users:
+    | Array<{ user_id: string; cost_usd: number; call_count: number }>
+    | null;
+  resolved_at: string | null;
+  resolved_by: string | null;
+  resolution_note: string | null;
+};
+
+export const getLatestUnresolvedTrip = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    const { data } = await supabaseAdmin
+      .from("ai_circuit_breaker_trips" as never)
+      .select("*")
+      .is("resolved_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return (data as CircuitBreakerTripRow | null) ?? null;
+  });
+
+export const reEnableAI = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        tripId: z.string().uuid(),
+        note: z.string().max(1000).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    const nowEpochSec = Math.floor(Date.now() / 1000);
+
+    // 1. Reset the rolling-window floor so the breaker won't re-trip
+    //    on stale pre-trip spending.
+    await supabaseAdmin
+      .from("admin_settings" as never)
+      .upsert(
+        { key: "ai_threshold_window_start", value: nowEpochSec } as never,
+        { onConflict: "key" } as never,
+      );
+
+    // 2. Flip the master kill switch back on.
+    await supabaseAdmin
+      .from("admin_settings" as never)
+      .upsert(
+        { key: "ai_enabled_globally", value: true } as never,
+        { onConflict: "key" } as never,
+      );
+
+    // 3. Mark the trip resolved.
+    await supabaseAdmin
+      .from("ai_circuit_breaker_trips" as never)
+      .update({
+        resolved_at: new Date().toISOString(),
+        resolved_by: userId,
+        resolution_note: data.note ?? null,
+      } as never)
+      .eq("id", data.tripId);
+
+    return {
+      ok: true,
+      windowResetAt: new Date(nowEpochSec * 1000).toISOString(),
+    };
+  });
