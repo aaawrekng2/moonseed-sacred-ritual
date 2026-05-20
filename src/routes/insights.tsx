@@ -52,6 +52,7 @@ import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { EmptyHero } from "@/components/ui/empty-hero";
 import type { MoonPhaseName } from "@/lib/moon";
 import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
+import { useTimezone } from "@/lib/use-timezone";
 
 export const Route = createFileRoute("/insights")({
   head: () => ({
@@ -111,6 +112,13 @@ function InsightsRoute() {
   const readingStats = useReadingStats(userId);
   const statsLine = formatReadingStatsLine(readingStats);
   const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
+  // Phase 10 — keep filters.tz synced with the user's effective timezone so
+  // every server fn that spreads filters aggregates on local calendar days.
+  const { effectiveTz } = useTimezone();
+  useEffect(() => {
+    if (!effectiveTz || filters.tz === effectiveTz) return;
+    setFilters((prev) => ({ ...prev, tz: effectiveTz }));
+  }, [effectiveTz, filters.tz]);
   const scrollRef = useRef<HTMLElement | null>(null);
   const collapseProgress = useScrollCollapse(scrollRef, 40);
   const [userTags, setUserTags] = useState<
