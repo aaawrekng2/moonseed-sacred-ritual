@@ -11,10 +11,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getCardMeta, getCardRoot, getCardRulership } from "@/lib/card-astrology";
 import { getCardName } from "@/lib/tarot";
+import { isoDayInTz } from "@/lib/time";
 
 const Input = z.object({
   cardId: z.number().int().min(0).max(9999),
-  tz: z.string().optional(),
+  tz: z.string().min(1),
 });
 
 export type QuickLogJournalRow = {
@@ -168,7 +169,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
 
 const OverlapInput = z.object({
   heroCardId: z.number().int().min(0).max(9999).nullable().optional(),
-  tz: z.string().optional(),
+  tz: z.string().min(1),
 });
 
 export type QuickLogDayCell = {
@@ -191,28 +192,8 @@ export type QuickLogOverlap = {
   >;
 };
 
-/**
- * Format a Date as YYYY-MM-DD in the given IANA timezone.
- * Falls back to UTC if the tz string is invalid.
- */
-function isoDayInTz(d: Date, tz: string): string {
-  try {
-    const parts = new Intl.DateTimeFormat("en-CA", {
-      timeZone: tz,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(d);
-    const y = parts.find((p) => p.type === "year")?.value ?? "1970";
-    const m = parts.find((p) => p.type === "month")?.value ?? "01";
-    const day = parts.find((p) => p.type === "day")?.value ?? "01";
-    return `${y}-${m}-${day}`;
-  } catch {
-    return d.toISOString().slice(0, 10);
-  }
-}
-
 function daysInMonth(year: number, month1: number): number {
+  // eslint-disable-next-line no-restricted-syntax -- pure month-length arithmetic; not tz-sensitive
   return new Date(year, month1, 0).getDate();
 }
 
@@ -225,7 +206,7 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
       userId: string;
     };
     const heroCardId = data.heroCardId ?? null;
-    const tz = data.tz || "UTC";
+    const tz = data.tz;
 
     // Window: first day of (today's month - 5) through today, in user tz.
     const now = new Date();
@@ -314,7 +295,7 @@ export type QuickLogPractice = {
 const PracticeInput = z.object({
   lunationStart: z.string().optional(),
   lunationEnd: z.string().optional(),
-  tz: z.string().optional(),
+  tz: z.string().min(1),
 });
 
 function suitFor(cardId: number): string | null {
