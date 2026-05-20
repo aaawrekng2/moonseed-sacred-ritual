@@ -112,6 +112,13 @@ function InsightsRoute() {
   const readingStats = useReadingStats(userId);
   const statsLine = formatReadingStatsLine(readingStats);
   const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
+  // Phase 10 — keep filters.tz synced with the user's effective timezone so
+  // every server fn that spreads filters aggregates on local calendar days.
+  const { effectiveTz } = useTimezone();
+  useEffect(() => {
+    if (!effectiveTz || filters.tz === effectiveTz) return;
+    setFilters((prev) => ({ ...prev, tz: effectiveTz }));
+  }, [effectiveTz, filters.tz]);
   const scrollRef = useRef<HTMLElement | null>(null);
   const collapseProgress = useScrollCollapse(scrollRef, 40);
   const [userTags, setUserTags] = useState<
