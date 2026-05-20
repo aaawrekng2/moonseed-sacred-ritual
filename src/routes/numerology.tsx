@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { HorizontalScroll } from "@/components/HorizontalScroll";
 import { useScrollCollapse } from "@/lib/use-scroll-collapse";
+import { useTimezone } from "@/lib/use-timezone";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
 import {
   EMPTY_GLOBAL_FILTERS,
@@ -58,6 +59,13 @@ function NumerologyPage() {
   const activeTabLabel = TABS.find((t) => t.id === tab)?.label ?? "";
   const pageTitle = activeTabLabel ? `Numerology: ${activeTabLabel}` : "Numerology";
   const [filters, setFilters] = useState<InsightsFilters>(DEFAULT_FILTERS);
+  // Phase 16 — keep filters.tz synced with the seeker's effective timezone so
+  // server fns aggregate on the user's local calendar instead of UTC.
+  const { effectiveTz } = useTimezone();
+  useEffect(() => {
+    if (!effectiveTz || filters.tz === effectiveTz) return;
+    setFilters((prev) => ({ ...prev, tz: effectiveTz }));
+  }, [effectiveTz, filters.tz]);
   const scrollRef = useRef<HTMLElement | null>(null);
   const collapseProgress = useScrollCollapse(scrollRef, 40);
   const [userTags, setUserTags] = useState<
