@@ -16,7 +16,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { isoDayInTz } from "@/lib/time";
 
 // Phase 10 — re-export the canonical helpers so existing
 // `import ... from "@/lib/use-timezone"` callers keep working while the
