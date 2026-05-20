@@ -4,6 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatMonthYear } from "@/lib/dates";
 
 export type ReadingStats = { count: number; firstAt: string | null };
 
