@@ -2,13 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { useTimezone } from "@/lib/use-timezone";
-import {
-  addDaysInTz,
-  currentTzOrFallback,
-  isoDayInTz,
-  nowYmdInTz,
-  parseIsoDay,
-} from "@/lib/time";
+import { addDaysInTz, currentTzOrFallback, isoDayInTz, nowYmdInTz, parseIsoDay } from "@/lib/time";
 
 /**
  * YYYY-MM-DD in the supplied IANA timezone (falls back to UTC).
@@ -20,10 +14,7 @@ function todayInTz(tz: string | null | undefined): string {
 }
 
 function isYesterday(lastISO: string, todayISO: string, tz: string): boolean {
-  const yesterdayOfToday = isoDayInTz(
-    addDaysInTz(parseIsoDay(todayISO, tz), -1, tz),
-    tz,
-  );
+  const yesterdayOfToday = isoDayInTz(addDaysInTz(parseIsoDay(todayISO, tz), -1, tz), tz);
   return lastISO === yesterdayOfToday;
 }
 
@@ -86,8 +77,7 @@ export function useStreak(): {
       void loadStreak();
     };
     window.addEventListener("arcana:streak-updated", onUpdate);
-    return () =>
-      window.removeEventListener("arcana:streak-updated", onUpdate);
+    return () => window.removeEventListener("arcana:streak-updated", onUpdate);
   }, [loadStreak]);
 
   // Q92 #6 — Recompute on app open / resume from background. PWA tabs
@@ -157,9 +147,7 @@ export function useStreak(): {
     const days = new Set<string>();
     for (const row of data ?? []) {
       try {
-        days.add(
-          isoDayInTz(new Date((row as { created_at: string }).created_at), tz),
-        );
+        days.add(isoDayInTz(new Date((row as { created_at: string }).created_at), tz));
       } catch {
         // ignore
       }
