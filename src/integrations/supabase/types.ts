@@ -182,6 +182,51 @@ export type Database = {
           },
         ]
       }
+      ai_circuit_breaker_trips: {
+        Row: {
+          actual_cost_usd: number
+          call_count_in_window: number
+          created_at: string
+          id: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          threshold_type: string
+          threshold_usd: number
+          top_users: Json | null
+          window_end: string
+          window_start: string
+        }
+        Insert: {
+          actual_cost_usd: number
+          call_count_in_window: number
+          created_at?: string
+          id?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          threshold_type: string
+          threshold_usd: number
+          top_users?: Json | null
+          window_end: string
+          window_start: string
+        }
+        Update: {
+          actual_cost_usd?: number
+          call_count_in_window?: number
+          created_at?: string
+          id?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          threshold_type?: string
+          threshold_usd?: number
+          top_users?: Json | null
+          window_end?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       ai_credit_grants: {
         Row: {
           created_at: string
