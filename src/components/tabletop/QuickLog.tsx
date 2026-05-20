@@ -1781,12 +1781,16 @@ function SectionOverline({ label }: { label: string }) {
   );
 }
 
-function bucketOpacity(matches: number): number {
-  if (matches <= 0) return 0;
-  if (matches === 1) return 0.55;
-  if (matches === 2) return 0.78;
-  if (matches === 3) return 0.92;
-  return 1;
+/**
+ * Phase 14 (CZ) — percentage-scaled match opacity. Represents "how much
+ * of my current pull appears on this day" with a small 0.15 floor for
+ * visibility on tiny matches. Replaces the bucketed version that topped
+ * out at 3+ matches and conflated a 3-of-10 day with a 9-of-10 day.
+ */
+function matchOpacity(matches: number, pullSize: number): number {
+  if (matches <= 0 || pullSize <= 0) return 0;
+  const pct = matches / pullSize;
+  return 0.15 + pct * 0.8;
 }
 
 function OverlapStrip({
