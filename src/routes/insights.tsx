@@ -52,6 +52,7 @@ import { LoadingSkeleton } from "@/components/ui/loading-skeleton";
 import { EmptyHero } from "@/components/ui/empty-hero";
 import type { MoonPhaseName } from "@/lib/moon";
 import { useReadingStats, formatReadingStatsLine } from "@/lib/use-reading-stats";
+import { useTimezone } from "@/lib/use-timezone";
 
 export const Route = createFileRoute("/insights")({
   head: () => ({
