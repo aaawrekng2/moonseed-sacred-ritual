@@ -24,10 +24,7 @@ type RecapData = {
 };
 
 function fmtRange(startIso: string, endIso: string) {
-  const s = new Date(startIso);
-  const e = new Date(endIso);
-  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
-  return `${s.toLocaleDateString(undefined, opts)} – ${e.toLocaleDateString(undefined, opts)}`;
+  return `${formatDateLong(startIso)} – ${formatDateLong(endIso)}`;
 }
 
 /**
