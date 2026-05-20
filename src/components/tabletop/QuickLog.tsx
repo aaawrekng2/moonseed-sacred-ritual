@@ -112,6 +112,12 @@ export function QuickLog({
   const [backdate, setBackdate] = useState<Date | null>(null);
   const [dateOpen, setDateOpen] = useState(false);
 
+  // Q114 Phase 5 — picker sheet + drag-to-reorder/delete state.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [dragSourceIdx, setDragSourceIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const slotRowRef = useRef<HTMLDivElement>(null);
+
   // Smart-input parser index: pull names from EVERY deck the seeker
   // owns + the standard 78-card Rider-Waite list. Active deck takes
   // priority on duplicate names; standard tarot is the floor.
