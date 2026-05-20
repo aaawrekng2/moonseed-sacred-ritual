@@ -2037,36 +2037,52 @@ function OverlapStrip({
                     year: "numeric",
                   });
                   let tooltipText: string;
-                  if (matchCount <= 0) {
-                    const readingsOnDay =
-                      overlap?.readingsByDate?.[day.date] ?? [];
-                    if (readingsOnDay.length === 0) {
-                      tooltipText = `${dateLabel} — no readings`;
-                    } else {
-                      const n = readingsOnDay.length;
-                      tooltipText = `${dateLabel} — ${n} reading${n === 1 ? "" : "s"}, no overlap with current pull`;
-                    }
+                  // Phase 15 Fix 7 — clarified day-cell tooltips.
+                  if (day.heroDrawn && heroCardId != null) {
+                    const heroName = getCardName(heroCardId);
+                    tooltipText = `${dateLabel} — you drew ${heroName} this day`;
+                  } else if (matchCount <= 0) {
+                    tooltipText = dateLabel;
                   } else {
-                    const matchedNames = pullCardIds
-                      .filter((id) => {
-                        if (mode === "day")
-                          return day.sameDayCardIds.includes(id);
-                        const readings =
-                          overlap?.readingsByDate?.[day.date] ?? [];
-                        return readings.some((r) => r.cardIds.includes(id));
-                      })
+                    // Compute matched card ids for this day, scoped to mode.
+                    let matchedIds: number[];
+                    if (mode === "day") {
+                      matchedIds = day.sameDayCardIds.filter((id) =>
+                        pullSet.has(id),
+                      );
+                    } else {
+                      const readings =
+                        overlap?.readingsByDate?.[day.date] ?? [];
+                      let bestReadingIds: number[] = [];
+                      let bestN = 0;
+                      for (const r of readings) {
+                        const hits = r.cardIds.filter((id) => pullSet.has(id));
+                        if (hits.length > bestN) {
+                          bestN = hits.length;
+                          bestReadingIds = hits;
+                        }
+                      }
+                      matchedIds = bestReadingIds;
+                    }
+                    const matchedCardNames = matchedIds
                       .map((id) => getCardName(id))
-                      .filter(Boolean)
-                      .join(", ");
+                      .filter(Boolean);
+                    const displayNames = matchedCardNames.slice(0, 4);
+                    const extra = matchedCardNames.length - displayNames.length;
+                    const cardList =
+                      extra > 0
+                        ? `${displayNames.join(", ")} +${extra} more`
+                        : displayNames.join(", ");
                     const pct = Math.round(
                       (matchCount / pullCardIds.length) * 100,
                     );
-                    const ringNote = isPerfectMatch
-                      ? " — every card in your current pull was in one reading on this day"
-                      : isBestAvailable
-                        ? ` — best match across the calendar (${matchCount} of ${pullCardIds.length} = ${pct}%)`
-                        : ` (${matchCount} of ${pullCardIds.length} = ${pct}%)`;
-                    tooltipText = `${dateLabel} — ${matchCount} of ${pullCardIds.length} cards from this pull${matchedNames ? ` (${matchedNames})` : ""}${ringNote}`;
+                    if (isPerfectMatch) {
+                      tooltipText = `${dateLabel} — every card in your current pull appeared in one reading this day (${matchCount} of ${pullCardIds.length})`;
+                    } else if (isBestAvailable) {
+                      tooltipText = `${dateLabel} — best match across the calendar: ${cardList} (${matchCount} of ${pullCardIds.length} = ${pct}%)`;
+                    } else {
+                      tooltipText = `${dateLabel} — ${cardList} from your current pull appeared this day (${matchCount} of ${pullCardIds.length} = ${pct}%)`;
+                    }
                   }
                   return (
                     <div
