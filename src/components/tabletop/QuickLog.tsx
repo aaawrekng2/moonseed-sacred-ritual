@@ -257,6 +257,62 @@ export function QuickLog({
 
   const canSubmit = picks.length >= 1;
 
+  // ─── Q112 Phase 3 — overlap strip + practice line ───────────────────
+  const overlapCacheRef = useRef<Map<number, QuickLogOverlap>>(new Map());
+  const [overlap, setOverlap] = useState<QuickLogOverlap | null>(null);
+  const [overlapMode, setOverlapMode] = useState<"pull" | "day">("pull");
+  const [practice, setPractice] = useState<QuickLogPractice | null>(null);
+  const { currentStreak } = useStreak();
+
+  useEffect(() => {
+    if (!user?.id) {
+      setOverlap(null);
+      return;
+    }
+    const id = heroPick?.cardIndex ?? -1;
+    const cached = overlapCacheRef.current.get(id);
+    if (cached) {
+      setOverlap(cached);
+      return;
+    }
+    let cancelled = false;
+    void getQuickLogOverlap({
+      data: { heroCardId: heroPick?.cardIndex ?? null },
+    })
+      .then((d) => {
+        if (cancelled) return;
+        overlapCacheRef.current.set(id, d);
+        setOverlap(d);
+      })
+      .catch(() => {
+        if (!cancelled) setOverlap(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [heroPick?.cardIndex, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    const lun = getLunationContaining(new Date());
+    void getQuickLogPractice({
+      data: {
+        lunationStart: lun.start.toISOString(),
+        lunationEnd: lun.end.toISOString(),
+      },
+    })
+      .then((d) => {
+        if (!cancelled) setPractice(d);
+      })
+      .catch(() => {
+        if (!cancelled) setPractice(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
   const handleSubmit = () => {
     if (!canSubmit) return;
     const meta: { createdAt?: string; entryMode?: "manual" } = {
