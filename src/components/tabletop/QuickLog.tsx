@@ -1182,9 +1182,9 @@ function OverlapStrip({
                     } else {
                       const readings = overlap?.readingsByDate?.[day.date] ?? [];
                       let best = 0;
-                      for (const ids of readings) {
+                      for (const r of readings) {
                         let n = 0;
-                        for (const id of ids) if (pullSet.has(id)) n++;
+                        for (const id of r.cardIds) if (pullSet.has(id)) n++;
                         if (n > best) best = n;
                       }
                       matches = best;
