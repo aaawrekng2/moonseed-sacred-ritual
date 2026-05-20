@@ -517,7 +517,7 @@ export function QuickLog({
                 stats={cardStats}
                 selectedIdx={selectedCompanionIdx}
                 onSelect={setSelectedCompanionIdx}
-                onOpenReading={(id) => {
+                onOpenReading={(id: string) => {
                   navigate({ to: "/journal", search: { open: id } as never });
                 }}
               />
