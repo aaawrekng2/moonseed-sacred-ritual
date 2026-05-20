@@ -1764,7 +1764,13 @@ export const getYearOfLunationsRecap = createServerFn({ method: "GET" })
       prev = tms;
     }
 
-    const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    const fmt = (d: Date) =>
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "UTC",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }).format(d);
     return {
       ok: true as const,
       dateRange: `${fmt(earliest)} – ${fmt(today)}`,
