@@ -715,6 +715,7 @@ export function QuickLog({
                     return (
                       <div
                         key={pick.id}
+                        className={`tarotseed-slot-wrapper ${longPressSlotIdx === idx ? "tarotseed-slot-pinned" : ""}`}
                         draggable
                         onDragStart={(e) => {
                           e.dataTransfer.setData("text/plain", String(idx));
@@ -766,6 +767,34 @@ export function QuickLog({
                           });
                           setDragOverIdx(null);
                           setDragSourceIdx(null);
+                        }}
+                        onPointerDown={(e) => {
+                          if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+                          if (longPressTimerRef.current !== null) {
+                            window.clearTimeout(longPressTimerRef.current);
+                          }
+                          longPressTimerRef.current = window.setTimeout(() => {
+                            setLongPressSlotIdx(idx);
+                            longPressTimerRef.current = null;
+                          }, 450);
+                        }}
+                        onPointerUp={() => {
+                          if (longPressTimerRef.current !== null) {
+                            window.clearTimeout(longPressTimerRef.current);
+                            longPressTimerRef.current = null;
+                          }
+                        }}
+                        onPointerCancel={() => {
+                          if (longPressTimerRef.current !== null) {
+                            window.clearTimeout(longPressTimerRef.current);
+                            longPressTimerRef.current = null;
+                          }
+                        }}
+                        onPointerLeave={() => {
+                          if (longPressTimerRef.current !== null) {
+                            window.clearTimeout(longPressTimerRef.current);
+                            longPressTimerRef.current = null;
+                          }
                         }}
                         style={{
                           position: "relative",
@@ -827,6 +856,77 @@ export function QuickLog({
                             size="custom"
                             widthPx={slotW}
                           />
+                        </div>
+                        <div
+                          className="tarotseed-slot-controls"
+                          data-slot-controls
+                          style={{
+                            position: "absolute",
+                            top: 4,
+                            left: 4,
+                            right: 4,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            zIndex: 3,
+                          }}
+                        >
+                          <button
+                            type="button"
+                            aria-label={pick.isReversed ? "Set upright" : "Reverse card"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPicks((prev) =>
+                                prev.map((p, i) =>
+                                  i === idx ? { ...p, isReversed: !p.isReversed } : p,
+                                ),
+                              );
+                            }}
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: 11,
+                              border: "none",
+                              background:
+                                "color-mix(in oklab, var(--background) 75%, transparent)",
+                              backdropFilter: "blur(4px)",
+                              WebkitBackdropFilter: "blur(4px)",
+                              color: "var(--color-foreground)",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              padding: 0,
+                            }}
+                          >
+                            <RotateCw size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Remove card"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPicks((prev) => prev.filter((_, i) => i !== idx));
+                              if (longPressSlotIdx === idx) setLongPressSlotIdx(null);
+                            }}
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: 11,
+                              border: "none",
+                              background:
+                                "color-mix(in oklab, var(--background) 75%, transparent)",
+                              backdropFilter: "blur(4px)",
+                              WebkitBackdropFilter: "blur(4px)",
+                              color: "var(--color-foreground)",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              padding: 0,
+                            }}
+                          >
+                            <X size={12} />
+                          </button>
                         </div>
                       </div>
                     );
