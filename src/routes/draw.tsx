@@ -1,8 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Tabletop } from "@/components/tabletop/Tabletop";
-import { type ManualPick } from "@/components/tabletop/ManualEntryBuilder";
+import {
+  ManualEntryBuilder,
+  type ManualPick,
+} from "@/components/tabletop/ManualEntryBuilder";
 import { QuickLog } from "@/components/tabletop/QuickLog";
+import { RotatePrompt } from "@/components/tabletop/RotatePrompt";
+import { useViewport } from "@/lib/use-viewport";
 import { SpreadLayout } from "@/components/tabletop/SpreadLayout";
 import { ReadingScreen } from "@/components/reading/ReadingScreen";
 import { isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
@@ -87,6 +92,8 @@ function DrawPage() {
   const [manualPicksCache, setManualPicksCache] = useState<
     (ManualPick | null)[] | undefined
   >(undefined);
+
+  const viewport = useViewport();
 
   const [picks, setPicks] = useState<
     { id: number; cardIndex: number; isReversed: boolean; deckId?: string | null }[] | null
@@ -301,19 +308,19 @@ function DrawPage() {
           customCount={customCount}
         />
       ) : entrySurface === "manual" && phase === "select" ? (
-        <QuickLog
-          spread={spread}
-          customCount={customCount}
-          question={question}
-          onQuestionChange={setQuestion}
-          initialPicks={manualPicksCache}
-          onPicksChange={setManualPicksCache}
-          onSwitchToTable={switchToTable}
-          onCustomCountChange={
-            spread === "custom" ? handleCustomCountChange : undefined
-          }
-          onCancel={exit}
-          onComplete={(manualPicks, meta) => {
+        (() => {
+          const sharedProps = {
+            spread,
+            customCount,
+            question,
+            onQuestionChange: setQuestion,
+            initialPicks: manualPicksCache,
+            onPicksChange: setManualPicksCache,
+            onSwitchToTable: switchToTable,
+            onCustomCountChange:
+              spread === "custom" ? handleCustomCountChange : undefined,
+            onCancel: exit,
+            onComplete: (manualPicks: ManualPick[], meta?: { createdAt?: string }) => {
             clearTabletopSession(spread);
             setManualPicksCache(undefined);
             const mapped = manualPicks.map((p) => ({
@@ -333,8 +340,14 @@ function DrawPage() {
             } else {
               void recordDraw();
             }
-          }}
-        />
+            },
+          };
+          const isDesktopLandscape = viewport.width >= 1024 && viewport.isLandscape;
+          const isDesktopPortrait = viewport.width >= 1024 && !viewport.isLandscape;
+          if (isDesktopLandscape) return <QuickLog {...sharedProps} />;
+          if (isDesktopPortrait) return <RotatePrompt />;
+          return <ManualEntryBuilder {...sharedProps} />;
+        })()
       ) : (
         <Tabletop
           spread={spread}
