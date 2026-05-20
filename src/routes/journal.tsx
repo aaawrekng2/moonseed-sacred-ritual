@@ -1810,6 +1810,7 @@ function CalendarView({
   tagMode,
   activeDrawTypes,
   activeDate,
+  tz,
   onSelectDate,
 }: {
   readings: ReadingRow[];
@@ -1817,11 +1818,13 @@ function CalendarView({
   tagMode: TagMode;
   activeDrawTypes: DrawTypeKey[];
   activeDate: string | null;
+  tz: string;
   onSelectDate: (d: string) => void;
 }) {
+  // Cursor = YYYY-MM-01 string anchored to first of month in the seeker's tz.
   const [cursor, setCursor] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1);
+    const today = nowYmdInTz(tz);
+    return `${today.slice(0, 7)}-01`;
   });
 
   // YYYY-MM-DD -> count of readings on that local day, after applying
@@ -1840,33 +1843,36 @@ function CalendarView({
       if (activeDrawTypes.length > 0) {
         if (!activeDrawTypes.includes(r.spread_type as DrawTypeKey)) continue;
       }
-      const d = new Date(r.created_at);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const key = isoDayInTz(new Date(r.created_at), tz);
       map[key] = (map[key] ?? 0) + 1;
     }
     return map;
-  }, [readings, activeTags, tagMode, activeDrawTypes]);
+  }, [readings, activeTags, tagMode, activeDrawTypes, tz]);
 
-  const year = cursor.getFullYear();
-  const month = cursor.getMonth();
-  const monthLabel = formatMonthYear(cursor.toISOString());
-  const firstWeekday = new Date(year, month, 1).getDay(); // 0..6 Sun..Sat
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const monthStart = parseIsoDay(cursor, tz);
+  const monthEnd = endOfMonthInTz(monthStart, tz);
+  const daysInMonth = calendarDaysBetween(monthStart, monthEnd, tz) + 1;
+  const firstWeekday = dayOfWeekInTz(monthStart, tz); // 0..6 Sun..Sat
+  const [yearStr, monthStr] = cursor.split("-");
+  const monthLabel = formatMonthYear(monthStart.toISOString());
   const cells: Array<{ day: number; key: string } | null> = [];
   for (let i = 0; i < firstWeekday; i += 1) cells.push(null);
   for (let d = 1; d <= daysInMonth; d += 1) {
-    const key = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const key = `${yearStr}-${monthStr}-${String(d).padStart(2, "0")}`;
     cells.push({ day: d, key });
   }
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const goPrev = () => setCursor(new Date(year, month - 1, 1));
-  const goNext = () => setCursor(new Date(year, month + 1, 1));
+  const goPrev = () => {
+    const prev = addDaysInTz(monthStart, -1, tz);
+    setCursor(`${isoDayInTz(prev, tz).slice(0, 7)}-01`);
+  };
+  const goNext = () => {
+    const next = addDaysInTz(monthEnd, 1, tz);
+    setCursor(`${isoDayInTz(next, tz).slice(0, 7)}-01`);
+  };
 
-  const todayKey = (() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  })();
+  const todayKey = nowYmdInTz(tz);
 
   return (
     <div className="journal-calendar mx-auto max-w-md">
