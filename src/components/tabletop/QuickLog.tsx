@@ -402,12 +402,19 @@ export function QuickLog({
     matches.sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
+    // Dedupe by reading id — defensive against any duplicate push above.
+    const seenIds = new Set<string>();
+    const uniqMatches = matches.filter((m) => {
+      if (seenIds.has(m.id)) return false;
+      seenIds.add(m.id);
+      return true;
+    });
     return {
       active: true,
       participatingCardIds: [...all],
-      matchingReadings: matches.slice(0, 5),
-      matchCount: matches.length,
-      matchCountSixMonths: matches.length,
+      matchingReadings: uniqMatches.slice(0, 5),
+      matchCount: uniqMatches.length,
+      matchCountSixMonths: uniqMatches.length,
     };
   }, [picks, overlap, overlapMode]);
 
