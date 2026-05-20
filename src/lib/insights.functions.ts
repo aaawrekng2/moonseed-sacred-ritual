@@ -2554,6 +2554,7 @@ export const getSuitTrends = createServerFn({ method: "GET" })
         const day = parts.find((p) => p.type === "day")?.value ?? "01";
         return `${y}-${m}-${day}`;
       } catch {
+        // eslint-disable-next-line no-restricted-syntax -- fallback when Intl.DateTimeFormat fails; UTC slice is the safest last resort
         return d.toISOString().slice(0, 10);
       }
     };
