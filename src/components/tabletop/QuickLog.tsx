@@ -1739,6 +1739,32 @@ function OverlapStrip({
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
 
+  // Phase 12 — iPad month gating: 6 months on desktop (≥1280px),
+  // 5 months on viewports below that (iPad Air/Pro 11", smaller
+  // laptops in landscape). rAF-throttled so resize doesn't thrash.
+  const [viewportWidth, setViewportWidth] = useState<number>(() =>
+    typeof window === "undefined" ? 1280 : window.innerWidth,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let raf: number | null = null;
+    const handle = () => {
+      if (raf !== null) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        setViewportWidth(window.innerWidth);
+        raf = null;
+      });
+    };
+    window.addEventListener("resize", handle);
+    window.addEventListener("orientationchange", handle);
+    return () => {
+      if (raf !== null) cancelAnimationFrame(raf);
+      window.removeEventListener("resize", handle);
+      window.removeEventListener("orientationchange", handle);
+    };
+  }, []);
+  const monthsToShow = viewportWidth >= 1280 ? 6 : 5;
+
   return (
     <div style={{ position: "relative" }}>
       {/* Toggle pills — top-right of the calendar area, never overlapping day cells */}
