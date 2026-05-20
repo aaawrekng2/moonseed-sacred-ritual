@@ -8,6 +8,7 @@ import { ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { type Pattern, formatMonthSince } from "@/lib/patterns";
+import { useTimezone } from "@/lib/use-timezone";
 import { LoadingText } from "@/components/ui/loading-text";
 import { EmptyHero } from "@/components/ui/empty-hero";
 
@@ -24,6 +25,7 @@ type PatternReading = {
 export function StoriesTab() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { effectiveTz } = useTimezone();
   const [view, setView] = useState<View>("active");
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [readings, setReadings] = useState<PatternReading[]>([]);
