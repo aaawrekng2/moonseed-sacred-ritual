@@ -31,6 +31,7 @@ import { getGuideById } from "@/lib/guides";
 import { HelpIcon } from "@/components/help/HelpIcon";
 import { publishMistLevel } from "@/components/dev/DevOverlay";
 import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
+import { useTimezone } from "@/lib/use-timezone";
 
 type Props = {
   readingId: string;
