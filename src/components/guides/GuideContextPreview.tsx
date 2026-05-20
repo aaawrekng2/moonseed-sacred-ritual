@@ -21,6 +21,7 @@ import { useAuth } from "@/lib/auth";
 import { SPREAD_META, type SpreadMode } from "@/lib/spreads";
 import { getCardName } from "@/lib/tarot";
 import { getCurrentMoonPhase } from "@/lib/moon";
+import { formatDateLong } from "@/lib/dates";
 
 export type Pick = {
   id: number;
