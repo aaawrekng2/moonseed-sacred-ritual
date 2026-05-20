@@ -285,7 +285,7 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
       if (r.guide_id) guideCounts[r.guide_id] = (guideCounts[r.guide_id] ?? 0) + 1;
       if (r.lens_id) lensCounts[r.lens_id] = (lensCounts[r.lens_id] ?? 0) + 1;
       if (r.is_deep_reading) deepCount += 1;
-      const day = ymd(r.created_at);
+      const day = ymd(r.created_at, data.tz);
       dayCounts[day] = (dayCounts[day] ?? 0) + 1;
     }
 
