@@ -1343,7 +1343,7 @@ function CompanionsAndJournal({
                         right: -16,
                         bottom: -12,
                         background:
-                          "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 28%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent) 50%, transparent 85%)",
+                          "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 42%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 24%, transparent) 50%, transparent 85%)",
                         pointerEvents: "none",
                         zIndex: 0,
                         borderRadius: 14,
