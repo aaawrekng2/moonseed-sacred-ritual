@@ -8,6 +8,7 @@
  *   triggers a PNG download.
  */
 import jsPDF from "jspdf";
+import { formatDateLong } from "@/lib/dates";
 
 type RecapData = {
   lunationStart: string;
