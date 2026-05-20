@@ -306,19 +306,19 @@ function DrawPage() {
           customCount={customCount}
         />
       ) : entrySurface === "manual" && phase === "select" ? (
-        <QuickLog
-          spread={spread}
-          customCount={customCount}
-          question={question}
-          onQuestionChange={setQuestion}
-          initialPicks={manualPicksCache}
-          onPicksChange={setManualPicksCache}
-          onSwitchToTable={switchToTable}
-          onCustomCountChange={
-            spread === "custom" ? handleCustomCountChange : undefined
-          }
-          onCancel={exit}
-          onComplete={(manualPicks, meta) => {
+        (() => {
+          const sharedProps = {
+            spread,
+            customCount,
+            question,
+            onQuestionChange: setQuestion,
+            initialPicks: manualPicksCache,
+            onPicksChange: setManualPicksCache,
+            onSwitchToTable: switchToTable,
+            onCustomCountChange:
+              spread === "custom" ? handleCustomCountChange : undefined,
+            onCancel: exit,
+            onComplete: (manualPicks: ManualPick[], meta?: { createdAt?: string }) => {
             clearTabletopSession(spread);
             setManualPicksCache(undefined);
             const mapped = manualPicks.map((p) => ({
@@ -338,8 +338,14 @@ function DrawPage() {
             } else {
               void recordDraw();
             }
-          }}
-        />
+            },
+          };
+          const isDesktopLandscape = viewport.width >= 1024 && viewport.isLandscape;
+          const isDesktopPortrait = viewport.width >= 1024 && !viewport.isLandscape;
+          if (isDesktopLandscape) return <QuickLog {...sharedProps} />;
+          if (isDesktopPortrait) return <RotatePrompt />;
+          return <ManualEntryBuilder {...sharedProps} />;
+        })()
       ) : (
         <Tabletop
           spread={spread}
