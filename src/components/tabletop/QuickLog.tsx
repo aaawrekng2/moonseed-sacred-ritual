@@ -1810,6 +1810,7 @@ function OverlapStrip({
   const months = overlap?.months ?? [];
   const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
   const now = new Date();
+  // eslint-disable-next-line no-restricted-syntax -- compared against m.year/m.month already-tz-resolved server-side; calendar-month keying
   const currentMonthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
 
   // Phase 12 — iPad month gating: 6 months on desktop (≥1280px),
@@ -1954,6 +1955,7 @@ function OverlapStrip({
           ))}
         {months.slice(-monthsToShow).map((m) => {
           const isCurrent = `${m.year}-${m.month}` === currentMonthKey;
+          // eslint-disable-next-line no-restricted-syntax -- intrinsic Gregorian month-grid: day-of-week of the 1st of m.year/m.month
           const firstDow = new Date(m.year, m.month - 1, 1).getDay();
           return (
             <div key={`${m.year}-${m.month}`} style={{ width: 188, flexShrink: 0 }}>
@@ -2031,13 +2033,7 @@ function OverlapStrip({
                     matchCount > 0 &&
                     matchCount === maxMatchInCalendar &&
                     pullSet.size > 1;
-                  const dateLabel = new Date(
-                    day.date + "T00:00:00",
-                  ).toLocaleDateString(undefined, {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  });
+                  const dateLabel = formatDateLong(`${day.date}T00:00:00`);
                   let tooltipText: string;
                   // Phase 15 Fix 7 — clarified day-cell tooltips.
                   if (day.heroDrawn && heroCardId != null) {
