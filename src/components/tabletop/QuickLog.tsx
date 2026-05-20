@@ -513,7 +513,7 @@ export function QuickLog({
                 gap: 8,
               }}
             >
-              <div style={{ position: "relative", width: HERO_W, height: HERO_H }}>
+              <div style={{ position: "relative", width: HERO_W }}>
                 {constellation.active && (
                   <div
                     aria-hidden
@@ -535,7 +535,6 @@ export function QuickLog({
                     position: "relative",
                     zIndex: 1,
                     width: HERO_W,
-                    height: HERO_H,
                     border: constellation.active
                       ? "2px solid var(--accent, var(--gold))"
                       : "none",
@@ -731,7 +730,6 @@ export function QuickLog({
                         style={{
                           position: "relative",
                           width: slotW,
-                          height: slotH,
                           flexShrink: 0,
                           opacity: isDragSource ? 0.4 : 1,
                           cursor: "grab",
@@ -776,7 +774,6 @@ export function QuickLog({
                             position: "relative",
                             zIndex: 1,
                             width: slotW,
-                            height: slotH,
                             borderRadius: 6,
                             overflow: "hidden",
                             border: `${borderWidth} solid ${borderColor}`,
@@ -801,7 +798,7 @@ export function QuickLog({
                     onClick={() => setPickerOpen(true)}
                     style={{
                       width: slotW,
-                      height: slotH,
+                      height: slotW * 1.55,
                       borderRadius: 6,
                       border: "1.5px dashed color-mix(in oklab, var(--gold) 55%, transparent)",
                       background: "transparent",
