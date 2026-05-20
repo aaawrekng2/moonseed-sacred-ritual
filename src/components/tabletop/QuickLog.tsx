@@ -13,7 +13,7 @@
  * the old builder so the swap is mechanical.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays } from "date-fns";
 import { CalendarIcon, Plus, X } from "lucide-react";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -31,6 +31,15 @@ import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { cn } from "@/lib/utils";
 import type { SpreadMode } from "@/lib/spreads";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
+import { useAuth } from "@/lib/auth";
+import { fetchUserDecks, fetchDeckCards } from "@/lib/custom-decks";
+import { TAROT_DECK, getCardName } from "@/lib/tarot";
+import { buildCardDescriptor } from "@/lib/card-astrology";
+import {
+  getQuickLogCardStats,
+  type QuickLogCardStats,
+} from "@/lib/quicklog.functions";
+import { useNavigate } from "@tanstack/react-router";
 
 const HERO_W = 225;
 const HERO_H = 346;
@@ -65,6 +74,8 @@ export function QuickLog({
 }: Props) {
   useRegisterCloseHandler(onCancel);
   const { activeDeck, imageMap } = useActiveDeck();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Seed from any cached picks; QuickLog is additive (no null gaps).
   const [picks, setPicks] = useState<ManualPick[]>(() =>
@@ -78,16 +89,75 @@ export function QuickLog({
   const [backdate, setBackdate] = useState<Date | null>(null);
   const [dateOpen, setDateOpen] = useState(false);
 
-  // Smart-input parser index: pull names from the active deck.
+  // Smart-input parser index: pull names from EVERY deck the seeker
+  // owns + the standard 78-card Rider-Waite list. Active deck takes
+  // priority on duplicate names; standard tarot is the floor.
+  const [allDeckCards, setAllDeckCards] = useState<
+    Array<{ cardId: number; name: string }>
+  >([]);
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const decks = await fetchUserDecks(user.id);
+        const ordered = [...decks].sort((a, b) => {
+          const ai = (a as { is_active?: boolean }).is_active ? -1 : 0;
+          const bi = (b as { is_active?: boolean }).is_active ? -1 : 0;
+          return ai - bi;
+        });
+        const acc: Array<{ cardId: number; name: string }> = [];
+        for (const d of ordered) {
+          try {
+            const cards = await fetchDeckCards(d.id);
+            for (const c of cards) {
+              const nm = (c.card_name ?? "").trim();
+              if (nm) acc.push({ cardId: c.card_id, name: nm });
+            }
+          } catch {
+            /* per-deck failure is non-fatal */
+          }
+        }
+        if (!cancelled) setAllDeckCards(acc);
+      } catch {
+        if (!cancelled) setAllDeckCards([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
   const deckCards = useMemo(() => {
-    if (!activeDeck) return undefined;
-    const entries = Object.entries(imageMap.nameByCardId ?? {});
-    if (entries.length === 0) return undefined;
-    return entries.map(([id, name]) => ({
-      cardId: Number(id),
-      name: name || `Card ${id}`,
-    }));
-  }, [activeDeck, imageMap]);
+    const seenNames = new Set<string>();
+    const out: Array<{ cardId: number; name: string }> = [];
+    // 1. Active deck imageMap (already in memory).
+    if (activeDeck) {
+      for (const [id, name] of Object.entries(imageMap.nameByCardId ?? {})) {
+        const nm = (name || "").trim();
+        if (!nm) continue;
+        const key = nm.toLowerCase();
+        if (seenNames.has(key)) continue;
+        seenNames.add(key);
+        out.push({ cardId: Number(id), name: nm });
+      }
+    }
+    // 2. Other user-owned decks.
+    for (const c of allDeckCards) {
+      const key = c.name.toLowerCase();
+      if (seenNames.has(key)) continue;
+      seenNames.add(key);
+      out.push(c);
+    }
+    // 3. Standard tarot floor.
+    TAROT_DECK.forEach((name, idx) => {
+      const key = name.toLowerCase();
+      if (seenNames.has(key)) return;
+      seenNames.add(key);
+      out.push({ cardId: idx, name });
+    });
+    return out.length > 0 ? out : undefined;
+  }, [activeDeck, imageMap, allDeckCards]);
 
   const placedIds = picks.map((p) => p.cardIndex);
 
@@ -141,6 +211,43 @@ export function QuickLog({
   }, [rowWidth, slotCount]);
 
   const heroPick = picks.length > 0 ? picks[picks.length - 1] : null;
+
+  // ─── Q111 Phase 2 — per-card stats + companions + journal ───
+  const statsCacheRef = useRef<Map<number, QuickLogCardStats>>(new Map());
+  const [cardStats, setCardStats] = useState<QuickLogCardStats | null>(null);
+  const [selectedCompanionIdx, setSelectedCompanionIdx] = useState(0);
+
+  useEffect(() => {
+    setSelectedCompanionIdx(0);
+  }, [heroPick?.cardIndex]);
+
+  useEffect(() => {
+    if (!heroPick || !user?.id) {
+      setCardStats(null);
+      return;
+    }
+    const id = heroPick.cardIndex;
+    const cached = statsCacheRef.current.get(id);
+    if (cached) {
+      setCardStats(cached);
+      return;
+    }
+    let cancelled = false;
+    void getQuickLogCardStats({ data: { cardId: id } })
+      .then((stats) => {
+        if (cancelled) return;
+        statsCacheRef.current.set(id, stats);
+        setCardStats(stats);
+      })
+      .catch(() => {
+        if (!cancelled) setCardStats(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [heroPick?.cardIndex, user?.id]);
+
+  const descriptor = heroPick ? buildCardDescriptor(heroPick.cardIndex) : null;
 
   const canSubmit = picks.length >= 1;
 
@@ -247,7 +354,20 @@ export function QuickLog({
                   />
                 )}
               </div>
-              {/* Card descriptor placeholder — wired in Phase 2. */}
+              {heroPick && descriptor && (
+                <p
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-caption, 0.75rem)",
+                    color: "var(--color-foreground-muted, var(--color-foreground))",
+                    margin: 0,
+                    opacity: 0.85,
+                  }}
+                >
+                  {descriptor}
+                </p>
+              )}
             </div>
 
             {/* Right column — date pill + smart input, then slot row */}
@@ -312,15 +432,24 @@ export function QuickLog({
                 </div>
               </div>
 
-              {/* Slot row — dynamic sizing */}
-              <div ref={rowRef} style={{ width: "100%" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap,
-                  }}
-                >
+              {/* Slot row + chip grid — side by side */}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                  gap: 20,
+                  width: "100%",
+                }}
+              >
+                <div ref={rowRef} style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap,
+                    }}
+                  >
                   {picks.map((pick, idx) => {
                     const isLatest = idx === picks.length - 1;
                     return (
@@ -375,8 +504,23 @@ export function QuickLog({
                   >
                     <Plus size={Math.max(14, slotW * 0.3)} strokeWidth={1.5} />
                   </button>
+                  </div>
                 </div>
+                {heroPick && (
+                  <ChipGrid heroPick={heroPick} stats={cardStats} />
+                )}
               </div>
+
+              {/* Companions + journal */}
+              <CompanionsAndJournal
+                heroPick={heroPick}
+                stats={cardStats}
+                selectedIdx={selectedCompanionIdx}
+                onSelect={setSelectedCompanionIdx}
+                onOpenReading={(id) => {
+                  navigate({ to: "/journal", search: { open: id } as never });
+                }}
+              />
             </div>
           </div>
 
