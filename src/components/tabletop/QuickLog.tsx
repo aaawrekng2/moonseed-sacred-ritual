@@ -1227,8 +1227,6 @@ function ChipGrid({
   heroPick: ManualPick;
   stats: QuickLogCardStats | null;
 }) {
-  const meta = getCardMeta(heroPick.cardIndex);
-
   // LAST SEEN
   let lastSeen = "—";
   if (stats?.lastSeenAt) {
