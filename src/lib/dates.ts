@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- this module is the canonical display-formatting exception */
 /**
  * FU-17 — Canonical date formatting helpers.
  *
