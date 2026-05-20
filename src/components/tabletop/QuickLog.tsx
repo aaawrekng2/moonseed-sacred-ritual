@@ -340,20 +340,6 @@ export function QuickLog({
   };
 
   // ─── Q113 Phase 4 — Constellation state ────────────────────────────
-  type ConstellationState = {
-    active: boolean;
-    participatingCardIds: number[];
-    matchingReadings: Array<{
-      id: string;
-      createdAt: string;
-      question: string | null;
-      cardIds: number[];
-      matched: number[];
-    }>;
-    matchCount: number;
-    matchCountSixMonths: number;
-  };
-
   const constellation = useMemo<ConstellationState>(() => {
     const pullIds = picks.map((p) => p.cardIndex);
     if (pullIds.length < 3 || !overlap) {
