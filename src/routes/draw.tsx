@@ -1,8 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Tabletop } from "@/components/tabletop/Tabletop";
-import { type ManualPick } from "@/components/tabletop/ManualEntryBuilder";
+import {
+  ManualEntryBuilder,
+  type ManualPick,
+} from "@/components/tabletop/ManualEntryBuilder";
 import { QuickLog } from "@/components/tabletop/QuickLog";
+import { RotatePrompt } from "@/components/tabletop/RotatePrompt";
+import { useViewport } from "@/lib/use-viewport";
 import { SpreadLayout } from "@/components/tabletop/SpreadLayout";
 import { ReadingScreen } from "@/components/reading/ReadingScreen";
 import { isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
