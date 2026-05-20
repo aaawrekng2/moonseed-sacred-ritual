@@ -818,7 +818,7 @@ function Step4Preview({
           </li>
           {min && max && (
             <li>
-              Date range: {min.toLocaleDateString()} → {max.toLocaleDateString()}
+              Date range: {formatDateShort(min.toISOString())} → {formatDateShort(max.toISOString())}
             </li>
           )}
           <li>
