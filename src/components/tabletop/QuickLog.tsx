@@ -14,7 +14,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format, differenceInCalendarDays } from "date-fns";
-import { CalendarIcon, Plus, X } from "lucide-react";
+import { CalendarIcon, Plus, RotateCw, X } from "lucide-react";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -119,6 +119,21 @@ export function QuickLog({
   const [dragSourceIdx, setDragSourceIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const slotRowRef = useRef<HTMLDivElement>(null);
+
+  // Q122 Phase 9 — long-press pin for touch/pen to reveal slot controls.
+  const [longPressSlotIdx, setLongPressSlotIdx] = useState<number | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (longPressSlotIdx === null) return;
+    const handleTapOutside = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target?.closest("[data-slot-controls]")) {
+        setLongPressSlotIdx(null);
+      }
+    };
+    window.addEventListener("pointerdown", handleTapOutside);
+    return () => window.removeEventListener("pointerdown", handleTapOutside);
+  }, [longPressSlotIdx]);
 
   // Smart-input parser index: pull names from EVERY deck the seeker
   // owns + the standard 78-card Rider-Waite list. Active deck takes
