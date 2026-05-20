@@ -442,6 +442,7 @@ function JournalPage() {
     journalFilters,
     activeDate,
     batchParam,
+    tz,
   ]);
 
   const galleryItems = useMemo(
