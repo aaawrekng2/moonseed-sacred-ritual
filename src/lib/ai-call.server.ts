@@ -204,12 +204,212 @@ type QuotaCheck =
   | { allowed: true; remaining?: number }
   | { allowed: false; reason: CallAIFailure["error"]; remaining?: number; resetAt?: string };
 
+/**
+ * Phase 13 — global cost circuit breaker.
+ * Sums cost_usd across all users in a rolling window, floored at the
+ * most recent re-enable timestamp so the breaker does NOT re-trip on
+ * pre-trip spending after admin recovery.
+ */
+async function getWindowStart(): Promise<Date> {
+  const epochSec = await getAdminSettingNumber("ai_threshold_window_start", 0);
+  if (!epochSec || epochSec <= 0) return new Date(0);
+  return new Date(epochSec * 1000);
+}
+
+async function getCostInWindow(
+  windowHours: number,
+): Promise<{ cost: number; count: number; since: Date }> {
+  const windowStart = await getWindowStart();
+  const naturalStart = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+  const effectiveStart = windowStart > naturalStart ? windowStart : naturalStart;
+  const { data, error } = await supabaseAdmin
+    .from("ai_call_log" as never)
+    .select("cost_usd")
+    .eq("status", "success")
+    .gte("created_at", effectiveStart.toISOString());
+  if (error || !Array.isArray(data)) {
+    return { cost: 0, count: 0, since: effectiveStart };
+  }
+  const rows = data as Array<{ cost_usd: number | null }>;
+  const cost = rows.reduce((sum, r) => sum + (r.cost_usd ?? 0), 0);
+  return { cost, count: rows.length, since: effectiveStart };
+}
+
+async function getTopUsersInWindow(
+  since: Date,
+  limit = 5,
+): Promise<Array<{ user_id: string; cost_usd: number; call_count: number }>> {
+  const { data, error } = await supabaseAdmin
+    .from("ai_call_log" as never)
+    .select("user_id, cost_usd")
+    .eq("status", "success")
+    .gte("created_at", since.toISOString());
+  if (error || !Array.isArray(data)) return [];
+  const rows = data as Array<{ user_id: string | null; cost_usd: number | null }>;
+  const byUser = new Map<string, { cost: number; count: number }>();
+  for (const r of rows) {
+    if (!r.user_id) continue;
+    const prev = byUser.get(r.user_id) ?? { cost: 0, count: 0 };
+    byUser.set(r.user_id, {
+      cost: prev.cost + (r.cost_usd ?? 0),
+      count: prev.count + 1,
+    });
+  }
+  return Array.from(byUser.entries())
+    .map(([user_id, v]) => ({ user_id, cost_usd: v.cost, call_count: v.count }))
+    .sort((a, b) => b.cost_usd - a.cost_usd)
+    .slice(0, limit);
+}
+
+async function tripCircuitBreaker(args: {
+  thresholdType: "hourly" | "12h";
+  thresholdUsd: number;
+  actualCostUsd: number;
+  windowStart: Date;
+  callCount: number;
+}): Promise<void> {
+  const windowEnd = new Date();
+  // Step 1 — flip the master kill switch. Highest priority; even if
+  // every other step fails the breaker MUST stop further spend.
+  try {
+    await supabaseAdmin
+      .from("admin_settings" as never)
+      .upsert(
+        { key: "ai_enabled_globally", value: false } as never,
+        { onConflict: "key" } as never,
+      );
+  } catch (e) {
+    console.error("[circuit-breaker] failed to flip kill switch", e);
+  }
+
+  // Step 2 — audit row.
+  let topUsers: Array<{ user_id: string; cost_usd: number; call_count: number }> = [];
+  try {
+    topUsers = await getTopUsersInWindow(args.windowStart);
+  } catch {
+    /* tolerate */
+  }
+  try {
+    await supabaseAdmin.from("ai_circuit_breaker_trips" as never).insert({
+      threshold_type: args.thresholdType,
+      threshold_usd: args.thresholdUsd,
+      actual_cost_usd: args.actualCostUsd,
+      window_start: args.windowStart.toISOString(),
+      window_end: windowEnd.toISOString(),
+      call_count_in_window: args.callCount,
+      top_users: topUsers,
+    } as never);
+  } catch (e) {
+    console.error("[circuit-breaker] failed to insert audit row", e);
+  }
+
+  // Step 3 — alert email(s) to admins.
+  try {
+    const subject = `[Tarot Seed] AI circuit breaker tripped — ${args.thresholdType} cap`;
+    const bodyLines = [
+      `The ${args.thresholdType} cost threshold was exceeded and AI is now disabled.`,
+      ``,
+      `Threshold: $${args.thresholdUsd.toFixed(2)}`,
+      `Actual cost in window: $${args.actualCostUsd.toFixed(4)}`,
+      `Window: ${args.windowStart.toISOString()} → ${windowEnd.toISOString()}`,
+      ``,
+      `Calls in window: ${args.callCount}`,
+      ``,
+      `Top spending users in window:`,
+      ...topUsers.map(
+        (u) =>
+          `  ${u.user_id} — $${u.cost_usd.toFixed(4)} (${u.call_count} calls)`,
+      ),
+      ``,
+      `Review /admin/usage and re-enable AI when ready.`,
+    ];
+    const text = bodyLines.join("\n");
+    const html = `<pre style="font-family:ui-monospace,Menlo,monospace;white-space:pre-wrap">${text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")}</pre>`;
+
+    const { data: admins } = await supabaseAdmin
+      .from("user_preferences" as never)
+      .select("user_id")
+      .in("role", ["admin", "super_admin"]);
+    const adminIds = ((admins ?? []) as Array<{ user_id: string }>).map(
+      (a) => a.user_id,
+    );
+    const emails: string[] = [];
+    for (const id of adminIds) {
+      try {
+        const { data } = await supabaseAdmin.auth.admin.getUserById(id);
+        const e = data?.user?.email;
+        if (e) emails.push(e);
+      } catch {
+        /* ignore individual lookup failures */
+      }
+    }
+    for (const to of emails) {
+      const { error } = await supabaseAdmin.rpc("enqueue_email" as never, {
+        p_queue: "transactional_emails",
+        p_payload: {
+          to,
+          subject,
+          html,
+          text,
+          template_name: "circuit_breaker_trip",
+        },
+      } as never);
+      if (error) {
+        console.warn(
+          "[circuit-breaker] enqueue_email skipped:",
+          error.message,
+        );
+        break;
+      }
+    }
+  } catch (e) {
+    console.error("[circuit-breaker] failed to enqueue alert email", e);
+  }
+}
+
 async function checkQuota(
   userId: string | null,
   callType: AICallType,
 ): Promise<QuotaCheck> {
   const enabled = await getAdminSettingBool("ai_enabled_globally", true);
   if (!enabled) return { allowed: false, reason: "ai_disabled" };
+
+  // Phase 13 — global hourly cost cap.
+  const hourlyCap = await getAdminSettingNumber(
+    "ai_global_cost_cap_hourly_usd",
+    5,
+  );
+  const hourly = await getCostInWindow(1);
+  if (hourly.cost >= hourlyCap) {
+    await tripCircuitBreaker({
+      thresholdType: "hourly",
+      thresholdUsd: hourlyCap,
+      actualCostUsd: hourly.cost,
+      windowStart: hourly.since,
+      callCount: hourly.count,
+    });
+    return { allowed: false, reason: "ai_disabled" };
+  }
+
+  // Phase 13 — global 12-hour cost cap.
+  const twelveCap = await getAdminSettingNumber(
+    "ai_global_cost_cap_12h_usd",
+    30,
+  );
+  const twelve = await getCostInWindow(12);
+  if (twelve.cost >= twelveCap) {
+    await tripCircuitBreaker({
+      thresholdType: "12h",
+      thresholdUsd: twelveCap,
+      actualCostUsd: twelve.cost,
+      windowStart: twelve.since,
+      callCount: twelve.count,
+    });
+    return { allowed: false, reason: "ai_disabled" };
+  }
+
   if (!userId) return { allowed: true };
 
   // Q32 — admin can block AI for a specific seeker.
