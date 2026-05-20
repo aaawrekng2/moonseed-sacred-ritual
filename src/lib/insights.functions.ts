@@ -23,7 +23,13 @@ import { z } from "zod";
 import { getLunationContaining } from "@/lib/lunation";
 import { getAIToneServerSide, TONE_FRAGMENTS, type AITone } from "@/lib/ai-tone";
 import { getCurrentMoonPhase } from "@/lib/moon";
-import { isoDayInTz, addDaysInTz } from "@/lib/time";
+import {
+  isoDayInTz,
+  addDaysInTz,
+  nowYmdInTz,
+  parseIsoDay,
+  currentTzOrFallback,
+} from "@/lib/time";
 
 // ============================================================================
 // Q58 — Suit Trends server function.
@@ -184,8 +190,15 @@ function pct(part: number, total: number): number {
   return Math.round((part / total) * 1000) / 10; // one decimal
 }
 
-function ymd(iso: string): string {
-  return iso.slice(0, 10);
+/**
+ * Convert a DB timestamp (created_at, ISO with tz) to "YYYY-MM-DD" in
+ * the seeker's local tz. The old implementation sliced the raw ISO
+ * string, which silently bucketed in UTC and drifted by one day in
+ * negative offsets — that's the root of multiple stalker/heatmap/streak
+ * tz bugs. Always pass `tz` from the validated filter input.
+ */
+function ymd(iso: string, tz: string): string {
+  return isoDayInTz(new Date(iso), currentTzOrFallback(tz));
 }
 
 export const getInsightsOverview = createServerFn({ method: "GET" })
