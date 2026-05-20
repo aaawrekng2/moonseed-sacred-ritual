@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
+import { formatDateShort } from "@/lib/dates";
 import { useConfirm } from "@/hooks/use-confirm";
 import { supabase } from "@/integrations/supabase/client";
 import {
