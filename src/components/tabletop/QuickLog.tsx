@@ -123,6 +123,9 @@ export function QuickLog({
   // Q122 Phase 9 — long-press pin for touch/pen to reveal slot controls.
   const [longPressSlotIdx, setLongPressSlotIdx] = useState<number | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
+  // Phase 14 (CZ) — explicit focused-slot index. Tap a slot to make it the
+  // hero. Null means "default to most recently placed" (legacy behavior).
+  const [focusedSlotIdx, setFocusedSlotIdx] = useState<number | null>(null);
   useEffect(() => {
     if (longPressSlotIdx === null) return;
     const handleTapOutside = (e: PointerEvent) => {
