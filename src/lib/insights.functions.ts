@@ -878,15 +878,21 @@ export const getGuidePreferences = createServerFn({ method: "GET" })
     const { days } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
     const useWeekly = data.timeRange === "7d" || data.timeRange === "30d";
+    const gpTz = currentTzOrFallback(data.tz);
     function bucketKey(iso: string): string {
-      const d = new Date(iso);
-      if (useWeekly) {
-        // ISO week start (Monday)
-        const day = d.getUTCDay() || 7;
-        d.setUTCDate(d.getUTCDate() - (day - 1));
-        return d.toISOString().slice(0, 10);
-      }
-      return iso.slice(0, 7);
+      // Bucket by ISO week start (Monday) in the seeker's tz, otherwise
+      // by tz-local YYYY-MM. The previous version sliced the raw UTC
+      // ISO string and silently bucketed in UTC.
+      const localYmd = ymd(iso, gpTz);
+      if (!useWeekly) return localYmd.slice(0, 7);
+      const [y, m, d2] = localYmd.split("-").map(Number);
+      // Pure Y/M/D math: UTC weekday is the same as the calendar weekday
+      // for that date regardless of tz, because the date is already
+      // anchored in the seeker's local calendar.
+      const utc = new Date(Date.UTC(y, m - 1, d2));
+      const dayNum = utc.getUTCDay() || 7;
+      utc.setUTCDate(utc.getUTCDate() - (dayNum - 1));
+      return `${utc.getUTCFullYear()}-${String(utc.getUTCMonth() + 1).padStart(2, "0")}-${String(utc.getUTCDate()).padStart(2, "0")}`;
     }
     const guideTotals = new Map<string, number>();
     const buckets = new Map<string, Map<string, number>>();
