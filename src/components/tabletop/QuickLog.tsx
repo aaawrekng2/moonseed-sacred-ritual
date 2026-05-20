@@ -1791,9 +1791,11 @@ function ThisPullTiles({ picks }: { picks: ManualPick[] }) {
 function PullHistoryPill({
   picks,
   practice,
+  constellation,
 }: {
   picks: ManualPick[];
   practice: QuickLogPractice | null;
+  constellation: ConstellationState;
 }) {
   const key = useMemo(
     () => picks.map((p) => p.cardIndex).sort((a, b) => a - b).join(","),
@@ -1809,6 +1811,15 @@ function PullHistoryPill({
       text = `You drew this exact combination ${entry.count} times before — last on ${when}.`;
     } else {
       text = `You've drawn this exact combination ${entry.count} times — most recently ${when}.`;
+    }
+  }
+  if (constellation.active) {
+    const N = constellation.participatingCardIds.length;
+    const M = constellation.matchCountSixMonths;
+    if (M === 1) {
+      text = `A constellation. ${N} of these cards have met before — once in the last 6 months.`;
+    } else {
+      text = `A constellation. ${N} of these cards have met before — ${M} times in the last 6 months.`;
     }
   }
   return (
