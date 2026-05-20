@@ -1574,7 +1574,12 @@ async function computeLunationSummaryForReflection(
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
     .map(([tagName, count]) => ({ tagName, count }));
-  const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const fmt = (d: Date) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "UTC",
+      month: "short",
+      day: "numeric",
+    }).format(d);
   return {
     range: `${fmt(start)} – ${fmt(end)}`,
     readingCount: rows.length,
