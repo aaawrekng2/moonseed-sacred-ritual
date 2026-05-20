@@ -3518,6 +3518,7 @@ function AuditTab() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
+    // eslint-disable-next-line no-restricted-syntax -- export filename: UTC date in admin context is fine
     a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
