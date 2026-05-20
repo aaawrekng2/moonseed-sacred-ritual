@@ -2546,9 +2546,13 @@ export const getSuitTrends = createServerFn({ method: "GET" })
         return d.toISOString().slice(0, 10);
       }
     };
-    const isoMonth = (d: Date) => d.toISOString().slice(0, 7);
+    // Bucket month in the seeker's tz, not UTC — otherwise late-evening
+    // local draws near month boundaries land in the wrong month.
+    const isoMonth = (d: Date) => isoDayInTz(d, tz).slice(0, 7);
     const isoWeek = (d: Date) => {
-      const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      // Anchor the week from the date as it falls in the seeker's tz.
+      const [yy, mm, dd] = isoDayInTz(d, tz).split("-").map(Number);
+      const tmp = new Date(Date.UTC(yy, mm - 1, dd));
       const dayNum = tmp.getUTCDay() || 7;
       tmp.setUTCDate(tmp.getUTCDate() + 4 - dayNum);
       const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
@@ -2556,19 +2560,30 @@ export const getSuitTrends = createServerFn({ method: "GET" })
       return `${tmp.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
     };
 
+    // Labels formatted via Intl.DateTimeFormat with explicit timeZone
+    // so server-rendered strings reflect the seeker's calendar, not the
+    // worker's tz.
+    const fmtPart = (d: Date, opts: Intl.DateTimeFormatOptions) =>
+      new Intl.DateTimeFormat(undefined, { timeZone: tz, ...opts }).format(d);
     const dayLabel = (d: Date) =>
-      d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      fmtPart(d, { month: "short", day: "numeric" });
     const monthLabel = (d: Date) =>
-      d.toLocaleDateString(undefined, { month: "short", year: effectiveDays > 365 ? "numeric" : undefined });
+      fmtPart(d, {
+        month: "short",
+        year: effectiveDays > 365 ? "numeric" : undefined,
+      });
     const weekLabel = (d: Date) => {
-      const start = new Date(d);
-      const wk = start.getDay() || 7;
-      start.setDate(start.getDate() + 1 - wk);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 6);
-      const fmt = (x: Date) =>
-        x.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-      return `${fmt(start)}–${fmt(end)}`;
+      const [yy, mm, dd] = isoDayInTz(d, tz).split("-").map(Number);
+      const startUtc = new Date(Date.UTC(yy, mm - 1, dd));
+      const wk = startUtc.getUTCDay() || 7;
+      startUtc.setUTCDate(startUtc.getUTCDate() + 1 - wk);
+      const endUtc = new Date(startUtc);
+      endUtc.setUTCDate(endUtc.getUTCDate() + 6);
+      const startYmd = `${startUtc.getUTCFullYear()}-${String(startUtc.getUTCMonth() + 1).padStart(2, "0")}-${String(startUtc.getUTCDate()).padStart(2, "0")}`;
+      const endYmd = `${endUtc.getUTCFullYear()}-${String(endUtc.getUTCMonth() + 1).padStart(2, "0")}-${String(endUtc.getUTCDate()).padStart(2, "0")}`;
+      const startDate = parseIsoDay(startYmd, tz);
+      const endDate = parseIsoDay(endYmd, tz);
+      return `${fmtPart(startDate, { month: "short", day: "numeric" })}–${fmtPart(endDate, { month: "short", day: "numeric" })}`;
     };
 
     const keyOf = (d: Date) =>
