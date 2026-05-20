@@ -34,7 +34,7 @@ import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { useAuth } from "@/lib/auth";
 import { fetchUserDecks, fetchDeckCards } from "@/lib/custom-decks";
 import { TAROT_DECK, getCardName } from "@/lib/tarot";
-import { buildCardDescriptor } from "@/lib/card-astrology";
+import { buildCardDescriptor, getCardMeta } from "@/lib/card-astrology";
 import {
   getQuickLogCardStats,
   type QuickLogCardStats,
