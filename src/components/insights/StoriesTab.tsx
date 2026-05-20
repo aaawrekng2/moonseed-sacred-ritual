@@ -8,6 +8,7 @@ import { ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { type Pattern, formatMonthSince } from "@/lib/patterns";
+import { useTimezone } from "@/lib/use-timezone";
 import { LoadingText } from "@/components/ui/loading-text";
 import { EmptyHero } from "@/components/ui/empty-hero";
 
@@ -24,6 +25,7 @@ type PatternReading = {
 export function StoriesTab() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { effectiveTz } = useTimezone();
   const [view, setView] = useState<View>("active");
   const [patterns, setPatterns] = useState<Pattern[]>([]);
   const [readings, setReadings] = useState<PatternReading[]>([]);
@@ -205,6 +207,7 @@ function PatternRow({
   pattern: Pattern;
   readingCount: number;
 }) {
+  const { effectiveTz } = useTimezone();
   const count = readingCount || pattern.reading_ids.length;
   return (
     <Link
@@ -245,7 +248,7 @@ function PatternRow({
           }}
         >
           {count} {count === 1 ? "reading" : "readings"} · since{" "}
-          {formatMonthSince(pattern.created_at)}
+          {formatMonthSince(pattern.created_at, effectiveTz)}
         </p>
       </div>
       <ChevronRight size={16} className="text-muted-foreground" />

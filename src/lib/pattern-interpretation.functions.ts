@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getCardName } from "@/lib/tarot";
 import { callAnthropicWithFallback, isUserPremium } from "@/lib/ai-call.server";
+import { isoDayInTz } from "@/lib/time";
 
 /**
  * 9-6-T — Synthesize a Story (Pattern) interpretation from its linked
@@ -13,6 +14,8 @@ const Input = z.object({
   patternId: z.string().uuid(),
   /** Force regeneration even if interpretation already saved. */
   force: z.boolean().optional(),
+  /** Seeker's IANA timezone — date strings in summaries are formatted in this zone. */
+  tz: z.string().min(1),
 });
 
 export type PatternInterpretation = {
@@ -99,7 +102,7 @@ export const generatePatternInterpretation = createServerFn({ method: "POST" })
         const cards = (r.card_ids ?? [])
           .map((c) => getCardName(c))
           .join(", ");
-        const date = new Date(r.created_at).toISOString().slice(0, 10);
+        const date = isoDayInTz(new Date(r.created_at), data.tz);
         const interp = (r.interpretation ?? "").trim().slice(0, 800);
         const note = (r.note ?? "").trim().slice(0, 200);
         return `Reading ${i + 1} id=${r.id} (${date}, ${r.spread_type}) cards=${cards} question=${r.question ? '"' + r.question + '"' : "(none)"} note=${note ? '"' + note + '"' : "(none)"}\n${interp}`;

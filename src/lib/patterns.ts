@@ -12,6 +12,8 @@
  */
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatMonthYear } from "@/lib/dates";
+import { isoDayInTz, nowYmdInTz } from "@/lib/time";
 
 export type PatternLifecycleState =
   | "emerging"
@@ -211,12 +213,12 @@ export function usePatternsCount(userId: string | undefined): {
   return { count, loading };
 }
 
-export function formatMonthSince(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const sameYear = d.getFullYear() === now.getFullYear();
-  return d.toLocaleDateString(undefined, {
-    month: "long",
-    ...(sameYear ? {} : { year: "numeric" }),
-  });
+export function formatMonthSince(iso: string, tz: string): string {
+  const dYear = isoDayInTz(new Date(iso), tz).slice(0, 4);
+  const nowYear = nowYmdInTz(tz).slice(0, 4);
+  if (dYear === nowYear) {
+    // Just the month, no year — strip the trailing year from formatMonthYear.
+    return formatMonthYear(iso).replace(/ \d{4}$/, "");
+  }
+  return formatMonthYear(iso);
 }

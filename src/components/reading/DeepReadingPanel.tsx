@@ -31,6 +31,7 @@ import { getGuideById } from "@/lib/guides";
 import { HelpIcon } from "@/components/help/HelpIcon";
 import { publishMistLevel } from "@/components/dev/DevOverlay";
 import { AiQuotaBlock } from "@/components/ai/AiQuotaBlock";
+import { useTimezone } from "@/lib/use-timezone";
 
 type Props = {
   readingId: string;
@@ -65,6 +66,7 @@ export function DeepReadingPanel({
   initialMirrorSaved,
 }: Props) {
   const { user } = useAuth();
+  const { effectiveTz } = useTimezone();
   const [mist, setMist] = useState<MistState>({
     level: 0,
     whisper: "The cards are listening.",
@@ -217,7 +219,7 @@ export function DeepReadingPanel({
       const result = (await interpretDeepReading({
         data: {
           reading_id: readingId,
-          dawn_cycle_date: dawnCycleDateLocal(),
+          dawn_cycle_date: dawnCycleDateLocal(effectiveTz),
           guideId,
           lensId,
           facetIds,
@@ -227,7 +229,7 @@ export function DeepReadingPanel({
       if (result.ok) {
         setFlow({ kind: "lenses", lenses: result.lenses, revealed: 1 });
       } else if (result.reason === "limit_reached") {
-        setFlow({ kind: "limit", nextDawn: getNextDawn().iso });
+        setFlow({ kind: "limit", nextDawn: getNextDawn(effectiveTz).iso });
       } else {
         setFlow({ kind: "error", message: result.message });
       }

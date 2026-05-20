@@ -15,6 +15,7 @@ import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { EmptyHero } from "@/components/ui/empty-hero";
 import { LoadingText } from "@/components/ui/loading-text";
 import { formatDateShort, formatDateLong } from "@/lib/dates";
+import { useTimezone } from "@/lib/use-timezone";
 import { CardImage } from "@/components/card/CardImage";
 import { getCardName } from "@/lib/tarot";
 import {
@@ -116,6 +117,7 @@ function PatternChamber() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const { effectiveTz } = useTimezone();
   const [pattern, setPattern] = useState<Pattern | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOrchestrationInFlight, setIsOrchestrationInFlight] = useState(false);
@@ -614,7 +616,7 @@ function PatternChamber() {
           marginTop: 4,
         }}
       >
-        Since {formatMonthSince(pattern.created_at)} · {pattern.reading_ids.length} reading
+        Since {formatMonthSince(pattern.created_at, effectiveTz)} · {pattern.reading_ids.length} reading
         {pattern.reading_ids.length === 1 ? "" : "s"}
       </div>
 
@@ -1447,6 +1449,7 @@ function PatternSynthesisLoader({
     | { kind: "error"; message: string }
   >({ kind: "idle" });
   const generate = useServerFn(generatePatternInterpretation);
+  const { effectiveTz } = useTimezone();
   useEffect(() => {
     if (readingCount === 0) return;
     let cancelled = false;
@@ -1454,7 +1457,7 @@ function PatternSynthesisLoader({
     void (async () => {
       try {
         const headers = await getAuthHeaders();
-        const res = await generate({ data: { patternId }, headers });
+        const res = await generate({ data: { patternId, tz: effectiveTz }, headers });
         if (cancelled) return;
         if (res.ok) {
           const data = res.interpretation;
@@ -1477,7 +1480,7 @@ function PatternSynthesisLoader({
           if (isLegacy) {
             const headersFresh = await getAuthHeaders();
             const fresh = await generate({
-              data: { patternId, force: true },
+              data: { patternId, force: true, tz: effectiveTz },
               headers: headersFresh,
             });
             if (cancelled) return;
@@ -1500,7 +1503,7 @@ function PatternSynthesisLoader({
     return () => {
       cancelled = true;
     };
-  }, [patternId, readingCount, generate, onLoaded]);
+  }, [patternId, readingCount, generate, onLoaded, effectiveTz]);
   if (state.kind === "loading") {
     return (
       <div style={{ marginTop: "var(--space-4, 16px)" }}>
