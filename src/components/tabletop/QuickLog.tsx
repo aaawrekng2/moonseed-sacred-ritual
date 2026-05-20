@@ -647,6 +647,7 @@ export function QuickLog({
               >
                 <div ref={rowRef} style={{ flex: 1, minWidth: 0 }}>
                   <div
+                    ref={slotRowRef}
                     style={{
                       display: "flex",
                       alignItems: "flex-start",
@@ -663,14 +664,71 @@ export function QuickLog({
                         ? "var(--accent, var(--gold))"
                         : "var(--border-subtle)";
                     const borderWidth = isLatest ? "1.5px" : "1px";
+                    const isDragSource = dragSourceIdx === idx;
+                    const isDragOver =
+                      dragOverIdx === idx && dragSourceIdx !== idx;
                     return (
                       <div
                         key={pick.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("text/plain", String(idx));
+                          e.dataTransfer.effectAllowed = "move";
+                          setDragSourceIdx(idx);
+                        }}
+                        onDragEnd={(e) => {
+                          const src = dragSourceIdx;
+                          const row = slotRowRef.current;
+                          if (src !== null && row) {
+                            const r = row.getBoundingClientRect();
+                            const inside =
+                              e.clientX >= r.left &&
+                              e.clientX <= r.right &&
+                              e.clientY >= r.top &&
+                              e.clientY <= r.bottom;
+                            if (!inside) {
+                              setPicks((prev) =>
+                                prev.filter((_, i) => i !== src),
+                              );
+                            }
+                          }
+                          setDragSourceIdx(null);
+                          setDragOverIdx(null);
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                          if (dragOverIdx !== idx) setDragOverIdx(idx);
+                        }}
+                        onDragLeave={() => {
+                          if (dragOverIdx === idx) setDragOverIdx(null);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const fromIdx = Number(
+                            e.dataTransfer.getData("text/plain"),
+                          );
+                          if (Number.isNaN(fromIdx) || fromIdx === idx) {
+                            setDragOverIdx(null);
+                            return;
+                          }
+                          setPicks((prev) => {
+                            const next = [...prev];
+                            const tmp = next[idx];
+                            next[idx] = next[fromIdx];
+                            next[fromIdx] = tmp;
+                            return next;
+                          });
+                          setDragOverIdx(null);
+                          setDragSourceIdx(null);
+                        }}
                         style={{
                           position: "relative",
                           width: slotW,
                           height: slotH,
                           flexShrink: 0,
+                          opacity: isDragSource ? 0.4 : 1,
+                          cursor: "grab",
                         }}
                       >
                         {isInConstellation && !isLatest && (
@@ -687,6 +745,23 @@ export function QuickLog({
                               borderRadius: 8,
                               pointerEvents: "none",
                               zIndex: 0,
+                            }}
+                          />
+                        )}
+                        {isDragOver && (
+                          <div
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              top: -3,
+                              left: -3,
+                              right: -3,
+                              bottom: -3,
+                              border:
+                                "2px solid var(--accent, var(--gold))",
+                              borderRadius: 8,
+                              pointerEvents: "none",
+                              zIndex: 2,
                             }}
                           />
                         )}
@@ -717,12 +792,7 @@ export function QuickLog({
                   {/* Trailing dashed "+" slot */}
                   <button
                     type="button"
-                    onClick={() => {
-                      const el = document.querySelector<HTMLInputElement>(
-                        'input[placeholder^="Type or paste"]',
-                      );
-                      el?.focus();
-                    }}
+                    onClick={() => setPickerOpen(true)}
                     style={{
                       width: slotW,
                       height: slotH,
