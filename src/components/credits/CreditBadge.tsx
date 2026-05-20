@@ -9,15 +9,12 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Sparkles } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useCredits } from "@/lib/use-credits";
+import { formatDateLong } from "@/lib/dates";
 
 const INTRO_KEY = "credits_intro_seen";
 
 function fmtDate(d: Date): string {
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return formatDateLong(d.toISOString());
 }
 
 export function CreditBadge() {
