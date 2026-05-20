@@ -102,7 +102,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
 
     const dayCounts = new Map<number, number>();
     for (const r of matches) {
-      const d = dayOfWeekInTz(new Date(r.created_at), input.tz);
+      const d = dayOfWeekInTz(new Date(r.created_at), data.tz);
       dayCounts.set(d, (dayCounts.get(d) ?? 0) + 1);
     }
     let topDayOfWeek: QuickLogCardStats["topDayOfWeek"] = null;
