@@ -162,6 +162,7 @@ function CardTraceRoute() {
             moonPhases: gFilters.moonPhases as MoonPhaseName[],
             deepOnly: gFilters.deepOnly,
             reversedOnly: gFilters.reversedOnly,
+            tz: effectiveTz,
             cardId: cid,
           },
           headers,
