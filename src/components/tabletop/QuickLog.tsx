@@ -1822,17 +1822,17 @@ function OverlapStrip({
       </div>
       <div
         style={{
-          paddingTop: 32,
+          paddingTop: 16,
           display: "flex",
           flexDirection: "row",
-          gap: 30,
+          gap: 12,
           alignItems: "flex-start",
           position: "relative",
           overflowX: "auto",
         }}
       >
         {months.length === 0 &&
-          Array.from({ length: 6 }).map((_, i) => (
+          Array.from({ length: monthsToShow }).map((_, i) => (
             <div key={i} style={{ width: 188 }}>
               <div
                 style={{
@@ -1854,7 +1854,7 @@ function OverlapStrip({
               />
             </div>
           ))}
-        {months.map((m) => {
+        {months.slice(-monthsToShow).map((m) => {
           const isCurrent = `${m.year}-${m.month}` === currentMonthKey;
           const firstDow = new Date(m.year, m.month - 1, 1).getDay();
           return (
