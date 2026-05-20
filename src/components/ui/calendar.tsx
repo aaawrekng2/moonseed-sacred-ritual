@@ -154,6 +154,7 @@ function CalendarDayButton({
       ref={ref}
       variant="ghost"
       size="icon"
+      // eslint-disable-next-line no-restricted-syntax -- shadcn calendar primitive: data attr only, no tz semantics
       data-day={day.date.toLocaleDateString()}
       data-selected-single={
         modifiers.selected &&

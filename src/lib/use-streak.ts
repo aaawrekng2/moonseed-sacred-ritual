@@ -2,36 +2,20 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { useTimezone } from "@/lib/use-timezone";
+import { addDaysInTz, currentTzOrFallback, isoDayInTz, nowYmdInTz, parseIsoDay } from "@/lib/time";
 
 /**
- * YYYY-MM-DD in the supplied IANA timezone (falls back to device tz).
+ * YYYY-MM-DD in the supplied IANA timezone (falls back to UTC).
  * Q78 — streaks must follow the seeker's saved timezone, not whatever
  * tz the device happens to be in (travel days were resetting streaks).
  */
 function todayInTz(tz: string | null | undefined): string {
-  try {
-    const fmt = new Intl.DateTimeFormat("en-CA", {
-      timeZone: tz || undefined,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-    // en-CA renders as YYYY-MM-DD.
-    return fmt.format(new Date());
-  } catch {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
+  return nowYmdInTz(currentTzOrFallback(tz));
 }
 
-function isYesterday(lastISO: string, todayISO: string): boolean {
-  const last = new Date(`${lastISO}T00:00:00`);
-  const today = new Date(`${todayISO}T00:00:00`);
-  const diffMs = today.getTime() - last.getTime();
-  return diffMs > 0 && diffMs <= 1000 * 60 * 60 * 24 + 1000 * 60 * 60; // ~1d, tolerant of DST
+function isYesterday(lastISO: string, todayISO: string, tz: string): boolean {
+  const yesterdayOfToday = isoDayInTz(addDaysInTz(parseIsoDay(todayISO, tz), -1, tz), tz);
+  return lastISO === yesterdayOfToday;
 }
 
 type StreakRow = {
@@ -93,8 +77,7 @@ export function useStreak(): {
       void loadStreak();
     };
     window.addEventListener("arcana:streak-updated", onUpdate);
-    return () =>
-      window.removeEventListener("arcana:streak-updated", onUpdate);
+    return () => window.removeEventListener("arcana:streak-updated", onUpdate);
   }, [loadStreak]);
 
   // Q92 #6 — Recompute on app open / resume from background. PWA tabs
@@ -115,11 +98,12 @@ export function useStreak(): {
 
   const recordDraw = useCallback(async () => {
     if (!user) return;
-    const today = todayInTz(effectiveTz);
+    const tz = currentTzOrFallback(effectiveTz);
+    const today = todayInTz(tz);
     if (lastDrawDate === today) return;
 
     let nextStreak: number;
-    if (lastDrawDate && isYesterday(lastDrawDate, today)) {
+    if (lastDrawDate && isYesterday(lastDrawDate, today, tz)) {
       nextStreak = currentStreak + 1;
     } else {
       nextStreak = 1;
@@ -151,7 +135,8 @@ export function useStreak(): {
   // by recordDraw (which assumes today), so we replay the timeline.
   const recomputeStreak = useCallback(async () => {
     if (!user) return;
-    const today = todayInTz(effectiveTz);
+    const tz = currentTzOrFallback(effectiveTz);
+    const today = todayInTz(tz);
     const { data, error } = await supabase
       .from("readings")
       .select("created_at")
@@ -159,16 +144,10 @@ export function useStreak(): {
       .order("created_at", { ascending: false })
       .limit(1000);
     if (error) return;
-    const dayFmt = new Intl.DateTimeFormat("en-CA", {
-      timeZone: effectiveTz || undefined,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
     const days = new Set<string>();
     for (const row of data ?? []) {
       try {
-        days.add(dayFmt.format(new Date((row as { created_at: string }).created_at)));
+        days.add(isoDayInTz(new Date((row as { created_at: string }).created_at), tz));
       } catch {
         // ignore
       }
@@ -176,18 +155,20 @@ export function useStreak(): {
     // Walk back from today (or yesterday if today empty) to count
     // consecutive days with at least one reading.
     let streak = 0;
-    let cursor = new Date(`${today}T12:00:00`);
+    let cursorYmd = today;
     // If no draw today, allow yesterday to anchor the streak.
-    if (!days.has(dayFmt.format(cursor))) {
-      cursor.setDate(cursor.getDate() - 1);
-      if (!days.has(dayFmt.format(cursor))) {
+    if (!days.has(cursorYmd)) {
+      const prev = isoDayInTz(addDaysInTz(parseIsoDay(cursorYmd, tz), -1, tz), tz);
+      if (!days.has(prev)) {
         streak = 0;
-        cursor = new Date(`${today}T12:00:00`); // reset
+        cursorYmd = today; // reset
+      } else {
+        cursorYmd = prev;
       }
     }
-    while (days.has(dayFmt.format(cursor))) {
+    while (days.has(cursorYmd)) {
       streak += 1;
-      cursor.setDate(cursor.getDate() - 1);
+      cursorYmd = isoDayInTz(addDaysInTz(parseIsoDay(cursorYmd, tz), -1, tz), tz);
     }
     const sortedDays = Array.from(days).sort();
     const lastDay = sortedDays.length ? sortedDays[sortedDays.length - 1] : null;
