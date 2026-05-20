@@ -81,6 +81,7 @@ function CardTraceRoute() {
   const [data, setData] = useState<Detail | null>(null);
   const resolveImage = useActiveDeckImage();
   const { user } = useAuth();
+  const { effectiveTz } = useTimezone();
   const [openReadingId, setOpenReadingId] = useState<string | null>(null);
 
   // Q75 — full GlobalFilters state (time range + drawer sections).
@@ -183,6 +184,7 @@ function CardTraceRoute() {
     gFilters.moonPhases,
     gFilters.deepOnly,
     gFilters.reversedOnly,
+    effectiveTz,
   ]);
 
   const close = () => navigate({ to: "/insights" });
