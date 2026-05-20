@@ -18,7 +18,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 import { useActiveDeckImage, useDeckImage } from "@/lib/active-deck";
 import { useAuth } from "@/lib/auth";
-import { buildSearchIndex, searchCards } from "@/lib/card-search";
+import { buildSearchIndex, buildTarotSearchIndex, searchCards } from "@/lib/card-search";
 import {
   fetchUserDecks,
   fetchDeckCards,
@@ -221,9 +221,17 @@ export function CardPicker({
     });
     // Q115 Fix 3 — rank/suit/major-aware query filter via card-search.
     if (q) {
-      const index = buildSearchIndex(
-        filtered.map((item) => ({ cardId: item.idx, name: item.name })),
+      // Use the full tarot index when all filtered items are standard
+      // tarot (idx 0..77) so rank/suit/major keywords work. Otherwise
+      // build from deck names (no rank metadata, name-match only).
+      const allStandard = filtered.every(
+        (i) => i.idx >= 0 && i.idx < 78,
       );
+      const index = allStandard
+        ? buildTarotSearchIndex()
+        : buildSearchIndex(
+            filtered.map((item) => ({ cardId: item.idx, name: item.name })),
+          );
       const result = searchCards(index, q);
       const matchedIds = new Set(result.flat.map((e) => e.cardId));
       filtered = filtered.filter((item) => matchedIds.has(item.idx));
