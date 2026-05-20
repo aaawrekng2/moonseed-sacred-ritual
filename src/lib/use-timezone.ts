@@ -16,6 +16,30 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { isoDayInTz } from "@/lib/time";
+
+// Phase 10 — re-export the canonical helpers so existing
+// `import ... from "@/lib/use-timezone"` callers keep working while the
+// single source of truth lives in @/lib/time.
+export {
+  isoDayInTz,
+  nowYmdInTz,
+  parseIsoDay,
+  startOfDayInTz,
+  endOfDayInTz,
+  startOfMonthInTz,
+  endOfMonthInTz,
+  addDaysInTz,
+  calendarDaysBetween,
+  isSameDayInTz,
+  isTodayInTz,
+  isYesterdayInTz,
+  dayOfWeekInTz,
+  formatTimeInTz,
+  currentTzOrFallback,
+} from "@/lib/time";
+// Backwards-compat alias.
+export { isoDayInTz as getYmdInTz } from "@/lib/time";
 
 const DISMISS_KEY = "tarotseed:tz-mismatch-dismissed";
 const TZ_LOCAL_KEY = "tarotseed:timezone";
@@ -248,22 +272,6 @@ export function getDatePartsInTz(
     hour: get("hour") % 24,
     minute: get("minute"),
   };
-}
-
-/** Stable YMD key like "2026-05-31" for a Date in a given timezone. */
-export function getYmdInTz(date: Date, timeZone: string): string {
-  const { year, month, day } = getDatePartsInTz(date, timeZone);
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-/** Format a Date as a wall-clock time in a given IANA tz (e.g. "4:07 AM"). */
-export function formatTimeInTz(date: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    timeZone,
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(date);
 }
 
 /**
