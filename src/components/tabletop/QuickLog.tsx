@@ -513,8 +513,9 @@ export function QuickLog({
                 style={{
                   position: "relative",
                   zIndex: 1,
-                  height: 102,
-                  borderRadius: 51,
+                  // Phase 16 Fix 2.1 — banner halved (102→51 / 51→25).
+                  height: 51,
+                  borderRadius: 25,
                   border: "1px solid var(--accent, var(--gold))",
                   background: "var(--surface-card)",
                   display: "flex",
@@ -524,13 +525,13 @@ export function QuickLog({
               >
                 <span
                   style={{
-                    fontSize: 22,
+                    fontSize: 16,
                     color: "var(--accent, var(--gold))",
                     fontStyle: "italic",
                     fontFamily: "var(--font-display)",
                     letterSpacing: "0.05em",
                     textAlign: "center",
-                    padding: "0 24px",
+                    padding: "0 12px",
                   }}
                 >
                   A CONSTELLATION FORMING — {constellation.participatingCardIds.length} of these cards have met before
