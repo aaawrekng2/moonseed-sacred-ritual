@@ -1164,7 +1164,7 @@ function CompanionsAndJournal({
         </p>
         {showEmptyPlaceholder ? (
           <div style={{ display: "flex", gap: 12 }}>
-            <div style={{ width: 80, height: 128, opacity: 0.35 }}>
+            <div style={{ width: 80, height: 80 * 1.55, opacity: 0.35 }}>
               <CardImage variant="back" size="custom" widthPx={80} />
             </div>
           </div>
@@ -1225,7 +1225,6 @@ function CompanionsAndJournal({
                   <div
                     style={{
                       width: 80,
-                      height: 128,
                       borderRadius: 5,
                       overflow: "hidden",
                       position: "relative",
