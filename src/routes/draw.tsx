@@ -1,7 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Tabletop } from "@/components/tabletop/Tabletop";
-import { ManualEntryBuilder, type ManualPick } from "@/components/tabletop/ManualEntryBuilder";
+import { type ManualPick } from "@/components/tabletop/ManualEntryBuilder";
+import { QuickLog } from "@/components/tabletop/QuickLog";
 import { SpreadLayout } from "@/components/tabletop/SpreadLayout";
 import { ReadingScreen } from "@/components/reading/ReadingScreen";
 import { isValidSpreadMode, type SpreadMode } from "@/lib/spreads";
@@ -300,7 +301,7 @@ function DrawPage() {
           customCount={customCount}
         />
       ) : entrySurface === "manual" && phase === "select" ? (
-        <ManualEntryBuilder
+        <QuickLog
           spread={spread}
           customCount={customCount}
           question={question}
