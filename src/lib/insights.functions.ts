@@ -656,7 +656,7 @@ export const getCalendarHeatmap = createServerFn({ method: "GET" })
     const rows = await fetchFilteredReadings(supabase, userId, data, fetchDays);
     const dayMap = new Map<string, { count: number; suits: Record<string, number> }>();
     for (const r of rows) {
-      const key = ymd(r.created_at);
+      const key = ymd(r.created_at, data.tz);
       const entry = dayMap.get(key) ?? { count: 0, suits: {} };
       entry.count += 1;
       for (const cid of r.card_ids ?? []) {
@@ -667,11 +667,12 @@ export const getCalendarHeatmap = createServerFn({ method: "GET" })
     }
     const days: Array<{ date: string; count: number; dominantSuit?: string }> = [];
     let max = 0;
+    const tz = currentTzOrFallback(data.tz);
+    const today = new Date();
     for (let i = totalDays - 1; i >= 0; i -= 1) {
-      const d = new Date();
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      // Walk backwards from today in the seeker's tz so the rendered
+      // strip matches the bucket keys produced by `ymd(...)` above.
+      const key = isoDayInTz(addDaysInTz(today, -i, tz), tz);
       const entry = dayMap.get(key);
       const count = entry?.count ?? 0;
       if (count > max) max = count;
