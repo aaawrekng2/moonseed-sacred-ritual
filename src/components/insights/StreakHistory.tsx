@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { getStreakHistory } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
+import { useTimezone } from "@/lib/use-timezone";
 import { STREAK_ELEMENT_COLORS, type StreakElement } from "@/lib/streak-phase";
 import { formatDateShort } from "@/lib/dates";
 
@@ -31,6 +32,7 @@ function fmtRange(s: string, e: string): string {
 /** EM-4 — Streak history bar timeline. */
 export function StreakHistory() {
   const fn = useServerFn(getStreakHistory);
+  const { effectiveTz } = useTimezone();
   const [data, setData] = useState<{
     streaks: Streak[];
     currentStreak: number;
@@ -44,7 +46,7 @@ export function StreakHistory() {
     void (async () => {
       try {
         const headers = await getAuthHeaders();
-        const r = await fn({ headers });
+        const r = await fn({ headers, data: { tz: effectiveTz } });
         if (!cancelled) {
           setData(r);
           setLoading(false);
@@ -56,7 +58,7 @@ export function StreakHistory() {
     return () => {
       cancelled = true;
     };
-  }, [fn]);
+  }, [fn, effectiveTz]);
 
   const streaks = data?.streaks ?? [];
   const max = Math.max(1, ...streaks.map((s) => s.length));
