@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { DrawCalendar } from "./DrawCalendar";
+import { useTimezone } from "@/lib/use-timezone";
 
 export function StalkerCalendar({
   appearances,
@@ -13,6 +14,7 @@ export function StalkerCalendar({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const { effectiveTz } = useTimezone();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -24,12 +26,16 @@ export function StalkerCalendar({
   }, []);
 
   if (isDesktop) {
-    return <DrawCalendar appearances={appearances} monthsBack={3} />;
+    return <DrawCalendar appearances={appearances} monthsBack={3} tz={effectiveTz} />;
   }
 
   return (
     <div className="flex flex-col gap-2">
-      <DrawCalendar appearances={appearances} monthsBack={expanded ? 4 : 1} />
+      <DrawCalendar
+        appearances={appearances}
+        monthsBack={expanded ? 4 : 1}
+        tz={effectiveTz}
+      />
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
