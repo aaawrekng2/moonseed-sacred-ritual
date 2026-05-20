@@ -66,6 +66,12 @@ export type InsightsFilters = {
   deepOnly: boolean;
   cardGroupBy?: CardGroupBy;
   cardSortBy?: CardSortBy;
+  /**
+   * Phase 10 — IANA tz used by date-bucketing handlers. Route components
+   * populate this from useTimezone().effectiveTz so server fns aggregate
+   * on the seeker's local calendar instead of UTC.
+   */
+  tz?: string;
 };
 
 export const DEFAULT_FILTERS: InsightsFilters = {
@@ -78,6 +84,7 @@ export const DEFAULT_FILTERS: InsightsFilters = {
   deepOnly: false,
   cardGroupBy: "none",
   cardSortBy: "frequency",
+  tz: "UTC",
 };
 
 export type InsightsOverview = {
