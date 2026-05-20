@@ -48,6 +48,11 @@ type Props = {
    * names instead of the standard tarot.
    */
   deckCards?: Array<{ cardId: number; name: string }>;
+  /**
+   * Q114 Phase 5 — override the default 640px content cap. Set to
+   * "100%" for QuickLog so the input fills its flex cell.
+   */
+  maxWidth?: number | string;
 };
 
 export function SmartCardInput({
@@ -57,6 +62,7 @@ export function SmartCardInput({
   onBulkCommit,
   placedCardIds,
   deckCards,
+  maxWidth,
 }: Props) {
   const index = useMemo(() => buildSearchIndex(deckCards), [deckCards]);
   const [value, setValue] = useState("");
@@ -171,7 +177,7 @@ export function SmartCardInput({
   return (
     <div
       className="w-full mx-auto relative"
-      style={{ maxWidth: MANUAL_ENTRY_CONTENT_MAX }}
+      style={{ maxWidth: maxWidth ?? MANUAL_ENTRY_CONTENT_MAX }}
     >
       <input
         ref={inputRef}
@@ -217,7 +223,8 @@ export function SmartCardInput({
       )}
       {showDropdown && (
         <div
-          className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gold/30 bg-cosmos shadow-xl"
+          className="absolute mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-gold/30 bg-cosmos shadow-xl"
+          style={{ zIndex: 200 }}
           onMouseDown={(e) => e.preventDefault()}
         >
           {result.groups.map((g) => (
