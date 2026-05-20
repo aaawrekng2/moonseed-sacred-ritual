@@ -20,6 +20,7 @@ import {
   type UserEmailRow,
 } from "@/lib/admin-usage.functions";
 import { formatDateLong, formatDateTime } from "@/lib/dates";
+import { useTimezone } from "@/lib/use-timezone";
 import {
   CartesianGrid,
   Line,
@@ -95,6 +96,7 @@ const DATASETS: Array<{ id: Dataset; label: string }> = [
 
 function SeekerPage() {
   const { userId } = Route.useParams();
+  const { effectiveTz } = useTimezone();
   const [data, setData] = useState<any>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [summary, setSummary] = useState<{
@@ -130,7 +132,7 @@ function SeekerPage() {
       try {
         const headers = await authHeaders();
         const res = await getUserTrendSeries({
-          data: { userId, dataset, days: 90 },
+          data: { userId, dataset, days: 90, tz: effectiveTz },
           headers,
         });
         if (!cancelled) setSeries(res.series);
@@ -141,7 +143,7 @@ function SeekerPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [userId, dataset]);
+  }, [userId, dataset, effectiveTz]);
 
   if (!data) return <div style={{ padding: 32, opacity: 0.5 }}>loading…</div>;
   const s = data.seeker;
