@@ -8,7 +8,7 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   { ignores: ["dist", ".output", ".vinxi"] },
   {
-    files: ["src/lib/time.ts", "src/lib/time.test.ts", "src/lib/dates.ts"],
+    files: ["**/src/lib/time.ts", "**/src/lib/time.test.ts", "**/src/lib/dates.ts"],
     rules: {
       "no-restricted-syntax": "off",
     },
