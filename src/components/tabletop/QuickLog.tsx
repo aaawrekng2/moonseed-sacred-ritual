@@ -37,9 +37,15 @@ import { TAROT_DECK, getCardName } from "@/lib/tarot";
 import { buildCardDescriptor, getCardMeta } from "@/lib/card-astrology";
 import {
   getQuickLogCardStats,
+  getQuickLogOverlap,
+  getQuickLogPractice,
   type QuickLogCardStats,
+  type QuickLogOverlap,
+  type QuickLogPractice,
 } from "@/lib/quicklog.functions";
 import { useNavigate } from "@tanstack/react-router";
+import { useStreak } from "@/lib/use-streak";
+import { getLunationContaining } from "@/lib/lunation";
 
 const HERO_W = 225;
 const HERO_H = 346;
