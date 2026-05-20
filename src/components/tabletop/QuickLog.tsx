@@ -716,18 +716,26 @@ export function QuickLog({
                     }}
                   >
                   {picks.map((pick, idx) => {
-                    const isLatest = idx === picks.length - 1;
                     const isInConstellation =
                       constellation.active &&
                       participatingSet.has(pick.cardIndex);
                     const isDragSource = dragSourceIdx === idx;
                     const isDragOver =
                       dragOverIdx === idx && dragSourceIdx !== idx;
+                    const isFocused = focusedSlotIdx === idx;
                     return (
                       <div
                         key={pick.id}
                         className={`tarotseed-slot-wrapper ${longPressSlotIdx === idx ? "tarotseed-slot-pinned" : ""}`}
                         draggable
+                        onClick={(e) => {
+                          // Phase 14 (CZ) — tap-to-focus. Ignore clicks on
+                          // the in-slot controls (RotateCw / X).
+                          const target = e.target as HTMLElement | null;
+                          if (target?.closest("[data-slot-controls]")) return;
+                          setFocusedSlotIdx(idx);
+                          setLongPressSlotIdx(idx);
+                        }}
                         onDragStart={(e) => {
                           e.dataTransfer.setData("text/plain", String(idx));
                           e.dataTransfer.effectAllowed = "move";
@@ -747,6 +755,19 @@ export function QuickLog({
                               setPicks((prev) =>
                                 prev.filter((_, i) => i !== src),
                               );
+                              // Phase 14 (CZ) — keep focus index valid.
+                              setFocusedSlotIdx((cur) => {
+                                if (cur === null) return null;
+                                if (cur === src) {
+                                  return src > 0
+                                    ? src - 1
+                                    : picks.length > 1
+                                      ? 0
+                                      : null;
+                                }
+                                if (cur > src) return cur - 1;
+                                return cur;
+                              });
                             }
                           }
                           setDragSourceIdx(null);
@@ -775,6 +796,13 @@ export function QuickLog({
                             next[idx] = next[fromIdx];
                             next[fromIdx] = tmp;
                             return next;
+                          });
+                          // Phase 14 (CZ) — track focused card across swap.
+                          setFocusedSlotIdx((cur) => {
+                            if (cur === null) return null;
+                            if (cur === fromIdx) return idx;
+                            if (cur === idx) return fromIdx;
+                            return cur;
                           });
                           setDragOverIdx(null);
                           setDragSourceIdx(null);
@@ -815,9 +843,10 @@ export function QuickLog({
                           cursor: "grab",
                         }}
                       >
-                        {isInConstellation && !isLatest && (
+                        {isInConstellation && !isFocused && (
                           <div
                             aria-hidden
+                            className="tarotseed-constellation-breathe"
                             style={{
                               position: "absolute",
                               top: -3,
@@ -825,10 +854,24 @@ export function QuickLog({
                               right: -3,
                               bottom: -3,
                               background:
-                                "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
+                                "color-mix(in oklab, var(--accent, var(--gold)) 32%, transparent)",
                               borderRadius: 8,
                               pointerEvents: "none",
                               zIndex: 0,
+                            }}
+                          />
+                        )}
+                        {isFocused && (
+                          <div
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              inset: -6,
+                              borderRadius: 10,
+                              boxShadow:
+                                "0 0 0 1.5px var(--accent, var(--gold)), 0 0 20px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
+                              pointerEvents: "none",
+                              zIndex: 4,
                             }}
                           />
                         )}
