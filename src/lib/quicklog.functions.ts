@@ -9,8 +9,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { getCardMeta, getCardRoot, getCardRulership } from "@/lib/card-astrology";
+import { getCardMeta } from "@/lib/card-astrology";
 import { getCardName } from "@/lib/tarot";
+import { getCurrentMoonPhase, type MoonPhaseName } from "@/lib/moon";
 import { isoDayInTz } from "@/lib/time";
 
 const Input = z.object({
@@ -31,8 +32,10 @@ export type QuickLogCardStats = {
   reversedCount: number;
   topDayOfWeek: { day: string; count: number; total: number } | null;
   seekerReversedRate: number; // 0..1
-  seekerTopRoot: number | null;
-  astrologyMatchCount: number; // total cards in history sharing rulership
+  frequencyRank: number | null; // 1 = most-drawn card across user's history
+  totalDistinctCards: number; // denominator for "rank N of M"
+  topMoonPhase: { phase: MoonPhaseName; count: number; total: number } | null;
+  lastSeenMoonPhase: MoonPhaseName | null;
   companions: Array<{ cardId: number; count: number }>;
   journal: QuickLogJournalRow[]; // all readings containing this cardId
 };
@@ -79,9 +82,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
 
     let totalCards = 0;
     let totalReversed = 0;
-    const rootCounts = new Map<number, number>();
-    const heroRulership = getCardRulership(cardId);
-    let astrologyMatchCount = 0;
+    const cardCounts = new Map<number, number>();
 
     for (const r of all) {
       const ids = r.card_ids ?? [];
@@ -89,14 +90,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
       totalCards += ids.length;
       for (let i = 0; i < ids.length; i++) {
         if (ors[i] === true) totalReversed++;
-        const root = getCardRoot(ids[i]);
-        if (root != null) rootCounts.set(root, (rootCounts.get(root) ?? 0) + 1);
-        if (
-          heroRulership &&
-          getCardRulership(ids[i]) === heroRulership
-        ) {
-          astrologyMatchCount++;
-        }
+        cardCounts.set(ids[i], (cardCounts.get(ids[i]) ?? 0) + 1);
       }
     }
 
@@ -138,14 +132,30 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
-    let seekerTopRoot: number | null = null;
-    let topRootCount = 0;
-    for (const [root, n] of rootCounts) {
-      if (n > topRootCount) {
-        topRootCount = n;
-        seekerTopRoot = root;
+    // Frequency rank: where does this card sit in the user's draw history?
+    const sortedCounts = [...cardCounts.entries()].sort(
+      (a, b) => b[1] - a[1],
+    );
+    const rankIdx = sortedCounts.findIndex(([id]) => id === cardId);
+    const frequencyRank = rankIdx >= 0 ? rankIdx + 1 : null;
+    const totalDistinctCards = sortedCounts.length;
+
+    // Moon-phase distribution across the user's draws of this card.
+    const phaseCounts = new Map<MoonPhaseName, number>();
+    for (const r of matches) {
+      const phase = getCurrentMoonPhase(new Date(r.created_at)).phase;
+      phaseCounts.set(phase, (phaseCounts.get(phase) ?? 0) + 1);
+    }
+    let topMoonPhase: QuickLogCardStats["topMoonPhase"] = null;
+    for (const [phase, count] of phaseCounts) {
+      if (!topMoonPhase || count > topMoonPhase.count) {
+        topMoonPhase = { phase, count, total: matches.length };
       }
     }
+    const lastSeenMoonPhase: MoonPhaseName | null =
+      matches.length > 0
+        ? getCurrentMoonPhase(new Date(matches[0].created_at)).phase
+        : null;
 
     return {
       count: matches.length,
@@ -153,8 +163,10 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
       reversedCount,
       topDayOfWeek,
       seekerReversedRate: totalCards > 0 ? totalReversed / totalCards : 0,
-      seekerTopRoot,
-      astrologyMatchCount,
+      frequencyRank,
+      totalDistinctCards,
+      topMoonPhase,
+      lastSeenMoonPhase,
       companions,
       journal: matches.map((r) => ({
         id: r.id,
