@@ -117,6 +117,7 @@ function PatternChamber() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const { effectiveTz } = useTimezone();
   const [pattern, setPattern] = useState<Pattern | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isOrchestrationInFlight, setIsOrchestrationInFlight] = useState(false);
@@ -615,7 +616,7 @@ function PatternChamber() {
           marginTop: 4,
         }}
       >
-        Since {formatMonthSince(pattern.created_at)} · {pattern.reading_ids.length} reading
+        Since {formatMonthSince(pattern.created_at, effectiveTz)} · {pattern.reading_ids.length} reading
         {pattern.reading_ids.length === 1 ? "" : "s"}
       </div>
 
