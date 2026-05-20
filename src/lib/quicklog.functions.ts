@@ -12,7 +12,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getCardMeta } from "@/lib/card-astrology";
 import { getCardName } from "@/lib/tarot";
 import { getCurrentMoonPhase, type MoonPhaseName } from "@/lib/moon";
-import { isoDayInTz } from "@/lib/time";
+import { dayOfWeekInTz, isoDayInTz } from "@/lib/time";
 
 const Input = z.object({
   cardId: z.number().int().min(0).max(9999),
@@ -102,7 +102,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
 
     const dayCounts = new Map<number, number>();
     for (const r of matches) {
-      const d = new Date(r.created_at).getDay();
+      const d = dayOfWeekInTz(new Date(r.created_at), input.tz);
       dayCounts.set(d, (dayCounts.get(d) ?? 0) + 1);
     }
     let topDayOfWeek: QuickLogCardStats["topDayOfWeek"] = null;
