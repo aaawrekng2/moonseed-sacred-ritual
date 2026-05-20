@@ -48,6 +48,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { useStreak } from "@/lib/use-streak";
 import { getLunationContaining } from "@/lib/lunation";
+import { useTimezone } from "@/lib/use-timezone";
 
 const HERO_W = 225;
 const HERO_H = 346;
