@@ -270,7 +270,8 @@ export function QuickLog({
         ];
 
   // ─── Q111 Phase 2 — per-card stats + companions + journal ───
-  const statsCacheRef = useRef<Map<number, QuickLogCardStats>>(new Map());
+  // Phase 15 Fix 1 — no client cache; always refetch when hero changes so
+  // stats reflect the currently focused slot.
   const [cardStats, setCardStats] = useState<QuickLogCardStats | null>(null);
   const [selectedCompanionIdx, setSelectedCompanionIdx] = useState(0);
 
@@ -284,16 +285,10 @@ export function QuickLog({
       return;
     }
     const id = heroPick.cardIndex;
-    const cached = statsCacheRef.current.get(id);
-    if (cached) {
-      setCardStats(cached);
-      return;
-    }
     let cancelled = false;
     void getQuickLogCardStats({ data: { cardId: id, tz: effectiveTz } })
       .then((stats) => {
         if (cancelled) return;
-        statsCacheRef.current.set(id, stats);
         setCardStats(stats);
       })
       .catch((err) => {
@@ -310,7 +305,7 @@ export function QuickLog({
   const canSubmit = picks.length >= 1;
 
   // ─── Q112 Phase 3 — overlap strip + practice line ───────────────────
-  const overlapCacheRef = useRef<Map<number, QuickLogOverlap>>(new Map());
+  // Phase 15 Fix 1 — no overlap cache; always refetch on hero change.
   const [overlap, setOverlap] = useState<QuickLogOverlap | null>(null);
   const [overlapMode, setOverlapMode] = useState<"pull" | "day">("pull");
   const [practice, setPractice] = useState<QuickLogPractice | null>(null);
@@ -319,12 +314,6 @@ export function QuickLog({
   useEffect(() => {
     if (!user?.id) {
       setOverlap(null);
-      return;
-    }
-    const id = heroPick?.cardIndex ?? -1;
-    const cached = overlapCacheRef.current.get(id);
-    if (cached) {
-      setOverlap(cached);
       return;
     }
     let cancelled = false;
@@ -336,7 +325,6 @@ export function QuickLog({
         if (!d || !Array.isArray(d.months) || d.months.length === 0) {
           console.warn("[QuickLog] overlap response malformed or empty:", d);
         }
-        overlapCacheRef.current.set(id, d);
         setOverlap(d);
       })
       .catch((err) => {
@@ -1239,8 +1227,6 @@ function ChipGrid({
   heroPick: ManualPick;
   stats: QuickLogCardStats | null;
 }) {
-  const meta = getCardMeta(heroPick.cardIndex);
-
   // LAST SEEN
   let lastSeen = "—";
   if (stats?.lastSeenAt) {
@@ -1260,21 +1246,28 @@ function ChipGrid({
     ? `${stats.topDayOfWeek.day}s · ${stats.topDayOfWeek.count} of ${stats.topDayOfWeek.total}`
     : "—";
 
-  // NUMEROLOGY
-  let numerology = "—";
-  if (meta?.root != null && meta.cardNumber != null) {
-    numerology = `${meta.cardNumber} → ${meta.root}`;
-    if (stats?.seekerTopRoot != null && stats.seekerTopRoot === meta.root) {
-      numerology += " · top root";
+  // FREQUENCY — Phase 15 Fix 2
+  let frequency = "—";
+  if (stats && stats.frequencyRank != null && stats.count > 0) {
+    if (stats.frequencyRank === 1) {
+      frequency = `#1 most-drawn · ${stats.count} times`;
+    } else if (stats.frequencyRank <= 5) {
+      frequency = `#${stats.frequencyRank} most-drawn · ${stats.count} times`;
+    } else if (stats.frequencyRank <= 20) {
+      frequency = `#${stats.frequencyRank} · ${stats.count} times`;
+    } else {
+      frequency = `Rare for you · ${stats.count} time${stats.count === 1 ? "" : "s"}`;
     }
   }
 
-  // ASTROLOGY
-  let astrology = "—";
-  if (meta?.planetOrSign) {
-    astrology = `${meta.planetOrSign}-ruled`;
-    if (stats && stats.astrologyMatchCount > 0) {
-      astrology += ` · ${stats.astrologyMatchCount} cards`;
+  // MOON PHASE — Phase 15 Fix 3
+  let moonPhase = "—";
+  if (stats && stats.count > 0) {
+    const top = stats.topMoonPhase;
+    if (top && top.count >= 2 && top.count / top.total >= 0.3) {
+      moonPhase = `Most under ${top.phase} · ${top.count} of ${top.total}`;
+    } else if (stats.lastSeenMoonPhase) {
+      moonPhase = `Last under ${stats.lastSeenMoonPhase}`;
     }
   }
 
@@ -1310,14 +1303,14 @@ function ChipGrid({
       </div>
       <div style={{ display: "flex", gap: 10 }}>
         <Chip
-          label="NUMEROLOGY"
-          value={numerology}
-          tooltip="The card's number and its numerological root. Example: '6 → 6' means card-number 6, which reduces to root 6. Card 10 would reduce to 1 (1+0)."
+          label="FREQUENCY"
+          value={frequency}
+          tooltip="Where this card sits in your personal draw history. Example: '#3 most-drawn · 47 times' means it's your third-most-pulled card across all your readings. 'Rare for you' means it's appeared 5 or fewer times in your full history."
         />
         <Chip
-          label="ASTROLOGY"
-          value={astrology}
-          tooltip="The planet or sign this card is ruled by, plus how many cards in your active deck share that ruler. Example: 'Jupiter-ruled · 30 cards' means this card is governed by Jupiter, alongside 29 others in your deck."
+          label="MOON PHASE"
+          value={moonPhase}
+          tooltip="The moon phase during your draws of this card. Example: 'Most under Full Moon · 4 of 12' means 4 of the 12 times you've drawn this card, it was during a Full Moon. Otherwise shows the phase during your most recent draw."
         />
       </div>
       <Chip
@@ -1405,16 +1398,22 @@ function CompanionsAndJournal({
               const isSelected = idx === selectedIdx;
               const isInPull = pullSet.has(c.cardId);
               const showGoldRing = constellationActive && isInPull;
+              const heroName = heroPick
+                ? getCardName(heroPick.cardIndex)
+                : "this card";
+              const companionName = getCardName(c.cardId);
+              const tooltipText = `${heroName} and ${companionName} have appeared together in ${c.count} of your readings.`;
               return (
                 <button
                   key={c.cardId}
                   type="button"
+                  title={tooltipText}
                   onClick={() => onSelect(idx)}
                   style={{
                     position: "relative",
                     border: "none",
                     background: "transparent",
-                    cursor: "pointer",
+                    cursor: "help",
                     padding: 0,
                     display: "flex",
                     flexDirection: "column",
@@ -2038,36 +2037,52 @@ function OverlapStrip({
                     year: "numeric",
                   });
                   let tooltipText: string;
-                  if (matchCount <= 0) {
-                    const readingsOnDay =
-                      overlap?.readingsByDate?.[day.date] ?? [];
-                    if (readingsOnDay.length === 0) {
-                      tooltipText = `${dateLabel} — no readings`;
-                    } else {
-                      const n = readingsOnDay.length;
-                      tooltipText = `${dateLabel} — ${n} reading${n === 1 ? "" : "s"}, no overlap with current pull`;
-                    }
+                  // Phase 15 Fix 7 — clarified day-cell tooltips.
+                  if (day.heroDrawn && heroCardId != null) {
+                    const heroName = getCardName(heroCardId);
+                    tooltipText = `${dateLabel} — you drew ${heroName} this day`;
+                  } else if (matchCount <= 0) {
+                    tooltipText = dateLabel;
                   } else {
-                    const matchedNames = pullCardIds
-                      .filter((id) => {
-                        if (mode === "day")
-                          return day.sameDayCardIds.includes(id);
-                        const readings =
-                          overlap?.readingsByDate?.[day.date] ?? [];
-                        return readings.some((r) => r.cardIds.includes(id));
-                      })
+                    // Compute matched card ids for this day, scoped to mode.
+                    let matchedIds: number[];
+                    if (mode === "day") {
+                      matchedIds = day.sameDayCardIds.filter((id) =>
+                        pullSet.has(id),
+                      );
+                    } else {
+                      const readings =
+                        overlap?.readingsByDate?.[day.date] ?? [];
+                      let bestReadingIds: number[] = [];
+                      let bestN = 0;
+                      for (const r of readings) {
+                        const hits = r.cardIds.filter((id) => pullSet.has(id));
+                        if (hits.length > bestN) {
+                          bestN = hits.length;
+                          bestReadingIds = hits;
+                        }
+                      }
+                      matchedIds = bestReadingIds;
+                    }
+                    const matchedCardNames = matchedIds
                       .map((id) => getCardName(id))
-                      .filter(Boolean)
-                      .join(", ");
+                      .filter(Boolean);
+                    const displayNames = matchedCardNames.slice(0, 4);
+                    const extra = matchedCardNames.length - displayNames.length;
+                    const cardList =
+                      extra > 0
+                        ? `${displayNames.join(", ")} +${extra} more`
+                        : displayNames.join(", ");
                     const pct = Math.round(
                       (matchCount / pullCardIds.length) * 100,
                     );
-                    const ringNote = isPerfectMatch
-                      ? " — every card in your current pull was in one reading on this day"
-                      : isBestAvailable
-                        ? ` — best match across the calendar (${matchCount} of ${pullCardIds.length} = ${pct}%)`
-                        : ` (${matchCount} of ${pullCardIds.length} = ${pct}%)`;
-                    tooltipText = `${dateLabel} — ${matchCount} of ${pullCardIds.length} cards from this pull${matchedNames ? ` (${matchedNames})` : ""}${ringNote}`;
+                    if (isPerfectMatch) {
+                      tooltipText = `${dateLabel} — every card in your current pull appeared in one reading this day (${matchCount} of ${pullCardIds.length})`;
+                    } else if (isBestAvailable) {
+                      tooltipText = `${dateLabel} — best match across the calendar: ${cardList} (${matchCount} of ${pullCardIds.length} = ${pct}%)`;
+                    } else {
+                      tooltipText = `${dateLabel} — ${cardList} from your current pull appeared this day (${matchCount} of ${pullCardIds.length} = ${pct}%)`;
+                    }
                   }
                   return (
                     <div
