@@ -513,8 +513,9 @@ export function QuickLog({
                 style={{
                   position: "relative",
                   zIndex: 1,
-                  height: 102,
-                  borderRadius: 51,
+                  // Phase 16 Fix 2.1 — banner halved (102→51 / 51→25).
+                  height: 51,
+                  borderRadius: 25,
                   border: "1px solid var(--accent, var(--gold))",
                   background: "var(--surface-card)",
                   display: "flex",
@@ -524,17 +525,182 @@ export function QuickLog({
               >
                 <span
                   style={{
-                    fontSize: 22,
+                    fontSize: 16,
                     color: "var(--accent, var(--gold))",
                     fontStyle: "italic",
                     fontFamily: "var(--font-display)",
                     letterSpacing: "0.05em",
                     textAlign: "center",
-                    padding: "0 24px",
+                    padding: "0 12px",
                   }}
                 >
                   A CONSTELLATION FORMING — {constellation.participatingCardIds.length} of these cards have met before
                 </span>
+              </div>
+            </div>
+          )}
+
+          {/* Phase 16 Fix 2.2 — constellation matching-readings panel
+              relocated out of CompanionsAndJournal to a full-width strip
+              directly below the banner. Journal list on the right now stays
+              visible regardless of constellationActive. */}
+          {constellation.active && constellation.matchingReadings.length > 0 && (
+            <div style={{ padding: "16px 24px 0", display: "flex", flexDirection: "column", gap: 12 }}>
+              <p
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.3em",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  color: "var(--accent, var(--gold))",
+                  opacity: 0.85,
+                  margin: 0,
+                  textTransform: "uppercase",
+                }}
+              >
+                A CONSTELLATION — WHEN THESE{" "}
+                {(() => {
+                  const n = constellation.participatingCardIds.length;
+                  return n === 2
+                    ? "TWO"
+                    : n === 3
+                      ? "THREE"
+                      : n === 4
+                        ? "FOUR"
+                        : n === 5
+                          ? "FIVE"
+                          : String(n);
+                })()}{" "}
+                MET BEFORE
+              </p>
+              <p
+                style={{
+                  fontSize: 11,
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  color: "var(--color-foreground-muted, var(--color-foreground))",
+                  margin: 0,
+                  opacity: 0.8,
+                }}
+              >
+                {constellation.participatingCardIds.map((id) => getCardName(id)).join(" · ")}
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {constellation.matchingReadings.map((r) => {
+                  const thumbs = constellation.participatingCardIds.slice(0, 3);
+                  const more = constellation.participatingCardIds.length - thumbs.length;
+                  return (
+                    <div key={r.id} style={{ position: "relative" }}>
+                      <div
+                        aria-hidden
+                        className="tarotseed-constellation-breathe"
+                        style={{
+                          position: "absolute",
+                          top: -12,
+                          left: -16,
+                          right: -16,
+                          bottom: -12,
+                          background:
+                            "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 42%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 24%, transparent) 50%, transparent 85%)",
+                          pointerEvents: "none",
+                          zIndex: 0,
+                          borderRadius: 14,
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: "relative",
+                          zIndex: 1,
+                          width: "100%",
+                          minHeight: 60,
+                          borderRadius: 6,
+                          border: "1px solid var(--accent, var(--gold))",
+                          background: "var(--surface-card)",
+                          padding: "8px 10px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                          {thumbs.map((cid) => (
+                            <div
+                              key={cid}
+                              style={{
+                                width: 28,
+                                height: 44,
+                                borderRadius: 3,
+                                overflow: "hidden",
+                              }}
+                            >
+                              <CardImage
+                                variant="face"
+                                cardId={cid}
+                                size="custom"
+                                widthPx={28}
+                              />
+                            </div>
+                          ))}
+                          {more > 0 && (
+                            <span
+                              style={{
+                                alignSelf: "center",
+                                fontSize: 10,
+                                fontStyle: "italic",
+                                fontFamily: "var(--font-serif)",
+                                color:
+                                  "var(--color-foreground-muted, var(--color-foreground))",
+                                marginLeft: 4,
+                              }}
+                            >
+                              +{more} more
+                            </span>
+                          )}
+                        </div>
+                        <div
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 2,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: 13,
+                              color: "var(--color-foreground)",
+                              fontStyle: "italic",
+                              fontFamily: "var(--font-serif)",
+                            }}
+                          >
+                            {format(new Date(r.createdAt), "MMM d, yyyy")}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              color:
+                                "var(--color-foreground-muted, var(--color-foreground))",
+                              fontStyle: "italic",
+                              fontFamily: "var(--font-serif)",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {r.question?.trim() || "(no question)"}
+                          </span>
+                        </div>
+                        <span
+                          style={{ color: "var(--accent, var(--gold))", fontSize: 11 }}
+                        >
+                          ›
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -1356,10 +1522,9 @@ function CompanionsAndJournal({
 
   const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
   const constellationActive = constellation.active;
-  const participatingIds = constellation.participatingCardIds;
-  const participatingNames = participatingIds.map((id) => getCardName(id));
-  const wordFor = (n: number) =>
-    n === 3 ? "THREE" : n === 4 ? "FOUR" : n === 5 ? "FIVE" : String(n);
+  // Phase 16 Fix 2.2 — participatingIds / participatingNames / wordFor were
+  // only used by the constellation matching-readings panel that now lives
+  // outside this component (a full-width strip below the banner).
 
   return (
     <div
@@ -1486,173 +1651,9 @@ function CompanionsAndJournal({
         )}
       </div>
 
-      {constellationActive ? (
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p
-            style={{
-              fontSize: 10,
-              letterSpacing: "0.3em",
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              color: "var(--accent, var(--gold))",
-              opacity: 0.85,
-              margin: "0 0 6px 0",
-              textTransform: "uppercase",
-            }}
-          >
-            A CONSTELLATION — WHEN THESE {wordFor(participatingIds.length)} MET BEFORE
-          </p>
-          <p
-            style={{
-              fontSize: 11,
-              fontFamily: "var(--font-serif)",
-              fontStyle: "italic",
-              color: "var(--color-foreground-muted, var(--color-foreground))",
-              margin: "0 0 12px 0",
-              opacity: 0.8,
-            }}
-          >
-            {participatingNames.join(" · ")}
-          </p>
-          {constellation.matchingReadings.length === 0 ? (
-            <p
-              style={{
-                fontSize: 11,
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                color: "var(--color-foreground-muted, var(--color-foreground))",
-                textAlign: "center",
-                padding: "16px 0",
-                opacity: 0.65,
-                margin: 0,
-              }}
-            >
-              —
-            </p>
-          ) : (
-            <div>
-              {constellation.matchingReadings.map((r) => {
-                const thumbs = participatingIds.slice(0, 3);
-                const more = participatingIds.length - thumbs.length;
-                return (
-                  <div
-                    key={r.id}
-                    style={{ position: "relative", marginBottom: 8 }}
-                  >
-                    <div
-                      aria-hidden
-                      className="tarotseed-constellation-breathe"
-                      style={{
-                        position: "absolute",
-                        top: -12,
-                        left: -16,
-                        right: -16,
-                        bottom: -12,
-                        background:
-                          "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 42%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 24%, transparent) 50%, transparent 85%)",
-                        pointerEvents: "none",
-                        zIndex: 0,
-                        borderRadius: 14,
-                      }}
-                    />
-                    <div
-                      style={{
-                        position: "relative",
-                        zIndex: 1,
-                        width: "100%",
-                        minHeight: 60,
-                        borderRadius: 6,
-                        border: "1px solid var(--accent, var(--gold))",
-                        background: "var(--surface-card)",
-                        padding: "8px 10px",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        boxSizing: "border-box",
-                      }}
-                    >
-                    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                      {thumbs.map((cid) => (
-                        <div
-                          key={cid}
-                          style={{
-                            width: 28,
-                            height: 44,
-                            borderRadius: 3,
-                            overflow: "hidden",
-                          }}
-                        >
-                          <CardImage
-                            variant="face"
-                            cardId={cid}
-                            size="custom"
-                            widthPx={28}
-                          />
-                        </div>
-                      ))}
-                      {more > 0 && (
-                        <span
-                          style={{
-                            alignSelf: "center",
-                            fontSize: 10,
-                            fontStyle: "italic",
-                            fontFamily: "var(--font-serif)",
-                            color:
-                              "var(--color-foreground-muted, var(--color-foreground))",
-                            marginLeft: 4,
-                          }}
-                        >
-                          +{more} more
-                        </span>
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 2,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 13,
-                          color: "var(--color-foreground)",
-                          fontStyle: "italic",
-                          fontFamily: "var(--font-serif)",
-                        }}
-                      >
-                        {format(new Date(r.createdAt), "MMM d, yyyy")}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color:
-                            "var(--color-foreground-muted, var(--color-foreground))",
-                          fontStyle: "italic",
-                          fontFamily: "var(--font-serif)",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {r.question?.trim() || "(no question)"}
-                      </span>
-                    </div>
-                    <span
-                      style={{ color: "var(--accent, var(--gold))", fontSize: 11 }}
-                    >
-                      ›
-                    </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      ) : heroPick && selected ? (
+      {/* Phase 16 Fix 2.2 — constellation branch removed; journal list
+          (heroPick + selected pair) now always shows on the right. */}
+      {heroPick && selected ? (
         <div style={{ flex: 1, minWidth: 0 }}>
           <p
             style={{
@@ -2110,7 +2111,11 @@ function OverlapStrip({
                           color: textColor,
                         }}
                       >
-                        {new Date(day.date).getDate()}
+                        {/* Phase 16 Fix 1 — parse day from YYYY-MM-DD string
+                            directly; `new Date("YYYY-MM-DD")` parses as UTC
+                            midnight and getDate() then drifts one day west of
+                            UTC, so every cell was mis-labeled. */}
+                        {Number(day.date.split("-")[2])}
                       </div>
                       {(isPerfectMatch || isBestAvailable) && (
                         <div
