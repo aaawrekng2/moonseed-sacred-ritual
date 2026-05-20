@@ -2013,7 +2013,7 @@ function OverlapStrip({
                       matches = best;
                     }
                     matchCount = matches;
-                    const op = bucketOpacity(matches);
+                    const op = matchOpacity(matches, pullSet.size);
                     if (op > 0) {
                       bg = "var(--accent, var(--gold))";
                       opacity = op;
@@ -2023,6 +2023,13 @@ function OverlapStrip({
                     opacity > 0.5
                       ? "var(--background)"
                       : "var(--color-foreground)";
+                  const isPerfectMatch =
+                    matchCount > 0 && matchCount === pullSet.size;
+                  const isBestAvailable =
+                    !isPerfectMatch &&
+                    matchCount > 0 &&
+                    matchCount === maxMatchInCalendar &&
+                    pullSet.size > 1;
                   const dateLabel = new Date(
                     day.date + "T00:00:00",
                   ).toLocaleDateString(undefined, {
@@ -2052,32 +2059,58 @@ function OverlapStrip({
                       .map((id) => getCardName(id))
                       .filter(Boolean)
                       .join(", ");
-                    tooltipText = `${dateLabel} — ${matchCount} of ${pullCardIds.length} cards from this pull${matchedNames ? ` (${matchedNames})` : ""}`;
+                    const pct = Math.round(
+                      (matchCount / pullCardIds.length) * 100,
+                    );
+                    const ringNote = isPerfectMatch
+                      ? " — every card in your current pull was in one reading on this day"
+                      : isBestAvailable
+                        ? ` — best match across the calendar (${matchCount} of ${pullCardIds.length} = ${pct}%)`
+                        : ` (${matchCount} of ${pullCardIds.length} = ${pct}%)`;
+                    tooltipText = `${dateLabel} — ${matchCount} of ${pullCardIds.length} cards from this pull${matchedNames ? ` (${matchedNames})` : ""}${ringNote}`;
                   }
                   return (
                     <div
                       key={day.date}
                       title={tooltipText}
-                      style={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: 3,
-                        background: bg,
-                        opacity,
-                        border:
-                          "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
-                        boxSizing: "border-box",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontFamily: "var(--font-serif)",
-                        fontSize: 11,
-                        fontStyle: "italic",
-                        lineHeight: 1,
-                        color: textColor,
-                      }}
+                      style={{ position: "relative", width: 20, height: 20 }}
                     >
-                      {new Date(day.date).getDate()}
+                      <div
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: 3,
+                          background: bg,
+                          opacity,
+                          border:
+                            "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
+                          boxSizing: "border-box",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontFamily: "var(--font-serif)",
+                          fontSize: 11,
+                          fontStyle: "italic",
+                          lineHeight: 1,
+                          color: textColor,
+                        }}
+                      >
+                        {new Date(day.date).getDate()}
+                      </div>
+                      {(isPerfectMatch || isBestAvailable) && (
+                        <div
+                          aria-hidden
+                          style={{
+                            position: "absolute",
+                            inset: -2,
+                            borderRadius: 5,
+                            border: isPerfectMatch
+                              ? "2px solid var(--accent, var(--gold))"
+                              : "1.5px dashed var(--accent, var(--gold))",
+                            pointerEvents: "none",
+                          }}
+                        />
+                      )}
                     </div>
                   );
                 })}
