@@ -14,6 +14,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getAvailableCredits } from "@/lib/ai-call.server";
+import { isoDayInTz, addDaysInTz } from "@/lib/time";
 
 async function assertAdmin(supabase: any, userId: string) {
   const { data, error } = await supabase.rpc("has_admin_role", {
@@ -509,6 +510,7 @@ const TrendInput = z.object({
   userId: z.string().uuid(),
   dataset: z.enum(["credits_consumed", "ai_calls", "cost_usd", "grants", "storage"]),
   days: z.number().int().min(7).max(365).default(90),
+  tz: z.string().min(1),
 });
 
 export const getUserTrendSeries = createServerFn({ method: "GET" })
@@ -522,7 +524,7 @@ export const getUserTrendSeries = createServerFn({ method: "GET" })
     const points = new Map<string, number>();
     // Seed every day with 0 so the chart is continuous.
     for (let i = data.days - 1; i >= 0; i--) {
-      const k = new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10);
+      const k = isoDayInTz(addDaysInTz(new Date(), -i, data.tz), data.tz);
       points.set(k, 0);
     }
 
