@@ -33,6 +33,7 @@ import { CardImage } from "@/components/card/CardImage";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { DrawCalendar } from "@/components/insights/DrawCalendar";
+import { useTimezone } from "@/lib/use-timezone";
 import { ReadingDetailModal } from "@/components/reading/ReadingDetailModal";
 import { ReadingRow } from "@/components/ui/reading-row";
 import { EmptyNote } from "@/components/ui/empty-note";
@@ -657,11 +658,13 @@ function MetadataRow({
  * ============================================================ */
 function ExpandableCalendar({ appearances }: { appearances: Appearance[] }) {
   const [full, setFull] = useState(false);
+  const { effectiveTz } = useTimezone();
   return (
     <div>
       <DrawCalendar
         appearances={appearances}
         monthsBack={full ? 12 : 2}
+        tz={effectiveTz}
       />
       <div className="mt-2 flex justify-center">
         <button

@@ -475,6 +475,7 @@ function OverviewTab({
   fetchError: boolean;
   onRetry: () => void;
 }) {
+  const { effectiveTz } = useTimezone();
   if (loading && !overview) {
     return <LoadingSkeleton heights={[220, 160, 160, 160]} />;
   }
@@ -567,6 +568,7 @@ function OverviewTab({
           <div className="hidden md:block">
             <DrawCalendar
               appearances={stalkers.stalkerCards[0].appearances}
+              tz={effectiveTz}
               monthsBack={Math.min(
                 3,
                 new Set(

@@ -23,7 +23,13 @@ import { z } from "zod";
 import { getLunationContaining } from "@/lib/lunation";
 import { getAIToneServerSide, TONE_FRAGMENTS, type AITone } from "@/lib/ai-tone";
 import { getCurrentMoonPhase } from "@/lib/moon";
-import { isoDayInTz, addDaysInTz } from "@/lib/time";
+import {
+  isoDayInTz,
+  addDaysInTz,
+  nowYmdInTz,
+  parseIsoDay,
+  currentTzOrFallback,
+} from "@/lib/time";
 
 // ============================================================================
 // Q58 — Suit Trends server function.
@@ -184,8 +190,15 @@ function pct(part: number, total: number): number {
   return Math.round((part / total) * 1000) / 10; // one decimal
 }
 
-function ymd(iso: string): string {
-  return iso.slice(0, 10);
+/**
+ * Convert a DB timestamp (created_at, ISO with tz) to "YYYY-MM-DD" in
+ * the seeker's local tz. The old implementation sliced the raw ISO
+ * string, which silently bucketed in UTC and drifted by one day in
+ * negative offsets — that's the root of multiple stalker/heatmap/streak
+ * tz bugs. Always pass `tz` from the validated filter input.
+ */
+function ymd(iso: string, tz: string): string {
+  return isoDayInTz(new Date(iso), currentTzOrFallback(tz));
 }
 
 export const getInsightsOverview = createServerFn({ method: "GET" })
@@ -272,7 +285,7 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
       if (r.guide_id) guideCounts[r.guide_id] = (guideCounts[r.guide_id] ?? 0) + 1;
       if (r.lens_id) lensCounts[r.lens_id] = (lensCounts[r.lens_id] ?? 0) + 1;
       if (r.is_deep_reading) deepCount += 1;
-      const day = ymd(r.created_at);
+      const day = ymd(r.created_at, data.tz);
       dayCounts[day] = (dayCounts[day] ?? 0) + 1;
     }
 
@@ -643,7 +656,7 @@ export const getCalendarHeatmap = createServerFn({ method: "GET" })
     const rows = await fetchFilteredReadings(supabase, userId, data, fetchDays);
     const dayMap = new Map<string, { count: number; suits: Record<string, number> }>();
     for (const r of rows) {
-      const key = ymd(r.created_at);
+      const key = ymd(r.created_at, data.tz);
       const entry = dayMap.get(key) ?? { count: 0, suits: {} };
       entry.count += 1;
       for (const cid of r.card_ids ?? []) {
@@ -654,11 +667,12 @@ export const getCalendarHeatmap = createServerFn({ method: "GET" })
     }
     const days: Array<{ date: string; count: number; dominantSuit?: string }> = [];
     let max = 0;
+    const tz = currentTzOrFallback(data.tz);
+    const today = new Date();
     for (let i = totalDays - 1; i >= 0; i -= 1) {
-      const d = new Date();
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      // Walk backwards from today in the seeker's tz so the rendered
+      // strip matches the bucket keys produced by `ymd(...)` above.
+      const key = isoDayInTz(addDaysInTz(today, -i, tz), tz);
       const entry = dayMap.get(key);
       const count = entry?.count ?? 0;
       if (count > max) max = count;
@@ -750,8 +764,12 @@ export const getTimeOfDayPattern = createServerFn({ method: "GET" })
 /** EM-4 — Streak history derived from distinct reading dates. */
 export const getStreakHistory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((raw: unknown) =>
+    z.object({ tz: z.string().min(1).default("UTC") }).parse(raw ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
+    const tz = currentTzOrFallback(data.tz);
     const isPremium = await getIsPremium(supabase, userId);
     const { data: rows, error } = await supabase
       .from("readings")
@@ -763,7 +781,7 @@ export const getStreakHistory = createServerFn({ method: "GET" })
     if (error) throw error;
     const dateSet = new Set<string>();
     for (const r of (rows ?? []) as Array<{ created_at: string }>) {
-      dateSet.add(ymd(r.created_at));
+      dateSet.add(ymd(r.created_at, tz));
     }
     const dates = [...dateSet].sort();
     const allStreaks: Array<{ startDate: string; endDate: string; length: number; isActive: boolean }> = [];
@@ -792,8 +810,10 @@ export const getStreakHistory = createServerFn({ method: "GET" })
     if (runEnd !== null) {
       allStreaks.push({ startDate: runStart!, endDate: runEnd, length: runLen, isActive: false });
     }
-    const todayKey = new Date().toISOString().slice(0, 10);
-    const yesterdayKey = new Date(Date.now() - oneDay).toISOString().slice(0, 10);
+    // Today/yesterday must be keyed in the seeker's tz to match the
+    // stored streak endDates (also keyed in tz above).
+    const todayKey = nowYmdInTz(tz);
+    const yesterdayKey = isoDayInTz(addDaysInTz(new Date(), -1, tz), tz);
     if (allStreaks.length > 0) {
       const last = allStreaks[allStreaks.length - 1];
       if (last.endDate === todayKey || last.endDate === yesterdayKey) {
@@ -858,15 +878,21 @@ export const getGuidePreferences = createServerFn({ method: "GET" })
     const { days } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
     const useWeekly = data.timeRange === "7d" || data.timeRange === "30d";
+    const gpTz = currentTzOrFallback(data.tz);
     function bucketKey(iso: string): string {
-      const d = new Date(iso);
-      if (useWeekly) {
-        // ISO week start (Monday)
-        const day = d.getUTCDay() || 7;
-        d.setUTCDate(d.getUTCDate() - (day - 1));
-        return d.toISOString().slice(0, 10);
-      }
-      return iso.slice(0, 7);
+      // Bucket by ISO week start (Monday) in the seeker's tz, otherwise
+      // by tz-local YYYY-MM. The previous version sliced the raw UTC
+      // ISO string and silently bucketed in UTC.
+      const localYmd = ymd(iso, gpTz);
+      if (!useWeekly) return localYmd.slice(0, 7);
+      const [y, m, d2] = localYmd.split("-").map(Number);
+      // Pure Y/M/D math: UTC weekday is the same as the calendar weekday
+      // for that date regardless of tz, because the date is already
+      // anchored in the seeker's local calendar.
+      const utc = new Date(Date.UTC(y, m - 1, d2));
+      const dayNum = utc.getUTCDay() || 7;
+      utc.setUTCDate(utc.getUTCDate() - (dayNum - 1));
+      return `${utc.getUTCFullYear()}-${String(utc.getUTCMonth() + 1).padStart(2, "0")}-${String(utc.getUTCDate()).padStart(2, "0")}`;
     }
     const guideTotals = new Map<string, number>();
     const buckets = new Map<string, Map<string, number>>();
@@ -2273,6 +2299,7 @@ export const NumerologyReadingInputSchema = InsightsFiltersSchema.extend({
 function computeNumerologyForReading(
   birthDate: string,
   birthName: string | null,
+  tz: string,
 ) {
   const reduce = (n: number, preserveMaster = true): number => {
     let v = Math.abs(n);
@@ -2289,8 +2316,10 @@ function computeNumerologyForReading(
   const [, monthStr, dayStr] = birthDate.split("-");
   const month = Number(monthStr);
   const day = Number(dayStr);
-  const now = new Date();
-  const yearDigits = String(now.getFullYear())
+  // Pull the current year from the seeker's local calendar so the
+  // personal-year flips at their local New Year, not UTC's.
+  const localYear = nowYmdInTz(currentTzOrFallback(tz)).split("-")[0];
+  const yearDigits = localYear
     .split("")
     .reduce((s, c) => s + Number(c), 0);
   const personalYear = reduce(month + day + yearDigits, false);
@@ -2449,7 +2478,7 @@ export const getNumerologyReading = createServerFn({ method: "POST" })
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
     const recentReadings = rows.slice(0, 25);
 
-    const numerology = computeNumerologyForReading(birthDate, birthName);
+    const numerology = computeNumerologyForReading(birthDate, birthName, data.tz);
 
     const systemPrompt = [
       "You are the Tarot Seed oracle, a voice that weaves numerology and tarot together.",
@@ -2517,9 +2546,13 @@ export const getSuitTrends = createServerFn({ method: "GET" })
         return d.toISOString().slice(0, 10);
       }
     };
-    const isoMonth = (d: Date) => d.toISOString().slice(0, 7);
+    // Bucket month in the seeker's tz, not UTC — otherwise late-evening
+    // local draws near month boundaries land in the wrong month.
+    const isoMonth = (d: Date) => isoDayInTz(d, tz).slice(0, 7);
     const isoWeek = (d: Date) => {
-      const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      // Anchor the week from the date as it falls in the seeker's tz.
+      const [yy, mm, dd] = isoDayInTz(d, tz).split("-").map(Number);
+      const tmp = new Date(Date.UTC(yy, mm - 1, dd));
       const dayNum = tmp.getUTCDay() || 7;
       tmp.setUTCDate(tmp.getUTCDate() + 4 - dayNum);
       const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
@@ -2527,19 +2560,30 @@ export const getSuitTrends = createServerFn({ method: "GET" })
       return `${tmp.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
     };
 
+    // Labels formatted via Intl.DateTimeFormat with explicit timeZone
+    // so server-rendered strings reflect the seeker's calendar, not the
+    // worker's tz.
+    const fmtPart = (d: Date, opts: Intl.DateTimeFormatOptions) =>
+      new Intl.DateTimeFormat(undefined, { timeZone: tz, ...opts }).format(d);
     const dayLabel = (d: Date) =>
-      d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      fmtPart(d, { month: "short", day: "numeric" });
     const monthLabel = (d: Date) =>
-      d.toLocaleDateString(undefined, { month: "short", year: effectiveDays > 365 ? "numeric" : undefined });
+      fmtPart(d, {
+        month: "short",
+        year: effectiveDays > 365 ? "numeric" : undefined,
+      });
     const weekLabel = (d: Date) => {
-      const start = new Date(d);
-      const wk = start.getDay() || 7;
-      start.setDate(start.getDate() + 1 - wk);
-      const end = new Date(start);
-      end.setDate(end.getDate() + 6);
-      const fmt = (x: Date) =>
-        x.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-      return `${fmt(start)}–${fmt(end)}`;
+      const [yy, mm, dd] = isoDayInTz(d, tz).split("-").map(Number);
+      const startUtc = new Date(Date.UTC(yy, mm - 1, dd));
+      const wk = startUtc.getUTCDay() || 7;
+      startUtc.setUTCDate(startUtc.getUTCDate() + 1 - wk);
+      const endUtc = new Date(startUtc);
+      endUtc.setUTCDate(endUtc.getUTCDate() + 6);
+      const startYmd = `${startUtc.getUTCFullYear()}-${String(startUtc.getUTCMonth() + 1).padStart(2, "0")}-${String(startUtc.getUTCDate()).padStart(2, "0")}`;
+      const endYmd = `${endUtc.getUTCFullYear()}-${String(endUtc.getUTCMonth() + 1).padStart(2, "0")}-${String(endUtc.getUTCDate()).padStart(2, "0")}`;
+      const startDate = parseIsoDay(startYmd, tz);
+      const endDate = parseIsoDay(endYmd, tz);
+      return `${fmtPart(startDate, { month: "short", day: "numeric" })}–${fmtPart(endDate, { month: "short", day: "numeric" })}`;
     };
 
     const keyOf = (d: Date) =>
