@@ -123,6 +123,9 @@ export function QuickLog({
   // Q122 Phase 9 — long-press pin for touch/pen to reveal slot controls.
   const [longPressSlotIdx, setLongPressSlotIdx] = useState<number | null>(null);
   const longPressTimerRef = useRef<number | null>(null);
+  // Phase 14 (CZ) — explicit focused-slot index. Tap a slot to make it the
+  // hero. Null means "default to most recently placed" (legacy behavior).
+  const [focusedSlotIdx, setFocusedSlotIdx] = useState<number | null>(null);
   useEffect(() => {
     if (longPressSlotIdx === null) return;
     const handleTapOutside = (e: PointerEvent) => {
@@ -256,7 +259,15 @@ export function QuickLog({
     return { slotW: w, slotH: w * 1.6, gap: g };
   }, [rowWidth, slotCount]);
 
-  const heroPick = picks.length > 0 ? picks[picks.length - 1] : null;
+  // Phase 14 (CZ) — hero = focused slot if any, else most recently placed.
+  const heroPick =
+    picks.length === 0
+      ? null
+      : picks[
+          focusedSlotIdx !== null && focusedSlotIdx < picks.length
+            ? focusedSlotIdx
+            : picks.length - 1
+        ];
 
   // ─── Q111 Phase 2 — per-card stats + companions + journal ───
   const statsCacheRef = useRef<Map<number, QuickLogCardStats>>(new Map());
@@ -705,18 +716,26 @@ export function QuickLog({
                     }}
                   >
                   {picks.map((pick, idx) => {
-                    const isLatest = idx === picks.length - 1;
                     const isInConstellation =
                       constellation.active &&
                       participatingSet.has(pick.cardIndex);
                     const isDragSource = dragSourceIdx === idx;
                     const isDragOver =
                       dragOverIdx === idx && dragSourceIdx !== idx;
+                    const isFocused = focusedSlotIdx === idx;
                     return (
                       <div
                         key={pick.id}
                         className={`tarotseed-slot-wrapper ${longPressSlotIdx === idx ? "tarotseed-slot-pinned" : ""}`}
                         draggable
+                        onClick={(e) => {
+                          // Phase 14 (CZ) — tap-to-focus. Ignore clicks on
+                          // the in-slot controls (RotateCw / X).
+                          const target = e.target as HTMLElement | null;
+                          if (target?.closest("[data-slot-controls]")) return;
+                          setFocusedSlotIdx(idx);
+                          setLongPressSlotIdx(idx);
+                        }}
                         onDragStart={(e) => {
                           e.dataTransfer.setData("text/plain", String(idx));
                           e.dataTransfer.effectAllowed = "move";
@@ -736,6 +755,19 @@ export function QuickLog({
                               setPicks((prev) =>
                                 prev.filter((_, i) => i !== src),
                               );
+                              // Phase 14 (CZ) — keep focus index valid.
+                              setFocusedSlotIdx((cur) => {
+                                if (cur === null) return null;
+                                if (cur === src) {
+                                  return src > 0
+                                    ? src - 1
+                                    : picks.length > 1
+                                      ? 0
+                                      : null;
+                                }
+                                if (cur > src) return cur - 1;
+                                return cur;
+                              });
                             }
                           }
                           setDragSourceIdx(null);
@@ -764,6 +796,13 @@ export function QuickLog({
                             next[idx] = next[fromIdx];
                             next[fromIdx] = tmp;
                             return next;
+                          });
+                          // Phase 14 (CZ) — track focused card across swap.
+                          setFocusedSlotIdx((cur) => {
+                            if (cur === null) return null;
+                            if (cur === fromIdx) return idx;
+                            if (cur === idx) return fromIdx;
+                            return cur;
                           });
                           setDragOverIdx(null);
                           setDragSourceIdx(null);
@@ -804,9 +843,10 @@ export function QuickLog({
                           cursor: "grab",
                         }}
                       >
-                        {isInConstellation && !isLatest && (
+                        {isInConstellation && !isFocused && (
                           <div
                             aria-hidden
+                            className="tarotseed-constellation-breathe"
                             style={{
                               position: "absolute",
                               top: -3,
@@ -814,10 +854,24 @@ export function QuickLog({
                               right: -3,
                               bottom: -3,
                               background:
-                                "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
+                                "color-mix(in oklab, var(--accent, var(--gold)) 32%, transparent)",
                               borderRadius: 8,
                               pointerEvents: "none",
                               zIndex: 0,
+                            }}
+                          />
+                        )}
+                        {isFocused && (
+                          <div
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              inset: -6,
+                              borderRadius: 10,
+                              boxShadow:
+                                "0 0 0 1.5px var(--accent, var(--gold)), 0 0 20px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
+                              pointerEvents: "none",
+                              zIndex: 4,
                             }}
                           />
                         )}
@@ -907,6 +961,19 @@ export function QuickLog({
                               e.stopPropagation();
                               setPicks((prev) => prev.filter((_, i) => i !== idx));
                               if (longPressSlotIdx === idx) setLongPressSlotIdx(null);
+                              // Phase 14 (CZ) — keep focus index valid.
+                              setFocusedSlotIdx((cur) => {
+                                if (cur === null) return null;
+                                if (cur === idx) {
+                                  return idx > 0
+                                    ? idx - 1
+                                    : picks.length > 1
+                                      ? 0
+                                      : null;
+                                }
+                                if (cur > idx) return cur - 1;
+                                return cur;
+                              });
                             }}
                             style={{
                               width: 22,
@@ -1081,10 +1148,11 @@ export function QuickLog({
               embedded
               deckId={undefined}
               excludeCardIds={placedIds}
-              showReversedToggle={true}
               title="Pick a card"
               onCancel={() => setPickerOpen(false)}
               onSelect={(cardIndex, isReversed, _deckId, cardName) => {
+                // Phase 14 (CZ) — focus the just-added card (lands at end).
+                setFocusedSlotIdx(picks.length);
                 setPicks((prev) => [
                   ...prev,
                   {
@@ -1713,12 +1781,16 @@ function SectionOverline({ label }: { label: string }) {
   );
 }
 
-function bucketOpacity(matches: number): number {
-  if (matches <= 0) return 0;
-  if (matches === 1) return 0.55;
-  if (matches === 2) return 0.78;
-  if (matches === 3) return 0.92;
-  return 1;
+/**
+ * Phase 14 (CZ) — percentage-scaled match opacity. Represents "how much
+ * of my current pull appears on this day" with a small 0.15 floor for
+ * visibility on tiny matches. Replaces the bucketed version that topped
+ * out at 3+ matches and conflated a 3-of-10 day with a 9-of-10 day.
+ */
+function matchOpacity(matches: number, pullSize: number): number {
+  if (matches <= 0 || pullSize <= 0) return 0;
+  const pct = matches / pullSize;
+  return 0.15 + pct * 0.8;
 }
 
 function OverlapStrip({
@@ -1764,6 +1836,31 @@ function OverlapStrip({
     };
   }, []);
   const monthsToShow = viewportWidth >= 1280 ? 6 : 5;
+
+  // Phase 14 (CZ) — calendar-wide max match for the "best available" dashed
+  // ring. Only meaningful when more than one card is pulled; with a single
+  // card every match would tie at max and ring every cell.
+  let maxMatchInCalendar = 0;
+  if (pullSet.size > 1) {
+    for (const m of months) {
+      for (const day of m.days) {
+        if (day == null) continue;
+        let matches = 0;
+        if (mode === "day") {
+          for (const id of day.sameDayCardIds ?? [])
+            if (pullSet.has(id)) matches++;
+        } else {
+          const readings = overlap?.readingsByDate?.[day.date] ?? [];
+          for (const r of readings) {
+            let n = 0;
+            for (const id of r.cardIds) if (pullSet.has(id)) n++;
+            if (n > matches) matches = n;
+          }
+        }
+        if (matches > maxMatchInCalendar) maxMatchInCalendar = matches;
+      }
+    }
+  }
 
   return (
     <div style={{ position: "relative" }}>
@@ -1916,7 +2013,7 @@ function OverlapStrip({
                       matches = best;
                     }
                     matchCount = matches;
-                    const op = bucketOpacity(matches);
+                    const op = matchOpacity(matches, pullSet.size);
                     if (op > 0) {
                       bg = "var(--accent, var(--gold))";
                       opacity = op;
@@ -1926,6 +2023,13 @@ function OverlapStrip({
                     opacity > 0.5
                       ? "var(--background)"
                       : "var(--color-foreground)";
+                  const isPerfectMatch =
+                    matchCount > 0 && matchCount === pullSet.size;
+                  const isBestAvailable =
+                    !isPerfectMatch &&
+                    matchCount > 0 &&
+                    matchCount === maxMatchInCalendar &&
+                    pullSet.size > 1;
                   const dateLabel = new Date(
                     day.date + "T00:00:00",
                   ).toLocaleDateString(undefined, {
@@ -1955,32 +2059,58 @@ function OverlapStrip({
                       .map((id) => getCardName(id))
                       .filter(Boolean)
                       .join(", ");
-                    tooltipText = `${dateLabel} — ${matchCount} of ${pullCardIds.length} cards from this pull${matchedNames ? ` (${matchedNames})` : ""}`;
+                    const pct = Math.round(
+                      (matchCount / pullCardIds.length) * 100,
+                    );
+                    const ringNote = isPerfectMatch
+                      ? " — every card in your current pull was in one reading on this day"
+                      : isBestAvailable
+                        ? ` — best match across the calendar (${matchCount} of ${pullCardIds.length} = ${pct}%)`
+                        : ` (${matchCount} of ${pullCardIds.length} = ${pct}%)`;
+                    tooltipText = `${dateLabel} — ${matchCount} of ${pullCardIds.length} cards from this pull${matchedNames ? ` (${matchedNames})` : ""}${ringNote}`;
                   }
                   return (
                     <div
                       key={day.date}
                       title={tooltipText}
-                      style={{
-                        width: 20,
-                        height: 20,
-                        borderRadius: 3,
-                        background: bg,
-                        opacity,
-                        border:
-                          "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
-                        boxSizing: "border-box",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontFamily: "var(--font-serif)",
-                        fontSize: 11,
-                        fontStyle: "italic",
-                        lineHeight: 1,
-                        color: textColor,
-                      }}
+                      style={{ position: "relative", width: 20, height: 20 }}
                     >
-                      {new Date(day.date).getDate()}
+                      <div
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: 3,
+                          background: bg,
+                          opacity,
+                          border:
+                            "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
+                          boxSizing: "border-box",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontFamily: "var(--font-serif)",
+                          fontSize: 11,
+                          fontStyle: "italic",
+                          lineHeight: 1,
+                          color: textColor,
+                        }}
+                      >
+                        {new Date(day.date).getDate()}
+                      </div>
+                      {(isPerfectMatch || isBestAvailable) && (
+                        <div
+                          aria-hidden
+                          style={{
+                            position: "absolute",
+                            inset: -2,
+                            borderRadius: 5,
+                            border: isPerfectMatch
+                              ? "2px solid var(--accent, var(--gold))"
+                              : "1.5px dashed var(--accent, var(--gold))",
+                            pointerEvents: "none",
+                          }}
+                        />
+                      )}
                     </div>
                   );
                 })}
