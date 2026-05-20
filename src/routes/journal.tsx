@@ -244,6 +244,8 @@ function JournalPage() {
   // BX — journal stays portrait-only.
   usePortraitOnly();
   const { user, loading: authLoading } = useAuth();
+  const { effectiveTz } = useTimezone();
+  const tz = currentTzOrFallback(effectiveTz);
   const { batch: batchParam } = Route.useSearch();
   const navigate = useNavigate();
   // FU-8 — iOS large-to-compact title collapse driven by main scroll.
