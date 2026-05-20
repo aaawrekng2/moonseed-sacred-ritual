@@ -14,6 +14,7 @@ import { getCardName } from "@/lib/tarot";
 
 const Input = z.object({
   cardId: z.number().int().min(0).max(9999),
+  tz: z.string().optional(),
 });
 
 export type QuickLogJournalRow = {
