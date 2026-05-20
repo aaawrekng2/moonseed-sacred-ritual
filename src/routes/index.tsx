@@ -879,7 +879,7 @@ function Index() {
           );
         })()}
         {(() => {
-          const today = getTodayInTz(effectiveTz);
+          const today = nowYmdInTz(currentTzOrFallback(effectiveTz));
           const hasDrawnToday = lastDrawDate === today;
           if (hasDrawnToday && currentStreak > 0) {
             return (
