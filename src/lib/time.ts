@@ -1,4 +1,3 @@
-/* eslint-disable no-restricted-syntax -- this module is the canonical exception */
 /**
  * src/lib/time.ts — canonical timezone-aware date helpers.
  *

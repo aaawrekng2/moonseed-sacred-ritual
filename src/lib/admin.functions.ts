@@ -391,7 +391,6 @@ export const adminAction = createServerFn({ method: "POST" })
     switch (data.type) {
       case "grant_premium": {
         const expires = new Date();
-        /* eslint-disable-next-line no-restricted-syntax -- premium expiry uses UTC calendar-month math, tz-aware not required */
         expires.setUTCMonth(expires.getUTCMonth() + data.months);
         await supabaseAdmin
           .from("user_preferences")
@@ -423,7 +422,6 @@ export const adminAction = createServerFn({ method: "POST" })
           prev && new Date(prev).getTime() > Date.now()
             ? new Date(prev)
             : new Date();
-        /* eslint-disable-next-line no-restricted-syntax -- premium expiry uses UTC calendar-month math, tz-aware not required */
         base.setUTCMonth(base.getUTCMonth() + data.months);
         await supabaseAdmin
           .from("user_preferences")

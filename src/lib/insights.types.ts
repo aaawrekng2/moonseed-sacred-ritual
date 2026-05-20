@@ -50,10 +50,11 @@ export const InsightsFiltersSchema = z.object({
   deepOnly: z.boolean().default(false),
   cardGroupBy: z.enum(CARD_GROUP_BY).optional().default("none"),
   cardSortBy: z.enum(CARD_SORT_BY).optional().default("frequency"),
-  // Phase 10 — IANA tz for date-bucketing handlers. Defaulted to UTC so
-  // existing callers keep working; route components pass effectiveTz
-  // from useTimezone() to get tz-correct buckets.
-  tz: z.string().min(1).default("UTC"),
+  // Phase 16 — IANA tz is REQUIRED so server-side bucketing always reflects
+  // the seeker's local calendar. Route components must pass effectiveTz
+  // from useTimezone(). DEFAULT_FILTERS seeds "UTC" as a safe initial value
+  // that is overwritten on mount.
+  tz: z.string().min(1),
 });
 
 export type InsightsFilters = {
@@ -67,11 +68,11 @@ export type InsightsFilters = {
   cardGroupBy?: CardGroupBy;
   cardSortBy?: CardSortBy;
   /**
-   * Phase 10 — IANA tz used by date-bucketing handlers. Route components
-   * populate this from useTimezone().effectiveTz so server fns aggregate
-   * on the seeker's local calendar instead of UTC.
+   * Phase 16 — IANA tz used by date-bucketing handlers. REQUIRED. Route
+   * components populate this from useTimezone().effectiveTz so server fns
+   * aggregate on the seeker's local calendar instead of UTC.
    */
-  tz?: string;
+  tz: string;
 };
 
 export const DEFAULT_FILTERS: InsightsFilters = {
