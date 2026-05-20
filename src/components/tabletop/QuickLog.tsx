@@ -13,7 +13,7 @@
  * the old builder so the swap is mechanical.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { format } from "date-fns";
+import { format, differenceInCalendarDays } from "date-fns";
 import { CalendarIcon, Plus, X } from "lucide-react";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -31,6 +31,15 @@ import { useRegisterCloseHandler } from "@/lib/floating-menu-context";
 import { cn } from "@/lib/utils";
 import type { SpreadMode } from "@/lib/spreads";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
+import { useAuth } from "@/lib/auth";
+import { fetchUserDecks, fetchDeckCards } from "@/lib/custom-decks";
+import { TAROT_DECK, getCardName } from "@/lib/tarot";
+import { buildCardDescriptor, getCardMeta } from "@/lib/card-astrology";
+import {
+  getQuickLogCardStats,
+  type QuickLogCardStats,
+} from "@/lib/quicklog.functions";
+import { useNavigate } from "@tanstack/react-router";
 
 const HERO_W = 225;
 const HERO_H = 346;
@@ -65,6 +74,8 @@ export function QuickLog({
 }: Props) {
   useRegisterCloseHandler(onCancel);
   const { activeDeck, imageMap } = useActiveDeck();
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Seed from any cached picks; QuickLog is additive (no null gaps).
   const [picks, setPicks] = useState<ManualPick[]>(() =>
@@ -78,16 +89,75 @@ export function QuickLog({
   const [backdate, setBackdate] = useState<Date | null>(null);
   const [dateOpen, setDateOpen] = useState(false);
 
-  // Smart-input parser index: pull names from the active deck.
+  // Smart-input parser index: pull names from EVERY deck the seeker
+  // owns + the standard 78-card Rider-Waite list. Active deck takes
+  // priority on duplicate names; standard tarot is the floor.
+  const [allDeckCards, setAllDeckCards] = useState<
+    Array<{ cardId: number; name: string }>
+  >([]);
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const decks = await fetchUserDecks(user.id);
+        const ordered = [...decks].sort((a, b) => {
+          const ai = (a as { is_active?: boolean }).is_active ? -1 : 0;
+          const bi = (b as { is_active?: boolean }).is_active ? -1 : 0;
+          return ai - bi;
+        });
+        const acc: Array<{ cardId: number; name: string }> = [];
+        for (const d of ordered) {
+          try {
+            const cards = await fetchDeckCards(d.id);
+            for (const c of cards) {
+              const nm = (c.card_name ?? "").trim();
+              if (nm) acc.push({ cardId: c.card_id, name: nm });
+            }
+          } catch {
+            /* per-deck failure is non-fatal */
+          }
+        }
+        if (!cancelled) setAllDeckCards(acc);
+      } catch {
+        if (!cancelled) setAllDeckCards([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
   const deckCards = useMemo(() => {
-    if (!activeDeck) return undefined;
-    const entries = Object.entries(imageMap.nameByCardId ?? {});
-    if (entries.length === 0) return undefined;
-    return entries.map(([id, name]) => ({
-      cardId: Number(id),
-      name: name || `Card ${id}`,
-    }));
-  }, [activeDeck, imageMap]);
+    const seenNames = new Set<string>();
+    const out: Array<{ cardId: number; name: string }> = [];
+    // 1. Active deck imageMap (already in memory).
+    if (activeDeck) {
+      for (const [id, name] of Object.entries(imageMap.nameByCardId ?? {})) {
+        const nm = (name || "").trim();
+        if (!nm) continue;
+        const key = nm.toLowerCase();
+        if (seenNames.has(key)) continue;
+        seenNames.add(key);
+        out.push({ cardId: Number(id), name: nm });
+      }
+    }
+    // 2. Other user-owned decks.
+    for (const c of allDeckCards) {
+      const key = c.name.toLowerCase();
+      if (seenNames.has(key)) continue;
+      seenNames.add(key);
+      out.push(c);
+    }
+    // 3. Standard tarot floor.
+    TAROT_DECK.forEach((name, idx) => {
+      const key = name.toLowerCase();
+      if (seenNames.has(key)) return;
+      seenNames.add(key);
+      out.push({ cardId: idx, name });
+    });
+    return out.length > 0 ? out : undefined;
+  }, [activeDeck, imageMap, allDeckCards]);
 
   const placedIds = picks.map((p) => p.cardIndex);
 
@@ -141,6 +211,43 @@ export function QuickLog({
   }, [rowWidth, slotCount]);
 
   const heroPick = picks.length > 0 ? picks[picks.length - 1] : null;
+
+  // ─── Q111 Phase 2 — per-card stats + companions + journal ───
+  const statsCacheRef = useRef<Map<number, QuickLogCardStats>>(new Map());
+  const [cardStats, setCardStats] = useState<QuickLogCardStats | null>(null);
+  const [selectedCompanionIdx, setSelectedCompanionIdx] = useState(0);
+
+  useEffect(() => {
+    setSelectedCompanionIdx(0);
+  }, [heroPick?.cardIndex]);
+
+  useEffect(() => {
+    if (!heroPick || !user?.id) {
+      setCardStats(null);
+      return;
+    }
+    const id = heroPick.cardIndex;
+    const cached = statsCacheRef.current.get(id);
+    if (cached) {
+      setCardStats(cached);
+      return;
+    }
+    let cancelled = false;
+    void getQuickLogCardStats({ data: { cardId: id } })
+      .then((stats) => {
+        if (cancelled) return;
+        statsCacheRef.current.set(id, stats);
+        setCardStats(stats);
+      })
+      .catch(() => {
+        if (!cancelled) setCardStats(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [heroPick?.cardIndex, user?.id]);
+
+  const descriptor = heroPick ? buildCardDescriptor(heroPick.cardIndex) : null;
 
   const canSubmit = picks.length >= 1;
 
@@ -247,7 +354,20 @@ export function QuickLog({
                   />
                 )}
               </div>
-              {/* Card descriptor placeholder — wired in Phase 2. */}
+              {heroPick && descriptor && (
+                <p
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-caption, 0.75rem)",
+                    color: "var(--color-foreground-muted, var(--color-foreground))",
+                    margin: 0,
+                    opacity: 0.85,
+                  }}
+                >
+                  {descriptor}
+                </p>
+              )}
             </div>
 
             {/* Right column — date pill + smart input, then slot row */}
@@ -312,15 +432,24 @@ export function QuickLog({
                 </div>
               </div>
 
-              {/* Slot row — dynamic sizing */}
-              <div ref={rowRef} style={{ width: "100%" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap,
-                  }}
-                >
+              {/* Slot row + chip grid — side by side */}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "flex-start",
+                  gap: 20,
+                  width: "100%",
+                }}
+              >
+                <div ref={rowRef} style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap,
+                    }}
+                  >
                   {picks.map((pick, idx) => {
                     const isLatest = idx === picks.length - 1;
                     return (
@@ -375,8 +504,23 @@ export function QuickLog({
                   >
                     <Plus size={Math.max(14, slotW * 0.3)} strokeWidth={1.5} />
                   </button>
+                  </div>
                 </div>
+                {heroPick && (
+                  <ChipGrid heroPick={heroPick} stats={cardStats} />
+                )}
               </div>
+
+              {/* Companions + journal */}
+              <CompanionsAndJournal
+                heroPick={heroPick}
+                stats={cardStats}
+                selectedIdx={selectedCompanionIdx}
+                onSelect={setSelectedCompanionIdx}
+                onOpenReading={(id: string) => {
+                  navigate({ to: "/journal", search: { open: id } as never });
+                }}
+              />
             </div>
           </div>
 
@@ -438,5 +582,352 @@ export function QuickLog({
         </div>
       </div>
     </FullScreenSheet>
+  );
+}
+
+// ─── Q111 Phase 2 — Chip grid ────────────────────────────────────────
+
+type ChipProps = {
+  label: string;
+  value: string;
+  fullWidth?: boolean;
+};
+
+function Chip({ label, value, fullWidth }: ChipProps) {
+  return (
+    <div
+      style={{
+        width: fullWidth ? 390 : 190,
+        height: 38,
+        borderRadius: 6,
+        border: "1px solid var(--border-subtle)",
+        background:
+          "color-mix(in oklab, var(--surface-elevated, var(--surface-card)) 100%, transparent)",
+        padding: "6px 10px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+        boxSizing: "border-box",
+      }}
+    >
+      <span
+        style={{
+          fontSize: 9,
+          letterSpacing: "0.15em",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          color: "var(--accent, var(--gold))",
+          opacity: 0.7,
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontSize: 12,
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          color: "var(--color-foreground)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function ChipGrid({
+  heroPick,
+  stats,
+}: {
+  heroPick: ManualPick;
+  stats: QuickLogCardStats | null;
+}) {
+  const meta = getCardMeta(heroPick.cardIndex);
+
+  // LAST SEEN
+  let lastSeen = "—";
+  if (stats?.lastSeenAt) {
+    const d = new Date(stats.lastSeenAt);
+    const daysAgo = differenceInCalendarDays(new Date(), d);
+    if (stats.count <= 1) {
+      lastSeen = "First time";
+    } else if (daysAgo <= 30) {
+      lastSeen = `${format(d, "MMM d")} · ${daysAgo}d ago`;
+    } else {
+      lastSeen = format(d, "MMM d, yyyy");
+    }
+  }
+
+  // TIME PATTERN
+  const timePattern = stats?.topDayOfWeek
+    ? `${stats.topDayOfWeek.day}s · ${stats.topDayOfWeek.count} of ${stats.topDayOfWeek.total}`
+    : "—";
+
+  // NUMEROLOGY
+  let numerology = "—";
+  if (meta?.root != null && meta.cardNumber != null) {
+    numerology = `${meta.cardNumber} → ${meta.root}`;
+    if (stats?.seekerTopRoot != null && stats.seekerTopRoot === meta.root) {
+      numerology += " · top root";
+    }
+  }
+
+  // ASTROLOGY
+  let astrology = "—";
+  if (meta?.planetOrSign) {
+    astrology = `${meta.planetOrSign}-ruled`;
+    if (stats && stats.astrologyMatchCount > 0) {
+      astrology += ` · ${stats.astrologyMatchCount} cards`;
+    }
+  }
+
+  // REVERSED
+  let reversed = "0 of 0 reversed · —";
+  if (stats && stats.count > 0) {
+    const pct = Math.round((stats.reversedCount / stats.count) * 100);
+    const avgPct = Math.round(stats.seekerReversedRate * 100);
+    const cmp = pct < avgPct ? "below" : pct > avgPct ? "above" : "at";
+    reversed = `${stats.reversedCount} of ${stats.count} reversed (${pct}%) · ${cmp} your ${avgPct}% avg`;
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 7,
+        flexShrink: 0,
+      }}
+    >
+      <div style={{ display: "flex", gap: 10 }}>
+        <Chip label="LAST SEEN" value={lastSeen} />
+        <Chip label="TIME PATTERN" value={timePattern} />
+      </div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <Chip label="NUMEROLOGY" value={numerology} />
+        <Chip label="ASTROLOGY" value={astrology} />
+      </div>
+      <Chip label="REVERSED" value={reversed} fullWidth />
+    </div>
+  );
+}
+
+// ─── Q111 Phase 2 — Companions row + journal list ─────────────────────
+
+function CompanionsAndJournal({
+  heroPick,
+  stats,
+  selectedIdx,
+  onSelect,
+  onOpenReading,
+}: {
+  heroPick: ManualPick | null;
+  stats: QuickLogCardStats | null;
+  selectedIdx: number;
+  onSelect: (i: number) => void;
+  onOpenReading: (id: string) => void;
+}) {
+  const companions = stats?.companions ?? [];
+  const selected = companions[selectedIdx] ?? companions[0] ?? null;
+
+  const journalRows = useMemo(() => {
+    if (!stats || !selected) return [];
+    return stats.journal
+      .filter((r) => r.cardIds.includes(selected.cardId))
+      .slice(0, 5);
+  }, [stats, selected]);
+
+  const showEmptyPlaceholder = !heroPick || companions.length === 0;
+
+  return (
+    <div
+      style={{
+        marginTop: 32,
+        display: "flex",
+        flexDirection: "row",
+        gap: 32,
+        alignItems: "flex-start",
+      }}
+    >
+      <div style={{ flex: "0 0 auto" }}>
+        <p
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.3em",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            color: "var(--accent, var(--gold))",
+            opacity: 0.75,
+            marginBottom: 14,
+            margin: "0 0 14px 0",
+          }}
+        >
+          COMPANIONS — TAP TO FILTER
+        </p>
+        {showEmptyPlaceholder ? (
+          <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ width: 80, height: 128, opacity: 0.35 }}>
+              <CardImage variant="back" size="custom" widthPx={80} />
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 12 }}>
+            {companions.map((c, idx) => {
+              const isSelected = idx === selectedIdx;
+              return (
+                <button
+                  key={c.cardId}
+                  type="button"
+                  onClick={() => onSelect(idx)}
+                  style={{
+                    position: "relative",
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                    padding: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  {isSelected && (
+                    <div
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        inset: -6,
+                        borderRadius: 10,
+                        boxShadow:
+                          "0 0 0 1.5px var(--accent, var(--gold)), 0 0 20px color-mix(in oklab, var(--gold) 50%, transparent)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                  )}
+                  <div
+                    style={{
+                      width: 80,
+                      height: 128,
+                      borderRadius: 5,
+                      overflow: "hidden",
+                      position: "relative",
+                    }}
+                  >
+                    <CardImage
+                      variant="face"
+                      cardId={c.cardId}
+                      size="custom"
+                      widthPx={80}
+                    />
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      color: "var(--color-foreground)",
+                      opacity: 0.85,
+                    }}
+                  >
+                    ×{c.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {heroPick && selected && (
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.3em",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              color: "var(--accent, var(--gold))",
+              opacity: 0.75,
+              marginBottom: 14,
+              margin: "0 0 14px 0",
+              textTransform: "uppercase",
+            }}
+          >
+            {getCardName(heroPick.cardIndex)} + {getCardName(selected.cardId)}
+          </p>
+          {journalRows.length === 0 ? (
+            <p
+              style={{
+                fontSize: 11,
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                color:
+                  "var(--color-foreground-muted, var(--color-foreground))",
+                textAlign: "center",
+                padding: "16px 0",
+                opacity: 0.65,
+                margin: 0,
+              }}
+            >
+              No past readings with these two together.
+            </p>
+          ) : (
+            <div>
+              {journalRows.map((r) => {
+                const q = (r.question ?? "").trim();
+                const label = q.length > 30 ? `${q.slice(0, 30)}…` : q;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => onOpenReading(r.id)}
+                    style={{
+                      width: "100%",
+                      height: 22,
+                      borderRadius: 5,
+                      border: "1px solid var(--border-subtle)",
+                      background: "var(--surface-card)",
+                      padding: "0 10px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      cursor: "pointer",
+                      marginBottom: 4,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        color: "var(--color-foreground)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {format(new Date(r.createdAt), "MMM d")} —{" "}
+                      {label || "(no question)"}
+                    </span>
+                    <span
+                      style={{
+                        color: "var(--accent, var(--gold))",
+                        fontSize: 10,
+                      }}
+                    >
+                      ›
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
