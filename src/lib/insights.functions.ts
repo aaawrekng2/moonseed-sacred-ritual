@@ -764,8 +764,12 @@ export const getTimeOfDayPattern = createServerFn({ method: "GET" })
 /** EM-4 — Streak history derived from distinct reading dates. */
 export const getStreakHistory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((raw: unknown) =>
+    z.object({ tz: z.string().min(1).default("UTC") }).parse(raw ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context as { supabase: any; userId: string };
+    const tz = currentTzOrFallback(data.tz);
     const isPremium = await getIsPremium(supabase, userId);
     const { data: rows, error } = await supabase
       .from("readings")
@@ -777,7 +781,7 @@ export const getStreakHistory = createServerFn({ method: "GET" })
     if (error) throw error;
     const dateSet = new Set<string>();
     for (const r of (rows ?? []) as Array<{ created_at: string }>) {
-      dateSet.add(ymd(r.created_at));
+      dateSet.add(ymd(r.created_at, tz));
     }
     const dates = [...dateSet].sort();
     const allStreaks: Array<{ startDate: string; endDate: string; length: number; isActive: boolean }> = [];
@@ -806,8 +810,10 @@ export const getStreakHistory = createServerFn({ method: "GET" })
     if (runEnd !== null) {
       allStreaks.push({ startDate: runStart!, endDate: runEnd, length: runLen, isActive: false });
     }
-    const todayKey = new Date().toISOString().slice(0, 10);
-    const yesterdayKey = new Date(Date.now() - oneDay).toISOString().slice(0, 10);
+    // Today/yesterday must be keyed in the seeker's tz to match the
+    // stored streak endDates (also keyed in tz above).
+    const todayKey = nowYmdInTz(tz);
+    const yesterdayKey = isoDayInTz(addDaysInTz(new Date(), -1, tz), tz);
     if (allStreaks.length > 0) {
       const last = allStreaks[allStreaks.length - 1];
       if (last.endDate === todayKey || last.endDate === yesterdayKey) {
