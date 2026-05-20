@@ -2484,7 +2484,7 @@ export const getNumerologyReading = createServerFn({ method: "POST" })
 // Q58 — getSuitTrends
 // ============================================================================
 const SuitTrendsInputSchema = InsightsFiltersSchema.extend({
-  tz: z.string().optional(),
+  tz: z.string().min(1).default("UTC"),
 });
 
 export const getSuitTrends = createServerFn({ method: "GET" })
