@@ -207,6 +207,7 @@ function PatternRow({
   pattern: Pattern;
   readingCount: number;
 }) {
+  const { effectiveTz } = useTimezone();
   const count = readingCount || pattern.reading_ids.length;
   return (
     <Link
@@ -247,7 +248,7 @@ function PatternRow({
           }}
         >
           {count} {count === 1 ? "reading" : "readings"} · since{" "}
-          {formatMonthSince(pattern.created_at)}
+          {formatMonthSince(pattern.created_at, effectiveTz)}
         </p>
       </div>
       <ChevronRight size={16} className="text-muted-foreground" />
