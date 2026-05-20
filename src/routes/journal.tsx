@@ -859,6 +859,7 @@ function JournalPage() {
             tagMode={journalFilters.tagMode}
             activeDrawTypes={journalFilters.spreadTypes as DrawTypeKey[]}
             activeDate={activeDate}
+            tz={tz}
             onSelectDate={(d) => {
               setActiveDate((cur) => (cur === d ? null : d));
               setView("readings");
