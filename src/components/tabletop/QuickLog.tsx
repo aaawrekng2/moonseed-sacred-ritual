@@ -270,7 +270,8 @@ export function QuickLog({
         ];
 
   // ─── Q111 Phase 2 — per-card stats + companions + journal ───
-  const statsCacheRef = useRef<Map<number, QuickLogCardStats>>(new Map());
+  // Phase 15 Fix 1 — no client cache; always refetch when hero changes so
+  // stats reflect the currently focused slot.
   const [cardStats, setCardStats] = useState<QuickLogCardStats | null>(null);
   const [selectedCompanionIdx, setSelectedCompanionIdx] = useState(0);
 
@@ -284,16 +285,10 @@ export function QuickLog({
       return;
     }
     const id = heroPick.cardIndex;
-    const cached = statsCacheRef.current.get(id);
-    if (cached) {
-      setCardStats(cached);
-      return;
-    }
     let cancelled = false;
     void getQuickLogCardStats({ data: { cardId: id, tz: effectiveTz } })
       .then((stats) => {
         if (cancelled) return;
-        statsCacheRef.current.set(id, stats);
         setCardStats(stats);
       })
       .catch((err) => {
@@ -310,7 +305,7 @@ export function QuickLog({
   const canSubmit = picks.length >= 1;
 
   // ─── Q112 Phase 3 — overlap strip + practice line ───────────────────
-  const overlapCacheRef = useRef<Map<number, QuickLogOverlap>>(new Map());
+  // Phase 15 Fix 1 — no overlap cache; always refetch on hero change.
   const [overlap, setOverlap] = useState<QuickLogOverlap | null>(null);
   const [overlapMode, setOverlapMode] = useState<"pull" | "day">("pull");
   const [practice, setPractice] = useState<QuickLogPractice | null>(null);
@@ -319,12 +314,6 @@ export function QuickLog({
   useEffect(() => {
     if (!user?.id) {
       setOverlap(null);
-      return;
-    }
-    const id = heroPick?.cardIndex ?? -1;
-    const cached = overlapCacheRef.current.get(id);
-    if (cached) {
-      setOverlap(cached);
       return;
     }
     let cancelled = false;
@@ -336,7 +325,6 @@ export function QuickLog({
         if (!d || !Array.isArray(d.months) || d.months.length === 0) {
           console.warn("[QuickLog] overlap response malformed or empty:", d);
         }
-        overlapCacheRef.current.set(id, d);
         setOverlap(d);
       })
       .catch((err) => {
