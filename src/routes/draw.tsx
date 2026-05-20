@@ -93,6 +93,8 @@ function DrawPage() {
     (ManualPick | null)[] | undefined
   >(undefined);
 
+  const viewport = useViewport();
+
   const [picks, setPicks] = useState<
     { id: number; cardIndex: number; isReversed: boolean; deckId?: string | null }[] | null
   >(null);
