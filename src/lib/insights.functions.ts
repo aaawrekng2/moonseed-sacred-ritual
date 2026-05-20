@@ -2299,6 +2299,7 @@ export const NumerologyReadingInputSchema = InsightsFiltersSchema.extend({
 function computeNumerologyForReading(
   birthDate: string,
   birthName: string | null,
+  tz: string,
 ) {
   const reduce = (n: number, preserveMaster = true): number => {
     let v = Math.abs(n);
@@ -2315,8 +2316,10 @@ function computeNumerologyForReading(
   const [, monthStr, dayStr] = birthDate.split("-");
   const month = Number(monthStr);
   const day = Number(dayStr);
-  const now = new Date();
-  const yearDigits = String(now.getFullYear())
+  // Pull the current year from the seeker's local calendar so the
+  // personal-year flips at their local New Year, not UTC's.
+  const localYear = nowYmdInTz(currentTzOrFallback(tz)).split("-")[0];
+  const yearDigits = localYear
     .split("")
     .reduce((s, c) => s + Number(c), 0);
   const personalYear = reduce(month + day + yearDigits, false);
