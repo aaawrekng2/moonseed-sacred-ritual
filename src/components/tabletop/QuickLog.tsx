@@ -961,6 +961,19 @@ export function QuickLog({
                               e.stopPropagation();
                               setPicks((prev) => prev.filter((_, i) => i !== idx));
                               if (longPressSlotIdx === idx) setLongPressSlotIdx(null);
+                              // Phase 14 (CZ) — keep focus index valid.
+                              setFocusedSlotIdx((cur) => {
+                                if (cur === null) return null;
+                                if (cur === idx) {
+                                  return idx > 0
+                                    ? idx - 1
+                                    : picks.length > 1
+                                      ? 0
+                                      : null;
+                                }
+                                if (cur > idx) return cur - 1;
+                                return cur;
+                              });
                             }}
                             style={{
                               width: 22,
