@@ -416,8 +416,7 @@ function JournalPage() {
           return false;
       }
       if (activeDate) {
-        const d = new Date(r.created_at);
-        const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        const local = isoDayInTz(new Date(r.created_at), tz);
         if (local !== activeDate) return false;
       }
       if (q.length > 0) {
