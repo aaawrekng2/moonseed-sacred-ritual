@@ -23,6 +23,7 @@ import { z } from "zod";
 import { getLunationContaining } from "@/lib/lunation";
 import { getAIToneServerSide, TONE_FRAGMENTS, type AITone } from "@/lib/ai-tone";
 import { getCurrentMoonPhase } from "@/lib/moon";
+import { isoDayInTz, addDaysInTz } from "@/lib/time";
 
 // ============================================================================
 // Q58 — Suit Trends server function.
@@ -282,10 +283,8 @@ export const getInsightsOverview = createServerFn({ method: "GET" })
     // last 30 days bucket regardless of filter window — the rhythm card is fixed.
     const readingsByDay: Array<{ date: string; count: number }> = [];
     for (let i = 29; i >= 0; i -= 1) {
-      const d = new Date();
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - i);
-      const key = d.toISOString().slice(0, 10);
+      const d = addDaysInTz(new Date(), -i, data.tz);
+      const key = isoDayInTz(d, data.tz);
       readingsByDay.push({ date: key, count: dayCounts[key] ?? 0 });
     }
 

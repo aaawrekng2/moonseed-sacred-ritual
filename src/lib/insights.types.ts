@@ -50,6 +50,10 @@ export const InsightsFiltersSchema = z.object({
   deepOnly: z.boolean().default(false),
   cardGroupBy: z.enum(CARD_GROUP_BY).optional().default("none"),
   cardSortBy: z.enum(CARD_SORT_BY).optional().default("frequency"),
+  // Phase 10 — IANA tz for date-bucketing handlers. Defaulted to UTC so
+  // existing callers keep working; route components pass effectiveTz
+  // from useTimezone() to get tz-correct buckets.
+  tz: z.string().min(1).default("UTC"),
 });
 
 export type InsightsFilters = {
