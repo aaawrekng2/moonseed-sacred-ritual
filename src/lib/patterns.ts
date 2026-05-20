@@ -12,6 +12,8 @@
  */
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatMonthYear } from "@/lib/dates";
+import { isoDayInTz, nowYmdInTz } from "@/lib/time";
 
 export type PatternLifecycleState =
   | "emerging"
@@ -210,9 +212,6 @@ export function usePatternsCount(userId: string | undefined): {
 
   return { count, loading };
 }
-
-import { formatMonthYear } from "@/lib/dates";
-import { isoDayInTz, nowYmdInTz } from "@/lib/time";
 
 export function formatMonthSince(iso: string, tz: string): string {
   const dYear = isoDayInTz(new Date(iso), tz).slice(0, 4);
