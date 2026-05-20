@@ -630,6 +630,7 @@ export function QuickLog({
                     onBulkCommit={handleBulk}
                     placedCardIds={placedIds}
                     deckCards={deckCards}
+                    maxWidth="100%"
                   />
                 </div>
               </div>
