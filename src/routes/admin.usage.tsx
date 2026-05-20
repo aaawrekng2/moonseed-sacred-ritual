@@ -16,9 +16,14 @@ import {
   getUsageSummary,
   listAdminSettings,
   updateAdminSetting,
+  getLatestUnresolvedTrip,
+  reEnableAI,
+  type CircuitBreakerTripRow,
 } from "@/lib/admin-usage.functions";
 import { listAdminUsers } from "@/lib/admin.functions";
 import { formatDateLong } from "@/lib/dates";
+import { Modal } from "@/components/ui/modal";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/usage")({
   head: () => ({ meta: [{ title: "Usage — Admin · Tarot Seed" }] }),
@@ -96,6 +101,170 @@ const headerStyle: CSSProperties = {
 
 type Tab = "overview" | "seekers" | "anomalies" | "settings";
 
+function formatTimeAgo(iso: string): string {
+  const diffSec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (diffSec < 60) return `${diffSec}s ago`;
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+  return `${Math.floor(diffSec / 86400)}d ago`;
+}
+
+function CircuitBreakerBanner() {
+  const [trip, setTrip] = useState<CircuitBreakerTripRow | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const refresh = async () => {
+    try {
+      const headers = await authHeaders();
+      const t = await getLatestUnresolvedTrip({ headers });
+      setTrip(t ?? null);
+    } catch (e) {
+      console.error("[circuit-breaker] fetch trip", e);
+    }
+  };
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  const handleReEnable = async () => {
+    if (!trip) return;
+    setSubmitting(true);
+    try {
+      const headers = await authHeaders();
+      await reEnableAI({ data: { tripId: trip.id, note: note || undefined }, headers });
+      toast.success(
+        "AI re-enabled. Cost-tracking windows reset — caps now count from this moment forward.",
+      );
+      setShowModal(false);
+      setNote("");
+      await refresh();
+    } catch (e) {
+      console.error("[circuit-breaker] re-enable failed", e);
+      toast.error("Re-enable failed. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!trip) return null;
+
+  return (
+    <>
+      <div
+        style={{
+          background: "color-mix(in oklab, var(--destructive, #c25450) 18%, transparent)",
+          border: "1px solid var(--destructive, #c25450)",
+          borderRadius: 8,
+          padding: 16,
+          marginBottom: 20,
+          color: "var(--foreground)",
+        }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>
+          ⚠️ AI circuit breaker tripped —{" "}
+          {trip.threshold_type === "hourly" ? "hourly" : "12-hour"} cost cap exceeded
+        </div>
+        <div style={{ fontSize: 14, opacity: 0.85, lineHeight: 1.5 }}>
+          Threshold: ${Number(trip.threshold_usd).toFixed(2)} · Actual: $
+          {Number(trip.actual_cost_usd).toFixed(4)} ·{" "}
+          {trip.call_count_in_window} calls in window · Tripped{" "}
+          {formatTimeAgo(trip.created_at)}
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <button
+            onClick={() => setShowModal(true)}
+            style={{
+              background: "var(--accent, var(--gold))",
+              color: "var(--background)",
+              border: "none",
+              borderRadius: 6,
+              padding: "8px 16px",
+              cursor: "pointer",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+            }}
+          >
+            Review & re-enable AI
+          </button>
+        </div>
+      </div>
+      <Modal
+        open={showModal}
+        onClose={() => (submitting ? undefined : setShowModal(false))}
+        title="Re-enable AI"
+        size="md"
+      >
+        <div style={{ padding: 20, fontSize: 14, lineHeight: 1.6 }}>
+          <p style={{ marginTop: 0 }}>
+            Re-enabling will reset the cost-tracking windows. The hourly and
+            12-hour caps will count from this moment forward — previous activity
+            in the last 1 and 12 hours will NOT count against the limit, so the
+            breaker will not immediately re-trip on stale data.
+          </p>
+          <p>
+            Make sure you have reviewed the trip details and addressed the cause
+            (e.g. blocked an abusive user, adjusted thresholds, or confirmed the
+            spike was legitimate) before continuing.
+          </p>
+          <textarea
+            placeholder="Resolution note (optional, kept in audit log)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            style={{
+              width: "100%",
+              padding: 8,
+              borderRadius: 6,
+              border: "0.5px solid rgba(255,255,255,0.15)",
+              background: "transparent",
+              color: "inherit",
+              fontFamily: "inherit",
+              fontSize: 13,
+              marginTop: 8,
+              resize: "vertical",
+            }}
+          />
+          <div style={{ display: "flex", gap: 12, marginTop: 16, justifyContent: "flex-end" }}>
+            <button
+              onClick={() => setShowModal(false)}
+              disabled={submitting}
+              style={{
+                background: "transparent",
+                color: "var(--foreground)",
+                border: "0.5px solid rgba(255,255,255,0.2)",
+                borderRadius: 6,
+                padding: "8px 16px",
+                cursor: submitting ? "default" : "pointer",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleReEnable}
+              disabled={submitting}
+              style={{
+                background: "var(--accent, var(--gold))",
+                color: "var(--background)",
+                border: "none",
+                borderRadius: 6,
+                padding: "8px 16px",
+                cursor: submitting ? "default" : "pointer",
+                fontWeight: 600,
+              }}
+            >
+              {submitting ? "…" : "Re-enable AI and reset windows"}
+            </button>
+          </div>
+        </div>
+      </Modal>
+    </>
+  );
+}
+
 function AdminUsagePage() {
   const [tab, setTab] = useState<Tab>("overview");
   return (
@@ -109,6 +278,7 @@ function AdminUsagePage() {
         </Link>
         <h1 style={{ ...headerStyle, marginLeft: 8 }}>Usage</h1>
       </div>
+      <CircuitBreakerBanner />
       <div style={{ borderBottom: "0.5px solid rgba(255,255,255,0.1)", marginBottom: 24 }}>
         {(["overview", "seekers", "anomalies", "settings"] as Tab[]).map((t) => (
           <button key={t} style={tabBtnStyle(tab === t)} onClick={() => setTab(t)}>
