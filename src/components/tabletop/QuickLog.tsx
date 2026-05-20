@@ -1454,10 +1454,8 @@ function CompanionsAndJournal({
                 const q = (r.question ?? "").trim();
                 const label = q.length > 30 ? `${q.slice(0, 30)}…` : q;
                 return (
-                  <button
+                  <div
                     key={r.id}
-                    type="button"
-                    onClick={() => onOpenReading(r.id)}
                     style={{
                       width: "100%",
                       height: 22,
@@ -1468,8 +1466,8 @@ function CompanionsAndJournal({
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      cursor: "pointer",
                       marginBottom: 4,
+                      boxSizing: "border-box",
                     }}
                   >
                     <span
@@ -1494,7 +1492,7 @@ function CompanionsAndJournal({
                     >
                       ›
                     </span>
-                  </button>
+                  </div>
                 );
               })}
             </div>
