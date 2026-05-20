@@ -1974,7 +1974,7 @@ function OverlapStrip({
                         alignItems: "center",
                         justifyContent: "center",
                         fontFamily: "var(--font-serif)",
-                        fontSize: 9,
+                        fontSize: 11,
                         fontStyle: "italic",
                         lineHeight: 1,
                         color: textColor,
