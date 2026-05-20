@@ -556,7 +556,7 @@ export function QuickLog({
                       right: -40,
                       bottom: -40,
                       background:
-                        "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 32%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 18%, transparent) 35%, transparent 75%)",
+                        "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 48%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 28%, transparent) 35%, transparent 75%)",
                       pointerEvents: "none",
                       zIndex: 0,
                       borderRadius: "50%",
