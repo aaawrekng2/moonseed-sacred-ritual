@@ -11,6 +11,7 @@
  *    to count free-tier deep readings per local day.
  */
 import { getCardName } from "@/lib/tarot";
+import { isoDayInTz, addDaysInTz, formatTimeInTz } from "@/lib/time";
 
 export type MistIntensity = 0 | 1 | 2 | 3 | 4;
 
@@ -129,32 +130,48 @@ export function computeMistIntensity(
 /**
  * Local-time YYYY-MM-DD for the user's "current dawn cycle". A new
  * cycle starts at 5am local — so any reading drawn between midnight
- * and 4:59am still belongs to the *previous* day's cycle.
+ * and 4:59am still belongs to the *previous* day's cycle. Dawn is
+ * tz-sensitive (happens at the seeker's location), so the caller MUST
+ * pass their IANA timezone.
  */
-export function dawnCycleDateLocal(now: Date = new Date()): string {
-  const d = new Date(now.getTime());
-  if (d.getHours() < 5) {
-    d.setDate(d.getDate() - 1);
-  }
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+export function dawnCycleDateLocal(tz: string, now: Date = new Date()): string {
+  // Detect pre-5am in seeker's tz using formatTimeInTz hour parse.
+  const hourStr = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hour: "numeric",
+    hour12: false,
+  }).format(now);
+  const hour = Number(hourStr.replace(/[^0-9]/g, "")) || 0;
+  const d = hour < 5 ? addDaysInTz(now, -1, tz) : now;
+  return isoDayInTz(d, tz);
 }
 
 /**
- * The next 5:00am in local time, returned as ISO + a short "5:25 am"-style
- * label the overlay can render without re-parsing.
+ * The next 5:00am in the seeker's local tz, returned as ISO + a short
+ * "5:25 am"-style label the overlay can render without re-parsing.
  */
-export function getNextDawn(now: Date = new Date()): { iso: string; label: string } {
-  const d = new Date(now.getTime());
-  d.setHours(5, 0, 0, 0);
-  if (d.getTime() <= now.getTime()) {
-    d.setDate(d.getDate() + 1);
+export function getNextDawn(tz: string, now: Date = new Date()): { iso: string; label: string } {
+  // Anchor on today's calendar day in tz, then walk to 5am-of-that-day.
+  const today = isoDayInTz(now, tz);
+  const [y, m, d] = today.split("-").map(Number);
+  // Build a candidate Date at 05:00 in tz by stepping from midnight-in-tz.
+  // parseIsoDay returns midnight-in-tz as a UTC instant; add 5h.
+  // To avoid importing parseIsoDay separately, reuse addDaysInTz semantics:
+  // construct via Date.UTC fallback approximation, then nudge into tz window.
+  let candidate = new Date(Date.UTC(y, m - 1, d, 5, 0, 0, 0));
+  // Probe: shift by the offset between candidate's tz-hour and target 5.
+  for (let i = 0; i < 4; i++) {
+    const hourStr = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      hour: "numeric",
+      hour12: false,
+    }).format(candidate);
+    const obsHour = Number(hourStr.replace(/[^0-9]/g, "")) || 0;
+    if (obsHour === 5) break;
+    candidate = new Date(candidate.getTime() + (5 - obsHour) * 3_600_000);
   }
-  const label = d.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  return { iso: d.toISOString(), label };
+  if (candidate.getTime() <= now.getTime()) {
+    candidate = new Date(candidate.getTime() + 24 * 3_600_000);
+  }
+  return { iso: candidate.toISOString(), label: formatTimeInTz(candidate, tz) };
 }
