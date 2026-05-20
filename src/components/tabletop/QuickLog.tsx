@@ -1522,10 +1522,9 @@ function CompanionsAndJournal({
 
   const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
   const constellationActive = constellation.active;
-  const participatingIds = constellation.participatingCardIds;
-  const participatingNames = participatingIds.map((id) => getCardName(id));
-  const wordFor = (n: number) =>
-    n === 3 ? "THREE" : n === 4 ? "FOUR" : n === 5 ? "FIVE" : String(n);
+  // Phase 16 Fix 2.2 — participatingIds / participatingNames / wordFor were
+  // only used by the constellation matching-readings panel that now lives
+  // outside this component (a full-width strip below the banner).
 
   return (
     <div
