@@ -2110,7 +2110,11 @@ function OverlapStrip({
                           color: textColor,
                         }}
                       >
-                        {new Date(day.date).getDate()}
+                        {/* Phase 16 Fix 1 — parse day from YYYY-MM-DD string
+                            directly; `new Date("YYYY-MM-DD")` parses as UTC
+                            midnight and getDate() then drifts one day west of
+                            UTC, so every cell was mis-labeled. */}
+                        {Number(day.date.split("-")[2])}
                       </div>
                       {(isPerfectMatch || isBestAvailable) && (
                         <div
