@@ -2478,7 +2478,7 @@ export const getNumerologyReading = createServerFn({ method: "POST" })
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
     const recentReadings = rows.slice(0, 25);
 
-    const numerology = computeNumerologyForReading(birthDate, birthName);
+    const numerology = computeNumerologyForReading(birthDate, birthName, data.tz);
 
     const systemPrompt = [
       "You are the Tarot Seed oracle, a voice that weaves numerology and tarot together.",
