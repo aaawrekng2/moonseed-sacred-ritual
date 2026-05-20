@@ -98,9 +98,10 @@ export function CardPicker({
 }: CardPickerProps) {
   const [query, setQuery] = useState("");
   const [suit, setSuit] = useState<Suit>("All");
-  const [pendingId, setPendingId] = useState<number | null>(null);
-  const [pendingReversed, setPendingReversed] = useState(false);
   const [reviewingCardId, setReviewingCardId] = useState<number | null>(null);
+  // Phase 14 (CZ) — `showReversedToggle` is now ignored; the picker fires
+  // onSelect immediately with reversed=false. Reverse via in-slot controls.
+  void showReversedToggle;
 
   // 9-6-G — per-slot deck switching. Both hooks must run unconditionally.
   const { user } = useAuth();
@@ -245,11 +246,6 @@ export function CardPicker({
       setReviewingCardId(cardIndex);
       return;
     }
-    if (mode === "manual-entry" && showReversedToggle) {
-      setPendingId(cardIndex);
-      setPendingReversed(false);
-      return;
-    }
     const item = cards.find((c) => c.idx === cardIndex);
     onSelect(
       cardIndex,
@@ -258,32 +254,6 @@ export function CardPicker({
       item?.name ?? getCardName(cardIndex) ?? "",
     );
   };
-
-  if (pendingId !== null) {
-    const pendingItem = cards.find((c) => c.idx === pendingId);
-    return (
-      <ConfirmReversed
-        cardIndex={pendingId}
-        name={pendingItem?.name ?? getCardName(pendingId)}
-        isReversed={pendingReversed}
-        onToggle={setPendingReversed}
-        onBack={() => setPendingId(null)}
-        onConfirm={() =>
-          onSelect(
-            pendingId,
-            pendingReversed,
-            deckId ?? null,
-            pendingItem?.name ?? getCardName(pendingId) ?? "",
-          )
-        }
-        // 9-6-O — use thumbnail for the post-pick confirmation preview;
-        // the full-size display URL is wasteful here.
-        resolveImageSrc={(i) => resolveImg(i, "thumbnail")}
-        embedded={embedded}
-        deckId={deckId ?? null}
-      />
-    );
-  }
 
   return (
     <div
