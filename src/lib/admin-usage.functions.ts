@@ -985,7 +985,7 @@ export const reEnableAI = createServerFn({ method: "POST" })
     await supabaseAdmin
       .from("admin_settings" as never)
       .upsert(
-        { key: "ai_threshold_window_start", value: nowEpochSec } as never,
+        { key: "ai_threshold_window_start", value: nowEpochSec, updated_at: new Date().toISOString(), updated_by: userId } as never,
         { onConflict: "key" } as never,
       );
 
@@ -993,7 +993,7 @@ export const reEnableAI = createServerFn({ method: "POST" })
     await supabaseAdmin
       .from("admin_settings" as never)
       .upsert(
-        { key: "ai_enabled_globally", value: true } as never,
+        { key: "ai_enabled_globally", value: true, updated_at: new Date().toISOString(), updated_by: userId } as never,
         { onConflict: "key" } as never,
       );
 
