@@ -333,7 +333,9 @@ export function CardImage({
   // once the IMG loads, its height auto-derives and overrides this.
   const wrapperStyle: CSSProperties = {
     width,
-    minHeight: width * 1.6,
+    // Q119 Fix 3 — removed `minHeight: width * 1.6`. minHeight is a CSS
+    // MIN that persisted after IMG load, creating a visible bottom gap
+    // on cards with natural aspect < 1.6.
     position: "relative",
     // EZ-4 — When a drop shadow is requested we cannot clip the
     // wrapper (overflow: hidden would cut the shadow off). The IMG

@@ -142,12 +142,36 @@ export function buildSearchIndex(
   if (!deckCards || deckCards.length === 0) {
     return buildTarotSearchIndex();
   }
-  return deckCards.map(({ cardId, name }) => ({
-    cardId,
-    name,
-    aliases: deriveAliases(name),
-    isMajor: false,
-  }));
+  // Q119 Fix 2 — merge tarot index aliases (rank/suit/major keywords)
+  // with deck-provided names so "3" / "wands" / "majors" still match
+  // even when a custom deck overrides card names.
+  const tarotIndex = buildTarotSearchIndex();
+  const byCardId = new Map<number, CardSearchEntry>();
+  for (const entry of tarotIndex) {
+    byCardId.set(entry.cardId, entry);
+  }
+  for (const { cardId, name } of deckCards) {
+    const standard = byCardId.get(cardId);
+    if (standard) {
+      const mergedAliases = new Set([
+        ...standard.aliases,
+        ...deriveAliases(name),
+      ]);
+      byCardId.set(cardId, {
+        ...standard,
+        name,
+        aliases: [...mergedAliases],
+      });
+    } else {
+      byCardId.set(cardId, {
+        cardId,
+        name,
+        aliases: deriveAliases(name),
+        isMajor: false,
+      });
+    }
+  }
+  return [...byCardId.values()].sort((a, b) => a.cardId - b.cardId);
 }
 
 function deriveAliases(name: string): string[] {
