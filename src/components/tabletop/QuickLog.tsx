@@ -1111,11 +1111,13 @@ type ChipProps = {
   label: string;
   value: string;
   fullWidth?: boolean;
+  tooltip?: string;
 };
 
-function Chip({ label, value, fullWidth }: ChipProps) {
+function Chip({ label, value, fullWidth, tooltip }: ChipProps) {
   return (
     <div
+      title={tooltip}
       style={{
         width: fullWidth ? 390 : 190,
         height: 38,
@@ -1128,6 +1130,7 @@ function Chip({ label, value, fullWidth }: ChipProps) {
         flexDirection: "column",
         gap: 1,
         boxSizing: "border-box",
+        cursor: tooltip ? "help" : "default",
       }}
     >
       <span
