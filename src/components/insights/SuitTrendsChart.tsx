@@ -17,6 +17,7 @@ import {
 } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import type { InsightsFilters } from "@/lib/insights.types";
+import { useTimezone } from "@/lib/use-timezone";
 
 // Reuse Tarot Seed-toned suit colors (mirrors SuitBalanceChart).
 const SUIT_COLOR: Record<string, string> = {
@@ -47,6 +48,7 @@ const TITLE_BY_GRANULARITY: Record<SuitGranularity, string> = {
 
 export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
   const fn = useServerFn(getSuitTrends);
+  const { effectiveTz } = useTimezone();
   const [data, setData] = useState<{ buckets: SuitBucket[]; granularity: SuitGranularity } | null>(null);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<Mode>("pct");
@@ -57,7 +59,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
       setLoading(true);
       try {
         const headers = await getAuthHeaders();
-        const r = await fn({ data: filters, headers });
+        const r = await fn({ data: { ...filters, tz: effectiveTz }, headers });
         if (!cancelled) {
           setData(r);
           setLoading(false);
@@ -69,7 +71,7 @@ export function SuitTrendsChart({ filters }: { filters: InsightsFilters }) {
     return () => {
       cancelled = true;
     };
-  }, [filters, fn]);
+  }, [filters, fn, effectiveTz]);
 
   const chartData = useMemo(() => {
     if (!data) return [];
