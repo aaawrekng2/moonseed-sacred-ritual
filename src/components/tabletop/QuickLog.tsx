@@ -1148,10 +1148,11 @@ export function QuickLog({
               embedded
               deckId={undefined}
               excludeCardIds={placedIds}
-              showReversedToggle={true}
               title="Pick a card"
               onCancel={() => setPickerOpen(false)}
               onSelect={(cardIndex, isReversed, _deckId, cardName) => {
+                // Phase 14 (CZ) — focus the just-added card (lands at end).
+                setFocusedSlotIdx(picks.length);
                 setPicks((prev) => [
                   ...prev,
                   {
