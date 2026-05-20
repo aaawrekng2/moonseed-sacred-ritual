@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getCalendarHeatmap } from "@/lib/insights.functions";
 import { getAuthHeaders } from "@/lib/server-fn-auth";
 import type { InsightsFilters } from "@/lib/insights.types";
+import { currentTzOrFallback, dayOfWeekInTz, parseIsoDay } from "@/lib/time";
 
 type Day = { date: string; count: number; dominantSuit?: string };
 
@@ -56,8 +57,10 @@ export function YearHeatmap({ filters }: { filters: InsightsFilters }) {
     });
   }, [loading, days.length]);
 
-  const firstDate = days[0] ? new Date(days[0].date) : new Date();
-  const padStart = firstDate.getDay(); // 0..6 (Sun..Sat)
+  const tz = currentTzOrFallback(filters.tz);
+  const padStart = days[0]
+    ? dayOfWeekInTz(parseIsoDay(days[0].date, tz), tz)
+    : dayOfWeekInTz(new Date(), tz);
   const cells: Array<Day | null> = [
     ...Array<Day | null>(padStart).fill(null),
     ...days,
