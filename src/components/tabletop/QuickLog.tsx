@@ -584,3 +584,350 @@ export function QuickLog({
     </FullScreenSheet>
   );
 }
+
+// ─── Q111 Phase 2 — Chip grid ────────────────────────────────────────
+
+type ChipProps = {
+  label: string;
+  value: string;
+  fullWidth?: boolean;
+};
+
+function Chip({ label, value, fullWidth }: ChipProps) {
+  return (
+    <div
+      style={{
+        width: fullWidth ? 390 : 190,
+        height: 38,
+        borderRadius: 6,
+        border: "1px solid var(--border-subtle)",
+        background:
+          "color-mix(in oklab, var(--surface-elevated, var(--surface-card)) 100%, transparent)",
+        padding: "6px 10px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 1,
+        boxSizing: "border-box",
+      }}
+    >
+      <span
+        style={{
+          fontSize: 9,
+          letterSpacing: "0.15em",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          color: "var(--accent, var(--gold))",
+          opacity: 0.7,
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontSize: 12,
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          color: "var(--color-foreground)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function ChipGrid({
+  heroPick,
+  stats,
+}: {
+  heroPick: ManualPick;
+  stats: QuickLogCardStats | null;
+}) {
+  const meta = getCardMeta(heroPick.cardIndex);
+
+  // LAST SEEN
+  let lastSeen = "—";
+  if (stats?.lastSeenAt) {
+    const d = new Date(stats.lastSeenAt);
+    const daysAgo = differenceInCalendarDays(new Date(), d);
+    if (stats.count <= 1) {
+      lastSeen = "First time";
+    } else if (daysAgo <= 30) {
+      lastSeen = `${format(d, "MMM d")} · ${daysAgo}d ago`;
+    } else {
+      lastSeen = format(d, "MMM d, yyyy");
+    }
+  }
+
+  // TIME PATTERN
+  const timePattern = stats?.topDayOfWeek
+    ? `${stats.topDayOfWeek.day}s · ${stats.topDayOfWeek.count} of ${stats.topDayOfWeek.total}`
+    : "—";
+
+  // NUMEROLOGY
+  let numerology = "—";
+  if (meta?.root != null && meta.cardNumber != null) {
+    numerology = `${meta.cardNumber} → ${meta.root}`;
+    if (stats?.seekerTopRoot != null && stats.seekerTopRoot === meta.root) {
+      numerology += " · top root";
+    }
+  }
+
+  // ASTROLOGY
+  let astrology = "—";
+  if (meta?.planetOrSign) {
+    astrology = `${meta.planetOrSign}-ruled`;
+    if (stats && stats.astrologyMatchCount > 0) {
+      astrology += ` · ${stats.astrologyMatchCount} cards`;
+    }
+  }
+
+  // REVERSED
+  let reversed = "0 of 0 reversed · —";
+  if (stats && stats.count > 0) {
+    const pct = Math.round((stats.reversedCount / stats.count) * 100);
+    const avgPct = Math.round(stats.seekerReversedRate * 100);
+    const cmp = pct < avgPct ? "below" : pct > avgPct ? "above" : "at";
+    reversed = `${stats.reversedCount} of ${stats.count} reversed (${pct}%) · ${cmp} your ${avgPct}% avg`;
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 7,
+        flexShrink: 0,
+      }}
+    >
+      <div style={{ display: "flex", gap: 10 }}>
+        <Chip label="LAST SEEN" value={lastSeen} />
+        <Chip label="TIME PATTERN" value={timePattern} />
+      </div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <Chip label="NUMEROLOGY" value={numerology} />
+        <Chip label="ASTROLOGY" value={astrology} />
+      </div>
+      <Chip label="REVERSED" value={reversed} fullWidth />
+    </div>
+  );
+}
+
+// ─── Q111 Phase 2 — Companions row + journal list ─────────────────────
+
+function CompanionsAndJournal({
+  heroPick,
+  stats,
+  selectedIdx,
+  onSelect,
+  onOpenReading,
+}: {
+  heroPick: ManualPick | null;
+  stats: QuickLogCardStats | null;
+  selectedIdx: number;
+  onSelect: (i: number) => void;
+  onOpenReading: (id: string) => void;
+}) {
+  const companions = stats?.companions ?? [];
+  const selected = companions[selectedIdx] ?? companions[0] ?? null;
+
+  const journalRows = useMemo(() => {
+    if (!stats || !selected) return [];
+    return stats.journal
+      .filter((r) => r.cardIds.includes(selected.cardId))
+      .slice(0, 5);
+  }, [stats, selected]);
+
+  const showEmptyPlaceholder = !heroPick || companions.length === 0;
+
+  return (
+    <div
+      style={{
+        marginTop: 32,
+        display: "flex",
+        flexDirection: "row",
+        gap: 32,
+        alignItems: "flex-start",
+      }}
+    >
+      <div style={{ flex: "0 0 auto" }}>
+        <p
+          style={{
+            fontSize: 10,
+            letterSpacing: "0.3em",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            color: "var(--accent, var(--gold))",
+            opacity: 0.75,
+            marginBottom: 14,
+            margin: "0 0 14px 0",
+          }}
+        >
+          COMPANIONS — TAP TO FILTER
+        </p>
+        {showEmptyPlaceholder ? (
+          <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ width: 80, height: 128, opacity: 0.35 }}>
+              <CardImage variant="back" size="custom" widthPx={80} />
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 12 }}>
+            {companions.map((c, idx) => {
+              const isSelected = idx === selectedIdx;
+              return (
+                <button
+                  key={c.cardId}
+                  type="button"
+                  onClick={() => onSelect(idx)}
+                  style={{
+                    position: "relative",
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                    padding: 0,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  {isSelected && (
+                    <div
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        inset: -6,
+                        borderRadius: 10,
+                        boxShadow:
+                          "0 0 0 1.5px var(--accent, var(--gold)), 0 0 20px color-mix(in oklab, var(--gold) 50%, transparent)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                  )}
+                  <div
+                    style={{
+                      width: 80,
+                      height: 128,
+                      borderRadius: 5,
+                      overflow: "hidden",
+                      position: "relative",
+                    }}
+                  >
+                    <CardImage
+                      variant="face"
+                      cardId={c.cardId}
+                      size="custom"
+                      widthPx={80}
+                    />
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      color: "var(--color-foreground)",
+                      opacity: 0.85,
+                    }}
+                  >
+                    ×{c.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {heroPick && selected && (
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.3em",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              color: "var(--accent, var(--gold))",
+              opacity: 0.75,
+              marginBottom: 14,
+              margin: "0 0 14px 0",
+              textTransform: "uppercase",
+            }}
+          >
+            {getCardName(heroPick.cardIndex)} + {getCardName(selected.cardId)}
+          </p>
+          {journalRows.length === 0 ? (
+            <p
+              style={{
+                fontSize: 11,
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                color:
+                  "var(--color-foreground-muted, var(--color-foreground))",
+                textAlign: "center",
+                padding: "16px 0",
+                opacity: 0.65,
+                margin: 0,
+              }}
+            >
+              No past readings with these two together.
+            </p>
+          ) : (
+            <div>
+              {journalRows.map((r) => {
+                const q = (r.question ?? "").trim();
+                const label = q.length > 30 ? `${q.slice(0, 30)}…` : q;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => onOpenReading(r.id)}
+                    style={{
+                      width: "100%",
+                      height: 22,
+                      borderRadius: 5,
+                      border: "1px solid var(--border-subtle)",
+                      background: "var(--surface-card)",
+                      padding: "0 10px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      cursor: "pointer",
+                      marginBottom: 4,
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        color: "var(--color-foreground)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {format(new Date(r.createdAt), "MMM d")} —{" "}
+                      {label || "(no question)"}
+                    </span>
+                    <span
+                      style={{
+                        color: "var(--accent, var(--gold))",
+                        fontSize: 10,
+                      }}
+                    >
+                      ›
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
