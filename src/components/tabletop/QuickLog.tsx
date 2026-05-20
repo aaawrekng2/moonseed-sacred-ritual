@@ -264,7 +264,7 @@ export function QuickLog({
       return;
     }
     let cancelled = false;
-    void getQuickLogCardStats({ data: { cardId: id } })
+    void getQuickLogCardStats({ data: { cardId: id, tz: effectiveTz } })
       .then((stats) => {
         if (cancelled) return;
         statsCacheRef.current.set(id, stats);
@@ -277,7 +277,7 @@ export function QuickLog({
     return () => {
       cancelled = true;
     };
-  }, [heroPick?.cardIndex, user?.id]);
+  }, [heroPick?.cardIndex, user?.id, effectiveTz]);
 
   const descriptor = heroPick ? buildCardDescriptor(heroPick.cardIndex) : null;
 
@@ -303,7 +303,7 @@ export function QuickLog({
     }
     let cancelled = false;
     void getQuickLogOverlap({
-      data: { heroCardId: heroPick?.cardIndex ?? null },
+      data: { heroCardId: heroPick?.cardIndex ?? null, tz: effectiveTz },
     })
       .then((d) => {
         if (cancelled) return;
@@ -320,7 +320,7 @@ export function QuickLog({
     return () => {
       cancelled = true;
     };
-  }, [heroPick?.cardIndex, user?.id]);
+  }, [heroPick?.cardIndex, user?.id, effectiveTz]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -330,6 +330,7 @@ export function QuickLog({
       data: {
         lunationStart: lun.start.toISOString(),
         lunationEnd: lun.end.toISOString(),
+        tz: effectiveTz,
       },
     })
       .then((d) => {
@@ -342,7 +343,7 @@ export function QuickLog({
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [user?.id, effectiveTz]);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
