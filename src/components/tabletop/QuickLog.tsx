@@ -1229,14 +1229,35 @@ function ChipGrid({
       }}
     >
       <div style={{ display: "flex", gap: 10 }}>
-        <Chip label="LAST SEEN" value={lastSeen} />
-        <Chip label="TIME PATTERN" value={timePattern} />
+        <Chip
+          label="LAST SEEN"
+          value={lastSeen}
+          tooltip="The most recent day this card appeared in any of your readings. Example: 'May 16 · 3d ago' means you drew this card 3 days ago, on May 16."
+        />
+        <Chip
+          label="TIME PATTERN"
+          value={timePattern}
+          tooltip="The day of the week this card has shown up most often across your history. Example: 'Sundays · 3 of 7' means 3 of the 7 times you've drawn this card were on Sundays."
+        />
       </div>
       <div style={{ display: "flex", gap: 10 }}>
-        <Chip label="NUMEROLOGY" value={numerology} />
-        <Chip label="ASTROLOGY" value={astrology} />
+        <Chip
+          label="NUMEROLOGY"
+          value={numerology}
+          tooltip="The card's number and its numerological root. Example: '6 → 6' means card-number 6, which reduces to root 6. Card 10 would reduce to 1 (1+0)."
+        />
+        <Chip
+          label="ASTROLOGY"
+          value={astrology}
+          tooltip="The planet or sign this card is ruled by, plus how many cards in your active deck share that ruler. Example: 'Jupiter-ruled · 30 cards' means this card is governed by Jupiter, alongside 29 others in your deck."
+        />
       </div>
-      <Chip label="REVERSED" value={reversed} fullWidth />
+      <Chip
+        label="REVERSED"
+        value={reversed}
+        fullWidth
+        tooltip="How often this card has appeared reversed for you, compared to your overall reversed-card rate. Example: '1 of 11 reversed (9%) · above your 7% avg' means this card came up reversed once out of 11 draws, slightly above your average."
+      />
     </div>
   );
 }
