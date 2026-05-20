@@ -478,29 +478,50 @@ export function QuickLog({
 
           {/* Q113 Phase 4 — Constellation banner */}
           {constellation.active && (
-            <div
-              style={{
-                height: 34,
-                borderRadius: 17,
-                border: "1px solid var(--accent, var(--gold))",
-                background: "var(--surface-card)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "16px 24px 0",
-              }}
-            >
-              <span
+            <div style={{ position: "relative", margin: "16px 24px 0" }}>
+              <div
+                aria-hidden
+                className="tarotseed-constellation-breathe"
                 style={{
-                  fontSize: 12,
-                  color: "var(--accent, var(--gold))",
-                  fontStyle: "italic",
-                  fontFamily: "var(--font-serif)",
-                  letterSpacing: "0.05em",
+                  position: "absolute",
+                  top: -12,
+                  left: -16,
+                  right: -16,
+                  bottom: -12,
+                  background:
+                    "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 48%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 28%, transparent) 50%, transparent 85%)",
+                  pointerEvents: "none",
+                  zIndex: 0,
+                  borderRadius: 60,
+                }}
+              />
+              <div
+                style={{
+                  position: "relative",
+                  zIndex: 1,
+                  height: 102,
+                  borderRadius: 51,
+                  border: "1px solid var(--accent, var(--gold))",
+                  background: "var(--surface-card)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                A CONSTELLATION FORMING — {constellation.participatingCardIds.length} of these cards have met before
-              </span>
+                <span
+                  style={{
+                    fontSize: 22,
+                    color: "var(--accent, var(--gold))",
+                    fontStyle: "italic",
+                    fontFamily: "var(--font-display)",
+                    letterSpacing: "0.05em",
+                    textAlign: "center",
+                    padding: "0 24px",
+                  }}
+                >
+                  A CONSTELLATION FORMING — {constellation.participatingCardIds.length} of these cards have met before
+                </span>
+              </div>
             </div>
           )}
 
