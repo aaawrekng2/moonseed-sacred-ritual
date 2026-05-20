@@ -1448,6 +1448,7 @@ function PatternSynthesisLoader({
     | { kind: "error"; message: string }
   >({ kind: "idle" });
   const generate = useServerFn(generatePatternInterpretation);
+  const { effectiveTz } = useTimezone();
   useEffect(() => {
     if (readingCount === 0) return;
     let cancelled = false;
@@ -1455,7 +1456,7 @@ function PatternSynthesisLoader({
     void (async () => {
       try {
         const headers = await getAuthHeaders();
-        const res = await generate({ data: { patternId }, headers });
+        const res = await generate({ data: { patternId, tz: effectiveTz }, headers });
         if (cancelled) return;
         if (res.ok) {
           const data = res.interpretation;
@@ -1478,7 +1479,7 @@ function PatternSynthesisLoader({
           if (isLegacy) {
             const headersFresh = await getAuthHeaders();
             const fresh = await generate({
-              data: { patternId, force: true },
+              data: { patternId, force: true, tz: effectiveTz },
               headers: headersFresh,
             });
             if (cancelled) return;
@@ -1501,7 +1502,7 @@ function PatternSynthesisLoader({
     return () => {
       cancelled = true;
     };
-  }, [patternId, readingCount, generate, onLoaded]);
+  }, [patternId, readingCount, generate, onLoaded, effectiveTz]);
   if (state.kind === "loading") {
     return (
       <div style={{ marginTop: "var(--space-4, 16px)" }}>
