@@ -100,6 +100,7 @@ export function QuickLog({
   const { activeDeck, imageMap } = useActiveDeck();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { effectiveTz } = useTimezone();
 
   // Seed from any cached picks; QuickLog is additive (no null gaps).
   const [picks, setPicks] = useState<ManualPick[]>(() =>
