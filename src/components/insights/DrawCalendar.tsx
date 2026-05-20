@@ -8,6 +8,7 @@
  */
 import { useMemo } from "react";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
+import { currentTzOrFallback, isoDayInTz } from "@/lib/time";
 
 export type DrawCalendarAppearance = {
   readingId?: string;
@@ -18,61 +19,100 @@ export type DrawCalendarAppearance = {
 export function DrawCalendar({
   appearances,
   monthsBack,
+  tz,
 }: {
   appearances: DrawCalendarAppearance[];
   /** Q64 — when provided, caps the visible months from the current month
    *  back. Falls back to viewport-based auto-selection when omitted. */
   monthsBack?: number;
+  /**
+   * Phase 16 — IANA tz used to bucket appearances by the seeker's
+   * calendar day. Without this the calendar drifts in negative offsets
+   * (e.g. an 8pm PT draw shows on the next day). Falls back to the
+   * browser's resolved tz, then UTC.
+   */
+  tz?: string;
 }) {
-  const appearanceDates = useMemo(
+  // Resolve tz once. The browser's resolved tz almost always matches the
+  // seeker's, but explicit prop wins.
+  const effectiveTz = useMemo(() => {
+    if (tz && tz.length > 0) return tz;
+    try {
+      return currentTzOrFallback(
+        Intl.DateTimeFormat().resolvedOptions().timeZone,
+      );
+    } catch {
+      return "UTC";
+    }
+  }, [tz]);
+
+  /**
+   * Per appearance: compute the seeker-local ISO day ("YYYY-MM-DD") and
+   * a Date anchored at browser-local midnight of those same Y/M/D
+   * numbers. We feed the latter into the day-picker so its visible
+   * cells line up with the seeker's calendar day, and we key counts /
+   * months by the ISO string (string keys avoid Date-equality drift).
+   */
+  const appearanceMeta = useMemo(
     () =>
       appearances.map((a) => {
-        const d = new Date(a.date);
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const ymd = isoDayInTz(new Date(a.date), effectiveTz);
+        const [y, m, d] = ymd.split("-").map(Number);
+        return { ymd, date: new Date(y, m - 1, d) };
       }),
-    [appearances],
+    [appearances, effectiveTz],
+  );
+  const appearanceDates = useMemo(
+    () => appearanceMeta.map((a) => a.date),
+    [appearanceMeta],
   );
 
   const counts = useMemo(() => {
     const m: Record<string, number> = {};
-    for (const d of appearanceDates) {
-      const k = d.toDateString();
-      m[k] = (m[k] ?? 0) + 1;
+    for (const a of appearanceMeta) {
+      m[a.ymd] = (m[a.ymd] ?? 0) + 1;
     }
     return m;
-  }, [appearanceDates]);
+  }, [appearanceMeta]);
 
   const months = useMemo(() => {
-    const now = new Date();
+    // Anchor "now" to the seeker's local Y/M for the current-month cell.
+    const nowYmd = isoDayInTz(new Date(), effectiveTz);
+    const [ny, nm] = nowYmd.split("-").map(Number);
     if (typeof monthsBack === "number" && monthsBack > 0) {
-      // Q64 — show the last `monthsBack` months ending with the current month.
       const out: Date[] = [];
       for (let i = monthsBack - 1; i >= 0; i -= 1) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        out.push(d);
+        out.push(new Date(ny, nm - 1 - i, 1));
       }
       return out;
     }
-    const currentKey = `${now.getFullYear()}-${now.getMonth()}`;
+    const currentKey = `${ny}-${String(nm).padStart(2, "0")}`;
     const set = new Set<string>();
-    for (const d of appearanceDates) {
-      set.add(`${d.getFullYear()}-${d.getMonth()}`);
+    for (const a of appearanceMeta) {
+      set.add(a.ymd.slice(0, 7));
     }
     set.add(currentKey);
     const isMobile =
       typeof window !== "undefined" && window.innerWidth < 769;
     const cap = isMobile ? 2 : 4;
     const sortedDesc = Array.from(set).sort().reverse().slice(0, cap);
-    return sortedDesc
-      .sort()
-      .map((k) => {
-        const [y, m] = k.split("-").map(Number);
-        return new Date(y, m, 1);
-      });
-  }, [appearanceDates, monthsBack]);
+    return sortedDesc.sort().map((k) => {
+      const [y, m] = k.split("-").map(Number);
+      return new Date(y, m - 1, 1);
+    });
+  }, [appearanceMeta, effectiveTz, monthsBack]);
 
   const dayButton = (props: any) => {
-    const k = props.day.date.toDateString();
+    // The day-picker passes a browser-local Date for each rendered cell.
+    // Build the same YYYY-MM-DD key we used when bucketing.
+    const cell: Date = props.day.date;
+    // eslint-disable-next-line no-restricted-syntax -- cell is a browser-local Date constructed by the day-picker for the visible cell; reading local Y/M/D matches what's painted.
+    const y = cell.getFullYear();
+    // eslint-disable-next-line no-restricted-syntax -- see above
+    const m = cell.getMonth() + 1;
+    // eslint-disable-next-line no-restricted-syntax -- see above
+    const dnum = cell.getDate();
+    const k = `${y}-${String(m).padStart(2, "0")}-${String(dnum).padStart(2, "0")}`;
     const c = counts[k] ?? 0;
     const isToday = !!props.modifiers?.today;
     // Q62 Fix 3 — heatmap intensity scaled by daily count (inline so
@@ -102,7 +142,7 @@ export function DrawCalendar({
             : null),
         }}
       >
-        <span className="leading-none">{props.day.date.getDate()}</span>
+        <span className="leading-none">{dnum}</span>
         {c > 1 && (
           <span
             className="leading-none"
