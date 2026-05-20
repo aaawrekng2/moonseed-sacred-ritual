@@ -18,6 +18,7 @@ import { SearchInput } from "@/components/ui/search-input";
 import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 import { useActiveDeckImage, useDeckImage } from "@/lib/active-deck";
 import { useAuth } from "@/lib/auth";
+import { buildSearchIndex, buildTarotSearchIndex, searchCards } from "@/lib/card-search";
 import {
   fetchUserDecks,
   fetchDeckCards,
@@ -192,33 +193,50 @@ export function CardPicker({
   // 9-6-H — gridItems unify default tarot + custom-deck rendering.
   const cards = useMemo(() => {
     const q = query.trim().toLowerCase();
+    type Item = { idx: number; name: string; src?: string };
+    let source: Item[];
     if (deckId && deckCards.length > 0) {
-      return deckCards
-        .map((c) => ({
-          idx: c.card_id,
-          name:
-            c.card_name ??
-            deriveNameFromPath(c.display_path) ??
-            getCardName(c.card_id) ??
-            `Card ${c.card_id}`,
-          // 26-05-08-N — Fix 7: use the thumbnail URL directly. Routing
-          // through variantUrlFor("full") rewrites to a -full.webp path
-          // that does not yet exist for cards still in background
-          // processing, causing broken images. The raw thumbnail is
-          // always available post-import.
-          src: c.thumbnail_url ?? c.display_url,
-        }))
-        .filter(({ name }) => !q || name.toLowerCase().includes(q));
+      source = deckCards.map((c) => ({
+        idx: c.card_id,
+        name:
+          c.card_name ??
+          deriveNameFromPath(c.display_path) ??
+          getCardName(c.card_id) ??
+          `Card ${c.card_id}`,
+        src: c.thumbnail_url ?? c.display_url,
+      }));
+    } else {
+      source = TAROT_DECK.map((name, idx) => ({
+        idx,
+        name,
+        src: undefined,
+      }));
     }
-    return TAROT_DECK.map((name, idx) => ({
-      idx,
-      name,
-      src: undefined as string | undefined,
-    })).filter(({ idx, name }) => {
-      if (suit !== "All" && suitOf(idx) !== suit) return false;
-      if (q && !name.toLowerCase().includes(q)) return false;
-      return true;
+    // Q115 Fix 2 — suit pill applies to both deck + standard paths.
+    // Oracle cards (idx outside 0..77) bypass the suit filter.
+    let filtered = source.filter((item) => {
+      if (suit === "All") return true;
+      if (item.idx < 0 || item.idx >= 78) return false;
+      return suitOf(item.idx) === suit;
     });
+    // Q115 Fix 3 — rank/suit/major-aware query filter via card-search.
+    if (q) {
+      // Use the full tarot index when all filtered items are standard
+      // tarot (idx 0..77) so rank/suit/major keywords work. Otherwise
+      // build from deck names (no rank metadata, name-match only).
+      const allStandard = filtered.every(
+        (i) => i.idx >= 0 && i.idx < 78,
+      );
+      const index = allStandard
+        ? buildTarotSearchIndex()
+        : buildSearchIndex(
+            filtered.map((item) => ({ cardId: item.idx, name: item.name })),
+          );
+      const result = searchCards(index, q);
+      const matchedIds = new Set(result.flat.map((e) => e.cardId));
+      filtered = filtered.filter((item) => matchedIds.has(item.idx));
+    }
+    return filtered;
   }, [query, suit, deckId, deckCards]);
 
   const handleTap = (cardIndex: number) => {

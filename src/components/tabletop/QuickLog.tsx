@@ -1912,7 +1912,7 @@ function PullHistoryPill({
     () => picks.map((p) => p.cardIndex).sort((a, b) => a - b).join(","),
     [picks],
   );
-  const entry = practice?.pullHistory.find((p) => p.cardIdsKey === key) ?? null;
+  const entry = practice?.pullHistory?.find((p) => p.cardIdsKey === key) ?? null;
   let text = "First time you've drawn this combination — never before.";
   if (entry) {
     const when = format(new Date(entry.lastAt), "MMMM d, yyyy");
