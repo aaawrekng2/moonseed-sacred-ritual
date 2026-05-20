@@ -72,7 +72,7 @@ export function usePreferencesSync(): void {
     const stored = getStoredCommunityTheme();
     const community =
       (stored && COMMUNITY_THEMES.find((t) => t.key === stored)) ??
-      COMMUNITY_THEMES.find((t) => t.key === "mystic-default");
+      COMMUNITY_THEMES.find((t) => t.key === "midnight-oracle");
     if (community) applyCommunityTheme(community);
   }, []);
 
@@ -95,10 +95,10 @@ export function usePreferencesSync(): void {
         // not just the Themes screen.
         const communityKey =
           (data as { community_theme?: string | null }).community_theme ??
-          "mystic-default";
+          "midnight-oracle";
         const community =
           COMMUNITY_THEMES.find((t) => t.key === communityKey) ??
-          COMMUNITY_THEMES.find((t) => t.key === "mystic-default");
+          COMMUNITY_THEMES.find((t) => t.key === "midnight-oracle");
         if (community) {
           applyCommunityTheme(community);
           setStoredCommunityTheme(community.key);

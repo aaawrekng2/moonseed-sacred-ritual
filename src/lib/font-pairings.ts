@@ -66,7 +66,7 @@ export const FONT_PAIRINGS: ReadonlyArray<FontPairing> = [
   },
 ];
 
-export const DEFAULT_FONT_PAIRING: FontPairingKey = "classic";
+export const DEFAULT_FONT_PAIRING: FontPairingKey = "pure-readability";
 
 export function getFontPairing(key: string | null | undefined): FontPairing {
   const found = FONT_PAIRINGS.find((p) => p.key === key);

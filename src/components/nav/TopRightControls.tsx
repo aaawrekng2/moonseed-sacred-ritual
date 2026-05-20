@@ -29,7 +29,7 @@ export function applySanctuary(theme: SavedTheme) {
   const community =
     (theme.theme_key &&
       COMMUNITY_THEMES.find((t) => t.key === theme.theme_key)) ||
-    COMMUNITY_THEMES.find((t) => t.key === "mystic-default");
+    COMMUNITY_THEMES.find((t) => t.key === "midnight-oracle");
   if (community) applyCommunityTheme(community);
   // The user may have customized accent on top of the community theme.
   if (theme.accent && theme.accent !== community?.accent) {

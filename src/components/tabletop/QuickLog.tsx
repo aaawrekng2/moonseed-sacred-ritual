@@ -1739,6 +1739,32 @@ function OverlapStrip({
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
 
+  // Phase 12 — iPad month gating: 6 months on desktop (≥1280px),
+  // 5 months on viewports below that (iPad Air/Pro 11", smaller
+  // laptops in landscape). rAF-throttled so resize doesn't thrash.
+  const [viewportWidth, setViewportWidth] = useState<number>(() =>
+    typeof window === "undefined" ? 1280 : window.innerWidth,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let raf: number | null = null;
+    const handle = () => {
+      if (raf !== null) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        setViewportWidth(window.innerWidth);
+        raf = null;
+      });
+    };
+    window.addEventListener("resize", handle);
+    window.addEventListener("orientationchange", handle);
+    return () => {
+      if (raf !== null) cancelAnimationFrame(raf);
+      window.removeEventListener("resize", handle);
+      window.removeEventListener("orientationchange", handle);
+    };
+  }, []);
+  const monthsToShow = viewportWidth >= 1280 ? 6 : 5;
+
   return (
     <div style={{ position: "relative" }}>
       {/* Toggle pills — top-right of the calendar area, never overlapping day cells */}
@@ -1796,17 +1822,17 @@ function OverlapStrip({
       </div>
       <div
         style={{
-          paddingTop: 32,
+          paddingTop: 16,
           display: "flex",
           flexDirection: "row",
-          gap: 30,
+          gap: 12,
           alignItems: "flex-start",
           position: "relative",
           overflowX: "auto",
         }}
       >
         {months.length === 0 &&
-          Array.from({ length: 6 }).map((_, i) => (
+          Array.from({ length: monthsToShow }).map((_, i) => (
             <div key={i} style={{ width: 188 }}>
               <div
                 style={{
@@ -1828,7 +1854,7 @@ function OverlapStrip({
               />
             </div>
           ))}
-        {months.map((m) => {
+        {months.slice(-monthsToShow).map((m) => {
           const isCurrent = `${m.year}-${m.month}` === currentMonthKey;
           const firstDow = new Date(m.year, m.month - 1, 1).getDay();
           return (
@@ -1948,7 +1974,7 @@ function OverlapStrip({
                         alignItems: "center",
                         justifyContent: "center",
                         fontFamily: "var(--font-serif)",
-                        fontSize: 9,
+                        fontSize: 11,
                         fontStyle: "italic",
                         lineHeight: 1,
                         color: textColor,
