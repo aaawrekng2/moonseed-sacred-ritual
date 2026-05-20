@@ -268,7 +268,8 @@ export function QuickLog({
         statsCacheRef.current.set(id, stats);
         setCardStats(stats);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("[QuickLog] card-stats fetch failed:", err);
         if (!cancelled) setCardStats(null);
       });
     return () => {
@@ -304,10 +305,14 @@ export function QuickLog({
     })
       .then((d) => {
         if (cancelled) return;
+        if (!d || !Array.isArray(d.months) || d.months.length === 0) {
+          console.warn("[QuickLog] overlap response malformed or empty:", d);
+        }
         overlapCacheRef.current.set(id, d);
         setOverlap(d);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("[QuickLog] overlap fetch failed:", err);
         if (!cancelled) setOverlap(null);
       });
     return () => {
@@ -328,7 +333,8 @@ export function QuickLog({
       .then((d) => {
         if (!cancelled) setPractice(d);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("[QuickLog] practice fetch failed:", err);
         if (!cancelled) setPractice(null);
       });
     return () => {
@@ -360,7 +366,7 @@ export function QuickLog({
       };
     }
     const matches: ConstellationState["matchingReadings"] = [];
-    const entries = Object.entries(overlap.readingsByDate);
+    const entries = Object.entries(overlap.readingsByDate ?? {});
     if (overlapMode === "pull") {
       for (const [, readings] of entries) {
         for (const reading of readings) {
