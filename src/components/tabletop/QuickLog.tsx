@@ -517,16 +517,18 @@ export function QuickLog({
                 {constellation.active && (
                   <div
                     aria-hidden
+                    className="tarotseed-constellation-breathe"
                     style={{
                       position: "absolute",
-                      top: -30,
-                      left: -30,
-                      right: -30,
-                      bottom: -30,
+                      top: -40,
+                      left: -40,
+                      right: -40,
+                      bottom: -40,
                       background:
-                        "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 18%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent) 40%, transparent 80%)",
+                        "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 32%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 18%, transparent) 35%, transparent 75%)",
                       pointerEvents: "none",
                       zIndex: 0,
+                      borderRadius: "50%",
                     }}
                   />
                 )}
@@ -535,9 +537,6 @@ export function QuickLog({
                     position: "relative",
                     zIndex: 1,
                     width: HERO_W,
-                    border: constellation.active
-                      ? "2px solid var(--accent, var(--gold))"
-                      : "none",
                     boxSizing: "border-box",
                   }}
                 >
@@ -1299,25 +1298,42 @@ function CompanionsAndJournal({
                 const thumbs = participatingIds.slice(0, 3);
                 const more = participatingIds.length - thumbs.length;
                 return (
-                  <button
+                  <div
                     key={r.id}
-                    type="button"
-                    onClick={() => onOpenReading(r.id)}
-                    style={{
-                      width: "100%",
-                      height: 60,
-                      borderRadius: 6,
-                      border: "1px solid var(--accent, var(--gold))",
-                      background: "var(--surface-card)",
-                      padding: "8px 10px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      cursor: "pointer",
-                      marginBottom: 8,
-                      boxSizing: "border-box",
-                    }}
+                    style={{ position: "relative", marginBottom: 8 }}
                   >
+                    <div
+                      aria-hidden
+                      className="tarotseed-constellation-breathe"
+                      style={{
+                        position: "absolute",
+                        top: -12,
+                        left: -16,
+                        right: -16,
+                        bottom: -12,
+                        background:
+                          "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 28%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent) 50%, transparent 85%)",
+                        pointerEvents: "none",
+                        zIndex: 0,
+                        borderRadius: 14,
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: "relative",
+                        zIndex: 1,
+                        width: "100%",
+                        minHeight: 60,
+                        borderRadius: 6,
+                        border: "1px solid var(--accent, var(--gold))",
+                        background: "var(--surface-card)",
+                        padding: "8px 10px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        boxSizing: "border-box",
+                      }}
+                    >
                     <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                       {thumbs.map((cid) => (
                         <div
@@ -1392,7 +1408,8 @@ function CompanionsAndJournal({
                     >
                       ›
                     </span>
-                  </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -1437,10 +1454,8 @@ function CompanionsAndJournal({
                 const q = (r.question ?? "").trim();
                 const label = q.length > 30 ? `${q.slice(0, 30)}…` : q;
                 return (
-                  <button
+                  <div
                     key={r.id}
-                    type="button"
-                    onClick={() => onOpenReading(r.id)}
                     style={{
                       width: "100%",
                       height: 22,
@@ -1451,8 +1466,8 @@ function CompanionsAndJournal({
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
-                      cursor: "pointer",
                       marginBottom: 4,
+                      boxSizing: "border-box",
                     }}
                   >
                     <span
@@ -1477,7 +1492,7 @@ function CompanionsAndJournal({
                     >
                       ›
                     </span>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -1530,9 +1545,9 @@ function SectionOverline({ label }: { label: string }) {
 
 function bucketOpacity(matches: number): number {
   if (matches <= 0) return 0;
-  if (matches === 1) return 0.25;
-  if (matches === 2) return 0.5;
-  if (matches === 3) return 0.75;
+  if (matches === 1) return 0.55;
+  if (matches === 2) return 0.78;
+  if (matches === 3) return 0.92;
   return 1;
 }
 
@@ -1568,7 +1583,7 @@ function OverlapStrip({
       >
         {months.length === 0 &&
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} style={{ width: 160 }}>
+            <div key={i} style={{ width: 188 }}>
               <div
                 style={{
                   height: 16,
@@ -1581,8 +1596,8 @@ function OverlapStrip({
               />
               <div
                 style={{
-                  width: 160,
-                  height: 90,
+                  width: 188,
+                  height: 192,
                   background: "var(--surface-card)",
                   borderRadius: 6,
                 }}
@@ -1593,7 +1608,7 @@ function OverlapStrip({
           const isCurrent = `${m.year}-${m.month}` === currentMonthKey;
           const firstDow = new Date(m.year, m.month - 1, 1).getDay();
           return (
-            <div key={`${m.year}-${m.month}`} style={{ width: 160, flexShrink: 0 }}>
+            <div key={`${m.year}-${m.month}`} style={{ width: 188, flexShrink: 0 }}>
               <p
                 style={{
                   margin: "0 0 6px 0",
@@ -1611,15 +1626,15 @@ function OverlapStrip({
               </p>
               <div
                 style={{
-                  width: 160,
-                  height: 90,
+                  width: 188,
+                  minHeight: 192,
                   background: "var(--surface-card)",
                   borderRadius: 6,
                   padding: 6,
                   boxSizing: "border-box",
                   display: "grid",
-                  gridTemplateColumns: "repeat(7, 16px)",
-                  gridAutoRows: "15px",
+                  gridTemplateColumns: "repeat(7, 20px)",
+                  gridAutoRows: "20px",
                   gap: 6,
                   justifyContent: "center",
                   alignContent: "start",
@@ -1651,8 +1666,7 @@ function OverlapStrip({
                     }
                     const op = bucketOpacity(matches);
                     if (op > 0) {
-                      bg =
-                        "color-mix(in oklab, var(--accent, var(--gold)) 80%, var(--color-foreground) 20%)";
+                      bg = "var(--accent, var(--gold))";
                       opacity = op;
                     }
                   }
@@ -1661,16 +1675,26 @@ function OverlapStrip({
                       key={day.date}
                       title={day.date}
                       style={{
-                        width: 16,
-                        height: 15,
-                        borderRadius: 2,
+                        width: 20,
+                        height: 20,
+                        borderRadius: 3,
                         background: bg,
                         opacity,
                         border:
                           "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
                         boxSizing: "border-box",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontFamily: "var(--font-serif)",
+                        fontSize: 9,
+                        fontStyle: "italic",
+                        lineHeight: 1,
+                        color: "var(--color-foreground)",
                       }}
-                    />
+                    >
+                      {new Date(day.date).getDate()}
+                    </div>
                   );
                 })}
               </div>
@@ -1678,7 +1702,15 @@ function OverlapStrip({
           );
         })}
       </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -110 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginTop: -110,
+          position: "relative",
+          zIndex: 2,
+        }}
+      >
         <div
           role="tablist"
           style={{
