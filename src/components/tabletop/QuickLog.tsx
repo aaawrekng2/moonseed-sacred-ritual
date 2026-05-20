@@ -586,6 +586,40 @@ export function QuickLog({
             </div>
           </div>
 
+          {/* Q112 Phase 3 — Six-month overlap strip */}
+          <div style={{ padding: "0 24px", marginTop: 32 }}>
+            <OverlapStrip
+              overlap={overlap}
+              heroCardId={heroPick?.cardIndex ?? null}
+              pullCardIds={placedIds}
+              mode={overlapMode}
+              onModeChange={setOverlapMode}
+            />
+          </div>
+
+          {/* Q112 Phase 3 — THIS PULL tiles */}
+          {picks.length > 0 && (
+            <div style={{ padding: "0 24px", marginTop: 24 }}>
+              <SectionDivider />
+              <SectionOverline label="THIS PULL" />
+              <ThisPullTiles picks={picks} />
+            </div>
+          )}
+
+          {/* Q112 Phase 3 — pull-history pill */}
+          {picks.length > 0 && (
+            <div style={{ padding: "0 24px" }}>
+              <PullHistoryPill picks={picks} practice={practice} />
+            </div>
+          )}
+
+          {/* Q112 Phase 3 — YOUR PRACTICE line */}
+          <div style={{ padding: "0 24px", marginTop: 32 }}>
+            <SectionDivider />
+            <SectionOverline label="YOUR PRACTICE" />
+            <PracticeLine practice={practice} currentStreak={currentStreak} />
+          </div>
+
           {/* Bottom: question textarea + Get Reading */}
           <div
             style={{
