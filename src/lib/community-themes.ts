@@ -89,6 +89,25 @@ export type CommunityTheme = {
 
 export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
   {
+    key: "midnight-oracle", name: "Midnight Oracle",
+    tagline: "The dark night. Where the unconscious speaks.",
+    // recommendedFont removed — font pairing controls typography.
+    bgLeft: "#0a0a0f", bgRight: "#1e0a3c",
+    surface: "#16162e", surfaceElevated: "#1e1e3d",
+    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
+    foreground: "#ede9fe", foregroundMuted: "#a78bfa",
+    background: "#0a0a0f", card: "#16162e",
+    foregroundMutedStrong: "#dcd5fb", foregroundMutedWeak: "#7c6cb0",
+    surfaceOverlay: "#0d0d1a",
+    accent: "#a78bfa", accentForeground: "#0a0a0f",
+    atmosphereOverlay: "#4c1d9540",
+    popover: "#1e1e3d", popoverForeground: "#ede9fe",
+    input: "#16162e",
+    destructiveForeground: "#fff5f0",
+    stateActiveBgPassive: "#ffffff14",
+    stateActiveFgPassive: "#dcd5fb",
+  },
+  {
     key: "mystic-default", name: "Mystic",
     tagline: "Where every reading begins.",
     recommendedFont: "Cormorant Garamond",
@@ -106,25 +125,6 @@ export const COMMUNITY_THEMES: ReadonlyArray<CommunityTheme> = [
     destructiveForeground: "#fff5f0",
     stateActiveBgPassive: "#ffffff14",
     stateActiveFgPassive: "#e0d8f9",
-  },
-  {
-    key: "midnight-oracle", name: "Midnight Oracle",
-    tagline: "The dark night. Where the unconscious speaks.",
-    recommendedFont: "Cinzel",
-    bgLeft: "#0a0a0f", bgRight: "#1e0a3c",
-    surface: "#16162e", surfaceElevated: "#1e1e3d",
-    borderSubtle: "#ffffff14", borderDefault: "#ffffff1f",
-    foreground: "#ede9fe", foregroundMuted: "#a78bfa",
-    background: "#0a0a0f", card: "#16162e",
-    foregroundMutedStrong: "#dcd5fb", foregroundMutedWeak: "#7c6cb0",
-    surfaceOverlay: "#0d0d1a",
-    accent: "#a78bfa", accentForeground: "#0a0a0f",
-    atmosphereOverlay: "#4c1d9540",
-    popover: "#1e1e3d", popoverForeground: "#ede9fe",
-    input: "#16162e",
-    destructiveForeground: "#fff5f0",
-    stateActiveBgPassive: "#ffffff14",
-    stateActiveFgPassive: "#dcd5fb",
   },
   {
     key: "blood-moon", name: "Blood Moon",
@@ -290,7 +290,7 @@ export function resolveCommunityTheme(
   const found = COMMUNITY_THEMES.find((t) => t.key === storedKey);
   if (found) return found;
   setStoredCommunityTheme(null);
-  return COMMUNITY_THEMES.find((t) => t.key === "mystic-default") ?? null;
+  return COMMUNITY_THEMES.find((t) => t.key === "midnight-oracle") ?? null;
 }
 
 const STORAGE_KEY = "tarotseed:community-theme";
