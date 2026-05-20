@@ -1545,9 +1545,9 @@ function SectionOverline({ label }: { label: string }) {
 
 function bucketOpacity(matches: number): number {
   if (matches <= 0) return 0;
-  if (matches === 1) return 0.25;
-  if (matches === 2) return 0.5;
-  if (matches === 3) return 0.75;
+  if (matches === 1) return 0.55;
+  if (matches === 2) return 0.78;
+  if (matches === 3) return 0.92;
   return 1;
 }
 
@@ -1583,7 +1583,7 @@ function OverlapStrip({
       >
         {months.length === 0 &&
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} style={{ width: 160 }}>
+            <div key={i} style={{ width: 188 }}>
               <div
                 style={{
                   height: 16,
@@ -1596,8 +1596,8 @@ function OverlapStrip({
               />
               <div
                 style={{
-                  width: 160,
-                  height: 90,
+                  width: 188,
+                  height: 192,
                   background: "var(--surface-card)",
                   borderRadius: 6,
                 }}
@@ -1608,7 +1608,7 @@ function OverlapStrip({
           const isCurrent = `${m.year}-${m.month}` === currentMonthKey;
           const firstDow = new Date(m.year, m.month - 1, 1).getDay();
           return (
-            <div key={`${m.year}-${m.month}`} style={{ width: 160, flexShrink: 0 }}>
+            <div key={`${m.year}-${m.month}`} style={{ width: 188, flexShrink: 0 }}>
               <p
                 style={{
                   margin: "0 0 6px 0",
@@ -1626,15 +1626,15 @@ function OverlapStrip({
               </p>
               <div
                 style={{
-                  width: 160,
-                  height: 90,
+                  width: 188,
+                  minHeight: 192,
                   background: "var(--surface-card)",
                   borderRadius: 6,
                   padding: 6,
                   boxSizing: "border-box",
                   display: "grid",
-                  gridTemplateColumns: "repeat(7, 16px)",
-                  gridAutoRows: "15px",
+                  gridTemplateColumns: "repeat(7, 20px)",
+                  gridAutoRows: "20px",
                   gap: 6,
                   justifyContent: "center",
                   alignContent: "start",
@@ -1666,8 +1666,7 @@ function OverlapStrip({
                     }
                     const op = bucketOpacity(matches);
                     if (op > 0) {
-                      bg =
-                        "color-mix(in oklab, var(--accent, var(--gold)) 80%, var(--color-foreground) 20%)";
+                      bg = "var(--accent, var(--gold))";
                       opacity = op;
                     }
                   }
@@ -1676,16 +1675,26 @@ function OverlapStrip({
                       key={day.date}
                       title={day.date}
                       style={{
-                        width: 16,
-                        height: 15,
-                        borderRadius: 2,
+                        width: 20,
+                        height: 20,
+                        borderRadius: 3,
                         background: bg,
                         opacity,
                         border:
                           "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
                         boxSizing: "border-box",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontFamily: "var(--font-serif)",
+                        fontSize: 9,
+                        fontStyle: "italic",
+                        lineHeight: 1,
+                        color: "var(--color-foreground)",
                       }}
-                    />
+                    >
+                      {new Date(day.date).getDate()}
+                    </div>
                   );
                 })}
               </div>
@@ -1693,7 +1702,15 @@ function OverlapStrip({
           );
         })}
       </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -110 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginTop: -110,
+          position: "relative",
+          zIndex: 2,
+        }}
+      >
         <div
           role="tablist"
           style={{
