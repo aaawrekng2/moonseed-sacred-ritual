@@ -43,6 +43,5 @@ export function formatReadingStatsLine(stats: ReadingStats): string | null {
   if (!stats.firstAt) return `${stats.count} ${noun}`;
   // Display-only: calendar month + year of the first reading, in the
   // user's locale. Not tz-sensitive enough to warrant threading tz here.
-  // eslint-disable-next-line no-restricted-syntax -- display label, locale-formatted
   return `${stats.count} ${noun} since ${formatMonthYear(stats.firstAt)}`;
 }
