@@ -268,7 +268,8 @@ export function QuickLog({
         statsCacheRef.current.set(id, stats);
         setCardStats(stats);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("[QuickLog] card-stats fetch failed:", err);
         if (!cancelled) setCardStats(null);
       });
     return () => {
@@ -304,10 +305,14 @@ export function QuickLog({
     })
       .then((d) => {
         if (cancelled) return;
+        if (!d || !Array.isArray(d.months) || d.months.length === 0) {
+          console.warn("[QuickLog] overlap response malformed or empty:", d);
+        }
         overlapCacheRef.current.set(id, d);
         setOverlap(d);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("[QuickLog] overlap fetch failed:", err);
         if (!cancelled) setOverlap(null);
       });
     return () => {
@@ -328,7 +333,8 @@ export function QuickLog({
       .then((d) => {
         if (!cancelled) setPractice(d);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("[QuickLog] practice fetch failed:", err);
         if (!cancelled) setPractice(null);
       });
     return () => {
@@ -360,7 +366,7 @@ export function QuickLog({
       };
     }
     const matches: ConstellationState["matchingReadings"] = [];
-    const entries = Object.entries(overlap.readingsByDate);
+    const entries = Object.entries(overlap.readingsByDate ?? {});
     if (overlapMode === "pull") {
       for (const [, readings] of entries) {
         for (const reading of readings) {
@@ -507,7 +513,7 @@ export function QuickLog({
                 gap: 8,
               }}
             >
-              <div style={{ position: "relative", width: HERO_W, height: HERO_H }}>
+              <div style={{ position: "relative", width: HERO_W }}>
                 {constellation.active && (
                   <div
                     aria-hidden
@@ -529,7 +535,6 @@ export function QuickLog({
                     position: "relative",
                     zIndex: 1,
                     width: HERO_W,
-                    height: HERO_H,
                     border: constellation.active
                       ? "2px solid var(--accent, var(--gold))"
                       : "none",
@@ -725,7 +730,6 @@ export function QuickLog({
                         style={{
                           position: "relative",
                           width: slotW,
-                          height: slotH,
                           flexShrink: 0,
                           opacity: isDragSource ? 0.4 : 1,
                           cursor: "grab",
@@ -770,7 +774,6 @@ export function QuickLog({
                             position: "relative",
                             zIndex: 1,
                             width: slotW,
-                            height: slotH,
                             borderRadius: 6,
                             overflow: "hidden",
                             border: `${borderWidth} solid ${borderColor}`,
@@ -795,7 +798,7 @@ export function QuickLog({
                     onClick={() => setPickerOpen(true)}
                     style={{
                       width: slotW,
-                      height: slotH,
+                      height: slotW * 1.55,
                       borderRadius: 6,
                       border: "1.5px dashed color-mix(in oklab, var(--gold) 55%, transparent)",
                       background: "transparent",
@@ -853,7 +856,7 @@ export function QuickLog({
           )}
 
           {/* Q112 Phase 3 — pull-history pill */}
-          {picks.length > 0 && (
+          {picks.length >= 2 && (
             <div style={{ padding: "0 24px" }}>
               <PullHistoryPill
                 picks={picks}
@@ -991,6 +994,7 @@ function Chip({ label, value, fullWidth }: ChipProps) {
       <span
         style={{
           fontSize: 9,
+          lineHeight: 1.1,
           letterSpacing: "0.15em",
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
@@ -1003,6 +1007,7 @@ function Chip({ label, value, fullWidth }: ChipProps) {
       <span
         style={{
           fontSize: 12,
+          lineHeight: 1.2,
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
           color: "var(--color-foreground)",
@@ -1159,7 +1164,7 @@ function CompanionsAndJournal({
         </p>
         {showEmptyPlaceholder ? (
           <div style={{ display: "flex", gap: 12 }}>
-            <div style={{ width: 80, height: 128, opacity: 0.35 }}>
+            <div style={{ width: 80, height: 80 * 1.55, opacity: 0.35 }}>
               <CardImage variant="back" size="custom" widthPx={80} />
             </div>
           </div>
@@ -1220,7 +1225,6 @@ function CompanionsAndJournal({
                   <div
                     style={{
                       width: 80,
-                      height: 128,
                       borderRadius: 5,
                       overflow: "hidden",
                       position: "relative",
@@ -1636,8 +1640,8 @@ function OverlapStrip({
                   <div key={`pad-${i}`} />
                 ))}
                 {m.days.map((day) => {
-                  let bg = "var(--border-subtle)";
-                  let opacity = 0.35;
+                  let bg = "var(--color-foreground)";
+                  let opacity = 0.18;
                   if (day.heroDrawn && heroCardId != null) {
                     bg = "var(--gold, var(--accent))";
                     opacity = 0.9;
@@ -1673,6 +1677,9 @@ function OverlapStrip({
                         borderRadius: 2,
                         background: bg,
                         opacity,
+                        border:
+                          "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
+                        boxSizing: "border-box",
                       }}
                     />
                   );
@@ -2032,7 +2039,11 @@ function PracticeLine({
       {sep}
       <PracticeStat
         label="reversed"
-        value={practice ? `${practice.reversedPct}%` : null}
+        value={
+          practice && typeof practice.reversedPct === "number"
+            ? `${practice.reversedPct}%`
+            : null
+        }
       />
       {sep}
       <PracticeStat label="top suit" value={practice?.topSuit?.suit ?? null} />
