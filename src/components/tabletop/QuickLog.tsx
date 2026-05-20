@@ -990,12 +990,16 @@ function CompanionsAndJournal({
   stats,
   selectedIdx,
   onSelect,
+  pullCardIds,
+  constellation,
   onOpenReading,
 }: {
   heroPick: ManualPick | null;
   stats: QuickLogCardStats | null;
   selectedIdx: number;
   onSelect: (i: number) => void;
+  pullCardIds: number[];
+  constellation: ConstellationState;
   onOpenReading: (id: string) => void;
 }) {
   const companions = stats?.companions ?? [];
@@ -1009,6 +1013,13 @@ function CompanionsAndJournal({
   }, [stats, selected]);
 
   const showEmptyPlaceholder = !heroPick || companions.length === 0;
+
+  const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
+  const constellationActive = constellation.active;
+  const participatingIds = constellation.participatingCardIds;
+  const participatingNames = participatingIds.map((id) => getCardName(id));
+  const wordFor = (n: number) =>
+    n === 3 ? "THREE" : n === 4 ? "FOUR" : n === 5 ? "FIVE" : String(n);
 
   return (
     <div
@@ -1045,6 +1056,8 @@ function CompanionsAndJournal({
           <div style={{ display: "flex", gap: 12 }}>
             {companions.map((c, idx) => {
               const isSelected = idx === selectedIdx;
+              const isInPull = pullSet.has(c.cardId);
+              const showGoldRing = constellationActive && isInPull;
               return (
                 <button
                   key={c.cardId}
@@ -1075,6 +1088,24 @@ function CompanionsAndJournal({
                       }}
                     />
                   )}
+                  {showGoldRing && (
+                    <div
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        top: -3,
+                        left: -3,
+                        right: 0,
+                        bottom: 0,
+                        width: 86,
+                        height: 134,
+                        background:
+                          "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
+                        borderRadius: 6,
+                        pointerEvents: "none",
+                      }}
+                    />
+                  )}
                   <div
                     style={{
                       width: 80,
@@ -1082,6 +1113,12 @@ function CompanionsAndJournal({
                       borderRadius: 5,
                       overflow: "hidden",
                       position: "relative",
+                      border: showGoldRing
+                        ? "2.5px solid var(--accent, var(--gold))"
+                        : isSelected
+                          ? "1.5px solid var(--accent, var(--gold))"
+                          : "1px solid var(--border-subtle)",
+                      boxSizing: "border-box",
                     }}
                   >
                     <CardImage
@@ -1109,7 +1146,155 @@ function CompanionsAndJournal({
         )}
       </div>
 
-      {heroPick && selected && (
+      {constellationActive ? (
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.3em",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              color: "var(--accent, var(--gold))",
+              opacity: 0.85,
+              margin: "0 0 6px 0",
+              textTransform: "uppercase",
+            }}
+          >
+            A CONSTELLATION — WHEN THESE {wordFor(participatingIds.length)} MET BEFORE
+          </p>
+          <p
+            style={{
+              fontSize: 11,
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              color: "var(--color-foreground-muted, var(--color-foreground))",
+              margin: "0 0 12px 0",
+              opacity: 0.8,
+            }}
+          >
+            {participatingNames.join(" · ")}
+          </p>
+          {constellation.matchingReadings.length === 0 ? (
+            <p
+              style={{
+                fontSize: 11,
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                color: "var(--color-foreground-muted, var(--color-foreground))",
+                textAlign: "center",
+                padding: "16px 0",
+                opacity: 0.65,
+                margin: 0,
+              }}
+            >
+              —
+            </p>
+          ) : (
+            <div>
+              {constellation.matchingReadings.map((r) => {
+                const thumbs = participatingIds.slice(0, 3);
+                const more = participatingIds.length - thumbs.length;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => onOpenReading(r.id)}
+                    style={{
+                      width: "100%",
+                      height: 60,
+                      borderRadius: 6,
+                      border: "1px solid var(--accent, var(--gold))",
+                      background: "var(--surface-card)",
+                      padding: "8px 10px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      cursor: "pointer",
+                      marginBottom: 8,
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                      {thumbs.map((cid) => (
+                        <div
+                          key={cid}
+                          style={{
+                            width: 28,
+                            height: 44,
+                            borderRadius: 3,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <CardImage
+                            variant="face"
+                            cardId={cid}
+                            size="custom"
+                            widthPx={28}
+                          />
+                        </div>
+                      ))}
+                      {more > 0 && (
+                        <span
+                          style={{
+                            alignSelf: "center",
+                            fontSize: 10,
+                            fontStyle: "italic",
+                            fontFamily: "var(--font-serif)",
+                            color:
+                              "var(--color-foreground-muted, var(--color-foreground))",
+                            marginLeft: 4,
+                          }}
+                        >
+                          +{more} more
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 2,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 13,
+                          color: "var(--color-foreground)",
+                          fontStyle: "italic",
+                          fontFamily: "var(--font-serif)",
+                        }}
+                      >
+                        {format(new Date(r.createdAt), "MMM d, yyyy")}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color:
+                            "var(--color-foreground-muted, var(--color-foreground))",
+                          fontStyle: "italic",
+                          fontFamily: "var(--font-serif)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {r.question?.trim() || "(no question)"}
+                      </span>
+                    </div>
+                    <span
+                      style={{ color: "var(--accent, var(--gold))", fontSize: 11 }}
+                    >
+                      ›
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : heroPick && selected ? (
         <div style={{ flex: 1, minWidth: 0 }}>
           <p
             style={{
@@ -1194,7 +1379,7 @@ function CompanionsAndJournal({
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
