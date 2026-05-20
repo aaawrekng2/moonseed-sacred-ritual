@@ -1837,6 +1837,31 @@ function OverlapStrip({
   }, []);
   const monthsToShow = viewportWidth >= 1280 ? 6 : 5;
 
+  // Phase 14 (CZ) — calendar-wide max match for the "best available" dashed
+  // ring. Only meaningful when more than one card is pulled; with a single
+  // card every match would tie at max and ring every cell.
+  let maxMatchInCalendar = 0;
+  if (pullSet.size > 1) {
+    for (const m of months) {
+      for (const day of m.days) {
+        if (day == null) continue;
+        let matches = 0;
+        if (mode === "day") {
+          for (const id of day.sameDayCardIds ?? [])
+            if (pullSet.has(id)) matches++;
+        } else {
+          const readings = overlap?.readingsByDate?.[day.date] ?? [];
+          for (const r of readings) {
+            let n = 0;
+            for (const id of r.cardIds) if (pullSet.has(id)) n++;
+            if (n > matches) matches = n;
+          }
+        }
+        if (matches > maxMatchInCalendar) maxMatchInCalendar = matches;
+      }
+    }
+  }
+
   return (
     <div style={{ position: "relative" }}>
       {/* Toggle pills — top-right of the calendar area, never overlapping day cells */}
