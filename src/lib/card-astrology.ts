@@ -145,10 +145,10 @@ export function buildCardDescriptor(cardId: number): string | null {
   }
   // Courts
   if (meta.cardNumber === null) {
-    return `Suit of ${meta.suit} · ${meta.rankLabel} · ${meta.element}`;
+    return `${meta.suit} · ${meta.rankLabel} · ${meta.element}`;
   }
   // Pips + Ace
-  return `Suit of ${meta.suit} · Card ${meta.cardNumber} · ${meta.element}${
+  return `${meta.suit} · Card ${meta.cardNumber} · ${meta.element}${
     meta.root != null ? ` · reduces to ${meta.root}` : ""
   }`;
 }
