@@ -1708,3 +1708,15 @@ button:focus-visible .moon-rung-glow {
 .tarotseed-constellation-breathe {
   animation: tarotseed-breathe 2.8s ease-in-out infinite;
 }
+
+/* Q122 Phase 9 — slot controls (delete + reverse) visibility */
+.tarotseed-slot-wrapper .tarotseed-slot-controls {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 140ms ease-out;
+}
+.tarotseed-slot-wrapper:hover .tarotseed-slot-controls,
+.tarotseed-slot-wrapper.tarotseed-slot-pinned .tarotseed-slot-controls {
+  opacity: 1;
+  pointer-events: auto;
+}

@@ -14,7 +14,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format, differenceInCalendarDays } from "date-fns";
-import { CalendarIcon, Plus, X } from "lucide-react";
+import { CalendarIcon, Plus, RotateCw, X } from "lucide-react";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -119,6 +119,21 @@ export function QuickLog({
   const [dragSourceIdx, setDragSourceIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const slotRowRef = useRef<HTMLDivElement>(null);
+
+  // Q122 Phase 9 — long-press pin for touch/pen to reveal slot controls.
+  const [longPressSlotIdx, setLongPressSlotIdx] = useState<number | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (longPressSlotIdx === null) return;
+    const handleTapOutside = (e: PointerEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target?.closest("[data-slot-controls]")) {
+        setLongPressSlotIdx(null);
+      }
+    };
+    window.addEventListener("pointerdown", handleTapOutside);
+    return () => window.removeEventListener("pointerdown", handleTapOutside);
+  }, [longPressSlotIdx]);
 
   // Smart-input parser index: pull names from EVERY deck the seeker
   // owns + the standard 78-card Rider-Waite list. Active deck takes
@@ -700,6 +715,7 @@ export function QuickLog({
                     return (
                       <div
                         key={pick.id}
+                        className={`tarotseed-slot-wrapper ${longPressSlotIdx === idx ? "tarotseed-slot-pinned" : ""}`}
                         draggable
                         onDragStart={(e) => {
                           e.dataTransfer.setData("text/plain", String(idx));
@@ -751,6 +767,34 @@ export function QuickLog({
                           });
                           setDragOverIdx(null);
                           setDragSourceIdx(null);
+                        }}
+                        onPointerDown={(e) => {
+                          if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+                          if (longPressTimerRef.current !== null) {
+                            window.clearTimeout(longPressTimerRef.current);
+                          }
+                          longPressTimerRef.current = window.setTimeout(() => {
+                            setLongPressSlotIdx(idx);
+                            longPressTimerRef.current = null;
+                          }, 450);
+                        }}
+                        onPointerUp={() => {
+                          if (longPressTimerRef.current !== null) {
+                            window.clearTimeout(longPressTimerRef.current);
+                            longPressTimerRef.current = null;
+                          }
+                        }}
+                        onPointerCancel={() => {
+                          if (longPressTimerRef.current !== null) {
+                            window.clearTimeout(longPressTimerRef.current);
+                            longPressTimerRef.current = null;
+                          }
+                        }}
+                        onPointerLeave={() => {
+                          if (longPressTimerRef.current !== null) {
+                            window.clearTimeout(longPressTimerRef.current);
+                            longPressTimerRef.current = null;
+                          }
                         }}
                         style={{
                           position: "relative",
@@ -812,6 +856,77 @@ export function QuickLog({
                             size="custom"
                             widthPx={slotW}
                           />
+                        </div>
+                        <div
+                          className="tarotseed-slot-controls"
+                          data-slot-controls
+                          style={{
+                            position: "absolute",
+                            top: 4,
+                            left: 4,
+                            right: 4,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            zIndex: 3,
+                          }}
+                        >
+                          <button
+                            type="button"
+                            aria-label={pick.isReversed ? "Set upright" : "Reverse card"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPicks((prev) =>
+                                prev.map((p, i) =>
+                                  i === idx ? { ...p, isReversed: !p.isReversed } : p,
+                                ),
+                              );
+                            }}
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: 11,
+                              border: "none",
+                              background:
+                                "color-mix(in oklab, var(--background) 75%, transparent)",
+                              backdropFilter: "blur(4px)",
+                              WebkitBackdropFilter: "blur(4px)",
+                              color: "var(--color-foreground)",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              padding: 0,
+                            }}
+                          >
+                            <RotateCw size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Remove card"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPicks((prev) => prev.filter((_, i) => i !== idx));
+                              if (longPressSlotIdx === idx) setLongPressSlotIdx(null);
+                            }}
+                            style={{
+                              width: 22,
+                              height: 22,
+                              borderRadius: 11,
+                              border: "none",
+                              background:
+                                "color-mix(in oklab, var(--background) 75%, transparent)",
+                              backdropFilter: "blur(4px)",
+                              WebkitBackdropFilter: "blur(4px)",
+                              color: "var(--color-foreground)",
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              padding: 0,
+                            }}
+                          >
+                            <X size={12} />
+                          </button>
                         </div>
                       </div>
                     );
@@ -996,11 +1111,13 @@ type ChipProps = {
   label: string;
   value: string;
   fullWidth?: boolean;
+  tooltip?: string;
 };
 
-function Chip({ label, value, fullWidth }: ChipProps) {
+function Chip({ label, value, fullWidth, tooltip }: ChipProps) {
   return (
     <div
+      title={tooltip}
       style={{
         width: fullWidth ? 390 : 190,
         height: 38,
@@ -1013,6 +1130,7 @@ function Chip({ label, value, fullWidth }: ChipProps) {
         flexDirection: "column",
         gap: 1,
         boxSizing: "border-box",
+        cursor: tooltip ? "help" : "default",
       }}
     >
       <span
@@ -1111,14 +1229,35 @@ function ChipGrid({
       }}
     >
       <div style={{ display: "flex", gap: 10 }}>
-        <Chip label="LAST SEEN" value={lastSeen} />
-        <Chip label="TIME PATTERN" value={timePattern} />
+        <Chip
+          label="LAST SEEN"
+          value={lastSeen}
+          tooltip="The most recent day this card appeared in any of your readings. Example: 'May 16 · 3d ago' means you drew this card 3 days ago, on May 16."
+        />
+        <Chip
+          label="TIME PATTERN"
+          value={timePattern}
+          tooltip="The day of the week this card has shown up most often across your history. Example: 'Sundays · 3 of 7' means 3 of the 7 times you've drawn this card were on Sundays."
+        />
       </div>
       <div style={{ display: "flex", gap: 10 }}>
-        <Chip label="NUMEROLOGY" value={numerology} />
-        <Chip label="ASTROLOGY" value={astrology} />
+        <Chip
+          label="NUMEROLOGY"
+          value={numerology}
+          tooltip="The card's number and its numerological root. Example: '6 → 6' means card-number 6, which reduces to root 6. Card 10 would reduce to 1 (1+0)."
+        />
+        <Chip
+          label="ASTROLOGY"
+          value={astrology}
+          tooltip="The planet or sign this card is ruled by, plus how many cards in your active deck share that ruler. Example: 'Jupiter-ruled · 30 cards' means this card is governed by Jupiter, alongside 29 others in your deck."
+        />
       </div>
-      <Chip label="REVERSED" value={reversed} fullWidth />
+      <Chip
+        label="REVERSED"
+        value={reversed}
+        fullWidth
+        tooltip="How often this card has appeared reversed for you, compared to your overall reversed-card rate. Example: '1 of 11 reversed (9%) · above your 7% avg' means this card came up reversed once out of 11 draws, slightly above your average."
+      />
     </div>
   );
 }
