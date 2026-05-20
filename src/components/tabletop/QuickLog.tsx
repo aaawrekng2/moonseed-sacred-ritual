@@ -856,7 +856,7 @@ export function QuickLog({
           )}
 
           {/* Q112 Phase 3 — pull-history pill */}
-          {picks.length > 0 && (
+          {picks.length >= 2 && (
             <div style={{ padding: "0 24px" }}>
               <PullHistoryPill
                 picks={picks}
@@ -994,6 +994,7 @@ function Chip({ label, value, fullWidth }: ChipProps) {
       <span
         style={{
           fontSize: 9,
+          lineHeight: 1.1,
           letterSpacing: "0.15em",
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
@@ -1006,6 +1007,7 @@ function Chip({ label, value, fullWidth }: ChipProps) {
       <span
         style={{
           fontSize: 12,
+          lineHeight: 1.2,
           fontFamily: "var(--font-serif)",
           fontStyle: "italic",
           color: "var(--color-foreground)",
@@ -1639,8 +1641,8 @@ function OverlapStrip({
                   <div key={`pad-${i}`} />
                 ))}
                 {m.days.map((day) => {
-                  let bg = "var(--border-subtle)";
-                  let opacity = 0.35;
+                  let bg = "var(--color-foreground)";
+                  let opacity = 0.18;
                   if (day.heroDrawn && heroCardId != null) {
                     bg = "var(--gold, var(--accent))";
                     opacity = 0.9;
@@ -1676,6 +1678,9 @@ function OverlapStrip({
                         borderRadius: 2,
                         background: bg,
                         opacity,
+                        border:
+                          "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
+                        boxSizing: "border-box",
                       }}
                     />
                   );
@@ -2035,7 +2040,11 @@ function PracticeLine({
       {sep}
       <PracticeStat
         label="reversed"
-        value={practice ? `${practice.reversedPct}%` : null}
+        value={
+          practice && typeof practice.reversedPct === "number"
+            ? `${practice.reversedPct}%`
+            : null
+        }
       />
       {sep}
       <PracticeStat label="top suit" value={practice?.topSuit?.suit ?? null} />
