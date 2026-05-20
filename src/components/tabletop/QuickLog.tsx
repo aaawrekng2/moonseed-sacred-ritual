@@ -53,6 +53,21 @@ const DEFAULT_SLOT_W = 80;
 const DEFAULT_GAP = 15;
 const GAP_RATIO = DEFAULT_GAP / DEFAULT_SLOT_W; // 0.1875
 
+// Q113 Phase 4 — Constellation state shared with subcomponents.
+type ConstellationState = {
+  active: boolean;
+  participatingCardIds: number[];
+  matchingReadings: Array<{
+    id: string;
+    createdAt: string;
+    question: string | null;
+    cardIds: number[];
+    matched: number[];
+  }>;
+  matchCount: number;
+  matchCountSixMonths: number;
+};
+
 type Props = {
   spread: SpreadMode;
   customCount?: number;
