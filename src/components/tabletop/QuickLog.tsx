@@ -18,6 +18,8 @@ import { CalendarIcon, Plus, X } from "lucide-react";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
 import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import {
@@ -109,6 +111,12 @@ export function QuickLog({
 
   const [backdate, setBackdate] = useState<Date | null>(null);
   const [dateOpen, setDateOpen] = useState(false);
+
+  // Q114 Phase 5 — picker sheet + drag-to-reorder/delete state.
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [dragSourceIdx, setDragSourceIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const slotRowRef = useRef<HTMLDivElement>(null);
 
   // Smart-input parser index: pull names from EVERY deck the seeker
   // owns + the standard 78-card Rider-Waite list. Active deck takes
@@ -622,6 +630,7 @@ export function QuickLog({
                     onBulkCommit={handleBulk}
                     placedCardIds={placedIds}
                     deckCards={deckCards}
+                    maxWidth="100%"
                   />
                 </div>
               </div>
@@ -638,6 +647,7 @@ export function QuickLog({
               >
                 <div ref={rowRef} style={{ flex: 1, minWidth: 0 }}>
                   <div
+                    ref={slotRowRef}
                     style={{
                       display: "flex",
                       alignItems: "flex-start",
@@ -654,14 +664,71 @@ export function QuickLog({
                         ? "var(--accent, var(--gold))"
                         : "var(--border-subtle)";
                     const borderWidth = isLatest ? "1.5px" : "1px";
+                    const isDragSource = dragSourceIdx === idx;
+                    const isDragOver =
+                      dragOverIdx === idx && dragSourceIdx !== idx;
                     return (
                       <div
                         key={pick.id}
+                        draggable
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData("text/plain", String(idx));
+                          e.dataTransfer.effectAllowed = "move";
+                          setDragSourceIdx(idx);
+                        }}
+                        onDragEnd={(e) => {
+                          const src = dragSourceIdx;
+                          const row = slotRowRef.current;
+                          if (src !== null && row) {
+                            const r = row.getBoundingClientRect();
+                            const inside =
+                              e.clientX >= r.left &&
+                              e.clientX <= r.right &&
+                              e.clientY >= r.top &&
+                              e.clientY <= r.bottom;
+                            if (!inside) {
+                              setPicks((prev) =>
+                                prev.filter((_, i) => i !== src),
+                              );
+                            }
+                          }
+                          setDragSourceIdx(null);
+                          setDragOverIdx(null);
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          e.dataTransfer.dropEffect = "move";
+                          if (dragOverIdx !== idx) setDragOverIdx(idx);
+                        }}
+                        onDragLeave={() => {
+                          if (dragOverIdx === idx) setDragOverIdx(null);
+                        }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const fromIdx = Number(
+                            e.dataTransfer.getData("text/plain"),
+                          );
+                          if (Number.isNaN(fromIdx) || fromIdx === idx) {
+                            setDragOverIdx(null);
+                            return;
+                          }
+                          setPicks((prev) => {
+                            const next = [...prev];
+                            const tmp = next[idx];
+                            next[idx] = next[fromIdx];
+                            next[fromIdx] = tmp;
+                            return next;
+                          });
+                          setDragOverIdx(null);
+                          setDragSourceIdx(null);
+                        }}
                         style={{
                           position: "relative",
                           width: slotW,
                           height: slotH,
                           flexShrink: 0,
+                          opacity: isDragSource ? 0.4 : 1,
+                          cursor: "grab",
                         }}
                       >
                         {isInConstellation && !isLatest && (
@@ -678,6 +745,23 @@ export function QuickLog({
                               borderRadius: 8,
                               pointerEvents: "none",
                               zIndex: 0,
+                            }}
+                          />
+                        )}
+                        {isDragOver && (
+                          <div
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              top: -3,
+                              left: -3,
+                              right: -3,
+                              bottom: -3,
+                              border:
+                                "2px solid var(--accent, var(--gold))",
+                              borderRadius: 8,
+                              pointerEvents: "none",
+                              zIndex: 2,
                             }}
                           />
                         )}
@@ -708,12 +792,7 @@ export function QuickLog({
                   {/* Trailing dashed "+" slot */}
                   <button
                     type="button"
-                    onClick={() => {
-                      const el = document.querySelector<HTMLInputElement>(
-                        'input[placeholder^="Type or paste"]',
-                      );
-                      el?.focus();
-                    }}
+                    onClick={() => setPickerOpen(true)}
                     style={{
                       width: slotW,
                       height: slotH,
@@ -848,6 +927,38 @@ export function QuickLog({
           </div>
         </div>
       </div>
+      <Sheet open={pickerOpen} onOpenChange={setPickerOpen}>
+        <SheetContent
+          side="bottom"
+          className="h-[75vh] rounded-t-2xl p-0"
+          style={{ zIndex: "var(--z-modal-nested)" as unknown as number }}
+        >
+          {pickerOpen && (
+            <CardPicker
+              mode="manual-entry"
+              embedded
+              deckId={activeDeck?.id ?? undefined}
+              excludeCardIds={placedIds}
+              showReversedToggle={true}
+              title="Pick a card"
+              onCancel={() => setPickerOpen(false)}
+              onSelect={(cardIndex, isReversed, deckId, cardName) => {
+                setPicks((prev) => [
+                  ...prev,
+                  {
+                    id: Date.now() + prev.length,
+                    cardIndex,
+                    isReversed,
+                    deckId: deckId ?? null,
+                    cardName,
+                  },
+                ]);
+                setPickerOpen(false);
+              }}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
     </FullScreenSheet>
   );
 }
