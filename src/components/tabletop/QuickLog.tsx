@@ -664,11 +664,6 @@ export function QuickLog({
                     const isInConstellation =
                       constellation.active &&
                       participatingSet.has(pick.cardIndex);
-                    const borderColor =
-                      isLatest || isInConstellation
-                        ? "var(--accent, var(--gold))"
-                        : "var(--border-subtle)";
-                    const borderWidth = isLatest ? "1.5px" : "1px";
                     const isDragSource = dragSourceIdx === idx;
                     const isDragOver =
                       dragOverIdx === idx && dragSourceIdx !== idx;
@@ -776,7 +771,6 @@ export function QuickLog({
                             width: slotW,
                             borderRadius: 6,
                             overflow: "hidden",
-                            border: `${borderWidth} solid ${borderColor}`,
                             boxSizing: "border-box",
                           }}
                         >
@@ -940,19 +934,19 @@ export function QuickLog({
             <CardPicker
               mode="manual-entry"
               embedded
-              deckId={activeDeck?.id ?? undefined}
+              deckId={undefined}
               excludeCardIds={placedIds}
               showReversedToggle={true}
               title="Pick a card"
               onCancel={() => setPickerOpen(false)}
-              onSelect={(cardIndex, isReversed, deckId, cardName) => {
+              onSelect={(cardIndex, isReversed, _deckId, cardName) => {
                 setPicks((prev) => [
                   ...prev,
                   {
                     id: Date.now() + prev.length,
                     cardIndex,
                     isReversed,
-                    deckId: deckId ?? null,
+                    deckId: null,
                     cardName,
                   },
                 ]);
@@ -1228,11 +1222,6 @@ function CompanionsAndJournal({
                       borderRadius: 5,
                       overflow: "hidden",
                       position: "relative",
-                      border: showGoldRing
-                        ? "2.5px solid var(--accent, var(--gold))"
-                        : isSelected
-                          ? "1.5px solid var(--accent, var(--gold))"
-                          : "1px solid var(--border-subtle)",
                       boxSizing: "border-box",
                     }}
                   >

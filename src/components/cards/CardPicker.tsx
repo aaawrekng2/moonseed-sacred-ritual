@@ -199,10 +199,10 @@ export function CardPicker({
       source = deckCards.map((c) => ({
         idx: c.card_id,
         name:
-          c.card_name ??
-          deriveNameFromPath(c.display_path) ??
-          getCardName(c.card_id) ??
-          `Card ${c.card_id}`,
+          (c.card_id >= 0 && c.card_id < 78
+            ? (c.card_name ?? getCardName(c.card_id))
+            : (c.card_name ?? deriveNameFromPath(c.display_path) ?? "")) ||
+          "",
         src: c.thumbnail_url ?? c.display_url,
       }));
     } else {
@@ -255,7 +255,7 @@ export function CardPicker({
       cardIndex,
       false,
       deckId ?? null,
-      item?.name ?? getCardName(cardIndex) ?? `Card ${cardIndex}`,
+      item?.name ?? getCardName(cardIndex) ?? "",
     );
   };
 
@@ -273,7 +273,7 @@ export function CardPicker({
             pendingId,
             pendingReversed,
             deckId ?? null,
-            pendingItem?.name ?? getCardName(pendingId) ?? `Card ${pendingId}`,
+            pendingItem?.name ?? getCardName(pendingId) ?? "",
           )
         }
         // 9-6-O — use thumbnail for the post-pick confirmation preview;
@@ -307,7 +307,7 @@ export function CardPicker({
               id,
               false,
               deckId ?? null,
-              getCardName(id) ?? `Card ${id}`,
+              getCardName(id) ?? "",
             );
           }}
           onDone={() => setReviewingCardId(null)}
