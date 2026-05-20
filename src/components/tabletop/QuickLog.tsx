@@ -18,6 +18,8 @@ import { CalendarIcon, Plus, X } from "lucide-react";
 import { FullScreenSheet } from "@/components/ui/full-screen-sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
 import { EntryModeToggle } from "@/components/tabletop/EntryModeToggle";
 import {
