@@ -103,7 +103,7 @@ export function getLunationHistory(earliestReadingDate: Date | null): Lunation[]
 /** Format a lunation date range, e.g. "Mar 5 – Apr 3". */
 export function formatLunationRange(l: { start: Date; end: Date }): string {
   const fmt = (d: Date) =>
-    d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(d);
   return `${fmt(l.start)} – ${fmt(l.end)}`;
 }
 
