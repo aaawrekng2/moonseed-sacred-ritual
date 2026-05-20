@@ -1398,16 +1398,22 @@ function CompanionsAndJournal({
               const isSelected = idx === selectedIdx;
               const isInPull = pullSet.has(c.cardId);
               const showGoldRing = constellationActive && isInPull;
+              const heroName = heroPick
+                ? getCardName(heroPick.cardIndex)
+                : "this card";
+              const companionName = getCardName(c.cardId);
+              const tooltipText = `${heroName} and ${companionName} have appeared together in ${c.count} of your readings.`;
               return (
                 <button
                   key={c.cardId}
                   type="button"
+                  title={tooltipText}
                   onClick={() => onSelect(idx)}
                   style={{
                     position: "relative",
                     border: "none",
                     background: "transparent",
-                    cursor: "pointer",
+                    cursor: "help",
                     padding: 0,
                     display: "flex",
                     flexDirection: "column",
