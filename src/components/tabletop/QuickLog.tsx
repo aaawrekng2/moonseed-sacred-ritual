@@ -1298,25 +1298,42 @@ function CompanionsAndJournal({
                 const thumbs = participatingIds.slice(0, 3);
                 const more = participatingIds.length - thumbs.length;
                 return (
-                  <button
+                  <div
                     key={r.id}
-                    type="button"
-                    onClick={() => onOpenReading(r.id)}
-                    style={{
-                      width: "100%",
-                      height: 60,
-                      borderRadius: 6,
-                      border: "1px solid var(--accent, var(--gold))",
-                      background: "var(--surface-card)",
-                      padding: "8px 10px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      cursor: "pointer",
-                      marginBottom: 8,
-                      boxSizing: "border-box",
-                    }}
+                    style={{ position: "relative", marginBottom: 8 }}
                   >
+                    <div
+                      aria-hidden
+                      className="tarotseed-constellation-breathe"
+                      style={{
+                        position: "absolute",
+                        top: -12,
+                        left: -16,
+                        right: -16,
+                        bottom: -12,
+                        background:
+                          "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 28%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent) 50%, transparent 85%)",
+                        pointerEvents: "none",
+                        zIndex: 0,
+                        borderRadius: 14,
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: "relative",
+                        zIndex: 1,
+                        width: "100%",
+                        minHeight: 60,
+                        borderRadius: 6,
+                        border: "1px solid var(--accent, var(--gold))",
+                        background: "var(--surface-card)",
+                        padding: "8px 10px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        boxSizing: "border-box",
+                      }}
+                    >
                     <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                       {thumbs.map((cid) => (
                         <div
@@ -1391,7 +1408,8 @@ function CompanionsAndJournal({
                     >
                       ›
                     </span>
-                  </button>
+                    </div>
+                  </div>
                 );
               })}
             </div>
