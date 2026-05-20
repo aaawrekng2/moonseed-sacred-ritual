@@ -1248,21 +1248,28 @@ function ChipGrid({
     ? `${stats.topDayOfWeek.day}s · ${stats.topDayOfWeek.count} of ${stats.topDayOfWeek.total}`
     : "—";
 
-  // NUMEROLOGY
-  let numerology = "—";
-  if (meta?.root != null && meta.cardNumber != null) {
-    numerology = `${meta.cardNumber} → ${meta.root}`;
-    if (stats?.seekerTopRoot != null && stats.seekerTopRoot === meta.root) {
-      numerology += " · top root";
+  // FREQUENCY — Phase 15 Fix 2
+  let frequency = "—";
+  if (stats && stats.frequencyRank != null && stats.count > 0) {
+    if (stats.frequencyRank === 1) {
+      frequency = `#1 most-drawn · ${stats.count} times`;
+    } else if (stats.frequencyRank <= 5) {
+      frequency = `#${stats.frequencyRank} most-drawn · ${stats.count} times`;
+    } else if (stats.frequencyRank <= 20) {
+      frequency = `#${stats.frequencyRank} · ${stats.count} times`;
+    } else {
+      frequency = `Rare for you · ${stats.count} time${stats.count === 1 ? "" : "s"}`;
     }
   }
 
-  // ASTROLOGY
-  let astrology = "—";
-  if (meta?.planetOrSign) {
-    astrology = `${meta.planetOrSign}-ruled`;
-    if (stats && stats.astrologyMatchCount > 0) {
-      astrology += ` · ${stats.astrologyMatchCount} cards`;
+  // MOON PHASE — Phase 15 Fix 3
+  let moonPhase = "—";
+  if (stats && stats.count > 0) {
+    const top = stats.topMoonPhase;
+    if (top && top.count >= 2 && top.count / top.total >= 0.3) {
+      moonPhase = `Most under ${top.phase} · ${top.count} of ${top.total}`;
+    } else if (stats.lastSeenMoonPhase) {
+      moonPhase = `Last under ${stats.lastSeenMoonPhase}`;
     }
   }
 
@@ -1298,14 +1305,14 @@ function ChipGrid({
       </div>
       <div style={{ display: "flex", gap: 10 }}>
         <Chip
-          label="NUMEROLOGY"
-          value={numerology}
-          tooltip="The card's number and its numerological root. Example: '6 → 6' means card-number 6, which reduces to root 6. Card 10 would reduce to 1 (1+0)."
+          label="FREQUENCY"
+          value={frequency}
+          tooltip="Where this card sits in your personal draw history. Example: '#3 most-drawn · 47 times' means it's your third-most-pulled card across all your readings. 'Rare for you' means it's appeared 5 or fewer times in your full history."
         />
         <Chip
-          label="ASTROLOGY"
-          value={astrology}
-          tooltip="The planet or sign this card is ruled by, plus how many cards in your active deck share that ruler. Example: 'Jupiter-ruled · 30 cards' means this card is governed by Jupiter, alongside 29 others in your deck."
+          label="MOON PHASE"
+          value={moonPhase}
+          tooltip="The moon phase during your draws of this card. Example: 'Most under Full Moon · 4 of 12' means 4 of the 12 times you've drawn this card, it was during a Full Moon. Otherwise shows the phase during your most recent draw."
         />
       </div>
       <Chip
