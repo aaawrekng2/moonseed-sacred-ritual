@@ -1601,9 +1601,63 @@ function OverlapStrip({
   const currentMonthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
 
   return (
-    <div>
+    <div style={{ position: "relative" }}>
+      {/* Toggle pills — top-right of the calendar area, never overlapping day cells */}
       <div
         style={{
+          position: "absolute",
+          top: 0,
+          right: 8,
+          zIndex: 3,
+          display: "flex",
+          gap: 6,
+        }}
+      >
+        <div
+          role="tablist"
+          style={{
+            display: "inline-flex",
+            height: 22,
+            borderRadius: 9999,
+            border: "1px solid var(--border-subtle)",
+            background: "var(--surface-card)",
+            overflow: "hidden",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 10,
+          }}
+        >
+          {(["pull", "day"] as const).map((m) => {
+            const active = mode === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => onModeChange(m)}
+                style={{
+                  padding: "0 12px",
+                  height: "100%",
+                  border: "none",
+                  background: active
+                    ? "color-mix(in oklab, var(--accent, var(--gold)) 65%, transparent)"
+                    : "transparent",
+                  color: active
+                    ? "var(--color-foreground)"
+                    : "var(--color-foreground-muted, var(--color-foreground))",
+                  cursor: "pointer",
+                }}
+              >
+                same {m}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div
+        style={{
+          paddingTop: 32,
           display: "flex",
           flexDirection: "row",
           gap: 30,
@@ -1677,6 +1731,7 @@ function OverlapStrip({
                 {m.days.map((day) => {
                   let bg = "var(--color-foreground)";
                   let opacity = 0.18;
+                  let matchCount = 0;
                   if (day.heroDrawn && heroCardId != null) {
                     bg = "var(--gold, var(--accent))";
                     opacity = 0.9;
@@ -1695,16 +1750,52 @@ function OverlapStrip({
                       }
                       matches = best;
                     }
+                    matchCount = matches;
                     const op = bucketOpacity(matches);
                     if (op > 0) {
                       bg = "var(--accent, var(--gold))";
                       opacity = op;
                     }
                   }
+                  const textColor =
+                    opacity > 0.5
+                      ? "var(--background)"
+                      : "var(--color-foreground)";
+                  const dateLabel = new Date(
+                    day.date + "T00:00:00",
+                  ).toLocaleDateString(undefined, {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  });
+                  let tooltipText: string;
+                  if (matchCount <= 0) {
+                    const readingsOnDay =
+                      overlap?.readingsByDate?.[day.date] ?? [];
+                    if (readingsOnDay.length === 0) {
+                      tooltipText = `${dateLabel} — no readings`;
+                    } else {
+                      const n = readingsOnDay.length;
+                      tooltipText = `${dateLabel} — ${n} reading${n === 1 ? "" : "s"}, no overlap with current pull`;
+                    }
+                  } else {
+                    const matchedNames = pullCardIds
+                      .filter((id) => {
+                        if (mode === "day")
+                          return day.sameDayCardIds.includes(id);
+                        const readings =
+                          overlap?.readingsByDate?.[day.date] ?? [];
+                        return readings.some((r) => r.cardIds.includes(id));
+                      })
+                      .map((id) => getCardName(id))
+                      .filter(Boolean)
+                      .join(", ");
+                    tooltipText = `${dateLabel} — ${matchCount} of ${pullCardIds.length} cards from this pull${matchedNames ? ` (${matchedNames})` : ""}`;
+                  }
                   return (
                     <div
                       key={day.date}
-                      title={day.date}
+                      title={tooltipText}
                       style={{
                         width: 20,
                         height: 20,
@@ -1721,7 +1812,7 @@ function OverlapStrip({
                         fontSize: 9,
                         fontStyle: "italic",
                         lineHeight: 1,
-                        color: "var(--color-foreground)",
+                        color: textColor,
                       }}
                     >
                       {new Date(day.date).getDate()}
@@ -1733,58 +1824,7 @@ function OverlapStrip({
           );
         })}
       </div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginTop: -110,
-          position: "relative",
-          zIndex: 2,
-        }}
-      >
-        <div
-          role="tablist"
-          style={{
-            display: "inline-flex",
-            height: 22,
-            borderRadius: 9999,
-            border: "1px solid var(--border-subtle)",
-            background: "var(--surface-card)",
-            overflow: "hidden",
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: 10,
-          }}
-        >
-          {(["pull", "day"] as const).map((m) => {
-            const active = mode === m;
-            return (
-              <button
-                key={m}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => onModeChange(m)}
-                style={{
-                  padding: "0 12px",
-                  height: "100%",
-                  border: "none",
-                  background: active
-                    ? "color-mix(in oklab, var(--accent, var(--gold)) 65%, transparent)"
-                    : "transparent",
-                  color: active
-                    ? "var(--color-foreground)"
-                    : "var(--color-foreground-muted, var(--color-foreground))",
-                  cursor: "pointer",
-                }}
-              >
-                same {m}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <div style={{ height: 88 }} />
+      <div style={{ height: 16 }} />
     </div>
   );
 }
