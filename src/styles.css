@@ -1702,8 +1702,8 @@ button:focus-visible .moon-rung-glow {
 
 /* Q120 Phase 7 — constellation breathing glow */
 @keyframes tarotseed-breathe {
-  0%, 100% { opacity: 0.7; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.04); }
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.08); }
 }
 .tarotseed-constellation-breathe {
   animation: tarotseed-breathe 2.8s ease-in-out infinite;
