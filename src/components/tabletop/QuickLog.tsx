@@ -517,16 +517,18 @@ export function QuickLog({
                 {constellation.active && (
                   <div
                     aria-hidden
+                    className="tarotseed-constellation-breathe"
                     style={{
                       position: "absolute",
-                      top: -30,
-                      left: -30,
-                      right: -30,
-                      bottom: -30,
+                      top: -40,
+                      left: -40,
+                      right: -40,
+                      bottom: -40,
                       background:
-                        "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 18%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent) 40%, transparent 80%)",
+                        "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 32%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 18%, transparent) 35%, transparent 75%)",
                       pointerEvents: "none",
                       zIndex: 0,
+                      borderRadius: "50%",
                     }}
                   />
                 )}
@@ -535,9 +537,6 @@ export function QuickLog({
                     position: "relative",
                     zIndex: 1,
                     width: HERO_W,
-                    border: constellation.active
-                      ? "2px solid var(--accent, var(--gold))"
-                      : "none",
                     boxSizing: "border-box",
                   }}
                 >
