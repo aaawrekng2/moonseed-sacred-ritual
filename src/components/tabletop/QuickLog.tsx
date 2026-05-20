@@ -37,9 +37,15 @@ import { TAROT_DECK, getCardName } from "@/lib/tarot";
 import { buildCardDescriptor, getCardMeta } from "@/lib/card-astrology";
 import {
   getQuickLogCardStats,
+  getQuickLogOverlap,
+  getQuickLogPractice,
   type QuickLogCardStats,
+  type QuickLogOverlap,
+  type QuickLogPractice,
 } from "@/lib/quicklog.functions";
 import { useNavigate } from "@tanstack/react-router";
+import { useStreak } from "@/lib/use-streak";
+import { getLunationContaining } from "@/lib/lunation";
 
 const HERO_W = 225;
 const HERO_H = 346;
@@ -250,6 +256,62 @@ export function QuickLog({
   const descriptor = heroPick ? buildCardDescriptor(heroPick.cardIndex) : null;
 
   const canSubmit = picks.length >= 1;
+
+  // ─── Q112 Phase 3 — overlap strip + practice line ───────────────────
+  const overlapCacheRef = useRef<Map<number, QuickLogOverlap>>(new Map());
+  const [overlap, setOverlap] = useState<QuickLogOverlap | null>(null);
+  const [overlapMode, setOverlapMode] = useState<"pull" | "day">("pull");
+  const [practice, setPractice] = useState<QuickLogPractice | null>(null);
+  const { currentStreak } = useStreak();
+
+  useEffect(() => {
+    if (!user?.id) {
+      setOverlap(null);
+      return;
+    }
+    const id = heroPick?.cardIndex ?? -1;
+    const cached = overlapCacheRef.current.get(id);
+    if (cached) {
+      setOverlap(cached);
+      return;
+    }
+    let cancelled = false;
+    void getQuickLogOverlap({
+      data: { heroCardId: heroPick?.cardIndex ?? null },
+    })
+      .then((d) => {
+        if (cancelled) return;
+        overlapCacheRef.current.set(id, d);
+        setOverlap(d);
+      })
+      .catch(() => {
+        if (!cancelled) setOverlap(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [heroPick?.cardIndex, user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    const lun = getLunationContaining(new Date());
+    void getQuickLogPractice({
+      data: {
+        lunationStart: lun.start.toISOString(),
+        lunationEnd: lun.end.toISOString(),
+      },
+    })
+      .then((d) => {
+        if (!cancelled) setPractice(d);
+      })
+      .catch(() => {
+        if (!cancelled) setPractice(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -522,6 +584,40 @@ export function QuickLog({
                 }}
               />
             </div>
+          </div>
+
+          {/* Q112 Phase 3 — Six-month overlap strip */}
+          <div style={{ padding: "0 24px", marginTop: 32 }}>
+            <OverlapStrip
+              overlap={overlap}
+              heroCardId={heroPick?.cardIndex ?? null}
+              pullCardIds={placedIds}
+              mode={overlapMode}
+              onModeChange={setOverlapMode}
+            />
+          </div>
+
+          {/* Q112 Phase 3 — THIS PULL tiles */}
+          {picks.length > 0 && (
+            <div style={{ padding: "0 24px", marginTop: 24 }}>
+              <SectionDivider />
+              <SectionOverline label="THIS PULL" />
+              <ThisPullTiles picks={picks} />
+            </div>
+          )}
+
+          {/* Q112 Phase 3 — pull-history pill */}
+          {picks.length > 0 && (
+            <div style={{ padding: "0 24px" }}>
+              <PullHistoryPill picks={picks} practice={practice} />
+            </div>
+          )}
+
+          {/* Q112 Phase 3 — YOUR PRACTICE line */}
+          <div style={{ padding: "0 24px", marginTop: 32 }}>
+            <SectionDivider />
+            <SectionOverline label="YOUR PRACTICE" />
+            <PracticeLine practice={practice} currentStreak={currentStreak} />
           </div>
 
           {/* Bottom: question textarea + Get Reading */}
@@ -928,6 +1024,540 @@ function CompanionsAndJournal({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Q112 Phase 3 — shared building blocks ───────────────────────────
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function SectionDivider() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        height: 1,
+        background: "var(--border-subtle)",
+        opacity: 0.5,
+        marginBottom: 16,
+      }}
+    />
+  );
+}
+
+function SectionOverline({ label }: { label: string }) {
+  return (
+    <p
+      style={{
+        fontSize: 10,
+        letterSpacing: "0.3em",
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+        color: "var(--accent, var(--gold))",
+        opacity: 0.75,
+        margin: "0 0 12px 0",
+        textTransform: "uppercase",
+      }}
+    >
+      {label}
+    </p>
+  );
+}
+
+function bucketOpacity(matches: number): number {
+  if (matches <= 0) return 0;
+  if (matches === 1) return 0.25;
+  if (matches === 2) return 0.5;
+  if (matches === 3) return 0.75;
+  return 1;
+}
+
+function OverlapStrip({
+  overlap,
+  heroCardId,
+  pullCardIds,
+  mode,
+  onModeChange,
+}: {
+  overlap: QuickLogOverlap | null;
+  heroCardId: number | null;
+  pullCardIds: number[];
+  mode: "pull" | "day";
+  onModeChange: (m: "pull" | "day") => void;
+}) {
+  const months = overlap?.months ?? [];
+  const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
+
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          gap: 30,
+          alignItems: "flex-start",
+          position: "relative",
+          overflowX: "auto",
+        }}
+      >
+        {months.length === 0 &&
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ width: 160 }}>
+              <div
+                style={{
+                  height: 16,
+                  width: 80,
+                  background: "var(--border-subtle)",
+                  opacity: 0.3,
+                  marginBottom: 6,
+                  borderRadius: 3,
+                }}
+              />
+              <div
+                style={{
+                  width: 160,
+                  height: 90,
+                  background: "var(--surface-card)",
+                  borderRadius: 6,
+                }}
+              />
+            </div>
+          ))}
+        {months.map((m) => {
+          const isCurrent = `${m.year}-${m.month}` === currentMonthKey;
+          const firstDow = new Date(m.year, m.month - 1, 1).getDay();
+          return (
+            <div key={`${m.year}-${m.month}`} style={{ width: 160, flexShrink: 0 }}>
+              <p
+                style={{
+                  margin: "0 0 6px 0",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 12,
+                  textAlign: "left",
+                  color: isCurrent
+                    ? "var(--accent, var(--gold))"
+                    : "var(--color-foreground-muted, var(--color-foreground))",
+                  opacity: isCurrent ? 0.95 : 0.7,
+                }}
+              >
+                {MONTH_NAMES[m.month - 1]}
+              </p>
+              <div
+                style={{
+                  width: 160,
+                  height: 90,
+                  background: "var(--surface-card)",
+                  borderRadius: 6,
+                  padding: 6,
+                  boxSizing: "border-box",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(7, 16px)",
+                  gridAutoRows: "15px",
+                  gap: 6,
+                  justifyContent: "center",
+                  alignContent: "start",
+                }}
+              >
+                {Array.from({ length: firstDow }).map((_, i) => (
+                  <div key={`pad-${i}`} />
+                ))}
+                {m.days.map((day) => {
+                  let bg = "var(--border-subtle)";
+                  let opacity = 0.35;
+                  if (day.heroDrawn && heroCardId != null) {
+                    bg = "var(--gold, var(--accent))";
+                    opacity = 0.9;
+                  } else if (pullSet.size > 0) {
+                    let matches = 0;
+                    if (mode === "day") {
+                      for (const id of day.sameDayCardIds)
+                        if (pullSet.has(id)) matches++;
+                    } else {
+                      const readings = overlap?.readingsByDate?.[day.date] ?? [];
+                      let best = 0;
+                      for (const ids of readings) {
+                        let n = 0;
+                        for (const id of ids) if (pullSet.has(id)) n++;
+                        if (n > best) best = n;
+                      }
+                      matches = best;
+                    }
+                    const op = bucketOpacity(matches);
+                    if (op > 0) {
+                      bg =
+                        "color-mix(in oklab, var(--accent, var(--gold)) 80%, var(--color-foreground) 20%)";
+                      opacity = op;
+                    }
+                  }
+                  return (
+                    <div
+                      key={day.date}
+                      title={day.date}
+                      style={{
+                        width: 16,
+                        height: 15,
+                        borderRadius: 2,
+                        background: bg,
+                        opacity,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -110 }}>
+        <div
+          role="tablist"
+          style={{
+            display: "inline-flex",
+            height: 22,
+            borderRadius: 9999,
+            border: "1px solid var(--border-subtle)",
+            background: "var(--surface-card)",
+            overflow: "hidden",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 10,
+          }}
+        >
+          {(["pull", "day"] as const).map((m) => {
+            const active = mode === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => onModeChange(m)}
+                style={{
+                  padding: "0 12px",
+                  height: "100%",
+                  border: "none",
+                  background: active
+                    ? "color-mix(in oklab, var(--accent, var(--gold)) 65%, transparent)"
+                    : "transparent",
+                  color: active
+                    ? "var(--color-foreground)"
+                    : "var(--color-foreground-muted, var(--color-foreground))",
+                  cursor: "pointer",
+                }}
+              >
+                same {m}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{ height: 88 }} />
+    </div>
+  );
+}
+
+function Tile({
+  label,
+  value,
+  subline,
+}: {
+  label: string;
+  value: string;
+  subline: string;
+}) {
+  return (
+    <div
+      style={{
+        flex: 1,
+        height: 72,
+        borderRadius: 8,
+        border: "1px solid var(--border-subtle)",
+        background: "var(--surface-card)",
+        padding: "10px 14px",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        boxSizing: "border-box",
+        minWidth: 0,
+      }}
+    >
+      <span
+        style={{
+          fontSize: 10,
+          letterSpacing: "0.15em",
+          color: "var(--accent, var(--gold))",
+          opacity: 0.7,
+          fontStyle: "italic",
+          fontFamily: "var(--font-serif)",
+        }}
+      >
+        {label}
+      </span>
+      <span
+        style={{
+          fontSize: 15,
+          color: "var(--color-foreground)",
+          fontStyle: "italic",
+          fontFamily: "var(--font-serif)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {value}
+      </span>
+      <span
+        style={{
+          fontSize: 10,
+          color: "var(--color-foreground-muted, var(--color-foreground))",
+          fontStyle: "italic",
+          fontFamily: "var(--font-serif)",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {subline}
+      </span>
+    </div>
+  );
+}
+
+function ThisPullTiles({ picks }: { picks: ManualPick[] }) {
+  const metas = picks
+    .map((p) => ({ pick: p, meta: getCardMeta(p.cardIndex) }))
+    .filter((x) => x.meta != null) as Array<{
+    pick: ManualPick;
+    meta: NonNullable<ReturnType<typeof getCardMeta>>;
+  }>;
+
+  // Tile 1 — Major / Minor
+  const total = metas.length;
+  const majors = metas.filter((m) => m.meta.suit === null).length;
+  const cups = metas.filter((m) => m.meta.suit === "Cups").length;
+  const pents = metas.filter((m) => m.meta.suit === "Pentacles").length;
+  const swords = metas.filter((m) => m.meta.suit === "Swords").length;
+  const wands = metas.filter((m) => m.meta.suit === "Wands").length;
+  const pctMajor = total > 0 ? Math.round((majors / total) * 100) : 0;
+  const suitParts: string[] = [`${majors} Majors`];
+  if (cups) suitParts.push(`${cups} Cups`);
+  if (pents) suitParts.push(`${pents} Pents`);
+  if (swords) suitParts.push(`${swords} Swords`);
+  if (wands) suitParts.push(`${wands} Wands`);
+
+  // Tile 2 — Numerology
+  const roots = metas.filter((m) => m.meta.root != null);
+  const rootCounts = new Map<number, ManualPick[]>();
+  for (const m of roots) {
+    const r = m.meta.root as number;
+    const arr = rootCounts.get(r) ?? [];
+    arr.push(m.pick);
+    rootCounts.set(r, arr);
+  }
+  let dominantRoot: number | null = null;
+  let dominantN = 0;
+  for (const [r, arr] of rootCounts) {
+    if (
+      arr.length > dominantN ||
+      (arr.length === dominantN && (dominantRoot == null || r < dominantRoot))
+    ) {
+      dominantRoot = r;
+      dominantN = arr.length;
+    }
+  }
+  let numerologyValue = "—";
+  let numerologySub = "";
+  if (dominantRoot != null) {
+    numerologyValue = `${dominantN} of ${roots.length} reduce to ${dominantRoot}`;
+    if (dominantN === 1 && roots.length === 1) {
+      numerologyValue = `1 of 1 reduces to ${dominantRoot}`;
+    }
+    const names = (rootCounts.get(dominantRoot) ?? []).map((p) =>
+      getCardName(p.cardIndex),
+    );
+    numerologySub =
+      names.length > 3 ? `${names.slice(0, 3).join(", ")}…` : names.join(", ");
+  }
+
+  // Tile 3 — Astrology · Reversed
+  const rulers = metas.filter((m) => m.meta.planetOrSign != null);
+  const ruleCounts = new Map<string, number>();
+  for (const m of rulers) {
+    const k = m.meta.planetOrSign as string;
+    ruleCounts.set(k, (ruleCounts.get(k) ?? 0) + 1);
+  }
+  let dominant: string | null = null;
+  let dominantCount = 0;
+  for (const [k, n] of ruleCounts) {
+    if (n > dominantCount) {
+      dominant = k;
+      dominantCount = n;
+    }
+  }
+  const reversedN = picks.filter((p) => p.isReversed).length;
+  const reversedPct =
+    picks.length > 0 ? Math.round((reversedN / picks.length) * 100) : 0;
+  const astrologyValue = `${dominant ?? "—"}-dom · ${reversedPct}% rev`;
+  const elCounts: Record<string, number> = {
+    Fire: 0, Water: 0, Air: 0, Earth: 0,
+  };
+  for (const m of metas) elCounts[m.meta.element]++;
+  const elParts: string[] = [];
+  (["Fire", "Earth", "Water", "Air"] as const).forEach((el) => {
+    if (elCounts[el] > 0) elParts.push(`${elCounts[el]} ${el}`);
+    else if (metas.length >= 3) elParts.push(`no ${el}`);
+  });
+
+  return (
+    <div style={{ display: "flex", gap: 8 }}>
+      <Tile
+        label="MAJOR / MINOR"
+        value={total > 0 ? `${pctMajor}% Major Arcana` : "—"}
+        subline={suitParts.join(" · ")}
+      />
+      <Tile label="NUMEROLOGY" value={numerologyValue} subline={numerologySub} />
+      <Tile
+        label="ASTROLOGY · REVERSED"
+        value={astrologyValue}
+        subline={elParts.join(" · ")}
+      />
+    </div>
+  );
+}
+
+function PullHistoryPill({
+  picks,
+  practice,
+}: {
+  picks: ManualPick[];
+  practice: QuickLogPractice | null;
+}) {
+  const key = useMemo(
+    () => picks.map((p) => p.cardIndex).sort((a, b) => a - b).join(","),
+    [picks],
+  );
+  const entry = practice?.pullHistory.find((p) => p.cardIdsKey === key) ?? null;
+  let text = "First time you've drawn this combination — never before.";
+  if (entry) {
+    const when = format(new Date(entry.lastAt), "MMMM d, yyyy");
+    if (entry.count === 1) {
+      text = `You drew this exact combination once before, on ${when}.`;
+    } else if (entry.count <= 5) {
+      text = `You drew this exact combination ${entry.count} times before — last on ${when}.`;
+    } else {
+      text = `You've drawn this exact combination ${entry.count} times — most recently ${when}.`;
+    }
+  }
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: 32,
+        borderRadius: 16,
+        border: "1px solid var(--accent, var(--gold))",
+        background: "var(--surface-card)",
+        opacity: 0.85,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "0 16px",
+        marginTop: 16,
+        boxSizing: "border-box",
+      }}
+    >
+      <span
+        style={{
+          fontSize: 12,
+          color: "var(--accent, var(--gold))",
+          fontStyle: "italic",
+          fontFamily: "var(--font-serif)",
+          textAlign: "center",
+        }}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
+
+function PracticeStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number | null;
+}) {
+  const display = value == null || value === "" ? "—" : value;
+  return (
+    <span
+      style={{
+        fontFamily: "var(--font-serif)",
+        fontStyle: "italic",
+        fontSize: 12,
+        color: "var(--color-foreground-muted, var(--color-foreground))",
+      }}
+    >
+      {label}{" "}
+      <span style={{ color: "var(--accent, var(--gold))" }}>{display}</span>
+    </span>
+  );
+}
+
+function PracticeLine({
+  practice,
+  currentStreak,
+}: {
+  practice: QuickLogPractice | null;
+  currentStreak: number;
+}) {
+  const sep = (
+    <span
+      style={{
+        color: "var(--color-foreground-muted, var(--color-foreground))",
+        opacity: 0.5,
+        fontStyle: "italic",
+        fontFamily: "var(--font-serif)",
+      }}
+    >
+      {" · "}
+    </span>
+  );
+  const stalkerLabel = practice?.topStalker
+    ? `${practice.topStalker.cardName} ×${practice.topStalker.count}`
+    : null;
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        rowGap: 4,
+        alignItems: "center",
+      }}
+    >
+      <PracticeStat label="streak" value={`${currentStreak} days`} />
+      {sep}
+      <PracticeStat
+        label="this lunation"
+        value={practice?.currentLunationReadings ?? null}
+      />
+      {sep}
+      <PracticeStat label="total" value={practice?.totalReadings ?? null} />
+      {sep}
+      <PracticeStat label="top stalker" value={stalkerLabel} />
+      {sep}
+      <PracticeStat
+        label="reversed"
+        value={practice ? `${practice.reversedPct}%` : null}
+      />
+      {sep}
+      <PracticeStat label="top suit" value={practice?.topSuit?.suit ?? null} />
     </div>
   );
 }
