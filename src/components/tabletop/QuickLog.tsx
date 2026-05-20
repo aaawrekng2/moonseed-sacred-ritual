@@ -135,6 +135,32 @@ export function QuickLog({
     return () => window.removeEventListener("pointerdown", handleTapOutside);
   }, [longPressSlotIdx]);
 
+  // Phase 12 — viewport-tracking for iPad month gating. Show 5 months
+  // on viewports <1280px (iPad Air/Pro 11", smaller laptops landscape),
+  // 6 months on desktop. rAF-throttled so resize doesn't thrash.
+  const [viewportWidth, setViewportWidth] = useState<number>(() =>
+    typeof window === "undefined" ? 1280 : window.innerWidth,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let raf: number | null = null;
+    const handle = () => {
+      if (raf !== null) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        setViewportWidth(window.innerWidth);
+        raf = null;
+      });
+    };
+    window.addEventListener("resize", handle);
+    window.addEventListener("orientationchange", handle);
+    return () => {
+      if (raf !== null) cancelAnimationFrame(raf);
+      window.removeEventListener("resize", handle);
+      window.removeEventListener("orientationchange", handle);
+    };
+  }, []);
+  const monthsToShow = viewportWidth >= 1280 ? 6 : 5;
+
   // Smart-input parser index: pull names from EVERY deck the seeker
   // owns + the standard 78-card Rider-Waite list. Active deck takes
   // priority on duplicate names; standard tarot is the floor.
