@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- numerology operates on Gregorian calendar (personal day/month/year), not seeker's tz; Date primitives are intentional */
 /**
  * Q52a — Numerology / Today sub-tab.
  * Renders Today's Numbers (Day/Month/Year), the Moon synthesis, and

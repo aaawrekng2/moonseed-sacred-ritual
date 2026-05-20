@@ -276,6 +276,7 @@ export function DataTab() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
+      // eslint-disable-next-line no-restricted-syntax -- backup filename: UTC ISO day is intentional (deterministic, locale-free)
       a.download = `tarotseed-backup-${new Date().toISOString().slice(0, 10)}.zip`;
       a.click();
       URL.revokeObjectURL(url);

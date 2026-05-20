@@ -31,6 +31,7 @@ import { useAuth } from "@/lib/auth";
 import { updateUserPreferences } from "@/lib/user-preferences-write";
 import { DAILY_RESET_EVENT, useDailyReset } from "@/lib/use-daily-reset";
 import { getStartOfDayInTz, getTodayInTz, useTimezone } from "@/lib/use-timezone";
+import { currentTzOrFallback, nowYmdInTz } from "@/lib/time";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -878,13 +879,7 @@ function Index() {
           );
         })()}
         {(() => {
-          const today = (() => {
-            const d = new Date();
-            const y = d.getFullYear();
-            const m = String(d.getMonth() + 1).padStart(2, "0");
-            const day = String(d.getDate()).padStart(2, "0");
-            return `${y}-${m}-${day}`;
-          })();
+          const today = nowYmdInTz(currentTzOrFallback(effectiveTz));
           const hasDrawnToday = lastDrawDate === today;
           if (hasDrawnToday && currentStreak > 0) {
             return (

@@ -17,6 +17,8 @@ import { getAuthHeaders } from "@/lib/server-fn-auth";
 import { useAuth } from "@/lib/auth";
 import { useMoonPrefs } from "@/lib/use-moon-prefs";
 import { LunationHint } from "@/components/insights/LunationHint";
+import { useTimezone } from "@/lib/use-timezone";
+import { addDaysInTz, currentTzOrFallback, isoDayInTz } from "@/lib/time";
 
 export const Route = createFileRoute("/insights/year-of-lunations")({
   head: () => ({
@@ -423,13 +425,15 @@ function SlideYearSaveShareDone({
 }) {
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState<null | "pdf" | "share">(null);
+  const { effectiveTz } = useTimezone();
+  const tz = currentTzOrFallback(effectiveTz);
   const flash = (text: string) => {
     setMsg(text);
     setTimeout(() => setMsg(null), 2400);
   };
 
-  const endIso = new Date().toISOString().slice(0, 10);
-  const startIso = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
+  const endIso = isoDayInTz(new Date(), tz);
+  const startIso = isoDayInTz(addDaysInTz(new Date(), -365, tz), tz);
 
   const handlePdf = async () => {
     if (busy) return;

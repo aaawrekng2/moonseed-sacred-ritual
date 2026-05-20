@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- numerology is calendar-year math (Gregorian), not tz-relative; Date primitives are intentional */
 /**
  * Q51a — Numerology calculation library.
  *

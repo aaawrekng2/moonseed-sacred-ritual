@@ -433,9 +433,8 @@ export function useShareCard(callbacks: ShareCardCallbacks = {}) {
         setLastError(null);
         const dataUrl = await renderToPng(node, backgroundColor);
         const captureMs = Math.round(performance.now() - captureStart);
-        const filename = `tarotseed-${new Date()
-          .toISOString()
-          .slice(0, 10)}.png`;
+        // eslint-disable-next-line no-restricted-syntax -- share image filename: UTC ISO day is intentional (deterministic, locale-free)
+        const filename = `tarotseed-${new Date().toISOString().slice(0, 10)}.png`;
         setPreview({ intent, dataUrl, filename });
         callbacks.onPrepared?.(intent, { captureMs });
         // A prepare-step retry session resolves successfully the

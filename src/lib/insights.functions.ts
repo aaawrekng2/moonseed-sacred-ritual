@@ -1574,7 +1574,12 @@ async function computeLunationSummaryForReflection(
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
     .map(([tagName, count]) => ({ tagName, count }));
-  const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const fmt = (d: Date) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "UTC",
+      month: "short",
+      day: "numeric",
+    }).format(d);
   return {
     range: `${fmt(start)} – ${fmt(end)}`,
     readingCount: rows.length,
@@ -1759,7 +1764,13 @@ export const getYearOfLunationsRecap = createServerFn({ method: "GET" })
       prev = tms;
     }
 
-    const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    const fmt = (d: Date) =>
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "UTC",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }).format(d);
     return {
       ok: true as const,
       dateRange: `${fmt(earliest)} – ${fmt(today)}`,
@@ -2543,6 +2554,7 @@ export const getSuitTrends = createServerFn({ method: "GET" })
         const day = parts.find((p) => p.type === "day")?.value ?? "01";
         return `${y}-${m}-${day}`;
       } catch {
+        // eslint-disable-next-line no-restricted-syntax -- fallback when Intl.DateTimeFormat fails; UTC slice is the safest last resort
         return d.toISOString().slice(0, 10);
       }
     };

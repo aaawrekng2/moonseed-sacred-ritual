@@ -1142,7 +1142,8 @@ function formatShortDate(d: Date, timeZone?: string) {
     ...(timeZone ? { timeZone } : {}),
   }).format(new Date());
   if (yearHere !== yearNow) opts.year = "numeric";
-  return d.toLocaleDateString(undefined, opts);
+  // Already tz-correct: opts carries timeZone when provided.
+  return new Intl.DateTimeFormat(undefined, opts).format(d);
 }
 
 /**

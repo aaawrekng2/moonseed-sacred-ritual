@@ -2493,10 +2493,12 @@ function ChamberWeaveGraph({
               const rid = node.id.slice(2);
               const r = readings.find((x) => x.id === rid);
               if (!r) return;
-              const date = new Date(r.created_at).toLocaleDateString(
-                undefined,
-                { weekday: "short", month: "long", day: "numeric", year: "numeric" },
-              );
+              const date = new Intl.DateTimeFormat(undefined, {
+                weekday: "short",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              }).format(new Date(r.created_at));
               setTooltip({
                 text: date,
                 sub: `${r.spread_type} · open in journal`,

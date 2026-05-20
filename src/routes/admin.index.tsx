@@ -556,6 +556,7 @@ function DashboardTab() {
     void (async () => {
       const users = await listAdminUsers({ headers: await authHeaders() });
       const since30 = new Date();
+      // eslint-disable-next-line no-restricted-syntax -- admin metrics window: UTC-based 30-day cutoff is intentional
       since30.setDate(since30.getDate() - 30);
       const { data: rows } = await supabase
         .from("readings")
@@ -593,6 +594,7 @@ function DashboardTab() {
       const byDay: Record<string, { standard: number; deep: number }> = {};
       for (let i = 29; i >= 0; i--) {
         const d = new Date(now - i * dayMs);
+        // eslint-disable-next-line no-restricted-syntax -- admin metrics bucket by UTC day (cross-user aggregation, no per-user tz)
         const k = d.toISOString().slice(0, 10);
         byDay[k] = { standard: 0, deep: 0 };
       }
@@ -602,6 +604,7 @@ function DashboardTab() {
           // Still let the byDay chart count anonymous-session reads
           // toward the daily totals below, but do not include them in
           // the user-id sets used for Active/Week/Month counts.
+          // eslint-disable-next-line no-restricted-syntax -- admin metrics: UTC day key matches byDay map above
           const key = new Date(r.created_at).toISOString().slice(0, 10);
           if (byDay[key]) {
             if (r.is_deep_reading) byDay[key].deep += 1;
@@ -625,6 +628,7 @@ function DashboardTab() {
         }
         spreadCounts[r.spread_type] =
           (spreadCounts[r.spread_type] ?? 0) + 1;
+        // eslint-disable-next-line no-restricted-syntax -- admin metrics: UTC day key matches byDay map above
         const key = new Date(r.created_at).toISOString().slice(0, 10);
         if (byDay[key]) {
           if (r.is_deep_reading) byDay[key].deep += 1;
@@ -3514,6 +3518,7 @@ function AuditTab() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
+    // eslint-disable-next-line no-restricted-syntax -- export filename: UTC date in admin context is fine
     a.download = `audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
