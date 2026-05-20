@@ -16,7 +16,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
-export const APP_VERSION_LETTER = "CI";
+export const APP_VERSION_LETTER = "CJ";
 const DEV_MODE_KEY = "tarotseed:dev_mode";
 const MIST_KEY = "tarotseed:mist-level";
 const OPACITY_KEY = "tarotseed:resting-opacity";
