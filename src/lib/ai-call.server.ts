@@ -275,7 +275,7 @@ async function tripCircuitBreaker(args: {
     await supabaseAdmin
       .from("admin_settings" as never)
       .upsert(
-        { key: "ai_enabled_globally", value: false } as never,
+        { key: "ai_enabled_globally", value: false, updated_at: new Date().toISOString() } as never,
         { onConflict: "key" } as never,
       );
   } catch (e) {
