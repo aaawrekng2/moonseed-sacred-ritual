@@ -475,6 +475,7 @@ function OverviewTab({
   fetchError: boolean;
   onRetry: () => void;
 }) {
+  const { effectiveTz } = useTimezone();
   if (loading && !overview) {
     return <LoadingSkeleton heights={[220, 160, 160, 160]} />;
   }
