@@ -259,7 +259,15 @@ export function QuickLog({
     return { slotW: w, slotH: w * 1.6, gap: g };
   }, [rowWidth, slotCount]);
 
-  const heroPick = picks.length > 0 ? picks[picks.length - 1] : null;
+  // Phase 14 (CZ) — hero = focused slot if any, else most recently placed.
+  const heroPick =
+    picks.length === 0
+      ? null
+      : picks[
+          focusedSlotIdx !== null && focusedSlotIdx < picks.length
+            ? focusedSlotIdx
+            : picks.length - 1
+        ];
 
   // ─── Q111 Phase 2 — per-card stats + companions + journal ───
   const statsCacheRef = useRef<Map<number, QuickLogCardStats>>(new Map());
