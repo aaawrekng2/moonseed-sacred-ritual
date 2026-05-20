@@ -927,6 +927,38 @@ export function QuickLog({
           </div>
         </div>
       </div>
+      <Sheet open={pickerOpen} onOpenChange={setPickerOpen}>
+        <SheetContent
+          side="bottom"
+          className="h-[75vh] rounded-t-2xl p-0"
+          style={{ zIndex: "var(--z-modal-nested)" as unknown as number }}
+        >
+          {pickerOpen && (
+            <CardPicker
+              mode="manual-entry"
+              embedded
+              deckId={activeDeck?.id ?? undefined}
+              excludeCardIds={placedIds}
+              showReversedToggle={true}
+              title="Pick a card"
+              onCancel={() => setPickerOpen(false)}
+              onSelect={(cardIndex, isReversed, deckId, cardName) => {
+                setPicks((prev) => [
+                  ...prev,
+                  {
+                    id: Date.now() + prev.length,
+                    cardIndex,
+                    isReversed,
+                    deckId: deckId ?? null,
+                    cardName,
+                  },
+                ]);
+                setPickerOpen(false);
+              }}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
     </FullScreenSheet>
   );
 }
