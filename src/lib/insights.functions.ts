@@ -2484,11 +2484,16 @@ export const getNumerologyReading = createServerFn({ method: "POST" })
 // ============================================================================
 // Q58 — getSuitTrends
 // ============================================================================
+const SuitTrendsInputSchema = InsightsFiltersSchema.extend({
+  tz: z.string().optional(),
+});
+
 export const getSuitTrends = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((raw: unknown) => InsightsFiltersSchema.parse(raw))
+  .inputValidator((raw: unknown) => SuitTrendsInputSchema.parse(raw))
   .handler(async ({ data, context }): Promise<{ buckets: SuitBucket[]; granularity: SuitGranularity }> => {
     const { supabase, userId } = context as { supabase: any; userId: string };
+    const tz = data.tz || "UTC";
     const isPremium = await getIsPremium(supabase, userId);
     const { days } = effectiveWindow(data.timeRange, isPremium);
     const rows = await fetchFilteredReadings(supabase, userId, data, days);
@@ -2497,7 +2502,22 @@ export const getSuitTrends = createServerFn({ method: "GET" })
     const granularity: SuitGranularity =
       effectiveDays <= 31 ? "daily" : effectiveDays <= 180 ? "weekly" : "monthly";
 
-    const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+    const isoDay = (d: Date) => {
+      try {
+        const parts = new Intl.DateTimeFormat("en-CA", {
+          timeZone: tz,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).formatToParts(d);
+        const y = parts.find((p) => p.type === "year")?.value ?? "1970";
+        const m = parts.find((p) => p.type === "month")?.value ?? "01";
+        const day = parts.find((p) => p.type === "day")?.value ?? "01";
+        return `${y}-${m}-${day}`;
+      } catch {
+        return d.toISOString().slice(0, 10);
+      }
+    };
     const isoMonth = (d: Date) => d.toISOString().slice(0, 7);
     const isoWeek = (d: Date) => {
       const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));

@@ -48,6 +48,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import { useStreak } from "@/lib/use-streak";
 import { getLunationContaining } from "@/lib/lunation";
+import { useTimezone } from "@/lib/use-timezone";
 
 const HERO_W = 225;
 const HERO_H = 346;
@@ -99,6 +100,7 @@ export function QuickLog({
   const { activeDeck, imageMap } = useActiveDeck();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { effectiveTz } = useTimezone();
 
   // Seed from any cached picks; QuickLog is additive (no null gaps).
   const [picks, setPicks] = useState<ManualPick[]>(() =>
@@ -262,7 +264,7 @@ export function QuickLog({
       return;
     }
     let cancelled = false;
-    void getQuickLogCardStats({ data: { cardId: id } })
+    void getQuickLogCardStats({ data: { cardId: id, tz: effectiveTz } })
       .then((stats) => {
         if (cancelled) return;
         statsCacheRef.current.set(id, stats);
@@ -275,7 +277,7 @@ export function QuickLog({
     return () => {
       cancelled = true;
     };
-  }, [heroPick?.cardIndex, user?.id]);
+  }, [heroPick?.cardIndex, user?.id, effectiveTz]);
 
   const descriptor = heroPick ? buildCardDescriptor(heroPick.cardIndex) : null;
 
@@ -301,7 +303,7 @@ export function QuickLog({
     }
     let cancelled = false;
     void getQuickLogOverlap({
-      data: { heroCardId: heroPick?.cardIndex ?? null },
+      data: { heroCardId: heroPick?.cardIndex ?? null, tz: effectiveTz },
     })
       .then((d) => {
         if (cancelled) return;
@@ -318,7 +320,7 @@ export function QuickLog({
     return () => {
       cancelled = true;
     };
-  }, [heroPick?.cardIndex, user?.id]);
+  }, [heroPick?.cardIndex, user?.id, effectiveTz]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -328,6 +330,7 @@ export function QuickLog({
       data: {
         lunationStart: lun.start.toISOString(),
         lunationEnd: lun.end.toISOString(),
+        tz: effectiveTz,
       },
     })
       .then((d) => {
@@ -340,7 +343,7 @@ export function QuickLog({
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [user?.id, effectiveTz]);
 
   const handleSubmit = () => {
     if (!canSubmit) return;
@@ -399,12 +402,19 @@ export function QuickLog({
     matches.sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
+    // Dedupe by reading id — defensive against any duplicate push above.
+    const seenIds = new Set<string>();
+    const uniqMatches = matches.filter((m) => {
+      if (seenIds.has(m.id)) return false;
+      seenIds.add(m.id);
+      return true;
+    });
     return {
       active: true,
       participatingCardIds: [...all],
-      matchingReadings: matches.slice(0, 5),
-      matchCount: matches.length,
-      matchCountSixMonths: matches.length,
+      matchingReadings: uniqMatches.slice(0, 5),
+      matchCount: uniqMatches.length,
+      matchCountSixMonths: uniqMatches.length,
     };
   }, [picks, overlap, overlapMode]);
 
@@ -468,29 +478,50 @@ export function QuickLog({
 
           {/* Q113 Phase 4 — Constellation banner */}
           {constellation.active && (
-            <div
-              style={{
-                height: 34,
-                borderRadius: 17,
-                border: "1px solid var(--accent, var(--gold))",
-                background: "var(--surface-card)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "16px 24px 0",
-              }}
-            >
-              <span
+            <div style={{ position: "relative", margin: "16px 24px 0" }}>
+              <div
+                aria-hidden
+                className="tarotseed-constellation-breathe"
                 style={{
-                  fontSize: 12,
-                  color: "var(--accent, var(--gold))",
-                  fontStyle: "italic",
-                  fontFamily: "var(--font-serif)",
-                  letterSpacing: "0.05em",
+                  position: "absolute",
+                  top: -12,
+                  left: -16,
+                  right: -16,
+                  bottom: -12,
+                  background:
+                    "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 48%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 28%, transparent) 50%, transparent 85%)",
+                  pointerEvents: "none",
+                  zIndex: 0,
+                  borderRadius: 60,
+                }}
+              />
+              <div
+                style={{
+                  position: "relative",
+                  zIndex: 1,
+                  height: 102,
+                  borderRadius: 51,
+                  border: "1px solid var(--accent, var(--gold))",
+                  background: "var(--surface-card)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                A CONSTELLATION FORMING — {constellation.participatingCardIds.length} of these cards have met before
-              </span>
+                <span
+                  style={{
+                    fontSize: 22,
+                    color: "var(--accent, var(--gold))",
+                    fontStyle: "italic",
+                    fontFamily: "var(--font-display)",
+                    letterSpacing: "0.05em",
+                    textAlign: "center",
+                    padding: "0 24px",
+                  }}
+                >
+                  A CONSTELLATION FORMING — {constellation.participatingCardIds.length} of these cards have met before
+                </span>
+              </div>
             </div>
           )}
 
@@ -525,7 +556,7 @@ export function QuickLog({
                       right: -40,
                       bottom: -40,
                       background:
-                        "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 32%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 18%, transparent) 35%, transparent 75%)",
+                        "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 48%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 28%, transparent) 35%, transparent 75%)",
                       pointerEvents: "none",
                       zIndex: 0,
                       borderRadius: "50%",
@@ -1312,7 +1343,7 @@ function CompanionsAndJournal({
                         right: -16,
                         bottom: -12,
                         background:
-                          "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 28%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent) 50%, transparent 85%)",
+                          "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 42%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 24%, transparent) 50%, transparent 85%)",
                         pointerEvents: "none",
                         zIndex: 0,
                         borderRadius: 14,
@@ -1570,9 +1601,63 @@ function OverlapStrip({
   const currentMonthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
 
   return (
-    <div>
+    <div style={{ position: "relative" }}>
+      {/* Toggle pills — top-right of the calendar area, never overlapping day cells */}
       <div
         style={{
+          position: "absolute",
+          top: 0,
+          right: 8,
+          zIndex: 3,
+          display: "flex",
+          gap: 6,
+        }}
+      >
+        <div
+          role="tablist"
+          style={{
+            display: "inline-flex",
+            height: 22,
+            borderRadius: 9999,
+            border: "1px solid var(--border-subtle)",
+            background: "var(--surface-card)",
+            overflow: "hidden",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 10,
+          }}
+        >
+          {(["pull", "day"] as const).map((m) => {
+            const active = mode === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => onModeChange(m)}
+                style={{
+                  padding: "0 12px",
+                  height: "100%",
+                  border: "none",
+                  background: active
+                    ? "color-mix(in oklab, var(--accent, var(--gold)) 65%, transparent)"
+                    : "transparent",
+                  color: active
+                    ? "var(--color-foreground)"
+                    : "var(--color-foreground-muted, var(--color-foreground))",
+                  cursor: "pointer",
+                }}
+              >
+                same {m}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div
+        style={{
+          paddingTop: 32,
           display: "flex",
           flexDirection: "row",
           gap: 30,
@@ -1646,6 +1731,7 @@ function OverlapStrip({
                 {m.days.map((day) => {
                   let bg = "var(--color-foreground)";
                   let opacity = 0.18;
+                  let matchCount = 0;
                   if (day.heroDrawn && heroCardId != null) {
                     bg = "var(--gold, var(--accent))";
                     opacity = 0.9;
@@ -1664,16 +1750,52 @@ function OverlapStrip({
                       }
                       matches = best;
                     }
+                    matchCount = matches;
                     const op = bucketOpacity(matches);
                     if (op > 0) {
                       bg = "var(--accent, var(--gold))";
                       opacity = op;
                     }
                   }
+                  const textColor =
+                    opacity > 0.5
+                      ? "var(--background)"
+                      : "var(--color-foreground)";
+                  const dateLabel = new Date(
+                    day.date + "T00:00:00",
+                  ).toLocaleDateString(undefined, {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  });
+                  let tooltipText: string;
+                  if (matchCount <= 0) {
+                    const readingsOnDay =
+                      overlap?.readingsByDate?.[day.date] ?? [];
+                    if (readingsOnDay.length === 0) {
+                      tooltipText = `${dateLabel} — no readings`;
+                    } else {
+                      const n = readingsOnDay.length;
+                      tooltipText = `${dateLabel} — ${n} reading${n === 1 ? "" : "s"}, no overlap with current pull`;
+                    }
+                  } else {
+                    const matchedNames = pullCardIds
+                      .filter((id) => {
+                        if (mode === "day")
+                          return day.sameDayCardIds.includes(id);
+                        const readings =
+                          overlap?.readingsByDate?.[day.date] ?? [];
+                        return readings.some((r) => r.cardIds.includes(id));
+                      })
+                      .map((id) => getCardName(id))
+                      .filter(Boolean)
+                      .join(", ");
+                    tooltipText = `${dateLabel} — ${matchCount} of ${pullCardIds.length} cards from this pull${matchedNames ? ` (${matchedNames})` : ""}`;
+                  }
                   return (
                     <div
                       key={day.date}
-                      title={day.date}
+                      title={tooltipText}
                       style={{
                         width: 20,
                         height: 20,
@@ -1690,7 +1812,7 @@ function OverlapStrip({
                         fontSize: 9,
                         fontStyle: "italic",
                         lineHeight: 1,
-                        color: "var(--color-foreground)",
+                        color: textColor,
                       }}
                     >
                       {new Date(day.date).getDate()}
@@ -1702,58 +1824,7 @@ function OverlapStrip({
           );
         })}
       </div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginTop: -110,
-          position: "relative",
-          zIndex: 2,
-        }}
-      >
-        <div
-          role="tablist"
-          style={{
-            display: "inline-flex",
-            height: 22,
-            borderRadius: 9999,
-            border: "1px solid var(--border-subtle)",
-            background: "var(--surface-card)",
-            overflow: "hidden",
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: 10,
-          }}
-        >
-          {(["pull", "day"] as const).map((m) => {
-            const active = mode === m;
-            return (
-              <button
-                key={m}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => onModeChange(m)}
-                style={{
-                  padding: "0 12px",
-                  height: "100%",
-                  border: "none",
-                  background: active
-                    ? "color-mix(in oklab, var(--accent, var(--gold)) 65%, transparent)"
-                    : "transparent",
-                  color: active
-                    ? "var(--color-foreground)"
-                    : "var(--color-foreground-muted, var(--color-foreground))",
-                  cursor: "pointer",
-                }}
-              >
-                same {m}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      <div style={{ height: 88 }} />
+      <div style={{ height: 16 }} />
     </div>
   );
 }

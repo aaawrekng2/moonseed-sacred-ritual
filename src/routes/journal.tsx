@@ -2481,12 +2481,13 @@ function ReadingDetail({
               key: string,
             ) => {
               const cols = ids.length;
+              const gridCols = `repeat(${cols}, ${ezCardWidthPx}px)`;
               return (
                 <div key={key}>
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: `repeat(${cols}, auto)`,
+                      gridTemplateColumns: gridCols,
                       justifyContent: "center",
                       alignItems: "end",
                       columnGap: 8,
@@ -2497,7 +2498,7 @@ function ReadingDetail({
                   <div
                     style={{
                       display: "grid",
-                      gridTemplateColumns: `repeat(${cols}, auto)`,
+                      gridTemplateColumns: gridCols,
                       justifyContent: "center",
                       alignItems: "start",
                       columnGap: 8,

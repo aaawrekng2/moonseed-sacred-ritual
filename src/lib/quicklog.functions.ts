@@ -14,6 +14,7 @@ import { getCardName } from "@/lib/tarot";
 
 const Input = z.object({
   cardId: z.number().int().min(0).max(9999),
+  tz: z.string().optional(),
 });
 
 export type QuickLogJournalRow = {
@@ -167,6 +168,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
 
 const OverlapInput = z.object({
   heroCardId: z.number().int().min(0).max(9999).nullable().optional(),
+  tz: z.string().optional(),
 });
 
 export type QuickLogDayCell = {
@@ -189,11 +191,25 @@ export type QuickLogOverlap = {
   >;
 };
 
-function isoDay(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+/**
+ * Format a Date as YYYY-MM-DD in the given IANA timezone.
+ * Falls back to UTC if the tz string is invalid.
+ */
+function isoDayInTz(d: Date, tz: string): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(d);
+    const y = parts.find((p) => p.type === "year")?.value ?? "1970";
+    const m = parts.find((p) => p.type === "month")?.value ?? "01";
+    const day = parts.find((p) => p.type === "day")?.value ?? "01";
+    return `${y}-${m}-${day}`;
+  } catch {
+    return d.toISOString().slice(0, 10);
+  }
 }
 
 function daysInMonth(year: number, month1: number): number {
@@ -209,18 +225,24 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
       userId: string;
     };
     const heroCardId = data.heroCardId ?? null;
+    const tz = data.tz || "UTC";
 
-    // Window: first day of (today's month - 5) through today.
+    // Window: first day of (today's month - 5) through today, in user tz.
     const now = new Date();
-    const startMonth = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const nowKey = isoDayInTz(now, tz); // "YYYY-MM-DD"
+    const [nowYearStr, nowMonthStr] = nowKey.split("-");
+    const nowYear = Number(nowYearStr);
+    const nowMonth0 = Number(nowMonthStr) - 1;
+    let startYear = nowYear;
+    let startMonth0 = nowMonth0 - 5;
+    while (startMonth0 < 0) {
+      startMonth0 += 12;
+      startYear -= 1;
+    }
+    // Approximate UTC lower bound for the SQL filter. Subtract one day to
+    // be safe against tz offsets pulling readings into the prior UTC day.
     const startIso = new Date(
-      startMonth.getFullYear(),
-      startMonth.getMonth(),
-      1,
-      0,
-      0,
-      0,
-      0,
+      Date.UTC(startYear, startMonth0, 1, 0, 0, 0, 0) - 24 * 60 * 60 * 1000,
     ).toISOString();
 
     const { data: rowsRaw } = await supabase
@@ -241,7 +263,7 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
       question: string | null;
     }>) {
       const ids = row.card_ids ?? [];
-      const key = isoDay(new Date(row.created_at));
+      const key = isoDayInTz(new Date(row.created_at), tz);
       (readingsByDate[key] = readingsByDate[key] ?? []).push({
         id: row.id,
         createdAt: row.created_at,
@@ -255,20 +277,24 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
 
     const months: QuickLogMonthGroup[] = [];
     for (let i = 0; i < 6; i++) {
-      const ref = new Date(startMonth.getFullYear(), startMonth.getMonth() + i, 1);
-      const year = ref.getFullYear();
-      const month = ref.getMonth() + 1;
-      const count = daysInMonth(year, month);
+      let y = startYear;
+      let m0 = startMonth0 + i;
+      while (m0 >= 12) {
+        m0 -= 12;
+        y += 1;
+      }
+      const month = m0 + 1;
+      const count = daysInMonth(y, month);
       const days: QuickLogDayCell[] = [];
       for (let d = 1; d <= count; d++) {
-        const date = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        const date = `${y}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
         days.push({
           date,
           heroDrawn: heroDays.has(date),
           sameDayCardIds: [...(sameDayCardIds[date] ?? [])],
         });
       }
-      months.push({ year, month, days });
+      months.push({ year: y, month, days });
     }
 
     return { months, readingsByDate };
@@ -288,6 +314,7 @@ export type QuickLogPractice = {
 const PracticeInput = z.object({
   lunationStart: z.string().optional(),
   lunationEnd: z.string().optional(),
+  tz: z.string().optional(),
 });
 
 function suitFor(cardId: number): string | null {
