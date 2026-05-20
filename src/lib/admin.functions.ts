@@ -22,6 +22,7 @@ import {
   type WeavePreview,
 } from "@/lib/weaves.server";
 import { evaluateDetectWeavesAlerts } from "@/lib/detect-weaves-alerts.server";
+import { addDaysInTz } from "@/lib/time";
 
 async function assertAdmin(supabase: any, userId: string): Promise<void> {
   const { data, error } = await supabase.rpc("has_admin_role", {
@@ -219,8 +220,7 @@ export const getAnonymousSessionCounts = createServerFn({ method: "GET" })
 
     const startToday = new Date();
     startToday.setHours(0, 0, 0, 0);
-    const start30 = new Date();
-    start30.setDate(start30.getDate() - 30);
+    const start30 = addDaysInTz(new Date(), -30, "UTC");
 
     let today = 0;
     let last30Days = 0;
@@ -391,7 +391,8 @@ export const adminAction = createServerFn({ method: "POST" })
     switch (data.type) {
       case "grant_premium": {
         const expires = new Date();
-        expires.setMonth(expires.getMonth() + data.months);
+        /* eslint-disable-next-line no-restricted-syntax -- premium expiry uses UTC calendar-month math, tz-aware not required */
+        expires.setUTCMonth(expires.getUTCMonth() + data.months);
         await supabaseAdmin
           .from("user_preferences")
           .upsert(
@@ -422,7 +423,8 @@ export const adminAction = createServerFn({ method: "POST" })
           prev && new Date(prev).getTime() > Date.now()
             ? new Date(prev)
             : new Date();
-        base.setMonth(base.getMonth() + data.months);
+        /* eslint-disable-next-line no-restricted-syntax -- premium expiry uses UTC calendar-month math, tz-aware not required */
+        base.setUTCMonth(base.getUTCMonth() + data.months);
         await supabaseAdmin
           .from("user_preferences")
           .upsert(
