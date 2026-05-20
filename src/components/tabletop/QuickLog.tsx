@@ -53,6 +53,21 @@ const DEFAULT_SLOT_W = 80;
 const DEFAULT_GAP = 15;
 const GAP_RATIO = DEFAULT_GAP / DEFAULT_SLOT_W; // 0.1875
 
+// Q113 Phase 4 — Constellation state shared with subcomponents.
+type ConstellationState = {
+  active: boolean;
+  participatingCardIds: number[];
+  matchingReadings: Array<{
+    id: string;
+    createdAt: string;
+    question: string | null;
+    cardIds: number[];
+    matched: number[];
+  }>;
+  matchCount: number;
+  matchCountSixMonths: number;
+};
+
 type Props = {
   spread: SpreadMode;
   customCount?: number;
@@ -324,6 +339,66 @@ export function QuickLog({
     setBackdate(null);
   };
 
+  // ─── Q113 Phase 4 — Constellation state ────────────────────────────
+  const constellation = useMemo<ConstellationState>(() => {
+    const pullIds = picks.map((p) => p.cardIndex);
+    if (pullIds.length < 3 || !overlap) {
+      return {
+        active: false,
+        participatingCardIds: [],
+        matchingReadings: [],
+        matchCount: 0,
+        matchCountSixMonths: 0,
+      };
+    }
+    const matches: ConstellationState["matchingReadings"] = [];
+    const entries = Object.entries(overlap.readingsByDate);
+    if (overlapMode === "pull") {
+      for (const [, readings] of entries) {
+        for (const reading of readings) {
+          const matched = pullIds.filter((id) => reading.cardIds.includes(id));
+          if (matched.length >= 3) matches.push({ ...reading, matched });
+        }
+      }
+    } else {
+      for (const [, readings] of entries) {
+        if (readings.length === 0) continue;
+        const dayCards = new Set<number>();
+        for (const r of readings) r.cardIds.forEach((id) => dayCards.add(id));
+        const matched = pullIds.filter((id) => dayCards.has(id));
+        if (matched.length >= 3) {
+          matches.push({ ...readings[0], matched });
+        }
+      }
+    }
+    if (matches.length === 0) {
+      return {
+        active: false,
+        participatingCardIds: [],
+        matchingReadings: [],
+        matchCount: 0,
+        matchCountSixMonths: 0,
+      };
+    }
+    const all = new Set<number>();
+    matches.forEach((m) => m.matched.forEach((id) => all.add(id)));
+    matches.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+    return {
+      active: true,
+      participatingCardIds: [...all],
+      matchingReadings: matches.slice(0, 5),
+      matchCount: matches.length,
+      matchCountSixMonths: matches.length,
+    };
+  }, [picks, overlap, overlapMode]);
+
+  const participatingSet = useMemo(
+    () => new Set(constellation.participatingCardIds),
+    [constellation.participatingCardIds],
+  );
+
   return (
     <FullScreenSheet open onClose={onCancel} entry="fade" showCloseButton={false}>
       <div
@@ -377,6 +452,34 @@ export function QuickLog({
             )}
           </div>
 
+          {/* Q113 Phase 4 — Constellation banner */}
+          {constellation.active && (
+            <div
+              style={{
+                height: 34,
+                borderRadius: 17,
+                border: "1px solid var(--accent, var(--gold))",
+                background: "var(--surface-card)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "16px 24px 0",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "var(--accent, var(--gold))",
+                  fontStyle: "italic",
+                  fontFamily: "var(--font-serif)",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                A CONSTELLATION FORMING — {constellation.participatingCardIds.length} of these cards have met before
+              </span>
+            </div>
+          )}
+
           {/* Main two-column grid */}
           <div
             style={{
@@ -397,24 +500,53 @@ export function QuickLog({
               }}
             >
               <div style={{ position: "relative", width: HERO_W, height: HERO_H }}>
-                {heroPick ? (
-                  <CardImage
-                    variant="face"
-                    cardId={heroPick.cardIndex}
-                    reversed={heroPick.isReversed}
-                    deckId={heroPick.deckId ?? undefined}
-                    size="custom"
-                    widthPx={HERO_W}
-                    eager
-                  />
-                ) : (
-                  <CardImage
-                    variant="back"
-                    size="custom"
-                    widthPx={HERO_W}
-                    eager
+                {constellation.active && (
+                  <div
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      top: -30,
+                      left: -30,
+                      right: -30,
+                      bottom: -30,
+                      background:
+                        "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 18%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent) 40%, transparent 80%)",
+                      pointerEvents: "none",
+                      zIndex: 0,
+                    }}
                   />
                 )}
+                <div
+                  style={{
+                    position: "relative",
+                    zIndex: 1,
+                    width: HERO_W,
+                    height: HERO_H,
+                    border: constellation.active
+                      ? "2px solid var(--accent, var(--gold))"
+                      : "none",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  {heroPick ? (
+                    <CardImage
+                      variant="face"
+                      cardId={heroPick.cardIndex}
+                      reversed={heroPick.isReversed}
+                      deckId={heroPick.deckId ?? undefined}
+                      size="custom"
+                      widthPx={HERO_W}
+                      eager
+                    />
+                  ) : (
+                    <CardImage
+                      variant="back"
+                      size="custom"
+                      widthPx={HERO_W}
+                      eager
+                    />
+                  )}
+                </div>
               </div>
               {heroPick && descriptor && (
                 <p
@@ -514,29 +646,62 @@ export function QuickLog({
                   >
                   {picks.map((pick, idx) => {
                     const isLatest = idx === picks.length - 1;
+                    const isInConstellation =
+                      constellation.active &&
+                      participatingSet.has(pick.cardIndex);
+                    const borderColor =
+                      isLatest || isInConstellation
+                        ? "var(--accent, var(--gold))"
+                        : "var(--border-subtle)";
+                    const borderWidth = isLatest ? "1.5px" : "1px";
                     return (
                       <div
                         key={pick.id}
                         style={{
+                          position: "relative",
                           width: slotW,
                           height: slotH,
-                          borderRadius: 6,
-                          overflow: "hidden",
-                          border: isLatest
-                            ? "1.5px solid var(--accent, var(--gold))"
-                            : "1px solid var(--border-subtle)",
-                          boxSizing: "border-box",
                           flexShrink: 0,
                         }}
                       >
-                        <CardImage
-                          variant="face"
-                          cardId={pick.cardIndex}
-                          reversed={pick.isReversed}
-                          deckId={pick.deckId ?? undefined}
-                          size="custom"
-                          widthPx={slotW}
-                        />
+                        {isInConstellation && !isLatest && (
+                          <div
+                            aria-hidden
+                            style={{
+                              position: "absolute",
+                              top: -3,
+                              left: -3,
+                              right: -3,
+                              bottom: -3,
+                              background:
+                                "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
+                              borderRadius: 8,
+                              pointerEvents: "none",
+                              zIndex: 0,
+                            }}
+                          />
+                        )}
+                        <div
+                          style={{
+                            position: "relative",
+                            zIndex: 1,
+                            width: slotW,
+                            height: slotH,
+                            borderRadius: 6,
+                            overflow: "hidden",
+                            border: `${borderWidth} solid ${borderColor}`,
+                            boxSizing: "border-box",
+                          }}
+                        >
+                          <CardImage
+                            variant="face"
+                            cardId={pick.cardIndex}
+                            reversed={pick.isReversed}
+                            deckId={pick.deckId ?? undefined}
+                            size="custom"
+                            widthPx={slotW}
+                          />
+                        </div>
                       </div>
                     );
                   })}
@@ -579,6 +744,8 @@ export function QuickLog({
                 stats={cardStats}
                 selectedIdx={selectedCompanionIdx}
                 onSelect={setSelectedCompanionIdx}
+                pullCardIds={placedIds}
+                constellation={constellation}
                 onOpenReading={(id: string) => {
                   navigate({ to: "/journal", search: { open: id } as never });
                 }}
@@ -609,7 +776,11 @@ export function QuickLog({
           {/* Q112 Phase 3 — pull-history pill */}
           {picks.length > 0 && (
             <div style={{ padding: "0 24px" }}>
-              <PullHistoryPill picks={picks} practice={practice} />
+              <PullHistoryPill
+                picks={picks}
+                practice={practice}
+                constellation={constellation}
+              />
             </div>
           )}
 
@@ -819,12 +990,16 @@ function CompanionsAndJournal({
   stats,
   selectedIdx,
   onSelect,
+  pullCardIds,
+  constellation,
   onOpenReading,
 }: {
   heroPick: ManualPick | null;
   stats: QuickLogCardStats | null;
   selectedIdx: number;
   onSelect: (i: number) => void;
+  pullCardIds: number[];
+  constellation: ConstellationState;
   onOpenReading: (id: string) => void;
 }) {
   const companions = stats?.companions ?? [];
@@ -838,6 +1013,13 @@ function CompanionsAndJournal({
   }, [stats, selected]);
 
   const showEmptyPlaceholder = !heroPick || companions.length === 0;
+
+  const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
+  const constellationActive = constellation.active;
+  const participatingIds = constellation.participatingCardIds;
+  const participatingNames = participatingIds.map((id) => getCardName(id));
+  const wordFor = (n: number) =>
+    n === 3 ? "THREE" : n === 4 ? "FOUR" : n === 5 ? "FIVE" : String(n);
 
   return (
     <div
@@ -874,6 +1056,8 @@ function CompanionsAndJournal({
           <div style={{ display: "flex", gap: 12 }}>
             {companions.map((c, idx) => {
               const isSelected = idx === selectedIdx;
+              const isInPull = pullSet.has(c.cardId);
+              const showGoldRing = constellationActive && isInPull;
               return (
                 <button
                   key={c.cardId}
@@ -904,6 +1088,24 @@ function CompanionsAndJournal({
                       }}
                     />
                   )}
+                  {showGoldRing && (
+                    <div
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        top: -3,
+                        left: -3,
+                        right: 0,
+                        bottom: 0,
+                        width: 86,
+                        height: 134,
+                        background:
+                          "color-mix(in oklab, var(--accent, var(--gold)) 10%, transparent)",
+                        borderRadius: 6,
+                        pointerEvents: "none",
+                      }}
+                    />
+                  )}
                   <div
                     style={{
                       width: 80,
@@ -911,6 +1113,12 @@ function CompanionsAndJournal({
                       borderRadius: 5,
                       overflow: "hidden",
                       position: "relative",
+                      border: showGoldRing
+                        ? "2.5px solid var(--accent, var(--gold))"
+                        : isSelected
+                          ? "1.5px solid var(--accent, var(--gold))"
+                          : "1px solid var(--border-subtle)",
+                      boxSizing: "border-box",
                     }}
                   >
                     <CardImage
@@ -938,7 +1146,155 @@ function CompanionsAndJournal({
         )}
       </div>
 
-      {heroPick && selected && (
+      {constellationActive ? (
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p
+            style={{
+              fontSize: 10,
+              letterSpacing: "0.3em",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              color: "var(--accent, var(--gold))",
+              opacity: 0.85,
+              margin: "0 0 6px 0",
+              textTransform: "uppercase",
+            }}
+          >
+            A CONSTELLATION — WHEN THESE {wordFor(participatingIds.length)} MET BEFORE
+          </p>
+          <p
+            style={{
+              fontSize: 11,
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              color: "var(--color-foreground-muted, var(--color-foreground))",
+              margin: "0 0 12px 0",
+              opacity: 0.8,
+            }}
+          >
+            {participatingNames.join(" · ")}
+          </p>
+          {constellation.matchingReadings.length === 0 ? (
+            <p
+              style={{
+                fontSize: 11,
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                color: "var(--color-foreground-muted, var(--color-foreground))",
+                textAlign: "center",
+                padding: "16px 0",
+                opacity: 0.65,
+                margin: 0,
+              }}
+            >
+              —
+            </p>
+          ) : (
+            <div>
+              {constellation.matchingReadings.map((r) => {
+                const thumbs = participatingIds.slice(0, 3);
+                const more = participatingIds.length - thumbs.length;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => onOpenReading(r.id)}
+                    style={{
+                      width: "100%",
+                      height: 60,
+                      borderRadius: 6,
+                      border: "1px solid var(--accent, var(--gold))",
+                      background: "var(--surface-card)",
+                      padding: "8px 10px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      cursor: "pointer",
+                      marginBottom: 8,
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                      {thumbs.map((cid) => (
+                        <div
+                          key={cid}
+                          style={{
+                            width: 28,
+                            height: 44,
+                            borderRadius: 3,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <CardImage
+                            variant="face"
+                            cardId={cid}
+                            size="custom"
+                            widthPx={28}
+                          />
+                        </div>
+                      ))}
+                      {more > 0 && (
+                        <span
+                          style={{
+                            alignSelf: "center",
+                            fontSize: 10,
+                            fontStyle: "italic",
+                            fontFamily: "var(--font-serif)",
+                            color:
+                              "var(--color-foreground-muted, var(--color-foreground))",
+                            marginLeft: 4,
+                          }}
+                        >
+                          +{more} more
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 2,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 13,
+                          color: "var(--color-foreground)",
+                          fontStyle: "italic",
+                          fontFamily: "var(--font-serif)",
+                        }}
+                      >
+                        {format(new Date(r.createdAt), "MMM d, yyyy")}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color:
+                            "var(--color-foreground-muted, var(--color-foreground))",
+                          fontStyle: "italic",
+                          fontFamily: "var(--font-serif)",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {r.question?.trim() || "(no question)"}
+                      </span>
+                    </div>
+                    <span
+                      style={{ color: "var(--accent, var(--gold))", fontSize: 11 }}
+                    >
+                      ›
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ) : heroPick && selected ? (
         <div style={{ flex: 1, minWidth: 0 }}>
           <p
             style={{
@@ -1023,7 +1379,7 @@ function CompanionsAndJournal({
             </div>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -1182,9 +1538,9 @@ function OverlapStrip({
                     } else {
                       const readings = overlap?.readingsByDate?.[day.date] ?? [];
                       let best = 0;
-                      for (const ids of readings) {
+                      for (const r of readings) {
                         let n = 0;
-                        for (const id of ids) if (pullSet.has(id)) n++;
+                        for (const id of r.cardIds) if (pullSet.has(id)) n++;
                         if (n > best) best = n;
                       }
                       matches = best;
@@ -1435,9 +1791,11 @@ function ThisPullTiles({ picks }: { picks: ManualPick[] }) {
 function PullHistoryPill({
   picks,
   practice,
+  constellation,
 }: {
   picks: ManualPick[];
   practice: QuickLogPractice | null;
+  constellation: ConstellationState;
 }) {
   const key = useMemo(
     () => picks.map((p) => p.cardIndex).sort((a, b) => a - b).join(","),
@@ -1453,6 +1811,15 @@ function PullHistoryPill({
       text = `You drew this exact combination ${entry.count} times before — last on ${when}.`;
     } else {
       text = `You've drawn this exact combination ${entry.count} times — most recently ${when}.`;
+    }
+  }
+  if (constellation.active) {
+    const N = constellation.participatingCardIds.length;
+    const M = constellation.matchCountSixMonths;
+    if (M === 1) {
+      text = `A constellation. ${N} of these cards have met before — once in the last 6 months.`;
+    } else {
+      text = `A constellation. ${N} of these cards have met before — ${M} times in the last 6 months.`;
     }
   }
   return (

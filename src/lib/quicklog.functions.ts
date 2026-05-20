@@ -183,7 +183,10 @@ export type QuickLogMonthGroup = {
 
 export type QuickLogOverlap = {
   months: QuickLogMonthGroup[];
-  readingsByDate: Record<string, Array<number[]>>;
+  readingsByDate: Record<
+    string,
+    Array<{ id: string; createdAt: string; question: string | null; cardIds: number[] }>
+  >;
 };
 
 function isoDay(d: Date): string {
@@ -222,22 +225,29 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
 
     const { data: rowsRaw } = await supabase
       .from("readings")
-      .select("id, created_at, card_ids")
+      .select("id, created_at, card_ids, question")
       .eq("user_id", userId)
       .gte("created_at", startIso)
       .order("created_at", { ascending: false })
       .limit(2000);
 
-    const readingsByDate: Record<string, Array<number[]>> = {};
+    const readingsByDate: QuickLogOverlap["readingsByDate"] = {};
     const heroDays = new Set<string>();
     const sameDayCardIds: Record<string, Set<number>> = {};
     for (const row of (rowsRaw ?? []) as Array<{
+      id: string;
       created_at: string;
       card_ids: number[] | null;
+      question: string | null;
     }>) {
       const ids = row.card_ids ?? [];
       const key = isoDay(new Date(row.created_at));
-      (readingsByDate[key] = readingsByDate[key] ?? []).push(ids);
+      (readingsByDate[key] = readingsByDate[key] ?? []).push({
+        id: row.id,
+        createdAt: row.created_at,
+        question: row.question,
+        cardIds: ids,
+      });
       const set = (sameDayCardIds[key] = sameDayCardIds[key] ?? new Set());
       for (const id of ids) set.add(id);
       if (heroCardId != null && ids.includes(heroCardId)) heroDays.add(key);
