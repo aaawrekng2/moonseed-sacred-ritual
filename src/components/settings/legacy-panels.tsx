@@ -397,6 +397,7 @@ export function DataPanel() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
+    // eslint-disable-next-line no-restricted-syntax -- export filename: UTC ISO day is intentional (deterministic, locale-free)
     const date = new Date().toISOString().slice(0, 10);
     a.download = `tarotseed-export-${date}.json`;
     a.click();
