@@ -10,22 +10,23 @@ import { getCardName } from "@/lib/tarot";
 import type { CardConstellation } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 
-const COMPANION_POSITIONS = [
-  { x: 70, y: 250 },
-  { x: 410, y: 250 },
-  { x: 20, y: 380 },
-  { x: 460, y: 380 },
-  { x: 110, y: 510 },
-  { x: 370, y: 510 },
-  { x: 240, y: 560 },
-];
-
+const AR_CEILING = 1.7;
 const COMPANION_W = 60;
-const COMPANION_H = 80;
+const COMPANION_H = Math.round(COMPANION_W * AR_CEILING); // ≈102 — layout reservation
 const HERO_W = 120;
-const HERO_H = 160;
+const HERO_H = Math.round(HERO_W * AR_CEILING); // ≈204
+const HERO_Y = 120;
 const SVG_W = 500;
-const SVG_H = 700;
+const SVG_H = 720;
+const COMPANION_POSITIONS = [
+  { x: 70, y: 170 },   // upper-left — overlaps hero
+  { x: 410, y: 170 },  // upper-right — overlaps hero
+  { x: 20, y: 340 },   // mid-far-left
+  { x: 460, y: 340 },  // mid-far-right
+  { x: 110, y: 500 },  // lower-left
+  { x: 370, y: 500 },  // lower-right
+  { x: 240, y: 580 },  // bottom center
+];
 
 type Props = {
   heroPick: ManualPick | null;
@@ -41,7 +42,7 @@ function getCardPosition(
   constellation: CardConstellation,
 ): Box {
   if (cardId === constellation.heroCardId) {
-    return { x: (SVG_W - HERO_W) / 2, y: 60, w: HERO_W, h: HERO_H };
+    return { x: (SVG_W - HERO_W) / 2, y: HERO_Y, w: HERO_W, h: HERO_H };
   }
   const idx = constellation.companions.findIndex((c) => c.cardId === cardId);
   if (idx === -1 || idx >= COMPANION_POSITIONS.length) {
@@ -81,7 +82,7 @@ export function ConstellationWeb({
             color: "var(--color-foreground)",
           }}
         >
-          the constellation
+          The Constellation
         </p>
         <p
           style={{
@@ -93,7 +94,7 @@ export function ConstellationWeb({
             textTransform: "uppercase",
           }}
         >
-          cards drawn together — line weight = times paired · tap a card to filter
+          Cards Drawn Together — Line Weight = Times Paired · tap a card to filter
         </p>
       </div>
 

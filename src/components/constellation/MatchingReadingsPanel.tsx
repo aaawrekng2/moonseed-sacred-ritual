@@ -26,8 +26,8 @@ export function MatchingReadingsPanel({
 
   const title =
     companionFilter !== null
-      ? `when ${getCardName(heroPick.cardIndex)} + ${getCardName(companionFilter)} met before`
-      : `recent readings with ${getCardName(heroPick.cardIndex)}`;
+      ? `When ${getCardName(heroPick.cardIndex)} + ${getCardName(companionFilter)} Met Before`
+      : `Recent Readings with ${getCardName(heroPick.cardIndex)}`;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
