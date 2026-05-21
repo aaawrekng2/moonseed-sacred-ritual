@@ -599,3 +599,59 @@ export const getCardConstellation = createServerFn({ method: "POST" })
 
     return { heroCardId, companions: sortedCompanions, pairCounts, matches };
   });
+
+// ─── Phase 23 — per-card draw counts for slot badges ─────────────────
+
+const DrawCountsInput = z.object({
+  cardIds: z.array(z.number().int().min(0).max(9999)).max(10),
+  tz: z.string().min(1),
+  filters: FiltersSchema,
+});
+
+export type CardDrawCounts = {
+  /** cardId -> times drawn within the filter window */
+  perCard: Record<number, number>;
+  /** max count across all standard (78) cards in the filter window */
+  globalMax: number;
+};
+
+export const getCardDrawCounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => DrawCountsInput.parse(data))
+  .handler(async ({ data, context }): Promise<CardDrawCounts> => {
+    const { supabase, userId } = context as {
+      supabase: SupabaseClient;
+      userId: string;
+    };
+    if (data.cardIds.length === 0) return { perCard: {}, globalMax: 0 };
+
+    let q = supabase
+      .from("readings")
+      .select(
+        "id, created_at, card_ids, card_orientations, spread_type, tags, moon_phase, is_deep_reading",
+      )
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(2000);
+    const since = timeRangeStartIso(data.filters?.timeRange);
+    if (since) q = q.gte("created_at", since);
+    const { data: rowsRaw } = await q;
+
+    const rows = ((rowsRaw ?? []) as Array<
+      { card_ids: number[] | null } & FilterableRow
+    >)
+      .filter((r) => Array.isArray(r.card_ids))
+      .filter((r) => postFilterRow(r, data.filters));
+
+    const counts = new Map<number, number>();
+    for (const r of rows) {
+      for (const id of r.card_ids ?? []) {
+        counts.set(id, (counts.get(id) ?? 0) + 1);
+      }
+    }
+    let globalMax = 0;
+    for (const n of counts.values()) if (n > globalMax) globalMax = n;
+    const perCard: Record<number, number> = {};
+    for (const id of data.cardIds) perCard[id] = counts.get(id) ?? 0;
+    return { perCard, globalMax };
+  });
