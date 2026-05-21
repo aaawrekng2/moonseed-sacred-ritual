@@ -53,6 +53,16 @@ export type GlobalFilterBarProps = {
   trailingChips?: React.ReactNode;
   /** Optional dropdowns rendered to the right of the time range. */
   trailingDropdowns?: React.ReactNode;
+  /**
+   * DX — optional controlled-drawer mode. When `drawerOpen` is provided
+   * along with `onDrawerOpenChange`, the parent drives the fly-out's
+   * open state and the toolbar icon delegates to the parent. Lets an
+   * outside trigger (e.g. the "· FILTERED" link in the data header)
+   * open the same fly-out. If omitted, the bar falls back to its
+   * internal state — existing call sites need no change.
+   */
+  drawerOpen?: boolean;
+  onDrawerOpenChange?: (next: boolean) => void;
 };
 
 const STORIES_DEFAULT_VISIBLE = 5;
@@ -69,8 +79,20 @@ export function GlobalFilterBar({
   availableMoonPhases,
   trailingChips,
   trailingDropdowns,
+  drawerOpen: controlledOpen,
+  onDrawerOpenChange,
 }: GlobalFilterBarProps) {
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isControlled =
+    controlledOpen !== undefined && onDrawerOpenChange !== undefined;
+  const drawerOpen = isControlled ? (controlledOpen ?? false) : uncontrolledOpen;
+  const setDrawerOpen = (next: boolean) => {
+    if (isControlled) {
+      onDrawerOpenChange?.(next);
+    } else {
+      setUncontrolledOpen(next);
+    }
+  };
 
   const update = (patch: Partial<GlobalFilters>) =>
     onChange({ ...filters, ...patch });
@@ -278,6 +300,26 @@ function FilterDrawer({
             className="rounded-full p-1 text-muted-foreground hover:text-gold"
           >
             <XIcon size={16} strokeWidth={1.5} />
+          </button>
+        </div>
+
+        {/* DX — always-visible CLEAR FILTERS link at top center of the
+            drawer. Instant clear, no confirm. Drawer stays open (only
+            closes via X or click-outside). */}
+        <div className="mb-5 flex items-center justify-center">
+          <button
+            type="button"
+            onClick={() => onChange(clearAll(filters))}
+            className="font-display text-[11px] uppercase tracking-[0.22em] transition-colors"
+            style={{
+              color: "var(--accent, var(--gold))",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              padding: "4px 8px",
+            }}
+          >
+            Clear Filters
           </button>
         </div>
 
