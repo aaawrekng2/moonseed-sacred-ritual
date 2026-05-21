@@ -287,6 +287,23 @@ function JournalPage() {
   // of that list, so we lazily fetch them by id here.
   const [openOverride, setOpenOverride] = useState<ReadingRow | null>(null);
 
+  // DR — handoff from /constellation. When the seeker taps a reading row in
+  // the readings modal, /constellation writes the reading id to
+  // sessionStorage and navigates here. We pick it up on mount, open that
+  // reading, and clear the key.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const id = window.sessionStorage.getItem("tarotseed:open-reading-id");
+      if (id) {
+        window.sessionStorage.removeItem("tarotseed:open-reading-id");
+        setOpenId(id);
+      }
+    } catch {
+      /* swallow */
+    }
+  }, []);
+
   // Q45 Fix 1 – preload deck image maps for every deck referenced
   // across all visible readings, so oracle cards render instantly.
   const allJournalDeckIds = useMemo(() => {

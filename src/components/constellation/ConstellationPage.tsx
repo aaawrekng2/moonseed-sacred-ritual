@@ -7,8 +7,10 @@
  * 6-month overlap strip sits below.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
+import { formatDateShort } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
@@ -39,7 +41,6 @@ import {
   SVG_H,
   SVG_W,
 } from "@/components/constellation/ConstellationWeb";
-import { MatchingReadingsPanel } from "@/components/constellation/MatchingReadingsPanel";
 import { EchoBanner } from "@/components/constellation/EchoBanner";
 import { useEcho } from "@/lib/use-echo";
 import { cn } from "@/lib/utils";
@@ -68,8 +69,13 @@ import {
   type GlobalFilters,
 } from "@/lib/filters.types";
 
-const SLOT_W = 70;
-const SLOT_H = Math.round(SLOT_W * 1.55);
+// DR — slot row sized for the right column. Width is computed responsively
+// (see slotRowRef below); these are min/max safety rails. Compact layout
+// since 10 slots + a date pill + paste input all share the column.
+const COMPACT_SLOT_MIN_W = 36;
+const COMPACT_SLOT_MAX_W = 64;
+const COMPACT_SLOT_GAP = 4;
+const COMPACT_SLOT_AR = 1.55; // height = width * 1.55
 
 // Phase 23 — default to "Last 365 days" (closest match to the spec's
 // "12 months" within Insights' canonical timeRange options).
@@ -103,6 +109,8 @@ function toFilterPayload(g: GlobalFilters) {
 
 // DP — localStorage keys for /constellation state persistence.
 const LS_KEY = "tarotseed:constellation-state";
+// DR — when "1", the unsaved-changes confirm modal is permanently dismissed.
+const LS_SUPPRESS_LEAVE_KEY = "tarotseed:constellation-skip-leave-warn";
 
 type PersistedState = {
   picks: ManualPick[];
@@ -167,6 +175,57 @@ export function ConstellationPage() {
     [globalFilters],
   );
   const filterKey = useMemo(() => JSON.stringify(filterPayload), [filterPayload]);
+
+  // DR — readings modal open state.
+  const [readingsModalOpen, setReadingsModalOpen] = useState(false);
+
+  // DR — unsaved-changes confirm. When the seeker has at least one pick
+  // placed and tries to leave the page, prompt before navigating.
+  // Skipped entirely when LS_SUPPRESS_LEAVE_KEY is set.
+  const [unsavedConfirm, setUnsavedConfirm] = useState<{
+    open: boolean;
+    action: (() => void) | null;
+  }>({ open: false, action: null });
+
+  const requestNavigate = (action: () => void) => {
+    let suppressed = false;
+    try {
+      suppressed = window.localStorage.getItem(LS_SUPPRESS_LEAVE_KEY) === "1";
+    } catch {
+      /* swallow */
+    }
+    if (suppressed || picks.length === 0) {
+      action();
+      return;
+    }
+    setUnsavedConfirm({ open: true, action });
+  };
+
+  // DR — slot row size computed from container width. Clamped between
+  // COMPACT_SLOT_MIN_W and COMPACT_SLOT_MAX_W so layouts stay sane on both
+  // 1024px and ≥1280px viewports.
+  const slotRowRef = useRef<HTMLDivElement | null>(null);
+  const [slotW, setSlotW] = useState<number>(48);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const el = slotRowRef.current;
+    if (!el) return;
+    const compute = () => {
+      const total = el.clientWidth;
+      if (total <= 0) return;
+      const target = Math.floor((total - COMPACT_SLOT_GAP * 9) / 10);
+      const clamped = Math.max(
+        COMPACT_SLOT_MIN_W,
+        Math.min(COMPACT_SLOT_MAX_W, target),
+      );
+      setSlotW(clamped);
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const slotH = Math.round(slotW * COMPACT_SLOT_AR);
 
   const heroIdx =
     picks.length === 0
@@ -326,6 +385,22 @@ export function ConstellationPage() {
     () => new Set(echo.participatingCardIds),
     [echo.participatingCardIds],
   );
+
+  // DR — matched readings against the current teal selection. Empty teal =
+  // show all matches (just hero). Mirrors the filter logic that used to
+  // live inside MatchingReadingsPanel.
+  const matchedReadings = useMemo(() => {
+    const matches = constellationData?.matches ?? [];
+    if (tealSelectedIds.length === 0) return matches;
+    const tealSet = new Set(tealSelectedIds);
+    return matches.filter((r) => {
+      const cardSet = new Set(r.cardIds);
+      for (const id of tealSet) {
+        if (!cardSet.has(id)) return false;
+      }
+      return true;
+    });
+  }, [constellationData?.matches, tealSelectedIds]);
 
   // Phase 24 — candidate-extension cards. When 2+ teal cards are selected,
   // walk visible months and find every other card in the constellation
@@ -595,7 +670,9 @@ export function ConstellationPage() {
         </div>
         <button
           type="button"
-          onClick={() => navigate({ to: "/draw/classic" })}
+          onClick={() =>
+            requestNavigate(() => navigate({ to: "/draw/classic" }))
+          }
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
@@ -633,7 +710,10 @@ export function ConstellationPage() {
       {/* Phase 19 Fix 10 — Echo banner above the entry row */}
       <EchoBanner echo={echo} />
 
-      {/* Phase 19 Fix 2,3,4 / Phase 20 Fix 6 — two-column grid, no top padding */}
+      {/* Phase 22 Fixes 3/4/5 / DR — two-column grid. Right column now
+          contains chips at top, readings button in the middle, and the
+          slot row + date pill + paste input bottom-aligned to match the
+          height of the constellation SVG. */}
       <div
         style={{
           display: "grid",
@@ -688,300 +768,307 @@ export function ConstellationPage() {
               add a card to see its patterns.
             </p>
           )}
-          {/* Phase 20 Fix 8 — vertical scroll only; horizontal stays hidden. */}
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: "auto",
-              overflowX: "hidden",
-              scrollbarGutter: "stable",
-            }}
-          >
-            <MatchingReadingsPanel
-              heroPick={heroPick}
-              tealSelectedIds={tealSelectedIds}
-              matches={constellationData?.matches ?? []}
-              echoParticipatingIds={
-                echo.active ? echo.participatingCardIds : null
-              }
-            />
-          </div>
-        </div>
-      </div>
+          {/* DR — readings panel collapsed into a single button. Counts
+              matches against the current teal selection (or all hero
+              matches when teal is empty). Tap opens the modal. */}
+          {heroPick && matchedReadings.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setReadingsModalOpen(true)}
+              style={{
+                alignSelf: "flex-start",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+                color: "var(--color-foreground)",
+                background:
+                  "color-mix(in oklab, var(--accent, var(--gold)) 18%, transparent)",
+                border:
+                  "1px solid color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
+                borderRadius: 9999,
+                padding: "6px 14px",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {matchedReadings.length}{" "}
+              {matchedReadings.length === 1 ? "reading" : "readings"} with{" "}
+              {tealSelectedIds.length === 0
+                ? "this card"
+                : tealSelectedIds.length === 1
+                  ? "selected card"
+                  : `${tealSelectedIds.length} selected cards`}
+            </button>
+          )}
 
-      {/* Phase 22 Fixes 3/4/5 — single horizontal row: slots on the left,
-          [date pill + SmartCardInput] on the right. Overline removed. */}
-      <div
-        style={{
-          padding: "8px 24px 8px",
-          display: "flex",
-          alignItems: "center",
-          gap: 24,
-          width: "100%",
-          boxSizing: "border-box",
-          flexWrap: "wrap",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            flexWrap: "wrap",
-            flexShrink: 0,
-          }}
-        >
-          {Array.from({ length: 10 }).map((_, idx) => {
-            const pick = picks[idx];
-            const isDropTarget = dragOverSlotIdx === idx;
-            if (!pick) {
-              return (
-                <button
-                  key={`empty-${idx}`}
-                  type="button"
-                  onClick={() => setPickerOpen(true)}
-                  aria-label="add a card"
-                  onDragOver={(e) => {
-                    if (draggingCardId === null) return;
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "copy";
-                    if (dragOverSlotIdx !== idx) setDragOverSlotIdx(idx);
-                  }}
-                  onDragLeave={() => {
-                    if (dragOverSlotIdx === idx) setDragOverSlotIdx(null);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    const raw =
-                      e.dataTransfer.getData("application/x-tarotseed-cardid");
-                    const id = raw ? Number(raw) : draggingCardId;
-                    if (id !== null && Number.isFinite(id)) {
-                      handleSlotDrop(idx, id);
-                    } else {
-                      setDraggingCardId(null);
-                      setDragOverSlotIdx(null);
-                    }
-                  }}
-                  style={{
-                    width: SLOT_W,
-                    height: SLOT_H,
-                    borderRadius: 6,
-                    border: isDropTarget
-                      ? "2px solid var(--accent, var(--gold))"
-                      : "1px dashed var(--border-default)",
-                    background: isDropTarget
-                      ? "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)"
-                      : "transparent",
-                    cursor: "pointer",
-                    color:
-                      "var(--color-foreground-muted, var(--color-foreground))",
-                    fontSize: 18,
-                    transition: "background 120ms ease",
-                  }}
-                >
-                  +
-                </button>
-              );
-            }
-            const isFocused = idx === heroIdx;
-            const inEcho =
-              echo.active && participatingSet.has(pick.cardIndex);
-            return (
-              <div
-                key={pick.id}
-                style={{
-                  position: "relative",
-                  outline: isDropTarget
-                    ? "2px dashed var(--accent, var(--gold))"
-                    : "none",
-                  outlineOffset: 4,
-                  borderRadius: 8,
-                  transition: "outline 120ms ease",
-                }}
-                onDragOver={(e) => {
-                  if (draggingCardId === null) return;
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "copy";
-                  if (dragOverSlotIdx !== idx) setDragOverSlotIdx(idx);
-                }}
-                onDragLeave={() => {
-                  if (dragOverSlotIdx === idx) setDragOverSlotIdx(null);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const raw =
-                    e.dataTransfer.getData("application/x-tarotseed-cardid");
-                  const id = raw ? Number(raw) : draggingCardId;
-                  if (id !== null && Number.isFinite(id)) {
-                    handleSlotDrop(idx, id);
-                  } else {
-                    setDraggingCardId(null);
-                    setDragOverSlotIdx(null);
-                  }
-                }}
-              >
-                {inEcho && (
-                  <div
-                    aria-hidden
-                    className="tarotseed-constellation-breathe"
-                    style={{
-                      position: "absolute",
-                      top: -10,
-                      left: -10,
-                      right: -10,
-                      bottom: -10,
-                      background:
-                        "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 45%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 22%, transparent) 55%, transparent 85%)",
-                      pointerEvents: "none",
-                      zIndex: 0,
-                      borderRadius: 14,
-                    }}
-                  />
-                )}
-                <button
-                  type="button"
-                  onClick={() => setFocusedSlotIdx(idx)}
-                  style={{
-                    position: "relative",
-                    zIndex: 1,
-                    width: SLOT_W,
-                    padding: 0,
-                    background: "transparent",
-                    border: "none",
-                    cursor: "pointer",
-                    borderRadius: 6,
-                    outline: isFocused
-                      ? "2px solid var(--accent, var(--gold))"
-                      : "none",
-                    outlineOffset: 2,
-                  }}
-                >
-                  <CardImage
-                    variant="face"
-                    cardId={pick.cardIndex}
-                    reversed={pick.isReversed}
-                    deckId={pick.deckId ?? undefined}
-                    size="custom"
-                    widthPx={SLOT_W}
-                  />
-                </button>
-                {drawCounts && drawCounts.perCard[pick.cardIndex] !== undefined && (() => {
-                  const count = drawCounts.perCard[pick.cardIndex];
-                  // Phase 24 — match the calendar's visual: solid backing layer
-                  // so the card image doesn't show through. The gold blend uses
-                  // color-mix against --surface-card, the same surface the
-                  // calendar month panel uses; the badge ends up looking like
-                  // a calendar day cell of the same intensity.
-                  const effectiveOpacity = isFocused
-                    ? 0.9
-                    : badgeOpacity(count, drawCounts.globalMax);
-                  const pct = Math.round(effectiveOpacity * 100);
-                  // Focused slot uses --gold (matches calendar hero-day cells,
-                  // bright yellow on themes that define --gold separately
-                  // from --accent, like Blood Moon). Non-focused slots use
-                  // --accent (matches calendar ordinary match cells).
-                  const baseColor = isFocused
-                    ? "var(--gold, var(--accent))"
-                    : "var(--accent, var(--gold))";
-                  const bg = `color-mix(in oklab, ${baseColor} ${pct}%, var(--surface-card) ${100 - pct}%)`;
-                  const textColor =
-                    effectiveOpacity > 0.5
-                      ? "var(--background)"
-                      : "var(--color-foreground)";
+          {/* DR — slot row + date + paste pinned to the bottom of the right
+              column, bottom-aligned with the constellation SVG. */}
+          <div style={{ marginTop: "auto" }}>
+            <div
+              ref={slotRowRef}
+              style={{
+                display: "flex",
+                gap: COMPACT_SLOT_GAP,
+                flexWrap: "nowrap",
+                width: "100%",
+                paddingBottom: 8,
+                justifyContent: "flex-start",
+              }}
+            >
+              {Array.from({ length: 10 }).map((_, idx) => {
+                const pick = picks[idx];
+                const isDropTarget = dragOverSlotIdx === idx;
+                if (!pick) {
                   return (
-                    <div
-                      role="img"
-                      aria-label={`Appeared in ${count} past readings`}
-                      title={`This card has appeared in ${count} of your past readings.`}
+                    <button
+                      key={`empty-${idx}`}
+                      type="button"
+                      onClick={() => setPickerOpen(true)}
+                      aria-label="add a card"
+                      onDragOver={(e) => {
+                        if (draggingCardId === null) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "copy";
+                        if (dragOverSlotIdx !== idx) setDragOverSlotIdx(idx);
+                      }}
+                      onDragLeave={() => {
+                        if (dragOverSlotIdx === idx) setDragOverSlotIdx(null);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const raw = e.dataTransfer.getData(
+                          "application/x-tarotseed-cardid",
+                        );
+                        const id = raw ? Number(raw) : draggingCardId;
+                        if (id !== null && Number.isFinite(id)) {
+                          handleSlotDrop(idx, id);
+                        } else {
+                          setDraggingCardId(null);
+                          setDragOverSlotIdx(null);
+                        }
+                      }}
                       style={{
-                        position: "absolute",
-                        bottom: -8,
-                        right: -8,
-                        zIndex: 2,
-                        width: 26,
-                        height: 26,
-                        borderRadius: 9999,
-                        background: bg,
-                        border: "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
-                        boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: textColor,
-                        fontFamily: "var(--font-serif)",
-                        fontStyle: "italic",
-                        fontSize: 12,
-                        lineHeight: 1,
-                        cursor: "help",
+                        width: slotW,
+                        height: slotH,
+                        flexShrink: 0,
+                        borderRadius: 5,
+                        border: isDropTarget
+                          ? "2px solid var(--accent, var(--gold))"
+                          : "1px dashed var(--border-default)",
+                        background: isDropTarget
+                          ? "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)"
+                          : "transparent",
+                        cursor: "pointer",
+                        color:
+                          "var(--color-foreground-muted, var(--color-foreground))",
+                        fontSize: 14,
+                        transition: "background 120ms ease",
                       }}
                     >
-                      {count}
-                    </div>
+                      +
+                    </button>
                   );
-                })()}
-              </div>
-            );
-          })}
-        </div>
-        <div
-          style={{
-            flex: 1,
-            minWidth: 280,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <Popover open={dateOpen} onOpenChange={setDateOpen}>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-full px-3 transition hover:bg-foreground/[0.04]"
-                style={{
-                  height: 30,
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: "var(--text-caption, 0.75rem)",
-                  color: "var(--color-foreground)",
-                  opacity: backdate ? 0.9 : 0.7,
-                  border: "1px solid var(--border-subtle)",
-                  background: "transparent",
-                  cursor: "pointer",
-                  flexShrink: 0,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                <CalendarIcon size={13} strokeWidth={1.5} />
-                {format(backdate ?? new Date(), "MMM d")}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-auto p-0"
-              align="start"
-              style={{ zIndex: "var(--z-modal-nested)" as unknown as number }}
+                }
+                const isFocused = idx === heroIdx;
+                const inEcho =
+                  echo.active && participatingSet.has(pick.cardIndex);
+                return (
+                  <div
+                    key={pick.id}
+                    style={{
+                      position: "relative",
+                      width: slotW,
+                      flexShrink: 0,
+                      outline: isDropTarget
+                        ? "2px dashed var(--accent, var(--gold))"
+                        : "none",
+                      outlineOffset: 3,
+                      borderRadius: 6,
+                      transition: "outline 120ms ease",
+                    }}
+                    onDragOver={(e) => {
+                      if (draggingCardId === null) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "copy";
+                      if (dragOverSlotIdx !== idx) setDragOverSlotIdx(idx);
+                    }}
+                    onDragLeave={() => {
+                      if (dragOverSlotIdx === idx) setDragOverSlotIdx(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const raw = e.dataTransfer.getData(
+                        "application/x-tarotseed-cardid",
+                      );
+                      const id = raw ? Number(raw) : draggingCardId;
+                      if (id !== null && Number.isFinite(id)) {
+                        handleSlotDrop(idx, id);
+                      } else {
+                        setDraggingCardId(null);
+                        setDragOverSlotIdx(null);
+                      }
+                    }}
+                  >
+                    {inEcho && (
+                      <div
+                        aria-hidden
+                        className="tarotseed-constellation-breathe"
+                        style={{
+                          position: "absolute",
+                          top: -8,
+                          left: -8,
+                          right: -8,
+                          bottom: -8,
+                          background:
+                            "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 45%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 22%, transparent) 55%, transparent 85%)",
+                          pointerEvents: "none",
+                          zIndex: 0,
+                          borderRadius: 12,
+                        }}
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setFocusedSlotIdx(idx)}
+                      style={{
+                        position: "relative",
+                        zIndex: 1,
+                        width: slotW,
+                        padding: 0,
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        borderRadius: 5,
+                        outline: isFocused
+                          ? "2px solid var(--accent, var(--gold))"
+                          : "none",
+                        outlineOffset: 2,
+                        display: "block",
+                      }}
+                    >
+                      <CardImage
+                        variant="face"
+                        cardId={pick.cardIndex}
+                        reversed={pick.isReversed}
+                        deckId={pick.deckId ?? undefined}
+                        size="custom"
+                        widthPx={slotW}
+                      />
+                    </button>
+                    {drawCounts &&
+                      drawCounts.perCard[pick.cardIndex] !== undefined &&
+                      (() => {
+                        const count = drawCounts.perCard[pick.cardIndex];
+                        const effectiveOpacity = isFocused
+                          ? 0.9
+                          : badgeOpacity(count, drawCounts.globalMax);
+                        const pct = Math.round(effectiveOpacity * 100);
+                        const baseColor = isFocused
+                          ? "var(--gold, var(--accent))"
+                          : "var(--accent, var(--gold))";
+                        const bg = `color-mix(in oklab, ${baseColor} ${pct}%, var(--surface-card) ${100 - pct}%)`;
+                        const textColor =
+                          effectiveOpacity > 0.5
+                            ? "var(--background)"
+                            : "var(--color-foreground)";
+                        return (
+                          <div
+                            role="img"
+                            aria-label={`Appeared in ${count} past readings`}
+                            title={`This card has appeared in ${count} of your past readings.`}
+                            style={{
+                              position: "absolute",
+                              bottom: -6,
+                              right: -6,
+                              zIndex: 2,
+                              width: 22,
+                              height: 22,
+                              borderRadius: 9999,
+                              background: bg,
+                              border:
+                                "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: textColor,
+                              fontFamily: "var(--font-serif)",
+                              fontStyle: "italic",
+                              fontSize: 11,
+                              lineHeight: 1,
+                              cursor: "help",
+                            }}
+                          >
+                            {count}
+                          </div>
+                        );
+                      })()}
+                  </div>
+                );
+              })}
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                width: "100%",
+              }}
             >
-              <Calendar
-                mode="single"
-                selected={backdate ?? undefined}
-                onSelect={(d) => {
-                  if (d) setBackdate(d);
-                  setDateOpen(false);
-                }}
-                initialFocus
-                className={cn("p-3 pointer-events-auto")}
-              />
-            </PopoverContent>
-          </Popover>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <SmartCardInput
-              positionLabels={[]}
-              emptySlotCount={78}
-              onCommit={handleCommit}
-              onBulkCommit={handleBulk}
-              placedCardIds={picks.map((p) => p.cardIndex)}
-              deckCards={deckCards}
-              maxWidth="100%"
-            />
+              <Popover open={dateOpen} onOpenChange={setDateOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-full px-3 transition hover:bg-foreground/[0.04]"
+                    style={{
+                      height: 30,
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: "var(--text-caption, 0.75rem)",
+                      color: "var(--color-foreground)",
+                      opacity: backdate ? 0.9 : 0.7,
+                      border: "1px solid var(--border-subtle)",
+                      background: "transparent",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <CalendarIcon size={13} strokeWidth={1.5} />
+                    {format(backdate ?? new Date(), "MMM d")}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-auto p-0"
+                  align="start"
+                  style={{
+                    zIndex: "var(--z-modal-nested)" as unknown as number,
+                  }}
+                >
+                  <Calendar
+                    mode="single"
+                    selected={backdate ?? undefined}
+                    onSelect={(d) => {
+                      if (d) setBackdate(d);
+                      setDateOpen(false);
+                    }}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <SmartCardInput
+                  positionLabels={[]}
+                  emptySlotCount={78}
+                  onCommit={handleCommit}
+                  onBulkCommit={handleBulk}
+                  placedCardIds={picks.map((p) => p.cardIndex)}
+                  deckCards={deckCards}
+                  maxWidth="100%"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1109,6 +1196,406 @@ export function ConstellationPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* DR — readings modal. Replaces the inline MatchingReadingsPanel.
+          Each row is clickable: opens the reading in /journal via a
+          sessionStorage handoff key. */}
+      <ReadingsModal
+        open={readingsModalOpen}
+        onClose={() => setReadingsModalOpen(false)}
+        title={
+          tealSelectedIds.length === 0
+            ? "Recent Readings"
+            : tealSelectedIds.length === 1
+              ? `Readings with ${TAROT_DECK[tealSelectedIds[0]] ?? "this card"}`
+              : `Readings with ${tealSelectedIds.length} selected cards`
+        }
+        matches={matchedReadings}
+        onRowClick={(readingId) => {
+          try {
+            window.sessionStorage.setItem(
+              "tarotseed:open-reading-id",
+              readingId,
+            );
+          } catch {
+            /* swallow */
+          }
+          setReadingsModalOpen(false);
+          requestNavigate(() => navigate({ to: "/journal" }));
+        }}
+      />
+
+      {/* DR — unsaved-changes confirm modal. Triggered when the seeker
+          tries to leave the page (via the Classic Manual Entry link)
+          while picks are placed. Permanently dismissable via a
+          checkbox; preference stored in localStorage. */}
+      <UnsavedChangesModal
+        open={unsavedConfirm.open}
+        onCancel={() => setUnsavedConfirm({ open: false, action: null })}
+        onConfirm={(suppressFuture) => {
+          if (suppressFuture) {
+            try {
+              window.localStorage.setItem(LS_SUPPRESS_LEAVE_KEY, "1");
+            } catch {
+              /* swallow */
+            }
+          }
+          const action = unsavedConfirm.action;
+          setUnsavedConfirm({ open: false, action: null });
+          if (action) action();
+        }}
+      />
     </div>
   );
+}
+
+/* ────────────────────────────────────────────────────────────────────
+   DR — modals
+   ──────────────────────────────────────────────────────────────────── */
+
+type ModalMatch = {
+  id: string;
+  createdAt: string;
+  question: string | null;
+  cardIds: number[];
+};
+
+function ReadingsModal({
+  open,
+  onClose,
+  title,
+  matches,
+  onRowClick,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  matches: ModalMatch[];
+  onRowClick: (readingId: string) => void;
+}) {
+  // Close on Escape.
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
+  if (!open) return null;
+  const node = (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: "var(--z-modal)" as unknown as number,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+      className="modal-scrim"
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 640,
+          maxHeight: "80vh",
+          background: "var(--surface-card)",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: 12,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "14px 18px",
+            borderBottom: "1px solid var(--border-subtle)",
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              fontFamily: "var(--font-display)",
+              fontStyle: "italic",
+              fontSize: 18,
+              color: "var(--color-foreground)",
+            }}
+          >
+            {title}
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="close"
+            style={{
+              border: "none",
+              background: "transparent",
+              color: "var(--color-foreground-muted, var(--color-foreground))",
+              cursor: "pointer",
+              fontSize: 20,
+              lineHeight: 1,
+              padding: 4,
+            }}
+          >
+            ×
+          </button>
+        </div>
+        <div
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: 14,
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
+        >
+          {matches.length === 0 ? (
+            <p
+              style={{
+                margin: 0,
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+                color:
+                  "var(--color-foreground-muted, var(--color-foreground))",
+                opacity: 0.7,
+              }}
+            >
+              No matching readings.
+            </p>
+          ) : (
+            matches.map((r) => {
+              const date = formatDateShort(r.createdAt);
+              const cardsLabel = r.cardIds
+                .map((id) => TAROT_DECK[id] ?? `Card ${id}`)
+                .join(" · ");
+              const inlineText =
+                r.question && r.question.trim()
+                  ? `“${r.question.trim()}” — ${cardsLabel}`
+                  : cardsLabel;
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => onRowClick(r.id)}
+                  style={{
+                    textAlign: "left",
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    border: "1px solid var(--border-subtle)",
+                    background: "var(--surface-elevated, var(--surface-card))",
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "row",
+                    gap: 10,
+                    alignItems: "baseline",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    width: "100%",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 10,
+                      letterSpacing: "0.2em",
+                      textTransform: "uppercase",
+                      fontFamily: "var(--font-serif)",
+                      color:
+                        "var(--color-foreground-muted, var(--color-foreground))",
+                      opacity: 0.75,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {date}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: r.question ? "italic" : "normal",
+                      color: "var(--color-foreground)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      minWidth: 0,
+                      flex: 1,
+                    }}
+                    title={inlineText}
+                  >
+                    {inlineText}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+  return typeof document === "undefined"
+    ? null
+    : createPortal(node, document.body);
+}
+
+function UnsavedChangesModal({
+  open,
+  onCancel,
+  onConfirm,
+}: {
+  open: boolean;
+  onCancel: () => void;
+  onConfirm: (suppressFuture: boolean) => void;
+}) {
+  const [suppress, setSuppress] = useState(false);
+  useEffect(() => {
+    if (!open) setSuppress(false);
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onCancel]);
+
+  if (!open) return null;
+  const node = (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onCancel();
+      }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: "var(--z-modal-nested)" as unknown as number,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+      }}
+      className="modal-scrim"
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 440,
+          background: "var(--surface-card)",
+          border: "1px solid var(--border-subtle)",
+          borderRadius: 12,
+          padding: 22,
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
+        }}
+      >
+        <p
+          style={{
+            margin: 0,
+            fontFamily: "var(--font-display)",
+            fontStyle: "italic",
+            fontSize: 18,
+            color: "var(--color-foreground)",
+          }}
+        >
+          Leave Manual Entry?
+        </p>
+        <p
+          style={{
+            margin: 0,
+            fontFamily: "var(--font-serif)",
+            fontSize: 13,
+            color: "var(--color-foreground-muted, var(--color-foreground))",
+            lineHeight: 1.5,
+          }}
+        >
+          You have cards placed here. Your selection is saved on this device
+          and will be here when you return.
+        </p>
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 12,
+            color: "var(--color-foreground-muted, var(--color-foreground))",
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={suppress}
+            onChange={(e) => setSuppress(e.target.checked)}
+            style={{ cursor: "pointer" }}
+          />
+          Don't ask again
+        </label>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 10,
+            marginTop: 4,
+          }}
+        >
+          <button
+            type="button"
+            onClick={onCancel}
+            style={{
+              padding: "8px 16px",
+              background: "transparent",
+              border: "1px solid var(--border-default)",
+              borderRadius: 6,
+              color: "var(--color-foreground)",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
+            Stay
+          </button>
+          <button
+            type="button"
+            onClick={() => onConfirm(suppress)}
+            style={{
+              padding: "8px 16px",
+              background:
+                "color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)",
+              border:
+                "1px solid color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent)",
+              borderRadius: 6,
+              color: "var(--color-foreground)",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
+            Leave
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+  return typeof document === "undefined"
+    ? null
+    : createPortal(node, document.body);
 }
