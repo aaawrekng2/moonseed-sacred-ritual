@@ -2473,3 +2473,6 @@ function PracticeLine({
     </div>
   );
 }
+
+// Phase 17 — named re-exports for the standalone /constellation page.
+export { OverlapStrip, ChipGrid };
