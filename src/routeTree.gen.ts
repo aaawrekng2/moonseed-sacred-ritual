@@ -19,6 +19,7 @@ import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as DrawRouteImport } from './routes/draw'
+import { Route as ConstellationRouteImport } from './routes/constellation'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CreditsIndexRouteImport } from './routes/credits.index'
@@ -97,6 +98,11 @@ const GuidesRoute = GuidesRouteImport.update({
 const DrawRoute = DrawRouteImport.update({
   id: '/draw',
   path: '/draw',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConstellationRoute = ConstellationRouteImport.update({
+  id: '/constellation',
+  path: '/constellation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -252,6 +258,7 @@ const AdminUsageUsersUserIdRoute = AdminUsageUsersUserIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/constellation': typeof ConstellationRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -292,6 +299,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/constellation': typeof ConstellationRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -334,6 +342,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/constellation': typeof ConstellationRoute
   '/draw': typeof DrawRoute
   '/guides': typeof GuidesRoute
   '/help': typeof HelpRouteWithChildren
@@ -377,6 +386,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/constellation'
     | '/draw'
     | '/guides'
     | '/help'
@@ -417,6 +427,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/constellation'
     | '/draw'
     | '/guides'
     | '/help'
@@ -458,6 +469,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/constellation'
     | '/draw'
     | '/guides'
     | '/help'
@@ -500,6 +512,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  ConstellationRoute: typeof ConstellationRoute
   DrawRoute: typeof DrawRoute
   GuidesRoute: typeof GuidesRoute
   HelpRoute: typeof HelpRouteWithChildren
@@ -590,6 +603,13 @@ declare module '@tanstack/react-router' {
       path: '/draw'
       fullPath: '/draw'
       preLoaderRoute: typeof DrawRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/constellation': {
+      id: '/constellation'
+      path: '/constellation'
+      fullPath: '/constellation'
+      preLoaderRoute: typeof ConstellationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -914,6 +934,7 @@ const ApiPublicDetectWeavesRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  ConstellationRoute: ConstellationRoute,
   DrawRoute: DrawRoute,
   GuidesRoute: GuidesRoute,
   HelpRoute: HelpRouteWithChildren,

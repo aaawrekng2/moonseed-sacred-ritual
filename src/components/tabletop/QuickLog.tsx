@@ -489,6 +489,25 @@ export function QuickLog({
             {onSwitchToTable && (
               <EntryModeToggle current="manual" onToggle={onSwitchToTable} />
             )}
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/constellation" })}
+              style={{
+                marginLeft: "auto",
+                marginRight: 48,
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 11,
+                color: "var(--accent, var(--gold))",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                textDecoration: "underline",
+                padding: 4,
+              }}
+            >
+              explore the constellation →
+            </button>
           </div>
 
           {/* Q113 Phase 4 — Constellation banner */}
@@ -535,7 +554,7 @@ export function QuickLog({
                     padding: "0 12px",
                   }}
                 >
-                  A CONSTELLATION FORMING — {constellation.participatingCardIds.length} of these cards have met before
+                  the constellation — {constellation.participatingCardIds.length} of these cards have met before
                 </span>
               </div>
             </div>
@@ -2339,9 +2358,9 @@ function PullHistoryPill({
     const N = constellation.participatingCardIds.length;
     const M = constellation.matchCountSixMonths;
     if (M === 1) {
-      text = `A constellation. ${N} of these cards have met before — once in the last 6 months.`;
+      text = `a constellation forms — ${N} of these cards have met before, once in the last 6 months.`;
     } else {
-      text = `A constellation. ${N} of these cards have met before — ${M} times in the last 6 months.`;
+      text = `a constellation forms — ${N} of these cards have met before, ${M} times in the last 6 months.`;
     }
   }
   return (
@@ -2454,3 +2473,6 @@ function PracticeLine({
     </div>
   );
 }
+
+// Phase 17 — named re-exports for the standalone /constellation page.
+export { OverlapStrip, ChipGrid };
