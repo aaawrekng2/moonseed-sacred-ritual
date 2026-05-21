@@ -9,7 +9,10 @@ import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 
 type Props = {
   heroPick: ManualPick | null;
-  companionFilter: number | null;
+  /** Phase 24 — teal multi-select. Empty = no filter (show all). When
+   * non-empty, filter to readings containing EVERY id in the set. Hero is
+   * not implicitly included — the user must click it to participate. */
+  tealSelectedIds: number[];
   matches: CardConstellation["matches"];
   /** Phase 19 Fix 10 — when an echo is active, these ids get breathing glow. */
   echoParticipatingIds?: number[] | null;
@@ -17,20 +20,29 @@ type Props = {
 
 export function MatchingReadingsPanel({
   heroPick,
-  companionFilter,
+  tealSelectedIds,
   matches,
   echoParticipatingIds,
 }: Props) {
   if (!heroPick) return null;
+  const tealSet = new Set(tealSelectedIds);
   const filtered =
-    companionFilter === null
+    tealSet.size === 0
       ? matches
-      : matches.filter((r) => r.cardIds.includes(companionFilter));
+      : matches.filter((r) => {
+          const cardSet = new Set(r.cardIds);
+          for (const id of tealSet) {
+            if (!cardSet.has(id)) return false;
+          }
+          return true;
+        });
 
   const title =
-    companionFilter !== null
-      ? `When ${getCardName(heroPick.cardIndex)} + ${getCardName(companionFilter)} Met Before`
-      : `Recent Readings with ${getCardName(heroPick.cardIndex)}`;
+    tealSet.size === 0
+      ? "Recent Readings"
+      : tealSet.size === 1
+        ? `Readings with ${getCardName(tealSelectedIds[0])}`
+        : `Readings with ${tealSelectedIds.length} selected cards`;
 
   const echoSet = new Set(echoParticipatingIds ?? []);
   const hasEcho = echoSet.size > 0;

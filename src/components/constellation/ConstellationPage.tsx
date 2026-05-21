@@ -111,9 +111,10 @@ export function ConstellationPage() {
 
   const [picks, setPicks] = useState<ManualPick[]>([]);
   const [focusedSlotIdx, setFocusedSlotIdx] = useState<number | null>(null);
-  const [companionFilterCardId, setCompanionFilterCardId] = useState<
-    number | null
-  >(null);
+  // Phase 24 — teal multi-select trace. Empty by default. Click any card in
+  // the constellation web (hero or companion) to toggle membership. Drives
+  // calendar stroke + readings panel filter. Resets when hero changes.
+  const [tealSelectedIds, setTealSelectedIds] = useState<number[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   // Phase 19 Fix 7 — back-date pill state (parity with QuickLog).
   const [backdate, setBackdate] = useState<Date | null>(null);
@@ -137,9 +138,11 @@ export function ConstellationPage() {
         : picks.length - 1;
   const heroPick = heroIdx === null ? null : picks[heroIdx];
 
-  // Reset companion filter whenever the hero changes.
+  // Reset teal selection whenever the hero changes — the constellation web
+  // re-renders against the new hero's top companions, so prior teal cards
+  // may not even be present anymore.
   useEffect(() => {
-    setCompanionFilterCardId(null);
+    setTealSelectedIds([]);
   }, [heroPick?.cardIndex]);
 
   // 1. Chip stats
@@ -458,12 +461,14 @@ export function ConstellationPage() {
         <ConstellationWeb
           heroPick={heroPick}
           constellation={constellationData}
-          onCompanionClick={(cardId) =>
-            setCompanionFilterCardId((prev) =>
-              prev === cardId ? null : cardId,
+          onCardClick={(cardId) =>
+            setTealSelectedIds((prev) =>
+              prev.includes(cardId)
+                ? prev.filter((x) => x !== cardId)
+                : [...prev, cardId],
             )
           }
-          selectedCompanion={companionFilterCardId}
+          tealSelectedIds={tealSelectedIds}
         />
         <div
           style={{
@@ -503,7 +508,7 @@ export function ConstellationPage() {
           >
             <MatchingReadingsPanel
               heroPick={heroPick}
-              companionFilter={companionFilterCardId}
+              tealSelectedIds={tealSelectedIds}
               matches={constellationData?.matches ?? []}
               echoParticipatingIds={
                 echo.active ? echo.participatingCardIds : null
@@ -609,44 +614,50 @@ export function ConstellationPage() {
                     widthPx={SLOT_W}
                   />
                 </button>
-                {drawCounts && drawCounts.perCard[pick.cardIndex] !== undefined && (
-                  <div
-                    aria-hidden
-                    style={{
-                      position: "absolute",
-                      bottom: -8,
-                      right: -8,
-                      zIndex: 2,
-                      width: 26,
-                      height: 26,
-                      borderRadius: 9999,
-                      background: "var(--accent, var(--gold))",
-                      opacity: isFocused
-                        ? 0.9
-                        : badgeOpacity(
-                            drawCounts.perCard[pick.cardIndex],
-                            drawCounts.globalMax,
-                          ),
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color:
-                        (isFocused
-                          ? 0.9
-                          : badgeOpacity(
-                              drawCounts.perCard[pick.cardIndex],
-                              drawCounts.globalMax,
-                            )) > 0.5
-                          ? "var(--cosmos, #0a0a14)"
-                          : "var(--color-foreground)",
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
-                      fontSize: 12,
-                    }}
-                  >
-                    {drawCounts.perCard[pick.cardIndex]}
-                  </div>
-                )}
+                {drawCounts && drawCounts.perCard[pick.cardIndex] !== undefined && (() => {
+                  const count = drawCounts.perCard[pick.cardIndex];
+                  // Phase 24 — match the calendar's visual: solid backing layer
+                  // so the card image doesn't show through. The gold blend uses
+                  // color-mix against --surface-card, the same surface the
+                  // calendar month panel uses; the badge ends up looking like
+                  // a calendar day cell of the same intensity.
+                  const effectiveOpacity = isFocused
+                    ? 0.9
+                    : badgeOpacity(count, drawCounts.globalMax);
+                  const pct = Math.round(effectiveOpacity * 100);
+                  const bg = `color-mix(in oklab, var(--accent, var(--gold)) ${pct}%, var(--surface-card) ${100 - pct}%)`;
+                  const textColor =
+                    effectiveOpacity > 0.5
+                      ? "var(--background)"
+                      : "var(--color-foreground)";
+                  return (
+                    <div
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        bottom: -8,
+                        right: -8,
+                        zIndex: 2,
+                        width: 26,
+                        height: 26,
+                        borderRadius: 9999,
+                        background: bg,
+                        border: "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: textColor,
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: 12,
+                        lineHeight: 1,
+                      }}
+                    >
+                      {count}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
@@ -722,6 +733,7 @@ export function ConstellationPage() {
           pullCardIds={picks.map((p) => p.cardIndex)}
           mode={overlapMode}
           onModeChange={setOverlapMode}
+          tealSelectedIds={tealSelectedIds}
         />
       </div>
 
