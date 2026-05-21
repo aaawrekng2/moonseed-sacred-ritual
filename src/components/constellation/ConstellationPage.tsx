@@ -6,14 +6,35 @@
  * column shows the chip grid + matching readings panel. Full-width
  * 6-month overlap strip sits below.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
 import { ChipGrid, OverlapStrip } from "@/components/tabletop/QuickLog";
-import { ConstellationWeb } from "@/components/constellation/ConstellationWeb";
+import {
+  SmartCardInput,
+  type PasteOutcome,
+  type SmartPick,
+} from "@/components/tabletop/SmartCardInput";
+import {
+  ConstellationWeb,
+  SVG_H,
+  SVG_W,
+} from "@/components/constellation/ConstellationWeb";
 import { MatchingReadingsPanel } from "@/components/constellation/MatchingReadingsPanel";
+import { EchoBanner } from "@/components/constellation/EchoBanner";
+import { useEcho } from "@/lib/use-echo";
+import { cn } from "@/lib/utils";
+import { TAROT_DECK } from "@/lib/tarot";
 import {
   getQuickLogCardStats,
   getQuickLogOverlap,
@@ -44,6 +65,9 @@ export function ConstellationPage() {
     number | null
   >(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Phase 19 Fix 7 — back-date pill state (parity with QuickLog).
+  const [backdate, setBackdate] = useState<Date | null>(null);
+  const [dateOpen, setDateOpen] = useState(false);
 
   const heroIdx =
     picks.length === 0
@@ -128,15 +152,57 @@ export function ConstellationPage() {
 
   const placedIds = picks.map((p) => p.cardIndex);
 
+  // Phase 19 Fix 10 — port the Echo detection to /constellation.
+  const echo = useEcho(picks, overlap, overlapMode);
+  const participatingSet = useMemo(
+    () => new Set(echo.participatingCardIds),
+    [echo.participatingCardIds],
+  );
+
+  // Phase 19 Fix 7 — SmartCardInput commit handlers.
+  const handleCommit = (pick: SmartPick) => {
+    setFocusedSlotIdx(picks.length);
+    setPicks((prev) => [
+      ...prev,
+      {
+        id: Date.now() + prev.length,
+        cardIndex: pick.cardIndex,
+        isReversed: pick.isReversed,
+        deckId: null,
+        cardName: pick.cardName,
+      },
+    ]);
+  };
+  const handleBulk = (outcome: PasteOutcome) => {
+    setPicks((prev) => {
+      const next = [...prev];
+      outcome.picks.forEach((item, i) => {
+        next.push({
+          id: Date.now() + prev.length + i,
+          cardIndex: item.pick.cardIndex,
+          isReversed: item.pick.isReversed,
+          deckId: null,
+          cardName: item.pick.cardName,
+        });
+      });
+      return next;
+    });
+  };
+  const deckCards = useMemo(
+    () => TAROT_DECK.map((name, idx) => ({ cardId: idx, name })),
+    [],
+  );
+
   return (
     <div
       className="bg-cosmos text-foreground"
       style={{
-        minHeight: "100vh",
-        maxHeight: "100vh",
-        overflowY: "auto",
-        overflowX: "hidden",
-        padding: "16px 0 64px",
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        padding: "12px 0 0",
       }}
     >
       {/* Header row */}
@@ -145,7 +211,7 @@ export function ConstellationPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 24px 16px",
+          padding: "0 24px 4px",
         }}
       >
         <div>
@@ -193,8 +259,75 @@ export function ConstellationPage() {
         </button>
       </div>
 
+      {/* Phase 19 Fix 10 — Echo banner above the entry row */}
+      <EchoBanner echo={echo} />
+
+      {/* Phase 19 Fix 7 — entry row: date pill + SmartCardInput */}
+      <div
+        style={{
+          padding: "8px 24px 4px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        <Popover open={dateOpen} onOpenChange={setDateOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-full px-3 transition hover:bg-foreground/[0.04]"
+              style={{
+                height: 30,
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-caption, 0.75rem)",
+                color: "var(--color-foreground)",
+                opacity: backdate ? 0.9 : 0.7,
+                border: "1px solid var(--border-subtle)",
+                background: "transparent",
+                cursor: "pointer",
+                flexShrink: 0,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <CalendarIcon size={13} strokeWidth={1.5} />
+              {format(backdate ?? new Date(), "MMM d")}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-auto p-0"
+            align="start"
+            style={{ zIndex: "var(--z-modal-nested)" as unknown as number }}
+          >
+            <Calendar
+              mode="single"
+              selected={backdate ?? undefined}
+              onSelect={(d) => {
+                if (d) setBackdate(d);
+                setDateOpen(false);
+              }}
+              initialFocus
+              className={cn("p-3 pointer-events-auto")}
+            />
+          </PopoverContent>
+        </Popover>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <SmartCardInput
+            positionLabels={[]}
+            emptySlotCount={78}
+            onCommit={handleCommit}
+            onBulkCommit={handleBulk}
+            placedCardIds={picks.map((p) => p.cardIndex)}
+            deckCards={deckCards}
+            maxWidth="100%"
+          />
+        </div>
+      </div>
+
       {/* Slot row */}
-      <div style={{ padding: "0 24px 16px" }}>
+      <div style={{ padding: "0 24px 8px" }}>
         <p
           style={{
             fontSize: 10,
@@ -236,47 +369,70 @@ export function ConstellationPage() {
               );
             }
             const isFocused = idx === heroIdx;
+            const inEcho =
+              echo.active && participatingSet.has(pick.cardIndex);
             return (
-              <button
-                key={pick.id}
-                type="button"
-                onClick={() => setFocusedSlotIdx(idx)}
-                style={{
-                  position: "relative",
-                  width: SLOT_W,
-                  padding: 0,
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  borderRadius: 6,
-                  outline: isFocused
-                    ? "2px solid var(--accent, var(--gold))"
-                    : "none",
-                  outlineOffset: 2,
-                }}
-              >
-                <CardImage
-                  variant="face"
-                  cardId={pick.cardIndex}
-                  reversed={pick.isReversed}
-                  deckId={pick.deckId ?? undefined}
-                  size="custom"
-                  widthPx={SLOT_W}
-                />
-              </button>
+              <div key={pick.id} style={{ position: "relative" }}>
+                {inEcho && (
+                  <div
+                    aria-hidden
+                    className="tarotseed-constellation-breathe"
+                    style={{
+                      position: "absolute",
+                      top: -10,
+                      left: -10,
+                      right: -10,
+                      bottom: -10,
+                      background:
+                        "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 45%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 22%, transparent) 55%, transparent 85%)",
+                      pointerEvents: "none",
+                      zIndex: 0,
+                      borderRadius: 14,
+                    }}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setFocusedSlotIdx(idx)}
+                  style={{
+                    position: "relative",
+                    zIndex: 1,
+                    width: SLOT_W,
+                    padding: 0,
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    borderRadius: 6,
+                    outline: isFocused
+                      ? "2px solid var(--accent, var(--gold))"
+                      : "none",
+                    outlineOffset: 2,
+                  }}
+                >
+                  <CardImage
+                    variant="face"
+                    cardId={pick.cardIndex}
+                    reversed={pick.isReversed}
+                    deckId={pick.deckId ?? undefined}
+                    size="custom"
+                    widthPx={SLOT_W}
+                  />
+                </button>
+              </div>
             );
           })}
         </div>
       </div>
 
-      {/* Two-column layout */}
+      {/* Phase 19 Fix 2,3,4 — fixed-height two-column grid */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "500px 1fr",
+          gridTemplateColumns: `${SVG_W}px 1fr`,
           gap: 24,
-          padding: "0 24px",
-          marginTop: -8,
+          padding: "0 24px 0",
+          height: SVG_H,
+          minHeight: 0,
         }}
       >
         <ConstellationWeb
@@ -289,7 +445,15 @@ export function ConstellationPage() {
           }
           selectedCompanion={companionFilterCardId}
         />
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            minHeight: 0,
+            height: "100%",
+          }}
+        >
           {heroPick ? (
             <ChipGrid heroPick={heroPick} stats={cardStats} />
           ) : (
@@ -307,16 +471,21 @@ export function ConstellationPage() {
               add a card to see its patterns.
             </p>
           )}
-          <MatchingReadingsPanel
-            heroPick={heroPick}
-            companionFilter={companionFilterCardId}
-            matches={constellationData?.matches ?? []}
-          />
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+            <MatchingReadingsPanel
+              heroPick={heroPick}
+              companionFilter={companionFilterCardId}
+              matches={constellationData?.matches ?? []}
+              echoParticipatingIds={
+                echo.active ? echo.participatingCardIds : null
+              }
+            />
+          </div>
         </div>
       </div>
 
       {/* Calendar strip */}
-      <div style={{ padding: "24px 24px 0" }}>
+      <div style={{ padding: "12px 24px 12px", flexShrink: 0 }}>
         <OverlapStrip
           overlap={overlap}
           heroCardId={heroPick?.cardIndex ?? null}
