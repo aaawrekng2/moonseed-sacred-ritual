@@ -49,10 +49,12 @@ import {
   getQuickLogOverlap,
   getCardConstellation,
   getQuickLogPractice,
+  getCardDrawCounts,
   type QuickLogCardStats,
   type QuickLogOverlap,
   type CardConstellation,
   type QuickLogPractice,
+  type CardDrawCounts,
 } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { useAuth } from "@/lib/auth";
@@ -60,9 +62,44 @@ import { useTimezone } from "@/lib/use-timezone";
 import { useNavigate } from "@tanstack/react-router";
 import { useStreak } from "@/lib/use-streak";
 import { getLunationContaining } from "@/lib/lunation";
+import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
+import {
+  EMPTY_GLOBAL_FILTERS,
+  type GlobalFilters,
+} from "@/lib/filters.types";
 
 const SLOT_W = 70;
 const SLOT_H = Math.round(SLOT_W * 1.55);
+
+// Phase 23 — default to "Last 365 days" (closest match to the spec's
+// "12 months" within Insights' canonical timeRange options).
+const DEFAULT_TIMEFRAME = "365d";
+const TIMEFRAME_OPTIONS = [
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+  { value: "90d", label: "Last 90 days" },
+  { value: "365d", label: "Last 365 days" },
+  { value: "all", label: "All time" },
+] as const;
+
+/** Phase 23 — slot badge opacity, mirrors QuickLog's matchOpacity. */
+function badgeOpacity(count: number, max: number): number {
+  if (count <= 0 || max <= 0) return 0;
+  const pct = count / max;
+  return 0.15 + pct * 0.8;
+}
+
+/** Convert the GlobalFilters envelope into the server-fn `filters` payload. */
+function toFilterPayload(g: GlobalFilters) {
+  return {
+    timeRange: g.timeRange,
+    tags: g.tags,
+    spreadTypes: g.spreadTypes,
+    moonPhases: g.moonPhases,
+    deepOnly: g.deepOnly,
+    reversedOnly: g.reversedOnly,
+  };
+}
 
 export function ConstellationPage() {
   const { user } = useAuth();
