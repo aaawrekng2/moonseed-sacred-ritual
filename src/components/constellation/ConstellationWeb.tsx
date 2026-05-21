@@ -105,11 +105,11 @@ export function ConstellationWeb({
   tealSelectedIds,
   candidateIds = [],
   heroDrawCount = null,
-  onCardDragStart,
-  onCardHover,
-  onHeroBadgeClick,
-  tealBadge,
-  onTealBadgeClick,
+  onCardDragStart = undefined,
+  onCardHover = undefined,
+  onHeroBadgeClick = undefined,
+  tealBadge = null,
+  onTealBadgeClick = undefined,
 }: Props) {
   return (
     <div
