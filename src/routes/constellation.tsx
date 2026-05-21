@@ -13,13 +13,13 @@ export const Route = createFileRoute("/constellation")({
 });
 
 function ConstellationRouteShell() {
-  // Phase 19 Fix 5 — page is fixed-height; inner panels scroll.
+  // Phase 20 Fix 13 — page grows beyond viewport; THIS PULL + Get Reading
+  // section reveals on scroll. Page itself is the scroll container.
   return (
     <div
       style={{
         width: "100%",
-        height: "100vh",
-        overflow: "hidden",
+        minHeight: "100vh",
         background: "var(--background, transparent)",
       }}
     >

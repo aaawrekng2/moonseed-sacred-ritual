@@ -13,22 +13,25 @@ import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 // Phase 19 Fix 4 + Fix 6 — wider SVG (edge buffer for ring outline),
 // shorter SVG so the whole page fits one viewport, smaller hero +
 // companions to match.
+// Phase 20 Fix 4/5 — enlarged after the inner header block was removed.
 const AR_CEILING = 1.7;
-const COMPANION_W = 50;
-const COMPANION_H = Math.round(COMPANION_W * AR_CEILING); // ≈85
-const HERO_W = 100;
-const HERO_H = Math.round(HERO_W * AR_CEILING); // ≈170
-const HERO_Y = 70;
+const COMPANION_W = 60;
+const COMPANION_H = Math.round(COMPANION_W * AR_CEILING); // ≈102
+const HERO_W = 120;
+const HERO_H = Math.round(HERO_W * AR_CEILING); // ≈204
+const HERO_Y = 60;
 export const SVG_W = 540;
-export const SVG_H = 430;
+export const SVG_H = 540;
+// Bottom-center y must satisfy y + COMPANION_H + 14 (count label) ≤ SVG_H.
+// At SVG_H=540, COMPANION_H=102 → y ≤ 424. Using 420.
 const COMPANION_POSITIONS = [
-  { x: 110, y: 130 },  // upper-left — slightly below hero shoulder
-  { x: 380, y: 130 },  // upper-right — slightly below hero shoulder
-  { x: 50,  y: 230 },  // mid-far-left
-  { x: 440, y: 230 },  // mid-far-right
-  { x: 130, y: 320 },  // lower-left
-  { x: 360, y: 320 },  // lower-right
-  { x: 245, y: 370 },  // bottom center
+  { x: 95,  y: 150 },  // upper-left
+  { x: 385, y: 150 },  // upper-right
+  { x: 30,  y: 280 },  // mid-far-left
+  { x: 450, y: 280 },  // mid-far-right
+  { x: 120, y: 400 },  // lower-left
+  { x: 360, y: 400 },  // lower-right
+  { x: 240, y: 420 },  // bottom-center
 ];
 
 type Props = {
@@ -76,32 +79,7 @@ export function ConstellationWeb({
         minHeight: 0,
       }}
     >
-      <div style={{ marginBottom: 2 }}>
-        <p
-          style={{
-            margin: 0,
-            fontFamily: "var(--font-display)",
-            fontStyle: "italic",
-            fontSize: 22,
-            color: "var(--color-foreground)",
-          }}
-        >
-          The Constellation
-        </p>
-        <p
-          style={{
-            margin: "4px 0 0 0",
-            fontSize: 10,
-            letterSpacing: "0.3em",
-            fontFamily: "var(--font-serif)",
-            color: "var(--color-foreground-muted, var(--color-foreground))",
-            textTransform: "uppercase",
-          }}
-        >
-          Cards Drawn Together — Line Weight = Times Paired · tap a card to filter
-        </p>
-      </div>
-
+      {/* Phase 20 Fix 3 — inner title block deleted; page H1 carries the name. */}
       {!heroPick || !constellation ? (
         <div
           style={{
