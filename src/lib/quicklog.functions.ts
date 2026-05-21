@@ -499,19 +499,28 @@ export const getCardConstellation = createServerFn({ method: "POST" })
     // Single fetch — derive both the hero-only subset (for matches +
     // co-occurrence counts) AND pair counts across all readings from one
     // dataset. Cap at 2000 lifetime readings (flagged as v1 limitation).
-    const { data: allRaw } = await supabase
+    let cq = supabase
       .from("readings")
-      .select("id, created_at, card_ids, question")
+      .select(
+        "id, created_at, card_ids, card_orientations, question, spread_type, tags, moon_phase, is_deep_reading",
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(2000);
+    const sinceC = timeRangeStartIso(data.filters?.timeRange);
+    if (sinceC) cq = cq.gte("created_at", sinceC);
+    const { data: allRaw } = await cq;
 
-    const all = ((allRaw ?? []) as Array<{
-      id: string;
-      created_at: string;
-      card_ids: number[] | null;
-      question: string | null;
-    }>).filter((r) => Array.isArray(r.card_ids));
+    const all = ((allRaw ?? []) as Array<
+      {
+        id: string;
+        created_at: string;
+        card_ids: number[] | null;
+        question: string | null;
+      } & FilterableRow
+    >)
+      .filter((r) => Array.isArray(r.card_ids))
+      .filter((r) => postFilterRow(r, data.filters));
 
     // Hero subset — readings containing the hero card.
     const heroRows = all.filter((r) => (r.card_ids ?? []).includes(heroCardId));
