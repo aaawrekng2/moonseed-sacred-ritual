@@ -216,6 +216,54 @@ export function ConstellationPage() {
     setUnsavedConfirm({ open: true, action });
   };
 
+  // DZ — load a reading from the journal into the /constellation surface.
+  // Guards against unsaved changes via the same requestNavigate gate so
+  // the seeker can permanently dismiss the warning.
+  const performLoadReading = async (readingId: string) => {
+    try {
+      const { data: row, error } = await supabase
+        .from("readings")
+        .select(
+          "id, created_at, card_ids, card_orientations, question, note",
+        )
+        .eq("id", readingId)
+        .maybeSingle();
+      if (error || !row) {
+        console.error("[ConstellationPage] load reading failed", error);
+        return;
+      }
+      const ids = (row.card_ids ?? []) as number[];
+      const ors = (row.card_orientations ?? []) as boolean[];
+      const newPicks = ids.map((cardId, i) => ({
+        id: Date.now() + i,
+        cardIndex: cardId,
+        isReversed: ors[i] ?? false,
+        deckId: null,
+        cardName: TAROT_DECK[cardId] ?? null,
+      }));
+      setPicks(newPicks);
+      setFocusedSlotIdx(newPicks.length > 0 ? 0 : null);
+      setTealSelectedIds([]);
+      setQuestion((row.question as string | null) ?? "");
+      setNote((row.note as string | null) ?? "");
+      setBackdate(row.created_at ? new Date(row.created_at) : null);
+      setAiStatus("idle");
+      setAiInterpretation(null);
+      setAiError(null);
+      setSaveStatus("idle");
+      setSaveError(null);
+      setDayPopover({ open: false, date: null });
+    } catch (e) {
+      console.error("[ConstellationPage] load reading threw", e);
+    }
+  };
+
+  const handleLoadReading = (readingId: string) => {
+    requestNavigate(() => {
+      void performLoadReading(readingId);
+    });
+  };
+
   // DR — slot row size computed from container width. Clamped between
   // COMPACT_SLOT_MIN_W and COMPACT_SLOT_MAX_W so layouts stay sane on both
   // 1024px and ≥1280px viewports.
@@ -378,6 +426,14 @@ export function ConstellationPage() {
     setHoverCardId(cardId);
     if (cardId !== null) setHoverCoords({ x: clientX, y: clientY });
   };
+
+  // DZ — calendar day-click popover. When a day cell is tapped, surface
+  // a list of readings on that day; clicking a reading loads it into
+  // /constellation (with the unsaved-changes guard if applicable).
+  const [dayPopover, setDayPopover] = useState<{
+    open: boolean;
+    date: string | null;
+  }>({ open: false, date: null });
 
   useEffect(() => {
     if (!user?.id || picks.length === 0) {
@@ -1034,6 +1090,22 @@ export function ConstellationPage() {
             }
             onCardDragStart={(cardId) => setDraggingCardId(cardId)}
             onCardHover={handleConstellationHover}
+            onHeroBadgeClick={() => {
+              // DZ — clicking the gold hero badge shows ALL readings
+              // containing the hero card; clear teal so the modal
+              // reflects the unfiltered hero set.
+              if (tealSelectedIds.length > 0) setTealSelectedIds([]);
+              setReadingsModalOpen(true);
+            }}
+            tealBadge={
+              tealSelectedIds.length >= 2
+                ? {
+                    cardId: tealSelectedIds[0],
+                    count: matchedReadings.length,
+                  }
+                : null
+            }
+            onTealBadgeClick={() => setReadingsModalOpen(true)}
           />
           {heroPick && matchedReadings.length > 0 && (
             <button
@@ -1251,10 +1323,25 @@ export function ConstellationPage() {
                       borderRadius: 6,
                       transition: "outline 120ms ease",
                     }}
-                    onMouseEnter={() => setHoveredSlotIdx(idx)}
-                    onMouseLeave={() =>
-                      setHoveredSlotIdx((cur) => (cur === idx ? null : cur))
+                    onMouseEnter={(e) => {
+                      setHoveredSlotIdx(idx);
+                      handleConstellationHover(
+                        pick.cardIndex,
+                        e.clientX,
+                        e.clientY,
+                      );
+                    }}
+                    onMouseMove={(e) =>
+                      handleConstellationHover(
+                        pick.cardIndex,
+                        e.clientX,
+                        e.clientY,
+                      )
                     }
+                    onMouseLeave={(e) => {
+                      setHoveredSlotIdx((cur) => (cur === idx ? null : cur));
+                      handleConstellationHover(null, e.clientX, e.clientY);
+                    }}
                     onDragOver={(e) => {
                       if (draggingCardId === null) return;
                       e.preventDefault();
@@ -1678,7 +1765,9 @@ export function ConstellationPage() {
         </div>
       </div>
 
-      {/* Calendar strip — DY: snug to constellation (was 10px gap). */}
+      {/* Calendar strip — DY: snug to constellation (was 10px gap).
+          DZ — day cells are clickable; tapping a day with readings opens
+          the day-readings popover for that date. */}
       <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
         <OverlapStrip
           overlap={overlap}
@@ -1688,6 +1777,7 @@ export function ConstellationPage() {
           onModeChange={setOverlapMode}
           tealSelectedIds={tealSelectedIds}
           layout="grid12"
+          onDayClick={(date) => setDayPopover({ open: true, date })}
         />
       </div>
 
@@ -2211,6 +2301,125 @@ export function ConstellationPage() {
                   {p}
                 </button>
               ))}
+            </div>
+          );
+        })()}
+      </Modal>
+      {/* DZ — calendar day-click popover. Lists every reading on the
+          tapped day; click a reading to load it into /constellation
+          (unsaved-changes warning fires via requestNavigate). */}
+      <Modal
+        open={dayPopover.open}
+        onClose={() => setDayPopover({ open: false, date: null })}
+        title={
+          dayPopover.date
+            ? formatDateShort(`${dayPopover.date}T00:00:00`)
+            : "Readings"
+        }
+        subtitle={(() => {
+          if (!dayPopover.date) return undefined;
+          const list = overlap?.readingsByDate?.[dayPopover.date] ?? [];
+          return `${list.length} ${list.length === 1 ? "reading" : "readings"}`;
+        })()}
+        size="sm"
+      >
+        {(() => {
+          if (!dayPopover.date) return null;
+          const list = overlap?.readingsByDate?.[dayPopover.date] ?? [];
+          if (list.length === 0) {
+            return (
+              <div
+                style={{
+                  padding: "8px 22px 22px",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 13,
+                  color: "var(--color-foreground)",
+                  opacity: 0.8,
+                }}
+              >
+                No readings on this day.
+              </div>
+            );
+          }
+          return (
+            <div
+              style={{
+                padding: "8px 22px 22px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              {list.map((r) => {
+                const cardsLabel = r.cardIds
+                  .slice(0, 5)
+                  .map((id) => TAROT_DECK[id] ?? `Card ${id}`)
+                  .join(" · ");
+                const extra =
+                  r.cardIds.length > 5 ? ` · +${r.cardIds.length - 5}` : "";
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => handleLoadReading(r.id)}
+                    style={{
+                      textAlign: "left",
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      background:
+                        "color-mix(in oklab, var(--accent, var(--gold)) 6%, transparent)",
+                      border: "1px solid var(--border-subtle)",
+                      color: "var(--color-foreground)",
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 4,
+                      width: "100%",
+                    }}
+                  >
+                    {r.question ? (
+                      <span
+                        style={{
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: "italic",
+                          fontSize: 13,
+                          color: "var(--color-foreground)",
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        {r.question}
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          fontFamily: "var(--font-serif)",
+                          fontStyle: "italic",
+                          fontSize: 12,
+                          color: "var(--color-foreground)",
+                          opacity: 0.6,
+                          lineHeight: 1.35,
+                        }}
+                      >
+                        (no question)
+                      </span>
+                    )}
+                    <span
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontSize: 11,
+                        color:
+                          "var(--color-foreground-muted, var(--color-foreground))",
+                        opacity: 0.85,
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      {cardsLabel}
+                      {extra}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           );
         })()}
