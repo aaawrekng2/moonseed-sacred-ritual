@@ -1216,7 +1216,8 @@ export function QuickLog({
           </div>
 
           {/* Q112 Phase 3 — Six-month overlap strip */}
-          <div style={{ padding: "0 24px", marginTop: 32 }}>
+          {/* Phase 20 Fix 12 — bottom padding extends background past cells. */}
+          <div style={{ padding: "0 24px 32px", marginTop: 32 }}>
             <OverlapStrip
               overlap={overlap}
               heroCardId={heroPick?.cardIndex ?? null}
