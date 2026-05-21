@@ -1853,6 +1853,11 @@ function OverlapStrip({
   }, []);
   const monthsToShow = layout === "grid12" ? 12 : viewportWidth >= 1280 ? 6 : 5;
 
+  // DU — for grid12 layout, the top row (older 6 months) can be collapsed.
+  // Default expanded. Toggle via "Show older / Hide older" pill above the
+  // calendar. Has no effect in scroll layout.
+  const [showOlder, setShowOlder] = useState(true);
+
   // Phase 14 (CZ) — calendar-wide max match for the "best available" dashed
   // ring. Only meaningful when more than one card is pulled; with a single
   // card every match would tie at max and ring every cell.
@@ -1891,6 +1896,29 @@ function OverlapStrip({
           gap: 6,
         }}
       >
+        {layout === "grid12" && (
+          <button
+            type="button"
+            onClick={() => setShowOlder((v) => !v)}
+            style={{
+              height: 22,
+              padding: "0 12px",
+              borderRadius: 9999,
+              border: "1px solid var(--border-subtle)",
+              background: showOlder
+                ? "color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)"
+                : "var(--surface-card)",
+              color: "var(--color-foreground)",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 10,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {showOlder ? "Hide older ←" : "Show older →"}
+          </button>
+        )}
         <div
           role="tablist"
           style={{
@@ -1941,7 +1969,7 @@ function OverlapStrip({
                 display: "grid",
                 gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
                 gridAutoRows: "auto",
-                gap: 12,
+                gap: 16,
                 alignItems: "start",
                 position: "relative",
                 width: "100%",
@@ -1959,7 +1987,12 @@ function OverlapStrip({
         }
       >
         {months.length === 0 &&
-          Array.from({ length: monthsToShow }).map((_, i) => (
+          Array.from({
+            length:
+              layout === "grid12" && !showOlder
+                ? Math.min(6, monthsToShow)
+                : monthsToShow,
+          }).map((_, i) => (
             <div
               key={i}
               style={
@@ -1997,7 +2030,15 @@ function OverlapStrip({
               />
             </div>
           ))}
-        {months.slice(-monthsToShow).map((m) => {
+        {months
+          .slice(
+            -(
+              layout === "grid12" && !showOlder
+                ? Math.min(6, monthsToShow)
+                : monthsToShow
+            ),
+          )
+          .map((m) => {
           const isCurrent = `${m.year}-${m.month}` === currentMonthKey;
           // eslint-disable-next-line no-restricted-syntax -- intrinsic Gregorian month-grid: day-of-week of the 1st of m.year/m.month
           const firstDow = new Date(m.year, m.month - 1, 1).getDay();
@@ -2032,11 +2073,11 @@ function OverlapStrip({
                         width: "100%",
                         background: "var(--surface-card)",
                         borderRadius: 6,
-                        padding: 5,
+                        padding: 7,
                         boxSizing: "border-box",
                         display: "grid",
                         gridTemplateColumns: "repeat(7, 1fr)",
-                        gap: 4,
+                        gap: 3,
                         justifyContent: "center",
                         alignContent: "start",
                       }
@@ -2237,10 +2278,11 @@ function OverlapStrip({
                           aria-hidden
                           style={{
                             position: "absolute",
-                            inset: -4,
-                            borderRadius: 6,
+                            inset: -1,
+                            borderRadius: 5,
                             border: `2px solid ${traceColor}`,
                             pointerEvents: "none",
+                            zIndex: 3,
                           }}
                         />
                       )}

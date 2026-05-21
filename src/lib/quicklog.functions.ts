@@ -604,7 +604,9 @@ export const getCardConstellation = createServerFn({ method: "POST" })
 // ─── Phase 23 — per-card draw counts for slot badges ─────────────────
 
 const DrawCountsInput = z.object({
-  cardIds: z.array(z.number().int().min(0).max(9999)).max(10),
+  // DU — bumped cap from 10 → 200 so CardPicker can request counts for the
+  // full 78-card tarot deck (plus oracle cards) in a single call.
+  cardIds: z.array(z.number().int().min(0).max(9999)).max(200),
   tz: z.string().min(1),
   filters: FiltersSchema,
 });

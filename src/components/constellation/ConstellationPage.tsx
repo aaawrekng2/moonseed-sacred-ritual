@@ -619,19 +619,27 @@ export function ConstellationPage() {
         overflowX: "hidden",
         display: "flex",
         flexDirection: "column",
-        padding: "12px 0 80px",
+        // DU — reduced top padding so Manual Entry header sits closer to top.
+        padding: "2px 0 80px",
       }}
     >
-      {/* Header row */}
+      {/* Header row — DU: subtitle inline with H1 on the same row. */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 24px 4px",
+          padding: "0 24px 2px",
         }}
       >
-        <div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 14,
+            flexWrap: "wrap",
+          }}
+        >
           <h1
             style={{
               margin: 0,
@@ -640,13 +648,14 @@ export function ConstellationPage() {
               fontSize: 26,
               fontWeight: 400,
               color: "var(--color-foreground)",
+              lineHeight: 1.1,
             }}
           >
             Manual Entry
           </h1>
           <p
             style={{
-              margin: "2px 0 0 0",
+              margin: 0,
               fontSize: 10,
               letterSpacing: "0.3em",
               fontFamily: "var(--font-serif)",
@@ -741,25 +750,8 @@ export function ConstellationPage() {
             height: "100%",
           }}
         >
-          {heroPick ? (
-            <ChipGrid heroPick={heroPick} stats={cardStats} />
-          ) : (
-            <p
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: 13,
-                color:
-                  "var(--color-foreground-muted, var(--color-foreground))",
-                margin: 0,
-                opacity: 0.7,
-              }}
-            >
-              add a card to see its patterns.
-            </p>
-          )}
-          {/* DR — readings panel collapsed into a single button. Counts
-              matches against the current teal selection (or all hero
+          {/* DU — readings button now at TOP of right column, above ChipGrid.
+              Counts matches against the current teal selection (or all hero
               matches when teal is empty). Tap opens the modal. */}
           {heroPick && matchedReadings.length > 0 && (
             <button
@@ -789,6 +781,23 @@ export function ConstellationPage() {
                   ? "selected card"
                   : `${tealSelectedIds.length} selected cards`}
             </button>
+          )}
+          {heroPick ? (
+            <ChipGrid heroPick={heroPick} stats={cardStats} />
+          ) : (
+            <p
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+                color:
+                  "var(--color-foreground-muted, var(--color-foreground))",
+                margin: 0,
+                opacity: 0.7,
+              }}
+            >
+              add a card to see its patterns.
+            </p>
           )}
 
           {/* DR — slot row + date + paste pinned to the bottom of the right
@@ -1063,8 +1072,9 @@ export function ConstellationPage() {
         </div>
       </div>
 
-      {/* Calendar strip — Phase 20 Fix 12 bottom padding extends bg past cells. */}
-      <div style={{ padding: "12px 24px 32px", flexShrink: 0 }}>
+      {/* Calendar strip — DU: tightened top padding to bring it closer to
+          the constellation block above. */}
+      <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
         <OverlapStrip
           overlap={overlap}
           heroCardId={heroPick?.cardIndex ?? null}
@@ -1372,10 +1382,7 @@ function ReadingsModal({
               const cardsLabel = r.cardIds
                 .map((id) => TAROT_DECK[id] ?? `Card ${id}`)
                 .join(" · ");
-              const inlineText =
-                r.question && r.question.trim()
-                  ? `“${r.question.trim()}” — ${cardsLabel}`
-                  : cardsLabel;
+              const hasQuestion = !!(r.question && r.question.trim());
               return (
                 <button
                   key={r.id}
@@ -1383,49 +1390,81 @@ function ReadingsModal({
                   onClick={() => onRowClick(r.id)}
                   style={{
                     textAlign: "left",
-                    padding: "10px 12px",
+                    padding: "6px 12px",
                     borderRadius: 8,
                     border: "1px solid var(--border-subtle)",
                     background: "var(--surface-elevated, var(--surface-card))",
                     cursor: "pointer",
                     display: "flex",
-                    flexDirection: "row",
-                    gap: 10,
-                    alignItems: "baseline",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
+                    flexDirection: "column",
+                    gap: 2,
+                    alignItems: "stretch",
                     width: "100%",
+                    overflow: "hidden",
                   }}
                 >
-                  <span
+                  <div
                     style={{
-                      fontSize: 10,
-                      letterSpacing: "0.2em",
-                      textTransform: "uppercase",
-                      fontFamily: "var(--font-serif)",
-                      color:
-                        "var(--color-foreground-muted, var(--color-foreground))",
-                      opacity: 0.75,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {date}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: r.question ? "italic" : "normal",
-                      color: "var(--color-foreground)",
+                      display: "flex",
+                      flexDirection: "row",
+                      gap: 10,
+                      alignItems: "center",
+                      whiteSpace: "nowrap",
                       overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      minWidth: 0,
-                      flex: 1,
+                      width: "100%",
                     }}
-                    title={inlineText}
                   >
-                    {inlineText}
-                  </span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        letterSpacing: "0.2em",
+                        textTransform: "uppercase",
+                        fontFamily: "var(--font-serif)",
+                        color:
+                          "var(--color-foreground-muted, var(--color-foreground))",
+                        opacity: 0.75,
+                        flexShrink: 0,
+                        lineHeight: 1.1,
+                      }}
+                    >
+                      {date}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontFamily: "var(--font-serif)",
+                        color: "var(--color-foreground)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        minWidth: 0,
+                        flex: 1,
+                        lineHeight: 1.1,
+                      }}
+                      title={cardsLabel}
+                    >
+                      {cardsLabel}
+                    </span>
+                  </div>
+                  {hasQuestion && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        color:
+                          "var(--color-foreground-muted, var(--color-foreground))",
+                        opacity: 0.85,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        width: "100%",
+                        lineHeight: 1.2,
+                      }}
+                      title={r.question ?? ""}
+                    >
+                      “{(r.question ?? "").trim()}”
+                    </span>
+                  )}
                 </button>
               );
             })
