@@ -578,7 +578,7 @@ export function QuickLog({
                   textTransform: "uppercase",
                 }}
               >
-                A CONSTELLATION — WHEN THESE{" "}
+                AN ECHO — WHEN THESE{" "}
                 {(() => {
                   const n = constellation.participatingCardIds.length;
                   return n === 2
