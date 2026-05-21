@@ -70,12 +70,13 @@ export function ConstellationWeb({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 6,
+        gap: 2,
         width: "100%",
-        maxWidth: 500,
+        maxWidth: SVG_W,
+        minHeight: 0,
       }}
     >
-      <div>
+      <div style={{ marginBottom: 2 }}>
         <p
           style={{
             margin: 0,
