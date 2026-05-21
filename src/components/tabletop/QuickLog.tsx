@@ -2147,6 +2147,27 @@ function OverlapStrip({
                           }}
                         />
                       )}
+                      {tealTraceHit && opacity <= 0.5 && (
+                        <div
+                          aria-hidden
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontFamily: "var(--font-serif)",
+                            fontStyle: "italic",
+                            fontSize: 11,
+                            lineHeight: 1,
+                            color: "var(--color-foreground)",
+                            pointerEvents: "none",
+                            zIndex: 2,
+                          }}
+                        >
+                          {Number(day.date.split("-")[2])}
+                        </div>
+                      )}
                       {tealTraceHit && (
                         <div
                           aria-hidden
