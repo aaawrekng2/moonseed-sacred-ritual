@@ -13,5 +13,17 @@ export const Route = createFileRoute("/constellation")({
 });
 
 function ConstellationRouteShell() {
-  return <ConstellationPage />;
+  // Phase 19 Fix 5 — page is fixed-height; inner panels scroll.
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100vh",
+        overflow: "hidden",
+        background: "var(--background, transparent)",
+      }}
+    >
+      <ConstellationPage />
+    </div>
+  );
 }
