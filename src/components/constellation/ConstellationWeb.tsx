@@ -19,19 +19,19 @@ const COMPANION_W = 60;
 const COMPANION_H = Math.round(COMPANION_W * AR_CEILING); // ≈102
 const HERO_W = 120;
 const HERO_H = Math.round(HERO_W * AR_CEILING); // ≈204
-const HERO_Y = 60;
+// Phase 22 Fix 2 — HERO_Y dropped 60→24, SVG_H dropped 540→504,
+// all companion Y values shifted up by 36 to remove dead top space.
+const HERO_Y = 24;
 export const SVG_W = 540;
-export const SVG_H = 540;
-// Bottom-center y must satisfy y + COMPANION_H + 14 (count label) ≤ SVG_H.
-// At SVG_H=540, COMPANION_H=102 → y ≤ 424. Using 420.
+export const SVG_H = 504;
 const COMPANION_POSITIONS = [
-  { x: 95,  y: 150 },  // upper-left
-  { x: 385, y: 150 },  // upper-right
-  { x: 30,  y: 280 },  // mid-far-left
-  { x: 450, y: 280 },  // mid-far-right
-  { x: 120, y: 400 },  // lower-left
-  { x: 360, y: 400 },  // lower-right
-  { x: 240, y: 420 },  // bottom-center
+  { x: 95,  y: 114 },  // upper-left
+  { x: 385, y: 114 },  // upper-right
+  { x: 30,  y: 244 },  // mid-far-left
+  { x: 450, y: 244 },  // mid-far-right
+  { x: 120, y: 364 },  // lower-left
+  { x: 360, y: 364 },  // lower-right
+  { x: 240, y: 384 },  // bottom-center
 ];
 
 type Props = {
