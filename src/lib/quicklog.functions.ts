@@ -237,6 +237,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
 const OverlapInput = z.object({
   heroCardId: z.number().int().min(0).max(9999).nullable().optional(),
   tz: z.string().min(1),
+  filters: FiltersSchema,
 });
 
 export type QuickLogDayCell = {
