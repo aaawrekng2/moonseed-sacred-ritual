@@ -173,13 +173,13 @@ function ConstellationSvg({
         const bIsTeal = tealSet.has(pair.b);
         const aIsCandidate = candidateSet.has(pair.a);
         const bIsCandidate = candidateSet.has(pair.b);
-        // Phase 24 — paint teal if connecting two teal-selected cards
-        // (binds the trace visually) OR teal-to-candidate (the extension
-        // hint: "click this card, the trace still has data").
+        // Phase 24 — paint teal only when connecting a teal card to a
+        // candidate (the "click me, my trace has data" hint). Lines between
+        // two already-selected teal cards stay at their normal accent weight
+        // so the trace doesn't get visually crowded; lines disappear entirely
+        // when there are no candidates left to suggest.
         const isTealLine =
-          (aIsTeal && bIsTeal) ||
-          (aIsTeal && bIsCandidate) ||
-          (bIsTeal && aIsCandidate);
+          (aIsTeal && bIsCandidate) || (bIsTeal && aIsCandidate);
         const strokeWidth = isTealLine
           ? 2.5
           : Math.max(1, Math.min(5, weight * 5));
