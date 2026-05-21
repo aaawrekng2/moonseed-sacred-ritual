@@ -369,47 +369,70 @@ export function ConstellationPage() {
               );
             }
             const isFocused = idx === heroIdx;
+            const inEcho =
+              echo.active && participatingSet.has(pick.cardIndex);
             return (
-              <button
-                key={pick.id}
-                type="button"
-                onClick={() => setFocusedSlotIdx(idx)}
-                style={{
-                  position: "relative",
-                  width: SLOT_W,
-                  padding: 0,
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  borderRadius: 6,
-                  outline: isFocused
-                    ? "2px solid var(--accent, var(--gold))"
-                    : "none",
-                  outlineOffset: 2,
-                }}
-              >
-                <CardImage
-                  variant="face"
-                  cardId={pick.cardIndex}
-                  reversed={pick.isReversed}
-                  deckId={pick.deckId ?? undefined}
-                  size="custom"
-                  widthPx={SLOT_W}
-                />
-              </button>
+              <div key={pick.id} style={{ position: "relative" }}>
+                {inEcho && (
+                  <div
+                    aria-hidden
+                    className="tarotseed-constellation-breathe"
+                    style={{
+                      position: "absolute",
+                      top: -10,
+                      left: -10,
+                      right: -10,
+                      bottom: -10,
+                      background:
+                        "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 45%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 22%, transparent) 55%, transparent 85%)",
+                      pointerEvents: "none",
+                      zIndex: 0,
+                      borderRadius: 14,
+                    }}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => setFocusedSlotIdx(idx)}
+                  style={{
+                    position: "relative",
+                    zIndex: 1,
+                    width: SLOT_W,
+                    padding: 0,
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    borderRadius: 6,
+                    outline: isFocused
+                      ? "2px solid var(--accent, var(--gold))"
+                      : "none",
+                    outlineOffset: 2,
+                  }}
+                >
+                  <CardImage
+                    variant="face"
+                    cardId={pick.cardIndex}
+                    reversed={pick.isReversed}
+                    deckId={pick.deckId ?? undefined}
+                    size="custom"
+                    widthPx={SLOT_W}
+                  />
+                </button>
+              </div>
             );
           })}
         </div>
       </div>
 
-      {/* Two-column layout */}
+      {/* Phase 19 Fix 2,3,4 — fixed-height two-column grid */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "500px 1fr",
+          gridTemplateColumns: `${SVG_W}px 1fr`,
           gap: 24,
-          padding: "0 24px",
-          marginTop: -8,
+          padding: "0 24px 0",
+          height: SVG_H,
+          minHeight: 0,
         }}
       >
         <ConstellationWeb
@@ -422,7 +445,15 @@ export function ConstellationPage() {
           }
           selectedCompanion={companionFilterCardId}
         />
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            minHeight: 0,
+            height: "100%",
+          }}
+        >
           {heroPick ? (
             <ChipGrid heroPick={heroPick} stats={cardStats} />
           ) : (
@@ -440,16 +471,21 @@ export function ConstellationPage() {
               add a card to see its patterns.
             </p>
           )}
-          <MatchingReadingsPanel
-            heroPick={heroPick}
-            companionFilter={companionFilterCardId}
-            matches={constellationData?.matches ?? []}
-          />
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+            <MatchingReadingsPanel
+              heroPick={heroPick}
+              companionFilter={companionFilterCardId}
+              matches={constellationData?.matches ?? []}
+              echoParticipatingIds={
+                echo.active ? echo.participatingCardIds : null
+              }
+            />
+          </div>
         </div>
       </div>
 
       {/* Calendar strip */}
-      <div style={{ padding: "24px 24px 0" }}>
+      <div style={{ padding: "12px 24px 12px", flexShrink: 0 }}>
         <OverlapStrip
           overlap={overlap}
           heroCardId={heroPick?.cardIndex ?? null}
