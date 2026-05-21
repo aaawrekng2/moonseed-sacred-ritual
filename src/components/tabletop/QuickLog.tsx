@@ -1803,6 +1803,7 @@ function OverlapStrip({
   onModeChange,
   tealSelectedIds = [],
   traceColor = "#5cead4",
+  layout = "scroll",
 }: {
   overlap: QuickLogOverlap | null;
   heroCardId: number | null;
@@ -1814,6 +1815,10 @@ function OverlapStrip({
    * traceColor. Optional; defaults to empty (no trace overlay). */
   tealSelectedIds?: number[];
   traceColor?: string;
+  /** DP — "scroll" (default) renders the legacy horizontal-scroll strip used
+   * by QuickLog at /draw/classic. "grid12" renders a 12-month two-row × six-
+   * column grid used by Manual Entry on /constellation. */
+  layout?: "scroll" | "grid12";
 }) {
   const months = overlap?.months ?? [];
   const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
@@ -1846,7 +1851,7 @@ function OverlapStrip({
       window.removeEventListener("orientationchange", handle);
     };
   }, []);
-  const monthsToShow = viewportWidth >= 1280 ? 6 : 5;
+  const monthsToShow = layout === "grid12" ? 12 : viewportWidth >= 1280 ? 6 : 5;
 
   // Phase 14 (CZ) — calendar-wide max match for the "best available" dashed
   // ring. Only meaningful when more than one card is pulled; with a single
@@ -1929,20 +1934,40 @@ function OverlapStrip({
         </div>
       </div>
       <div
-        style={{
-          paddingTop: 16,
-          display: "flex",
-          flexDirection: "row",
-          gap: 12,
-          alignItems: "flex-start",
-          position: "relative",
-          overflowX: "auto",
-          scrollbarGutter: "stable",
-        }}
+        style={
+          layout === "grid12"
+            ? {
+                paddingTop: 16,
+                display: "grid",
+                gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
+                gridAutoRows: "auto",
+                gap: 12,
+                alignItems: "start",
+                position: "relative",
+                width: "100%",
+              }
+            : {
+                paddingTop: 16,
+                display: "flex",
+                flexDirection: "row",
+                gap: 12,
+                alignItems: "flex-start",
+                position: "relative",
+                overflowX: "auto",
+                scrollbarGutter: "stable",
+              }
+        }
       >
         {months.length === 0 &&
           Array.from({ length: monthsToShow }).map((_, i) => (
-            <div key={i} style={{ width: 188 }}>
+            <div
+              key={i}
+              style={
+                layout === "grid12"
+                  ? { width: "100%" }
+                  : { width: 188 }
+              }
+            >
               <div
                 style={{
                   height: 16,
@@ -1954,12 +1979,21 @@ function OverlapStrip({
                 }}
               />
               <div
-                style={{
-                  width: 188,
-                  height: 192,
-                  background: "var(--surface-card)",
-                  borderRadius: 6,
-                }}
+                style={
+                  layout === "grid12"
+                    ? {
+                        width: "100%",
+                        height: 132,
+                        background: "var(--surface-card)",
+                        borderRadius: 6,
+                      }
+                    : {
+                        width: 188,
+                        height: 192,
+                        background: "var(--surface-card)",
+                        borderRadius: 6,
+                      }
+                }
               />
             </div>
           ))}
@@ -1968,7 +2002,14 @@ function OverlapStrip({
           // eslint-disable-next-line no-restricted-syntax -- intrinsic Gregorian month-grid: day-of-week of the 1st of m.year/m.month
           const firstDow = new Date(m.year, m.month - 1, 1).getDay();
           return (
-            <div key={`${m.year}-${m.month}`} style={{ width: 188, flexShrink: 0 }}>
+            <div
+              key={`${m.year}-${m.month}`}
+              style={
+                layout === "grid12"
+                  ? { width: "100%", minWidth: 0 }
+                  : { width: 188, flexShrink: 0 }
+              }
+            >
               <p
                 style={{
                   margin: "0 0 6px 0",
@@ -1985,20 +2026,35 @@ function OverlapStrip({
                 {MONTH_NAMES[m.month - 1]}
               </p>
               <div
-                style={{
-                  width: 188,
-                  minHeight: 192,
-                  background: "var(--surface-card)",
-                  borderRadius: 6,
-                  padding: 6,
-                  boxSizing: "border-box",
-                  display: "grid",
-                  gridTemplateColumns: "repeat(7, 20px)",
-                  gridAutoRows: "20px",
-                  gap: 6,
-                  justifyContent: "center",
-                  alignContent: "start",
-                }}
+                style={
+                  layout === "grid12"
+                    ? {
+                        width: "100%",
+                        background: "var(--surface-card)",
+                        borderRadius: 6,
+                        padding: 5,
+                        boxSizing: "border-box",
+                        display: "grid",
+                        gridTemplateColumns: "repeat(7, 1fr)",
+                        gap: 4,
+                        justifyContent: "center",
+                        alignContent: "start",
+                      }
+                    : {
+                        width: 188,
+                        minHeight: 192,
+                        background: "var(--surface-card)",
+                        borderRadius: 6,
+                        padding: 6,
+                        boxSizing: "border-box",
+                        display: "grid",
+                        gridTemplateColumns: "repeat(7, 20px)",
+                        gridAutoRows: "20px",
+                        gap: 6,
+                        justifyContent: "center",
+                        alignContent: "start",
+                      }
+                }
               >
                 {Array.from({ length: firstDow }).map((_, i) => (
                   <div key={`pad-${i}`} />
@@ -2105,12 +2161,20 @@ function OverlapStrip({
                     <div
                       key={day.date}
                       title={tooltipText}
-                      style={{ position: "relative", width: 20, height: 20 }}
+                      style={
+                        layout === "grid12"
+                          ? {
+                              position: "relative",
+                              width: "100%",
+                              aspectRatio: "1 / 1",
+                            }
+                          : { position: "relative", width: 20, height: 20 }
+                      }
                     >
                       <div
                         style={{
-                          width: 20,
-                          height: 20,
+                          width: "100%",
+                          height: "100%",
                           borderRadius: 3,
                           background: bg,
                           opacity,
