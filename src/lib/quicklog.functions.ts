@@ -498,7 +498,7 @@ export const getCardConstellation = createServerFn({ method: "POST" })
 
     // Single fetch — derive both the hero-only subset (for matches +
     // co-occurrence counts) AND pair counts across all readings from one
-    // dataset. Cap at 2000 lifetime readings (flagged as v1 limitation).
+    // dataset. Cap at 10000 lifetime readings (raised from 2000 in DP).
     let cq = supabase
       .from("readings")
       .select(
@@ -506,7 +506,7 @@ export const getCardConstellation = createServerFn({ method: "POST" })
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(2000);
+      .limit(10000);
     const sinceC = timeRangeStartIso(data.filters?.timeRange);
     if (sinceC) cq = cq.gte("created_at", sinceC);
     const { data: allRaw } = await cq;
@@ -632,7 +632,7 @@ export const getCardDrawCounts = createServerFn({ method: "POST" })
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(2000);
+      .limit(10000);
     const since = timeRangeStartIso(data.filters?.timeRange);
     if (since) q = q.gte("created_at", since);
     const { data: rowsRaw } = await q;
