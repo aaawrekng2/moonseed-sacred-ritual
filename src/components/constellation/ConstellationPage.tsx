@@ -688,7 +688,9 @@ export function ConstellationPage() {
                       : "var(--color-foreground)";
                   return (
                     <div
-                      aria-hidden
+                      role="img"
+                      aria-label={`Appeared in ${count} past readings`}
+                      title={`This card has appeared in ${count} of your past readings.`}
                       style={{
                         position: "absolute",
                         bottom: -8,
@@ -708,6 +710,7 @@ export function ConstellationPage() {
                         fontStyle: "italic",
                         fontSize: 12,
                         lineHeight: 1,
+                        cursor: "help",
                       }}
                     >
                       {count}
