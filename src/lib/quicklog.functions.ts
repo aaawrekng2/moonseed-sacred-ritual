@@ -276,14 +276,15 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
     const heroCardId = data.heroCardId ?? null;
     const tz = data.tz;
 
-    // Window: first day of (today's month - 5) through today, in user tz.
+    // Window: first day of (today's month - 11) through today, in user tz.
+    // DT — bumped 6 → 12 months to feed the new 12-month grid on Manual Entry.
     const now = new Date();
     const nowKey = isoDayInTz(now, tz); // "YYYY-MM-DD"
     const [nowYearStr, nowMonthStr] = nowKey.split("-");
     const nowYear = Number(nowYearStr);
     const nowMonth0 = Number(nowMonthStr) - 1;
     let startYear = nowYear;
-    let startMonth0 = nowMonth0 - 5;
+    let startMonth0 = nowMonth0 - 11;
     while (startMonth0 < 0) {
       startMonth0 += 12;
       startYear -= 1;
@@ -333,7 +334,7 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
     }
 
     const months: QuickLogMonthGroup[] = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 12; i++) {
       let y = startYear;
       let m0 = startMonth0 + i;
       while (m0 >= 12) {
