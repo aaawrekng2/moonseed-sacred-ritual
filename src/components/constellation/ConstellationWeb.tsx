@@ -51,6 +51,13 @@ type Props = {
   heroDrawCount?: number | null;
   /** DP — drag a constellation card to a slot. Caller wires drop targets. */
   onCardDragStart?: (cardId: number) => void;
+  /** DY — hover lifecycle for the parent's tooltip overlay.
+   *  Called with (cardId | null, clientX, clientY) — null on leave. */
+  onCardHover?: (
+    cardId: number | null,
+    clientX: number,
+    clientY: number,
+  ) => void;
 };
 
 type Box = { x: number; y: number; w: number; h: number };
@@ -86,6 +93,7 @@ export function ConstellationWeb({
   candidateIds = [],
   heroDrawCount = null,
   onCardDragStart,
+  onCardHover,
 }: Props) {
   return (
     <div
@@ -129,6 +137,7 @@ export function ConstellationWeb({
           heroPick={heroPick}
           heroDrawCount={heroDrawCount}
           onCardDragStart={onCardDragStart}
+          onCardHover={onCardHover}
         />
       )}
     </div>
@@ -143,6 +152,7 @@ function ConstellationSvg({
   heroPick,
   heroDrawCount,
   onCardDragStart,
+  onCardHover,
 }: {
   constellation: CardConstellation;
   onCardClick: (cardId: number) => void;
@@ -151,6 +161,11 @@ function ConstellationSvg({
   heroPick: ManualPick;
   heroDrawCount: number | null;
   onCardDragStart?: (cardId: number) => void;
+  onCardHover?: (
+    cardId: number | null,
+    clientX: number,
+    clientY: number,
+  ) => void;
 }) {
   const maxPair = constellation.pairCounts.reduce(
     (m, p) => (p.count > m ? p.count : m),
@@ -231,6 +246,21 @@ function ConstellationSvg({
                   );
                   onCardDragStart(constellation.heroCardId);
                 }}
+                onMouseEnter={(e) =>
+                  onCardHover?.(
+                    constellation.heroCardId,
+                    e.clientX,
+                    e.clientY,
+                  )
+                }
+                onMouseMove={(e) =>
+                  onCardHover?.(
+                    constellation.heroCardId,
+                    e.clientX,
+                    e.clientY,
+                  )
+                }
+                onMouseLeave={(e) => onCardHover?.(null, e.clientX, e.clientY)}
                 title={getCardName(constellation.heroCardId)}
                 style={{
                   width: pos.w,
@@ -334,6 +364,13 @@ function ConstellationSvg({
                   );
                   onCardDragStart(c.cardId);
                 }}
+                onMouseEnter={(e) =>
+                  onCardHover?.(c.cardId, e.clientX, e.clientY)
+                }
+                onMouseMove={(e) =>
+                  onCardHover?.(c.cardId, e.clientX, e.clientY)
+                }
+                onMouseLeave={(e) => onCardHover?.(null, e.clientX, e.clientY)}
                 title={getCardName(c.cardId)}
                 style={{
                   width: pos.w,

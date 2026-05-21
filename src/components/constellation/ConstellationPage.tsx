@@ -22,6 +22,11 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
+import { TAROT_MEANINGS } from "@/lib/tarot-meanings";
+import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
+import { saveManualReading } from "@/lib/save-manual-reading.functions";
+import { interpretReading } from "@/lib/interpret.functions";
+import { Modal } from "@/components/ui/modal";
 import {
   ChipGrid,
   OverlapStrip,
@@ -122,6 +127,8 @@ type PersistedState = {
   tealSelectedIds: number[];
   backdateISO: string | null;
   question: string;
+  /** DY — free-form notes for the in-page journal save / AI reading. */
+  note: string;
   overlapMode: "pull" | "day";
   globalFilters: GlobalFilters;
 };
@@ -355,6 +362,23 @@ export function ConstellationPage() {
     return m;
   }, [drawCounts, picks]);
 
+  // DY — hover-card tooltip for constellation cards. Cursor coords drive
+  // tooltip position (offset slightly so it doesn't sit under the cursor).
+  // Mobile is skipped — hover events don't fire on touch devices.
+  const [hoverCardId, setHoverCardId] = useState<number | null>(null);
+  const [hoverCoords, setHoverCoords] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
+  const handleConstellationHover = (
+    cardId: number | null,
+    clientX: number,
+    clientY: number,
+  ) => {
+    setHoverCardId(cardId);
+    if (cardId !== null) setHoverCoords({ x: clientX, y: clientY });
+  };
+
   useEffect(() => {
     if (!user?.id || picks.length === 0) {
       setDrawCounts(null);
@@ -473,6 +497,25 @@ export function ConstellationPage() {
   const [question, setQuestion] = useState<string>(
     () => persisted?.question ?? "",
   );
+  // DY — free-form notes textarea for "Save to Journal" + AI reading.
+  const [note, setNote] = useState<string>(() => persisted?.note ?? "");
+  // DY — journaling-prompts modal trigger.
+  const [promptsModalOpen, setPromptsModalOpen] = useState(false);
+  // DY — Save to Journal lifecycle.
+  const [saveStatus, setSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // DY — inline AI reading lifecycle.
+  const [aiStatus, setAiStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [aiInterpretation, setAiInterpretation] = useState<{
+    overview: string;
+    positions: { position: string; card: string; interpretation: string }[];
+    closing: string;
+  } | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
   // DR — persist all /constellation state to localStorage on any change.
   // Placed here (after every relevant useState has been declared) to avoid
   // a temporal-dead-zone error: an earlier placement closed over `question`
@@ -486,6 +529,7 @@ export function ConstellationPage() {
         tealSelectedIds,
         backdateISO: backdate ? backdate.toISOString() : null,
         question,
+        note,
         overlapMode,
         globalFilters,
       };
@@ -499,6 +543,7 @@ export function ConstellationPage() {
     tealSelectedIds,
     backdate,
     question,
+    note,
     overlapMode,
     globalFilters,
   ]);
@@ -517,9 +562,95 @@ export function ConstellationPage() {
     [echo],
   );
 
+  // DY — derive the spread mode from the pick count. Matches /draw's
+  // manual-entry mapping: 1 = single, 3 = three, 10 = celtic, else custom.
+  const derivedSpreadMode = useMemo<
+    "single" | "three" | "celtic" | "custom"
+  >(() => {
+    if (picks.length === 1) return "single";
+    if (picks.length === 3) return "three";
+    if (picks.length === 10) return "celtic";
+    return "custom";
+  }, [picks.length]);
+
+  // DY — inline AI reading. Stays on this page; renders interpretation
+  // below the duplicate card display.
+  const handleGetAIReading = async () => {
+    if (!canSubmit || aiStatus === "loading") return;
+    setAiStatus("loading");
+    setAiError(null);
+    setAiInterpretation(null);
+    try {
+      const result = await interpretReading({
+        data: {
+          spread: derivedSpreadMode,
+          picks: picks.map((p) => ({
+            id: p.id,
+            cardIndex: p.cardIndex,
+            isReversed: p.isReversed,
+          })),
+          question: question.trim() || undefined,
+          createdAt: backdate ? backdate.toISOString() : undefined,
+        },
+      });
+      if (!result.ok) {
+        setAiStatus("error");
+        setAiError(result.message);
+        return;
+      }
+      setAiInterpretation(result.interpretation);
+      setAiStatus("ready");
+    } catch (e) {
+      console.error("[ConstellationPage] interpretReading threw", e);
+      setAiStatus("error");
+      setAiError("Something went wrong. Please try again.");
+    }
+  };
+
+  // DY — Save to Journal (no AI). Writes a readings row with picks,
+  // question, note, and optional backdate. Stays on the page. After a
+  // successful save we surface a "Saved" pulse and clear the slate so
+  // the seeker can start a new pull.
+  const handleSaveToJournal = async () => {
+    if (!canSubmit || saveStatus === "saving") return;
+    setSaveStatus("saving");
+    setSaveError(null);
+    try {
+      const result = await saveManualReading({
+        data: {
+          spread: derivedSpreadMode,
+          picks: picks.map((p) => ({
+            id: p.id,
+            cardIndex: p.cardIndex,
+            isReversed: p.isReversed,
+          })),
+          question: question.trim() || undefined,
+          note: note.trim() || undefined,
+          createdAt: backdate ? backdate.toISOString() : undefined,
+        },
+      });
+      if (!result.ok) {
+        setSaveStatus("error");
+        setSaveError(result.message);
+        return;
+      }
+      setSaveStatus("saved");
+      // Surface the "Saved" affordance briefly, then reset to idle so the
+      // button is usable again. Page state itself stays — the seeker may
+      // still want to fire AI on the same pull, or save another pass.
+      window.setTimeout(() => setSaveStatus("idle"), 2400);
+    } catch (e) {
+      console.error("[ConstellationPage] saveManualReading threw", e);
+      setSaveStatus("error");
+      setSaveError("Something went wrong. Please try again.");
+    }
+  };
+
+  // DY — legacy navigate-to-/draw flow. Retained as a non-rendered helper
+  // so anything still referencing it stays compilable; the button has
+  // been replaced by handleGetAIReading above.
   const handleGetReading = () => {
     if (!canSubmit) return;
-    // Seed /draw's manual entry surface with these picks via sessionStorage.
     try {
       const payload = {
         picks: picks.map((p) => ({
@@ -536,8 +667,6 @@ export function ConstellationPage() {
         "tarotseed:constellation-handoff",
         JSON.stringify(payload),
       );
-      // DP — clear persisted /constellation state on submit; the seeker is
-      // moving on, the next visit should start fresh.
       window.localStorage.removeItem(LS_KEY);
     } catch {
       /* sessionStorage may be unavailable; swallow */
@@ -625,7 +754,13 @@ export function ConstellationPage() {
     setFocusedSlotIdx(null);
     setTealSelectedIds([]);
     setQuestion("");
+    setNote("");
     setBackdate(null);
+    setAiStatus("idle");
+    setAiInterpretation(null);
+    setAiError(null);
+    setSaveStatus("idle");
+    setSaveError(null);
   };
 
   const handleRemoveSlot = (slotIdx: number) => {
@@ -870,8 +1005,16 @@ export function ConstellationPage() {
         }}
       >
         {/* DX — left column: constellation + compact "View N readings ›"
-            link directly below it. The link hides at 0 matches. */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            link absolutely positioned in the empty space right of the
+            hero card (DY). The link hides at 0 matches. */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            position: "relative",
+          }}
+        >
           <ConstellationWeb
             heroPick={heroPick}
             constellation={constellationData}
@@ -890,37 +1033,40 @@ export function ConstellationPage() {
                 : null
             }
             onCardDragStart={(cardId) => setDraggingCardId(cardId)}
+            onCardHover={handleConstellationHover}
           />
           {heroPick && matchedReadings.length > 0 && (
-            <div
+            <button
+              type="button"
+              onClick={() => setReadingsModalOpen(true)}
               style={{
-                display: "flex",
-                justifyContent: "center",
-                width: "100%",
+                // DY — absolutely positioned in the constellation's
+                // empty space to the right of the hero card. The hero
+                // sits centered at x=210..330 of a 540-wide SVG, so we
+                // anchor the link at ~62% from left (right of hero)
+                // and vertically near hero center.
+                position: "absolute",
+                top: "20%",
+                left: "62%",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+                color: "var(--accent, var(--gold))",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                padding: "2px 6px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                whiteSpace: "nowrap",
+                zIndex: 2,
               }}
             >
-              <button
-                type="button"
-                onClick={() => setReadingsModalOpen(true)}
-                style={{
-                  fontFamily: "var(--font-serif)",
-                  fontStyle: "italic",
-                  fontSize: 13,
-                  color: "var(--accent, var(--gold))",
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "2px 6px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                View {matchedReadings.length}{" "}
-                {matchedReadings.length === 1 ? "reading" : "readings"}{" "}
-                <span aria-hidden="true">›</span>
-              </button>
-            </div>
+              View {matchedReadings.length}{" "}
+              {matchedReadings.length === 1 ? "reading" : "readings"}{" "}
+              <span aria-hidden="true">›</span>
+            </button>
           )}
         </div>
         <div
@@ -1370,11 +1516,170 @@ export function ConstellationPage() {
               </div>
             </div>
           </div>
+          {/* DY — bottom of right column: question + prompts trigger,
+              notes textarea, Save to Journal button. Hides entirely
+              when no picks. */}
+          {picks.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                marginTop: 12,
+              }}
+            >
+              {/* Row: question input + prompts trigger button */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  alignItems: "stretch",
+                  width: "100%",
+                }}
+              >
+                <textarea
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="Tap to add your question for the cards…"
+                  rows={1}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    minHeight: 36,
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    border: "1px solid var(--border-subtle)",
+                    background:
+                      "color-mix(in oklab, var(--color-foreground) 4%, transparent)",
+                    color: "var(--color-foreground)",
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body-sm, 0.85rem)",
+                    resize: "vertical",
+                    outline: "none",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setPromptsModalOpen(true)}
+                  disabled={!heroPick}
+                  aria-label="Browse journaling prompts"
+                  title={
+                    heroPick
+                      ? "Browse journaling prompts"
+                      : "Focus a card to see its prompts"
+                  }
+                  style={{
+                    flexShrink: 0,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    border: "1px solid var(--border-subtle)",
+                    background:
+                      "color-mix(in oklab, var(--accent, var(--gold)) 14%, transparent)",
+                    color: "var(--accent, var(--gold))",
+                    cursor: heroPick ? "pointer" : "not-allowed",
+                    opacity: heroPick ? 1 : 0.4,
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: 13,
+                    lineHeight: 1,
+                    padding: 0,
+                  }}
+                >
+                  ✶
+                </button>
+              </div>
+              {/* Notes textarea */}
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Notes — your reflections, observations, anything that helps you remember this pull."
+                rows={4}
+                style={{
+                  width: "100%",
+                  minHeight: 84,
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  border: "1px solid var(--border-subtle)",
+                  background:
+                    "color-mix(in oklab, var(--color-foreground) 4%, transparent)",
+                  color: "var(--color-foreground)",
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "var(--text-body-sm, 0.85rem)",
+                  resize: "vertical",
+                  outline: "none",
+                }}
+              />
+              {/* Save to Journal row */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  justifyContent: "flex-end",
+                }}
+              >
+                {saveStatus === "saved" && (
+                  <span
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: 11,
+                      color: "var(--accent, var(--gold))",
+                      opacity: 0.9,
+                    }}
+                  >
+                    Saved to journal ✓
+                  </span>
+                )}
+                {saveStatus === "error" && saveError && (
+                  <span
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: 11,
+                      color: "var(--color-foreground)",
+                      opacity: 0.75,
+                    }}
+                  >
+                    {saveError}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void handleSaveToJournal()}
+                  disabled={saveStatus === "saving" || !canSubmit}
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: 12,
+                    padding: "6px 14px",
+                    borderRadius: 9999,
+                    background: "transparent",
+                    border:
+                      "1px solid color-mix(in oklab, var(--accent, var(--gold)) 55%, transparent)",
+                    color: "var(--color-foreground)",
+                    cursor:
+                      saveStatus === "saving" || !canSubmit
+                        ? "not-allowed"
+                        : "pointer",
+                    opacity:
+                      saveStatus === "saving" || !canSubmit ? 0.5 : 1,
+                  }}
+                >
+                  {saveStatus === "saving"
+                    ? "Saving…"
+                    : "Save to journal"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Calendar strip — DW: 10px breathing room above pills (was 16). */}
-      <div style={{ padding: "10px 24px 24px", flexShrink: 0 }}>
+      {/* Calendar strip — DY: snug to constellation (was 10px gap). */}
+      <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
         <OverlapStrip
           overlap={overlap}
           heroCardId={heroPick?.cardIndex ?? null}
@@ -1408,60 +1713,175 @@ export function ConstellationPage() {
         <SectionOverline label="YOUR PRACTICE" />
         <PracticeLine practice={practice} currentStreak={currentStreak} />
       </div>
-      <div
-        style={{
-          marginTop: 30,
-          padding: "0 24px 32px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 16,
-        }}
-      >
-        <textarea
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Tap to add your question for the cards…"
-          rows={1}
+      {/* DY — bottom AI surface. Replaces the old "question textarea + Get
+          Reading → /draw" navigation block. Shows a larger duplicate of
+          the current picks, fires interpretReading inline, and renders
+          the resulting interpretation on this same page. */}
+      {picks.length > 0 && (
+        <div
           style={{
-            width: "100%",
-            maxWidth: 640,
-            minHeight: 44,
-            padding: "12px 14px",
-            borderRadius: 10,
-            border: "1px solid var(--border-subtle)",
-            background:
-              "color-mix(in oklab, var(--color-foreground) 4%, transparent)",
-            color: "var(--color-foreground)",
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: "var(--text-body, 0.95rem)",
-            resize: "vertical",
-            outline: "none",
-          }}
-        />
-        <button
-          type="button"
-          onClick={handleGetReading}
-          disabled={!canSubmit}
-          style={{
-            width: 180,
-            height: 44,
-            borderRadius: 9999,
-            background: "var(--accent, var(--gold))",
-            color: "var(--cosmos, #0a0a14)",
-            border: "none",
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: 14,
-            cursor: canSubmit ? "pointer" : "not-allowed",
-            opacity: canSubmit ? 1 : 0.4,
-            pointerEvents: canSubmit ? "auto" : "none",
+            marginTop: 24,
+            padding: "0 24px 32px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 16,
           }}
         >
-          Get Reading
-        </button>
-      </div>
+          {/* Duplicate larger card display */}
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              justifyContent: "center",
+              gap: 12,
+              maxWidth: 960,
+            }}
+          >
+            {picks.map((p) => (
+              <div
+                key={`bigpull-${p.id}`}
+                style={{ width: 96, flexShrink: 0 }}
+              >
+                <CardImage
+                  variant="face"
+                  cardId={p.cardIndex}
+                  reversed={p.isReversed}
+                  deckId={p.deckId ?? undefined}
+                  size="custom"
+                  widthPx={96}
+                />
+              </div>
+            ))}
+          </div>
+          {/* Get AI Reading button */}
+          <button
+            type="button"
+            onClick={() => void handleGetAIReading()}
+            disabled={!canSubmit || aiStatus === "loading"}
+            style={{
+              minWidth: 200,
+              height: 44,
+              padding: "0 18px",
+              borderRadius: 9999,
+              background: "var(--accent, var(--gold))",
+              color: "var(--cosmos, #0a0a14)",
+              border: "none",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 14,
+              cursor:
+                !canSubmit || aiStatus === "loading"
+                  ? "not-allowed"
+                  : "pointer",
+              opacity: !canSubmit || aiStatus === "loading" ? 0.55 : 1,
+            }}
+          >
+            {aiStatus === "loading"
+              ? "Listening to the cards…"
+              : aiStatus === "ready"
+                ? "Re-read the cards"
+                : "Get AI reading"}
+          </button>
+          {aiStatus === "error" && aiError && (
+            <p
+              style={{
+                margin: 0,
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+                color: "var(--color-foreground)",
+                opacity: 0.8,
+              }}
+            >
+              {aiError}
+            </p>
+          )}
+          {/* Inline interpretation */}
+          {aiStatus === "ready" && aiInterpretation && (
+            <article
+              style={{
+                width: "100%",
+                maxWidth: 720,
+                marginTop: 4,
+                padding: "20px 22px",
+                borderRadius: 12,
+                background: "var(--surface-card)",
+                border: "1px solid var(--border-subtle)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 14,
+              }}
+            >
+              {aiInterpretation.overview && (
+                <p
+                  style={{
+                    margin: 0,
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "var(--text-body, 0.95rem)",
+                    lineHeight: 1.55,
+                    color: "var(--color-foreground)",
+                  }}
+                >
+                  {aiInterpretation.overview}
+                </p>
+              )}
+              {aiInterpretation.positions.map((pos, idx) => (
+                <div
+                  key={`${pos.position}-${idx}`}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontStyle: "italic",
+                      fontSize: 12,
+                      letterSpacing: "0.16em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                      opacity: 0.9,
+                    }}
+                  >
+                    {pos.position} · {pos.card}
+                  </div>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontFamily: "var(--font-serif)",
+                      fontSize: "var(--text-body-sm, 0.9rem)",
+                      lineHeight: 1.55,
+                      color: "var(--color-foreground)",
+                    }}
+                  >
+                    {pos.interpretation}
+                  </p>
+                </div>
+              ))}
+              {aiInterpretation.closing && (
+                <p
+                  style={{
+                    margin: 0,
+                    paddingTop: 6,
+                    borderTop: "1px solid var(--border-subtle)",
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: "var(--text-body-sm, 0.9rem)",
+                    lineHeight: 1.55,
+                    color: "var(--color-foreground)",
+                    opacity: 0.9,
+                  }}
+                >
+                  {aiInterpretation.closing}
+                </p>
+              )}
+            </article>
+          )}
+        </div>
+      )}
 
       {/* Picker sheet */}
       <Sheet open={pickerOpen} onOpenChange={setPickerOpen}>
@@ -1574,6 +1994,227 @@ export function ConstellationPage() {
           if (action) action();
         }}
       />
+      {/* DY — constellation card hover tooltip. Portal-rendered so it
+          escapes any z-index / overflow context from the grid. Shows
+          card name + upright keywords + meaning, and (only when the
+          allow_reversed_cards preference is on) the reversed pair. */}
+      {hoverCardId !== null &&
+        typeof document !== "undefined" &&
+        TAROT_MEANINGS[hoverCardId] &&
+        createPortal(
+          (() => {
+            const m = TAROT_MEANINGS[hoverCardId];
+            // Offset the tooltip a bit down-right of the cursor; nudge
+            // back left if it would overflow the viewport.
+            const offsetX = 16;
+            const offsetY = 16;
+            const maxW = 280;
+            const proposedLeft = hoverCoords.x + offsetX;
+            const left =
+              typeof window !== "undefined" &&
+              proposedLeft + maxW > window.innerWidth - 8
+                ? Math.max(8, hoverCoords.x - offsetX - maxW)
+                : proposedLeft;
+            const top = hoverCoords.y + offsetY;
+            return (
+              <div
+                role="tooltip"
+                style={{
+                  position: "fixed",
+                  left,
+                  top,
+                  zIndex: "var(--z-toast)" as unknown as number,
+                  pointerEvents: "none",
+                  maxWidth: maxW,
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  background: "var(--surface-card)",
+                  border: "1px solid var(--border-default)",
+                  boxShadow: "0 6px 22px rgba(0,0,0,0.35)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8,
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontStyle: "italic",
+                    fontSize: 14,
+                    color: "var(--color-foreground)",
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {m.name}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 3,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "var(--font-display)",
+                      fontSize: 10,
+                      letterSpacing: "0.18em",
+                      textTransform: "uppercase",
+                      color: "var(--accent, var(--gold))",
+                      opacity: 0.9,
+                    }}
+                  >
+                    Upright
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: 11.5,
+                      color: "var(--color-foreground)",
+                      opacity: 0.85,
+                      lineHeight: 1.35,
+                    }}
+                  >
+                    {m.uprightKeywords.join(", ")}.
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: "var(--font-serif)",
+                      fontSize: 12,
+                      color: "var(--color-foreground)",
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {m.uprightMeaning}
+                  </div>
+                </div>
+                {allowReversed && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 3,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontSize: 10,
+                        letterSpacing: "0.18em",
+                        textTransform: "uppercase",
+                        color: "var(--accent, var(--gold))",
+                        opacity: 0.9,
+                      }}
+                    >
+                      Reversed
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: 11.5,
+                        color: "var(--color-foreground)",
+                        opacity: 0.85,
+                        lineHeight: 1.35,
+                      }}
+                    >
+                      {m.reversedKeywords.join(", ")}.
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "var(--font-serif)",
+                        fontSize: 12,
+                        color: "var(--color-foreground)",
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      {m.reversedMeaning}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })(),
+          document.body,
+        )}
+      {/* DY — journaling-prompts modal. Lists the curated 3-5 prompts
+          for the hero card; click a prompt to insert it into the notes
+          textarea + close. Uses the canonical branded Modal. */}
+      <Modal
+        open={promptsModalOpen}
+        onClose={() => setPromptsModalOpen(false)}
+        title="Journaling prompts"
+        subtitle={
+          heroPick
+            ? `For ${heroPick.cardName ?? TAROT_MEANINGS[heroPick.cardIndex]?.name ?? "this card"}`
+            : undefined
+        }
+        size="sm"
+      >
+        {(() => {
+          const prompts = heroPick
+            ? resolvePromptsForFirstCard(heroPick.cardIndex)
+            : null;
+          if (!prompts || prompts.length === 0) {
+            return (
+              <div
+                style={{
+                  padding: "8px 22px 22px",
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 13,
+                  color: "var(--color-foreground)",
+                  opacity: 0.8,
+                }}
+              >
+                No prompts available for this card.
+              </div>
+            );
+          }
+          return (
+            <div
+              style={{
+                padding: "8px 22px 22px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              {prompts.map((p, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => {
+                    setNote((prev) =>
+                      prev.trim() === ""
+                        ? `${p}\n\n`
+                        : `${prev.replace(/\s+$/, "")}\n\n${p}\n\n`,
+                    );
+                    setPromptsModalOpen(false);
+                  }}
+                  style={{
+                    textAlign: "left",
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    background:
+                      "color-mix(in oklab, var(--accent, var(--gold)) 6%, transparent)",
+                    border: "1px solid var(--border-subtle)",
+                    color: "var(--color-foreground)",
+                    cursor: "pointer",
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: 13,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+          );
+        })()}
+      </Modal>
     </div>
   );
 }
