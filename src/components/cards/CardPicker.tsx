@@ -73,6 +73,11 @@ export type CardPickerProps = {
    *  `deckId` is the currently selected deck (null = active deck). */
   deckId?: string | null;
   onDeckChange?: (deckId: string | null) => void;
+  /** DW — when sortBy === "drawn", drives the time-range window used to
+   * count all-time / filtered draws per card. Defaults to "all". Passed in
+   * by ConstellationPage so the picker's "Most drawn" sort + badges
+   * reflect the same window the Manual Entry surface is using. */
+  drawCountTimeRange?: string;
 };
 
 type Suit = "All" | "Major Arcana" | "Wands" | "Cups" | "Swords" | "Pentacles";
@@ -97,6 +102,7 @@ export function CardPicker({
   embedded = false,
   deckId,
   onDeckChange,
+  drawCountTimeRange = "all",
 }: CardPickerProps) {
   const [query, setQuery] = useState("");
   const [suit, setSuit] = useState<Suit>("All");
@@ -125,10 +131,9 @@ export function CardPicker({
     };
   }, [user?.id]);
 
-  // DU — all-time draw counts for every standard tarot card. Fetched once
-  // per user; powers the "Most drawn" sort + the per-card count badge.
-  // All-time (no timeRange filter) regardless of what filters the rest of
-  // Manual Entry is using, so the count is a stable picker reference.
+  // DU — draw counts per card, powering the "Most drawn" sort + badge.
+  // DW — now respects the parent's active time range (default "all") so the
+  // picker's counts line up with the rest of Manual Entry's filter window.
   const [drawnCounts, setDrawnCounts] = useState<Record<number, number>>({});
   useEffect(() => {
     if (!user?.id) {
@@ -140,7 +145,7 @@ export function CardPicker({
       data: {
         cardIds: Array.from({ length: 78 }, (_, i) => i),
         tz: effectiveTz,
-        filters: { timeRange: "all" as const },
+        filters: { timeRange: drawCountTimeRange },
       },
     })
       .then((d) => {
@@ -152,7 +157,7 @@ export function CardPicker({
     return () => {
       cancelled = true;
     };
-  }, [user?.id, effectiveTz]);
+  }, [user?.id, effectiveTz, drawCountTimeRange]);
 
   const activeResolve = useActiveDeckImage();
   const specificResolve = useDeckImage(deckId ?? null);
@@ -498,6 +503,26 @@ export function CardPicker({
                 );
               })}
             </div>
+            {/* DW — caption clarifies the time window powering the badges. */}
+            {sortBy === "drawn" && (
+              <span
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 11,
+                  color:
+                    "var(--color-foreground-muted, var(--color-foreground))",
+                  opacity: 0.85,
+                }}
+              >
+                showing{" "}
+                {(() => {
+                  if (drawCountTimeRange === "all") return "all time";
+                  const m = /^(\d+)d$/.exec(drawCountTimeRange);
+                  return m ? `last ${m[1]} days` : drawCountTimeRange;
+                })()}
+              </span>
+            )}
           </div>
         )}
         {!isOracleDeck && (

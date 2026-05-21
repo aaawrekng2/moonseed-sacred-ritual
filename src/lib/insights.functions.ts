@@ -99,6 +99,8 @@ function rangeToDays(range: TimeRange): number | null {
       return 30;
     case "90d":
       return 90;
+    case "180d":
+      return 180;
     case "365d":
       return 365;
     case "all":

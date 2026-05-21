@@ -54,6 +54,7 @@ const TIME_RANGE_LABELS: Record<TimeRange, string> = {
   "7d": "Last 7 days",
   "30d": "Last 30 days",
   "90d": "Last 90 days",
+  "180d": "Last 180 days",
   "365d": "Last 365 days",
   all: "All time",
 };
@@ -62,6 +63,7 @@ function timeRangeLabel(tr: TimeRange): string {
   if (tr === "7d") return "the last 7 days";
   if (tr === "30d") return "the last 30 days";
   if (tr === "90d") return "the last 90 days";
+  if (tr === "180d") return "the last 180 days";
   if (tr === "365d") return "the last year";
   return "all your readings";
 }
