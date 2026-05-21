@@ -1801,15 +1801,23 @@ function OverlapStrip({
   pullCardIds,
   mode,
   onModeChange,
+  tealSelectedIds = [],
+  traceColor = "#5cead4",
 }: {
   overlap: QuickLogOverlap | null;
   heroCardId: number | null;
   pullCardIds: number[];
   mode: "pull" | "day";
   onModeChange: (m: "pull" | "day") => void;
+  /** Phase 24 — when non-empty, mark every day where ALL teal-selected cards
+   * appeared together (per the same-pull/same-day mode) with a stroke in
+   * traceColor. Optional; defaults to empty (no trace overlay). */
+  tealSelectedIds?: number[];
+  traceColor?: string;
 }) {
   const months = overlap?.months ?? [];
   const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
+  const tealSet = useMemo(() => new Set(tealSelectedIds), [tealSelectedIds]);
   const now = new Date();
   // eslint-disable-next-line no-restricted-syntax -- compared against m.year/m.month already-tz-resolved server-side; calendar-month keying
   const currentMonthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
@@ -2035,6 +2043,29 @@ function OverlapStrip({
                     opacity > 0.5
                       ? "var(--background)"
                       : "var(--color-foreground)";
+                  // Phase 24 — teal trace: this day qualifies if ALL teal-
+                  // selected cards appeared together per the current mode.
+                  let tealTraceHit = false;
+                  if (tealSet.size > 0) {
+                    if (mode === "day") {
+                      const sameDaySet = new Set(day.sameDayCardIds);
+                      let ok = true;
+                      for (const id of tealSet) {
+                        if (!sameDaySet.has(id)) { ok = false; break; }
+                      }
+                      tealTraceHit = ok;
+                    } else {
+                      const readings = overlap?.readingsByDate?.[day.date] ?? [];
+                      for (const r of readings) {
+                        const ids = new Set(r.cardIds);
+                        let ok = true;
+                        for (const id of tealSet) {
+                          if (!ids.has(id)) { ok = false; break; }
+                        }
+                        if (ok) { tealTraceHit = true; break; }
+                      }
+                    }
+                  }
                   const isPerfectMatch =
                     matchCount > 0 && matchCount === pullSet.size;
                   const isBestAvailable =
@@ -2112,6 +2143,18 @@ function OverlapStrip({
                             border: isPerfectMatch
                               ? "2px solid var(--accent, var(--gold))"
                               : "1.5px dashed var(--accent, var(--gold))",
+                            pointerEvents: "none",
+                          }}
+                        />
+                      )}
+                      {tealTraceHit && (
+                        <div
+                          aria-hidden
+                          style={{
+                            position: "absolute",
+                            inset: -4,
+                            borderRadius: 6,
+                            border: `2px solid ${traceColor}`,
                             pointerEvents: "none",
                           }}
                         />

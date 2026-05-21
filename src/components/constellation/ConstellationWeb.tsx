@@ -37,11 +37,18 @@ const COMPANION_POSITIONS = [
 type Props = {
   heroPick: ManualPick | null;
   constellation: CardConstellation | null;
-  onCompanionClick: (cardId: number) => void;
-  selectedCompanion: number | null;
+  /** Phase 24 — clicking any card (hero or companion) toggles its membership
+   * in the teal selection. */
+  onCardClick: (cardId: number) => void;
+  /** Phase 24 — set of card ids currently in the teal trace. */
+  tealSelectedIds: number[];
 };
 
 type Box = { x: number; y: number; w: number; h: number };
+
+/** Phase 24 — teal trace color used across constellation cards, calendar day
+ * cells, and readings panel for the multi-card co-occurrence query. */
+export const TRACE_COLOR = "#5cead4";
 
 function getCardPosition(
   cardId: number,
@@ -65,8 +72,8 @@ function center(b: Box): { cx: number; cy: number } {
 export function ConstellationWeb({
   heroPick,
   constellation,
-  onCompanionClick,
-  selectedCompanion,
+  onCardClick,
+  tealSelectedIds,
 }: Props) {
   return (
     <div
@@ -104,8 +111,8 @@ export function ConstellationWeb({
       ) : (
         <ConstellationSvg
           constellation={constellation}
-          onCompanionClick={onCompanionClick}
-          selectedCompanion={selectedCompanion}
+          onCardClick={onCardClick}
+          tealSelectedIds={tealSelectedIds}
           heroPick={heroPick}
         />
       )}
@@ -115,19 +122,20 @@ export function ConstellationWeb({
 
 function ConstellationSvg({
   constellation,
-  onCompanionClick,
-  selectedCompanion,
+  onCardClick,
+  tealSelectedIds,
   heroPick,
 }: {
   constellation: CardConstellation;
-  onCompanionClick: (cardId: number) => void;
-  selectedCompanion: number | null;
+  onCardClick: (cardId: number) => void;
+  tealSelectedIds: number[];
   heroPick: ManualPick;
 }) {
   const maxPair = constellation.pairCounts.reduce(
     (m, p) => (p.count > m ? p.count : m),
     0,
   );
+  const tealSet = new Set(tealSelectedIds);
 
   return (
     <svg
@@ -164,35 +172,58 @@ function ConstellationSvg({
         );
       })}
 
-      {/* Hero card */}
+      {/* Hero card — clickable; participates in teal selection when clicked. */}
       {(() => {
         const pos = getCardPosition(
           constellation.heroCardId,
           constellation,
         );
+        const heroInTeal = tealSet.has(constellation.heroCardId);
         return (
-          <foreignObject x={pos.x} y={pos.y} width={pos.w} height={pos.h}>
-            <div
-              style={{
-                width: pos.w,
-                height: pos.h,
-                borderRadius: 6,
-                boxShadow:
-                  "0 0 0 2px var(--accent, var(--gold)), 0 0 18px color-mix(in oklab, var(--accent, var(--gold)) 35%, transparent)",
-                overflow: "hidden",
-              }}
-              title={getCardName(constellation.heroCardId)}
-            >
-              <CardImage
-                variant="face"
-                cardId={constellation.heroCardId}
-                reversed={heroPick.isReversed}
-                deckId={heroPick.deckId ?? undefined}
-                size="custom"
-                widthPx={pos.w}
+          <g>
+            <foreignObject x={pos.x} y={pos.y} width={pos.w} height={pos.h}>
+              <button
+                type="button"
+                onClick={() => onCardClick(constellation.heroCardId)}
+                title={getCardName(constellation.heroCardId)}
+                style={{
+                  width: pos.w,
+                  height: pos.h,
+                  padding: 0,
+                  border: "none",
+                  background: "transparent",
+                  cursor: "pointer",
+                  borderRadius: 6,
+                  boxShadow:
+                    "0 0 0 2px var(--accent, var(--gold)), 0 0 18px color-mix(in oklab, var(--accent, var(--gold)) 35%, transparent)",
+                  overflow: "hidden",
+                  display: "block",
+                }}
+              >
+                <CardImage
+                  variant="face"
+                  cardId={constellation.heroCardId}
+                  reversed={heroPick.isReversed}
+                  deckId={heroPick.deckId ?? undefined}
+                  size="custom"
+                  widthPx={pos.w}
+                />
+              </button>
+            </foreignObject>
+            {heroInTeal && (
+              <rect
+                x={pos.x - 5}
+                y={pos.y - 5}
+                width={pos.w + 10}
+                height={pos.h + 10}
+                rx={8}
+                fill="none"
+                stroke={TRACE_COLOR}
+                strokeWidth={2.5}
+                pointerEvents="none"
               />
-            </div>
-          </foreignObject>
+            )}
+          </g>
         );
       })()}
 
@@ -200,7 +231,7 @@ function ConstellationSvg({
       {constellation.companions.map((c) => {
         const pos = getCardPosition(c.cardId, constellation);
         if (pos.w === 0) return null;
-        const isSelected = selectedCompanion === c.cardId;
+        const inTeal = tealSet.has(c.cardId);
         return (
           <g key={c.cardId}>
             <foreignObject
@@ -211,7 +242,7 @@ function ConstellationSvg({
             >
               <button
                 type="button"
-                onClick={() => onCompanionClick(c.cardId)}
+                onClick={() => onCardClick(c.cardId)}
                 title={getCardName(c.cardId)}
                 style={{
                   width: pos.w,
@@ -232,7 +263,7 @@ function ConstellationSvg({
                 />
               </button>
             </foreignObject>
-            {isSelected && (
+            {inTeal && (
               <rect
                 x={pos.x - 3}
                 y={pos.y - 3}
@@ -240,8 +271,9 @@ function ConstellationSvg({
                 height={pos.h + 6}
                 rx={6}
                 fill="none"
-                stroke="var(--accent, var(--gold))"
+                stroke={TRACE_COLOR}
                 strokeWidth={2}
+                pointerEvents="none"
               />
             )}
             <text
