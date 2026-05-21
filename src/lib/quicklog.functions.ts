@@ -401,3 +401,127 @@ export const getQuickLogPractice = createServerFn({ method: "POST" })
       pullHistory,
     };
   });
+
+// ─── Phase 17 — Card constellation (web of co-occurrence) ───────────
+
+const ConstellationInput = z.object({
+  heroCardId: z.number().int().min(0).max(9999),
+  tz: z.string().min(1),
+});
+
+export type CardConstellation = {
+  heroCardId: number;
+  companions: Array<{ cardId: number; coCount: number; lifetimeCount: number }>;
+  pairCounts: Array<{ a: number; b: number; count: number }>;
+  matches: Array<{
+    id: string;
+    createdAt: string;
+    question: string | null;
+    cardIds: number[];
+  }>;
+};
+
+export const getCardConstellation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => ConstellationInput.parse(data))
+  .handler(async ({ data, context }): Promise<CardConstellation> => {
+    const { supabase, userId } = context as {
+      supabase: SupabaseClient;
+      userId: string;
+    };
+    const { heroCardId } = data;
+
+    // Single fetch — derive both the hero-only subset (for matches +
+    // co-occurrence counts) AND pair counts across all readings from one
+    // dataset. Cap at 2000 lifetime readings (flagged as v1 limitation).
+    const { data: allRaw } = await supabase
+      .from("readings")
+      .select("id, created_at, card_ids, question")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(2000);
+
+    const all = ((allRaw ?? []) as Array<{
+      id: string;
+      created_at: string;
+      card_ids: number[] | null;
+      question: string | null;
+    }>).filter((r) => Array.isArray(r.card_ids));
+
+    // Hero subset — readings containing the hero card.
+    const heroRows = all.filter((r) => (r.card_ids ?? []).includes(heroCardId));
+
+    // Co-occurrence counts vs hero.
+    const coCounts = new Map<number, number>();
+    for (const row of heroRows) {
+      const seen = new Set<number>();
+      for (const id of row.card_ids ?? []) {
+        if (id === heroCardId) continue;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        coCounts.set(id, (coCounts.get(id) ?? 0) + 1);
+      }
+    }
+
+    const sortedCompanions = [...coCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 7)
+      .map(([cardId, coCount]) => ({ cardId, coCount, lifetimeCount: 0 }));
+
+    // Lifetime counts for each companion across all readings.
+    if (sortedCompanions.length > 0) {
+      const companionIds = new Set(sortedCompanions.map((c) => c.cardId));
+      const lifeCounts = new Map<number, number>();
+      for (const r of all) {
+        const seen = new Set<number>();
+        for (const id of r.card_ids ?? []) {
+          if (!companionIds.has(id)) continue;
+          if (seen.has(id)) continue;
+          seen.add(id);
+          lifeCounts.set(id, (lifeCounts.get(id) ?? 0) + 1);
+        }
+      }
+      for (const c of sortedCompanions) {
+        c.lifetimeCount = lifeCounts.get(c.cardId) ?? 0;
+      }
+    }
+
+    // Pair counts among (hero + top 7 companions) — across ALL readings
+    // so non-hero pairs are counted correctly.
+    const nodeIds = [heroCardId, ...sortedCompanions.map((c) => c.cardId)];
+    const nodeSet = new Set(nodeIds);
+    const pairKey = (a: number, b: number): string =>
+      a < b ? `${a}|${b}` : `${b}|${a}`;
+    const pairMap = new Map<string, number>();
+    for (const r of all) {
+      const present: number[] = [];
+      const seen = new Set<number>();
+      for (const id of r.card_ids ?? []) {
+        if (!nodeSet.has(id) || seen.has(id)) continue;
+        seen.add(id);
+        present.push(id);
+      }
+      for (let i = 0; i < present.length; i++) {
+        for (let j = i + 1; j < present.length; j++) {
+          const k = pairKey(present[i], present[j]);
+          pairMap.set(k, (pairMap.get(k) ?? 0) + 1);
+        }
+      }
+    }
+    const pairCounts: CardConstellation["pairCounts"] = [];
+    for (const [k, count] of pairMap) {
+      if (count <= 0) continue;
+      const [aStr, bStr] = k.split("|");
+      pairCounts.push({ a: Number(aStr), b: Number(bStr), count });
+    }
+
+    // Most-recent 20 hero readings.
+    const matches = heroRows.slice(0, 20).map((r) => ({
+      id: r.id,
+      createdAt: r.created_at,
+      question: r.question,
+      cardIds: r.card_ids ?? [],
+    }));
+
+    return { heroCardId, companions: sortedCompanions, pairCounts, matches };
+  });
