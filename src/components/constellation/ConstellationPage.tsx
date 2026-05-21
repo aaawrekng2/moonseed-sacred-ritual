@@ -248,29 +248,6 @@ export function ConstellationPage() {
     setTealSelectedIds([]);
   }, [heroPick?.cardIndex]);
 
-  // DP — persist state to localStorage on every change. Restored on mount via
-  // loadPersisted(). Cleared when the user submits via Get Reading.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const payload: PersistedState = {
-        picks,
-        focusedSlotIdx,
-        tealSelectedIds,
-        backdateISO: backdate ? backdate.toISOString() : null,
-        question,
-        overlapMode,
-        globalFilters,
-      };
-      window.localStorage.setItem(LS_KEY, JSON.stringify(payload));
-    } catch {
-      /* quota or disabled — silently ignore */
-    }
-    // question is declared further down; intentionally listed here so the
-    // effect re-runs when it changes. ESLint can't see the forward ref.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [picks, focusedSlotIdx, tealSelectedIds, backdate, overlapMode, globalFilters]);
-
   // 1. Chip stats
   const [cardStats, setCardStats] = useState<QuickLogCardStats | null>(null);
   useEffect(() => {
@@ -472,22 +449,35 @@ export function ConstellationPage() {
   const [question, setQuestion] = useState<string>(
     () => persisted?.question ?? "",
   );
-  // DP — persist question to localStorage when it changes (alongside the
-  // main persist effect above). Kept separate because `question` is
-  // declared further down than the rest of the state, after the practice
-  // fetch effect.
+  // DR — persist all /constellation state to localStorage on any change.
+  // Placed here (after every relevant useState has been declared) to avoid
+  // a temporal-dead-zone error: an earlier placement closed over `question`
+  // and `overlapMode` before their `useState` calls had run.
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const raw = window.localStorage.getItem(LS_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as Partial<PersistedState>;
-      parsed.question = question;
-      window.localStorage.setItem(LS_KEY, JSON.stringify(parsed));
+      const payload: PersistedState = {
+        picks,
+        focusedSlotIdx,
+        tealSelectedIds,
+        backdateISO: backdate ? backdate.toISOString() : null,
+        question,
+        overlapMode,
+        globalFilters,
+      };
+      window.localStorage.setItem(LS_KEY, JSON.stringify(payload));
     } catch {
-      /* swallow */
+      /* quota or disabled — silently ignore */
     }
-  }, [question]);
+  }, [
+    picks,
+    focusedSlotIdx,
+    tealSelectedIds,
+    backdate,
+    question,
+    overlapMode,
+    globalFilters,
+  ]);
   const canSubmit = picks.length >= 1;
 
   // The PullHistoryPill expects ConstellationState; the Echo hook returns
