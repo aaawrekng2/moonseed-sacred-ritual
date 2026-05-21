@@ -1965,7 +1965,7 @@ function OverlapStrip({
         style={
           layout === "grid12"
             ? {
-                paddingTop: 16,
+                paddingTop: 36,
                 display: "grid",
                 gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
                 gridAutoRows: "auto",

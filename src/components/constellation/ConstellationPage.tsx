@@ -9,7 +9,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, RotateCw, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { formatDateShort } from "@/lib/dates";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -563,6 +564,63 @@ export function ConstellationPage() {
   const [draggingCardId, setDraggingCardId] = useState<number | null>(null);
   const [dragOverSlotIdx, setDragOverSlotIdx] = useState<number | null>(null);
 
+  // DV — hover state for slot controls (X remove + reverse toggle).
+  // Falls back to the focused slot on touch / non-hover devices so the
+  // seeker can still flip / remove without a hover target.
+  const [hoveredSlotIdx, setHoveredSlotIdx] = useState<number | null>(null);
+
+  // DV — direct supabase read of allow_reversed_cards. Mirrors the
+  // use-track-reversals pattern; ConstellationPage lives outside the
+  // SettingsProvider tree, so useSettings() would throw.
+  const [allowReversed, setAllowReversed] = useState<boolean>(false);
+  useEffect(() => {
+    if (!user?.id) {
+      setAllowReversed(false);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const { data } = await supabase
+        .from("user_preferences")
+        .select("allow_reversed_cards")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      const row = data as { allow_reversed_cards?: boolean | null } | null;
+      setAllowReversed(Boolean(row?.allow_reversed_cards));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  // DV — clear all picks (header button). No confirm — the localStorage
+  // state still persists across navigation, this just resets the current
+  // /constellation surface.
+  const handleClearAll = () => {
+    setPicks([]);
+    setFocusedSlotIdx(null);
+    setTealSelectedIds([]);
+    setQuestion("");
+    setBackdate(null);
+  };
+
+  const handleRemoveSlot = (slotIdx: number) => {
+    setPicks((prev) => prev.filter((_, i) => i !== slotIdx));
+    setFocusedSlotIdx((cur) =>
+      cur === null ? null : cur === slotIdx ? null : cur > slotIdx ? cur - 1 : cur,
+    );
+  };
+
+  const handleToggleReverse = (slotIdx: number) => {
+    setPicks((prev) =>
+      prev.map((p, i) =>
+        i === slotIdx ? { ...p, isReversed: !p.isReversed } : p,
+      ),
+    );
+  };
+
+
   const handleSlotDrop = (slotIdx: number, cardId: number) => {
     setDraggingCardId(null);
     setDragOverSlotIdx(null);
@@ -667,25 +725,68 @@ export function ConstellationPage() {
             pick up to 10 cards — the focused card becomes hero
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() =>
-            requestNavigate(() => navigate({ to: "/draw/classic" }))
-          }
-          style={{
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            fontSize: 11,
-            color: "var(--accent, var(--gold))",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            textDecoration: "underline",
-            padding: 4,
-          }}
-        >
-          Classic Manual Entry →
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            type="button"
+            onClick={() =>
+              requestNavigate(() => navigate({ to: "/draw/classic" }))
+            }
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 11,
+              color: "var(--accent, var(--gold))",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              textDecoration: "underline",
+              padding: 4,
+            }}
+          >
+            Classic Manual Entry →
+          </button>
+          {picks.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              title="Clear all picks"
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 11,
+                color: "var(--color-foreground-muted, var(--color-foreground))",
+                background: "transparent",
+                border: "1px solid var(--border-subtle)",
+                borderRadius: 9999,
+                padding: "4px 10px",
+                cursor: "pointer",
+              }}
+            >
+              Clear all
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => requestNavigate(() => navigate({ to: "/" }))}
+            aria-label="Back to home"
+            title="Back to home"
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 9999,
+              border: "1px solid var(--border-subtle)",
+              background: "transparent",
+              color: "var(--color-foreground)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+            }}
+          >
+            <X size={14} strokeWidth={1.5} />
+          </button>
+        </div>
       </div>
 
       {/* Phase 23 Fix 3 — filter row below H1. */}
@@ -709,17 +810,15 @@ export function ConstellationPage() {
       {/* Phase 19 Fix 10 — Echo banner above the entry row */}
       <EchoBanner echo={echo} />
 
-      {/* Phase 22 Fixes 3/4/5 / DR — two-column grid. Right column now
-          contains chips at top, readings button in the middle, and the
-          slot row + date pill + paste input bottom-aligned to match the
-          height of the constellation SVG. */}
+      {/* Phase 22 Fixes 3/4/5 / DV — two-column grid. Right column flows
+          naturally; no forced minHeight so the slot row + paste sit just
+          below the chips, leaving breathing room above the calendar. */}
       <div
         style={{
           display: "grid",
           gridTemplateColumns: `${SVG_W}px minmax(0, 1fr)`,
           gap: 24,
           padding: "0 24px 0",
-          minHeight: SVG_H,
         }}
       >
         <ConstellationWeb
@@ -800,9 +899,10 @@ export function ConstellationPage() {
             </p>
           )}
 
-          {/* DR — slot row + date + paste pinned to the bottom of the right
-              column, bottom-aligned with the constellation SVG. */}
-          <div style={{ marginTop: "auto" }}>
+          {/* DV — slot row + date + paste flow naturally below chips. No
+              longer pinned to bottom; the right column's natural height is
+              short and leaves consistent breathing room above the calendar. */}
+          <div>
             <div
               ref={slotRowRef}
               style={{
@@ -810,7 +910,7 @@ export function ConstellationPage() {
                 gap: COMPACT_SLOT_GAP,
                 flexWrap: "nowrap",
                 width: "100%",
-                paddingBottom: 8,
+                paddingBottom: 20,
                 justifyContent: "flex-start",
               }}
             >
@@ -871,6 +971,8 @@ export function ConstellationPage() {
                 const isFocused = idx === heroIdx;
                 const inEcho =
                   echo.active && participatingSet.has(pick.cardIndex);
+                const showControls =
+                  hoveredSlotIdx === idx || focusedSlotIdx === idx;
                 return (
                   <div
                     key={pick.id}
@@ -885,6 +987,10 @@ export function ConstellationPage() {
                       borderRadius: 6,
                       transition: "outline 120ms ease",
                     }}
+                    onMouseEnter={() => setHoveredSlotIdx(idx)}
+                    onMouseLeave={() =>
+                      setHoveredSlotIdx((cur) => (cur === idx ? null : cur))
+                    }
                     onDragOver={(e) => {
                       if (draggingCardId === null) return;
                       e.preventDefault();
@@ -954,6 +1060,83 @@ export function ConstellationPage() {
                         widthPx={slotW}
                       />
                     </button>
+                    {/* DV — hover/focus X remove control, top-right of slot. */}
+                    {showControls && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveSlot(idx);
+                        }}
+                        aria-label="Remove card from slot"
+                        title="Remove card"
+                        style={{
+                          position: "absolute",
+                          top: -6,
+                          right: -6,
+                          zIndex: 3,
+                          width: 20,
+                          height: 20,
+                          borderRadius: 9999,
+                          background: "var(--surface-card)",
+                          border: "1px solid var(--border-default)",
+                          color: "var(--color-foreground)",
+                          cursor: "pointer",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                        }}
+                      >
+                        <X size={11} strokeWidth={2} />
+                      </button>
+                    )}
+                    {/* DV — hover/focus reverse toggle, top-left of slot.
+                        Only shown when allow_reversed_cards preference is on. */}
+                    {showControls && allowReversed && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleReverse(idx);
+                        }}
+                        aria-label={
+                          pick.isReversed
+                            ? "Flip upright"
+                            : "Flip reversed"
+                        }
+                        title={
+                          pick.isReversed ? "Flip upright" : "Flip reversed"
+                        }
+                        style={{
+                          position: "absolute",
+                          top: -6,
+                          left: -6,
+                          zIndex: 3,
+                          width: 20,
+                          height: 20,
+                          borderRadius: 9999,
+                          background: pick.isReversed
+                            ? "color-mix(in oklab, var(--accent, var(--gold)) 45%, var(--surface-card) 55%)"
+                            : "var(--surface-card)",
+                          border: "1px solid var(--border-default)",
+                          color: "var(--color-foreground)",
+                          cursor: "pointer",
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                          transform: pick.isReversed
+                            ? "rotate(180deg)"
+                            : "none",
+                          transition: "transform 160ms ease",
+                        }}
+                      >
+                        <RotateCw size={11} strokeWidth={2} />
+                      </button>
+                    )}
                     {drawCounts &&
                       drawCounts.perCard[pick.cardIndex] !== undefined &&
                       (() => {
@@ -1072,9 +1255,9 @@ export function ConstellationPage() {
         </div>
       </div>
 
-      {/* Calendar strip — DU: tightened top padding to bring it closer to
-          the constellation block above. */}
-      <div style={{ padding: "0 24px 24px", flexShrink: 0 }}>
+      {/* Calendar strip — DV: 16px top breathing room between paste box
+          (above) and the pills + month names (below). */}
+      <div style={{ padding: "16px 24px 24px", flexShrink: 0 }}>
         <OverlapStrip
           overlap={overlap}
           heroCardId={heroPick?.cardIndex ?? null}
