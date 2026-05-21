@@ -49,6 +49,8 @@ type Props = {
   /** Phase 24 — number of times the hero card has been drawn within the
    * current filter window. Drives the gold count badge on the hero. */
   heroDrawCount?: number | null;
+  /** DP — drag a constellation card to a slot. Caller wires drop targets. */
+  onCardDragStart?: (cardId: number) => void;
 };
 
 type Box = { x: number; y: number; w: number; h: number };
@@ -83,6 +85,7 @@ export function ConstellationWeb({
   tealSelectedIds,
   candidateIds = [],
   heroDrawCount = null,
+  onCardDragStart,
 }: Props) {
   return (
     <div
@@ -215,6 +218,16 @@ function ConstellationSvg({
               <button
                 type="button"
                 onClick={() => onCardClick(constellation.heroCardId)}
+                draggable={!!onCardDragStart}
+                onDragStart={(e) => {
+                  if (!onCardDragStart) return;
+                  e.dataTransfer.effectAllowed = "copy";
+                  e.dataTransfer.setData(
+                    "application/x-tarotseed-cardid",
+                    String(constellation.heroCardId),
+                  );
+                  onCardDragStart(constellation.heroCardId);
+                }}
                 title={getCardName(constellation.heroCardId)}
                 style={{
                   width: pos.w,
@@ -308,6 +321,16 @@ function ConstellationSvg({
               <button
                 type="button"
                 onClick={() => onCardClick(c.cardId)}
+                draggable={!!onCardDragStart}
+                onDragStart={(e) => {
+                  if (!onCardDragStart) return;
+                  e.dataTransfer.effectAllowed = "copy";
+                  e.dataTransfer.setData(
+                    "application/x-tarotseed-cardid",
+                    String(c.cardId),
+                  );
+                  onCardDragStart(c.cardId);
+                }}
                 title={getCardName(c.cardId)}
                 style={{
                   width: pos.w,

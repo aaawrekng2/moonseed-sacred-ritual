@@ -6,7 +6,7 @@
  * column shows the chip grid + matching readings panel. Full-width
  * 6-month overlap strip sits below.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
@@ -101,6 +101,30 @@ function toFilterPayload(g: GlobalFilters) {
   };
 }
 
+// DP — localStorage keys for /constellation state persistence.
+const LS_KEY = "tarotseed:constellation-state";
+
+type PersistedState = {
+  picks: ManualPick[];
+  focusedSlotIdx: number | null;
+  tealSelectedIds: number[];
+  backdateISO: string | null;
+  question: string;
+  overlapMode: "pull" | "day";
+  globalFilters: GlobalFilters;
+};
+
+function loadPersisted(): Partial<PersistedState> | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as Partial<PersistedState>;
+  } catch {
+    return null;
+  }
+}
+
 export function ConstellationPage() {
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
@@ -109,21 +133,35 @@ export function ConstellationPage() {
   // Phase 18 Fix 6 — hide the global BottomNav on /constellation.
   useRegisterTabletopActive(true);
 
-  const [picks, setPicks] = useState<ManualPick[]>([]);
-  const [focusedSlotIdx, setFocusedSlotIdx] = useState<number | null>(null);
+  // DP — restore prior session state on first mount.
+  const persisted = useMemo(() => loadPersisted(), []);
+
+  const [picks, setPicks] = useState<ManualPick[]>(
+    () => persisted?.picks ?? [],
+  );
+  const [focusedSlotIdx, setFocusedSlotIdx] = useState<number | null>(
+    () => persisted?.focusedSlotIdx ?? null,
+  );
   // Phase 24 — teal multi-select trace. Empty by default. Click any card in
   // the constellation web (hero or companion) to toggle membership. Drives
   // calendar stroke + readings panel filter. Resets when hero changes.
-  const [tealSelectedIds, setTealSelectedIds] = useState<number[]>([]);
+  const [tealSelectedIds, setTealSelectedIds] = useState<number[]>(
+    () => persisted?.tealSelectedIds ?? [],
+  );
   const [pickerOpen, setPickerOpen] = useState(false);
   // Phase 19 Fix 7 — back-date pill state (parity with QuickLog).
-  const [backdate, setBackdate] = useState<Date | null>(null);
+  const [backdate, setBackdate] = useState<Date | null>(
+    () =>
+      persisted?.backdateISO ? new Date(persisted.backdateISO) : null,
+  );
   const [dateOpen, setDateOpen] = useState(false);
   // Phase 23 — page-wide filter state. Default 365d (12 months).
-  const [globalFilters, setGlobalFilters] = useState<GlobalFilters>(() => ({
-    ...EMPTY_GLOBAL_FILTERS,
-    timeRange: DEFAULT_TIMEFRAME,
-  }));
+  const [globalFilters, setGlobalFilters] = useState<GlobalFilters>(() =>
+    persisted?.globalFilters ?? {
+      ...EMPTY_GLOBAL_FILTERS,
+      timeRange: DEFAULT_TIMEFRAME,
+    },
+  );
   const filterPayload = useMemo(
     () => toFilterPayload(globalFilters),
     [globalFilters],
@@ -140,10 +178,39 @@ export function ConstellationPage() {
 
   // Reset teal selection whenever the hero changes — the constellation web
   // re-renders against the new hero's top companions, so prior teal cards
-  // may not even be present anymore.
+  // may not even be present anymore. DP — skip on initial mount so persisted
+  // teal selection survives the first render's hero resolution.
+  const heroInitRef = useRef(true);
   useEffect(() => {
+    if (heroInitRef.current) {
+      heroInitRef.current = false;
+      return;
+    }
     setTealSelectedIds([]);
   }, [heroPick?.cardIndex]);
+
+  // DP — persist state to localStorage on every change. Restored on mount via
+  // loadPersisted(). Cleared when the user submits via Get Reading.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const payload: PersistedState = {
+        picks,
+        focusedSlotIdx,
+        tealSelectedIds,
+        backdateISO: backdate ? backdate.toISOString() : null,
+        question,
+        overlapMode,
+        globalFilters,
+      };
+      window.localStorage.setItem(LS_KEY, JSON.stringify(payload));
+    } catch {
+      /* quota or disabled — silently ignore */
+    }
+    // question is declared further down; intentionally listed here so the
+    // effect re-runs when it changes. ESLint can't see the forward ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picks, focusedSlotIdx, tealSelectedIds, backdate, overlapMode, globalFilters]);
 
   // 1. Chip stats
   const [cardStats, setCardStats] = useState<QuickLogCardStats | null>(null);
@@ -169,7 +236,9 @@ export function ConstellationPage() {
 
   // 2. Overlap (calendar strip)
   const [overlap, setOverlap] = useState<QuickLogOverlap | null>(null);
-  const [overlapMode, setOverlapMode] = useState<"pull" | "day">("pull");
+  const [overlapMode, setOverlapMode] = useState<"pull" | "day">(
+    () => persisted?.overlapMode ?? "pull",
+  );
   useEffect(() => {
     if (!user?.id) {
       setOverlap(null);
@@ -325,7 +394,25 @@ export function ConstellationPage() {
       cancelled = true;
     };
   }, [user?.id, effectiveTz]);
-  const [question, setQuestion] = useState("");
+  const [question, setQuestion] = useState<string>(
+    () => persisted?.question ?? "",
+  );
+  // DP — persist question to localStorage when it changes (alongside the
+  // main persist effect above). Kept separate because `question` is
+  // declared further down than the rest of the state, after the practice
+  // fetch effect.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(LS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<PersistedState>;
+      parsed.question = question;
+      window.localStorage.setItem(LS_KEY, JSON.stringify(parsed));
+    } catch {
+      /* swallow */
+    }
+  }, [question]);
   const canSubmit = picks.length >= 1;
 
   // The PullHistoryPill expects ConstellationState; the Echo hook returns
@@ -360,6 +447,9 @@ export function ConstellationPage() {
         "tarotseed:constellation-handoff",
         JSON.stringify(payload),
       );
+      // DP — clear persisted /constellation state on submit; the seeker is
+      // moving on, the next visit should start fresh.
+      window.localStorage.removeItem(LS_KEY);
     } catch {
       /* sessionStorage may be unavailable; swallow */
     }
@@ -399,6 +489,58 @@ export function ConstellationPage() {
     () => TAROT_DECK.map((name, idx) => ({ cardId: idx, name })),
     [],
   );
+
+  // DP — drag-and-drop state. `draggingCardId` is set when a constellation
+  // card starts being dragged. `dragOverSlotIdx` is the slot currently
+  // hovered as a drop target (drives the visual highlight). The drop
+  // handler decides whether to fill (empty slot) or prompt-replace
+  // (occupied slot).
+  const [draggingCardId, setDraggingCardId] = useState<number | null>(null);
+  const [dragOverSlotIdx, setDragOverSlotIdx] = useState<number | null>(null);
+
+  const handleSlotDrop = (slotIdx: number, cardId: number) => {
+    setDraggingCardId(null);
+    setDragOverSlotIdx(null);
+    if (!Number.isFinite(cardId) || cardId < 0) return;
+    setPicks((prev) => {
+      // If the card is already in another slot, do nothing (avoid duplicates).
+      const existingIdx = prev.findIndex((p) => p.cardIndex === cardId);
+      if (existingIdx !== -1) {
+        setFocusedSlotIdx(existingIdx);
+        return prev;
+      }
+      const occupant = prev[slotIdx];
+      if (occupant) {
+        const replace = window.confirm(
+          `Replace ${occupant.cardName ?? `card ${occupant.cardIndex}`} in this slot?`,
+        );
+        if (!replace) return prev;
+        const next = [...prev];
+        next[slotIdx] = {
+          id: Date.now(),
+          cardIndex: cardId,
+          isReversed: false,
+          deckId: null,
+          cardName: TAROT_DECK[cardId] ?? null,
+        };
+        setFocusedSlotIdx(slotIdx);
+        return next;
+      }
+      // Empty slot: append. (Slots fill left-to-right; mid-row gaps
+      // shouldn't exist in normal use, but if `slotIdx` is past length we
+      // still just append to the next available position.)
+      const next = [...prev];
+      next.push({
+        id: Date.now(),
+        cardIndex: cardId,
+        isReversed: false,
+        deckId: null,
+        cardName: TAROT_DECK[cardId] ?? null,
+      });
+      setFocusedSlotIdx(next.length - 1);
+      return next;
+    });
+  };
 
   return (
     <div
@@ -518,6 +660,7 @@ export function ConstellationPage() {
               ? (drawCounts.perCard[heroPick.cardIndex] ?? null)
               : null
           }
+          onCardDragStart={(cardId) => setDraggingCardId(cardId)}
         />
         <div
           style={{
@@ -590,6 +733,7 @@ export function ConstellationPage() {
         >
           {Array.from({ length: 10 }).map((_, idx) => {
             const pick = picks[idx];
+            const isDropTarget = dragOverSlotIdx === idx;
             if (!pick) {
               return (
                 <button
@@ -597,16 +741,42 @@ export function ConstellationPage() {
                   type="button"
                   onClick={() => setPickerOpen(true)}
                   aria-label="add a card"
+                  onDragOver={(e) => {
+                    if (draggingCardId === null) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "copy";
+                    if (dragOverSlotIdx !== idx) setDragOverSlotIdx(idx);
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverSlotIdx === idx) setDragOverSlotIdx(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const raw =
+                      e.dataTransfer.getData("application/x-tarotseed-cardid");
+                    const id = raw ? Number(raw) : draggingCardId;
+                    if (id !== null && Number.isFinite(id)) {
+                      handleSlotDrop(idx, id);
+                    } else {
+                      setDraggingCardId(null);
+                      setDragOverSlotIdx(null);
+                    }
+                  }}
                   style={{
                     width: SLOT_W,
                     height: SLOT_H,
                     borderRadius: 6,
-                    border: "1px dashed var(--border-default)",
-                    background: "transparent",
+                    border: isDropTarget
+                      ? "2px solid var(--accent, var(--gold))"
+                      : "1px dashed var(--border-default)",
+                    background: isDropTarget
+                      ? "color-mix(in oklab, var(--accent, var(--gold)) 12%, transparent)"
+                      : "transparent",
                     cursor: "pointer",
                     color:
                       "var(--color-foreground-muted, var(--color-foreground))",
                     fontSize: 18,
+                    transition: "background 120ms ease",
                   }}
                 >
                   +
@@ -617,7 +787,39 @@ export function ConstellationPage() {
             const inEcho =
               echo.active && participatingSet.has(pick.cardIndex);
             return (
-              <div key={pick.id} style={{ position: "relative" }}>
+              <div
+                key={pick.id}
+                style={{
+                  position: "relative",
+                  outline: isDropTarget
+                    ? "2px dashed var(--accent, var(--gold))"
+                    : "none",
+                  outlineOffset: 4,
+                  borderRadius: 8,
+                  transition: "outline 120ms ease",
+                }}
+                onDragOver={(e) => {
+                  if (draggingCardId === null) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "copy";
+                  if (dragOverSlotIdx !== idx) setDragOverSlotIdx(idx);
+                }}
+                onDragLeave={() => {
+                  if (dragOverSlotIdx === idx) setDragOverSlotIdx(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const raw =
+                    e.dataTransfer.getData("application/x-tarotseed-cardid");
+                  const id = raw ? Number(raw) : draggingCardId;
+                  if (id !== null && Number.isFinite(id)) {
+                    handleSlotDrop(idx, id);
+                  } else {
+                    setDraggingCardId(null);
+                    setDragOverSlotIdx(null);
+                  }
+                }}
+              >
                 {inEcho && (
                   <div
                     aria-hidden
@@ -793,6 +995,7 @@ export function ConstellationPage() {
           mode={overlapMode}
           onModeChange={setOverlapMode}
           tealSelectedIds={tealSelectedIds}
+          layout="grid12"
         />
       </div>
 
