@@ -85,6 +85,7 @@ const TIMEFRAME_OPTIONS = [
   { value: "7d", label: "Last 7 days" },
   { value: "30d", label: "Last 30 days" },
   { value: "90d", label: "Last 90 days" },
+  { value: "180d", label: "Last 180 days" },
   { value: "365d", label: "Last 365 days" },
   { value: "all", label: "All time" },
 ] as const;
@@ -332,6 +333,22 @@ export function ConstellationPage() {
   // Phase 23 Fix 5 — per-card draw counts for slot badges.
   const [drawCounts, setDrawCounts] = useState<CardDrawCounts | null>(null);
   const cardIdsKey = picks.map((p) => p.cardIndex).join(",");
+
+  // DW — relative max ACROSS the current picks (not the seeker's global
+  // max). Makes the slot badge tinting a usable relative-intensity scan
+  // against the calendar — the loudest card in this pull is full, the
+  // others scale relative to it. Fixes the "always full opacity" bug
+  // that showed up when one card happened to be the global max.
+  const picksMax = useMemo(() => {
+    if (!drawCounts) return 0;
+    let m = 0;
+    for (const p of picks) {
+      const c = drawCounts.perCard[p.cardIndex] ?? 0;
+      if (c > m) m = c;
+    }
+    return m;
+  }, [drawCounts, picks]);
+
   useEffect(() => {
     if (!user?.id || picks.length === 0) {
       setDrawCounts(null);
@@ -910,7 +927,7 @@ export function ConstellationPage() {
                 gap: COMPACT_SLOT_GAP,
                 flexWrap: "nowrap",
                 width: "100%",
-                paddingBottom: 20,
+                paddingBottom: 12,
                 justifyContent: "flex-start",
               }}
             >
@@ -1143,7 +1160,7 @@ export function ConstellationPage() {
                         const count = drawCounts.perCard[pick.cardIndex];
                         const effectiveOpacity = isFocused
                           ? 0.9
-                          : badgeOpacity(count, drawCounts.globalMax);
+                          : badgeOpacity(count, picksMax);
                         const pct = Math.round(effectiveOpacity * 100);
                         const baseColor = isFocused
                           ? "var(--gold, var(--accent))"
@@ -1255,9 +1272,8 @@ export function ConstellationPage() {
         </div>
       </div>
 
-      {/* Calendar strip — DV: 16px top breathing room between paste box
-          (above) and the pills + month names (below). */}
-      <div style={{ padding: "16px 24px 24px", flexShrink: 0 }}>
+      {/* Calendar strip — DW: 10px breathing room above pills (was 16). */}
+      <div style={{ padding: "10px 24px 24px", flexShrink: 0 }}>
         <OverlapStrip
           overlap={overlap}
           heroCardId={heroPick?.cardIndex ?? null}
@@ -1360,6 +1376,9 @@ export function ConstellationPage() {
               deckId={undefined}
               excludeCardIds={placedIds}
               title="Pick a card"
+              drawCountTimeRange={
+                globalFilters.timeRange ?? DEFAULT_TIMEFRAME
+              }
               onCancel={() => setPickerOpen(false)}
               onSelect={(cardIndex, isReversed, _deckId, cardName) => {
                 setFocusedSlotIdx(picks.length);

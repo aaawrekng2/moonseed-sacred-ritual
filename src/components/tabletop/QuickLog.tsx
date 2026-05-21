@@ -1854,9 +1854,9 @@ function OverlapStrip({
   const monthsToShow = layout === "grid12" ? 12 : viewportWidth >= 1280 ? 6 : 5;
 
   // DU — for grid12 layout, the top row (older 6 months) can be collapsed.
-  // Default expanded. Toggle via "Show older / Hide older" pill above the
-  // calendar. Has no effect in scroll layout.
-  const [showOlder, setShowOlder] = useState(true);
+  // DW — default COLLAPSED so the recent 6 months are visible above the
+  // fold; tap "Show older →" to reveal the older row.
+  const [showOlder, setShowOlder] = useState(false);
 
   // Phase 14 (CZ) — calendar-wide max match for the "best available" dashed
   // ring. Only meaningful when more than one card is pulled; with a single
@@ -1965,7 +1965,7 @@ function OverlapStrip({
         style={
           layout === "grid12"
             ? {
-                paddingTop: 36,
+                paddingTop: 26,
                 display: "grid",
                 gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
                 gridAutoRows: "auto",

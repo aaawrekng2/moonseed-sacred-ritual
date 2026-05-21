@@ -7,7 +7,8 @@ import type { MoonPhaseName } from "@/lib/moon";
 
 // FK-4 — renamed "12m" → "365d" so all bounded ranges follow the
 // "Last X days" pattern.
-export const TIME_RANGES = ["7d", "30d", "90d", "365d", "all"] as const;
+// DW — added "180d" (Last 180 days) as a mid-range between 90 and 365.
+export const TIME_RANGES = ["7d", "30d", "90d", "180d", "365d", "all"] as const;
 export type TimeRange = (typeof TIME_RANGES)[number];
 
 // Q56 — Cards tab grouping and sorting options.
