@@ -93,6 +93,32 @@ function DrawPage() {
     (ManualPick | null)[] | undefined
   >(undefined);
 
+  // Phase 20 Fix 13 — accept handoff from /constellation. Seed manual picks,
+  // question, and backdate so the seeker lands in the manual surface ready
+  // to hit "Get Reading" again with the same cards already in place.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.sessionStorage.getItem("tarotseed:constellation-handoff");
+      if (!raw) return;
+      window.sessionStorage.removeItem("tarotseed:constellation-handoff");
+      const payload = JSON.parse(raw) as {
+        picks: ManualPick[];
+        question?: string;
+        backdateISO?: string | null;
+      };
+      if (Array.isArray(payload.picks) && payload.picks.length > 0) {
+        setManualPicksCache(payload.picks);
+        setEntrySurface("manual");
+      }
+      if (payload.question) setQuestion(payload.question);
+      if (payload.backdateISO) setBackdatedAt(payload.backdateISO);
+    } catch {
+      /* malformed payload — ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const viewport = useViewport();
 
   const [picks, setPicks] = useState<
