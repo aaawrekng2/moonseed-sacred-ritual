@@ -489,6 +489,25 @@ export function QuickLog({
             {onSwitchToTable && (
               <EntryModeToggle current="manual" onToggle={onSwitchToTable} />
             )}
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/constellation" })}
+              style={{
+                marginLeft: "auto",
+                marginRight: 48,
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 11,
+                color: "var(--accent, var(--gold))",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                textDecoration: "underline",
+                padding: 4,
+              }}
+            >
+              explore the constellation →
+            </button>
           </div>
 
           {/* Q113 Phase 4 — Constellation banner */}
