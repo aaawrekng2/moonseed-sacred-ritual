@@ -19,7 +19,16 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
-import { ChipGrid, OverlapStrip } from "@/components/tabletop/QuickLog";
+import {
+  ChipGrid,
+  OverlapStrip,
+  ThisPullTiles,
+  PullHistoryPill,
+  PracticeLine,
+  SectionOverline,
+  SectionDivider,
+  type ConstellationState,
+} from "@/components/tabletop/QuickLog";
 import {
   SmartCardInput,
   type PasteOutcome,
@@ -39,14 +48,18 @@ import {
   getQuickLogCardStats,
   getQuickLogOverlap,
   getCardConstellation,
+  getQuickLogPractice,
   type QuickLogCardStats,
   type QuickLogOverlap,
   type CardConstellation,
+  type QuickLogPractice,
 } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { useAuth } from "@/lib/auth";
 import { useTimezone } from "@/lib/use-timezone";
 import { useNavigate } from "@tanstack/react-router";
+import { useStreak } from "@/lib/use-streak";
+import { getLunationContaining } from "@/lib/lunation";
 
 const SLOT_W = 70;
 const SLOT_H = Math.round(SLOT_W * 1.55);
@@ -159,6 +172,71 @@ export function ConstellationPage() {
     [echo.participatingCardIds],
   );
 
+  // Phase 20 Fix 13 — practice line + question + Get Reading wiring.
+  const [practice, setPractice] = useState<QuickLogPractice | null>(null);
+  const { currentStreak } = useStreak();
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelled = false;
+    const lun = getLunationContaining(new Date());
+    void getQuickLogPractice({
+      data: {
+        lunationStart: lun.start.toISOString(),
+        lunationEnd: lun.end.toISOString(),
+        tz: effectiveTz,
+      },
+    })
+      .then((d) => {
+        if (!cancelled) setPractice(d);
+      })
+      .catch(() => {
+        if (!cancelled) setPractice(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, effectiveTz]);
+  const [question, setQuestion] = useState("");
+  const canSubmit = picks.length >= 1;
+
+  // The PullHistoryPill expects ConstellationState; the Echo hook returns
+  // an identical shape with one extra prop (matchCount). Adapt explicitly.
+  const constellationState: ConstellationState = useMemo(
+    () => ({
+      active: echo.active,
+      participatingCardIds: echo.participatingCardIds,
+      matchingReadings: echo.matchingReadings,
+      matchCount: echo.matchCount,
+      matchCountSixMonths: echo.matchCountSixMonths,
+    }),
+    [echo],
+  );
+
+  const handleGetReading = () => {
+    if (!canSubmit) return;
+    // Seed /draw's manual entry surface with these picks via sessionStorage.
+    try {
+      const payload = {
+        picks: picks.map((p) => ({
+          id: p.id,
+          cardIndex: p.cardIndex,
+          isReversed: p.isReversed,
+          deckId: p.deckId ?? null,
+          cardName: p.cardName ?? null,
+        })),
+        question,
+        backdateISO: backdate ? backdate.toISOString() : null,
+      };
+      window.sessionStorage.setItem(
+        "tarotseed:constellation-handoff",
+        JSON.stringify(payload),
+      );
+    } catch {
+      /* sessionStorage may be unavailable; swallow */
+    }
+    navigate({ to: "/draw" });
+  };
+
   // Phase 19 Fix 7 — SmartCardInput commit handlers.
   const handleCommit = (pick: SmartPick) => {
     setFocusedSlotIdx(picks.length);
@@ -198,11 +276,10 @@ export function ConstellationPage() {
       className="bg-cosmos text-foreground"
       style={{
         width: "100%",
-        height: "100%",
+        minHeight: "100%",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden",
-        padding: "12px 0 0",
+        padding: "12px 0 80px",
       }}
     >
       {/* Header row */}
@@ -224,7 +301,7 @@ export function ConstellationPage() {
               color: "var(--color-foreground)",
             }}
           >
-            the constellation
+            The Constellation
           </p>
           <p
             style={{
@@ -262,7 +339,7 @@ export function ConstellationPage() {
       {/* Phase 19 Fix 10 — Echo banner above the entry row */}
       <EchoBanner echo={echo} />
 
-      {/* Phase 19 Fix 7 — entry row: date pill + SmartCardInput */}
+      {/* Phase 19 Fix 7 / Phase 20 Fix 2 — entry row: SmartCardInput, date pill on right */}
       <div
         style={{
           padding: "8px 24px 4px",
@@ -273,6 +350,17 @@ export function ConstellationPage() {
           boxSizing: "border-box",
         }}
       >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <SmartCardInput
+            positionLabels={[]}
+            emptySlotCount={78}
+            onCommit={handleCommit}
+            onBulkCommit={handleBulk}
+            placedCardIds={picks.map((p) => p.cardIndex)}
+            deckCards={deckCards}
+            maxWidth="100%"
+          />
+        </div>
         <Popover open={dateOpen} onOpenChange={setDateOpen}>
           <PopoverTrigger asChild>
             <button
@@ -313,17 +401,6 @@ export function ConstellationPage() {
             />
           </PopoverContent>
         </Popover>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <SmartCardInput
-            positionLabels={[]}
-            emptySlotCount={78}
-            onCommit={handleCommit}
-            onBulkCommit={handleBulk}
-            placedCardIds={picks.map((p) => p.cardIndex)}
-            deckCards={deckCards}
-            maxWidth="100%"
-          />
-        </div>
       </div>
 
       {/* Slot row */}
@@ -424,13 +501,13 @@ export function ConstellationPage() {
         </div>
       </div>
 
-      {/* Phase 19 Fix 2,3,4 — fixed-height two-column grid */}
+      {/* Phase 19 Fix 2,3,4 / Phase 20 Fix 6 — two-column grid, no top padding */}
       <div
         style={{
           display: "grid",
           gridTemplateColumns: `${SVG_W}px 1fr`,
           gap: 24,
-          padding: "0 24px 0",
+          padding: "4px 24px 0",
           height: SVG_H,
           minHeight: 0,
         }}
@@ -471,7 +548,16 @@ export function ConstellationPage() {
               add a card to see its patterns.
             </p>
           )}
-          <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          {/* Phase 20 Fix 8 — vertical scroll only; horizontal stays hidden. */}
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              overflowX: "hidden",
+              scrollbarGutter: "stable",
+            }}
+          >
             <MatchingReadingsPanel
               heroPick={heroPick}
               companionFilter={companionFilterCardId}
@@ -484,8 +570,8 @@ export function ConstellationPage() {
         </div>
       </div>
 
-      {/* Calendar strip */}
-      <div style={{ padding: "12px 24px 12px", flexShrink: 0 }}>
+      {/* Calendar strip — Phase 20 Fix 12 bottom padding extends bg past cells. */}
+      <div style={{ padding: "12px 24px 32px", flexShrink: 0 }}>
         <OverlapStrip
           overlap={overlap}
           heroCardId={heroPick?.cardIndex ?? null}
@@ -493,6 +579,83 @@ export function ConstellationPage() {
           mode={overlapMode}
           onModeChange={setOverlapMode}
         />
+      </div>
+
+      {/* Phase 20 Fix 13 — THIS PULL → YOUR PRACTICE → question → Get Reading */}
+      {picks.length > 0 && (
+        <div style={{ padding: "0 24px", marginTop: 8 }}>
+          <SectionDivider />
+          <SectionOverline label="THIS PULL" />
+          <ThisPullTiles picks={picks} />
+        </div>
+      )}
+      {picks.length >= 2 && (
+        <div style={{ padding: "0 24px" }}>
+          <PullHistoryPill
+            picks={picks}
+            practice={practice}
+            constellation={constellationState}
+          />
+        </div>
+      )}
+      <div style={{ padding: "0 24px", marginTop: 32 }}>
+        <SectionDivider />
+        <SectionOverline label="YOUR PRACTICE" />
+        <PracticeLine practice={practice} currentStreak={currentStreak} />
+      </div>
+      <div
+        style={{
+          marginTop: 30,
+          padding: "0 24px 32px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 16,
+        }}
+      >
+        <textarea
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder="Tap to add your question for the cards…"
+          rows={1}
+          style={{
+            width: "100%",
+            maxWidth: 640,
+            minHeight: 44,
+            padding: "12px 14px",
+            borderRadius: 10,
+            border: "1px solid var(--border-subtle)",
+            background:
+              "color-mix(in oklab, var(--color-foreground) 4%, transparent)",
+            color: "var(--color-foreground)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: "var(--text-body, 0.95rem)",
+            resize: "vertical",
+            outline: "none",
+          }}
+        />
+        <button
+          type="button"
+          onClick={handleGetReading}
+          disabled={!canSubmit}
+          style={{
+            width: 180,
+            height: 44,
+            borderRadius: 9999,
+            background: "var(--accent, var(--gold))",
+            color: "var(--cosmos, #0a0a14)",
+            border: "none",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 14,
+            cursor: canSubmit ? "pointer" : "not-allowed",
+            opacity: canSubmit ? 1 : 0.4,
+            pointerEvents: canSubmit ? "auto" : "none",
+          }}
+        >
+          Get Reading
+        </button>
       </div>
 
       {/* Picker sheet */}
