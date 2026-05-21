@@ -118,6 +118,16 @@ export function ConstellationPage() {
   // Phase 19 Fix 7 — back-date pill state (parity with QuickLog).
   const [backdate, setBackdate] = useState<Date | null>(null);
   const [dateOpen, setDateOpen] = useState(false);
+  // Phase 23 — page-wide filter state. Default 365d (12 months).
+  const [globalFilters, setGlobalFilters] = useState<GlobalFilters>(() => ({
+    ...EMPTY_GLOBAL_FILTERS,
+    timeRange: DEFAULT_TIMEFRAME,
+  }));
+  const filterPayload = useMemo(
+    () => toFilterPayload(globalFilters),
+    [globalFilters],
+  );
+  const filterKey = useMemo(() => JSON.stringify(filterPayload), [filterPayload]);
 
   const heroIdx =
     picks.length === 0
