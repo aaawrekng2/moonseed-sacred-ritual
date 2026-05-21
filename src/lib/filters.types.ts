@@ -99,6 +99,25 @@ export function hasAnyActive(f: GlobalFilters): boolean {
   );
 }
 
+/**
+ * DX — number of active filter "categories" (not chips). Multi-value
+ * filters like `tags: [a, b, c]` count as one. Booleans count as one
+ * when on. `timeRange` is excluded — it always has a value (defaults
+ * to the date pill in the toolbar) and isn't a "filter" in the
+ * fly-out sense.
+ */
+export function countActiveFilters(f: GlobalFilters): number {
+  let n = 0;
+  if (f.tags.length > 0) n += 1;
+  if (f.spreadTypes.length > 0) n += 1;
+  if (f.moonPhases.length > 0) n += 1;
+  if (f.deepOnly) n += 1;
+  if (f.reversedOnly) n += 1;
+  if (f.bookmarked) n += 1;
+  if (f.storyIds.length > 0) n += 1;
+  return n;
+}
+
 export function clearAll(f: GlobalFilters): GlobalFilters {
   return {
     ...f,

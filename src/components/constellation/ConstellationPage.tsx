@@ -67,8 +67,10 @@ import { getLunationContaining } from "@/lib/lunation";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
 import {
   EMPTY_GLOBAL_FILTERS,
+  countActiveFilters,
   type GlobalFilters,
 } from "@/lib/filters.types";
+import { useConfirm } from "@/hooks/use-confirm";
 
 // DR — slot row sized for the right column. Width is computed responsively
 // (see slotRowRef below); these are min/max safety rails. Compact layout
@@ -139,6 +141,7 @@ export function ConstellationPage() {
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   // Phase 18 Fix 6 — hide the global BottomNav on /constellation.
   useRegisterTabletopActive(true);
@@ -172,6 +175,9 @@ export function ConstellationPage() {
       timeRange: DEFAULT_TIMEFRAME,
     },
   );
+  // DX — controlled drawer-open state so the "· N FILTER(S)" link in the
+  // data header can open the same fly-out that the toolbar icon drives.
+  const [globalDrawerOpen, setGlobalDrawerOpen] = useState(false);
   const filterPayload = useMemo(
     () => toFilterPayload(globalFilters),
     [globalFilters],
@@ -638,23 +644,42 @@ export function ConstellationPage() {
   };
 
 
-  const handleSlotDrop = (slotIdx: number, cardId: number) => {
+  const handleSlotDrop = async (slotIdx: number, cardId: number) => {
     setDraggingCardId(null);
     setDragOverSlotIdx(null);
     if (!Number.isFinite(cardId) || cardId < 0) return;
-    setPicks((prev) => {
-      // If the card is already in another slot, do nothing (avoid duplicates).
-      const existingIdx = prev.findIndex((p) => p.cardIndex === cardId);
-      if (existingIdx !== -1) {
-        setFocusedSlotIdx(existingIdx);
-        return prev;
-      }
-      const occupant = prev[slotIdx];
-      if (occupant) {
-        const replace = window.confirm(
-          `Replace ${occupant.cardName ?? `card ${occupant.cardIndex}`} in this slot?`,
-        );
-        if (!replace) return prev;
+
+    // Snapshot-decide which path to take BEFORE any async / state work.
+    // Each path applies its own setPicks(updater) once the decision is
+    // resolved. The updater re-checks state for race safety.
+    const snapshot = picks;
+    const existingIdx = snapshot.findIndex((p) => p.cardIndex === cardId);
+    if (existingIdx !== -1) {
+      // Already on the spread — focus it, no duplicate.
+      setFocusedSlotIdx(existingIdx);
+      return;
+    }
+    const occupant = snapshot[slotIdx];
+    if (occupant) {
+      // DX — branded confirm replacing the native window.confirm. The
+      // useConfirm hook is provided by ConfirmProvider at the app root.
+      const ok = await confirm({
+        title: "Replace this card?",
+        description: `Swap out ${
+          occupant.cardName ?? `card ${occupant.cardIndex}`
+        }?`,
+        confirmLabel: "Replace",
+        cancelLabel: "Keep",
+        destructive: true,
+      });
+      if (!ok) return;
+      setPicks((prev) => {
+        // Race guard: if the slot has changed since we asked, bail.
+        const cur = prev[slotIdx];
+        if (!cur || cur.id !== occupant.id) return prev;
+        // Also guard against the dropped card landing in another slot
+        // between confirm and apply.
+        if (prev.some((p) => p.cardIndex === cardId)) return prev;
         const next = [...prev];
         next[slotIdx] = {
           id: Date.now(),
@@ -663,12 +688,16 @@ export function ConstellationPage() {
           deckId: null,
           cardName: TAROT_DECK[cardId] ?? null,
         };
-        setFocusedSlotIdx(slotIdx);
         return next;
-      }
-      // Empty slot: append. (Slots fill left-to-right; mid-row gaps
-      // shouldn't exist in normal use, but if `slotIdx` is past length we
-      // still just append to the next available position.)
+      });
+      setFocusedSlotIdx(slotIdx);
+      return;
+    }
+    // Empty slot: append. (Slots fill left-to-right; mid-row gaps
+    // shouldn't exist in normal use, but if `slotIdx` is past length we
+    // still just append to the next available position.)
+    setPicks((prev) => {
+      if (prev.some((p) => p.cardIndex === cardId)) return prev;
       const next = [...prev];
       next.push({
         id: Date.now(),
@@ -812,6 +841,8 @@ export function ConstellationPage() {
           filters={globalFilters}
           onChange={setGlobalFilters}
           sections={["tags", "spreadTypes", "depth", "reversed"]}
+          drawerOpen={globalDrawerOpen}
+          onDrawerOpenChange={setGlobalDrawerOpen}
           timeRange={{
             value: globalFilters.timeRange ?? DEFAULT_TIMEFRAME,
             options: TIMEFRAME_OPTIONS.map((o) => ({
@@ -838,25 +869,60 @@ export function ConstellationPage() {
           padding: "0 24px 0",
         }}
       >
-        <ConstellationWeb
-          heroPick={heroPick}
-          constellation={constellationData}
-          onCardClick={(cardId) =>
-            setTealSelectedIds((prev) =>
-              prev.includes(cardId)
-                ? prev.filter((x) => x !== cardId)
-                : [...prev, cardId],
-            )
-          }
-          tealSelectedIds={tealSelectedIds}
-          candidateIds={candidateIds}
-          heroDrawCount={
-            heroPick && drawCounts
-              ? (drawCounts.perCard[heroPick.cardIndex] ?? null)
-              : null
-          }
-          onCardDragStart={(cardId) => setDraggingCardId(cardId)}
-        />
+        {/* DX — left column: constellation + compact "View N readings ›"
+            link directly below it. The link hides at 0 matches. */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <ConstellationWeb
+            heroPick={heroPick}
+            constellation={constellationData}
+            onCardClick={(cardId) =>
+              setTealSelectedIds((prev) =>
+                prev.includes(cardId)
+                  ? prev.filter((x) => x !== cardId)
+                  : [...prev, cardId],
+              )
+            }
+            tealSelectedIds={tealSelectedIds}
+            candidateIds={candidateIds}
+            heroDrawCount={
+              heroPick && drawCounts
+                ? (drawCounts.perCard[heroPick.cardIndex] ?? null)
+                : null
+            }
+            onCardDragStart={(cardId) => setDraggingCardId(cardId)}
+          />
+          {heroPick && matchedReadings.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                width: "100%",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setReadingsModalOpen(true)}
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 13,
+                  color: "var(--accent, var(--gold))",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "2px 6px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                View {matchedReadings.length}{" "}
+                {matchedReadings.length === 1 ? "reading" : "readings"}{" "}
+                <span aria-hidden="true">›</span>
+              </button>
+            </div>
+          )}
+        </div>
         <div
           style={{
             display: "flex",
@@ -866,38 +932,73 @@ export function ConstellationPage() {
             height: "100%",
           }}
         >
-          {/* DU — readings button now at TOP of right column, above ChipGrid.
-              Counts matches against the current teal selection (or all hero
-              matches when teal is empty). Tap opens the modal. */}
-          {heroPick && matchedReadings.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setReadingsModalOpen(true)}
-              style={{
-                alignSelf: "flex-start",
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: 13,
-                color: "var(--color-foreground)",
-                background:
-                  "color-mix(in oklab, var(--accent, var(--gold)) 18%, transparent)",
-                border:
-                  "1px solid color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
-                borderRadius: 9999,
-                padding: "6px 14px",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {matchedReadings.length}{" "}
-              {matchedReadings.length === 1 ? "reading" : "readings"} with{" "}
-              {tealSelectedIds.length === 0
-                ? "this card"
-                : tealSelectedIds.length === 1
-                  ? "selected card"
-                  : `${tealSelectedIds.length} selected cards`}
-            </button>
-          )}
+          {/* DX — data header replaces the old "X readings with this card"
+              pill. Reflects the active timeRange + hero card name.
+              Appends "· N FILTER(S)" as a clickable link when any
+              fly-out filters are active; clicking opens the existing
+              filter drawer. Hidden entirely when no hero card. */}
+          {heroPick && (() => {
+            const heroName =
+              heroPick.cardName ??
+              TAROT_DECK[heroPick.cardIndex] ??
+              "this card";
+            const tr = globalFilters.timeRange ?? DEFAULT_TIMEFRAME;
+            // Natural-language time range copy.
+            const trText = (() => {
+              if (tr === "all") return "All Data";
+              if (tr === "365d") return "1 Year of Data";
+              if (tr === "180d") return "6 Months of Data";
+              if (tr === "90d") return "3 Months of Data";
+              if (tr === "30d") return "1 Month of Data";
+              if (tr === "7d") return "Last 7 Days of Data";
+              const m = /^(\d+)d$/.exec(tr);
+              return m ? `Last ${m[1]} Days of Data` : "Data";
+            })();
+            const filterN = countActiveFilters(globalFilters);
+            return (
+              <h2
+                style={{
+                  margin: 0,
+                  fontFamily: "var(--font-display)",
+                  fontStyle: "italic",
+                  fontSize: 15,
+                  lineHeight: 1.2,
+                  color: "var(--color-foreground)",
+                  opacity: 0.92,
+                }}
+              >
+                {trText} on {heroName}
+                {filterN > 0 && (
+                  <>
+                    {" · "}
+                    <button
+                      type="button"
+                      onClick={() => setGlobalDrawerOpen(true)}
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        fontSize: 12,
+                        letterSpacing: "0.16em",
+                        textTransform: "uppercase",
+                        color: "var(--accent, var(--gold))",
+                        background: "transparent",
+                        border: "none",
+                        padding: 0,
+                        cursor: "pointer",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.filter = "brightness(1.25)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.filter = "";
+                      }}
+                    >
+                      {filterN} {filterN === 1 ? "Filter" : "Filters"}
+                    </button>
+                  </>
+                )}
+              </h2>
+            );
+          })()}
           {heroPick ? (
             <ChipGrid heroPick={heroPick} stats={cardStats} />
           ) : (
@@ -1405,14 +1506,40 @@ export function ConstellationPage() {
       <ReadingsModal
         open={readingsModalOpen}
         onClose={() => setReadingsModalOpen(false)}
-        title={
-          tealSelectedIds.length === 0
-            ? "Recent Readings"
-            : tealSelectedIds.length === 1
-              ? `Readings with ${TAROT_DECK[tealSelectedIds[0]] ?? "this card"}`
-              : `Readings with ${tealSelectedIds.length} selected cards`
-        }
+        title={(() => {
+          // DX — title always names the cards in play so the modal
+          // stands alone (screenshots / out-of-context recall).
+          const heroName = heroPick
+            ? (heroPick.cardName ?? TAROT_DECK[heroPick.cardIndex] ?? "this card")
+            : null;
+          const n = matchedReadings.length;
+          const noun = n === 1 ? "reading" : "readings";
+          if (!heroName) return "Recent Readings";
+          if (tealSelectedIds.length === 0) {
+            return `${n} ${noun} with ${heroName}`;
+          }
+          if (tealSelectedIds.length === 1) {
+            const tealName =
+              TAROT_DECK[tealSelectedIds[0]] ?? "selected card";
+            return `${n} ${noun} with ${heroName} + ${tealName}`;
+          }
+          return `${n} ${noun} with ${heroName} + ${tealSelectedIds.length} selected cards`;
+        })()}
         matches={matchedReadings}
+        filtersActive={countActiveFilters(globalFilters) > 0}
+        onClearFilters={() => {
+          setGlobalFilters((prev) => ({
+            ...prev,
+            tags: [],
+            spreadTypes: [],
+            moonPhases: [],
+            deepOnly: false,
+            reversedOnly: false,
+            bookmarked: false,
+            storyIds: [],
+            tagMode: "any",
+          }));
+        }}
         onRowClick={(readingId) => {
           try {
             window.sessionStorage.setItem(
@@ -1468,12 +1595,18 @@ function ReadingsModal({
   title,
   matches,
   onRowClick,
+  filtersActive = false,
+  onClearFilters,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   matches: ModalMatch[];
   onRowClick: (readingId: string) => void;
+  /** DX — when true and matches is empty, surface the "filters may be
+   *  hiding results" failsafe with a Clear filters link inline. */
+  filtersActive?: boolean;
+  onClearFilters?: () => void;
 }) {
   // Close on Escape.
   useEffect(() => {
@@ -1565,19 +1698,53 @@ function ReadingsModal({
           }}
         >
           {matches.length === 0 ? (
-            <p
+            <div
               style={{
-                margin: 0,
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: 13,
-                color:
-                  "var(--color-foreground-muted, var(--color-foreground))",
-                opacity: 0.7,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 10,
+                padding: "24px 12px",
+                textAlign: "center",
               }}
             >
-              No matching readings.
-            </p>
+              <p
+                style={{
+                  margin: 0,
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 13,
+                  color:
+                    "var(--color-foreground-muted, var(--color-foreground))",
+                  opacity: 0.85,
+                }}
+              >
+                {filtersActive
+                  ? "No readings match these filters."
+                  : "No matching readings."}
+              </p>
+              {filtersActive && onClearFilters && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClearFilters();
+                  }}
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: 12,
+                    color: "var(--accent, var(--gold))",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    padding: 4,
+                  }}
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
           ) : (
             matches.map((r) => {
               const date = formatDateShort(r.createdAt);
