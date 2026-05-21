@@ -294,23 +294,31 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
       Date.UTC(startYear, startMonth0, 1, 0, 0, 0, 0) - 24 * 60 * 60 * 1000,
     ).toISOString();
 
+    const sinceTimeframe = timeRangeStartIso(data.filters?.timeRange);
+    const lowerBound =
+      sinceTimeframe && sinceTimeframe > startIso ? sinceTimeframe : startIso;
     const { data: rowsRaw } = await supabase
       .from("readings")
-      .select("id, created_at, card_ids, question")
+      .select(
+        "id, created_at, card_ids, card_orientations, question, spread_type, tags, moon_phase, is_deep_reading",
+      )
       .eq("user_id", userId)
-      .gte("created_at", startIso)
+      .gte("created_at", lowerBound)
       .order("created_at", { ascending: false })
       .limit(2000);
 
     const readingsByDate: QuickLogOverlap["readingsByDate"] = {};
     const heroDays = new Set<string>();
     const sameDayCardIds: Record<string, Set<number>> = {};
-    for (const row of (rowsRaw ?? []) as Array<{
-      id: string;
-      created_at: string;
-      card_ids: number[] | null;
-      question: string | null;
-    }>) {
+    const filteredRows = ((rowsRaw ?? []) as Array<
+      {
+        id: string;
+        created_at: string;
+        card_ids: number[] | null;
+        question: string | null;
+      } & FilterableRow
+    >).filter((r) => postFilterRow(r, data.filters));
+    for (const row of filteredRows) {
       const ids = row.card_ids ?? [];
       const key = isoDayInTz(new Date(row.created_at), tz);
       (readingsByDate[key] = readingsByDate[key] ?? []).push({
