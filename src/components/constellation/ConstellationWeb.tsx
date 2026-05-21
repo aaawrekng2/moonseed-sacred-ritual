@@ -136,6 +136,8 @@ export function ConstellationWeb({
           candidateIds={candidateIds}
           heroPick={heroPick}
           heroDrawCount={heroDrawCount}
+          onCardDragStart={onCardDragStart}
+          onCardHover={onCardHover}
         />
       )}
     </div>
@@ -149,6 +151,8 @@ function ConstellationSvg({
   candidateIds,
   heroPick,
   heroDrawCount,
+  onCardDragStart,
+  onCardHover,
 }: {
   constellation: CardConstellation;
   onCardClick: (cardId: number) => void;
@@ -156,6 +160,12 @@ function ConstellationSvg({
   candidateIds: number[];
   heroPick: ManualPick;
   heroDrawCount: number | null;
+  onCardDragStart?: (cardId: number) => void;
+  onCardHover?: (
+    cardId: number | null,
+    clientX: number,
+    clientY: number,
+  ) => void;
 }) {
   const maxPair = constellation.pairCounts.reduce(
     (m, p) => (p.count > m ? p.count : m),
