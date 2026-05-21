@@ -471,6 +471,7 @@ export const getQuickLogPractice = createServerFn({ method: "POST" })
 const ConstellationInput = z.object({
   heroCardId: z.number().int().min(0).max(9999),
   tz: z.string().min(1),
+  filters: FiltersSchema,
 });
 
 export type CardConstellation = {
