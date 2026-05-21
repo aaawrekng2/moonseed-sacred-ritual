@@ -275,8 +275,12 @@ export function ConstellationPage() {
     <div
       className="bg-cosmos text-foreground"
       style={{
+        // Phase 22 Fix 1 — page owns its own scroll container; html/body/#root
+        // are globally locked, so we must anchor to the viewport here.
         width: "100%",
-        minHeight: "100%",
+        height: "100dvh",
+        overflowY: "auto",
+        overflowX: "hidden",
         display: "flex",
         flexDirection: "column",
         padding: "12px 0 80px",
@@ -339,87 +343,27 @@ export function ConstellationPage() {
       {/* Phase 19 Fix 10 — Echo banner above the entry row */}
       <EchoBanner echo={echo} />
 
-      {/* Phase 19 Fix 7 / Phase 20 Fix 2 — entry row: SmartCardInput, date pill on right */}
+      {/* Phase 22 Fixes 3/4/5 — single horizontal row: slots on the left,
+          [date pill + SmartCardInput] on the right. Overline removed. */}
       <div
         style={{
-          padding: "8px 24px 4px",
+          padding: "8px 24px 8px",
           display: "flex",
           alignItems: "center",
-          gap: 8,
+          gap: 24,
           width: "100%",
           boxSizing: "border-box",
+          flexWrap: "wrap",
         }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <SmartCardInput
-            positionLabels={[]}
-            emptySlotCount={78}
-            onCommit={handleCommit}
-            onBulkCommit={handleBulk}
-            placedCardIds={picks.map((p) => p.cardIndex)}
-            deckCards={deckCards}
-            maxWidth="100%"
-          />
-        </div>
-        <Popover open={dateOpen} onOpenChange={setDateOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-full px-3 transition hover:bg-foreground/[0.04]"
-              style={{
-                height: 30,
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: "var(--text-caption, 0.75rem)",
-                color: "var(--color-foreground)",
-                opacity: backdate ? 0.9 : 0.7,
-                border: "1px solid var(--border-subtle)",
-                background: "transparent",
-                cursor: "pointer",
-                flexShrink: 0,
-                whiteSpace: "nowrap",
-              }}
-            >
-              <CalendarIcon size={13} strokeWidth={1.5} />
-              {format(backdate ?? new Date(), "MMM d")}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent
-            className="w-auto p-0"
-            align="start"
-            style={{ zIndex: "var(--z-modal-nested)" as unknown as number }}
-          >
-            <Calendar
-              mode="single"
-              selected={backdate ?? undefined}
-              onSelect={(d) => {
-                if (d) setBackdate(d);
-                setDateOpen(false);
-              }}
-              initialFocus
-              className={cn("p-3 pointer-events-auto")}
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      {/* Slot row */}
-      <div style={{ padding: "0 24px 8px" }}>
-        <p
+        <div
           style={{
-            fontSize: 10,
-            letterSpacing: "0.3em",
-            fontFamily: "var(--font-serif)",
-            fontStyle: "italic",
-            color: "var(--accent, var(--gold))",
-            margin: "0 0 8px",
-            textTransform: "uppercase",
-            opacity: 0.85,
+            display: "flex",
+            gap: 10,
+            flexWrap: "wrap",
+            flexShrink: 0,
           }}
         >
-          your pull — 10 slots
-        </p>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {Array.from({ length: 10 }).map((_, idx) => {
             const pick = picks[idx];
             if (!pick) {
@@ -498,6 +442,67 @@ export function ConstellationPage() {
               </div>
             );
           })}
+        </div>
+        <div
+          style={{
+            flex: 1,
+            minWidth: 280,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <Popover open={dateOpen} onOpenChange={setDateOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-full px-3 transition hover:bg-foreground/[0.04]"
+                style={{
+                  height: 30,
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: "var(--text-caption, 0.75rem)",
+                  color: "var(--color-foreground)",
+                  opacity: backdate ? 0.9 : 0.7,
+                  border: "1px solid var(--border-subtle)",
+                  background: "transparent",
+                  cursor: "pointer",
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <CalendarIcon size={13} strokeWidth={1.5} />
+                {format(backdate ?? new Date(), "MMM d")}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-auto p-0"
+              align="start"
+              style={{ zIndex: "var(--z-modal-nested)" as unknown as number }}
+            >
+              <Calendar
+                mode="single"
+                selected={backdate ?? undefined}
+                onSelect={(d) => {
+                  if (d) setBackdate(d);
+                  setDateOpen(false);
+                }}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <SmartCardInput
+              positionLabels={[]}
+              emptySlotCount={78}
+              onCommit={handleCommit}
+              onBulkCommit={handleBulk}
+              placedCardIds={picks.map((p) => p.cardIndex)}
+              deckCards={deckCards}
+              maxWidth="100%"
+            />
+          </div>
         </div>
       </div>
 
