@@ -505,11 +505,10 @@ export function ConstellationPage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: `${SVG_W}px 1fr`,
+          gridTemplateColumns: `${SVG_W}px minmax(0, 1fr)`,
           gap: 24,
-          padding: "4px 24px 0",
-          height: SVG_H,
-          minHeight: 0,
+          padding: "0 24px 0",
+          minHeight: SVG_H,
         }}
       >
         <ConstellationWeb
