@@ -2017,11 +2017,12 @@ function OverlapStrip({
                 {m.days.map((day) => {
                   let bg = "var(--color-foreground)";
                   let opacity = 0.18;
+                  // Phase 20 Fix 9 — ALWAYS compute matchCount when there is a
+                  // pull, regardless of heroDrawn. Previously a heroDrawn
+                  // short-circuit left matchCount=0, suppressing the perfect-
+                  // match ring even when all pulled cards were on this day.
                   let matchCount = 0;
-                  if (day.heroDrawn && heroCardId != null) {
-                    bg = "var(--gold, var(--accent))";
-                    opacity = 0.9;
-                  } else if (pullSet.size > 0) {
+                  if (pullSet.size > 0) {
                     let matches = 0;
                     if (mode === "day") {
                       for (const id of day.sameDayCardIds)
@@ -2037,7 +2038,13 @@ function OverlapStrip({
                       matches = best;
                     }
                     matchCount = matches;
-                    const op = matchOpacity(matches, pullSet.size);
+                  }
+                  // Apply visual on top of matchCount.
+                  if (day.heroDrawn && heroCardId != null) {
+                    bg = "var(--gold, var(--accent))";
+                    opacity = 0.9;
+                  } else if (matchCount > 0) {
+                    const op = matchOpacity(matchCount, pullSet.size);
                     if (op > 0) {
                       bg = "var(--accent, var(--gold))";
                       opacity = op;
@@ -2055,53 +2062,32 @@ function OverlapStrip({
                     matchCount === maxMatchInCalendar &&
                     pullSet.size > 1;
                   const dateLabel = formatDateLong(`${day.date}T00:00:00`);
+                  // Phase 20 Fix 10 — Option B percent-first tooltip format.
+                  const heroName =
+                    heroCardId != null ? getCardName(heroCardId) : "";
+                  const pct =
+                    pullCardIds.length > 0
+                      ? Math.round((matchCount / pullCardIds.length) * 100)
+                      : 0;
                   let tooltipText: string;
-                  // Phase 15 Fix 7 — clarified day-cell tooltips.
-                  if (day.heroDrawn && heroCardId != null) {
-                    const heroName = getCardName(heroCardId);
-                    tooltipText = `${dateLabel} — you drew ${heroName} this day`;
-                  } else if (matchCount <= 0) {
-                    tooltipText = dateLabel;
-                  } else {
-                    // Compute matched card ids for this day, scoped to mode.
-                    let matchedIds: number[];
-                    if (mode === "day") {
-                      matchedIds = day.sameDayCardIds.filter((id) =>
-                        pullSet.has(id),
-                      );
-                    } else {
-                      const readings =
-                        overlap?.readingsByDate?.[day.date] ?? [];
-                      let bestReadingIds: number[] = [];
-                      let bestN = 0;
-                      for (const r of readings) {
-                        const hits = r.cardIds.filter((id) => pullSet.has(id));
-                        if (hits.length > bestN) {
-                          bestN = hits.length;
-                          bestReadingIds = hits;
-                        }
-                      }
-                      matchedIds = bestReadingIds;
-                    }
-                    const matchedCardNames = matchedIds
-                      .map((id) => getCardName(id))
-                      .filter(Boolean);
-                    const displayNames = matchedCardNames.slice(0, 4);
-                    const extra = matchedCardNames.length - displayNames.length;
-                    const cardList =
-                      extra > 0
-                        ? `${displayNames.join(", ")} +${extra} more`
-                        : displayNames.join(", ");
-                    const pct = Math.round(
-                      (matchCount / pullCardIds.length) * 100,
-                    );
+                  if (matchCount <= 0 && day.heroDrawn && heroCardId != null) {
+                    tooltipText = `You drew ${heroName} on ${dateLabel}`;
+                  } else if (matchCount > 0 && day.heroDrawn && heroCardId != null) {
                     if (isPerfectMatch) {
-                      tooltipText = `${dateLabel} — every card in your current pull appeared in one reading this day (${matchCount} of ${pullCardIds.length})`;
-                    } else if (isBestAvailable) {
-                      tooltipText = `${dateLabel} — best match across the calendar: ${cardList} (${matchCount} of ${pullCardIds.length} = ${pct}%)`;
+                      tooltipText = `100% Match · all ${pullCardIds.length} of these cards were drawn on ${dateLabel} (includes your hero ${heroName})`;
                     } else {
-                      tooltipText = `${dateLabel} — ${cardList} from your current pull appeared this day (${matchCount} of ${pullCardIds.length} = ${pct}%)`;
+                      tooltipText = `${pct}% Match · ${matchCount} of ${pullCardIds.length} of these cards were drawn on ${dateLabel} (includes your hero ${heroName})`;
                     }
+                  } else if (matchCount > 0) {
+                    if (isPerfectMatch) {
+                      tooltipText = `100% Match · all ${pullCardIds.length} of these cards were drawn on ${dateLabel}`;
+                    } else if (isBestAvailable) {
+                      tooltipText = `${pct}% Match · ${matchCount} of ${pullCardIds.length} of these cards were drawn on ${dateLabel} (best in your calendar)`;
+                    } else {
+                      tooltipText = `${pct}% Match · ${matchCount} of ${pullCardIds.length} of these cards were also drawn on ${dateLabel}`;
+                    }
+                  } else {
+                    tooltipText = dateLabel;
                   }
                   return (
                     <div
