@@ -65,6 +65,9 @@ export function ConstellationPage() {
     number | null
   >(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Phase 19 Fix 7 — back-date pill state (parity with QuickLog).
+  const [backdate, setBackdate] = useState<Date | null>(null);
+  const [dateOpen, setDateOpen] = useState(false);
 
   const heroIdx =
     picks.length === 0
@@ -149,15 +152,57 @@ export function ConstellationPage() {
 
   const placedIds = picks.map((p) => p.cardIndex);
 
+  // Phase 19 Fix 10 — port the Echo detection to /constellation.
+  const echo = useEcho(picks, overlap, overlapMode);
+  const participatingSet = useMemo(
+    () => new Set(echo.participatingCardIds),
+    [echo.participatingCardIds],
+  );
+
+  // Phase 19 Fix 7 — SmartCardInput commit handlers.
+  const handleCommit = (pick: SmartPick) => {
+    setFocusedSlotIdx(picks.length);
+    setPicks((prev) => [
+      ...prev,
+      {
+        id: Date.now() + prev.length,
+        cardIndex: pick.cardIndex,
+        isReversed: pick.isReversed,
+        deckId: null,
+        cardName: pick.cardName,
+      },
+    ]);
+  };
+  const handleBulk = (outcome: PasteOutcome) => {
+    setPicks((prev) => {
+      const next = [...prev];
+      outcome.picks.forEach((item, i) => {
+        next.push({
+          id: Date.now() + prev.length + i,
+          cardIndex: item.pick.cardIndex,
+          isReversed: item.pick.isReversed,
+          deckId: null,
+          cardName: item.pick.cardName,
+        });
+      });
+      return next;
+    });
+  };
+  const deckCards = useMemo(
+    () => TAROT_DECK.map((name, idx) => ({ cardId: idx, name })),
+    [],
+  );
+
   return (
     <div
       className="bg-cosmos text-foreground"
       style={{
-        minHeight: "100vh",
-        maxHeight: "100vh",
-        overflowY: "auto",
-        overflowX: "hidden",
-        padding: "16px 0 64px",
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        padding: "12px 0 0",
       }}
     >
       {/* Header row */}
@@ -166,7 +211,7 @@ export function ConstellationPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 24px 16px",
+          padding: "0 24px 4px",
         }}
       >
         <div>
@@ -214,8 +259,75 @@ export function ConstellationPage() {
         </button>
       </div>
 
+      {/* Phase 19 Fix 10 — Echo banner above the entry row */}
+      <EchoBanner echo={echo} />
+
+      {/* Phase 19 Fix 7 — entry row: date pill + SmartCardInput */}
+      <div
+        style={{
+          padding: "8px 24px 4px",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        <Popover open={dateOpen} onOpenChange={setDateOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-full px-3 transition hover:bg-foreground/[0.04]"
+              style={{
+                height: 30,
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-caption, 0.75rem)",
+                color: "var(--color-foreground)",
+                opacity: backdate ? 0.9 : 0.7,
+                border: "1px solid var(--border-subtle)",
+                background: "transparent",
+                cursor: "pointer",
+                flexShrink: 0,
+                whiteSpace: "nowrap",
+              }}
+            >
+              <CalendarIcon size={13} strokeWidth={1.5} />
+              {format(backdate ?? new Date(), "MMM d")}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-auto p-0"
+            align="start"
+            style={{ zIndex: "var(--z-modal-nested)" as unknown as number }}
+          >
+            <Calendar
+              mode="single"
+              selected={backdate ?? undefined}
+              onSelect={(d) => {
+                if (d) setBackdate(d);
+                setDateOpen(false);
+              }}
+              initialFocus
+              className={cn("p-3 pointer-events-auto")}
+            />
+          </PopoverContent>
+        </Popover>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <SmartCardInput
+            positionLabels={[]}
+            emptySlotCount={78}
+            onCommit={handleCommit}
+            onBulkCommit={handleBulk}
+            placedCardIds={picks.map((p) => p.cardIndex)}
+            deckCards={deckCards}
+            maxWidth="100%"
+          />
+        </div>
+      </div>
+
       {/* Slot row */}
-      <div style={{ padding: "0 24px 16px" }}>
+      <div style={{ padding: "0 24px 8px" }}>
         <p
           style={{
             fontSize: 10,
