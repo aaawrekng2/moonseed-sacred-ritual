@@ -1357,6 +1357,7 @@ export type Database = {
           last_share_level: string | null
           lunar_expert_enabled: boolean
           memory_ai_permission: boolean
+          mfa_recovery_codes: string[] | null
           moon_ai_phase: boolean
           moon_ai_sign: boolean
           moon_carousel_size: string
@@ -1440,6 +1441,7 @@ export type Database = {
           last_share_level?: string | null
           lunar_expert_enabled?: boolean
           memory_ai_permission?: boolean
+          mfa_recovery_codes?: string[] | null
           moon_ai_phase?: boolean
           moon_ai_sign?: boolean
           moon_carousel_size?: string
@@ -1523,6 +1525,7 @@ export type Database = {
           last_share_level?: string | null
           lunar_expert_enabled?: boolean
           memory_ai_permission?: boolean
+          mfa_recovery_codes?: string[] | null
           moon_ai_phase?: boolean
           moon_ai_sign?: boolean
           moon_carousel_size?: string

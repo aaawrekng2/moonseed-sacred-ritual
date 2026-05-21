@@ -28,6 +28,7 @@ import { Route as ThreadsPatternIdRouteImport } from './routes/threads.$patternI
 import { Route as StoriesPatternIdRouteImport } from './routes/stories.$patternId'
 import { Route as SettingsUsageRouteImport } from './routes/settings.usage'
 import { Route as SettingsThemesRouteImport } from './routes/settings.themes'
+import { Route as SettingsSecurityRouteImport } from './routes/settings.security'
 import { Route as SettingsProfileRouteImport } from './routes/settings.profile'
 import { Route as SettingsPreferencesRouteImport } from './routes/settings.preferences'
 import { Route as SettingsGuidesRouteImport } from './routes/settings.guides'
@@ -144,6 +145,11 @@ const SettingsUsageRoute = SettingsUsageRouteImport.update({
 const SettingsThemesRoute = SettingsThemesRouteImport.update({
   id: '/themes',
   path: '/themes',
+  getParentRoute: () => SettingsRoute,
+} as any)
+const SettingsSecurityRoute = SettingsSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
   getParentRoute: () => SettingsRoute,
 } as any)
 const SettingsProfileRoute = SettingsProfileRouteImport.update({
@@ -287,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/settings/guides': typeof SettingsGuidesRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
+  '/settings/security': typeof SettingsSecurityRoute
   '/settings/themes': typeof SettingsThemesRoute
   '/settings/usage': typeof SettingsUsageRoute
   '/stories/$patternId': typeof StoriesPatternIdRoute
@@ -329,6 +336,7 @@ export interface FileRoutesByTo {
   '/settings/guides': typeof SettingsGuidesRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
+  '/settings/security': typeof SettingsSecurityRoute
   '/settings/themes': typeof SettingsThemesRoute
   '/settings/usage': typeof SettingsUsageRoute
   '/stories/$patternId': typeof StoriesPatternIdRoute
@@ -373,6 +381,7 @@ export interface FileRoutesById {
   '/settings/guides': typeof SettingsGuidesRoute
   '/settings/preferences': typeof SettingsPreferencesRoute
   '/settings/profile': typeof SettingsProfileRoute
+  '/settings/security': typeof SettingsSecurityRoute
   '/settings/themes': typeof SettingsThemesRoute
   '/settings/usage': typeof SettingsUsageRoute
   '/stories/$patternId': typeof StoriesPatternIdRoute
@@ -418,6 +427,7 @@ export interface FileRouteTypes {
     | '/settings/guides'
     | '/settings/preferences'
     | '/settings/profile'
+    | '/settings/security'
     | '/settings/themes'
     | '/settings/usage'
     | '/stories/$patternId'
@@ -460,6 +470,7 @@ export interface FileRouteTypes {
     | '/settings/guides'
     | '/settings/preferences'
     | '/settings/profile'
+    | '/settings/security'
     | '/settings/themes'
     | '/settings/usage'
     | '/stories/$patternId'
@@ -503,6 +514,7 @@ export interface FileRouteTypes {
     | '/settings/guides'
     | '/settings/preferences'
     | '/settings/profile'
+    | '/settings/security'
     | '/settings/themes'
     | '/settings/usage'
     | '/stories/$patternId'
@@ -678,6 +690,13 @@ declare module '@tanstack/react-router' {
       path: '/themes'
       fullPath: '/settings/themes'
       preLoaderRoute: typeof SettingsThemesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/security': {
+      id: '/settings/security'
+      path: '/security'
+      fullPath: '/settings/security'
+      preLoaderRoute: typeof SettingsSecurityRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/profile': {
@@ -905,6 +924,7 @@ interface SettingsRouteChildren {
   SettingsGuidesRoute: typeof SettingsGuidesRoute
   SettingsPreferencesRoute: typeof SettingsPreferencesRoute
   SettingsProfileRoute: typeof SettingsProfileRoute
+  SettingsSecurityRoute: typeof SettingsSecurityRoute
   SettingsThemesRoute: typeof SettingsThemesRoute
   SettingsUsageRoute: typeof SettingsUsageRoute
 }
@@ -917,6 +937,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsGuidesRoute: SettingsGuidesRoute,
   SettingsPreferencesRoute: SettingsPreferencesRoute,
   SettingsProfileRoute: SettingsProfileRoute,
+  SettingsSecurityRoute: SettingsSecurityRoute,
   SettingsThemesRoute: SettingsThemesRoute,
   SettingsUsageRoute: SettingsUsageRoute,
 }
@@ -986,13 +1007,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
