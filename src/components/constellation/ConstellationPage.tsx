@@ -379,17 +379,18 @@ export function ConstellationPage() {
         }}
       >
         <div>
-          <p
+          <h1
             style={{
               margin: 0,
               fontFamily: "var(--font-display)",
               fontStyle: "italic",
               fontSize: 26,
+              fontWeight: 400,
               color: "var(--color-foreground)",
             }}
           >
-            The Constellation
-          </p>
+            Manual Entry
+          </h1>
           <p
             style={{
               margin: "2px 0 0 0",
@@ -406,7 +407,7 @@ export function ConstellationPage() {
         </div>
         <button
           type="button"
-          onClick={() => navigate({ to: "/draw" })}
+          onClick={() => navigate({ to: "/draw/classic" })}
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
@@ -419,8 +420,26 @@ export function ConstellationPage() {
             padding: 4,
           }}
         >
-          ← back to draw
+          Classic Manual Entry →
         </button>
+      </div>
+
+      {/* Phase 23 Fix 3 — filter row below H1. */}
+      <div style={{ padding: "4px 24px 0" }}>
+        <GlobalFilterBar
+          filters={globalFilters}
+          onChange={setGlobalFilters}
+          sections={["tags", "spreadTypes", "depth", "reversed"]}
+          timeRange={{
+            value: globalFilters.timeRange ?? DEFAULT_TIMEFRAME,
+            options: TIMEFRAME_OPTIONS.map((o) => ({
+              value: o.value,
+              label: o.label,
+            })),
+            onChange: (v) =>
+              setGlobalFilters((prev) => ({ ...prev, timeRange: v })),
+          }}
+        />
       </div>
 
       {/* Phase 19 Fix 10 — Echo banner above the entry row */}
