@@ -58,6 +58,19 @@ type Props = {
     clientX: number,
     clientY: number,
   ) => void;
+  /** DZ — click the gold draw-count badge on the hero card.
+   *  Parent opens the readings modal scoped to all hero readings. */
+  onHeroBadgeClick?: () => void;
+  /** DZ — match-count badge displayed on the FIRST-clicked teal card
+   *  when 2+ teal cards are selected. Same visual language as the
+   *  hero badge but teal-tinted. Null = hide. */
+  tealBadge?: {
+    cardId: number;
+    count: number;
+  } | null;
+  /** DZ — click the teal match-count badge. Parent opens the readings
+   *  modal scoped to the current teal selection. */
+  onTealBadgeClick?: () => void;
 };
 
 type Box = { x: number; y: number; w: number; h: number };
@@ -94,6 +107,9 @@ export function ConstellationWeb({
   heroDrawCount = null,
   onCardDragStart,
   onCardHover,
+  onHeroBadgeClick,
+  tealBadge,
+  onTealBadgeClick,
 }: Props) {
   return (
     <div
@@ -136,8 +152,6 @@ export function ConstellationWeb({
           candidateIds={candidateIds}
           heroPick={heroPick}
           heroDrawCount={heroDrawCount}
-          onCardDragStart={onCardDragStart}
-          onCardHover={onCardHover}
         />
       )}
     </div>
@@ -151,8 +165,6 @@ function ConstellationSvg({
   candidateIds,
   heroPick,
   heroDrawCount,
-  onCardDragStart,
-  onCardHover,
 }: {
   constellation: CardConstellation;
   onCardClick: (cardId: number) => void;
@@ -160,12 +172,6 @@ function ConstellationSvg({
   candidateIds: number[];
   heroPick: ManualPick;
   heroDrawCount: number | null;
-  onCardDragStart?: (cardId: number) => void;
-  onCardHover?: (
-    cardId: number | null,
-    clientX: number,
-    clientY: number,
-  ) => void;
 }) {
   const maxPair = constellation.pairCounts.reduce(
     (m, p) => (p.count > m ? p.count : m),
@@ -299,18 +305,38 @@ function ConstellationSvg({
                 pointerEvents="none"
               />
             )}
-            {/* Phase 24 — gold count badge, bottom-right of hero. Same
-                visual language as the focused-slot badge in the entry row. */}
+            {/* Phase 24 / DZ — gold count badge, bottom-right of hero.
+                Clickable when onHeroBadgeClick is provided; opens the
+                readings modal scoped to all hero readings. */}
             {heroDrawCount !== null && heroDrawCount !== undefined && (
               <foreignObject
                 x={pos.x + pos.w - 16}
                 y={pos.y + pos.h - 16}
                 width={32}
                 height={32}
-                pointerEvents="none"
+                pointerEvents={onHeroBadgeClick ? "auto" : "none"}
               >
-                <div
-                  aria-hidden
+                <button
+                  type="button"
+                  onClick={
+                    onHeroBadgeClick
+                      ? (e) => {
+                          e.stopPropagation();
+                          onHeroBadgeClick();
+                        }
+                      : undefined
+                  }
+                  aria-label={
+                    onHeroBadgeClick
+                      ? `View all ${heroDrawCount} readings with this card`
+                      : undefined
+                  }
+                  title={
+                    onHeroBadgeClick
+                      ? `View all ${heroDrawCount} readings with this card`
+                      : undefined
+                  }
+                  disabled={!onHeroBadgeClick}
                   style={{
                     width: 32,
                     height: 32,
@@ -328,12 +354,60 @@ function ConstellationSvg({
                     fontStyle: "italic",
                     fontSize: 13,
                     lineHeight: 1,
+                    cursor: onHeroBadgeClick ? "pointer" : "default",
+                    padding: 0,
                   }}
                 >
                   {heroDrawCount}
-                </div>
+                </button>
               </foreignObject>
             )}
+            {/* DZ — teal match-count badge, upper-right of hero card
+                when the hero is the first-clicked teal card and 2+
+                teal cards are selected. Clicking opens the readings
+                modal scoped to the current teal selection. */}
+            {tealBadge &&
+              tealBadge.cardId === constellation.heroCardId &&
+              tealBadge.count > 0 && (
+                <foreignObject
+                  x={pos.x + pos.w - 16}
+                  y={pos.y - 16}
+                  width={32}
+                  height={32}
+                  pointerEvents="auto"
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTealBadgeClick?.();
+                    }}
+                    aria-label={`View ${tealBadge.count} readings with selected cards`}
+                    title={`View ${tealBadge.count} readings with selected cards`}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: 9999,
+                      background: TRACE_COLOR,
+                      border:
+                        "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--background)",
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: 13,
+                      lineHeight: 1,
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    {tealBadge.count}
+                  </button>
+                </foreignObject>
+              )}
           </g>
         );
       })()}
@@ -415,6 +489,50 @@ function ConstellationSvg({
             >
               ×{c.coCount}
             </text>
+            {/* DZ — teal match-count badge on companion when it is the
+                first-clicked teal card and 2+ teal cards are selected. */}
+            {tealBadge &&
+              tealBadge.cardId === c.cardId &&
+              tealBadge.count > 0 && (
+                <foreignObject
+                  x={pos.x + pos.w - 14}
+                  y={pos.y - 14}
+                  width={28}
+                  height={28}
+                  pointerEvents="auto"
+                >
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTealBadgeClick?.();
+                    }}
+                    aria-label={`View ${tealBadge.count} readings with selected cards`}
+                    title={`View ${tealBadge.count} readings with selected cards`}
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 9999,
+                      background: TRACE_COLOR,
+                      border:
+                        "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "var(--background)",
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: 11,
+                      lineHeight: 1,
+                      cursor: "pointer",
+                      padding: 0,
+                    }}
+                  >
+                    {tealBadge.count}
+                  </button>
+                </foreignObject>
+              )}
           </g>
         );
       })}

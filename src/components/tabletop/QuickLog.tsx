@@ -1804,6 +1804,7 @@ function OverlapStrip({
   tealSelectedIds = [],
   traceColor = "#5cead4",
   layout = "scroll",
+  onDayClick,
 }: {
   overlap: QuickLogOverlap | null;
   heroCardId: number | null;
@@ -1819,6 +1820,10 @@ function OverlapStrip({
    * by QuickLog at /draw/classic. "grid12" renders a 12-month two-row × six-
    * column grid used by Manual Entry on /constellation. */
   layout?: "scroll" | "grid12";
+  /** DZ — when provided, day cells with at least one reading become
+   * clickable. Caller receives the day's YYYY-MM-DD date and the list of
+   * readings on that day. */
+  onDayClick?: (date: string, readingIds: string[]) => void;
 }) {
   const months = overlap?.months ?? [];
   const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
@@ -2212,8 +2217,25 @@ function OverlapStrip({
                           : { position: "relative", width: 20, height: 20 }
                       }
                     >
-                      <div
-                        style={{
+                      {(() => {
+                        // DZ — collect reading ids for this day. When the
+                        // caller wires onDayClick AND at least one reading
+                        // exists, the cell becomes a button.
+                        const dayReadings =
+                          overlap?.readingsByDate?.[day.date] ?? [];
+                        const dayReadingIds = dayReadings.map((r) => r.id);
+                        const clickable =
+                          !!onDayClick && dayReadingIds.length > 0;
+                        const inner = (
+                          <>
+                            {/* Phase 16 Fix 1 — parse day from YYYY-MM-DD string
+                                directly; `new Date("YYYY-MM-DD")` parses as UTC
+                                midnight and getDate() then drifts one day west of
+                                UTC, so every cell was mis-labeled. */}
+                            {Number(day.date.split("-")[2])}
+                          </>
+                        );
+                        const shared = {
                           width: "100%",
                           height: "100%",
                           borderRadius: 3,
@@ -2221,7 +2243,7 @@ function OverlapStrip({
                           opacity,
                           border:
                             "1px solid color-mix(in oklab, var(--color-foreground) 12%, transparent)",
-                          boxSizing: "border-box",
+                          boxSizing: "border-box" as const,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -2230,14 +2252,28 @@ function OverlapStrip({
                           fontStyle: "italic",
                           lineHeight: 1,
                           color: textColor,
-                        }}
-                      >
-                        {/* Phase 16 Fix 1 — parse day from YYYY-MM-DD string
-                            directly; `new Date("YYYY-MM-DD")` parses as UTC
-                            midnight and getDate() then drifts one day west of
-                            UTC, so every cell was mis-labeled. */}
-                        {Number(day.date.split("-")[2])}
-                      </div>
+                        };
+                        if (clickable) {
+                          return (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDayClick(day.date, dayReadingIds);
+                              }}
+                              aria-label={`Show ${dayReadingIds.length} readings on ${day.date}`}
+                              style={{
+                                ...shared,
+                                padding: 0,
+                                cursor: "pointer",
+                              }}
+                            >
+                              {inner}
+                            </button>
+                          );
+                        }
+                        return <div style={shared}>{inner}</div>;
+                      })()}
                       {(isPerfectMatch || isBestAvailable) && (
                         <div
                           aria-hidden
