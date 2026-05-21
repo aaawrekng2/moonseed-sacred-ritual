@@ -541,6 +541,44 @@ export function ConstellationPage() {
                     widthPx={SLOT_W}
                   />
                 </button>
+                {drawCounts && drawCounts.perCard[pick.cardIndex] !== undefined && (
+                  <div
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      bottom: -8,
+                      right: -8,
+                      zIndex: 2,
+                      width: 26,
+                      height: 26,
+                      borderRadius: 9999,
+                      background: "var(--accent, var(--gold))",
+                      opacity: isFocused
+                        ? 0.9
+                        : badgeOpacity(
+                            drawCounts.perCard[pick.cardIndex],
+                            drawCounts.globalMax,
+                          ),
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color:
+                        (isFocused
+                          ? 0.9
+                          : badgeOpacity(
+                              drawCounts.perCard[pick.cardIndex],
+                              drawCounts.globalMax,
+                            )) > 0.5
+                          ? "var(--cosmos, #0a0a14)"
+                          : "var(--color-foreground)",
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: 12,
+                    }}
+                  >
+                    {drawCounts.perCard[pick.cardIndex]}
+                  </div>
+                )}
               </div>
             );
           })}
