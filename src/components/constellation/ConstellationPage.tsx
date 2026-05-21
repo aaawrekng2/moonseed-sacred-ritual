@@ -445,6 +445,74 @@ export function ConstellationPage() {
       {/* Phase 19 Fix 10 — Echo banner above the entry row */}
       <EchoBanner echo={echo} />
 
+      {/* Phase 19 Fix 2,3,4 / Phase 20 Fix 6 — two-column grid, no top padding */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: `${SVG_W}px minmax(0, 1fr)`,
+          gap: 24,
+          padding: "0 24px 0",
+          minHeight: SVG_H,
+        }}
+      >
+        <ConstellationWeb
+          heroPick={heroPick}
+          constellation={constellationData}
+          onCompanionClick={(cardId) =>
+            setCompanionFilterCardId((prev) =>
+              prev === cardId ? null : cardId,
+            )
+          }
+          selectedCompanion={companionFilterCardId}
+        />
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            minHeight: 0,
+            height: "100%",
+          }}
+        >
+          {heroPick ? (
+            <ChipGrid heroPick={heroPick} stats={cardStats} />
+          ) : (
+            <p
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 13,
+                color:
+                  "var(--color-foreground-muted, var(--color-foreground))",
+                margin: 0,
+                opacity: 0.7,
+              }}
+            >
+              add a card to see its patterns.
+            </p>
+          )}
+          {/* Phase 20 Fix 8 — vertical scroll only; horizontal stays hidden. */}
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              overflowX: "hidden",
+              scrollbarGutter: "stable",
+            }}
+          >
+            <MatchingReadingsPanel
+              heroPick={heroPick}
+              companionFilter={companionFilterCardId}
+              matches={constellationData?.matches ?? []}
+              echoParticipatingIds={
+                echo.active ? echo.participatingCardIds : null
+              }
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Phase 22 Fixes 3/4/5 — single horizontal row: slots on the left,
           [date pill + SmartCardInput] on the right. Overline removed. */}
       <div
@@ -641,74 +709,6 @@ export function ConstellationPage() {
               placedCardIds={picks.map((p) => p.cardIndex)}
               deckCards={deckCards}
               maxWidth="100%"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Phase 19 Fix 2,3,4 / Phase 20 Fix 6 — two-column grid, no top padding */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `${SVG_W}px minmax(0, 1fr)`,
-          gap: 24,
-          padding: "0 24px 0",
-          minHeight: SVG_H,
-        }}
-      >
-        <ConstellationWeb
-          heroPick={heroPick}
-          constellation={constellationData}
-          onCompanionClick={(cardId) =>
-            setCompanionFilterCardId((prev) =>
-              prev === cardId ? null : cardId,
-            )
-          }
-          selectedCompanion={companionFilterCardId}
-        />
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 12,
-            minHeight: 0,
-            height: "100%",
-          }}
-        >
-          {heroPick ? (
-            <ChipGrid heroPick={heroPick} stats={cardStats} />
-          ) : (
-            <p
-              style={{
-                fontFamily: "var(--font-serif)",
-                fontStyle: "italic",
-                fontSize: 13,
-                color:
-                  "var(--color-foreground-muted, var(--color-foreground))",
-                margin: 0,
-                opacity: 0.7,
-              }}
-            >
-              add a card to see its patterns.
-            </p>
-          )}
-          {/* Phase 20 Fix 8 — vertical scroll only; horizontal stays hidden. */}
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: "auto",
-              overflowX: "hidden",
-              scrollbarGutter: "stable",
-            }}
-          >
-            <MatchingReadingsPanel
-              heroPick={heroPick}
-              companionFilter={companionFilterCardId}
-              matches={constellationData?.matches ?? []}
-              echoParticipatingIds={
-                echo.active ? echo.participatingCardIds : null
-              }
             />
           </div>
         </div>
