@@ -6,14 +6,35 @@
  * column shows the chip grid + matching readings panel. Full-width
  * 6-month overlap strip sits below.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
 import { ChipGrid, OverlapStrip } from "@/components/tabletop/QuickLog";
-import { ConstellationWeb } from "@/components/constellation/ConstellationWeb";
+import {
+  SmartCardInput,
+  type PasteOutcome,
+  type SmartPick,
+} from "@/components/tabletop/SmartCardInput";
+import {
+  ConstellationWeb,
+  SVG_H,
+  SVG_W,
+} from "@/components/constellation/ConstellationWeb";
 import { MatchingReadingsPanel } from "@/components/constellation/MatchingReadingsPanel";
+import { EchoBanner } from "@/components/constellation/EchoBanner";
+import { useEcho } from "@/lib/use-echo";
+import { cn } from "@/lib/utils";
+import { TAROT_DECK } from "@/lib/tarot";
 import {
   getQuickLogCardStats,
   getQuickLogOverlap,
