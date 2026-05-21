@@ -2,7 +2,7 @@
  * Phase 17 — list of readings that contain the hero (and optionally the
  * selected companion). Lives in the right column of /constellation.
  */
-import { format } from "date-fns";
+import { formatDateShort } from "@/lib/dates";
 import { getCardName } from "@/lib/tarot";
 import type { CardConstellation } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
@@ -89,12 +89,13 @@ function ReadingRow({
   reading: CardConstellation["matches"][number];
   breathing?: boolean;
 }) {
-  const date = format(new Date(reading.createdAt), "MMM d, yyyy");
-  const cardsLabel = reading.cardIds
-    .slice(0, 6)
-    .map((id) => getCardName(id))
-    .join(" · ");
-  const more = reading.cardIds.length - 6;
+  // Phase 20 Fix 7 — single-line: short date + inline card list (or question).
+  const date = formatDateShort(reading.createdAt);
+  const cardsLabel = reading.cardIds.map((id) => getCardName(id)).join(" · ");
+  const inlineText =
+    reading.question && reading.question.trim()
+      ? `“${reading.question.trim()}” — ${cardsLabel}`
+      : cardsLabel;
   return (
     <div style={{ position: "relative" }}>
       {breathing && (
@@ -119,24 +120,21 @@ function ReadingRow({
       style={{
         position: "relative",
         zIndex: 1,
-        padding: "10px 12px",
+        padding: "8px 12px",
         borderRadius: 8,
         border: breathing
           ? "1px solid var(--accent, var(--gold))"
           : "1px solid var(--border-subtle)",
         background: "var(--surface-card)",
         display: "flex",
-        flexDirection: "column",
-        gap: 4,
+        flexDirection: "row",
+        gap: 8,
+        alignItems: "baseline",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 12,
-        }}
-      >
         <span
           style={{
             fontSize: 10,
@@ -145,35 +143,27 @@ function ReadingRow({
             fontFamily: "var(--font-serif)",
             color: "var(--color-foreground-muted, var(--color-foreground))",
             opacity: 0.7,
+            flexShrink: 0,
           }}
         >
           {date}
         </span>
-      </div>
-      {reading.question && reading.question.trim() && (
-        <p
+        <span
           style={{
             margin: 0,
-            fontSize: 13,
-            fontStyle: "italic",
+            fontSize: 12,
             fontFamily: "var(--font-serif)",
-            color: "var(--color-foreground)",
+            fontStyle: reading.question ? "italic" : "normal",
+            color: "var(--color-foreground-muted, var(--color-foreground))",
+            opacity: 0.9,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            minWidth: 0,
           }}
+          title={inlineText}
         >
-          “{reading.question.trim()}”
-        </p>
-      )}
-      <p
-        style={{
-          margin: 0,
-          fontSize: 11,
-          color: "var(--color-foreground-muted, var(--color-foreground))",
-          opacity: 0.85,
-        }}
-      >
-        {cardsLabel}
-        {more > 0 ? ` · +${more} more` : ""}
-      </p>
+          {inlineText}
+        </span>
       </div>
     </div>
   );
