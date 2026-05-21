@@ -258,6 +258,49 @@ export function ConstellationPage() {
     [echo.participatingCardIds],
   );
 
+  // Phase 24 — candidate-extension cards. When 2+ teal cards are selected,
+  // walk visible months and find every other card in the constellation
+  // (hero + companions) where adding it to the teal set would still match
+  // at least one day. Those cards get a teal connecting line in the
+  // constellation web as a "click me, my trace has data" hint.
+  const candidateIds = useMemo<number[]>(() => {
+    if (tealSelectedIds.length < 2) return [];
+    if (!overlap || !constellationData) return [];
+    const tealSet = new Set(tealSelectedIds);
+    const pool: number[] = [constellationData.heroCardId];
+    for (const c of constellationData.companions) pool.push(c.cardId);
+    const result: number[] = [];
+    for (const cardId of pool) {
+      if (tealSet.has(cardId)) continue;
+      let hit = false;
+      outer: for (const m of overlap.months) {
+        for (const day of m.days) {
+          if (day == null) continue;
+          if (overlapMode === "day") {
+            const sameDay = new Set(day.sameDayCardIds);
+            let ok = true;
+            for (const id of tealSet) {
+              if (!sameDay.has(id)) { ok = false; break; }
+            }
+            if (ok && sameDay.has(cardId)) { hit = true; break outer; }
+          } else {
+            const readings = overlap.readingsByDate?.[day.date] ?? [];
+            for (const r of readings) {
+              const ids = new Set(r.cardIds);
+              let ok = true;
+              for (const id of tealSet) {
+                if (!ids.has(id)) { ok = false; break; }
+              }
+              if (ok && ids.has(cardId)) { hit = true; break outer; }
+            }
+          }
+        }
+      }
+      if (hit) result.push(cardId);
+    }
+    return result;
+  }, [tealSelectedIds, overlap, constellationData, overlapMode]);
+
   // Phase 20 Fix 13 — practice line + question + Get Reading wiring.
   const [practice, setPractice] = useState<QuickLogPractice | null>(null);
   const { currentStreak } = useStreak();
@@ -469,6 +512,12 @@ export function ConstellationPage() {
             )
           }
           tealSelectedIds={tealSelectedIds}
+          candidateIds={candidateIds}
+          heroDrawCount={
+            heroPick && drawCounts
+              ? (drawCounts.perCard[heroPick.cardIndex] ?? null)
+              : null
+          }
         />
         <div
           style={{
@@ -625,7 +674,14 @@ export function ConstellationPage() {
                     ? 0.9
                     : badgeOpacity(count, drawCounts.globalMax);
                   const pct = Math.round(effectiveOpacity * 100);
-                  const bg = `color-mix(in oklab, var(--accent, var(--gold)) ${pct}%, var(--surface-card) ${100 - pct}%)`;
+                  // Focused slot uses --gold (matches calendar hero-day cells,
+                  // bright yellow on themes that define --gold separately
+                  // from --accent, like Blood Moon). Non-focused slots use
+                  // --accent (matches calendar ordinary match cells).
+                  const baseColor = isFocused
+                    ? "var(--gold, var(--accent))"
+                    : "var(--accent, var(--gold))";
+                  const bg = `color-mix(in oklab, ${baseColor} ${pct}%, var(--surface-card) ${100 - pct}%)`;
                   const textColor =
                     effectiveOpacity > 0.5
                       ? "var(--background)"

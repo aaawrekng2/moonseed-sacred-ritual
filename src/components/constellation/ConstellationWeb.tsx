@@ -42,6 +42,13 @@ type Props = {
   onCardClick: (cardId: number) => void;
   /** Phase 24 — set of card ids currently in the teal trace. */
   tealSelectedIds: number[];
+  /** Phase 24 — cards in the constellation that, if added to the teal set,
+   * would still match at least one day. Rendered with a teal connecting line
+   * as a "click to extend" hint. */
+  candidateIds?: number[];
+  /** Phase 24 — number of times the hero card has been drawn within the
+   * current filter window. Drives the gold count badge on the hero. */
+  heroDrawCount?: number | null;
 };
 
 type Box = { x: number; y: number; w: number; h: number };
@@ -74,6 +81,8 @@ export function ConstellationWeb({
   constellation,
   onCardClick,
   tealSelectedIds,
+  candidateIds = [],
+  heroDrawCount = null,
 }: Props) {
   return (
     <div
@@ -113,7 +122,9 @@ export function ConstellationWeb({
           constellation={constellation}
           onCardClick={onCardClick}
           tealSelectedIds={tealSelectedIds}
+          candidateIds={candidateIds}
           heroPick={heroPick}
+          heroDrawCount={heroDrawCount}
         />
       )}
     </div>
@@ -124,18 +135,23 @@ function ConstellationSvg({
   constellation,
   onCardClick,
   tealSelectedIds,
+  candidateIds,
   heroPick,
+  heroDrawCount,
 }: {
   constellation: CardConstellation;
   onCardClick: (cardId: number) => void;
   tealSelectedIds: number[];
+  candidateIds: number[];
   heroPick: ManualPick;
+  heroDrawCount: number | null;
 }) {
   const maxPair = constellation.pairCounts.reduce(
     (m, p) => (p.count > m ? p.count : m),
     0,
   );
   const tealSet = new Set(tealSelectedIds);
+  const candidateSet = new Set(candidateIds);
 
   return (
     <svg
@@ -153,8 +169,22 @@ function ConstellationSvg({
         const ca = center(a);
         const cb = center(b);
         const weight = maxPair > 0 ? pair.count / maxPair : 0;
-        const strokeWidth = Math.max(1, Math.min(5, weight * 5));
-        const opacity = 0.2 + weight * 0.7;
+        const aIsTeal = tealSet.has(pair.a);
+        const bIsTeal = tealSet.has(pair.b);
+        const aIsCandidate = candidateSet.has(pair.a);
+        const bIsCandidate = candidateSet.has(pair.b);
+        // Phase 24 — paint teal if connecting two teal-selected cards
+        // (binds the trace visually) OR teal-to-candidate (the extension
+        // hint: "click this card, the trace still has data").
+        const isTealLine =
+          (aIsTeal && bIsTeal) ||
+          (aIsTeal && bIsCandidate) ||
+          (bIsTeal && aIsCandidate);
+        const strokeWidth = isTealLine
+          ? 2.5
+          : Math.max(1, Math.min(5, weight * 5));
+        const opacity = isTealLine ? 0.95 : 0.2 + weight * 0.7;
+        const stroke = isTealLine ? TRACE_COLOR : "var(--accent, var(--gold))";
         return (
           <line
             key={`${pair.a}-${pair.b}-${i}`}
@@ -162,7 +192,7 @@ function ConstellationSvg({
             y1={ca.cy}
             x2={cb.cx}
             y2={cb.cy}
-            stroke="var(--accent, var(--gold))"
+            stroke={stroke}
             strokeWidth={strokeWidth}
             opacity={opacity}
             style={{ cursor: "help" }}
@@ -222,6 +252,41 @@ function ConstellationSvg({
                 strokeWidth={2.5}
                 pointerEvents="none"
               />
+            )}
+            {/* Phase 24 — gold count badge, bottom-right of hero. Same
+                visual language as the focused-slot badge in the entry row. */}
+            {heroDrawCount !== null && heroDrawCount !== undefined && (
+              <foreignObject
+                x={pos.x + pos.w - 16}
+                y={pos.y + pos.h - 16}
+                width={32}
+                height={32}
+                pointerEvents="none"
+              >
+                <div
+                  aria-hidden
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 9999,
+                    background:
+                      "color-mix(in oklab, var(--gold, var(--accent)) 90%, var(--surface-card) 10%)",
+                    border:
+                      "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "var(--background)",
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: 13,
+                    lineHeight: 1,
+                  }}
+                >
+                  {heroDrawCount}
+                </div>
+              </foreignObject>
             )}
           </g>
         );
