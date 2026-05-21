@@ -11,12 +11,15 @@ type Props = {
   heroPick: ManualPick | null;
   companionFilter: number | null;
   matches: CardConstellation["matches"];
+  /** Phase 19 Fix 10 — when an echo is active, these ids get breathing glow. */
+  echoParticipatingIds?: number[] | null;
 };
 
 export function MatchingReadingsPanel({
   heroPick,
   companionFilter,
   matches,
+  echoParticipatingIds,
 }: Props) {
   if (!heroPick) return null;
   const filtered =
@@ -28,6 +31,9 @@ export function MatchingReadingsPanel({
     companionFilter !== null
       ? `When ${getCardName(heroPick.cardIndex)} + ${getCardName(companionFilter)} Met Before`
       : `Recent Readings with ${getCardName(heroPick.cardIndex)}`;
+
+  const echoSet = new Set(echoParticipatingIds ?? []);
+  const hasEcho = echoSet.size > 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -41,6 +47,11 @@ export function MatchingReadingsPanel({
           opacity: 0.85,
           margin: 0,
           textTransform: "uppercase",
+          position: "sticky",
+          top: 0,
+          background: "var(--background, transparent)",
+          paddingBottom: 4,
+          zIndex: 2,
         }}
       >
         {title}
@@ -58,7 +69,14 @@ export function MatchingReadingsPanel({
           —
         </p>
       ) : (
-        filtered.map((r) => <ReadingRow key={r.id} reading={r} />)
+        filtered.map((r) => {
+          const breathing =
+            hasEcho &&
+            r.cardIds.filter((id) => echoSet.has(id)).length >= 3;
+          return (
+            <ReadingRow key={r.id} reading={r} breathing={breathing} />
+          );
+        })
       )}
     </div>
   );
@@ -66,8 +84,10 @@ export function MatchingReadingsPanel({
 
 function ReadingRow({
   reading,
+  breathing = false,
 }: {
   reading: CardConstellation["matches"][number];
+  breathing?: boolean;
 }) {
   const date = format(new Date(reading.createdAt), "MMM d, yyyy");
   const cardsLabel = reading.cardIds
@@ -76,11 +96,34 @@ function ReadingRow({
     .join(" · ");
   const more = reading.cardIds.length - 6;
   return (
-    <div
+    <div style={{ position: "relative" }}>
+      {breathing && (
+        <div
+          aria-hidden
+          className="tarotseed-constellation-breathe"
+          style={{
+            position: "absolute",
+            top: -8,
+            left: -10,
+            right: -10,
+            bottom: -8,
+            background:
+              "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 42%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 22%, transparent) 55%, transparent 85%)",
+            pointerEvents: "none",
+            zIndex: 0,
+            borderRadius: 12,
+          }}
+        />
+      )}
+      <div
       style={{
+        position: "relative",
+        zIndex: 1,
         padding: "10px 12px",
         borderRadius: 8,
-        border: "1px solid var(--border-subtle)",
+        border: breathing
+          ? "1px solid var(--accent, var(--gold))"
+          : "1px solid var(--border-subtle)",
         background: "var(--surface-card)",
         display: "flex",
         flexDirection: "column",
@@ -131,6 +174,7 @@ function ReadingRow({
         {cardsLabel}
         {more > 0 ? ` · +${more} more` : ""}
       </p>
+      </div>
     </div>
   );
 }
