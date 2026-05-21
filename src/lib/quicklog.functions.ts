@@ -14,9 +14,59 @@ import { getCardName } from "@/lib/tarot";
 import { getCurrentMoonPhase, type MoonPhaseName } from "@/lib/moon";
 import { dayOfWeekInTz, isoDayInTz } from "@/lib/time";
 
+// ─── Phase 23 — shared filter envelope ────────────────────────────────
+// Optional filter set threaded into every Constellation server fn. Mirrors
+// the GlobalFilters shape (tag NAMES, not ids).
+const FiltersSchema = z
+  .object({
+    timeRange: z.string().optional(), // "7d" | "30d" | "90d" | "365d" | "all"
+    tags: z.array(z.string()).optional(),
+    spreadTypes: z.array(z.string()).optional(),
+    moonPhases: z.array(z.string()).optional(),
+    deepOnly: z.boolean().optional(),
+    reversedOnly: z.boolean().optional(),
+  })
+  .optional();
+
+export type ConstellationFilterOpts = z.infer<typeof FiltersSchema>;
+
+function timeRangeStartIso(timeRange?: string): string | null {
+  if (!timeRange || timeRange === "all") return null;
+  const m = /^(\d+)d$/.exec(timeRange);
+  if (!m) return null;
+  const days = Number(m[1]);
+  return new Date(Date.now() - days * 86400000).toISOString();
+}
+
+type FilterableRow = {
+  spread_type?: string | null;
+  tags?: string[] | null;
+  moon_phase?: string | null;
+  is_deep_reading?: boolean | null;
+  card_orientations?: boolean[] | null;
+};
+
+function postFilterRow(r: FilterableRow, f?: ConstellationFilterOpts): boolean {
+  if (!f) return true;
+  if (f.spreadTypes && f.spreadTypes.length > 0) {
+    if (!r.spread_type || !f.spreadTypes.includes(r.spread_type)) return false;
+  }
+  if (f.deepOnly && !r.is_deep_reading) return false;
+  if (f.tags && f.tags.length > 0) {
+    const rt = r.tags ?? [];
+    if (!f.tags.some((t) => rt.includes(t))) return false;
+  }
+  if (f.moonPhases && f.moonPhases.length > 0) {
+    if (!r.moon_phase || !f.moonPhases.includes(r.moon_phase)) return false;
+  }
+  if (f.reversedOnly && !(r.card_orientations ?? []).some(Boolean)) return false;
+  return true;
+}
+
 const Input = z.object({
   cardId: z.number().int().min(0).max(9999),
   tz: z.string().min(1),
+  filters: FiltersSchema,
 });
 
 export type QuickLogJournalRow = {
@@ -70,15 +120,20 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
 
     // Pull all readings for the seeker. Most users have <1k rows; for
     // larger histories the query still completes fast under RLS.
-    const { data: allRaw } = await supabase
+    let q = supabase
       .from("readings")
-      .select("id, created_at, card_ids, card_orientations, question")
+      .select(
+        "id, created_at, card_ids, card_orientations, question, spread_type, tags, moon_phase, is_deep_reading",
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(1000);
-    const all = ((allRaw ?? []) as unknown as ReadingRow[]).filter(
-      (r) => Array.isArray(r.card_ids),
-    );
+    const since = timeRangeStartIso(data.filters?.timeRange);
+    if (since) q = q.gte("created_at", since);
+    const { data: allRaw } = await q;
+    const all = ((allRaw ?? []) as unknown as (ReadingRow & FilterableRow)[])
+      .filter((r) => Array.isArray(r.card_ids))
+      .filter((r) => postFilterRow(r, data.filters));
 
     let totalCards = 0;
     let totalReversed = 0;
@@ -182,6 +237,7 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
 const OverlapInput = z.object({
   heroCardId: z.number().int().min(0).max(9999).nullable().optional(),
   tz: z.string().min(1),
+  filters: FiltersSchema,
 });
 
 export type QuickLogDayCell = {
@@ -238,23 +294,31 @@ export const getQuickLogOverlap = createServerFn({ method: "POST" })
       Date.UTC(startYear, startMonth0, 1, 0, 0, 0, 0) - 24 * 60 * 60 * 1000,
     ).toISOString();
 
+    const sinceTimeframe = timeRangeStartIso(data.filters?.timeRange);
+    const lowerBound =
+      sinceTimeframe && sinceTimeframe > startIso ? sinceTimeframe : startIso;
     const { data: rowsRaw } = await supabase
       .from("readings")
-      .select("id, created_at, card_ids, question")
+      .select(
+        "id, created_at, card_ids, card_orientations, question, spread_type, tags, moon_phase, is_deep_reading",
+      )
       .eq("user_id", userId)
-      .gte("created_at", startIso)
+      .gte("created_at", lowerBound)
       .order("created_at", { ascending: false })
       .limit(2000);
 
     const readingsByDate: QuickLogOverlap["readingsByDate"] = {};
     const heroDays = new Set<string>();
     const sameDayCardIds: Record<string, Set<number>> = {};
-    for (const row of (rowsRaw ?? []) as Array<{
-      id: string;
-      created_at: string;
-      card_ids: number[] | null;
-      question: string | null;
-    }>) {
+    const filteredRows = ((rowsRaw ?? []) as Array<
+      {
+        id: string;
+        created_at: string;
+        card_ids: number[] | null;
+        question: string | null;
+      } & FilterableRow
+    >).filter((r) => postFilterRow(r, data.filters));
+    for (const row of filteredRows) {
       const ids = row.card_ids ?? [];
       const key = isoDayInTz(new Date(row.created_at), tz);
       (readingsByDate[key] = readingsByDate[key] ?? []).push({
@@ -407,6 +471,7 @@ export const getQuickLogPractice = createServerFn({ method: "POST" })
 const ConstellationInput = z.object({
   heroCardId: z.number().int().min(0).max(9999),
   tz: z.string().min(1),
+  filters: FiltersSchema,
 });
 
 export type CardConstellation = {
@@ -434,19 +499,28 @@ export const getCardConstellation = createServerFn({ method: "POST" })
     // Single fetch — derive both the hero-only subset (for matches +
     // co-occurrence counts) AND pair counts across all readings from one
     // dataset. Cap at 2000 lifetime readings (flagged as v1 limitation).
-    const { data: allRaw } = await supabase
+    let cq = supabase
       .from("readings")
-      .select("id, created_at, card_ids, question")
+      .select(
+        "id, created_at, card_ids, card_orientations, question, spread_type, tags, moon_phase, is_deep_reading",
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(2000);
+    const sinceC = timeRangeStartIso(data.filters?.timeRange);
+    if (sinceC) cq = cq.gte("created_at", sinceC);
+    const { data: allRaw } = await cq;
 
-    const all = ((allRaw ?? []) as Array<{
-      id: string;
-      created_at: string;
-      card_ids: number[] | null;
-      question: string | null;
-    }>).filter((r) => Array.isArray(r.card_ids));
+    const all = ((allRaw ?? []) as Array<
+      {
+        id: string;
+        created_at: string;
+        card_ids: number[] | null;
+        question: string | null;
+      } & FilterableRow
+    >)
+      .filter((r) => Array.isArray(r.card_ids))
+      .filter((r) => postFilterRow(r, data.filters));
 
     // Hero subset — readings containing the hero card.
     const heroRows = all.filter((r) => (r.card_ids ?? []).includes(heroCardId));
@@ -524,4 +598,60 @@ export const getCardConstellation = createServerFn({ method: "POST" })
     }));
 
     return { heroCardId, companions: sortedCompanions, pairCounts, matches };
+  });
+
+// ─── Phase 23 — per-card draw counts for slot badges ─────────────────
+
+const DrawCountsInput = z.object({
+  cardIds: z.array(z.number().int().min(0).max(9999)).max(10),
+  tz: z.string().min(1),
+  filters: FiltersSchema,
+});
+
+export type CardDrawCounts = {
+  /** cardId -> times drawn within the filter window */
+  perCard: Record<number, number>;
+  /** max count across all standard (78) cards in the filter window */
+  globalMax: number;
+};
+
+export const getCardDrawCounts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => DrawCountsInput.parse(data))
+  .handler(async ({ data, context }): Promise<CardDrawCounts> => {
+    const { supabase, userId } = context as {
+      supabase: SupabaseClient;
+      userId: string;
+    };
+    if (data.cardIds.length === 0) return { perCard: {}, globalMax: 0 };
+
+    let q = supabase
+      .from("readings")
+      .select(
+        "id, created_at, card_ids, card_orientations, spread_type, tags, moon_phase, is_deep_reading",
+      )
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(2000);
+    const since = timeRangeStartIso(data.filters?.timeRange);
+    if (since) q = q.gte("created_at", since);
+    const { data: rowsRaw } = await q;
+
+    const rows = ((rowsRaw ?? []) as Array<
+      { card_ids: number[] | null } & FilterableRow
+    >)
+      .filter((r) => Array.isArray(r.card_ids))
+      .filter((r) => postFilterRow(r, data.filters));
+
+    const counts = new Map<number, number>();
+    for (const r of rows) {
+      for (const id of r.card_ids ?? []) {
+        counts.set(id, (counts.get(id) ?? 0) + 1);
+      }
+    }
+    let globalMax = 0;
+    for (const n of counts.values()) if (n > globalMax) globalMax = n;
+    const perCard: Record<number, number> = {};
+    for (const id of data.cardIds) perCard[id] = counts.get(id) ?? 0;
+    return { perCard, globalMax };
   });

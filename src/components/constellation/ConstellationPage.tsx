@@ -49,10 +49,12 @@ import {
   getQuickLogOverlap,
   getCardConstellation,
   getQuickLogPractice,
+  getCardDrawCounts,
   type QuickLogCardStats,
   type QuickLogOverlap,
   type CardConstellation,
   type QuickLogPractice,
+  type CardDrawCounts,
 } from "@/lib/quicklog.functions";
 import type { ManualPick } from "@/components/tabletop/ManualEntryBuilder";
 import { useAuth } from "@/lib/auth";
@@ -60,9 +62,44 @@ import { useTimezone } from "@/lib/use-timezone";
 import { useNavigate } from "@tanstack/react-router";
 import { useStreak } from "@/lib/use-streak";
 import { getLunationContaining } from "@/lib/lunation";
+import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
+import {
+  EMPTY_GLOBAL_FILTERS,
+  type GlobalFilters,
+} from "@/lib/filters.types";
 
 const SLOT_W = 70;
 const SLOT_H = Math.round(SLOT_W * 1.55);
+
+// Phase 23 — default to "Last 365 days" (closest match to the spec's
+// "12 months" within Insights' canonical timeRange options).
+const DEFAULT_TIMEFRAME = "365d";
+const TIMEFRAME_OPTIONS = [
+  { value: "7d", label: "Last 7 days" },
+  { value: "30d", label: "Last 30 days" },
+  { value: "90d", label: "Last 90 days" },
+  { value: "365d", label: "Last 365 days" },
+  { value: "all", label: "All time" },
+] as const;
+
+/** Phase 23 — slot badge opacity, mirrors QuickLog's matchOpacity. */
+function badgeOpacity(count: number, max: number): number {
+  if (count <= 0 || max <= 0) return 0;
+  const pct = count / max;
+  return 0.15 + pct * 0.8;
+}
+
+/** Convert the GlobalFilters envelope into the server-fn `filters` payload. */
+function toFilterPayload(g: GlobalFilters) {
+  return {
+    timeRange: g.timeRange,
+    tags: g.tags,
+    spreadTypes: g.spreadTypes,
+    moonPhases: g.moonPhases,
+    deepOnly: g.deepOnly,
+    reversedOnly: g.reversedOnly,
+  };
+}
 
 export function ConstellationPage() {
   const { user } = useAuth();
@@ -81,6 +118,16 @@ export function ConstellationPage() {
   // Phase 19 Fix 7 — back-date pill state (parity with QuickLog).
   const [backdate, setBackdate] = useState<Date | null>(null);
   const [dateOpen, setDateOpen] = useState(false);
+  // Phase 23 — page-wide filter state. Default 365d (12 months).
+  const [globalFilters, setGlobalFilters] = useState<GlobalFilters>(() => ({
+    ...EMPTY_GLOBAL_FILTERS,
+    timeRange: DEFAULT_TIMEFRAME,
+  }));
+  const filterPayload = useMemo(
+    () => toFilterPayload(globalFilters),
+    [globalFilters],
+  );
+  const filterKey = useMemo(() => JSON.stringify(filterPayload), [filterPayload]);
 
   const heroIdx =
     picks.length === 0
@@ -104,7 +151,7 @@ export function ConstellationPage() {
     }
     let cancelled = false;
     void getQuickLogCardStats({
-      data: { cardId: heroPick.cardIndex, tz: effectiveTz },
+      data: { cardId: heroPick.cardIndex, tz: effectiveTz, filters: filterPayload },
     })
       .then((d) => {
         if (!cancelled) setCardStats(d);
@@ -115,7 +162,7 @@ export function ConstellationPage() {
     return () => {
       cancelled = true;
     };
-  }, [heroPick?.cardIndex, user?.id, effectiveTz, heroPick]);
+  }, [heroPick?.cardIndex, user?.id, effectiveTz, heroPick, filterKey, filterPayload]);
 
   // 2. Overlap (calendar strip)
   const [overlap, setOverlap] = useState<QuickLogOverlap | null>(null);
@@ -127,7 +174,11 @@ export function ConstellationPage() {
     }
     let cancelled = false;
     void getQuickLogOverlap({
-      data: { heroCardId: heroPick?.cardIndex ?? null, tz: effectiveTz },
+      data: {
+        heroCardId: heroPick?.cardIndex ?? null,
+        tz: effectiveTz,
+        filters: filterPayload,
+      },
     })
       .then((d) => {
         if (!cancelled) setOverlap(d);
@@ -138,7 +189,7 @@ export function ConstellationPage() {
     return () => {
       cancelled = true;
     };
-  }, [heroPick?.cardIndex, user?.id, effectiveTz]);
+  }, [heroPick?.cardIndex, user?.id, effectiveTz, filterKey, filterPayload]);
 
   // 3. Constellation data
   const [constellationData, setConstellationData] =
@@ -150,7 +201,11 @@ export function ConstellationPage() {
     }
     let cancelled = false;
     void getCardConstellation({
-      data: { heroCardId: heroPick.cardIndex, tz: effectiveTz },
+      data: {
+        heroCardId: heroPick.cardIndex,
+        tz: effectiveTz,
+        filters: filterPayload,
+      },
     })
       .then((d) => {
         if (!cancelled) setConstellationData(d);
@@ -161,9 +216,37 @@ export function ConstellationPage() {
     return () => {
       cancelled = true;
     };
-  }, [heroPick?.cardIndex, user?.id, effectiveTz]);
+  }, [heroPick?.cardIndex, user?.id, effectiveTz, filterKey, filterPayload]);
 
   const placedIds = picks.map((p) => p.cardIndex);
+
+  // Phase 23 Fix 5 — per-card draw counts for slot badges.
+  const [drawCounts, setDrawCounts] = useState<CardDrawCounts | null>(null);
+  const cardIdsKey = picks.map((p) => p.cardIndex).join(",");
+  useEffect(() => {
+    if (!user?.id || picks.length === 0) {
+      setDrawCounts(null);
+      return;
+    }
+    let cancelled = false;
+    void getCardDrawCounts({
+      data: {
+        cardIds: picks.map((p) => p.cardIndex),
+        tz: effectiveTz,
+        filters: filterPayload,
+      },
+    })
+      .then((d) => {
+        if (!cancelled) setDrawCounts(d);
+      })
+      .catch(() => {
+        if (!cancelled) setDrawCounts(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, effectiveTz, cardIdsKey, filterKey]);
 
   // Phase 19 Fix 10 — port the Echo detection to /constellation.
   const echo = useEcho(picks, overlap, overlapMode);
@@ -296,17 +379,18 @@ export function ConstellationPage() {
         }}
       >
         <div>
-          <p
+          <h1
             style={{
               margin: 0,
               fontFamily: "var(--font-display)",
               fontStyle: "italic",
               fontSize: 26,
+              fontWeight: 400,
               color: "var(--color-foreground)",
             }}
           >
-            The Constellation
-          </p>
+            Manual Entry
+          </h1>
           <p
             style={{
               margin: "2px 0 0 0",
@@ -323,7 +407,7 @@ export function ConstellationPage() {
         </div>
         <button
           type="button"
-          onClick={() => navigate({ to: "/draw" })}
+          onClick={() => navigate({ to: "/draw/classic" })}
           style={{
             fontFamily: "var(--font-serif)",
             fontStyle: "italic",
@@ -336,8 +420,26 @@ export function ConstellationPage() {
             padding: 4,
           }}
         >
-          ← back to draw
+          Classic Manual Entry →
         </button>
+      </div>
+
+      {/* Phase 23 Fix 3 — filter row below H1. */}
+      <div style={{ padding: "4px 24px 0" }}>
+        <GlobalFilterBar
+          filters={globalFilters}
+          onChange={setGlobalFilters}
+          sections={["tags", "spreadTypes", "depth", "reversed"]}
+          timeRange={{
+            value: globalFilters.timeRange ?? DEFAULT_TIMEFRAME,
+            options: TIMEFRAME_OPTIONS.map((o) => ({
+              value: o.value,
+              label: o.label,
+            })),
+            onChange: (v) =>
+              setGlobalFilters((prev) => ({ ...prev, timeRange: v })),
+          }}
+        />
       </div>
 
       {/* Phase 19 Fix 10 — Echo banner above the entry row */}
@@ -439,6 +541,44 @@ export function ConstellationPage() {
                     widthPx={SLOT_W}
                   />
                 </button>
+                {drawCounts && drawCounts.perCard[pick.cardIndex] !== undefined && (
+                  <div
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      bottom: -8,
+                      right: -8,
+                      zIndex: 2,
+                      width: 26,
+                      height: 26,
+                      borderRadius: 9999,
+                      background: "var(--accent, var(--gold))",
+                      opacity: isFocused
+                        ? 0.9
+                        : badgeOpacity(
+                            drawCounts.perCard[pick.cardIndex],
+                            drawCounts.globalMax,
+                          ),
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color:
+                        (isFocused
+                          ? 0.9
+                          : badgeOpacity(
+                              drawCounts.perCard[pick.cardIndex],
+                              drawCounts.globalMax,
+                            )) > 0.5
+                          ? "var(--cosmos, #0a0a14)"
+                          : "var(--color-foreground)",
+                      fontFamily: "var(--font-serif)",
+                      fontStyle: "italic",
+                      fontSize: 12,
+                    }}
+                  >
+                    {drawCounts.perCard[pick.cardIndex]}
+                  </div>
+                )}
               </div>
             );
           })}
