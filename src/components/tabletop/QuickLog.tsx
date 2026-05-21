@@ -535,7 +535,7 @@ export function QuickLog({
                     padding: "0 12px",
                   }}
                 >
-                  A CONSTELLATION FORMING — {constellation.participatingCardIds.length} of these cards have met before
+                  the constellation — {constellation.participatingCardIds.length} of these cards have met before
                 </span>
               </div>
             </div>
@@ -2339,9 +2339,9 @@ function PullHistoryPill({
     const N = constellation.participatingCardIds.length;
     const M = constellation.matchCountSixMonths;
     if (M === 1) {
-      text = `A constellation. ${N} of these cards have met before — once in the last 6 months.`;
+      text = `a constellation forms — ${N} of these cards have met before, once in the last 6 months.`;
     } else {
-      text = `A constellation. ${N} of these cards have met before — ${M} times in the last 6 months.`;
+      text = `a constellation forms — ${N} of these cards have met before, ${M} times in the last 6 months.`;
     }
   }
   return (
