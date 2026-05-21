@@ -5,7 +5,7 @@ import {
   ManualEntryBuilder,
   type ManualPick,
 } from "@/components/tabletop/ManualEntryBuilder";
-import { QuickLog } from "@/components/tabletop/QuickLog";
+import { ConstellationPage } from "@/components/constellation/ConstellationPage";
 import { RotatePrompt } from "@/components/tabletop/RotatePrompt";
 import { useViewport } from "@/lib/use-viewport";
 import { SpreadLayout } from "@/components/tabletop/SpreadLayout";
@@ -370,7 +370,7 @@ function DrawPage() {
           };
           const isDesktopLandscape = viewport.width >= 1024 && viewport.isLandscape;
           const isDesktopPortrait = viewport.width >= 1024 && !viewport.isLandscape;
-          if (isDesktopLandscape) return <QuickLog {...sharedProps} />;
+          if (isDesktopLandscape) return <ConstellationPage />;
           if (isDesktopPortrait) return <RotatePrompt />;
           return <ManualEntryBuilder {...sharedProps} />;
         })()
