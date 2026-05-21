@@ -7,6 +7,7 @@
  * 6-month overlap strip sits below.
  */
 import { useEffect, useState } from "react";
+import { useRegisterTabletopActive } from "@/lib/floating-menu-context";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { CardPicker } from "@/components/cards/CardPicker";
 import { CardImage } from "@/components/card/CardImage";
@@ -33,6 +34,9 @@ export function ConstellationPage() {
   const { user } = useAuth();
   const { effectiveTz } = useTimezone();
   const navigate = useNavigate();
+
+  // Phase 18 Fix 6 — hide the global BottomNav on /constellation.
+  useRegisterTabletopActive(true);
 
   const [picks, setPicks] = useState<ManualPick[]>([]);
   const [focusedSlotIdx, setFocusedSlotIdx] = useState<number | null>(null);
@@ -127,7 +131,13 @@ export function ConstellationPage() {
   return (
     <div
       className="bg-cosmos text-foreground"
-      style={{ minHeight: "100vh", padding: "16px 0 32px" }}
+      style={{
+        minHeight: "100vh",
+        maxHeight: "100vh",
+        overflowY: "auto",
+        overflowX: "hidden",
+        padding: "16px 0 64px",
+      }}
     >
       {/* Header row */}
       <div
@@ -266,6 +276,7 @@ export function ConstellationPage() {
           gridTemplateColumns: "500px 1fr",
           gap: 24,
           padding: "0 24px",
+          marginTop: -8,
         }}
       >
         <ConstellationWeb
