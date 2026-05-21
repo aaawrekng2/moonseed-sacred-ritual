@@ -220,6 +220,34 @@ export function ConstellationPage() {
 
   const placedIds = picks.map((p) => p.cardIndex);
 
+  // Phase 23 Fix 5 — per-card draw counts for slot badges.
+  const [drawCounts, setDrawCounts] = useState<CardDrawCounts | null>(null);
+  const cardIdsKey = picks.map((p) => p.cardIndex).join(",");
+  useEffect(() => {
+    if (!user?.id || picks.length === 0) {
+      setDrawCounts(null);
+      return;
+    }
+    let cancelled = false;
+    void getCardDrawCounts({
+      data: {
+        cardIds: picks.map((p) => p.cardIndex),
+        tz: effectiveTz,
+        filters: filterPayload,
+      },
+    })
+      .then((d) => {
+        if (!cancelled) setDrawCounts(d);
+      })
+      .catch(() => {
+        if (!cancelled) setDrawCounts(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, effectiveTz, cardIdsKey, filterKey]);
+
   // Phase 19 Fix 10 — port the Echo detection to /constellation.
   const echo = useEcho(picks, overlap, overlapMode);
   const participatingSet = useMemo(
