@@ -120,15 +120,20 @@ export const getQuickLogCardStats = createServerFn({ method: "POST" })
 
     // Pull all readings for the seeker. Most users have <1k rows; for
     // larger histories the query still completes fast under RLS.
-    const { data: allRaw } = await supabase
+    let q = supabase
       .from("readings")
-      .select("id, created_at, card_ids, card_orientations, question")
+      .select(
+        "id, created_at, card_ids, card_orientations, question, spread_type, tags, moon_phase, is_deep_reading",
+      )
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(1000);
-    const all = ((allRaw ?? []) as unknown as ReadingRow[]).filter(
-      (r) => Array.isArray(r.card_ids),
-    );
+    const since = timeRangeStartIso(data.filters?.timeRange);
+    if (since) q = q.gte("created_at", since);
+    const { data: allRaw } = await q;
+    const all = ((allRaw ?? []) as unknown as (ReadingRow & FilterableRow)[])
+      .filter((r) => Array.isArray(r.card_ids))
+      .filter((r) => postFilterRow(r, data.filters));
 
     let totalCards = 0;
     let totalReversed = 0;
