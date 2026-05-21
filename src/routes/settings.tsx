@@ -10,6 +10,7 @@ import {
   Database,
   MessageSquare,
   Palette,
+  ShieldCheck,
   Sliders,
   Star,
   User as UserIcon,
@@ -60,6 +61,7 @@ type TabKey =
   | "decks"
   | "usage"
   | "feedback"
+  | "security"
   | "data";
 
 type TabDef = {
@@ -74,6 +76,7 @@ type TabDef = {
     | "/settings/decks"
     | "/settings/usage"
     | "/settings/feedback"
+    | "/settings/security"
     | "/settings/data";
   icon: typeof UserIcon;
 };
@@ -82,6 +85,7 @@ const TABS: TabDef[] = [
   { key: "feedback", label: "Feedback", to: "/settings/feedback", icon: MessageSquare },
   { key: "profile", label: "Profile", to: "/settings/profile", icon: UserIcon },
   { key: "blueprint", label: "Blueprint", to: "/settings/blueprint", icon: Star },
+  { key: "security", label: "Security", to: "/settings/security", icon: ShieldCheck },
   { key: "preferences", label: "Preferences", to: "/settings/preferences", icon: Sliders },
   { key: "themes", label: "Themes", to: "/settings/themes", icon: Palette },
   { key: "guides", label: "Guides", to: "/settings/guides", icon: Wand2 },
@@ -94,6 +98,7 @@ function tabFromPath(pathname: string): TabKey | null {
   if (pathname.startsWith("/settings/feedback")) return "feedback";
   if (pathname.startsWith("/settings/profile")) return "profile";
   if (pathname.startsWith("/settings/blueprint")) return "blueprint";
+  if (pathname.startsWith("/settings/security")) return "security";
   if (pathname.startsWith("/settings/preferences")) return "preferences";
   if (pathname.startsWith("/settings/themes")) return "themes";
   if (pathname.startsWith("/settings/guides")) return "guides";
