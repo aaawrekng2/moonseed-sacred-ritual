@@ -14,9 +14,59 @@ import { getCardName } from "@/lib/tarot";
 import { getCurrentMoonPhase, type MoonPhaseName } from "@/lib/moon";
 import { dayOfWeekInTz, isoDayInTz } from "@/lib/time";
 
+// ─── Phase 23 — shared filter envelope ────────────────────────────────
+// Optional filter set threaded into every Constellation server fn. Mirrors
+// the GlobalFilters shape (tag NAMES, not ids).
+const FiltersSchema = z
+  .object({
+    timeRange: z.string().optional(), // "7d" | "30d" | "90d" | "365d" | "all"
+    tags: z.array(z.string()).optional(),
+    spreadTypes: z.array(z.string()).optional(),
+    moonPhases: z.array(z.string()).optional(),
+    deepOnly: z.boolean().optional(),
+    reversedOnly: z.boolean().optional(),
+  })
+  .optional();
+
+export type ConstellationFilterOpts = z.infer<typeof FiltersSchema>;
+
+function timeRangeStartIso(timeRange?: string): string | null {
+  if (!timeRange || timeRange === "all") return null;
+  const m = /^(\d+)d$/.exec(timeRange);
+  if (!m) return null;
+  const days = Number(m[1]);
+  return new Date(Date.now() - days * 86400000).toISOString();
+}
+
+type FilterableRow = {
+  spread_type?: string | null;
+  tags?: string[] | null;
+  moon_phase?: string | null;
+  is_deep_reading?: boolean | null;
+  card_orientations?: boolean[] | null;
+};
+
+function postFilterRow(r: FilterableRow, f?: ConstellationFilterOpts): boolean {
+  if (!f) return true;
+  if (f.spreadTypes && f.spreadTypes.length > 0) {
+    if (!r.spread_type || !f.spreadTypes.includes(r.spread_type)) return false;
+  }
+  if (f.deepOnly && !r.is_deep_reading) return false;
+  if (f.tags && f.tags.length > 0) {
+    const rt = r.tags ?? [];
+    if (!f.tags.some((t) => rt.includes(t))) return false;
+  }
+  if (f.moonPhases && f.moonPhases.length > 0) {
+    if (!r.moon_phase || !f.moonPhases.includes(r.moon_phase)) return false;
+  }
+  if (f.reversedOnly && !(r.card_orientations ?? []).some(Boolean)) return false;
+  return true;
+}
+
 const Input = z.object({
   cardId: z.number().int().min(0).max(9999),
   tz: z.string().min(1),
+  filters: FiltersSchema,
 });
 
 export type QuickLogJournalRow = {
