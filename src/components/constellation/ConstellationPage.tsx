@@ -151,7 +151,7 @@ export function ConstellationPage() {
     }
     let cancelled = false;
     void getQuickLogCardStats({
-      data: { cardId: heroPick.cardIndex, tz: effectiveTz },
+      data: { cardId: heroPick.cardIndex, tz: effectiveTz, filters: filterPayload },
     })
       .then((d) => {
         if (!cancelled) setCardStats(d);
@@ -162,7 +162,7 @@ export function ConstellationPage() {
     return () => {
       cancelled = true;
     };
-  }, [heroPick?.cardIndex, user?.id, effectiveTz, heroPick]);
+  }, [heroPick?.cardIndex, user?.id, effectiveTz, heroPick, filterKey, filterPayload]);
 
   // 2. Overlap (calendar strip)
   const [overlap, setOverlap] = useState<QuickLogOverlap | null>(null);
@@ -174,7 +174,11 @@ export function ConstellationPage() {
     }
     let cancelled = false;
     void getQuickLogOverlap({
-      data: { heroCardId: heroPick?.cardIndex ?? null, tz: effectiveTz },
+      data: {
+        heroCardId: heroPick?.cardIndex ?? null,
+        tz: effectiveTz,
+        filters: filterPayload,
+      },
     })
       .then((d) => {
         if (!cancelled) setOverlap(d);
@@ -185,7 +189,7 @@ export function ConstellationPage() {
     return () => {
       cancelled = true;
     };
-  }, [heroPick?.cardIndex, user?.id, effectiveTz]);
+  }, [heroPick?.cardIndex, user?.id, effectiveTz, filterKey, filterPayload]);
 
   // 3. Constellation data
   const [constellationData, setConstellationData] =
@@ -197,7 +201,11 @@ export function ConstellationPage() {
     }
     let cancelled = false;
     void getCardConstellation({
-      data: { heroCardId: heroPick.cardIndex, tz: effectiveTz },
+      data: {
+        heroCardId: heroPick.cardIndex,
+        tz: effectiveTz,
+        filters: filterPayload,
+      },
     })
       .then((d) => {
         if (!cancelled) setConstellationData(d);
@@ -208,7 +216,7 @@ export function ConstellationPage() {
     return () => {
       cancelled = true;
     };
-  }, [heroPick?.cardIndex, user?.id, effectiveTz]);
+  }, [heroPick?.cardIndex, user?.id, effectiveTz, filterKey, filterPayload]);
 
   const placedIds = picks.map((p) => p.cardIndex);
 
