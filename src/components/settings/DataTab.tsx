@@ -1,5 +1,5 @@
 /**
- * Settings → Data tab (CJ).
+ * Settings → Data tab (CJ; EB adds Delete Selected Data).
  *
  * Sections:
  *   1. Full backup — pick categories, see size estimates, download a ZIP
@@ -11,9 +11,7 @@
  *      the lone exception and overwrites with explicit confirmation.
  *   3. Sign out
  *   4. Clear local cache
- *
- * Account deletion is intentionally not exposed in-app — users contact
- * support so we can clean up across all tables atomically.
+ *   5. Delete selected data (EB) — destructive, MFA-or-text-gated
  */
 import { useEffect, useRef, useState } from "react";
 import {
@@ -24,6 +22,7 @@ import {
   Lock,
   LogOut,
   RotateCcw,
+  Trash2,
   Upload,
   X,
 } from "lucide-react";
@@ -51,6 +50,7 @@ import type JSZip from "jszip";
 import { ImportFlow, type ImportResult } from "@/components/import/ImportFlow";
 import { formatDateTime } from "@/lib/dates";
 import { PhotoArchive } from "./PhotoArchive";
+import { DeleteDataModal } from "./DeleteDataModal";
 
 const CATEGORY_LABEL: Record<string, string> = {
   readings: "Readings",
@@ -73,6 +73,8 @@ export function DataTab() {
   const { user } = useSettings();
   const [signingOut, setSigningOut] = useState(false);
   const confirm = useConfirm();
+  // EB — Delete Selected Data modal state.
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const [selected, setSelected] = useState<Set<BackupCategoryId>>(
     () =>
@@ -503,10 +505,33 @@ export function DataTab() {
           )}
           Sign out
         </Button>
-        <p className="text-xs text-muted-foreground">
-          To delete your account permanently, please contact support.
-        </p>
       </SettingsSection>
+
+      {/* EB — Danger Zone. Delete Selected Data with checkbox scope
+          + MFA-or-text verification gate. */}
+      <SettingsSection
+        title="Delete data"
+        description="Permanently remove selected categories of your data. Optionally also close your sign-in account."
+      >
+        <Button
+          variant="outline"
+          onClick={() => setDeleteOpen(true)}
+          className="w-full justify-start gap-2 sm:w-auto"
+          style={{
+            borderColor:
+              "color-mix(in oklab, var(--destructive, #b94c4c) 45%, transparent)",
+            color: "var(--color-foreground)",
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete my selected data
+        </Button>
+      </SettingsSection>
+
+      <DeleteDataModal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+      />
 
       {importOpen && (
         <ImportFlow

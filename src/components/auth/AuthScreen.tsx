@@ -77,6 +77,23 @@ export function AuthScreen({
   onSuccess: () => void;
 }) {
   const [mode, setMode] = useState<AuthMode>("signin");
+  // EB — surface a one-time banner if the seeker just deleted their
+  // account. Flag is set by DeleteDataModal before sign-out and
+  // cleared on first render here. We intentionally read the flag in
+  // a useState initializer so the read+clear happens exactly once
+  // per mount; the setter is unused.
+  const [deletedBanner] = useState<boolean>(() => {
+    try {
+      const v = window.sessionStorage.getItem("tarotseed:auth-deleted-banner");
+      if (v === "1") {
+        window.sessionStorage.removeItem("tarotseed:auth-deleted-banner");
+        return true;
+      }
+    } catch {
+      /* private mode */
+    }
+    return false;
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -332,6 +349,45 @@ export function AuthScreen({
             <X size={14} strokeWidth={1.5} />
           </button>
         </div>
+
+        {/* EB — one-time banner after a successful Delete Selected Data. */}
+        {deletedBanner && (
+          <div
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              background:
+                "color-mix(in oklab, var(--gold) 10%, transparent)",
+              border:
+                "1px solid color-mix(in oklab, var(--gold) 30%, transparent)",
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontSize: "var(--text-body)",
+                color: "var(--foreground)",
+              }}
+            >
+              Your data has been deleted.
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: "var(--text-caption)",
+                color: "var(--foreground)",
+                opacity: 0.75,
+              }}
+            >
+              So sorry to see you go.
+            </div>
+          </div>
+        )}
 
         {mode === "signup-confirmation" && (
           <div className="flex flex-col items-center gap-5 py-6 text-center">

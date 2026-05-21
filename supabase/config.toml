@@ -10,3 +10,10 @@ verify_jwt = false
 # security comes from STRIPE_WEBHOOK_SECRET signature verification.
 [functions.stripe-webhook]
 verify_jwt = false
+
+# EB — Delete Selected Data. Caller MUST send a valid Supabase JWT
+# (default verify_jwt = true). The function then re-verifies the JWT,
+# checks MFA assurance level, and performs deletes with the service-
+# role key.
+[functions.delete-user-data]
+verify_jwt = true

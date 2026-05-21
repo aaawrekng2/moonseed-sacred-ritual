@@ -484,6 +484,48 @@ export type Database = {
         }
         Relationships: []
       }
+      data_deletion_requests: {
+        Row: {
+          client_ip: string | null
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          requested_at: string
+          scope: Json
+          status: string
+          user_agent: string | null
+          user_email: string | null
+          user_id: string
+          verification_method: string
+        }
+        Insert: {
+          client_ip?: string | null
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          requested_at?: string
+          scope?: Json
+          status?: string
+          user_agent?: string | null
+          user_email?: string | null
+          user_id: string
+          verification_method: string
+        }
+        Update: {
+          client_ip?: string | null
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          requested_at?: string
+          scope?: Json
+          status?: string
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string
+          verification_method?: string
+        }
+        Relationships: []
+      }
       detect_weaves_alerts: {
         Row: {
           created_at: string
