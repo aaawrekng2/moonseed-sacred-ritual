@@ -179,7 +179,10 @@ function ConstellationSvg({
             stroke="var(--accent, var(--gold))"
             strokeWidth={strokeWidth}
             opacity={opacity}
-          />
+            style={{ cursor: "help" }}
+          >
+            <title>{`${getCardName(pair.a)} + ${getCardName(pair.b)} — drawn together ${pair.count} ${pair.count === 1 ? "time" : "times"}`}</title>
+          </line>
         );
       })}
 
