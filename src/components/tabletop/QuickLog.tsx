@@ -1948,6 +1948,7 @@ function OverlapStrip({
           alignItems: "flex-start",
           position: "relative",
           overflowX: "auto",
+          scrollbarGutter: "stable",
         }}
       >
         {months.length === 0 &&
