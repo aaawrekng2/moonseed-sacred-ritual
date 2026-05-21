@@ -18,7 +18,9 @@ import { SearchInput } from "@/components/ui/search-input";
 import { AdaptiveCardImage } from "@/components/card/AdaptiveCardImage";
 import { useActiveDeckImage, useDeckImage } from "@/lib/active-deck";
 import { useAuth } from "@/lib/auth";
+import { useTimezone } from "@/lib/use-timezone";
 import { buildSearchIndex, buildTarotSearchIndex, searchCards } from "@/lib/card-search";
+import { getCardDrawCounts } from "@/lib/quicklog.functions";
 import {
   fetchUserDecks,
   fetchDeckCards,
@@ -99,12 +101,18 @@ export function CardPicker({
   const [query, setQuery] = useState("");
   const [suit, setSuit] = useState<Suit>("All");
   const [reviewingCardId, setReviewingCardId] = useState<number | null>(null);
+  // DU — sort toggle: "number" (Rider–Waite numbering, default) vs "drawn"
+  // (most-drawn first). All-time counts regardless of any filter elsewhere.
+  // Only meaningful in manual-entry mode; photography mode always sorts by
+  // number for predictable tracking.
+  const [sortBy, setSortBy] = useState<"number" | "drawn">("number");
   // Phase 14 (CZ) — `showReversedToggle` is now ignored; the picker fires
   // onSelect immediately with reversed=false. Reverse via in-slot controls.
   void showReversedToggle;
 
   // 9-6-G — per-slot deck switching. Both hooks must run unconditionally.
   const { user } = useAuth();
+  const { effectiveTz } = useTimezone();
   const [decks, setDecks] = useState<CustomDeck[]>([]);
   useEffect(() => {
     if (!user?.id) return;
@@ -116,6 +124,36 @@ export function CardPicker({
       cancelled = true;
     };
   }, [user?.id]);
+
+  // DU — all-time draw counts for every standard tarot card. Fetched once
+  // per user; powers the "Most drawn" sort + the per-card count badge.
+  // All-time (no timeRange filter) regardless of what filters the rest of
+  // Manual Entry is using, so the count is a stable picker reference.
+  const [drawnCounts, setDrawnCounts] = useState<Record<number, number>>({});
+  useEffect(() => {
+    if (!user?.id) {
+      setDrawnCounts({});
+      return;
+    }
+    let cancelled = false;
+    void getCardDrawCounts({
+      data: {
+        cardIds: Array.from({ length: 78 }, (_, i) => i),
+        tz: effectiveTz,
+        filters: { timeRange: "all" as const },
+      },
+    })
+      .then((d) => {
+        if (!cancelled) setDrawnCounts(d.perCard ?? {});
+      })
+      .catch(() => {
+        if (!cancelled) setDrawnCounts({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, effectiveTz]);
+
   const activeResolve = useActiveDeckImage();
   const specificResolve = useDeckImage(deckId ?? null);
   const resolveImg = (idx: number, size: "display" | "thumbnail" = "thumbnail"): string => {
@@ -237,8 +275,19 @@ export function CardPicker({
       const matchedIds = new Set(result.flat.map((e) => e.cardId));
       filtered = filtered.filter((item) => matchedIds.has(item.idx));
     }
+    // DU — sort by selected mode. "number" preserves source order (Rider–
+    // Waite for standard tarot, custom card_id ASC for decks). "drawn" sorts
+    // descending by all-time draw count; ties break on card number ASC.
+    if (sortBy === "drawn") {
+      filtered = [...filtered].sort((a, b) => {
+        const aCount = drawnCounts[a.idx] ?? 0;
+        const bCount = drawnCounts[b.idx] ?? 0;
+        if (aCount !== bCount) return bCount - aCount;
+        return a.idx - b.idx;
+      });
+    }
     return filtered;
-  }, [query, suit, deckId, deckCards]);
+  }, [query, suit, deckId, deckCards, sortBy, drawnCounts]);
 
   const handleTap = (cardIndex: number) => {
     if (mode === "manual-entry" && excluded.has(cardIndex)) return;
@@ -388,6 +437,69 @@ export function CardPicker({
           onChange={setQuery}
           placeholder="Search 78 cards…"
         />
+        {/* DU — sort toggle: card number vs most drawn. Only meaningful in
+            manual-entry mode; photography stays in number order. */}
+        {mode === "manual-entry" && (
+          <div className="flex items-center gap-2">
+            <span
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 11,
+                color: "var(--color-foreground-muted, var(--color-foreground))",
+                opacity: 0.75,
+              }}
+            >
+              Sort:
+            </span>
+            <div
+              role="tablist"
+              style={{
+                display: "inline-flex",
+                height: 24,
+                borderRadius: 9999,
+                border: "1px solid var(--border-subtle)",
+                background: "var(--surface-card)",
+                overflow: "hidden",
+                fontFamily: "var(--font-serif)",
+                fontStyle: "italic",
+                fontSize: 11,
+              }}
+            >
+              {(
+                [
+                  { value: "number", label: "Card number" },
+                  { value: "drawn", label: "Most drawn" },
+                ] as const
+              ).map((opt) => {
+                const active = sortBy === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setSortBy(opt.value)}
+                    style={{
+                      padding: "0 12px",
+                      height: "100%",
+                      border: "none",
+                      background: active
+                        ? "color-mix(in oklab, var(--accent, var(--gold)) 35%, transparent)"
+                        : "transparent",
+                      color: active
+                        ? "var(--color-foreground)"
+                        : "var(--color-foreground-muted, var(--color-foreground))",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {!isOracleDeck && (
           <div className="flex flex-wrap gap-1.5">
             {SUITS.map((s) => (
@@ -416,6 +528,12 @@ export function CardPicker({
             const isShot = mode === "photography" && photographed.has(idx);
             const src = itemSrc ?? resolveImg(idx, "thumbnail");
             const dimDefault = mode === "photography" && !isShot;
+            // DU — draw-count badge shows when sorting by "drawn" so the
+            // seeker can see why a card ranks where it does. Lower-right
+            // of the card, gold pill with white-on-accent number.
+            const drawCount = drawnCounts[idx] ?? 0;
+            const showDrawBadge =
+              mode === "manual-entry" && sortBy === "drawn" && drawCount > 0;
             return (
               <button
                 key={idx}
@@ -442,6 +560,37 @@ export function CardPicker({
                   {isShot && (
                     <div className="absolute right-1 top-1 rounded-full bg-emerald-500/90 p-1 text-white">
                       <Check className="h-3 w-3" />
+                    </div>
+                  )}
+                  {showDrawBadge && (
+                    <div
+                      title={`Drawn ${drawCount} time${drawCount === 1 ? "" : "s"} all-time`}
+                      style={{
+                        position: "absolute",
+                        right: 4,
+                        bottom: 4,
+                        minWidth: 22,
+                        height: 22,
+                        padding: "0 6px",
+                        borderRadius: 9999,
+                        background:
+                          "color-mix(in oklab, var(--gold, var(--accent)) 90%, var(--surface-card) 10%)",
+                        border:
+                          "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+                        color: "var(--background)",
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: 11,
+                        fontWeight: 500,
+                        lineHeight: 1,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        boxShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                        pointerEvents: "none",
+                      }}
+                    >
+                      {drawCount}
                     </div>
                   )}
                   {dimDefault && (
