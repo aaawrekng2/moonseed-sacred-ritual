@@ -170,9 +170,16 @@ export function useConstellationHoverTips(): HoverTipsApi {
     writeState({ enabled: false, snoozedUntil: null });
   }, []);
 
+  // EJ10 — snooze inversion fix. When `snoozedUntil` is set and we're
+  // INSIDE the snooze window (Date.now() < snoozedUntil), tips must be
+  // suppressed — i.e. effectiveEnabled must be FALSE. The previous
+  // formula returned TRUE during the snooze, so selecting "Hide for
+  // 15 minutes / 1 day / 1 week" from the gear menu silently did
+  // nothing. Inverted the comparison: tips are effectively on only
+  // when there is no snooze OR the snooze has already elapsed.
   const effectiveEnabled =
     state.enabled &&
-    (state.snoozedUntil === null || Date.now() < state.snoozedUntil);
+    (state.snoozedUntil === null || Date.now() >= state.snoozedUntil);
 
   return {
     enabled: state.enabled,

@@ -3091,6 +3091,12 @@ export function ConstellationPage() {
                 fontSize: 12,
                 color: "var(--color-foreground)",
                 lineHeight: 1.4,
+                // EJ10 — render newlines in the multi-line stacked
+                // tooltip text (built in OverlapStrip day-cell logic)
+                // as actual line breaks. No layout shift on
+                // single-line tooltips (date-only); just enables
+                // multi-line where the source string contains \n.
+                whiteSpace: "pre-line",
               }}
             >
               {activePopover.tooltipText}
