@@ -457,6 +457,13 @@ function ConstellationSvg({
                   style={{
                     display: "inline-block",
                     width: pos.w,
+                    position: "relative",
+                  }}
+                >
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: pos.w,
                     borderRadius: 6,
                     overflow: "hidden",
                     boxShadow:
@@ -473,126 +480,66 @@ function ConstellationSvg({
                   deckId={heroPick.deckId ?? undefined}
                   size="custom"
                   widthPx={pos.w}
-                  /* EC — opt out of native lazy loading. Inside SVG
-                     foreignObject the browser's lazy heuristics can
-                     stall image fetches, causing 1-5s skeleton delays
-                     when the seeker swaps heroes. eager=true triggers
-                     immediate fetch + high fetchPriority. */
                   eager
                 />
                 </span>
-              </button>
-            </foreignObject>
-            {/* EJ2 — hero teal outline moved to CSS boxShadow on the
-                button so it hugs the actual card image (different
-                decks have different aspect ratios; an SVG rect at
-                pos.w × pos.h surrounds empty letterbox space). */}
-            {/* Phase 24 / DZ — gold count badge, bottom-right of hero.
-                Clickable when onHeroBadgeClick is provided; opens the
-                readings modal scoped to all hero readings. */}
-            {heroDrawCount !== null && heroDrawCount !== undefined && (
-              <foreignObject
-                x={pos.x + pos.w - 16}
-                y={pos.y + pos.h - 16}
-                width={32}
-                height={32}
-                pointerEvents={onHeroBadgeClick ? "auto" : "none"}
-              >
-                <button
-                  type="button"
-                  onClick={
-                    onHeroBadgeClick
-                      ? (e) => {
-                          e.stopPropagation();
-                          onHeroBadgeClick();
-                        }
-                      : undefined
-                  }
-                  onMouseEnter={
-                    onHeroBadgeHover
-                      ? (e) => onHeroBadgeHover(e.clientX, e.clientY)
-                      : undefined
-                  }
-                  onMouseLeave={onHeroBadgeHoverEnd}
-                  aria-label={
-                    onHeroBadgeClick
-                      ? (heroBadgeTooltip ??
-                        `View all ${heroDrawCount} spreads with this card`)
-                      : undefined
-                  }
-                  title={
-                    // EH — suppress native title when parent owns rich popover
-                    onHeroBadgeHover
-                      ? undefined
-                      : onHeroBadgeClick
+                {/* EJ7 — hero gold badge nested INSIDE the inner span
+                    so it anchors to the actual image bottom-right (the
+                    span hugs the image). Previously the badge lived in
+                    a sibling foreignObject anchored to the SLOT
+                    bottom-right; when the deck's aspect was shorter
+                    than 1.7 the badge floated below the image and
+                    clicks missed. Rendered as a div with role=button
+                    because nesting <button> inside <button> is invalid
+                    HTML. stopPropagation prevents the slot click from
+                    firing. */}
+                {heroDrawCount !== null && heroDrawCount !== undefined && (
+                  <div
+                    role={onHeroBadgeClick ? "button" : undefined}
+                    tabIndex={onHeroBadgeClick ? 0 : undefined}
+                    onClick={
+                      onHeroBadgeClick
+                        ? (e) => {
+                            e.stopPropagation();
+                            onHeroBadgeClick();
+                          }
+                        : undefined
+                    }
+                    onMouseEnter={
+                      onHeroBadgeHover
+                        ? (e) => {
+                            e.stopPropagation();
+                            onHeroBadgeHover(e.clientX, e.clientY);
+                          }
+                        : undefined
+                    }
+                    onMouseLeave={(e) => {
+                      e.stopPropagation();
+                      onHeroBadgeHoverEnd?.();
+                    }}
+                    aria-label={
+                      onHeroBadgeClick
                         ? (heroBadgeTooltip ??
                           `View all ${heroDrawCount} spreads with this card`)
                         : undefined
-                  }
-                  disabled={!onHeroBadgeClick}
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 9999,
-                    background:
-                      "color-mix(in oklab, var(--gold, var(--accent)) 90%, var(--surface-card) 10%)",
-                    border:
-                      "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "var(--background)",
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: 13,
-                    lineHeight: 1,
-                    cursor: onHeroBadgeClick ? "pointer" : "default",
-                    padding: 0,
-                  }}
-                >
-                  {heroDrawCount}
-                </button>
-              </foreignObject>
-            )}
-            {/* DZ — teal match-count badge, upper-right of hero card
-                when the hero is the first-clicked teal card and 2+
-                teal cards are selected. Clicking opens the readings
-                modal scoped to the current teal selection. */}
-            {tealBadge &&
-              tealBadge.cardId === constellation.heroCardId &&
-              tealBadge.count > 0 && (
-                <foreignObject
-                  x={pos.x + pos.w - 16}
-                  y={pos.y - 16}
-                  width={32}
-                  height={32}
-                  pointerEvents="auto"
-                >
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onTealBadgeClick?.();
-                    }}
-                    onMouseEnter={
-                      onTealBadgeHover
-                        ? (e) => onTealBadgeHover(e.clientX, e.clientY)
-                        : undefined
                     }
-                    onMouseLeave={onTealBadgeHoverEnd}
-                    aria-label={(tealBadge.tooltip ?? `View ${tealBadge.count} spreads with selected cards`)}
                     title={
-                      onTealBadgeHover
+                      onHeroBadgeHover
                         ? undefined
-                        : (tealBadge.tooltip ??
-                          `View ${tealBadge.count} spreads with selected cards`)
+                        : onHeroBadgeClick
+                          ? (heroBadgeTooltip ??
+                            `View all ${heroDrawCount} spreads with this card`)
+                          : undefined
                     }
                     style={{
+                      position: "absolute",
+                      bottom: -10,
+                      right: -10,
                       width: 32,
                       height: 32,
                       borderRadius: 9999,
-                      background: TRACE_VAR,
+                      background:
+                        "color-mix(in oklab, var(--gold, var(--accent)) 90%, var(--surface-card) 10%)",
                       border:
                         "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
                       boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
@@ -604,14 +551,89 @@ function ConstellationSvg({
                       fontStyle: "italic",
                       fontSize: 13,
                       lineHeight: 1,
-                      cursor: "pointer",
+                      cursor: onHeroBadgeClick ? "pointer" : "default",
                       padding: 0,
+                      zIndex: 2,
                     }}
                   >
-                    {tealBadge.count}
-                  </button>
-                </foreignObject>
-              )}
+                    {heroDrawCount}
+                  </div>
+                )}
+                {/* EJ7 — asterism (teal) badge: same treatment, anchored
+                    to image TOP-right. */}
+                {tealBadge &&
+                  tealBadge.cardId === constellation.heroCardId &&
+                  tealBadge.count > 0 && (
+                    <div
+                      role={onTealBadgeClick ? "button" : undefined}
+                      tabIndex={onTealBadgeClick ? 0 : undefined}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTealBadgeClick?.();
+                      }}
+                      onMouseEnter={
+                        onTealBadgeHover
+                          ? (e) => {
+                              e.stopPropagation();
+                              onTealBadgeHover(e.clientX, e.clientY);
+                            }
+                          : undefined
+                      }
+                      onMouseLeave={(e) => {
+                        e.stopPropagation();
+                        onTealBadgeHoverEnd?.();
+                      }}
+                      aria-label={
+                        tealBadge.tooltip ??
+                        `View ${tealBadge.count} spreads with selected cards`
+                      }
+                      title={
+                        onTealBadgeHover
+                          ? undefined
+                          : (tealBadge.tooltip ??
+                            `View ${tealBadge.count} spreads with selected cards`)
+                      }
+                      style={{
+                        position: "absolute",
+                        top: -10,
+                        right: -10,
+                        width: 32,
+                        height: 32,
+                        borderRadius: 9999,
+                        background: TRACE_VAR,
+                        border:
+                          "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "var(--background)",
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: 13,
+                        lineHeight: 1,
+                        cursor: "pointer",
+                        padding: 0,
+                        zIndex: 2,
+                      }}
+                    >
+                      {tealBadge.count}
+                    </div>
+                  )}
+                </span>
+              </button>
+            </foreignObject>
+            {/* EJ2 — hero teal outline moved to CSS boxShadow on the
+                button so it hugs the actual card image (different
+                decks have different aspect ratios; an SVG rect at
+                pos.w × pos.h surrounds empty letterbox space). */}
+            {/* EJ7 — hero gold + teal badges moved into the inner span
+                (see above) so they anchor to the actual rendered card
+                image, not the SVG slot box. The previous sibling-
+                foreignObject badges below were unreachable on decks
+                whose aspect was shorter than the slot's 1.7 ceiling
+                because they floated in the empty space below the
+                image. */}
           </g>
         );
       })()}
