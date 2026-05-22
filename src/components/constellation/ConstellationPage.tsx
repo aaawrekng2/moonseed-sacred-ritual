@@ -209,7 +209,7 @@ function ColorLegend() {
             }}
           />
         }
-        label="Accent fill · some of your pull cards appeared here (brighter = more)"
+        label="Accent fill · some of your spread cards appeared here (brighter = more)"
       />
       <LegendRow
         swatch={
@@ -222,7 +222,7 @@ function ColorLegend() {
             }}
           />
         }
-        label="Solid ring · 100% match · all your pull cards co-occurred"
+        label="Solid ring · 100% match · all your spread cards co-occurred"
       />
       <LegendRow
         swatch={
@@ -248,7 +248,7 @@ function ColorLegend() {
             }}
           />
         }
-        label="Teal outline · your trace selection co-occurred here"
+        label="Teal outline · your asterism co-occurred here"
       />
     </div>
   );
@@ -286,7 +286,7 @@ function ConstellationLegend() {
             />
           </svg>
         }
-        label="Teal line · click cards to trace — these connect to candidates that also co-occur"
+        label="Teal line · click any card to make it a star — these connect to other cards that also co-occur with your asterism"
       />
       <LegendRow
         swatch={
@@ -301,7 +301,7 @@ function ConstellationLegend() {
             }}
           />
         }
-        label="Gold hero badge · pulls containing the hero card"
+        label="Gold hero badge · readings containing the hero card"
       />
       <LegendRow
         swatch={
@@ -316,7 +316,7 @@ function ConstellationLegend() {
             }}
           />
         }
-        label="Teal badge · pulls or days where your selection co-occurred"
+        label="Teal badge · readings or days where your asterism co-occurred"
       />
     </div>
   );
@@ -383,7 +383,7 @@ function BadgeLegend() {
             />
           </div>
         }
-        label="Intensity · brighter badge = drawn more times among your slot cards"
+        label="Intensity · brighter badge = drawn more times among your spread cards"
       />
       <LegendRow
         swatch={
@@ -398,7 +398,7 @@ function BadgeLegend() {
             }}
           />
         }
-        label="Gold badge · marks the focused slot (your hero card)"
+        label="Gold badge · marks the focused card in your spread (your hero card)"
       />
     </div>
   );
@@ -755,14 +755,15 @@ export function ConstellationPage() {
     clientX: number,
     clientY: number,
   ) => {
-    setHoverCardId(cardId);
     if (cardId !== null) {
       cancelPopoverDismiss();
-      // EI — only update anchor coords when the popover OPENS for a
-      // new card. Subsequent mousemove events over the same card
-      // would otherwise cause the popover to follow the cursor (since
-      // its lockedPos doesn't kick in until the cursor enters the
-      // popover itself). Update coords on first claim only.
+      // EI5 — single source of truth: activePopover. We no longer write
+      // to hoverCardId or hoverCoords on every mousemove — that caused
+      // a re-render per pixel and made the popover stutter. The popover
+      // reads cardId from activePopover.key and coords from
+      // activePopover.anchorX/Y. State setter bails out when the same
+      // card claims the popover at any new coords (idempotent on
+      // cardId), so cursor movement within a single card is a no-op.
       setActivePopover((prev) => {
         if (
           prev &&
@@ -778,13 +779,6 @@ export function ConstellationPage() {
           anchorY: clientY,
         };
       });
-      // Track coords for backward-compat consumers that still read
-      // hoverCoords directly (none currently, but keep in sync).
-      setHoverCoords((prev) =>
-        prev.x === clientX && prev.y === clientY
-          ? prev
-          : { x: clientX, y: clientY },
-      );
     } else {
       // EH — schedule, don't immediately close. Lets the cursor travel
       // to the popover and the ⓘ icon without dismissing.
@@ -1642,7 +1636,7 @@ export function ConstellationPage() {
                 TAROT_DECK[heroPick.cardIndex] ??
                 "this card";
               const count = drawCounts?.perCard[heroPick.cardIndex] ?? 0;
-              const unit = count === 1 ? "PULL" : "PULLS";
+              const unit = count === 1 ? "READING" : "READINGS";
               return `${count} ${unit} · ${heroName}`;
             })()}
             tealBadge={
@@ -1655,7 +1649,7 @@ export function ConstellationPage() {
                     count: tealCount,
                     tooltip: (() => {
                       const unit = overlapMode === "pull"
-                        ? (tealCount === 1 ? "PULL" : "PULLS")
+                        ? (tealCount === 1 ? "READING" : "READINGS")
                         : (tealCount === 1 ? "DAY" : "DAYS");
                       const names = tealSelectedIds
                         .map((id) => TAROT_DECK[id] ?? "Card")
@@ -1684,7 +1678,7 @@ export function ConstellationPage() {
                 anchorY: clientY,
                 variant: "hero",
                 count,
-                modeOrPullsLabel: count === 1 ? "1 PULL" : `${count} PULLS`,
+                modeOrPullsLabel: count === 1 ? "1 READING" : `${count} READINGS`,
                 cardLabel: heroName,
               });
             }}
@@ -1698,8 +1692,8 @@ export function ConstellationPage() {
               const unit =
                 overlapMode === "pull"
                   ? tealCount === 1
-                    ? "1 PULL"
-                    : `${tealCount} PULLS`
+                    ? "1 READING"
+                    : `${tealCount} READINGS`
                   : tealCount === 1
                     ? "1 DAY"
                     : `${tealCount} DAYS`;
@@ -2303,7 +2297,7 @@ export function ConstellationPage() {
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Notes — your reflections, observations, anything that helps you remember this pull."
+                placeholder="Notes — your reflections, observations, anything that helps you remember this reading."
                 rows={2}
                 style={{
                   width: "100%",
@@ -2379,7 +2373,7 @@ export function ConstellationPage() {
       {picks.length > 0 && (
         <div style={{ padding: "0 24px", marginTop: 8 }}>
           <SectionDivider />
-          <SectionOverline label="THIS PULL" />
+          <SectionOverline label="YOUR SPREAD" />
           <ThisPullTiles picks={picks} />
         </div>
       )}
@@ -2626,7 +2620,7 @@ export function ConstellationPage() {
           if (modalMode === "teal") {
             const n = tealCount;
             const unit = overlapMode === "pull"
-              ? (n === 1 ? "PULL" : "PULLS")
+              ? (n === 1 ? "READING" : "READINGS")
               : (n === 1 ? "DAY" : "DAYS");
             const tealNames = tealSelectedIds
               .map((id) => TAROT_DECK[id] ?? "Card")
@@ -2638,7 +2632,7 @@ export function ConstellationPage() {
             ? (heroPick.cardName ?? TAROT_DECK[heroPick.cardIndex] ?? "this card")
             : null;
           const n = heroMatchedReadings.length;
-          const unit = n === 1 ? "PULL" : "PULLS";
+          const unit = n === 1 ? "READING" : "READINGS";
           if (!heroName) return "Recent Readings";
           return `${n} ${unit} with ${heroName}`;
         })()}
@@ -2699,18 +2693,22 @@ export function ConstellationPage() {
           card meaning has no deeper level). Gated on activePopover so
           only one popover renders at a time. */}
       {(() => {
-        const active =
-          activePopover?.kind === "card-meaning" && hoverCardId !== null;
-        const m = hoverCardId !== null ? TAROT_MEANINGS[hoverCardId] : null;
-        if (!m || !active || activePopover?.kind !== "card-meaning")
-          return null;
+        // EI5 — drive popover purely from activePopover state. cardId
+        // is derived from activePopover.key (which is stable while
+        // cursor stays on the same card). Removing the hoverCardId
+        // gating means the popover survives source mouseLeave; the
+        // shared dismiss timer + hover-bridge are what close it.
+        if (activePopover?.kind !== "card-meaning") return null;
+        const cardId = Number(activePopover.key);
+        if (!Number.isFinite(cardId)) return null;
+        const m = TAROT_MEANINGS[cardId];
+        if (!m) return null;
         return (
           <RichPopover
-            open={active}
+            open
             anchorX={activePopover.anchorX}
             anchorY={activePopover.anchorY}
             onClose={() => {
-              setHoverCardId(null);
               closeActivePopover("card-meaning");
             }}
             onCancelDismiss={cancelPopoverDismiss}
@@ -2959,7 +2957,7 @@ export function ConstellationPage() {
           >
             {activePopover.variant === "hero"
               ? `Gold hero badge`
-              : `Teal selection badge`}
+              : `Teal asterism badge`}
           </div>
           <div
             style={{
@@ -2972,7 +2970,7 @@ export function ConstellationPage() {
           >
             {activePopover.variant === "hero" ? (
               <>
-                {activePopover.count} pulls contain{" "}
+                {activePopover.count} readings contain{" "}
                 <span
                   style={{
                     fontStyle: "italic",
@@ -2985,7 +2983,7 @@ export function ConstellationPage() {
               </>
             ) : (
               <>
-                {activePopover.modeOrPullsLabel} where your selection
+                {activePopover.modeOrPullsLabel} where your asterism
                 co-occurred:{" "}
                 <span
                   style={{

@@ -88,7 +88,7 @@ const SPREADS: {
     id: "yes_no",
     label: "Yes / No",
     Glyph: DiamondGlyph,
-    hint: "Quick directional pull.",
+    hint: "Quick directional draw.",
   },
   {
     id: "custom",

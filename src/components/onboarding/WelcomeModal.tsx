@@ -105,7 +105,7 @@ export function WelcomeModal({ open, onClose }: Props) {
       <div style={{ display: "grid", gap: 12 }}>
         <Item
           icon={<Wand2 size={16} />}
-          text="Pull cards from the home screen whenever you feel called."
+          text="Draw cards from the home screen whenever you feel called."
         />
         <Item
           icon={<BookOpen size={16} />}
