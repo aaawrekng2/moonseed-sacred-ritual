@@ -73,6 +73,9 @@ import { useNavigate } from "@tanstack/react-router";
 import { useStreak } from "@/lib/use-streak";
 import { getLunationContaining } from "@/lib/lunation";
 import { GlobalFilterBar } from "@/components/filters/GlobalFilterBar";
+import { HoverTipsToggle } from "@/components/constellation/HoverTipsToggle";
+import { HoverTipsGear } from "@/components/constellation/HoverTipsGear";
+import { useConstellationHoverTips } from "@/lib/use-constellation-hover-tips";
 import {
   EMPTY_GLOBAL_FILTERS,
   countActiveFilters,
@@ -409,6 +412,11 @@ export function ConstellationPage() {
   const { effectiveTz } = useTimezone();
   const navigate = useNavigate();
   const confirm = useConfirm();
+
+  // EJ5 — master switch for hover tips on this surface. When
+  // effectiveEnabled is false, all popovers (legend ⓘ, card, badge,
+  // day-cell, line) are suppressed without removing their triggers.
+  const { effectiveEnabled: hoverTipsOn } = useConstellationHoverTips();
 
   // Phase 18 Fix 6 — hide the global BottomNav on /constellation.
   useRegisterTabletopActive(true);
@@ -1554,25 +1562,37 @@ export function ConstellationPage() {
         </div>
       </div>
 
-      {/* Phase 23 Fix 3 — filter row below H1. */}
-      <div style={{ padding: "4px 24px 0" }}>
-        <GlobalFilterBar
-          filters={globalFilters}
-          onChange={setGlobalFilters}
-          sections={["tags", "spreadTypes", "depth", "reversed"]}
-          userTags={userTags}
-          drawerOpen={globalDrawerOpen}
-          onDrawerOpenChange={setGlobalDrawerOpen}
-          timeRange={{
-            value: globalFilters.timeRange ?? DEFAULT_TIMEFRAME,
-            options: TIMEFRAME_OPTIONS.map((o) => ({
-              value: o.value,
-              label: o.label,
-            })),
-            onChange: (v) =>
-              setGlobalFilters((prev) => ({ ...prev, timeRange: v })),
-          }}
-        />
+      {/* Phase 23 Fix 3 — filter row below H1. EJ5 — HoverTipsToggle
+          sits to the right of the GlobalFilterBar, in the same row,
+          aligned with the filter pill baseline. */}
+      <div
+        style={{
+          padding: "4px 24px 0",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <GlobalFilterBar
+            filters={globalFilters}
+            onChange={setGlobalFilters}
+            sections={["tags", "spreadTypes", "depth", "reversed"]}
+            userTags={userTags}
+            drawerOpen={globalDrawerOpen}
+            onDrawerOpenChange={setGlobalDrawerOpen}
+            timeRange={{
+              value: globalFilters.timeRange ?? DEFAULT_TIMEFRAME,
+              options: TIMEFRAME_OPTIONS.map((o) => ({
+                value: o.value,
+                label: o.label,
+              })),
+              onChange: (v) =>
+                setGlobalFilters((prev) => ({ ...prev, timeRange: v })),
+            }}
+          />
+        </div>
+        <HoverTipsToggle />
       </div>
 
       {/* Phase 19 Fix 10 — Echo banner above the entry row */}
@@ -2699,6 +2719,7 @@ export function ConstellationPage() {
         // gating means the popover survives source mouseLeave; the
         // shared dismiss timer + hover-bridge are what close it.
         if (activePopover?.kind !== "card-meaning") return null;
+        if (!hoverTipsOn) return null;
         const cardId = Number(activePopover.key);
         if (!Number.isFinite(cardId)) return null;
         const m = TAROT_MEANINGS[cardId];
@@ -2717,6 +2738,7 @@ export function ConstellationPage() {
             }
             chainedContent={<ConstellationLegend />}
             chainedTitle="How the constellation works"
+            extraTopRightControl={<HoverTipsGear />}
           >
             <div
               style={{
@@ -2811,7 +2833,7 @@ export function ConstellationPage() {
       {/* EG — slot card badge hint popover ("This card has appeared in N
           of your past readings."). Same RichPopover style as the card
           meaning popover, replacing the prior native title="" tooltip. */}
-      {activePopover?.kind === "badge-hint" && (
+      {activePopover?.kind === "badge-hint" && hoverTipsOn && (
         <RichPopover
           open
           anchorX={activePopover.anchorX}
@@ -2823,6 +2845,7 @@ export function ConstellationPage() {
           }
           chainedContent={<BadgeLegend />}
           chainedTitle="About badges"
+            extraTopRightControl={<HoverTipsGear />}
           maxWidth={240}
         >
           <div
@@ -2863,7 +2886,7 @@ export function ConstellationPage() {
           has any visual signals active (gold hero fill, ring, dashed,
           teal trace), an ⓘ icon appears in the corner and chains to a
           color legend explaining each signal active on THIS cell. */}
-      {activePopover?.kind === "day-cell" && (() => {
+      {activePopover?.kind === "day-cell" && hoverTipsOn && (() => {
         return (
           <RichPopover
             open
@@ -2876,6 +2899,7 @@ export function ConstellationPage() {
             }
             chainedContent={<ColorLegend />}
             chainedTitle="What the colors mean"
+            extraTopRightControl={<HoverTipsGear />}
             maxWidth={300}
           >
             <div
@@ -2895,7 +2919,7 @@ export function ConstellationPage() {
           right-column chips (LAST SEEN / TIME PATTERN / FREQUENCY /
           MOON PHASE / REVERSED). Same dark style as the other rich
           popovers. No ⓘ — the tooltip IS the explanation. */}
-      {activePopover?.kind === "chip-hint" && (
+      {activePopover?.kind === "chip-hint" && hoverTipsOn && (
         <RichPopover
           open
           anchorX={activePopover.anchorX}
@@ -2932,7 +2956,7 @@ export function ConstellationPage() {
       {/* EH — Constellation badge popovers (gold hero badge + teal
           selection badge in the SVG web). Each shows a count + brief
           description, and chains to the constellation legend. */}
-      {activePopover?.kind === "constellation-badge" && (
+      {activePopover?.kind === "constellation-badge" && hoverTipsOn && (
         <RichPopover
           open
           anchorX={activePopover.anchorX}
@@ -2944,6 +2968,7 @@ export function ConstellationPage() {
           }
           chainedContent={<ConstellationLegend />}
           chainedTitle="How the constellation works"
+            extraTopRightControl={<HoverTipsGear />}
           maxWidth={280}
         >
           <div

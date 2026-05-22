@@ -333,9 +333,14 @@ function ConstellationSvg({
 
   return (
     <svg
-      viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+      // EJ5 — viewBox extended 32px above 0 (was 20) to ensure the
+      // asterism badge (32px tall, anchored at pos.y - 16 = -12 in
+      // SVG coords) renders fully. Also style.overflow: visible so the
+      // SVG element box does not clip negative-y children even if a
+      // parent container would otherwise. Width unchanged.
+      viewBox={`0 -32 ${SVG_W} ${SVG_H + 32}`}
       width="100%"
-      style={{ display: "block" }}
+      style={{ display: "block", overflow: "visible" }}
       role="img"
       aria-label="constellation web of cards that have appeared together"
     >
@@ -431,13 +436,30 @@ function ConstellationSvg({
                   border: "none",
                   background: "transparent",
                   cursor: "pointer",
-                  borderRadius: 6,
-                  boxShadow:
-                    "0 0 0 2px var(--accent, var(--gold)), 0 0 18px color-mix(in oklab, var(--accent, var(--gold)) 35%, transparent)",
-                  overflow: "hidden",
-                  display: "block",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "center",
                 }}
               >
+                {/* EJ5 — inner wrapper carries the accent ring (and the
+                    teal outline when this card is in the asterism). The
+                    button stays slot-sized (pos.h) so the gold hero badge
+                    and asterism badge anchor predictably to the slot
+                    corners. The ring hugs the actual rendered card image
+                    via this auto-height wrapper. */}
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: pos.w,
+                    borderRadius: 6,
+                    overflow: "hidden",
+                    boxShadow:
+                      "0 0 0 2px var(--accent, var(--gold)), 0 0 18px color-mix(in oklab, var(--accent, var(--gold)) 35%, transparent)" +
+                      (heroInTeal
+                        ? `, 0 0 0 5px var(--background), 0 0 0 7px ${TRACE_VAR}`
+                        : ""),
+                  }}
+                >
                 <CardImage
                   variant="face"
                   cardId={constellation.heroCardId}
@@ -452,21 +474,13 @@ function ConstellationSvg({
                      immediate fetch + high fetchPriority. */
                   eager
                 />
+                </span>
               </button>
             </foreignObject>
-            {heroInTeal && (
-              <rect
-                x={pos.x - 5}
-                y={pos.y - 5}
-                width={pos.w + 10}
-                height={pos.h + 10}
-                rx={8}
-                fill="none"
-                stroke={TRACE_VAR}
-                strokeWidth={2.5}
-                pointerEvents="none"
-              />
-            )}
+            {/* EJ2 — hero teal outline moved to CSS boxShadow on the
+                button so it hugs the actual card image (different
+                decks have different aspect ratios; an SVG rect at
+                pos.w × pos.h surrounds empty letterbox space). */}
             {/* Phase 24 / DZ — gold count badge, bottom-right of hero.
                 Clickable when onHeroBadgeClick is provided; opens the
                 readings modal scoped to all hero readings. */}
@@ -497,7 +511,7 @@ function ConstellationSvg({
                   aria-label={
                     onHeroBadgeClick
                       ? (heroBadgeTooltip ??
-                        `View all ${heroDrawCount} readings with this card`)
+                        `View all ${heroDrawCount} spreads with this card`)
                       : undefined
                   }
                   title={
@@ -506,7 +520,7 @@ function ConstellationSvg({
                       ? undefined
                       : onHeroBadgeClick
                         ? (heroBadgeTooltip ??
-                          `View all ${heroDrawCount} readings with this card`)
+                          `View all ${heroDrawCount} spreads with this card`)
                         : undefined
                   }
                   disabled={!onHeroBadgeClick}
@@ -561,12 +575,12 @@ function ConstellationSvg({
                         : undefined
                     }
                     onMouseLeave={onTealBadgeHoverEnd}
-                    aria-label={(tealBadge.tooltip ?? `View ${tealBadge.count} readings with selected cards`)}
+                    aria-label={(tealBadge.tooltip ?? `View ${tealBadge.count} spreads with selected cards`)}
                     title={
                       onTealBadgeHover
                         ? undefined
                         : (tealBadge.tooltip ??
-                          `View ${tealBadge.count} readings with selected cards`)
+                          `View ${tealBadge.count} spreads with selected cards`)
                     }
                     style={{
                       width: 32,
@@ -636,10 +650,25 @@ function ConstellationSvg({
                   border: "none",
                   background: "transparent",
                   cursor: "pointer",
-                  borderRadius: 4,
-                  overflow: "hidden",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "center",
                 }}
               >
+                {/* EJ5 — inner wrapper carries the teal outline when the
+                    companion is in the asterism. Button stays slot-sized
+                    so x{N} labels and badges position predictably. */}
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: pos.w,
+                    borderRadius: 4,
+                    overflow: "hidden",
+                    boxShadow: inTeal
+                      ? `0 0 0 2px ${TRACE_VAR}`
+                      : undefined,
+                  }}
+                >
                 <CardImage
                   variant="face"
                   cardId={c.cardId}
@@ -649,21 +678,11 @@ function ConstellationSvg({
                      to all companion cards. */
                   eager
                 />
+                </span>
               </button>
             </foreignObject>
-            {inTeal && (
-              <rect
-                x={pos.x - 3}
-                y={pos.y - 3}
-                width={pos.w + 6}
-                height={pos.h + 6}
-                rx={6}
-                fill="none"
-                stroke={TRACE_VAR}
-                strokeWidth={2}
-                pointerEvents="none"
-              />
-            )}
+            {/* EJ2 — companion teal outline moved to CSS boxShadow on
+                the button (same reason as hero). */}
             <text
               x={pos.x + pos.w / 2}
               y={pos.y + pos.h + 14}
@@ -699,12 +718,12 @@ function ConstellationSvg({
                         : undefined
                     }
                     onMouseLeave={onTealBadgeHoverEnd}
-                    aria-label={(tealBadge.tooltip ?? `View ${tealBadge.count} readings with selected cards`)}
+                    aria-label={(tealBadge.tooltip ?? `View ${tealBadge.count} spreads with selected cards`)}
                     title={
                       onTealBadgeHover
                         ? undefined
                         : (tealBadge.tooltip ??
-                          `View ${tealBadge.count} readings with selected cards`)
+                          `View ${tealBadge.count} spreads with selected cards`)
                     }
                     style={{
                       width: 28,
