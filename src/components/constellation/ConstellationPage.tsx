@@ -271,7 +271,7 @@ function ConstellationLegend() {
             />
           </svg>
         }
-        label="Accent line · this card has co-occurred with the hero in past readings"
+        label="Accent line · this card has co-occurred with the hero in past spreads"
       />
       <LegendRow
         swatch={
@@ -301,7 +301,7 @@ function ConstellationLegend() {
             }}
           />
         }
-        label="Gold hero badge · readings containing the hero card"
+        label="Gold hero badge · spreads (matching your filters) containing the hero card"
       />
       <LegendRow
         swatch={
@@ -316,7 +316,7 @@ function ConstellationLegend() {
             }}
           />
         }
-        label="Teal badge · readings or days where your asterism co-occurred"
+        label="Teal badge · spreads or days (matching your filters) where your asterism co-occurred"
       />
     </div>
   );
@@ -349,7 +349,7 @@ function BadgeLegend() {
             n
           </div>
         }
-        label="Number · how many of your past readings include this card"
+        label="Number · how many of your past spreads include this card"
       />
       <LegendRow
         swatch={
@@ -1636,7 +1636,7 @@ export function ConstellationPage() {
                 TAROT_DECK[heroPick.cardIndex] ??
                 "this card";
               const count = drawCounts?.perCard[heroPick.cardIndex] ?? 0;
-              const unit = count === 1 ? "READING" : "READINGS";
+              const unit = count === 1 ? "SPREAD" : "SPREADS";
               return `${count} ${unit} · ${heroName}`;
             })()}
             tealBadge={
@@ -1649,7 +1649,7 @@ export function ConstellationPage() {
                     count: tealCount,
                     tooltip: (() => {
                       const unit = overlapMode === "pull"
-                        ? (tealCount === 1 ? "READING" : "READINGS")
+                        ? (tealCount === 1 ? "SPREAD" : "SPREADS")
                         : (tealCount === 1 ? "DAY" : "DAYS");
                       const names = tealSelectedIds
                         .map((id) => TAROT_DECK[id] ?? "Card")
@@ -1678,7 +1678,7 @@ export function ConstellationPage() {
                 anchorY: clientY,
                 variant: "hero",
                 count,
-                modeOrPullsLabel: count === 1 ? "1 READING" : `${count} READINGS`,
+                modeOrPullsLabel: count === 1 ? "1 SPREAD" : `${count} SPREADS`,
                 cardLabel: heroName,
               });
             }}
@@ -1692,8 +1692,8 @@ export function ConstellationPage() {
               const unit =
                 overlapMode === "pull"
                   ? tealCount === 1
-                    ? "1 READING"
-                    : `${tealCount} READINGS`
+                    ? "1 SPREAD"
+                    : `${tealCount} SPREADS`
                   : tealCount === 1
                     ? "1 DAY"
                     : `${tealCount} DAYS`;
@@ -2297,7 +2297,7 @@ export function ConstellationPage() {
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Notes — your reflections, observations, anything that helps you remember this reading."
+                placeholder="Notes — your reflections, observations, anything that helps you remember this spread."
                 rows={2}
                 style={{
                   width: "100%",
@@ -2620,7 +2620,7 @@ export function ConstellationPage() {
           if (modalMode === "teal") {
             const n = tealCount;
             const unit = overlapMode === "pull"
-              ? (n === 1 ? "READING" : "READINGS")
+              ? (n === 1 ? "SPREAD" : "SPREADS")
               : (n === 1 ? "DAY" : "DAYS");
             const tealNames = tealSelectedIds
               .map((id) => TAROT_DECK[id] ?? "Card")
@@ -2632,8 +2632,8 @@ export function ConstellationPage() {
             ? (heroPick.cardName ?? TAROT_DECK[heroPick.cardIndex] ?? "this card")
             : null;
           const n = heroMatchedReadings.length;
-          const unit = n === 1 ? "READING" : "READINGS";
-          if (!heroName) return "Recent Readings";
+          const unit = n === 1 ? "SPREAD" : "SPREADS";
+          if (!heroName) return "Recent Spreads";
           return `${n} ${unit} with ${heroName}`;
         })()}
         matches={
@@ -2970,7 +2970,7 @@ export function ConstellationPage() {
           >
             {activePopover.variant === "hero" ? (
               <>
-                {activePopover.count} readings contain{" "}
+                {activePopover.count} spreads matching your filters contain{" "}
                 <span
                   style={{
                     fontStyle: "italic",
@@ -2978,13 +2978,12 @@ export function ConstellationPage() {
                   }}
                 >
                   {activePopover.cardLabel}
-                </span>{" "}
-                in your history.
+                </span>
+                .
               </>
             ) : (
               <>
-                {activePopover.modeOrPullsLabel} where your asterism
-                co-occurred:{" "}
+                {activePopover.modeOrPullsLabel} matching your filters where your asterism co-occurred:{" "}
                 <span
                   style={{
                     fontStyle: "italic",
@@ -3085,12 +3084,12 @@ export function ConstellationPage() {
         title={
           dayPopover.date
             ? formatDateShort(`${dayPopover.date}T00:00:00`)
-            : "Readings"
+            : "Spreads"
         }
         subtitle={(() => {
           if (!dayPopover.date) return undefined;
           const list = overlap?.readingsByDate?.[dayPopover.date] ?? [];
-          return `${list.length} ${list.length === 1 ? "reading" : "readings"}`;
+          return `${list.length} ${list.length === 1 ? "spread" : "spreads"}`;
         })()}
         size="sm"
       >
@@ -3350,8 +3349,8 @@ function ReadingsModal({
                 }}
               >
                 {filtersActive
-                  ? "No readings match these filters."
-                  : "No matching readings."}
+                  ? "No spreads match these filters."
+                  : "No matching spreads."}
               </p>
               {filtersActive && onClearFilters && (
                 <button

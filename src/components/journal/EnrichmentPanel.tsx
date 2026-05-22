@@ -612,7 +612,7 @@ export function EnrichmentPanel({
 
   return (
     <section
-      aria-label="Enrich this reading"
+      aria-label="Enrich this spread"
       className="mx-auto mt-10 max-w-prose"
     >
       <PatternSurfacingLine readingId={reading.id} />
@@ -740,7 +740,7 @@ export function EnrichmentPanel({
           shape="free"
           outputMaxDimension={1600}
           outputQuality={0.85}
-          guideText="Capture this reading"
+          guideText="Capture this spread"
           onCancel={() => setCameraOpen(false)}
           onCapture={async (blob) => {
             setCameraOpen(false);
@@ -781,7 +781,7 @@ export function EnrichmentPanel({
             onChange={(e) => handleNoteChange(e.target.value)}
             placeholder={
               defaultNoteOpen
-                ? "What does this reading mean to you?"
+                ? "What does this spread mean to you?"
                 : "Add a note…"
             }
             className="w-full resize-none rounded-md font-display text-[15px] italic text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
@@ -938,7 +938,7 @@ export function EnrichmentPanel({
                     >
                       <img
                         src={photoUrls[p.id]}
-                        alt={p.caption ?? "Reading photo"}
+                        alt={p.caption ?? "Spread photo"}
                         loading="lazy"
                         className="h-full w-full object-cover"
                         style={{ opacity: "var(--ro-plus-40)" }}
@@ -1146,7 +1146,7 @@ function StoryMembershipIcon({
           <AlertDialogHeader>
             <AlertDialogTitle>Story membership</AlertDialogTitle>
             <AlertDialogDescription>
-              This reading is part of{" "}
+              This spread is part of{" "}
               {memberOf.length === 1
                 ? `the “${memberOf[0].name}” Story`
                 : `${memberOf.length} Stories`}
@@ -1612,7 +1612,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
         }}
       >
         <span style={{ color: "color-mix(in oklab, var(--foreground) 70%, transparent)" }}>
-          This reading aligns with your{" "}
+          This spread aligns with your{" "}
         </span>
         <Link
           to="/stories"
@@ -1643,7 +1643,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
   const heading =
     s.resonance >= 0.7
       ? "An echo from your past."
-      : "This reading touches a Story.";
+      : "This spread touches a Story.";
   const rarity =
     s.resonance >= 0.7
       ? `This is rare. Your draw shares ${s.sharedCards.length} of ${s.drawSize} cards with this Story, which contains only ${s.poolSize} unique cards.`
@@ -1806,7 +1806,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
         >
           {s.name} contains {s.poolSize} unique{" "}
           {s.poolSize === 1 ? "card" : "cards"} across {s.readingCount}{" "}
-          {s.readingCount === 1 ? "reading" : "readings"}:{" "}
+          {s.readingCount === 1 ? "spread" : "spreads"}:{" "}
           {s.storyCardPool.map((id) => getCardName(id)).join(", ")}.
         </p>
       )}
@@ -1849,7 +1849,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
             }}
           />
         )}
-        {isAttaching ? "Connecting…" : "Connect this reading"}
+        {isAttaching ? "Connecting…" : "Connect this spread"}
       </button>
       <button
         type="button"
@@ -1906,7 +1906,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
               Connect this reading to a Story?
             </h3>
             <p style={{ marginTop: 12, fontSize: "var(--text-body-sm)", lineHeight: 1.6, opacity: 0.85 }}>
-              Connecting links this reading to the <strong style={{ color: "var(--gold)" }}>{hintTarget.name}</strong> Story.
+              Connecting links this spread to the <strong style={{ color: "var(--gold)" }}>{hintTarget.name}</strong> Story.
               Once connected, this reading appears in the Story's collection,
               and Tarot Seed tracks how the Story evolves over time.
             </p>
@@ -1968,7 +1968,7 @@ function PatternSurfacingLine({ readingId }: { readingId: string }) {
  * the optional premium "tailored prompt" cycler position, and the AI
  * fetch that fires when the seeker taps "Tap to use" on that slot.
  */
-const TAILORED_PLACEHOLDER = "Get a tailored prompt for this reading";
+const TAILORED_PLACEHOLDER = "Get a tailored prompt for this spread";
 
 function JournalPromptsSlot({
   cardIds,
@@ -2037,7 +2037,7 @@ function JournalPromptsSlot({
           switch (res.error) {
             case "question_required": {
               toast(
-                "Add a question to this reading first — tailored prompts use it for context.",
+                "Add a question to this spread first — tailored prompts use it for context.",
               );
               const qInput = document.querySelector(
                 "[data-reading-question-input]",
@@ -2049,7 +2049,7 @@ function JournalPromptsSlot({
               break;
             }
             case "not_found":
-              toast.error("Reading not found.");
+              toast.error("Spread not found.");
               break;
             case "ai_unavailable":
               toast.error(

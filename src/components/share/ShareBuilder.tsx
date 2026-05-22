@@ -76,7 +76,7 @@ type LevelSpec = {
 };
 
 const LEVEL_SPECS: Record<ShareLevel, LevelSpec> = {
-  pull:     { id: "pull",     label: "Pull",     icon: Wand2, captureBackground: "#06060c" },
+  pull:     { id: "pull",     label: "Cards",    icon: Wand2, captureBackground: "#06060c" },
   reading:  { id: "reading",  label: "Reading",  icon: Layers,   captureBackground: "#07070d" },
   position: { id: "position", label: "Position", icon: Quote,    captureBackground: "#07070d" },
   lens:     { id: "lens",     label: "Lens",     icon: Eye,      captureBackground: "#050509" },

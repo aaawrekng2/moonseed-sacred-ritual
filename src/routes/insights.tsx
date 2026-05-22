@@ -554,7 +554,7 @@ function OverviewTab({
             opacity: 0.9,
           }}
         >
-          Insights become richer as you read more. Currently showing data from {overview.totalReadings} reading{overview.totalReadings === 1 ? "" : "s"}.
+          Insights become richer as you read more. Currently showing data from {overview.totalReadings} spread{overview.totalReadings === 1 ? "" : "s"}.
         </div>
       )}
 

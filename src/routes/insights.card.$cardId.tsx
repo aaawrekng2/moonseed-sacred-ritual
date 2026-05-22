@@ -347,7 +347,7 @@ function CardTraceRoute() {
         {/* 3h + 3i — Readings list and AI reflection */}
         <div className="mx-auto flex max-w-md flex-col gap-4">
           {data && data.totalCount === 0 && (
-            <EmptyNote text="This card hasn't appeared in your readings yet." />
+            <EmptyNote text="This card hasn't appeared in your spreads yet." />
           )}
 
           {data && count > 0 && (
@@ -725,7 +725,7 @@ function ReadingsList({
         Your readings with this card
       </h2>
       {appearances.length === 0 ? (
-        <EmptyNote text="No readings in this time window." />
+        <EmptyNote text="No spreads in this time window." />
       ) : (
         <div className="flex flex-col">
           {appearances.map((a) => (

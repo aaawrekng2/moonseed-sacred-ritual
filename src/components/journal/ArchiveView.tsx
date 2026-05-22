@@ -95,7 +95,7 @@ export function ArchiveView({
       void load();
       return;
     }
-    toast.success("Reading restored.");
+    toast.success("Spread restored.");
     onChanged?.();
   };
 
@@ -111,7 +111,7 @@ export function ArchiveView({
       void load();
       return;
     }
-    toast.success("Reading deleted.");
+    toast.success("Spread deleted.");
     onChanged?.();
   };
 
