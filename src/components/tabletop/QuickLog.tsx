@@ -1336,12 +1336,40 @@ type ChipProps = {
   value: string;
   fullWidth?: boolean;
   tooltip?: string;
+  /** EH — when wired, native title="" is suppressed and the parent
+   * handles the popover via these callbacks. */
+  onChipHover?: (info: {
+    label: string;
+    tooltip: string;
+    anchorX: number;
+    anchorY: number;
+  }) => void;
+  onChipHoverEnd?: () => void;
 };
 
-function Chip({ label, value, fullWidth, tooltip }: ChipProps) {
+function Chip({
+  label,
+  value,
+  fullWidth,
+  tooltip,
+  onChipHover,
+  onChipHoverEnd,
+}: ChipProps) {
   return (
     <div
-      title={tooltip}
+      title={onChipHover ? undefined : tooltip}
+      onMouseEnter={
+        onChipHover && tooltip
+          ? (e) =>
+              onChipHover({
+                label,
+                tooltip,
+                anchorX: e.clientX,
+                anchorY: e.clientY,
+              })
+          : undefined
+      }
+      onMouseLeave={onChipHoverEnd}
       style={{
         width: fullWidth ? 390 : 190,
         height: 38,
@@ -1391,9 +1419,20 @@ function Chip({ label, value, fullWidth, tooltip }: ChipProps) {
 function ChipGrid({
   heroPick,
   stats,
+  onChipHover,
+  onChipHoverEnd,
 }: {
   heroPick: ManualPick;
   stats: QuickLogCardStats | null;
+  /** EH — passes through to every Chip. When provided, native title=""
+   * is suppressed and the parent drives a RichPopover. */
+  onChipHover?: (info: {
+    label: string;
+    tooltip: string;
+    anchorX: number;
+    anchorY: number;
+  }) => void;
+  onChipHoverEnd?: () => void;
 }) {
   // LAST SEEN
   let lastSeen = "—";
@@ -1465,16 +1504,22 @@ function ChipGrid({
           label="LAST SEEN"
           value={lastSeen}
           tooltip="The most recent day this card appeared in any of your readings. Example: 'May 16 · 3d ago' means you drew this card 3 days ago, on May 16."
+          onChipHover={onChipHover}
+          onChipHoverEnd={onChipHoverEnd}
         />
         <Chip
           label="TIME PATTERN"
           value={timePattern}
           tooltip="The day of the week this card has shown up most often across your history. Example: 'Sundays · 3 of 7' means 3 of the 7 times you've drawn this card were on Sundays."
+          onChipHover={onChipHover}
+          onChipHoverEnd={onChipHoverEnd}
         />
         <Chip
           label="REVERSED"
           value={reversed}
           tooltip="How often this card has appeared reversed for you, compared to your overall reversed-card rate. Example: '1 of 11 reversed (9%) · above your 7% avg' means this card came up reversed once out of 11 draws, slightly above your average."
+          onChipHover={onChipHover}
+          onChipHoverEnd={onChipHoverEnd}
         />
       </div>
       <div style={{ display: "flex", gap: 10 }}>
@@ -1482,11 +1527,15 @@ function ChipGrid({
           label="FREQUENCY"
           value={frequency}
           tooltip="Where this card sits in your personal draw history. Example: '#3 most-drawn · 47 times' means it's your third-most-pulled card across all your readings. 'Rare for you' means it's appeared 5 or fewer times in your full history."
+          onChipHover={onChipHover}
+          onChipHoverEnd={onChipHoverEnd}
         />
         <Chip
           label="MOON PHASE"
           value={moonPhase}
           tooltip="The moon phase during your draws of this card. Example: 'Most under Full Moon · 4 of 12' means 4 of the 12 times you've drawn this card, it was during a Full Moon. Otherwise shows the phase during your most recent draw."
+          onChipHover={onChipHover}
+          onChipHoverEnd={onChipHoverEnd}
         />
       </div>
     </div>
