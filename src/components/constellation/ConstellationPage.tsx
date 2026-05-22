@@ -1965,15 +1965,23 @@ export function ConstellationPage() {
                         className="tarotseed-constellation-breathe"
                         style={{
                           position: "absolute",
-                          top: -8,
-                          left: -8,
-                          right: -8,
-                          bottom: -8,
+                          // EI2 — tighter outset so the glow hugs the card.
+                          // -8 was too far and the top edge clipped against
+                          // the chip-grid row above. -3 keeps the glow flush
+                          // with the card edges and stays within the slot's
+                          // visual envelope.
+                          top: -3,
+                          left: -3,
+                          right: -3,
+                          bottom: -3,
+                          // EI2 — brighter at the inner band so the glow
+                          // reads as "hugging" the card rather than a far
+                          // halo. Strong at 0–35%, fades by 70%.
                           background:
-                            "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 45%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 22%, transparent) 55%, transparent 85%)",
+                            "radial-gradient(ellipse at center, color-mix(in oklab, var(--accent, var(--gold)) 60%, transparent) 0%, color-mix(in oklab, var(--accent, var(--gold)) 35%, transparent) 50%, transparent 78%)",
                           pointerEvents: "none",
                           zIndex: 0,
-                          borderRadius: 12,
+                          borderRadius: 8,
                         }}
                       />
                     )}

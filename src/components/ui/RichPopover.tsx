@@ -89,8 +89,12 @@ export function RichPopover({
 
   // Compute initial position (offset down-right from anchor; flip left
   // if it would overflow the viewport).
-  const offsetX = 16;
-  const offsetY = 16;
+  // EI3 — reduced offset from 16 to 8 so the popover sits closer to
+  // the source. Combined with the 20px invisible hover-bridge around
+  // the visible popover, the cursor's traversal path from source to
+  // popover is fully covered regardless of direction.
+  const offsetX = 8;
+  const offsetY = 8;
   const proposedLeft = anchorX + offsetX;
   const initialLeft =
     typeof window !== "undefined" &&
