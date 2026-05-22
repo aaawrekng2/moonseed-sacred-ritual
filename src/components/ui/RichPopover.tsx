@@ -46,6 +46,10 @@ export type RichPopoverProps = {
   chainedTitle?: string;
   /** Max width in px. */
   maxWidth?: number;
+  /** EJ5 — optional control rendered to the left of the ⓘ icon (only
+   *  shown when chainedContent is provided). Used by the constellation
+   *  surface to attach a gear menu for snoozing/disabling hover tips. */
+  extraTopRightControl?: React.ReactNode;
 };
 
 export function RichPopover({
@@ -59,6 +63,7 @@ export function RichPopover({
   chainedContent,
   chainedTitle = "Color guide",
   maxWidth = 280,
+  extraTopRightControl,
 }: RichPopoverProps) {
   // Lock position once the cursor enters the popover so the user can
   // travel to the ⓘ icon without the popover chasing them away.
@@ -74,6 +79,17 @@ export function RichPopover({
       setShowChained(false);
     }
   }, [open]);
+
+  // EI5 — when the source provides a new anchor (cursor moved to a
+  // different source element, e.g. day-cell A → day-cell B), reset
+  // the locked position so the popover re-anchors at the new spot.
+  // Without this the popover stays glued to wherever the first cell
+  // anchored it, no matter how far the cursor wanders across the
+  // calendar.
+  useEffect(() => {
+    setLockedPos(null);
+    setShowChained(false);
+  }, [anchorX, anchorY]);
 
   // Escape key dismisses.
   useEffect(() => {
@@ -197,39 +213,48 @@ export function RichPopover({
         <>
           {children}
           {chainedContent && (
-            <button
-              type="button"
-              aria-label="More info"
-              onMouseEnter={() => {
-                onCancelDismiss();
-                setShowChained(true);
-              }}
-              onFocus={() => setShowChained(true)}
+            <div
               style={{
                 position: "absolute",
                 top: 6,
                 right: 6,
-                appearance: "none",
-                background: "transparent",
-                border: "none",
-                color: "var(--color-foreground)",
-                opacity: 0.5,
-                cursor: "pointer",
-                padding: 2,
                 display: "inline-flex",
                 alignItems: "center",
-                justifyContent: "center",
-                transition: "opacity 120ms",
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.opacity = "1";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.opacity = "0.5";
+                gap: 2,
               }}
             >
-              <Info size={14} />
-            </button>
+              {extraTopRightControl}
+              <button
+                type="button"
+                aria-label="More info"
+                onMouseEnter={() => {
+                  onCancelDismiss();
+                  setShowChained(true);
+                }}
+                onFocus={() => setShowChained(true)}
+                style={{
+                  appearance: "none",
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--color-foreground)",
+                  opacity: 0.5,
+                  cursor: "pointer",
+                  padding: 2,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "opacity 120ms",
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.opacity = "1";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.opacity = "0.5";
+                }}
+              >
+                <Info size={14} />
+              </button>
+            </div>
           )}
         </>
       )}
