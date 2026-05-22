@@ -1608,16 +1608,21 @@ export function ConstellationPage() {
             position: "relative",
           }}
         >
-          {/* EJ6 — HoverTipsToggle floats in the dark space above the
-              right side of the constellation web, where the empty
-              negative space sits between the hero card and the right
-              column. Absolute-positioned so it doesn't push layout
-              and lives "inside" the constellation surface visually. */}
+          {/* EJ7 — HoverTipsToggle positioned in the empty space
+              between the hero card and the upper-right companion.
+              Top aligns with the hero card's top (HERO_Y=4 in a
+              viewBox that runs from y=-32 to y=484, so 36/516 ≈ 7%
+              from the top of the SVG/column). Right edge aligns with
+              the upper-right companion's left edge (companion x=385
+              of SVG_W=540, so right offset = (1 - 385/540) × 100%
+              ≈ 28.7%). Absolute-positioned within the relative
+              column so it floats over the empty space without
+              displacing layout. */}
           <div
             style={{
               position: "absolute",
-              top: 4,
-              right: 8,
+              top: "7%",
+              right: "28.7%",
               zIndex: 2,
             }}
           >
