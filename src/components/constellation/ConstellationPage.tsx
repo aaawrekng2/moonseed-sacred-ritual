@@ -207,6 +207,46 @@ export function ConstellationPage() {
   // DX — controlled drawer-open state so the "· N FILTER(S)" link in the
   // data header can open the same fly-out that the toolbar icon drives.
   const [globalDrawerOpen, setGlobalDrawerOpen] = useState(false);
+
+  // EF — Tags section in the filter drawer. Same fetch pattern as
+  // /insights, /numerology, /journal: pull the user's top tags from
+  // the user_tags table once on mount. Without this, the Tags section
+  // renders but with no chips because userTags defaults to [].
+  const [userTags, setUserTags] = useState<
+    Array<{ id: string; name: string; usage_count: number }>
+  >([]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+      if (!authUser || cancelled) return;
+      const { data, error } = await supabase
+        .from("user_tags")
+        .select("id, name, usage_count")
+        .eq("user_id", authUser.id)
+        .order("usage_count", { ascending: false })
+        .limit(50);
+      if (cancelled) return;
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.warn("[ConstellationPage] tag fetch failed", error);
+        return;
+      }
+      setUserTags(
+        (data ?? []) as Array<{
+          id: string;
+          name: string;
+          usage_count: number;
+        }>,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const filterPayload = useMemo(
     () => toFilterPayload(globalFilters),
     [globalFilters],
@@ -1131,6 +1171,7 @@ export function ConstellationPage() {
           filters={globalFilters}
           onChange={setGlobalFilters}
           sections={["tags", "spreadTypes", "depth", "reversed"]}
+          userTags={userTags}
           drawerOpen={globalDrawerOpen}
           onDrawerOpenChange={setGlobalDrawerOpen}
           timeRange={{
