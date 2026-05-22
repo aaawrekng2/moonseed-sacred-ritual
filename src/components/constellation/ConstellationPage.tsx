@@ -1812,15 +1812,16 @@ export function ConstellationPage() {
                   ✶
                 </button>
               </div>
-              {/* Notes textarea */}
+              {/* Notes textarea — EF2: shortened to 2 rows per spec.
+                  Save action moved up into the OverlapStrip pill row. */}
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Notes — your reflections, observations, anything that helps you remember this pull."
-                rows={4}
+                rows={2}
                 style={{
                   width: "100%",
-                  minHeight: 84,
+                  minHeight: 44,
                   padding: "8px 10px",
                   borderRadius: 8,
                   border: "1px solid var(--border-subtle)",
@@ -1833,68 +1834,6 @@ export function ConstellationPage() {
                   outline: "none",
                 }}
               />
-              {/* Save to Journal row */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  justifyContent: "flex-end",
-                }}
-              >
-                {saveStatus === "saved" && (
-                  <span
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
-                      fontSize: 11,
-                      color: "var(--accent, var(--gold))",
-                      opacity: 0.9,
-                    }}
-                  >
-                    Saved to journal ✓
-                  </span>
-                )}
-                {saveStatus === "error" && saveError && (
-                  <span
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
-                      fontSize: 11,
-                      color: "var(--color-foreground)",
-                      opacity: 0.75,
-                    }}
-                  >
-                    {saveError}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => void handleSaveToJournal()}
-                  disabled={saveStatus === "saving" || !canSubmit}
-                  style={{
-                    fontFamily: "var(--font-serif)",
-                    fontStyle: "italic",
-                    fontSize: 12,
-                    padding: "6px 14px",
-                    borderRadius: 9999,
-                    background: "transparent",
-                    border:
-                      "1px solid color-mix(in oklab, var(--accent, var(--gold)) 55%, transparent)",
-                    color: "var(--color-foreground)",
-                    cursor:
-                      saveStatus === "saving" || !canSubmit
-                        ? "not-allowed"
-                        : "pointer",
-                    opacity:
-                      saveStatus === "saving" || !canSubmit ? 0.5 : 1,
-                  }}
-                >
-                  {saveStatus === "saving"
-                    ? "Saving…"
-                    : "Save to journal"}
-                </button>
-              </div>
             </div>
           )}
         </div>
@@ -1913,6 +1852,10 @@ export function ConstellationPage() {
           tealSelectedIds={tealSelectedIds}
           layout="grid12"
           onDayClick={(date) => setDayPopover({ open: true, date })}
+          onSaveToJournal={() => void handleSaveToJournal()}
+          saveStatus={saveStatus}
+          saveError={saveError}
+          saveDisabled={!canSubmit}
         />
       </div>
 

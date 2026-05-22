@@ -1457,6 +1457,9 @@ function ChipGrid({
         flexShrink: 0,
       }}
     >
+      {/* EF2 — REVERSED moved up next to TIME PATTERN per spec. Row 1
+          is now LAST SEEN / TIME PATTERN / REVERSED; row 2 is
+          FREQUENCY / MOON PHASE. REVERSED loses fullWidth. */}
       <div style={{ display: "flex", gap: 10 }}>
         <Chip
           label="LAST SEEN"
@@ -1467,6 +1470,11 @@ function ChipGrid({
           label="TIME PATTERN"
           value={timePattern}
           tooltip="The day of the week this card has shown up most often across your history. Example: 'Sundays · 3 of 7' means 3 of the 7 times you've drawn this card were on Sundays."
+        />
+        <Chip
+          label="REVERSED"
+          value={reversed}
+          tooltip="How often this card has appeared reversed for you, compared to your overall reversed-card rate. Example: '1 of 11 reversed (9%) · above your 7% avg' means this card came up reversed once out of 11 draws, slightly above your average."
         />
       </div>
       <div style={{ display: "flex", gap: 10 }}>
@@ -1481,12 +1489,6 @@ function ChipGrid({
           tooltip="The moon phase during your draws of this card. Example: 'Most under Full Moon · 4 of 12' means 4 of the 12 times you've drawn this card, it was during a Full Moon. Otherwise shows the phase during your most recent draw."
         />
       </div>
-      <Chip
-        label="REVERSED"
-        value={reversed}
-        fullWidth
-        tooltip="How often this card has appeared reversed for you, compared to your overall reversed-card rate. Example: '1 of 11 reversed (9%) · above your 7% avg' means this card came up reversed once out of 11 draws, slightly above your average."
-      />
     </div>
   );
 }
@@ -1808,6 +1810,15 @@ function OverlapStrip({
   traceColor = "var(--trace-color, #5cead4)",
   layout = "scroll",
   onDayClick,
+  // EF2 — Save-to-Journal pill, optional. When `onSaveToJournal` is
+  // provided, OverlapStrip renders a third pill in its top-right bar
+  // alongside Hide older + Same pull/Same day. ConstellationPage moves
+  // its Save button up here so all three primary toggles sit on one
+  // row above the calendar.
+  onSaveToJournal,
+  saveStatus,
+  saveError,
+  saveDisabled = false,
 }: {
   overlap: QuickLogOverlap | null;
   heroCardId: number | null;
@@ -1827,6 +1838,11 @@ function OverlapStrip({
    * clickable. Caller receives the day's YYYY-MM-DD date and the list of
    * readings on that day. */
   onDayClick?: (date: string, readingIds: string[]) => void;
+  /** EF2 — optional save-to-journal pill in the top-right bar. */
+  onSaveToJournal?: () => void;
+  saveStatus?: "idle" | "saving" | "saved" | "error";
+  saveError?: string | null;
+  saveDisabled?: boolean;
 }) {
   const months = overlap?.months ?? [];
   const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
@@ -1968,6 +1984,50 @@ function OverlapStrip({
             );
           })}
         </div>
+        {/* EF2 — Save to journal pill, optional. Same height/font-size
+            as the other pills so all three look consistent in the row.
+            Rendered only when onSaveToJournal is provided. */}
+        {onSaveToJournal && (
+          <button
+            type="button"
+            onClick={onSaveToJournal}
+            disabled={saveStatus === "saving" || saveDisabled}
+            title={
+              saveStatus === "error" && saveError
+                ? saveError
+                : saveStatus === "saved"
+                  ? "Saved to journal ✓"
+                  : undefined
+            }
+            style={{
+              height: 22,
+              padding: "0 12px",
+              borderRadius: 9999,
+              border:
+                "1px solid color-mix(in oklab, var(--accent, var(--gold)) 55%, transparent)",
+              background:
+                saveStatus === "saved"
+                  ? "color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)"
+                  : "var(--surface-card)",
+              color: "var(--color-foreground)",
+              fontFamily: "var(--font-serif)",
+              fontStyle: "italic",
+              fontSize: 10,
+              cursor:
+                saveStatus === "saving" || saveDisabled
+                  ? "not-allowed"
+                  : "pointer",
+              opacity: saveStatus === "saving" || saveDisabled ? 0.5 : 1,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {saveStatus === "saving"
+              ? "Saving…"
+              : saveStatus === "saved"
+                ? "Saved ✓"
+                : "Save to journal"}
+          </button>
+        )}
       </div>
       <div
         style={
