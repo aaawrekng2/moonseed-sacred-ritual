@@ -85,6 +85,13 @@ type Props = {
   /** DZ — click the teal match-count badge. Parent opens the readings
    *  modal scoped to the current teal selection. */
   onTealBadgeClick?: () => void;
+  /** EH — hover the gold hero badge. Parent renders a rich popover with
+   *  a chained ⓘ legend explaining the constellation. */
+  onHeroBadgeHover?: (clientX: number, clientY: number) => void;
+  onHeroBadgeHoverEnd?: () => void;
+  /** EH — hover the teal selection badge. */
+  onTealBadgeHover?: (clientX: number, clientY: number) => void;
+  onTealBadgeHoverEnd?: () => void;
 };
 
 type Box = { x: number; y: number; w: number; h: number };
@@ -136,6 +143,10 @@ export function ConstellationWeb({
   heroBadgeTooltip = undefined,
   tealBadge = null,
   onTealBadgeClick = undefined,
+  onHeroBadgeHover = undefined,
+  onHeroBadgeHoverEnd = undefined,
+  onTealBadgeHover = undefined,
+  onTealBadgeHoverEnd = undefined,
 }: Props) {
   return (
     <div
@@ -178,12 +189,6 @@ export function ConstellationWeb({
           candidateIds={candidateIds}
           heroPick={heroPick}
           heroDrawCount={heroDrawCount}
-          onCardDragStart={onCardDragStart}
-          onCardHover={onCardHover}
-          onHeroBadgeClick={onHeroBadgeClick}
-          heroBadgeTooltip={heroBadgeTooltip}
-          tealBadge={tealBadge}
-          onTealBadgeClick={onTealBadgeClick}
         />
       )}
     </div>
@@ -197,12 +202,6 @@ function ConstellationSvg({
   candidateIds,
   heroPick,
   heroDrawCount,
-  onCardDragStart,
-  onCardHover,
-  onHeroBadgeClick,
-  heroBadgeTooltip,
-  tealBadge,
-  onTealBadgeClick,
 }: {
   constellation: CardConstellation;
   onCardClick: (cardId: number) => void;
@@ -210,12 +209,6 @@ function ConstellationSvg({
   candidateIds: number[];
   heroPick: ManualPick;
   heroDrawCount: number | null;
-  onCardDragStart?: (cardId: number) => void;
-  onCardHover?: (cardId: number | null, clientX: number, clientY: number) => void;
-  onHeroBadgeClick?: () => void;
-  heroBadgeTooltip?: string;
-  tealBadge?: { cardId: number; count: number; tooltip?: string } | null;
-  onTealBadgeClick?: () => void;
 }) {
   const maxPair = constellation.pairCounts.reduce(
     (m, p) => (p.count > m ? p.count : m),
@@ -458,6 +451,12 @@ function ConstellationSvg({
                         }
                       : undefined
                   }
+                  onMouseEnter={
+                    onHeroBadgeHover
+                      ? (e) => onHeroBadgeHover(e.clientX, e.clientY)
+                      : undefined
+                  }
+                  onMouseLeave={onHeroBadgeHoverEnd}
                   aria-label={
                     onHeroBadgeClick
                       ? (heroBadgeTooltip ??
@@ -465,10 +464,13 @@ function ConstellationSvg({
                       : undefined
                   }
                   title={
-                    onHeroBadgeClick
-                      ? (heroBadgeTooltip ??
-                        `View all ${heroDrawCount} readings with this card`)
-                      : undefined
+                    // EH — suppress native title when parent owns rich popover
+                    onHeroBadgeHover
+                      ? undefined
+                      : onHeroBadgeClick
+                        ? (heroBadgeTooltip ??
+                          `View all ${heroDrawCount} readings with this card`)
+                        : undefined
                   }
                   disabled={!onHeroBadgeClick}
                   style={{
@@ -516,8 +518,19 @@ function ConstellationSvg({
                       e.stopPropagation();
                       onTealBadgeClick?.();
                     }}
+                    onMouseEnter={
+                      onTealBadgeHover
+                        ? (e) => onTealBadgeHover(e.clientX, e.clientY)
+                        : undefined
+                    }
+                    onMouseLeave={onTealBadgeHoverEnd}
                     aria-label={(tealBadge.tooltip ?? `View ${tealBadge.count} readings with selected cards`)}
-                    title={(tealBadge.tooltip ?? `View ${tealBadge.count} readings with selected cards`)}
+                    title={
+                      onTealBadgeHover
+                        ? undefined
+                        : (tealBadge.tooltip ??
+                          `View ${tealBadge.count} readings with selected cards`)
+                    }
                     style={{
                       width: 32,
                       height: 32,
@@ -644,8 +657,19 @@ function ConstellationSvg({
                       e.stopPropagation();
                       onTealBadgeClick?.();
                     }}
+                    onMouseEnter={
+                      onTealBadgeHover
+                        ? (e) => onTealBadgeHover(e.clientX, e.clientY)
+                        : undefined
+                    }
+                    onMouseLeave={onTealBadgeHoverEnd}
                     aria-label={(tealBadge.tooltip ?? `View ${tealBadge.count} readings with selected cards`)}
-                    title={(tealBadge.tooltip ?? `View ${tealBadge.count} readings with selected cards`)}
+                    title={
+                      onTealBadgeHover
+                        ? undefined
+                        : (tealBadge.tooltip ??
+                          `View ${tealBadge.count} readings with selected cards`)
+                    }
                     style={{
                       width: 28,
                       height: 28,
