@@ -174,6 +174,12 @@ export function ConstellationWeb({
           candidateIds={candidateIds}
           heroPick={heroPick}
           heroDrawCount={heroDrawCount}
+          onCardDragStart={onCardDragStart}
+          onCardHover={onCardHover}
+          onHeroBadgeClick={onHeroBadgeClick}
+          heroBadgeTooltip={heroBadgeTooltip}
+          tealBadge={tealBadge}
+          onTealBadgeClick={onTealBadgeClick}
         />
       )}
     </div>
@@ -187,6 +193,12 @@ function ConstellationSvg({
   candidateIds,
   heroPick,
   heroDrawCount,
+  onCardDragStart,
+  onCardHover,
+  onHeroBadgeClick,
+  heroBadgeTooltip,
+  tealBadge,
+  onTealBadgeClick,
 }: {
   constellation: CardConstellation;
   onCardClick: (cardId: number) => void;
@@ -194,6 +206,20 @@ function ConstellationSvg({
   candidateIds: number[];
   heroPick: ManualPick;
   heroDrawCount: number | null;
+  onCardDragStart?: (cardId: number) => void;
+  onCardHover?: (
+    cardId: number | null,
+    clientX: number,
+    clientY: number,
+  ) => void;
+  onHeroBadgeClick?: () => void;
+  heroBadgeTooltip?: string;
+  tealBadge?: {
+    cardId: number;
+    count: number;
+    tooltip?: string;
+  } | null;
+  onTealBadgeClick?: () => void;
 }) {
   const maxPair = constellation.pairCounts.reduce(
     (m, p) => (p.count > m ? p.count : m),
