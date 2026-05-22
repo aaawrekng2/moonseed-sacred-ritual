@@ -154,34 +154,56 @@ export function ConstellationPage() {
   useRegisterTabletopActive(true);
 
   // DP — restore prior session state on first mount.
-  const persisted = useMemo(() => loadPersisted(), []);
-
-  const [picks, setPicks] = useState<ManualPick[]>(
-    () => persisted?.picks ?? [],
-  );
-  const [focusedSlotIdx, setFocusedSlotIdx] = useState<number | null>(
-    () => persisted?.focusedSlotIdx ?? null,
-  );
+  // ED — SSR-safe initialization. Previously this read localStorage
+  // synchronously in useState initializers, which caused a hydration
+  // mismatch (server rendered empty, client rendered with picks). The
+  // mismatch triggered React error #418 and cascaded into a
+  // ReferenceError on bundled ConstellationWeb props during remount.
+  //
+  // New strategy:
+  //   1. Initialize all state with SAFE DEFAULTS that match what the
+  //      server renders (empty arrays / null).
+  //   2. After mount, an effect reads localStorage ONCE and hydrates
+  //      the state. This runs only on the client, so no mismatch.
+  const [picks, setPicks] = useState<ManualPick[]>([]);
+  const [focusedSlotIdx, setFocusedSlotIdx] = useState<number | null>(null);
   // Phase 24 — teal multi-select trace. Empty by default. Click any card in
   // the constellation web (hero or companion) to toggle membership. Drives
   // calendar stroke + readings panel filter. Resets when hero changes.
-  const [tealSelectedIds, setTealSelectedIds] = useState<number[]>(
-    () => persisted?.tealSelectedIds ?? [],
-  );
+  const [tealSelectedIds, setTealSelectedIds] = useState<number[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   // Phase 19 Fix 7 — back-date pill state (parity with QuickLog).
-  const [backdate, setBackdate] = useState<Date | null>(
-    () =>
-      persisted?.backdateISO ? new Date(persisted.backdateISO) : null,
-  );
+  const [backdate, setBackdate] = useState<Date | null>(null);
   const [dateOpen, setDateOpen] = useState(false);
   // Phase 23 — page-wide filter state. Default 365d (12 months).
-  const [globalFilters, setGlobalFilters] = useState<GlobalFilters>(() =>
-    persisted?.globalFilters ?? {
-      ...EMPTY_GLOBAL_FILTERS,
-      timeRange: DEFAULT_TIMEFRAME,
-    },
-  );
+  const [globalFilters, setGlobalFilters] = useState<GlobalFilters>(() => ({
+    ...EMPTY_GLOBAL_FILTERS,
+    timeRange: DEFAULT_TIMEFRAME,
+  }));
+
+  // ED — hydrate from localStorage exactly once after mount. Runs on
+  // the client only; never on the server. This intentionally bypasses
+  // the existing persist-on-change effect (which only writes) because
+  // we need to apply the saved state without race-conditioning with
+  // user-driven updates that might fire in the same tick.
+  const hydratedFromStorageRef = useRef(false);
+  useEffect(() => {
+    if (hydratedFromStorageRef.current) return;
+    hydratedFromStorageRef.current = true;
+    const persisted = loadPersisted();
+    if (!persisted) return;
+    if (persisted.picks?.length) setPicks(persisted.picks);
+    if (persisted.focusedSlotIdx !== undefined)
+      setFocusedSlotIdx(persisted.focusedSlotIdx);
+    if (persisted.tealSelectedIds?.length)
+      setTealSelectedIds(persisted.tealSelectedIds);
+    if (persisted.backdateISO)
+      setBackdate(new Date(persisted.backdateISO));
+    if (persisted.globalFilters) setGlobalFilters(persisted.globalFilters);
+    if (persisted.overlapMode) setOverlapMode(persisted.overlapMode);
+    if (persisted.question) setQuestion(persisted.question);
+    if (persisted.note) setNote(persisted.note);
+  }, []);
   // DX — controlled drawer-open state so the "· N FILTER(S)" link in the
   // data header can open the same fly-out that the toolbar icon drives.
   const [globalDrawerOpen, setGlobalDrawerOpen] = useState(false);
@@ -341,9 +363,9 @@ export function ConstellationPage() {
 
   // 2. Overlap (calendar strip)
   const [overlap, setOverlap] = useState<QuickLogOverlap | null>(null);
-  const [overlapMode, setOverlapMode] = useState<"pull" | "day">(
-    () => persisted?.overlapMode ?? "pull",
-  );
+  // ED — SSR-safe default; hydrated from localStorage in the
+  // hydratedFromStorageRef effect above.
+  const [overlapMode, setOverlapMode] = useState<"pull" | "day">("pull");
   useEffect(() => {
     if (!user?.id) {
       setOverlap(null);
@@ -627,11 +649,11 @@ export function ConstellationPage() {
       cancelled = true;
     };
   }, [user?.id, effectiveTz]);
-  const [question, setQuestion] = useState<string>(
-    () => persisted?.question ?? "",
-  );
+  // ED — SSR-safe defaults; hydrated from localStorage in the
+  // hydratedFromStorageRef effect above.
+  const [question, setQuestion] = useState<string>("");
   // DY — free-form notes textarea for "Save to Journal" + AI reading.
-  const [note, setNote] = useState<string>(() => persisted?.note ?? "");
+  const [note, setNote] = useState<string>("");
   // DY — journaling-prompts modal trigger.
   const [promptsModalOpen, setPromptsModalOpen] = useState(false);
   // DY — Save to Journal lifecycle.
