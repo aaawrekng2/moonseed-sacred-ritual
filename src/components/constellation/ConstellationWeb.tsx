@@ -92,6 +92,20 @@ type Props = {
   /** EH — hover the teal selection badge. */
   onTealBadgeHover?: (clientX: number, clientY: number) => void;
   onTealBadgeHoverEnd?: () => void;
+  /** EJ9 — drop a card from the seeker's slot row onto a constellation
+   * card. `targetCardId` is the card currently at the drop position
+   * (hero or companion); `droppedCardId` is the card payload from
+   * the slot drag. The parent decides whether to swap, replace,
+   * or promote-to-hero. */
+  onConstellationDrop?: (targetCardId: number, droppedCardId: number) => void;
+  /** EJ9 — the cardId currently being dragged-over. Drives the subtle
+   * drop-target highlight on the matching constellation card. Null
+   * when no drag is over a target. */
+  dragOverTargetId?: number | null;
+  /** EJ9 — hover lifecycle for the drop target. Called with the
+   * constellation cardId on `dragover`, null on `dragleave`. The
+   * parent tracks this in state to drive the highlight. */
+  onConstellationDragOver?: (cardId: number | null) => void;
 };
 
 type Box = { x: number; y: number; w: number; h: number };
@@ -147,6 +161,9 @@ export function ConstellationWeb({
   onHeroBadgeHoverEnd = undefined,
   onTealBadgeHover = undefined,
   onTealBadgeHoverEnd = undefined,
+  onConstellationDrop = undefined,
+  dragOverTargetId = null,
+  onConstellationDragOver = undefined,
 }: Props) {
   return (
     <div
@@ -199,6 +216,9 @@ export function ConstellationWeb({
           onHeroBadgeHoverEnd={onHeroBadgeHoverEnd}
           onTealBadgeHover={onTealBadgeHover}
           onTealBadgeHoverEnd={onTealBadgeHoverEnd}
+          onConstellationDrop={onConstellationDrop}
+          dragOverTargetId={dragOverTargetId}
+          onConstellationDragOver={onConstellationDragOver}
         />
       )}
     </div>
@@ -222,6 +242,9 @@ function ConstellationSvg({
   onHeroBadgeHoverEnd,
   onTealBadgeHover,
   onTealBadgeHoverEnd,
+  onConstellationDrop,
+  dragOverTargetId,
+  onConstellationDragOver,
 }: {
   constellation: CardConstellation;
   onCardClick: (cardId: number) => void;
@@ -247,6 +270,12 @@ function ConstellationSvg({
   onHeroBadgeHoverEnd?: () => void;
   onTealBadgeHover?: (clientX: number, clientY: number) => void;
   onTealBadgeHoverEnd?: () => void;
+  onConstellationDrop?: (
+    targetCardId: number,
+    droppedCardId: number,
+  ) => void;
+  dragOverTargetId?: number | null;
+  onConstellationDragOver?: (cardId: number | null) => void;
 }) {
   const maxPair = constellation.pairCounts.reduce(
     (m, p) => (p.count > m ? p.count : m),
@@ -420,6 +449,31 @@ function ConstellationSvg({
                   );
                   onCardDragStart(constellation.heroCardId);
                 }}
+                onDragOver={(e) => {
+                  // EJ9 — accept drops from slot row. Only react when a
+                  // card payload is on the wire (parent passes onConstellationDrop).
+                  if (!onConstellationDrop) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "copy";
+                  onConstellationDragOver?.(constellation.heroCardId);
+                }}
+                onDragLeave={() => {
+                  if (!onConstellationDrop) return;
+                  onConstellationDragOver?.(null);
+                }}
+                onDrop={(e) => {
+                  if (!onConstellationDrop) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const raw = e.dataTransfer.getData(
+                    "application/x-tarotseed-cardid",
+                  );
+                  const id = raw ? Number(raw) : null;
+                  onConstellationDragOver?.(null);
+                  if (id !== null && Number.isFinite(id)) {
+                    onConstellationDrop(constellation.heroCardId, id);
+                  }
+                }}
                 onMouseEnter={(e) =>
                   onCardHover?.(
                     constellation.heroCardId,
@@ -482,6 +536,29 @@ function ConstellationSvg({
                       background: TRACE_VAR,
                       boxShadow: `0 0 4px 4px ${TRACE_VAR}`,
                       zIndex: 0,
+                      pointerEvents: "none",
+                    }}
+                  />
+                )}
+                {/* EJ9 — drop-target highlight: subtle accent ring +
+                    glow when a slot card is being dragged over this
+                    card. Sits above the teal backdrop so the seeker
+                    sees the cue regardless of teal state. */}
+                {dragOverTargetId === constellation.heroCardId && (
+                  <span
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      top: -4,
+                      left: -4,
+                      width: pos.w + 8,
+                      height: "calc(100% + 8px)",
+                      borderRadius: 10,
+                      border:
+                        "2px solid var(--accent, var(--gold))",
+                      boxShadow:
+                        "0 0 6px 2px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
+                      zIndex: 2,
                       pointerEvents: "none",
                     }}
                   />
@@ -688,6 +765,30 @@ function ConstellationSvg({
                   );
                   onCardDragStart(c.cardId);
                 }}
+                onDragOver={(e) => {
+                  // EJ9 — accept drops from slot row.
+                  if (!onConstellationDrop) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = "copy";
+                  onConstellationDragOver?.(c.cardId);
+                }}
+                onDragLeave={() => {
+                  if (!onConstellationDrop) return;
+                  onConstellationDragOver?.(null);
+                }}
+                onDrop={(e) => {
+                  if (!onConstellationDrop) return;
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const raw = e.dataTransfer.getData(
+                    "application/x-tarotseed-cardid",
+                  );
+                  const id = raw ? Number(raw) : null;
+                  onConstellationDragOver?.(null);
+                  if (id !== null && Number.isFinite(id)) {
+                    onConstellationDrop(c.cardId, id);
+                  }
+                }}
                 onMouseEnter={(e) =>
                   onCardHover?.(c.cardId, e.clientX, e.clientY)
                 }
@@ -731,6 +832,26 @@ function ConstellationSvg({
                       background: TRACE_VAR,
                       boxShadow: `0 0 4px 4px ${TRACE_VAR}`,
                       zIndex: 0,
+                      pointerEvents: "none",
+                    }}
+                  />
+                )}
+                {/* EJ9 — drop-target highlight on companion cards. */}
+                {dragOverTargetId === c.cardId && (
+                  <span
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      top: -4,
+                      left: -4,
+                      width: pos.w + 8,
+                      height: "calc(100% + 8px)",
+                      borderRadius: 8,
+                      border:
+                        "2px solid var(--accent, var(--gold))",
+                      boxShadow:
+                        "0 0 6px 2px color-mix(in oklab, var(--accent, var(--gold)) 50%, transparent)",
+                      zIndex: 2,
                       pointerEvents: "none",
                     }}
                   />
