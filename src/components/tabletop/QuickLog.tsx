@@ -1802,7 +1802,10 @@ function OverlapStrip({
   mode,
   onModeChange,
   tealSelectedIds = [],
-  traceColor = "#5cead4",
+  // EC — read from --trace-color CSS variable so per-theme overrides
+  // (Cups Tide, Pentacles & Moss) flow through automatically. Default
+  // to the canonical teal hex when no theme override is set.
+  traceColor = "var(--trace-color, #5cead4)",
   layout = "scroll",
   onDayClick,
 }: {
@@ -2141,10 +2144,30 @@ function OverlapStrip({
                       opacity = op;
                     }
                   }
-                  const textColor =
-                    opacity > 0.5
-                      ? "var(--background)"
-                      : "var(--color-foreground)";
+                  // EC — readability fix for saturated themes. Previously
+                  // the text only flipped to background color when opacity
+                  // crossed 0.5, but cool/cyan themes (Cups Tide) have
+                  // foreground colors that blend into low-opacity accent
+                  // fills. Strategy:
+                  //   - Hero gold-fill day (opacity 0.9, gold bg): text
+                  //     is dark (the foreground variable that gets used
+                  //     for accent-on-gold contrast).
+                  //   - ANY accent-tinted day (matchCount > 0): text
+                  //     uses --accent-foreground, which every theme
+                  //     defines as the color that legibly sits on its
+                  //     own accent (theme-known contrast pair). This
+                  //     fixes Cups Tide where 41% cyan-on-cyan-bg
+                  //     previously hid the day number.
+                  //   - Neutral day: regular foreground.
+                  let textColor: string;
+                  if (day.heroDrawn && heroCardId != null) {
+                    textColor = "var(--background)";
+                  } else if (matchCount > 0) {
+                    textColor =
+                      "var(--accent-foreground, var(--background))";
+                  } else {
+                    textColor = "var(--color-foreground)";
+                  }
                   // Phase 24 — teal trace: this day qualifies if ALL teal-
                   // selected cards appeared together per the current mode.
                   let tealTraceHit = false;

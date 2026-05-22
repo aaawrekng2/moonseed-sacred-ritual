@@ -14,6 +14,7 @@ import {
   setStoredCommunityTheme,
 } from "@/lib/community-themes";
 import { applyCommunityTheme } from "@/lib/theme-apply";
+import { applyFontPairing, readStoredPairing } from "@/lib/font-pairings";
 
 const OPACITY_STORAGE_KEY = "tarotseed:resting-opacity";
 const OPACITY_EVENT = "arcana:resting-opacity-changed";
@@ -67,6 +68,11 @@ export function usePreferencesSync(): void {
   // BZ Group 1B — Apply community theme synchronously from localStorage
   // (or default) on first paint, even for anonymous users. The auth-
   // dependent effect below re-applies once the server row arrives.
+  // EC — also apply font pairing on first paint. Without this,
+  // anonymous / not-signed-in seekers get the FOUC default until they
+  // reach the Themes settings tab. readStoredPairing() falls back to
+  // DEFAULT_FONT_PAIRING ("pure-readability"), which is the desired
+  // readability-first default for new seekers.
   useEffect(() => {
     if (typeof document === "undefined") return;
     const stored = getStoredCommunityTheme();
@@ -74,6 +80,12 @@ export function usePreferencesSync(): void {
       (stored && COMMUNITY_THEMES.find((t) => t.key === stored)) ??
       COMMUNITY_THEMES.find((t) => t.key === "midnight-oracle");
     if (community) applyCommunityTheme(community);
+    // EC — font pairing: Pure Readability for anonymous default.
+    try {
+      applyFontPairing(readStoredPairing());
+    } catch {
+      /* font module unavailable; fall through to FOUC default */
+    }
   }, []);
 
   useEffect(() => {
