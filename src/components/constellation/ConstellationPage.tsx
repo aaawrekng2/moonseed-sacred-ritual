@@ -193,7 +193,7 @@ function ColorLegend() {
             }}
           />
         }
-        label="Gold fill · day you drew the hero card"
+        label="Hero fill · day you drew the hero card"
       />
       <LegendRow
         swatch={
@@ -248,7 +248,7 @@ function ColorLegend() {
             }}
           />
         }
-        label="Teal outline · your asterism co-occurred here"
+        label="Asterism outline · your asterism co-occurred here"
       />
     </div>
   );
@@ -271,7 +271,7 @@ function ConstellationLegend() {
             />
           </svg>
         }
-        label="Accent line · this card has co-occurred with the hero in past spreads"
+        label="Accent line · these two cards have co-occurred in past spreads (matching your filters)"
       />
       <LegendRow
         swatch={
@@ -286,7 +286,7 @@ function ConstellationLegend() {
             />
           </svg>
         }
-        label="Teal line · click any card to make it a star — these connect to other cards that also co-occur with your asterism"
+        label="Discovery line · click any card to make it a star (a card bordered in this color) — 2 or more stars together form an asterism; these lines connect to other cards that also co-occur with your asterism (matching your filters)"
       />
       <LegendRow
         swatch={
@@ -301,7 +301,7 @@ function ConstellationLegend() {
             }}
           />
         }
-        label="Gold hero badge · spreads (matching your filters) containing the hero card"
+        label="Hero badge · spreads (matching your filters) containing the hero card"
       />
       <LegendRow
         swatch={
@@ -316,7 +316,7 @@ function ConstellationLegend() {
             }}
           />
         }
-        label="Teal badge · spreads or days (matching your filters) where your asterism co-occurred"
+        label="Asterism badge · a star is a card you've selected; 2 or more stars form an asterism — this counts spreads or days (matching your filters) where your asterism co-occurred"
       />
     </div>
   );
@@ -398,7 +398,7 @@ function BadgeLegend() {
             }}
           />
         }
-        label="Gold badge · marks the focused card in your spread (your hero card)"
+        label="Hero card badge · marks the focused card in your spread (your hero card)"
       />
     </div>
   );

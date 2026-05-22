@@ -105,7 +105,7 @@ export function TagCloud({
             }}
           >
             You've used {data.uniqueTags} unique tag{data.uniqueTags === 1 ? "" : "s"} across{" "}
-            {data.taggedReadings} reading{data.taggedReadings === 1 ? "" : "s"}.
+            {data.taggedReadings} spread{data.taggedReadings === 1 ? "" : "s"}.
           </p>
         </>
       )}

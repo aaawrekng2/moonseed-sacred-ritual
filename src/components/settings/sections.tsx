@@ -1044,7 +1044,7 @@ function ReadingPreferencesSection({
   };
 
   return (
-    <SettingsSection title="Reading Preferences">
+    <SettingsSection title="Spread Preferences">
       <div className="space-y-5">
         <div className="space-y-2">
           <Label>Default spread</Label>

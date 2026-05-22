@@ -19,7 +19,7 @@ export function RhythmHeatmap({
   return (
     <InsightCard
       title="Rhythm — last 30 days"
-      caption={`${total} reading${total === 1 ? "" : "s"} in the last 30 days.`}
+      caption={`${total} spread${total === 1 ? "" : "s"} in the last 30 days.`}
       onTap={onTap}
     >
       <div

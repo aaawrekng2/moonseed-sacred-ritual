@@ -247,7 +247,7 @@ function PatternRow({
             opacity: 0.6,
           }}
         >
-          {count} {count === 1 ? "reading" : "readings"} · since{" "}
+          {count} {count === 1 ? "spread" : "spreads"} · since{" "}
           {formatMonthSince(pattern.created_at, effectiveTz)}
         </p>
       </div>

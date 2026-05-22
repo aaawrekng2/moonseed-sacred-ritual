@@ -446,7 +446,7 @@ export function DataTab() {
 
       <SettingsSection
         title="Import from another app"
-        description="Bring your reading history from any tarot journal."
+        description="Bring your spread history from any tarot journal."
       >
         <p className="text-xs text-muted-foreground">
           Currently supports: TarotPulse · Generic CSV (with column mapping)
@@ -483,7 +483,7 @@ export function DataTab() {
 
       <SettingsSection
         title="Archived photos"
-        description="Reading photos you removed are kept here so you can restore or permanently delete them."
+        description="Spread photos you removed are kept here so you can restore or permanently delete them."
       >
         <PhotoArchive userId={user.id} />
       </SettingsSection>

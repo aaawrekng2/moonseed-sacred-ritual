@@ -119,7 +119,7 @@ export function StoryShareModal({
           opacity: 0.7,
         }}
       >
-        {readingCount} {readingCount === 1 ? "reading" : "readings"}
+        {readingCount} {readingCount === 1 ? "spread" : "spreads"}
       </div>
     </ShareCardFrame>
   );

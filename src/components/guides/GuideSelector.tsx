@@ -579,7 +579,7 @@ export function GuideSelector({
           onClick={onContinue}
           className="w-full bg-gold text-cosmos hover:bg-gold/90"
         >
-          {ctaLabel ?? ("Begin Reading")}
+          {ctaLabel ?? ("Begin a new spread")}
         </Button>
       </footer>
 

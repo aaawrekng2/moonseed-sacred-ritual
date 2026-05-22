@@ -506,7 +506,7 @@ function Step1({ onFile }: { onFile: (f: File) => void }) {
 const FIELD_LABELS: Record<TarotSeedField, string> = (() => {
   const map: Record<string, string> = {
     ignore: "— Ignore —",
-    date: "Reading date",
+    date: "Spread date",
     created_at_override: "Created at (override)",
     question: "Question",
     notes: "Notes",

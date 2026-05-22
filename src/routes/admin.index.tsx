@@ -2230,7 +2230,7 @@ function UnconfirmedBadge() {
 
 function formatActivity(count: number, last: string | null): string {
   if (count === 0 && !last) return "No activity";
-  return `${count} reading${count === 1 ? "" : "s"} · ${formatRelative(last)}`;
+  return `${count} spread${count === 1 ? "" : "s"} · ${formatRelative(last)}`;
 }
 
 function formatRelative(iso: string | null): string {
@@ -2777,7 +2777,7 @@ function UserDetailPage({
             value={deckCount === null ? "…" : String(deckCount)}
           />
           <DetailRow
-            label="Reading photos"
+            label="Spread photos"
             value={photoCount === null ? "…" : String(photoCount)}
           />
           <DetailRow

@@ -77,14 +77,14 @@ function singleProse(name: string, count: number, tr: TimeRange): string {
 }
 function twinProse(a: string, b: string, count: number, tr: TimeRange, mode: Cooccurrence): string {
   const w = timeRangeLabel(tr);
-  const together = mode === "day" ? "on the same day" : "in the same reading";
+  const together = mode === "day" ? "on the same day" : "in the same spread";
   return `${a} and ${b} have arrived together ${together} ${count} times in ${w}. ` +
     `A pair speaking the same message — two cards braiding into one story. ` +
     `Sit with what these two share between them.`;
 }
 function tripletProse(names: [string, string, string], count: number, tr: TimeRange, mode: Cooccurrence): string {
   const w = timeRangeLabel(tr);
-  const together = mode === "day" ? "on the same day" : "in the same reading";
+  const together = mode === "day" ? "on the same day" : "in the same spread";
   return `${names[0]}, ${names[1]}, and ${names[2]} have all appeared ${together} ${count} times in ${w}. ` +
     `Three cards arriving together is rare. ` +
     `This is a full pattern emerging — the kind of message that doesn't repeat by accident.`;
@@ -322,7 +322,7 @@ export function StalkersTab({ filters }: { filters: InsightsFilters }) {
                   borderBottom: active ? "1px solid var(--gold)" : "1px solid transparent",
                 }}
               >
-                {co === "reading" ? "Same reading" : "Same day"}
+                {co === "reading" ? "Same spread" : "Same day"}
               </button>
             );
           })}

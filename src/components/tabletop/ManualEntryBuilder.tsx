@@ -211,7 +211,7 @@ export function ManualEntryBuilder({
   const remaining = required - filledCount;
   const buttonText =
     remaining > 0
-      ? `Select ${remaining} more card${remaining === 1 ? "" : "s"} to enter your reading`
+      ? `Select ${remaining} more card${remaining === 1 ? "" : "s"} to enter your spread`
       : "Done · view reading";
 
   const handlePick = (
