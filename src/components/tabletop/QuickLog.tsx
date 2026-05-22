@@ -1212,7 +1212,7 @@ export function QuickLog({
           {picks.length > 0 && (
             <div style={{ padding: "0 24px", marginTop: 24 }}>
               <SectionDivider />
-              <SectionOverline label="THIS PULL" />
+              <SectionOverline label="YOUR SPREAD" />
               <ThisPullTiles picks={picks} />
             </div>
           )}
@@ -1968,7 +1968,7 @@ export function OverlapPills({
                 cursor: "pointer",
               }}
             >
-              same {m}
+              {m === "pull" ? "same reading" : "same day"}
             </button>
           );
         })}
@@ -2247,7 +2247,7 @@ function OverlapStrip({
                   cursor: "pointer",
                 }}
               >
-                same {m}
+                {m === "pull" ? "same reading" : "same day"}
               </button>
             );
           })}
@@ -2310,7 +2310,7 @@ function OverlapStrip({
                 display: "grid",
                 gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
                 gridAutoRows: "auto",
-                gap: 16,
+                gap: 8,
                 alignItems: "start",
                 position: "relative",
                 width: "100%",
@@ -2394,7 +2394,7 @@ function OverlapStrip({
             >
               <p
                 style={{
-                  margin: "0 0 6px 0",
+                  margin: "0 0 3px 0",
                   fontFamily: "var(--font-serif)",
                   fontStyle: "italic",
                   fontSize: 12,
@@ -2964,15 +2964,15 @@ function PullHistoryPill({
     [picks],
   );
   const entry = practice?.pullHistory?.find((p) => p.cardIdsKey === key) ?? null;
-  let text = "First time you've drawn this combination — never before.";
+  let text = "First time you've drawn this exact spread — never before.";
   if (entry) {
     const when = format(new Date(entry.lastAt), "MMMM d, yyyy");
     if (entry.count === 1) {
-      text = `You drew this exact combination once before, on ${when}.`;
+      text = `You drew this exact spread once before, on ${when}.`;
     } else if (entry.count <= 5) {
-      text = `You drew this exact combination ${entry.count} times before — last on ${when}.`;
+      text = `You drew this exact spread ${entry.count} times before — last on ${when}.`;
     } else {
-      text = `You've drawn this exact combination ${entry.count} times — most recently ${when}.`;
+      text = `You've drawn this exact spread ${entry.count} times — most recently ${when}.`;
     }
   }
   if (constellation.active) {

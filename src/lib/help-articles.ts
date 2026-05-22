@@ -80,7 +80,8 @@ Tap the deck on the home screen. Choose a spread (start with a single card if yo
 
 ## Draw, reading, journal
 
-- A **draw** is the moment you pull cards. It is brief and bodily.
+- A **draw** is the moment you pull cards from the deck. It is brief and bodily — your hand, the deck, the cards landing.
+- A **spread** is the cards you've drawn together. Three cards for a three-card spread, ten for Celtic Cross, one for a daily single.
 - A **reading** is the interpretation that follows — what the cards seem to say *here, now, to you*.
 - The **journal** holds every reading you keep, so you can return to them later.
 
@@ -150,7 +151,7 @@ An Artifact is a composed image-and-text card that treats the reading as a small
 
 ## When it surfaces
 
-The Artifact share becomes available when a reading has been **revisited**, **journaled into**, or **linked to a [Story](#stories)** — i.e., when it has earned the weight to be one. A first-pull single-card reading does not need to be an Artifact, and Tarot Seed will not pretend that it is.
+The Artifact share becomes available when a reading has been **revisited**, **journaled into**, or **linked to a [Story](#stories)** — i.e., when it has earned the weight to be one. A first-draw single-card reading does not need to be an Artifact, and Tarot Seed will not pretend that it is.
 
 ## How to share one
 
@@ -166,7 +167,7 @@ Open the share menu on a qualifying reading and select **Mirror Artifact** at th
 
 ## The five levels
 
-1. **Single Pull** — just the card(s), face up, no interpretation. The moment of revelation. Use when the cards speak for themselves.
+1. **Just the Cards** — just the card(s), face up, no interpretation. The moment of revelation. Use when the cards speak for themselves.
 2. **Full Reading** — cards plus a short distilled snippet of the interpretation. The standard share.
 3. **Spread Position** — focus on one position in the spread (e.g. *the past* card, *the obstacle* card). Use when one card carries the weight.
 4. **Deep Lens** — share a single Lens from a Deep Reading. For when the angle, not the cards, is what you want to send.
@@ -174,7 +175,7 @@ Open the share menu on a qualifying reading and select **Mirror Artifact** at th
 
 ## How to choose
 
-If you are sharing a moment, choose **Single Pull**. If you are sharing the *insight*, choose **Full Reading**. If you want to point at one specific thing, choose **Spread Position** or **Deep Lens**. The Artifact is for the few readings you will still be thinking about months from now.`,
+If you are sharing a moment, choose **Just the Cards**. If you are sharing the *insight*, choose **Full Reading**. If you want to point at one specific thing, choose **Spread Position** or **Deep Lens**. The Artifact is for the few readings you will still be thinking about months from now.`,
     related: ["mirror-artifact"],
   },
   {
@@ -222,6 +223,47 @@ There's no required order. Most seekers scan all four after a Deep Reading, paus
 
 If a lens feels off, dismiss it. The cards know what they came to say — the lenses are just four ways of asking. Trust your instinct about which questions belong to this reading.`,
     related: ["how-interpretation-works", "mirror-artifact"],
+  },
+  {
+    id: "the-constellation",
+    title: "The Constellation",
+    category: "tarot-and-readings",
+    summary: "How to investigate connections between cards across your readings.",
+    body: `The constellation is Tarot Seed's pattern-exploration surface. While the **spread** on the right is the cards you've pulled for this reading, the **constellation** on the left is a map of how cards have related to each other across your entire history.
+
+Open it any time on the /constellation surface. You don't need a fresh draw to use it — the constellation works on the readings you've already saved.
+
+## Stars, asterisms, and tracing
+
+When you click a card in the constellation, it becomes a **star** — a card you're investigating right now. Click another card and you've made an **asterism** (Plain mode: a *selection*) — a small pattern of stars within the larger constellation, like the Big Dipper inside Ursa Major.
+
+The act of clicking cards to investigate these patterns is called **tracing**. You're tracing connections between cards across your readings, asking: *where have these cards met before?*
+
+## What the lines mean
+
+- **Accent lines** — every card pair that has appeared together in your past readings. Thicker lines mean more co-occurrences.
+- **Teal lines** — when you have 2+ stars, teal lines suggest which other cards could JOIN your asterism and still match at least one historical reading. Follow them to grow your trace.
+
+## What the calendar shows
+
+Below the constellation, a 12-month calendar lights up days based on what's happening in your investigation:
+
+- **Gold fill** — days you drew the hero card.
+- **Accent fill** — days some of your spread cards co-occurred (brighter = more matched).
+- **Solid ring** — perfect match: every card in your spread appeared on that day.
+- **Dashed ring** — best partial match in your calendar.
+- **Teal outline** — days where every star in your asterism co-occurred.
+
+## What it's good for
+
+Tracing is most useful when you sense a *theme* — a card that keeps showing up, a combination that feels familiar. The constellation surfaces the data behind that feeling. Sometimes you'll find: "yes, these three cards have appeared together six times this year, always when I asked about work." That's not proof of anything. But it's worth knowing.
+
+Other times you'll find: nothing, no pattern, this combination is new. That's also worth knowing.
+
+## What it isn't
+
+The constellation isn't a reading. It doesn't interpret anything. It shows you the structure of your tarot history so you can do your own interpreting. For interpretation, save a spread and ask for a reading — the constellation will be there when you want to come back and look at how this reading connects to the rest of your record.`,
+    related: ["how-interpretation-works", "stories"],
   },
 ];
 

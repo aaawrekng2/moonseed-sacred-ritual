@@ -10,7 +10,7 @@ export function MajorMinorChart({
   const total = data.major + data.minor;
   const caption =
     total === 0
-      ? "Pull a few cards to see the major/minor balance."
+      ? "Draw a few cards to see the major/minor balance."
       : data.major > 60
         ? "Major-heavy: big life themes are loud right now."
         : data.minor > 60
