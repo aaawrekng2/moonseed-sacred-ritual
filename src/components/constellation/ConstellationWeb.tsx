@@ -214,7 +214,7 @@ function ConstellationSvg({
   onCardHover?: (cardId: number | null, clientX: number, clientY: number) => void;
   onHeroBadgeClick?: () => void;
   heroBadgeTooltip?: string;
-  tealBadge?: { cardId: number; tooltip: string } | null;
+  tealBadge?: { cardId: number; count: number; tooltip?: string } | null;
   onTealBadgeClick?: () => void;
 }) {
   const maxPair = constellation.pairCounts.reduce(
