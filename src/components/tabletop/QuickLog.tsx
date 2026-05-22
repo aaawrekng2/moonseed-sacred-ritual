@@ -1797,6 +1797,30 @@ function matchOpacity(matches: number, pullSize: number): number {
   return 0.15 + pct * 0.8;
 }
 
+// EG — visual signals computed per day cell. Used by the rich popover
+// to render legend lines (gold swatch, accent-tinted swatch, ring,
+// dashed ring, teal trace outline) for whichever signals are active
+// on this specific cell.
+export type DayCellSignals = {
+  /** Hero card was drawn on this date. Cell has gold background fill. */
+  heroDrawn: boolean;
+  /** Hero card name (when heroDrawn). For the legend swatch's label. */
+  heroName: string | null;
+  /** Number of pull-cards that match this day (1..pullSize, or 0). */
+  matchCount: number;
+  /** Total pull size (number of slot cards filled). */
+  pullSize: number;
+  /** 100% match — all pull cards co-occurred on this day. Cell has
+   * solid accent ring. */
+  isPerfectMatch: boolean;
+  /** Best partial match in the calendar but not 100%. Cell has dashed
+   * accent ring. */
+  isBestAvailable: boolean;
+  /** All teal-selected cards co-occurred on this day. Cell has teal
+   * trace outline. */
+  tealTraceHit: boolean;
+};
+
 // ─── EF3 — Pills row, decoupled from OverlapStrip ───────────────────
 // ConstellationPage renders this directly under the notes textarea so
 // the calendar can sit flush at the top of its own container. Same
@@ -1975,6 +1999,13 @@ function OverlapStrip({
   // legacy absolute pill bar (used by /draw/classic QuickLog).
   showOlder: showOlderProp,
   onShowOlderChange,
+  // EG — optional rich-popover hover/long-press callbacks. When wired,
+  // OverlapStrip emits per-cell hover events with the cell's date,
+  // anchor coords, and computed visual signals; the parent renders the
+  // popover. The legacy native title="" tooltip is suppressed when
+  // these are provided.
+  onDayHover,
+  onDayHoverEnd,
 }: {
   overlap: QuickLogOverlap | null;
   heroCardId: number | null;
@@ -2002,10 +2033,27 @@ function OverlapStrip({
   /** EF3 — externally-controlled showOlder. */
   showOlder?: boolean;
   onShowOlderChange?: (next: boolean) => void;
+  /** EG — emit a hover event for a day cell, with computed visual
+   * signals so the parent can drive a rich popover. */
+  onDayHover?: (info: {
+    date: string;
+    anchorX: number;
+    anchorY: number;
+    signals: DayCellSignals;
+    tooltipText: string;
+  }) => void;
+  /** EG — emit when the cursor leaves the cell. */
+  onDayHoverEnd?: (date: string) => void;
 }) {
   const months = overlap?.months ?? [];
   const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
   const tealSet = useMemo(() => new Set(tealSelectedIds), [tealSelectedIds]);
+  // EG — long-press tracking for touch devices. Pointerdown starts a
+  // 500ms timer; if pointerup fires before, it's a tap (let
+  // onDayClick handle it). If the timer fires, it's a long press;
+  // fire onDayHover with the cell's data.
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressFiredRef = useRef(false);
   const now = new Date();
   // eslint-disable-next-line no-restricted-syntax -- compared against m.year/m.month already-tz-resolved server-side; calendar-month keying
   const currentMonthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
@@ -2465,7 +2513,97 @@ function OverlapStrip({
                   return (
                     <div
                       key={day.date}
-                      title={tooltipText}
+                      // EG — drop native title="" when the parent has
+                      // wired the rich-popover callbacks. Otherwise keep
+                      // for legacy /draw/classic.
+                      title={onDayHover ? undefined : tooltipText}
+                      onMouseEnter={
+                        onDayHover
+                          ? (e) => {
+                              onDayHover({
+                                date: day.date,
+                                anchorX: e.clientX,
+                                anchorY: e.clientY,
+                                signals: {
+                                  heroDrawn: !!day.heroDrawn,
+                                  heroName,
+                                  matchCount,
+                                  pullSize: pullCardIds.length,
+                                  isPerfectMatch,
+                                  isBestAvailable,
+                                  tealTraceHit,
+                                },
+                                tooltipText,
+                              });
+                            }
+                          : undefined
+                      }
+                      onMouseLeave={
+                        onDayHoverEnd
+                          ? () => onDayHoverEnd(day.date)
+                          : undefined
+                      }
+                      // EG — long-press support for touch. Only the
+                      // touch pointer type triggers the timer; mouse
+                      // pointers already get hover via onMouseEnter.
+                      onPointerDown={
+                        onDayHover
+                          ? (e) => {
+                              if (e.pointerType !== "touch") return;
+                              longPressFiredRef.current = false;
+                              if (longPressTimerRef.current !== null) {
+                                window.clearTimeout(longPressTimerRef.current);
+                              }
+                              const startX = e.clientX;
+                              const startY = e.clientY;
+                              longPressTimerRef.current = window.setTimeout(
+                                () => {
+                                  longPressFiredRef.current = true;
+                                  onDayHover({
+                                    date: day.date,
+                                    anchorX: startX,
+                                    anchorY: startY,
+                                    signals: {
+                                      heroDrawn: !!day.heroDrawn,
+                                      heroName,
+                                      matchCount,
+                                      pullSize: pullCardIds.length,
+                                      isPerfectMatch,
+                                      isBestAvailable,
+                                      tealTraceHit,
+                                    },
+                                    tooltipText,
+                                  });
+                                },
+                                500,
+                              );
+                            }
+                          : undefined
+                      }
+                      onPointerUp={
+                        onDayHover
+                          ? () => {
+                              if (longPressTimerRef.current !== null) {
+                                window.clearTimeout(longPressTimerRef.current);
+                                longPressTimerRef.current = null;
+                              }
+                              // If the long-press fired, suppress click
+                              // (parent dismisses on outside-tap).
+                              // Otherwise let the click event do its
+                              // normal thing.
+                            }
+                          : undefined
+                      }
+                      onPointerCancel={
+                        onDayHover
+                          ? () => {
+                              if (longPressTimerRef.current !== null) {
+                                window.clearTimeout(longPressTimerRef.current);
+                                longPressTimerRef.current = null;
+                              }
+                            }
+                          : undefined
+                      }
                       style={
                         layout === "grid12"
                           ? {

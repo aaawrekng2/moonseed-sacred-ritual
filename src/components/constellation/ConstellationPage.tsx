@@ -27,6 +27,7 @@ import { resolvePromptsForFirstCard } from "@/lib/journal-prompts/resolve";
 import { saveManualReading } from "@/lib/save-manual-reading.functions";
 import { interpretReading } from "@/lib/interpret.functions";
 import { Modal } from "@/components/ui/modal";
+import { RichPopover } from "@/components/ui/RichPopover";
 import {
   ChipGrid,
   OverlapStrip,
@@ -37,6 +38,7 @@ import {
   SectionOverline,
   SectionDivider,
   type ConstellationState,
+  type DayCellSignals,
 } from "@/components/tabletop/QuickLog";
 import {
   SmartCardInput,
@@ -143,6 +145,33 @@ function loadPersisted(): Partial<PersistedState> | null {
   } catch {
     return null;
   }
+}
+
+// EG — a single line in the chained legend popover. Mini visual swatch
+// on the left, short label on the right.
+function LegendRow({
+  swatch,
+  label,
+}: {
+  swatch: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        fontFamily: "var(--font-serif)",
+        fontSize: 11.5,
+        color: "var(--color-foreground)",
+        lineHeight: 1.3,
+      }}
+    >
+      <div style={{ flexShrink: 0, position: "relative" }}>{swatch}</div>
+      <div style={{ flex: 1 }}>{label}</div>
+    </div>
+  );
 }
 
 export function ConstellationPage() {
@@ -497,7 +526,70 @@ export function ConstellationPage() {
     clientY: number,
   ) => {
     setHoverCardId(cardId);
-    if (cardId !== null) setHoverCoords({ x: clientX, y: clientY });
+    if (cardId !== null) {
+      setHoverCoords({ x: clientX, y: clientY });
+      // EG — claim the unified popover slot. Any other popover
+      // (badge-hint, day-cell) is suppressed.
+      setActivePopover({
+        kind: "card-meaning",
+        key: String(cardId),
+        anchorX: clientX,
+        anchorY: clientY,
+      });
+    } else {
+      closeActivePopover("card-meaning");
+    }
+  };
+
+  // EG — unified popover state. Only one rich popover is visible at a
+  // time. Whichever popover most recently claimed it is the one that
+  // renders; the others (whose source-element hover state may also be
+  // active) are suppressed until they reclaim the slot.
+  //
+  // Kinds:
+  //   "card-meaning" — constellation card hover (TAROT_MEANINGS)
+  //   "badge-hint"   — slot card badge hover ("appeared in N readings")
+  //   "day-cell"     — calendar day cell hover / long-press
+  type ActivePopoverKind = "card-meaning" | "badge-hint" | "day-cell";
+  // EG — payload varies by kind. badge-hint stores count + card name
+  // so the popover can render without re-looking-up picks. day-cell
+  // stores the date so the popover can derive its narrative + signals.
+  type ActivePopoverState =
+    | {
+        kind: "card-meaning";
+        key: string;
+        anchorX: number;
+        anchorY: number;
+      }
+    | {
+        kind: "badge-hint";
+        key: string;
+        anchorX: number;
+        anchorY: number;
+        count: number;
+        cardName: string;
+      }
+    | {
+        kind: "day-cell";
+        key: string;
+        anchorX: number;
+        anchorY: number;
+        date: string;
+        signals: DayCellSignals;
+        tooltipText: string;
+      };
+  const [activePopover, setActivePopover] = useState<ActivePopoverState | null>(
+    null,
+  );
+  const closeActivePopover = (kind?: ActivePopoverKind, key?: string) => {
+    setActivePopover((prev) => {
+      if (!prev) return prev;
+      // Only close if the caller "owns" the popover (same kind+key), or
+      // if no specifier was passed (closes whatever's open).
+      if (kind && prev.kind !== kind) return prev;
+      if (key && prev.key !== key) return prev;
+      return null;
+    });
   };
 
   // DZ — calendar day-click popover. When a day cell is tapped, surface
@@ -1648,7 +1740,22 @@ export function ConstellationPage() {
                           <div
                             role="img"
                             aria-label={`Appeared in ${count} past readings`}
-                            title={`This card has appeared in ${count} of your past readings.`}
+                            onMouseEnter={(e) =>
+                              setActivePopover({
+                                kind: "badge-hint",
+                                key: String(pick.id),
+                                anchorX: e.clientX,
+                                anchorY: e.clientY,
+                                count,
+                                cardName:
+                                  pick.cardName ??
+                                  TAROT_DECK[pick.cardIndex] ??
+                                  "this card",
+                              })
+                            }
+                            onMouseLeave={() =>
+                              closeActivePopover("badge-hint", String(pick.id))
+                            }
                             style={{
                               position: "absolute",
                               bottom: -6,
@@ -1876,6 +1983,20 @@ export function ConstellationPage() {
           onDayClick={(date) => setDayPopover({ open: true, date })}
           showOlder={showOlder}
           onShowOlderChange={setShowOlder}
+          onDayHover={(info) =>
+            setActivePopover({
+              kind: "day-cell",
+              key: info.date,
+              anchorX: info.anchorX,
+              anchorY: info.anchorY,
+              date: info.date,
+              signals: info.signals,
+              tooltipText: info.tooltipText,
+            })
+          }
+          onDayHoverEnd={(date) =>
+            closeActivePopover("day-cell", date)
+          }
         />
       </div>
 
@@ -2197,150 +2318,291 @@ export function ConstellationPage() {
           if (action) action();
         }}
       />
-      {/* DY — constellation card hover tooltip. Portal-rendered so it
-          escapes any z-index / overflow context from the grid. Shows
-          card name + upright keywords + meaning, and (only when the
-          allow_reversed_cards preference is on) the reversed pair. */}
-      {hoverCardId !== null &&
-        typeof document !== "undefined" &&
-        TAROT_MEANINGS[hoverCardId] &&
-        createPortal(
-          (() => {
-            const m = TAROT_MEANINGS[hoverCardId];
-            // Offset the tooltip a bit down-right of the cursor; nudge
-            // back left if it would overflow the viewport.
-            const offsetX = 16;
-            const offsetY = 16;
-            const maxW = 280;
-            const proposedLeft = hoverCoords.x + offsetX;
-            const left =
-              typeof window !== "undefined" &&
-              proposedLeft + maxW > window.innerWidth - 8
-                ? Math.max(8, hoverCoords.x - offsetX - maxW)
-                : proposedLeft;
-            const top = hoverCoords.y + offsetY;
-            return (
+      {/* EG — constellation card hover popover. Uses RichPopover so it
+          shares the dark themed style with the other popovers in the
+          app and supports the chained-ⓘ pattern (not used here yet —
+          card meaning has no deeper level). Gated on activePopover so
+          only one popover renders at a time. */}
+      {(() => {
+        const active =
+          activePopover?.kind === "card-meaning" && hoverCardId !== null;
+        const m = hoverCardId !== null ? TAROT_MEANINGS[hoverCardId] : null;
+        if (!m) return null;
+        return (
+          <RichPopover
+            open={active}
+            anchorX={hoverCoords.x}
+            anchorY={hoverCoords.y}
+            onClose={() => {
+              setHoverCardId(null);
+              closeActivePopover("card-meaning");
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontSize: 14,
+                color: "var(--color-foreground)",
+                lineHeight: 1.2,
+              }}
+            >
+              {m.name}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
               <div
-                role="tooltip"
                 style={{
-                  position: "fixed",
-                  left,
-                  top,
-                  zIndex: "var(--z-toast)" as unknown as number,
-                  pointerEvents: "none",
-                  maxWidth: maxW,
-                  padding: "12px 14px",
-                  borderRadius: 10,
-                  background: "var(--surface-card)",
-                  border: "1px solid var(--border-default)",
-                  boxShadow: "0 6px 22px rgba(0,0,0,0.35)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 8,
+                  fontFamily: "var(--font-display)",
+                  fontSize: 10,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "var(--accent, var(--gold))",
+                  opacity: 0.9,
                 }}
+              >
+                Upright
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontStyle: "italic",
+                  fontSize: 11.5,
+                  color: "var(--color-foreground)",
+                  opacity: 0.85,
+                  lineHeight: 1.35,
+                }}
+              >
+                {m.uprightKeywords.join(", ")}.
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: 12,
+                  color: "var(--color-foreground)",
+                  lineHeight: 1.45,
+                }}
+              >
+                {m.uprightMeaning}
+              </div>
+            </div>
+            {allowReversed && (
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: 3 }}
               >
                 <div
                   style={{
                     fontFamily: "var(--font-display)",
-                    fontStyle: "italic",
-                    fontSize: 14,
-                    color: "var(--color-foreground)",
-                    lineHeight: 1.2,
+                    fontSize: 10,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: "var(--accent, var(--gold))",
+                    opacity: 0.9,
                   }}
                 >
-                  {m.name}
+                  Reversed
                 </div>
                 <div
                   style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 3,
+                    fontFamily: "var(--font-serif)",
+                    fontStyle: "italic",
+                    fontSize: 11.5,
+                    color: "var(--color-foreground)",
+                    opacity: 0.85,
+                    lineHeight: 1.35,
                   }}
                 >
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: 10,
-                      letterSpacing: "0.18em",
-                      textTransform: "uppercase",
-                      color: "var(--accent, var(--gold))",
-                      opacity: 0.9,
-                    }}
-                  >
-                    Upright
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
-                      fontSize: 11.5,
-                      color: "var(--color-foreground)",
-                      opacity: 0.85,
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    {m.uprightKeywords.join(", ")}.
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-serif)",
-                      fontSize: 12,
-                      color: "var(--color-foreground)",
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    {m.uprightMeaning}
-                  </div>
+                  {m.reversedKeywords.join(", ")}.
                 </div>
-                {allowReversed && (
+                <div
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: 12,
+                    color: "var(--color-foreground)",
+                    lineHeight: 1.45,
+                  }}
+                >
+                  {m.reversedMeaning}
+                </div>
+              </div>
+            )}
+          </RichPopover>
+        );
+      })()}
+      {/* EG — slot card badge hint popover ("This card has appeared in N
+          of your past readings."). Same RichPopover style as the card
+          meaning popover, replacing the prior native title="" tooltip. */}
+      {activePopover?.kind === "badge-hint" && (
+        <RichPopover
+          open
+          anchorX={activePopover.anchorX}
+          anchorY={activePopover.anchorY}
+          onClose={() => closeActivePopover("badge-hint")}
+          maxWidth={240}
+        >
+          <div
+            style={{
+              fontFamily: "var(--font-display)",
+              fontStyle: "italic",
+              fontSize: 13,
+              color: "var(--color-foreground)",
+              lineHeight: 1.2,
+            }}
+          >
+            {activePopover.cardName}
+          </div>
+          <div
+            style={{
+              fontFamily: "var(--font-serif)",
+              fontSize: 12,
+              color: "var(--color-foreground)",
+              opacity: 0.85,
+              lineHeight: 1.4,
+            }}
+          >
+            This card has appeared in{" "}
+            <span
+              style={{
+                fontStyle: "italic",
+                color: "var(--accent, var(--gold))",
+              }}
+            >
+              {activePopover.count}
+            </span>{" "}
+            of your past readings.
+          </div>
+        </RichPopover>
+      )}
+      {/* EG — calendar day cell popover. Hover (PC) or long-press
+          (tablet) on a day cell shows the day's narrative; if the cell
+          has any visual signals active (gold hero fill, ring, dashed,
+          teal trace), an ⓘ icon appears in the corner and chains to a
+          color legend explaining each signal active on THIS cell. */}
+      {activePopover?.kind === "day-cell" && (() => {
+        const s = activePopover.signals;
+        const hasAnySignal =
+          s.heroDrawn ||
+          s.matchCount > 0 ||
+          s.isPerfectMatch ||
+          s.isBestAvailable ||
+          s.tealTraceHit;
+        const legend = hasAnySignal ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {s.heroDrawn && (
+              <LegendRow
+                swatch={
                   <div
                     style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 3,
+                      width: 18,
+                      height: 18,
+                      borderRadius: 3,
+                      background: "var(--gold, var(--accent))",
+                      opacity: 0.9,
+                      border:
+                        "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
                     }}
-                  >
-                    <div
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontSize: 10,
-                        letterSpacing: "0.18em",
-                        textTransform: "uppercase",
-                        color: "var(--accent, var(--gold))",
-                        opacity: 0.9,
-                      }}
-                    >
-                      Reversed
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-serif)",
-                        fontStyle: "italic",
-                        fontSize: 11.5,
-                        color: "var(--color-foreground)",
-                        opacity: 0.85,
-                        lineHeight: 1.35,
-                      }}
-                    >
-                      {m.reversedKeywords.join(", ")}.
-                    </div>
-                    <div
-                      style={{
-                        fontFamily: "var(--font-serif)",
-                        fontSize: 12,
-                        color: "var(--color-foreground)",
-                        lineHeight: 1.45,
-                      }}
-                    >
-                      {m.reversedMeaning}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })(),
-          document.body,
-        )}
+                  />
+                }
+                label={
+                  s.heroName
+                    ? `Hero card: ${s.heroName}`
+                    : "Hero card drawn here"
+                }
+              />
+            )}
+            {s.matchCount > 0 && !s.isPerfectMatch && (
+              <LegendRow
+                swatch={
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 3,
+                      background: "var(--accent, var(--gold))",
+                      opacity:
+                        0.15 +
+                        (s.matchCount /
+                          Math.max(1, s.pullSize)) *
+                          0.8,
+                      border:
+                        "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+                    }}
+                  />
+                }
+                label={`${Math.round(
+                  (s.matchCount / Math.max(1, s.pullSize)) * 100,
+                )}% match · ${s.matchCount} of ${s.pullSize} from your pull`}
+              />
+            )}
+            {s.isPerfectMatch && (
+              <LegendRow
+                swatch={
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 3,
+                      border: "2px solid var(--accent, var(--gold))",
+                    }}
+                  />
+                }
+                label="100% match · all your pull cards co-occurred here"
+              />
+            )}
+            {s.isBestAvailable && !s.isPerfectMatch && (
+              <LegendRow
+                swatch={
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 3,
+                      border: "1.5px dashed var(--accent, var(--gold))",
+                    }}
+                  />
+                }
+                label="Best partial match in your calendar"
+              />
+            )}
+            {s.tealTraceHit && (
+              <LegendRow
+                swatch={
+                  <div
+                    style={{
+                      width: 18,
+                      height: 18,
+                      borderRadius: 3,
+                      border: "2px solid var(--trace-color, #5cead4)",
+                    }}
+                  />
+                }
+                label="Teal trace · all your selected cards co-occurred here"
+              />
+            )}
+          </div>
+        ) : null;
+        return (
+          <RichPopover
+            open
+            anchorX={activePopover.anchorX}
+            anchorY={activePopover.anchorY}
+            onClose={() => closeActivePopover("day-cell")}
+            chainedContent={legend ?? undefined}
+            chainedTitle="What the colors mean"
+            maxWidth={300}
+          >
+            <div
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: 12,
+                color: "var(--color-foreground)",
+                lineHeight: 1.4,
+              }}
+            >
+              {activePopover.tooltipText}
+            </div>
+          </RichPopover>
+        );
+      })()}
       {/* DY — journaling-prompts modal. Lists the curated 3-5 prompts
           for the hero card; click a prompt to insert it into the notes
           textarea + close. Uses the canonical branded Modal. */}
