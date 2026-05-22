@@ -368,6 +368,15 @@ function DrawPage() {
             }
             },
           };
+          // ED — gate the viewport-based branch on viewport.mounted.
+          // Before mount, server-render and client-pre-effect both see
+          // the same placeholder state, so React renders ManualEntryBuilder
+          // on both sides → no hydration mismatch. After the first effect
+          // fires, viewport.mounted flips true and the correct branch
+          // re-renders in a regular update (not hydration). This
+          // eliminates the React error #418 that was cascading into a
+          // ReferenceError in ConstellationPage's bundled chunk.
+          if (!viewport.mounted) return <ManualEntryBuilder {...sharedProps} />;
           const isDesktopLandscape = viewport.width >= 1024 && viewport.isLandscape;
           const isDesktopPortrait = viewport.width >= 1024 && !viewport.isLandscape;
           if (isDesktopLandscape) return <ConstellationPage />;
