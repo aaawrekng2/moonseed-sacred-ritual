@@ -149,9 +149,35 @@ export function CardPicker({
       },
     })
       .then((d) => {
+        // ED3 — diagnostic logging for "Most drawn doesn't sort/badge"
+        // regression. Logs the fetch result so we can verify whether
+        // counts come back empty or populated. Safe to leave in; the
+        // payload is small (78 numbers) and only fires once per
+        // tz/timeRange/user combo.
+        try {
+          const nonZero = Object.values(d.perCard ?? {}).filter(
+            (n) => n > 0,
+          ).length;
+          const max = Object.values(d.perCard ?? {}).reduce(
+            (m, n) => (n > m ? n : m),
+            0,
+          );
+          console.log("[CardPicker] drawnCounts loaded", {
+            timeRange: drawCountTimeRange,
+            tz: effectiveTz,
+            nonZeroCount: nonZero,
+            globalMax: d.globalMax,
+            sampleMax: max,
+            totalCards: Object.keys(d.perCard ?? {}).length,
+          });
+        } catch {
+          /* logging shouldn't break the picker */
+        }
         if (!cancelled) setDrawnCounts(d.perCard ?? {});
       })
-      .catch(() => {
+      .catch((err) => {
+        // ED3 — surface the failure instead of swallowing silently.
+        console.error("[CardPicker] drawnCounts fetch failed", err);
         if (!cancelled) setDrawnCounts({});
       });
     return () => {
