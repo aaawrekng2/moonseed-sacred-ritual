@@ -119,7 +119,7 @@ export function TimeOfDayRadial({ filters }: { filters: InsightsFilters }) {
                   onMouseLeave={() => setHovered(null)}
                   style={{ cursor: "pointer" }}
                 >
-                  <title>{`${fmtH(hour)}: ${count} reading${count === 1 ? "" : "s"}`}</title>
+                  <title>{`${fmtH(hour)}: ${count} spread${count === 1 ? "" : "s"}`}</title>
                 </line>
               );
             })}

@@ -1526,7 +1526,7 @@ function ChipGrid({
         <Chip
           label="FREQUENCY"
           value={frequency}
-          tooltip="Where this card sits in your personal draw history. Example: '#3 most-drawn · 47 times' means it's your third-most-pulled card across all your spreads. 'Rare for you' means it's appeared 5 or fewer times in your full history."
+          tooltip="Where this card sits in your personal draw history. Example: '#3 most-drawn · 47 times' means it's your third-most-drawn card across all your spreads. 'Rare for you' means it's appeared 5 or fewer times in your full history."
           onChipHover={onChipHover}
           onChipHoverEnd={onChipHoverEnd}
         />

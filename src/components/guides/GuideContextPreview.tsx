@@ -299,7 +299,7 @@ export function GuideContextPreview(props: GuideContextPreviewProps) {
               <span className="text-[10px] text-muted-foreground">
                 {loading
                   ? "loading…"
-                  : `${matchedCount} reading${matchedCount === 1 ? "" : "s"} matched`}
+                  : `${matchedCount} spread${matchedCount === 1 ? "" : "s"} matched`}
               </span>
             </div>
           </RadioRow>

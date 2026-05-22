@@ -64,7 +64,7 @@ export function JournalPrompts({
 
   const total = prompts.length;
   const current = prompts[Math.max(0, Math.min(index, total - 1))];
-  const TAILORED_PLACEHOLDER_LITERAL = "Get a tailored prompt for this reading";
+  const TAILORED_PLACEHOLDER_LITERAL = "Get a tailored prompt for this spread";
   const isPlaceholder = current === TAILORED_PLACEHOLDER_LITERAL;
 
   const go = (delta: number) => {

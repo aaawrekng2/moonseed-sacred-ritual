@@ -26,7 +26,7 @@ function SettingsGuidesPage() {
         isEmbedded
         onContinue={() => void navigate({ to: "/draw" })}
         onSkip={() => void navigate({ to: "/settings/profile" })}
-        ctaLabel="Begin a Reading"
+        ctaLabel="Begin a new spread"
       />
     </SettingsSection>
   );

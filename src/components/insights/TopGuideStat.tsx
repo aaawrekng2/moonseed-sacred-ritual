@@ -16,7 +16,7 @@ export function TopGuideStat({
         data
           ? onlyOne
             ? `You always reach for ${data.name}.`
-            : `${data.count} reading${data.count === 1 ? "" : "s"} together.`
+            : `${data.count} spread${data.count === 1 ? "" : "s"} together.`
           : "Pick a guide to start tracking."
       }
       onTap={onTap}

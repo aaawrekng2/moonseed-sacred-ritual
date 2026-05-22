@@ -142,7 +142,7 @@ export function YearHeatmap({ filters }: { filters: InsightsFilters }) {
                       <button
                         key={row}
                         type="button"
-                        title={d ? `${d.date}: ${d.count} reading${d.count === 1 ? "" : "s"}` : ""}
+                        title={d ? `${d.date}: ${d.count} spread${d.count === 1 ? "" : "s"}` : ""}
                         disabled={!d}
                         onClick={() => {
                           if (d && d.count > 0) {

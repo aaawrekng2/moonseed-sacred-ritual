@@ -1417,7 +1417,7 @@ function PatternStrengthBanner({
       <span style={{ fontWeight: 600 }}>{label}</span>
       <span style={{ opacity: 0.6 }}>·</span>
       <span>
-        {readingCount} reading{readingCount === 1 ? "" : "s"}
+        {readingCount} spread{readingCount === 1 ? "" : "s"}
       </span>
       <span style={{ opacity: 0.6 }}>·</span>
       <span>
@@ -1783,7 +1783,7 @@ function EvidenceSection({
             </li>
             <li>
               SPAN ··········· {timeline.dayCount} day
-              {timeline.dayCount === 1 ? "" : "s"} · {readings.length} reading
+              {timeline.dayCount === 1 ? "" : "s"} · {readings.length} spread
               {readings.length === 1 ? "" : "s"}
             </li>
           </ul>
@@ -2029,7 +2029,7 @@ function ReadingExcerptCard({
             .map((c) => getCardName(c))
             .filter(Boolean);
           const fallback =
-            names.length > 0 ? names.join(", ") : "untitled reading";
+            names.length > 0 ? names.join(", ") : "untitled spread";
           return (
             <p
               style={{
@@ -2794,7 +2794,7 @@ function WeaveGraphLegend() {
             }}
           />
         </span>
-        <dt style={{ display: "inline" }}>Reading dot</dt>
+        <dt style={{ display: "inline" }}>Spread dot</dt>
         <dd style={{ margin: 0, opacity: 0.7 }}>— a single entry where this pattern surfaced</dd>
       </div>
       <div style={itemStyle}>
