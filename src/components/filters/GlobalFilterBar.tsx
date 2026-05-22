@@ -8,7 +8,7 @@
  * as the historical Journal drawer) with sections rendered in the order
  * specified by the `sections` prop.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { SlidersHorizontal, X as XIcon } from "lucide-react";
 import { Dropdown } from "@/components/filters/Dropdown";
@@ -254,11 +254,17 @@ function FilterDrawer({
   availableSpreadTypes?: ReadonlyArray<string>;
   availableMoonPhases?: ReadonlyArray<string>;
 }) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // FU-2 — Portal to document.body so the drawer escapes any ancestor
   // stacking/containing context (e.g. `backdrop-filter`, `transform`)
   // which would otherwise trap a `position: fixed` child inside that
   // ancestor's box and z-index layer.
-  if (typeof document === "undefined") return null;
+  if (!mounted || typeof document === "undefined") return null;
   return createPortal(
     <>
       {open && (
