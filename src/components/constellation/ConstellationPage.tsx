@@ -30,6 +30,7 @@ import { Modal } from "@/components/ui/modal";
 import {
   ChipGrid,
   OverlapStrip,
+  OverlapPills,
   ThisPullTiles,
   PullHistoryPill,
   PracticeLine,
@@ -406,6 +407,10 @@ export function ConstellationPage() {
   // ED — SSR-safe default; hydrated from localStorage in the
   // hydratedFromStorageRef effect above.
   const [overlapMode, setOverlapMode] = useState<"pull" | "day">("pull");
+  // EF3 — Hide/Show older calendar row state, lifted up from OverlapStrip
+  // so the pill row can live under the notes area (separate from the
+  // calendar container).
+  const [showOlder, setShowOlder] = useState(false);
   useEffect(() => {
     if (!user?.id) {
       setOverlap(null);
@@ -1834,6 +1839,23 @@ export function ConstellationPage() {
                   outline: "none",
                 }}
               />
+              {/* EF3 — Pill row: Hide older / Same pull-day / Save to
+                  journal. Sits directly under the notes textarea now,
+                  decoupled from the calendar so the calendar can move
+                  up to the top of its container. */}
+              <div style={{ marginTop: 6 }}>
+                <OverlapPills
+                  mode={overlapMode}
+                  onModeChange={setOverlapMode}
+                  showOlder={showOlder}
+                  onShowOlderChange={setShowOlder}
+                  onSaveToJournal={() => void handleSaveToJournal()}
+                  saveStatus={saveStatus}
+                  saveError={saveError}
+                  saveDisabled={!canSubmit}
+                  align="flex-start"
+                />
+              </div>
             </div>
           )}
         </div>
@@ -1852,10 +1874,8 @@ export function ConstellationPage() {
           tealSelectedIds={tealSelectedIds}
           layout="grid12"
           onDayClick={(date) => setDayPopover({ open: true, date })}
-          onSaveToJournal={() => void handleSaveToJournal()}
-          saveStatus={saveStatus}
-          saveError={saveError}
-          saveDisabled={!canSubmit}
+          showOlder={showOlder}
+          onShowOlderChange={setShowOlder}
         />
       </div>
 
