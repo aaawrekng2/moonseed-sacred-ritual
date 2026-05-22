@@ -6,7 +6,7 @@
  * Pair with {@link useActiveDeckImage} to resolve card art with
  * automatic Rider-Waite fallback.
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   buildDeckImageMap,
   EMPTY_DECK_IMAGE_MAP,
@@ -74,15 +74,38 @@ export function ActiveDeckProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   // ES-5 — Hydrate from localStorage so warm reopen doesn't flash the
   // Rider-Waite default before the live fetch returns.
-  const [activeDeck, setActiveDeck] = useState<CustomDeck | null>(
-    () => readCachedDeck().deck,
-  );
-  const [imageMap, setImageMap] = useState<DeckImageMap>(
-    () => readCachedDeck().map,
-  );
-  const [loading, setLoading] = useState(
-    () => readCachedDeck().deck === null,
-  );
+  //
+  // EH3 — SSR-safe initialization. Previously these useState
+  // initializers called readCachedDeck() synchronously, which returns
+  // `{ deck: null, map: EMPTY_DECK_IMAGE_MAP }` on the server (no
+  // window) but the cached custom deck on the client. The difference
+  // caused a hydration mismatch (React error #418) for any seeker
+  // with a custom deck saved — server rendered Rider-Waite images,
+  // client tried to hydrate with custom deck images.
+  //
+  // Strategy:
+  //   1. Initial state matches what the server renders (null / empty
+  //      map / loading=true). Server and client both start with the
+  //      same default.
+  //   2. A useEffect runs once after mount, reads localStorage, and
+  //      sets the cached deck if any. This runs on the client only,
+  //      after hydration completes, so it can't cause #418.
+  const [activeDeck, setActiveDeck] = useState<CustomDeck | null>(null);
+  const [imageMap, setImageMap] = useState<DeckImageMap>(EMPTY_DECK_IMAGE_MAP);
+  const [loading, setLoading] = useState(true);
+  // EH3 — hydrate from localStorage exactly once after mount. Effect
+  // body runs only on client (window guarded by readCachedDeck).
+  const cachedDeckHydratedRef = useRef(false);
+  useEffect(() => {
+    if (cachedDeckHydratedRef.current) return;
+    cachedDeckHydratedRef.current = true;
+    const cached = readCachedDeck();
+    if (cached.deck) {
+      setActiveDeck(cached.deck);
+      setImageMap(cached.map);
+      setLoading(false);
+    }
+  }, []);
   // 9-6-J — bumped by the global "arcana:deck-back-updated" event so
   // edits to the active deck's card back invalidate the cached image
   // map and the home hero re-fetches.
