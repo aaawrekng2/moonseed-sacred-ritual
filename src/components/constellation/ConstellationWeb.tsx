@@ -22,17 +22,20 @@ const HERO_W = 120;
 const HERO_H = Math.round(HERO_W * AR_CEILING); // ≈204
 // Phase 22 Fix 2 — HERO_Y dropped 60→24, SVG_H dropped 540→504,
 // all companion Y values shifted up by 36 to remove dead top space.
-const HERO_Y = 24;
+// EF4 — drop HERO_Y from 24 → 4, SVG_H from 504 → 484 (additional
+// 20px reduction). Pulls the constellation up so it sits just below
+// the right column's chips at top of two-column grid.
+const HERO_Y = 4;
 export const SVG_W = 540;
-export const SVG_H = 504;
+export const SVG_H = 484;
 const COMPANION_POSITIONS = [
-  { x: 95,  y: 114 },  // upper-left
-  { x: 385, y: 114 },  // upper-right
-  { x: 30,  y: 244 },  // mid-far-left
-  { x: 450, y: 244 },  // mid-far-right
-  { x: 120, y: 364 },  // lower-left
-  { x: 360, y: 364 },  // lower-right
-  { x: 240, y: 384 },  // bottom-center
+  { x: 95,  y: 94 },   // upper-left      (shifted up 20)
+  { x: 385, y: 94 },   // upper-right     (shifted up 20)
+  { x: 30,  y: 224 },  // mid-far-left    (shifted up 20)
+  { x: 450, y: 224 },  // mid-far-right   (shifted up 20)
+  { x: 120, y: 344 },  // lower-left      (shifted up 20)
+  { x: 360, y: 344 },  // lower-right     (shifted up 20)
+  { x: 240, y: 364 },  // bottom-center   (shifted up 20)
 ];
 
 type Props = {

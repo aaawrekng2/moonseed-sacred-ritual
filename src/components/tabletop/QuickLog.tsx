@@ -1797,6 +1797,154 @@ function matchOpacity(matches: number, pullSize: number): number {
   return 0.15 + pct * 0.8;
 }
 
+// ─── EF3 — Pills row, decoupled from OverlapStrip ───────────────────
+// ConstellationPage renders this directly under the notes textarea so
+// the calendar can sit flush at the top of its own container. Same
+// three pills as the legacy absolute bar, same styling.
+export function OverlapPills({
+  mode,
+  onModeChange,
+  showOlder,
+  onShowOlderChange,
+  showOlderToggle = true,
+  onSaveToJournal,
+  saveStatus = "idle",
+  saveError = null,
+  saveDisabled = false,
+  align = "flex-end",
+}: {
+  mode: "pull" | "day";
+  onModeChange: (m: "pull" | "day") => void;
+  showOlder: boolean;
+  onShowOlderChange: (next: boolean) => void;
+  /** Hide the Show/Hide older toggle when the layout doesn't need it. */
+  showOlderToggle?: boolean;
+  onSaveToJournal?: () => void;
+  saveStatus?: "idle" | "saving" | "saved" | "error";
+  saveError?: string | null;
+  saveDisabled?: boolean;
+  /** flex justify-content for the row. Defaults to flex-end. */
+  align?: "flex-start" | "flex-end" | "center" | "space-between";
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 6,
+        justifyContent: align,
+        alignItems: "center",
+        flexWrap: "wrap",
+      }}
+    >
+      {showOlderToggle && (
+        <button
+          type="button"
+          onClick={() => onShowOlderChange(!showOlder)}
+          style={{
+            height: 22,
+            padding: "0 12px",
+            borderRadius: 9999,
+            border: "1px solid var(--border-subtle)",
+            background: showOlder
+              ? "color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)"
+              : "var(--surface-card)",
+            color: "var(--color-foreground)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 10,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {showOlder ? "Hide older ←" : "Show older →"}
+        </button>
+      )}
+      <div
+        role="tablist"
+        style={{
+          display: "inline-flex",
+          height: 22,
+          borderRadius: 9999,
+          border: "1px solid var(--border-subtle)",
+          background: "var(--surface-card)",
+          overflow: "hidden",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: 10,
+        }}
+      >
+        {(["pull", "day"] as const).map((m) => {
+          const active = mode === m;
+          return (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => onModeChange(m)}
+              style={{
+                padding: "0 12px",
+                height: "100%",
+                border: "none",
+                background: active
+                  ? "color-mix(in oklab, var(--accent, var(--gold)) 65%, transparent)"
+                  : "transparent",
+                color: active
+                  ? "var(--color-foreground)"
+                  : "var(--color-foreground-muted, var(--color-foreground))",
+                cursor: "pointer",
+              }}
+            >
+              same {m}
+            </button>
+          );
+        })}
+      </div>
+      {onSaveToJournal && (
+        <button
+          type="button"
+          onClick={onSaveToJournal}
+          disabled={saveStatus === "saving" || saveDisabled}
+          title={
+            saveStatus === "error" && saveError
+              ? saveError
+              : saveStatus === "saved"
+                ? "Saved to journal ✓"
+                : undefined
+          }
+          style={{
+            height: 22,
+            padding: "0 12px",
+            borderRadius: 9999,
+            border:
+              "1px solid color-mix(in oklab, var(--accent, var(--gold)) 55%, transparent)",
+            background:
+              saveStatus === "saved"
+                ? "color-mix(in oklab, var(--accent, var(--gold)) 25%, transparent)"
+                : "var(--surface-card)",
+            color: "var(--color-foreground)",
+            fontFamily: "var(--font-serif)",
+            fontStyle: "italic",
+            fontSize: 10,
+            cursor:
+              saveStatus === "saving" || saveDisabled
+                ? "not-allowed"
+                : "pointer",
+            opacity: saveStatus === "saving" || saveDisabled ? 0.5 : 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {saveStatus === "saving"
+            ? "Saving…"
+            : saveStatus === "saved"
+              ? "Saved ✓"
+              : "Save to journal"}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function OverlapStrip({
   overlap,
   heroCardId,
@@ -1819,6 +1967,14 @@ function OverlapStrip({
   saveStatus,
   saveError,
   saveDisabled = false,
+  // EF3 — externally-controlled showOlder. When `onShowOlderChange` is
+  // provided, the parent owns the toggle state and renders its own
+  // pill row (via <OverlapPills>); OverlapStrip drops the absolute
+  // pill bar and reads showOlder from the prop. When neither is
+  // provided, OverlapStrip falls back to internal state + renders the
+  // legacy absolute pill bar (used by /draw/classic QuickLog).
+  showOlder: showOlderProp,
+  onShowOlderChange,
 }: {
   overlap: QuickLogOverlap | null;
   heroCardId: number | null;
@@ -1843,6 +1999,9 @@ function OverlapStrip({
   saveStatus?: "idle" | "saving" | "saved" | "error";
   saveError?: string | null;
   saveDisabled?: boolean;
+  /** EF3 — externally-controlled showOlder. */
+  showOlder?: boolean;
+  onShowOlderChange?: (next: boolean) => void;
 }) {
   const months = overlap?.months ?? [];
   const pullSet = useMemo(() => new Set(pullCardIds), [pullCardIds]);
@@ -1880,7 +2039,15 @@ function OverlapStrip({
   // DU — for grid12 layout, the top row (older 6 months) can be collapsed.
   // DW — default COLLAPSED so the recent 6 months are visible above the
   // fold; tap "Show older →" to reveal the older row.
-  const [showOlder, setShowOlder] = useState(false);
+  // EF3 — if `showOlderProp` + `onShowOlderChange` are provided, the
+  // parent owns this state; otherwise fall back to local state.
+  const [showOlderLocal, setShowOlderLocal] = useState(false);
+  const isControlled = onShowOlderChange !== undefined;
+  const showOlder = isControlled ? !!showOlderProp : showOlderLocal;
+  const setShowOlder = (next: boolean) => {
+    if (isControlled) onShowOlderChange?.(next);
+    else setShowOlderLocal(next);
+  };
 
   // Phase 14 (CZ) — calendar-wide max match for the "best available" dashed
   // ring. Only meaningful when more than one card is pulled; with a single
@@ -1909,7 +2076,11 @@ function OverlapStrip({
 
   return (
     <div style={{ position: "relative" }}>
-      {/* Toggle pills — top-right of the calendar area, never overlapping day cells */}
+      {/* EF3 — Legacy absolute pill bar. Rendered ONLY when uncontrolled
+          (no `onShowOlderChange` prop). When controlled, the parent owns
+          the pills and renders them via <OverlapPills/> wherever it
+          wants (e.g. under the notes textarea in ConstellationPage). */}
+      {!isControlled && (
       <div
         style={{
           position: "absolute",
@@ -1923,7 +2094,7 @@ function OverlapStrip({
         {layout === "grid12" && (
           <button
             type="button"
-            onClick={() => setShowOlder((v) => !v)}
+            onClick={() => setShowOlder(!showOlder)}
             style={{
               height: 22,
               padding: "0 12px",
@@ -2029,11 +2200,16 @@ function OverlapStrip({
           </button>
         )}
       </div>
+      )}
       <div
         style={
           layout === "grid12"
             ? {
-                paddingTop: 26,
+                // EF3 — Reserve top space only when the absolute pill bar
+                // is rendered (uncontrolled mode). When controlled, the
+                // pills live outside this component, so the calendar
+                // can sit flush at the top.
+                paddingTop: isControlled ? 0 : 26,
                 display: "grid",
                 gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
                 gridAutoRows: "auto",
