@@ -137,7 +137,7 @@ export function StreakHistory() {
                 opacity: 0.55,
               }}
             >
-              Plus {data!.singleDayPulls} single-day pull{data!.singleDayPulls === 1 ? "" : "s"}.
+              Plus {data!.singleDayPulls} single-day spread{data!.singleDayPulls === 1 ? "" : "s"}.
             </div>
           )}
         </>

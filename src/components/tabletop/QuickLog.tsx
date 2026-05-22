@@ -1503,7 +1503,7 @@ function ChipGrid({
         <Chip
           label="LAST SEEN"
           value={lastSeen}
-          tooltip="The most recent day this card appeared in any of your readings. Example: 'May 16 · 3d ago' means you drew this card 3 days ago, on May 16."
+          tooltip="The most recent day this card appeared in any of your spreads. Example: 'May 16 · 3d ago' means you drew this card 3 days ago, on May 16."
           onChipHover={onChipHover}
           onChipHoverEnd={onChipHoverEnd}
         />
@@ -1526,7 +1526,7 @@ function ChipGrid({
         <Chip
           label="FREQUENCY"
           value={frequency}
-          tooltip="Where this card sits in your personal draw history. Example: '#3 most-drawn · 47 times' means it's your third-most-pulled card across all your readings. 'Rare for you' means it's appeared 5 or fewer times in your full history."
+          tooltip="Where this card sits in your personal draw history. Example: '#3 most-drawn · 47 times' means it's your third-most-pulled card across all your spreads. 'Rare for you' means it's appeared 5 or fewer times in your full history."
           onChipHover={onChipHover}
           onChipHoverEnd={onChipHoverEnd}
         />
@@ -1968,7 +1968,7 @@ export function OverlapPills({
                 cursor: "pointer",
               }}
             >
-              {m === "pull" ? "same reading" : "same day"}
+              {m === "pull" ? "same spread" : "same day"}
             </button>
           );
         })}
@@ -2247,7 +2247,7 @@ function OverlapStrip({
                   cursor: "pointer",
                 }}
               >
-                {m === "pull" ? "same reading" : "same day"}
+                {m === "pull" ? "same spread" : "same day"}
               </button>
             );
           })}

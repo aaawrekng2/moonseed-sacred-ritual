@@ -843,7 +843,7 @@ function JournalPage() {
               setArchiveCounter((c) => c + 1);
             }}
             emptyCta={{
-              label: "Begin a reading",
+              label: "Begin a new spread",
               onClick: () => navigate({ to: "/" }),
             }}
           />
@@ -859,7 +859,7 @@ function JournalPage() {
           <ReadingsList
             items={favItems}
             emptyOracle="Nothing yet held close to the heart…"
-            emptyPlain="Favorite a reading to see it here."
+            emptyPlain="Favorite a spread to see it here."
             photoCounts={photoCounts}
             patternsById={patternsById}
             onOpen={setOpenId}
@@ -980,7 +980,7 @@ function ReadingsList({
     return (
       <Empty
         oracle={emptyOracle ?? "Your practice awaits its first telling…"}
-        plain={emptyPlain ?? "No readings yet. Complete a reading to begin."}
+        plain={emptyPlain ?? "No spreads yet. Save a spread to begin."}
         cta={emptyCta}
       />
     );
@@ -1074,7 +1074,7 @@ function ReadingCard({
       toast.error("Couldn't archive reading.");
       return;
     }
-    toast.success("Reading archived. Restore from Archive within 30 days.");
+    toast.success("Spread archived. Restore from Archive within 30 days.");
     onArchive(reading.id);
   };
 
@@ -1088,7 +1088,7 @@ function ReadingCard({
       {onArchive && (
         <button
           type="button"
-          aria-label="Archive reading"
+          aria-label="Archive spread"
           onClick={(e) => {
             e.stopPropagation();
             setConfirmOpen(true);
@@ -1705,7 +1705,7 @@ function ThreadsView({
                   }}
                 >
                   {p.lifecycle_state} · {patternReadings.length}{" "}
-                  {patternReadings.length === 1 ? "reading" : "readings"}
+                  {patternReadings.length === 1 ? "spread" : "spreads"}
                 </span>
               </div>
             {p.description && p.description.trim() && (
@@ -1982,7 +1982,7 @@ function CalendarView({
                       "1px solid color-mix(in oklab, var(--gold) 70%, transparent)",
                     boxShadow: "0 1px 4px oklch(0 0 0 / 0.5)",
                   }}
-                  aria-label={`${count} ${count === 1 ? "reading" : "readings"}`}
+                  aria-label={`${count} ${count === 1 ? "spread" : "spreads"}`}
                 >
                   {count}
                 </span>
@@ -2190,7 +2190,7 @@ function ReadingDetail({
       toast.error("Couldn't restore reading.");
       return;
     }
-    toast.success("Reading restored.");
+    toast.success("Spread restored.");
     onRestored?.();
     onClose();
   };
@@ -2205,7 +2205,7 @@ function ReadingDetail({
       toast.error("Couldn't archive reading.");
       return;
     }
-    toast.success("Reading archived. Restore from the Archive tab within 30 days.");
+    toast.success("Spread archived. Restore from the Archive tab within 30 days.");
     onArchived(reading.id);
   };
   const spreadModeForShare: SpreadMode = isValidSpreadMode(reading.spread_type)

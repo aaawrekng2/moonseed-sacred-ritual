@@ -268,7 +268,7 @@ function SlideContent({
         </div>
         <Caption>{range}</Caption>
         <BigNumber>{data.readingCount}</BigNumber>
-        <Caption>reading{data.readingCount === 1 ? "" : "s"} in this cycle</Caption>
+        <Caption>spread{data.readingCount === 1 ? "" : "s"} in this cycle</Caption>
       </SlideShell>
     );
   }
@@ -494,7 +494,7 @@ function SlideTopMoonPhase({ data }: { data: RecapData }) {
       </div>
       <Caption>You read most under the {phase}.</Caption>
       <Caption>
-        {count} reading{count === 1 ? "" : "s"} during the {phase}.
+        {count} spread{count === 1 ? "" : "s"} during the {phase}.
       </Caption>
     </SlideShell>
   );
@@ -811,7 +811,7 @@ function SlideSaveShareDone({
         <div style={{ textAlign: "center" }}>
           <div style={{ color: "#cea85c", fontSize: 96, lineHeight: 1 }}>{data.readingCount}</div>
           <div style={{ opacity: 0.75, marginTop: 8 }}>
-            reading{data.readingCount === 1 ? "" : "s"} this cycle
+            spread{data.readingCount === 1 ? "" : "s"} this cycle
           </div>
           {data.topStalker && (
             <div style={{ marginTop: 28, opacity: 0.85 }}>
