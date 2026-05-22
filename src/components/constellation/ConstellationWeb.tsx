@@ -460,17 +460,40 @@ function ConstellationSvg({
                     position: "relative",
                   }}
                 >
+                {/* EJ7 — solid backdrop sized to the actual rendered
+                    image, extending 2px on every side, plus a 4px outer
+                    glow. Only shown when this card is in the asterism.
+                    Rendered as an absolute span BEHIND the image-clip
+                    span; both share width=pos.w and the image-clip span
+                    is what drives the height (via the natural-aspect
+                    CardImage inside it), so the backdrop hugs the
+                    actual rendered card no matter what aspect the deck
+                    uses. */}
+                {heroInTeal && (
+                  <span
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      top: -2,
+                      left: -2,
+                      width: pos.w + 4,
+                      height: "calc(100% + 4px)",
+                      borderRadius: 8,
+                      background: TRACE_VAR,
+                      boxShadow: `0 0 4px 4px ${TRACE_VAR}`,
+                      zIndex: 0,
+                      pointerEvents: "none",
+                    }}
+                  />
+                )}
                 <span
                   style={{
                     display: "inline-block",
                     width: pos.w,
                     borderRadius: 6,
                     overflow: "hidden",
-                    boxShadow:
-                      "0 0 0 2px var(--accent, var(--gold)), 0 0 18px color-mix(in oklab, var(--accent, var(--gold)) 35%, transparent)" +
-                      (heroInTeal
-                        ? `, 0 0 0 5px var(--background), 0 0 0 7px ${TRACE_VAR}`
-                        : ""),
+                    position: "relative",
+                    zIndex: 1,
                   }}
                 >
                 <CardImage
@@ -684,18 +707,42 @@ function ConstellationSvg({
                   justifyContent: "center",
                 }}
               >
-                {/* EJ5 — inner wrapper carries the teal outline when the
-                    companion is in the asterism. Button stays slot-sized
-                    so x{N} labels and badges position predictably. */}
+                {/* EJ7 — solid backdrop sized to the actual rendered
+                    image, extending 2px on every side, plus a 4px outer
+                    glow. Only shown when this companion is in the
+                    asterism. */}
+                <span
+                  style={{
+                    display: "inline-block",
+                    width: pos.w,
+                    position: "relative",
+                  }}
+                >
+                {inTeal && (
+                  <span
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      top: -2,
+                      left: -2,
+                      width: pos.w + 4,
+                      height: "calc(100% + 4px)",
+                      borderRadius: 6,
+                      background: TRACE_VAR,
+                      boxShadow: `0 0 4px 4px ${TRACE_VAR}`,
+                      zIndex: 0,
+                      pointerEvents: "none",
+                    }}
+                  />
+                )}
                 <span
                   style={{
                     display: "inline-block",
                     width: pos.w,
                     borderRadius: 4,
                     overflow: "hidden",
-                    boxShadow: inTeal
-                      ? `0 0 0 4px ${TRACE_VAR}, 0 0 12px 2px ${TRACE_VAR}`
-                      : undefined,
+                    position: "relative",
+                    zIndex: 1,
                   }}
                 >
                 <CardImage
@@ -707,6 +754,69 @@ function ConstellationSvg({
                      to all companion cards. */
                   eager
                 />
+                </span>
+                {/* EJ7 — companion asterism badge nested inside the
+                    button so it anchors to the actual rendered card
+                    image top-right (same fix as the hero badges). */}
+                {tealBadge &&
+                  tealBadge.cardId === c.cardId &&
+                  tealBadge.count > 0 && (
+                    <div
+                      role={onTealBadgeClick ? "button" : undefined}
+                      tabIndex={onTealBadgeClick ? 0 : undefined}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTealBadgeClick?.();
+                      }}
+                      onMouseEnter={
+                        onTealBadgeHover
+                          ? (e) => {
+                              e.stopPropagation();
+                              onTealBadgeHover(e.clientX, e.clientY);
+                            }
+                          : undefined
+                      }
+                      onMouseLeave={(e) => {
+                        e.stopPropagation();
+                        onTealBadgeHoverEnd?.();
+                      }}
+                      aria-label={
+                        tealBadge.tooltip ??
+                        `View ${tealBadge.count} spreads with selected cards`
+                      }
+                      title={
+                        onTealBadgeHover
+                          ? undefined
+                          : (tealBadge.tooltip ??
+                            `View ${tealBadge.count} spreads with selected cards`)
+                      }
+                      style={{
+                        position: "absolute",
+                        top: -8,
+                        right: -8,
+                        width: 28,
+                        height: 28,
+                        borderRadius: 9999,
+                        background: TRACE_VAR,
+                        border:
+                          "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "var(--background)",
+                        fontFamily: "var(--font-serif)",
+                        fontStyle: "italic",
+                        fontSize: 11,
+                        lineHeight: 1,
+                        cursor: "pointer",
+                        padding: 0,
+                        zIndex: 2,
+                      }}
+                    >
+                      {tealBadge.count}
+                    </div>
+                  )}
                 </span>
               </button>
             </foreignObject>
@@ -723,61 +833,10 @@ function ConstellationSvg({
             >
               ×{c.coCount}
             </text>
-            {/* DZ — teal match-count badge on companion when it is the
-                first-clicked teal card and 2+ teal cards are selected. */}
-            {tealBadge &&
-              tealBadge.cardId === c.cardId &&
-              tealBadge.count > 0 && (
-                <foreignObject
-                  x={pos.x + pos.w - 14}
-                  y={pos.y - 14}
-                  width={28}
-                  height={28}
-                  pointerEvents="auto"
-                >
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onTealBadgeClick?.();
-                    }}
-                    onMouseEnter={
-                      onTealBadgeHover
-                        ? (e) => onTealBadgeHover(e.clientX, e.clientY)
-                        : undefined
-                    }
-                    onMouseLeave={onTealBadgeHoverEnd}
-                    aria-label={(tealBadge.tooltip ?? `View ${tealBadge.count} spreads with selected cards`)}
-                    title={
-                      onTealBadgeHover
-                        ? undefined
-                        : (tealBadge.tooltip ??
-                          `View ${tealBadge.count} spreads with selected cards`)
-                    }
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 9999,
-                      background: TRACE_VAR,
-                      border:
-                        "1px solid color-mix(in oklab, var(--color-foreground) 14%, transparent)",
-                      boxShadow: "0 1px 3px rgba(0,0,0,0.35)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "var(--background)",
-                      fontFamily: "var(--font-serif)",
-                      fontStyle: "italic",
-                      fontSize: 11,
-                      lineHeight: 1,
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                  >
-                    {tealBadge.count}
-                  </button>
-                </foreignObject>
-              )}
+            {/* EJ7 — companion asterism badge moved inside the button
+                so it anchors to the actual rendered card image (see
+                above). The previous sibling-foreignObject version is
+                gone. */}
           </g>
         );
       })}
